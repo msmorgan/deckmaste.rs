@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
@@ -55,7 +56,7 @@ use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 
 fn activated_card(cost: Vec<CostComponent>) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Payment fixture".into(),
         abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
@@ -67,8 +68,8 @@ fn activated_card(cost: Vec<CostComponent>) -> Arc<Card> {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn activation_fixture(
@@ -149,12 +150,12 @@ fn crew_fixture() -> (
         .into_iter()
         .find(|ability| ability.as_activated().is_some())
         .expect("Crew confers one activated ability");
-    let vehicle = Arc::new(Card::Normal(CardFace {
+    let vehicle = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Crew Vehicle".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![crew],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, source) = activation_fixture_with_card(
         vehicle,
         vec![
@@ -172,7 +173,7 @@ fn crew_fixture() -> (
 }
 
 fn mana_cylix_fixture() -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Mana Cylix".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -196,12 +197,12 @@ fn mana_cylix_fixture() -> Arc<Card> {
             ))
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn card_name(card: &Card) -> &str {
-    &card.primary_face().name
+    &card.primary_face().characteristics.name
 }
 
 fn hand_card(state: &GameState, player: PlayerId, name: &str) -> deckmaste_engine::ObjectId {
@@ -226,13 +227,13 @@ fn put_named_card_on_battlefield(
 }
 
 fn vanilla_creature(name: &str, power: i32) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(power)),
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn announce_to_payment(state: &mut GameState, source: deckmaste_engine::ObjectId) {
@@ -811,14 +812,14 @@ fn unaffordable_activation_is_still_a_legal_proposal() {
 
 #[test]
 fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
-    let first = Arc::new(Card::Normal(CardFace {
+    let first = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "First library subject".into(),
-        ..CardFace::default()
-    }));
-    let second = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let second = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Second library subject".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let search = CostComponent::Search(deckmaste_core::Search {
         dest: deckmaste_core::DefId(3),
         by: Reference::Reg(deckmaste_core::RefId(1)),
@@ -1238,10 +1239,10 @@ fn choose_and_pay_rejects_sacrificing_an_opponents_permanent() {
 fn decline_replays_the_exact_random_subset_and_restores_post_sample_rng() {
     let extras = (0..4)
         .map(|index| {
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: format!("Random library subject {index}").into(),
-                ..CardFace::default()
-            }))
+                ..Characteristics::default()
+            })))
         })
         .collect();
     let (mut state, payer, source) =
@@ -1344,10 +1345,10 @@ fn decline_replays_the_exact_random_subset_and_restores_post_sample_rng() {
 fn declining_an_omitted_random_cost_preserves_consumed_entropy() {
     let extras = (0..4)
         .map(|index| {
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: format!("Random discard subject {index}").into(),
-                ..CardFace::default()
-            }))
+                ..Characteristics::default()
+            })))
         })
         .collect();
     let (mut state, payer, source) =
@@ -1391,14 +1392,14 @@ fn declining_an_omitted_random_cost_preserves_consumed_entropy() {
 
 #[test]
 fn discard_set_validates_before_any_card_moves() {
-    let first_card = Arc::new(Card::Normal(CardFace {
+    let first_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "First discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let second_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Second discard".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, source) =
         activation_fixture_with_extras(discard_two_cost(), vec![first_card, second_card]);
     let first = hand_card(&state, payer, "First discard");
@@ -1517,10 +1518,10 @@ fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
 
 #[test]
 fn random_cost_rejects_an_insufficient_subject_set_without_advancing_rng() {
-    let only_card = Arc::new(Card::Normal(CardFace {
+    let only_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Only random discard".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, _, source) =
         activation_fixture_with_extras(random_discard_two_cost(), vec![only_card]);
     announce_to_payment(&mut state, source);
@@ -1541,14 +1542,14 @@ fn random_cost_rejects_an_insufficient_subject_set_without_advancing_rng() {
 
 #[test]
 fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
-    let first_card = Arc::new(Card::Normal(CardFace {
+    let first_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "First random discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let second_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Second random discard".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut cost = vec![CostComponent::Tap];
     cost.extend(random_discard_two_cost());
     let (mut state, payer, source) =
@@ -1640,10 +1641,10 @@ fn random_producer_subject_cost_binder_fails_closed() {
 
 #[test]
 fn runner_declines_an_insufficient_random_choose_and_pay_cost() {
-    let only_card = Arc::new(Card::Normal(CardFace {
+    let only_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Only automatic random discard".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, _, source) =
         activation_fixture_with_extras(random_discard_two_cost(), vec![only_card]);
     announce_to_payment(&mut state, source);
@@ -1656,14 +1657,14 @@ fn runner_declines_an_insufficient_random_choose_and_pay_cost() {
 
 #[test]
 fn runner_selects_a_complete_choose_and_pay_witness() {
-    let first_card = Arc::new(Card::Normal(CardFace {
+    let first_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "First automatic discard".into(),
-        ..CardFace::default()
-    }));
-    let second_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let second_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Second automatic discard".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, source) =
         activation_fixture_with_extras(discard_two_cost(), vec![first_card, second_card]);
     let first = hand_card(&state, payer, "First automatic discard");
@@ -1682,10 +1683,10 @@ fn runner_selects_a_complete_choose_and_pay_witness() {
 
 #[test]
 fn search_cost_validates_and_runs_an_explicit_complete_witness() {
-    let sought = Arc::new(Card::Normal(CardFace {
+    let sought = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Sought card".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let search = CostComponent::Search(deckmaste_core::Search {
         dest: PAID,
         by: Reference::Reg(deckmaste_core::RefId(1)),
@@ -1757,7 +1758,7 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
         Arc::from([]),
         Some(Zone::Library),
     )));
-    let shuffler = Arc::new(Card::Normal(CardFace {
+    let shuffler = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Payment shuffle replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(deckmaste_core::StaticSpec::Replacement(
@@ -1773,13 +1774,13 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
                 ))),
             }),
         ))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let chronology_cards = (0..10).map(|index| {
-        Arc::new(Card::Normal(CardFace {
+        Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: format!("RNG chronology card {index}").into(),
-            ..CardFace::default()
-        }))
+            ..Characteristics::default()
+        })))
     });
     let payer = PlayerId(0);
     let deck = std::iter::once(activated_card(cost))

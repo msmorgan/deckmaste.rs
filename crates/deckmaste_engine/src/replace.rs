@@ -249,6 +249,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::Type;
     use deckmaste_plugin::plugin::Plugin;
@@ -334,7 +335,7 @@ mod tests {
     fn enters_with_counters() {
         use deckmaste_core::Count;
 
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Counterer".into(),
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -352,8 +353,8 @@ mod tests {
                     )),
                 },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
 
         let mut state = game();
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -410,7 +411,7 @@ mod tests {
     ) -> Card {
         use deckmaste_core::Count;
 
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Test Slumbering Isle".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -434,8 +435,8 @@ mod tests {
                     ),
                 },
             )))],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Run `card` from hand to battlefield, stopping as soon as it appears
@@ -583,7 +584,7 @@ mod tests {
             Cmp::AtLeast,
             Count::Literal(1),
         );
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Test Tapland".into(),
             types: vec![Type::Land.def()],
             abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -603,18 +604,18 @@ mod tests {
                     }),
                 },
             )))],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Put a vanilla land on the battlefield under P0. Returns its id — the
     /// "other land" the gate counts.
     fn other_land(state: &mut GameState) -> ObjectId {
-        let land = Card::Normal(CardFace {
+        let land = Card::Normal(CardFace::from(Characteristics {
             name: "Test Land".into(),
             types: vec![Type::Land.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card = state.cards.push(Arc::new(land), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card),
@@ -724,11 +725,11 @@ mod tests {
             )))),
         }];
 
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Walker".into(),
             types: vec![Type::Planeswalker.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let hand_id =
             state
@@ -824,11 +825,11 @@ mod tests {
             types: std::collections::HashMap::new(),
         });
 
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Walker".into(),
             types: vec![Type::Planeswalker.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let hand_id =
             state
@@ -908,12 +909,12 @@ mod tests {
                 types: std::collections::HashMap::new(),
             });
 
-            let card = Card::Normal(CardFace {
+            let card = Card::Normal(CardFace::from(Characteristics {
                 name: "Test Walker".into(),
                 types: vec![Type::Planeswalker.def()],
                 loyalty: Some(deckmaste_core::StatValue::Number(printed_loyalty)),
-                ..CardFace::default()
-            });
+                ..Characteristics::default()
+            }));
             let card_id = state.cards.push(Arc::new(card), PlayerId(0));
             let hand_id =
                 state
@@ -1044,7 +1045,7 @@ mod tests {
     /// plus the Enchant grant: the host quality is the choice's filter, and
     /// the controller chooses a legal host as it enters ([CR#303.4f]).
     fn enchant_aura_card() -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![
@@ -1057,8 +1058,8 @@ mod tests {
                     .into(),
                 ))),
             ],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// A synthetic Aura like [`enchant_aura_card`], but the enters-attached
@@ -1068,7 +1069,7 @@ mod tests {
     fn you_controlled_aura_card() -> Card {
         use deckmaste_core::RelationPredicate;
 
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Test You-Controlled Aura".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![
@@ -1084,8 +1085,8 @@ mod tests {
                     .into(),
                 ))),
             ],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Mint `card` in P0's hand and run a hand→battlefield entry to

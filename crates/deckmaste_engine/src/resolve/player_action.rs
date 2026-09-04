@@ -1771,7 +1771,9 @@ mod tests {
         );
         assert!(state.cards.get(card).is_token, "[CR#111.6]");
         assert_eq!(
-            &*crate::derive::face(&state.cards.get(card).def).name,
+            &*crate::derive::face(&state.cards.get(card).def)
+                .characteristics
+                .name,
             "Treasure Token",
             "[CR#111.4]: unnamed token defaults to subtypes + \"Token\""
         );
@@ -1833,17 +1835,17 @@ mod tests {
         let card = state.objects.obj(t).card_id().expect("card-backed");
         let face = crate::derive::face(&state.cards.get(card).def);
         assert_eq!(
-            &*face.name, "Grizzly Bears",
+            &*face.characteristics.name, "Grizzly Bears",
             "[CR#707.2]: name matches the copied source EXACTLY (Spitting \
              Image example) — not resynthesized to \"Bear Token\""
         );
         assert_eq!(
-            face.power,
+            face.characteristics.power,
             Some(StatValue::Number(2)),
             "[CR#707.2]: power matches the copied source"
         );
         assert_eq!(
-            face.toughness,
+            face.characteristics.toughness,
             Some(StatValue::Number(2)),
             "[CR#707.2]: toughness matches the copied source"
         );
@@ -1852,7 +1854,10 @@ mod tests {
             "[CR#707.2]: types match the copied source"
         );
         assert!(
-            face.subtypes.iter().any(|s| s.name == "Bear"),
+            face.characteristics
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Bear"),
             "[CR#707.2]: subtypes match the copied source (Grizzly Bears -> Bear)"
         );
     }
@@ -1894,17 +1899,18 @@ mod tests {
     #[test]
     fn token_copy_of_instant_or_sorcery_creates_nothing() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
 
         let (mut state, a) = bear_on_field();
         let bolt = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Lightning Bolt".into(),
                 types: vec![Type::Instant.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_src_targets(&state, a, vec![bolt]);
         assert_eq!(
@@ -1975,12 +1981,12 @@ mod tests {
         let card = state.objects.obj(t).card_id().expect("card-backed");
         let face = crate::derive::face(&state.cards.get(card).def);
         assert_eq!(
-            face.power,
+            face.characteristics.power,
             Some(StatValue::Number(4)),
             "[CR#707.9d]: Modify(Power Set 4) overrides the copied power"
         );
         assert_eq!(
-            face.toughness,
+            face.characteristics.toughness,
             Some(StatValue::Number(4)),
             "[CR#707.9d]: Modify(Toughness Set 4) overrides the copied toughness"
         );
@@ -2099,24 +2105,27 @@ mod tests {
 
         let face = minted_copy_face(&state, &[src]);
         assert_eq!(
-            &*face.name, "Grizzly Bears",
+            &*face.characteristics.name, "Grizzly Bears",
             "[CR#707.2]: the copy keeps the source's name"
         );
         assert_eq!(
-            face.power,
+            face.characteristics.power,
             Some(StatValue::Number(4)),
             "[CR#702.129a,707.9d]: eternalize copy is 4/4"
         );
-        assert_eq!(face.toughness, Some(StatValue::Number(4)));
+        assert_eq!(face.characteristics.toughness, Some(StatValue::Number(4)));
         assert!(
-            face.color_indicator.contains(&Color::Black),
+            face.characteristics.color_indicator.contains(&Color::Black),
             "[CR#702.129a]: eternalize copy is black; got {:?}",
-            face.color_indicator
+            face.characteristics.color_indicator
         );
         assert!(
-            face.subtypes.iter().any(|s| s.name == "Zombie"),
+            face.characteristics
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Zombie"),
             "[CR#702.129a]: eternalize copy is a Zombie in addition to its other types; got {:?}",
-            face.subtypes
+            face.characteristics.subtypes
         );
     }
 
@@ -2135,22 +2144,28 @@ mod tests {
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
-        assert_eq!(&*face.name, "Grizzly Bears", "[CR#707.2]: name carried");
         assert_eq!(
-            face.power,
+            &*face.characteristics.name, "Grizzly Bears",
+            "[CR#707.2]: name carried"
+        );
+        assert_eq!(
+            face.characteristics.power,
             Some(StatValue::Number(2)),
             "[CR#702.128a]: embalm keeps the source's P/T (2/2)"
         );
-        assert_eq!(face.toughness, Some(StatValue::Number(2)));
+        assert_eq!(face.characteristics.toughness, Some(StatValue::Number(2)));
         assert!(
-            face.color_indicator.contains(&Color::White),
+            face.characteristics.color_indicator.contains(&Color::White),
             "[CR#702.128a]: embalm copy is white; got {:?}",
-            face.color_indicator
+            face.characteristics.color_indicator
         );
         assert!(
-            face.subtypes.iter().any(|s| s.name == "Zombie"),
+            face.characteristics
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Zombie"),
             "[CR#702.128a]: embalm copy is a Zombie; got {:?}",
-            face.subtypes
+            face.characteristics.subtypes
         );
     }
 
@@ -2168,13 +2183,16 @@ mod tests {
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
-        assert_eq!(&*face.name, "Grizzly Bears", "[CR#707.2]: name carried");
         assert_eq!(
-            face.power,
+            &*face.characteristics.name, "Grizzly Bears",
+            "[CR#707.2]: name carried"
+        );
+        assert_eq!(
+            face.characteristics.power,
             Some(StatValue::Number(1)),
             "[CR#702.175a]: offspring copy is 1/1"
         );
-        assert_eq!(face.toughness, Some(StatValue::Number(1)));
+        assert_eq!(face.characteristics.toughness, Some(StatValue::Number(1)));
     }
 
     /// Populate ([CR#701.36a]): drives the FULL `Populate` macro expansion —
@@ -2266,20 +2284,23 @@ mod tests {
 
         let face = minted_copy_face(&state, &[src, token]);
         assert_eq!(
-            &*face.name, "Bear Token",
+            &*face.characteristics.name, "Bear Token",
             "[CR#701.36a,111.4]: the copy of an unnamed creature token carries its \
              synthesized name (subtypes + \"Token\")"
         );
         assert_eq!(
-            face.power,
+            face.characteristics.power,
             Some(StatValue::Number(2)),
             "[CR#701.36a]: populate copy matches the source token's P/T"
         );
-        assert_eq!(face.toughness, Some(StatValue::Number(2)));
+        assert_eq!(face.characteristics.toughness, Some(StatValue::Number(2)));
         assert!(
-            face.subtypes.iter().any(|s| s.name == "Bear"),
+            face.characteristics
+                .subtypes
+                .iter()
+                .any(|s| s.name == "Bear"),
             "[CR#701.36a]: populate copy matches the source token's subtypes; got {:?}",
-            face.subtypes
+            face.characteristics.subtypes
         );
     }
 
@@ -2303,6 +2324,7 @@ mod tests {
     #[test]
     fn amass_grows_and_subtypes_the_chosen_army() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::StatValue;
         use deckmaste_core::Subtype;
 
@@ -2314,7 +2336,7 @@ mod tests {
         // counters land; the amass grows it to 4/4.
         let army = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Zombie Army".into(),
                 types: vec![Type::Creature.def()],
                 subtypes: vec![Subtype {
@@ -2324,8 +2346,8 @@ mod tests {
                 }],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
 
         // Drive the ACTUAL macro expansion: amass Zombies 2 (the subtype is a
@@ -2409,6 +2431,7 @@ mod tests {
     #[test]
     fn token_copy_etb_trigger_fires_through_the_normal_battlefield_path() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
@@ -2421,7 +2444,7 @@ mod tests {
         use crate::decide::DecisionPointKind;
 
         let (mut state, actor) = bear_on_field();
-        let source_face = CardFace {
+        let source_face = CardFace::from(Characteristics {
             name: "Wall of Omens".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(0)),
@@ -2445,8 +2468,8 @@ mod tests {
                 )
                 .into(),
             })],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let src = mint_on_field(&mut state, Card::Normal(source_face));
 
         let frame = frame_src_targets(&state, actor, vec![src]);
@@ -2536,6 +2559,7 @@ mod tests {
     #[test]
     fn token_copy_modify_pt_drops_source_cda_end_to_end() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::CopyException;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
@@ -2546,14 +2570,14 @@ mod tests {
         let mut state = game();
         let goyf = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Tarmogoyf".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::DefinedByAbility),
                 toughness: Some(StatValue::DefinedByAbility),
                 abilities: vec![tarmogoyf_shaped_cda()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
@@ -2604,13 +2628,13 @@ mod tests {
         // is genuinely gone, not coincidentally reading 5.
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Bear".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let view = state.layers();
         assert_eq!(
@@ -2627,6 +2651,7 @@ mod tests {
     #[test]
     fn token_copy_without_modify_carries_source_cda() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::CopySource;
         use deckmaste_core::CopySpec;
         use deckmaste_core::StatValue;
@@ -2634,14 +2659,14 @@ mod tests {
         let mut state = game();
         let goyf = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Tarmogoyf".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::DefinedByAbility),
                 toughness: Some(StatValue::DefinedByAbility),
                 abilities: vec![tarmogoyf_shaped_cda()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
@@ -2682,13 +2707,13 @@ mod tests {
         // track it live, exactly like the source's own CDA would.
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Bear".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let view = state.layers();
         assert_eq!(
@@ -3091,10 +3116,11 @@ mod tests {
         event: deckmaste_core::EventFilter,
     ) -> ObjectSource {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::TriggeredAbility;
 
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Randomness Watcher".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
@@ -3111,8 +3137,8 @@ mod tests {
                 )
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),

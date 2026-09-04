@@ -15,7 +15,7 @@ fn testing_path() -> PathBuf {
 
 fn assert_testing_card_name(plugin: &Plugin, name: &str) {
     let card = plugin.card(name).unwrap().core;
-    assert_eq!(card.primary_face().name.as_ref(), name);
+    assert_eq!(card.primary_face().characteristics.name.as_ref(), name);
 }
 
 #[test]

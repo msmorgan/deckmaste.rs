@@ -1,7 +1,7 @@
 //! The engine's unit of card definitions: `Card`, `Characteristics`, and
-//! `CardFace` (the Card Face use of `Characteristics`) — the packaging of
-//! `deckmaste_core`'s loose primitives into a playable unit. Depends on core;
-//! core never depends on this crate.
+//! `CardFace` (a `Characteristics` plus whatever its layout adds) — the
+//! packaging of `deckmaste_core`'s loose primitives into a playable unit.
+//! Depends on core; core never depends on this crate.
 
 /// `skip_serializing_if` helper for slice-backed fields (`Vec<T>` and
 /// `Arc<[T]>` alike, via deref coercion at the call site).

@@ -414,15 +414,18 @@ impl GameState {
             // object; LKI-derived characteristics are not captured — see the
             // snapshot-stat seam note). A player-proxy snapshot has no face.
             Predicate::Characteristic(CharacteristicPredicate::Named(n)) => {
-                snapshot_face(self, snapshot).is_some_and(|f| &*f.name == n.as_str())
+                snapshot_face(self, snapshot)
+                    .is_some_and(|f| &*f.characteristics.name == n.as_str())
             }
             Predicate::Characteristic(CharacteristicPredicate::NamedReg(reference)) => self
                 .activation_symbol(activation, *reference)
                 .is_some_and(|expected| {
-                    snapshot_face(self, snapshot).is_some_and(|f| f.name.as_ref() == expected)
+                    snapshot_face(self, snapshot)
+                        .is_some_and(|f| f.characteristics.name.as_ref() == expected)
                 }),
             Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
-                snapshot_face(self, snapshot).is_some_and(|f| f.supertypes.contains(s))
+                snapshot_face(self, snapshot)
+                    .is_some_and(|f| f.characteristics.supertypes.contains(s))
             }
             Predicate::Characteristic(CharacteristicPredicate::ColorIs(c)) => {
                 snapshot_face(self, snapshot)
@@ -1581,7 +1584,8 @@ fn snapshot_face<'a>(
 /// Whether the snapshot's card has the named type in its printed face
 /// (matched by name against the expanded `TypeDef`s).
 fn snapshot_has_type(state: &GameState, snapshot: &LkiSnapshot, ty: Ident) -> bool {
-    snapshot_face(state, snapshot).is_some_and(|f| f.types.iter().any(|t| t.name == ty))
+    snapshot_face(state, snapshot)
+        .is_some_and(|f| f.characteristics.types.iter().any(|t| t.name == ty))
 }
 
 /// The PRINTED value of `stat` for a snapshot, or `None` when the face lacks it
@@ -1594,16 +1598,20 @@ fn snapshot_stat(
 ) -> Option<deckmaste_core::Int> {
     let face = snapshot_face(state, snapshot)?;
     match stat {
-        deckmaste_core::Stat::Power => crate::layer::base_stat(face.power.as_ref()),
-        deckmaste_core::Stat::Toughness => crate::layer::base_stat(face.toughness.as_ref()),
+        deckmaste_core::Stat::Power => crate::layer::base_stat(face.characteristics.power.as_ref()),
+        deckmaste_core::Stat::Toughness => {
+            crate::layer::base_stat(face.characteristics.toughness.as_ref())
+        }
         deckmaste_core::Stat::ManaValue => Some(
-            deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+            deckmaste_core::Int::try_from(face.characteristics.mana_cost.mana_value())
                 .expect("mana value fits Int"),
         ),
         // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic off
         // the snapshot's face — never the counter count (current loyalty is
         // `CounterCount(This, LoyaltyCounter)`), mirroring the P/T arms above.
-        deckmaste_core::Stat::Loyalty => crate::layer::base_stat(face.loyalty.as_ref()),
+        deckmaste_core::Stat::Loyalty => {
+            crate::layer::base_stat(face.characteristics.loyalty.as_ref())
+        }
         deckmaste_core::Stat::Defense => Some(
             deckmaste_core::Int::try_from(
                 snapshot
@@ -3742,6 +3750,7 @@ mod tests {
     fn transform_watcher_dfc() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::Count;
@@ -3765,13 +3774,15 @@ mod tests {
             effect: Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1))
                 .into(),
         });
-        let face = |name: &str| CardFace {
-            name: name.into(),
-            types: vec![Type::Creature.def()],
-            power: Some(StatValue::Number(1)),
-            toughness: Some(StatValue::Number(1)),
-            abilities: vec![watch.clone()],
-            ..CardFace::default()
+        let face = |name: &str| {
+            CardFace::from(Characteristics {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(1)),
+                toughness: Some(StatValue::Number(1)),
+                abilities: vec![watch.clone()],
+                ..Characteristics::default()
+            })
         };
         Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
@@ -3843,26 +3854,27 @@ mod tests {
     fn delverish_aberration() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::StatValue;
 
-        let front = CardFace {
+        let front = CardFace::from(Characteristics {
             name: "Delverish".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(1)),
             toughness: Some(StatValue::Number(1)),
-            ..CardFace::default()
-        };
-        let back = CardFace {
+            ..Characteristics::default()
+        });
+        let back = CardFace::from(Characteristics {
             name: "Aberration".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(3)),
             toughness: Some(StatValue::Number(2)),
             abilities: vec![Ability::Keyword(KeywordAbility::Trample)],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
             front,
@@ -4067,6 +4079,7 @@ mod tests {
     fn delver_upkeep_reveals_instant_and_transforms() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Action;
         use deckmaste_core::Count;
@@ -4088,31 +4101,31 @@ mod tests {
         fn delver() -> Card {
             Card::DoubleFaced {
                 layout: DoubleFacedLayout::Transforming,
-                front: CardFace {
+                front: CardFace::from(Characteristics {
                     name: "Delver of Secrets".into(),
                     types: vec![Type::Creature.def()],
                     power: Some(StatValue::Number(1)),
                     toughness: Some(StatValue::Number(1)),
-                    ..CardFace::default()
-                },
-                back: CardFace {
+                    ..Characteristics::default()
+                }),
+                back: CardFace::from(Characteristics {
                     name: "Insectile Aberration".into(),
                     types: vec![Type::Creature.def()],
                     power: Some(StatValue::Number(3)),
                     toughness: Some(StatValue::Number(2)),
-                    ..CardFace::default()
-                },
+                    ..Characteristics::default()
+                }),
             }
         }
 
         // Mint a card of type `ty` onto the TOP (front) of P0's library.
         fn put_on_top(state: &mut GameState, name: &str, ty: Type) {
             let cid = state.cards.push(
-                Arc::new(Card::Normal(CardFace {
+                Arc::new(Card::Normal(CardFace::from(Characteristics {
                     name: name.into(),
                     types: vec![ty.def()],
-                    ..CardFace::default()
-                })),
+                    ..Characteristics::default()
+                }))),
                 PlayerId(0),
             );
             let id = state
@@ -4244,6 +4257,7 @@ mod tests {
     fn rabblemaster() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
         use deckmaste_core::Color;
@@ -4268,7 +4282,7 @@ mod tests {
             power: Some(StatValue::Number(1)),
             toughness: Some(StatValue::Number(1)),
         };
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Rabblemaster".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
@@ -4290,8 +4304,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Force a synthetic in-Rust card onto the battlefield under `controller`.
@@ -4659,6 +4673,7 @@ mod tests {
     fn upkeep_trigger_from(from: Option<Zone>) -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Count;
@@ -4669,7 +4684,7 @@ mod tests {
         use deckmaste_core::TriggeredAbility;
         use deckmaste_core::WhoseTurn;
 
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Graveyard Echo".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
@@ -4689,8 +4704,8 @@ mod tests {
                 )
                 .into(),
             })],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Put a synthetic in-Rust card into `controller`'s graveyard.
@@ -4948,6 +4963,7 @@ mod tests {
     {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
@@ -4974,26 +4990,26 @@ mod tests {
             effect: Instruction::draw(Reference::Reg(deckmaste_core::RefId(1)), Count::Literal(1))
                 .into(),
         };
-        let front = CardFace {
+        let front = CardFace::from(Characteristics {
             name: "Front Vanilla".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let back_ability = Ability::triggered(back_trigger);
         let back_trigger = back_ability
             .as_triggered()
             .expect("the normalized ability remains triggered")
             .clone();
-        let back = CardFace {
+        let back = CardFace::from(Characteristics {
             name: "Back Upkeep Drawer".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(3)),
             toughness: Some(StatValue::Number(3)),
             abilities: vec![back_ability],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
             front,
@@ -5694,6 +5710,7 @@ mod tests {
     fn dies_watcher(limits: Vec<deckmaste_core::UseLimit>) -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
         use deckmaste_core::Count;
@@ -5705,7 +5722,7 @@ mod tests {
         use deckmaste_core::TriggeredAbility;
         use deckmaste_core::Zone;
 
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Death Watcher".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
@@ -5729,8 +5746,8 @@ mod tests {
             })],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Build a two-player game with a `Death Watcher` (carrying `limits`) on
@@ -6201,7 +6218,7 @@ mod tests {
         let src = format!("Normal(name: \"E\", types: [], abilities: [{inner}])");
         let card = canon().card_from_str(&src).unwrap().core;
         match card {
-            deckmaste_card::Card::Normal(face) => face.abilities,
+            deckmaste_card::Card::Normal(face) => face.characteristics.abilities,
             other => panic!("unexpected emblem card shape: {other:?}"),
         }
     }
@@ -6536,6 +6553,7 @@ mod tests {
     fn pain_gainer() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::Action;
         use deckmaste_core::Count;
@@ -6544,7 +6562,7 @@ mod tests {
         use deckmaste_core::StatValue;
         use deckmaste_core::TriggeredAbility;
 
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Pain Gainer".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
@@ -6571,8 +6589,8 @@ mod tests {
             })],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(4)),
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// The firing event's magnitude in the fixed event-role prefix

@@ -416,7 +416,10 @@ pub(crate) fn legend_rule_groups(
             continue;
         }
         let controller = state.objects.obj(id).controller;
-        let name = crate::derive::face(state.def(id)).name.to_string();
+        let name = crate::derive::face(state.def(id))
+            .characteristics
+            .name
+            .to_string();
         by_player
             .entry(controller)
             .or_default()
@@ -593,12 +596,12 @@ mod tests {
         // derived object.)
         let face = crate::derive::face(&gift);
         assert!(
-            face.subtypes.iter().any(|s| s
+            face.characteristics.subtypes.iter().any(|s| s
                 .confers
                 .iter()
                 .any(|p| matches!(p, deckmaste_core::Property::StateBased { .. }))),
             "the wizards Aura card embeds the state-based confer; subtypes: {:?}",
-            face.subtypes
+            face.characteristics.subtypes
         );
 
         let mut state = GameState::new(GameConfig {
@@ -1099,6 +1102,7 @@ mod tests {
     // --- Attachment SBAs ([CR#704.5m..704.5p]) ---------------------------------
 
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::Condition;
     use deckmaste_core::Deontic;
@@ -1148,12 +1152,12 @@ mod tests {
         types: Vec<Type>,
         abilities: Vec<Ability>,
     ) -> crate::object::ObjectId {
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: types.into_iter().map(Type::def).collect(),
             abilities,
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1239,12 +1243,12 @@ mod tests {
         types: Vec<Type>,
         subtypes: Vec<deckmaste_core::Subtype>,
     ) -> crate::object::ObjectId {
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: types.into_iter().map(Type::def).collect(),
             subtypes,
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1896,12 +1900,14 @@ mod tests {
         name: &str,
         controller: PlayerId,
     ) -> crate::object::ObjectId {
-        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: name.into(),
-            types: vec![Type::Creature.def()],
-            supertypes: vec![Supertype::Legendary],
-            ..deckmaste_card::CardFace::default()
-        });
+        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace::from(
+            deckmaste_card::Characteristics {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                supertypes: vec![Supertype::Legendary],
+                ..deckmaste_card::Characteristics::default()
+            },
+        ));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1919,12 +1925,14 @@ mod tests {
         name: &str,
         controller: PlayerId,
     ) -> crate::object::ObjectId {
-        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: name.into(),
-            types: vec![Type::Creature.def()],
-            supertypes: vec![],
-            ..deckmaste_card::CardFace::default()
-        });
+        let card = deckmaste_card::Card::Normal(deckmaste_card::CardFace::from(
+            deckmaste_card::Characteristics {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                supertypes: vec![],
+                ..deckmaste_card::Characteristics::default()
+            },
+        ));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2270,7 +2278,7 @@ mod tests {
         use deckmaste_core::StaticSpec;
         let angel = canon().card("Platinum Angel").unwrap().core;
         let gates = crate::derive::face(&angel)
-            .abilities
+            .characteristics.abilities
             .iter()
             .filter(|a| matches!(a, Ability::Static(s) if matches!(&s.body, StaticSpec::OutcomeGate { .. })))
             .count();

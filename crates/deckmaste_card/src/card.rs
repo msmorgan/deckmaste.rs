@@ -48,13 +48,49 @@ pub struct Characteristics {
     pub defense: Option<StatValue>,
 }
 
-/// A Card Face: a set of printed [`Characteristics`] the CR calls a face —
-/// nonmeld double-faced front/back [CR#712.1], split's two faces on one side
-/// [CR#709.1], and the ordinary (non-alternative) side of a flip or adventurer
-/// card. Same value type as [`Characteristics`]; the two names carry the
-/// distinction the CR draws — a face is never a rules-defined alternative,
-/// and an alternative is never a second face.
-pub type CardFace = Characteristics;
+/// A Card Face: the [`Characteristics`] printed on something the CR calls a
+/// face — nonmeld double-faced front/back [CR#712.1], split's two faces on one
+/// side [CR#709.1], and the ordinary (non-alternative) side of a flip or
+/// adventurer card — plus whatever else its layout adds, which today is
+/// nothing.
+///
+/// A rules-defined Alternative Characteristics set is not a face, and the
+/// types say so: a flip card's upside-down half [CR#710.1] takes
+/// [`Characteristics`], never a `CardFace`.
+///
+/// ```compile_fail
+/// use deckmaste_card::Card;
+/// use deckmaste_card::CardFace;
+/// use deckmaste_card::Characteristics;
+///
+/// let face = CardFace::from(Characteristics::default());
+/// let _ = Card::Flip {
+///     normal: face.clone(),
+///     alternative: face,
+/// };
+/// ```
+///
+/// ```
+/// use deckmaste_card::Card;
+/// use deckmaste_card::CardFace;
+/// use deckmaste_card::Characteristics;
+///
+/// let _ = Card::Flip {
+///     normal: CardFace::from(Characteristics::default()),
+///     alternative: Characteristics::default(),
+/// };
+/// ```
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct CardFace {
+    pub characteristics: Characteristics,
+}
+
+impl From<Characteristics> for CardFace {
+    fn from(characteristics: Characteristics) -> Self {
+        Self { characteristics }
+    }
+}
 
 /// How a nonmeld double-faced card's two faces are arranged. Meld's oversized
 /// back ([CR#712.4]) is the exception [CR#712.1] states and isn't a
@@ -126,36 +162,43 @@ mod tests {
         }
     }
 
+    fn face(name: &str) -> CardFace {
+        CardFace::from(characteristics(name))
+    }
+
     /// Delver of Secrets // Insectile Aberration: a nonmeld double-faced card
     /// has front and back Card Faces ([CR#712.1]).
     #[test]
     fn double_faced_witness_has_front_and_back_card_faces() {
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
-            front: characteristics("Delver of Secrets"),
-            back: characteristics("Insectile Aberration"),
+            front: face("Delver of Secrets"),
+            back: face("Insectile Aberration"),
         };
         let Card::DoubleFaced { front, back, .. } = &card else {
             panic!("not a DoubleFaced card");
         };
-        assert_eq!(front.name.as_ref(), "Delver of Secrets");
-        assert_eq!(back.name.as_ref(), "Insectile Aberration");
-        assert_eq!(card.primary_face().name.as_ref(), "Delver of Secrets");
+        assert_eq!(front.characteristics.name.as_ref(), "Delver of Secrets");
+        assert_eq!(back.characteristics.name.as_ref(), "Insectile Aberration");
+        assert_eq!(
+            card.primary_face().characteristics.name.as_ref(),
+            "Delver of Secrets"
+        );
     }
 
     /// Fire // Ice: a split card has two card faces on one side ([CR#709.1]).
     #[test]
     fn split_witness_has_two_card_faces_on_one_side() {
         let card = Card::Split {
-            left: characteristics("Fire"),
-            right: characteristics("Ice"),
+            left: face("Fire"),
+            right: face("Ice"),
         };
         let Card::Split { left, right } = &card else {
             panic!("not a Split card");
         };
-        assert_eq!(left.name.as_ref(), "Fire");
-        assert_eq!(right.name.as_ref(), "Ice");
-        assert_eq!(card.primary_face().name.as_ref(), "Fire");
+        assert_eq!(left.characteristics.name.as_ref(), "Fire");
+        assert_eq!(right.characteristics.name.as_ref(), "Ice");
+        assert_eq!(card.primary_face().characteristics.name.as_ref(), "Fire");
     }
 
     /// Bushi Tenderfoot // Kenzo the Hardhearted: a flip card has one card
@@ -164,7 +207,7 @@ mod tests {
     #[test]
     fn flip_witness_has_one_face_and_alternative_characteristics() {
         let card = Card::Flip {
-            normal: characteristics("Bushi Tenderfoot"),
+            normal: face("Bushi Tenderfoot"),
             alternative: characteristics("Kenzo the Hardhearted"),
         };
         let Card::Flip {
@@ -174,9 +217,12 @@ mod tests {
         else {
             panic!("not a Flip card");
         };
-        assert_eq!(normal.name.as_ref(), "Bushi Tenderfoot");
+        assert_eq!(normal.characteristics.name.as_ref(), "Bushi Tenderfoot");
         assert_eq!(alternative.name.as_ref(), "Kenzo the Hardhearted");
-        assert_eq!(card.primary_face().name.as_ref(), "Bushi Tenderfoot");
+        assert_eq!(
+            card.primary_face().characteristics.name.as_ref(),
+            "Bushi Tenderfoot"
+        );
     }
 
     /// Merfolk Secretkeeper // Venture Deeper: an adventurer card has normal
@@ -185,14 +231,34 @@ mod tests {
     #[test]
     fn adventurer_witness_has_normal_and_alternative_adventure_characteristics() {
         let card = Card::Adventurer {
-            normal: characteristics("Merfolk Secretkeeper"),
+            normal: face("Merfolk Secretkeeper"),
             adventure: characteristics("Venture Deeper"),
         };
         let Card::Adventurer { normal, adventure } = &card else {
             panic!("not an Adventurer card");
         };
-        assert_eq!(normal.name.as_ref(), "Merfolk Secretkeeper");
+        assert_eq!(normal.characteristics.name.as_ref(), "Merfolk Secretkeeper");
         assert_eq!(adventure.name.as_ref(), "Venture Deeper");
-        assert_eq!(card.primary_face().name.as_ref(), "Merfolk Secretkeeper");
+        assert_eq!(
+            card.primary_face().characteristics.name.as_ref(),
+            "Merfolk Secretkeeper"
+        );
+    }
+
+    /// A face adds nothing to its characteristics, so it is serde-transparent:
+    /// a card written against the flat pre-split shape still reads, and writes
+    /// back the same way.
+    #[test]
+    fn a_face_is_serde_transparent_over_its_characteristics() {
+        let card: Card = deckmaste_core::ron::options()
+            .from_str(r#"Normal((name: "Forest", types: []))"#)
+            .expect("a flat Normal card reads");
+        assert_eq!(card.primary_face().characteristics.name.as_ref(), "Forest");
+        assert_eq!(
+            deckmaste_core::ron::options()
+                .to_string(&card)
+                .expect("a card writes"),
+            r#"Normal((name:"Forest",types:[]))"#
+        );
     }
 }

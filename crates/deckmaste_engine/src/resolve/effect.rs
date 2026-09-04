@@ -1963,7 +1963,7 @@ mod tests {
         let Card::Normal(face) = canon().card("Do or Die").unwrap().core else {
             panic!("Do or Die should be single-faced");
         };
-        let [Ability::Spell(spell)] = face.abilities.as_slice() else {
+        let [Ability::Spell(spell)] = face.characteristics.abilities.as_slice() else {
             panic!("expected one spell ability");
         };
         let [effect] = spell.effect.body.as_ref() else {
@@ -2264,11 +2264,13 @@ mod tests {
     /// need to mill/draw from.
     fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
         let cid = state.cards.push(
-            Arc::new(Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![Type::Creature.def()],
-                ..deckmaste_card::CardFace::default()
-            })),
+            Arc::new(Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            ))),
             owner,
         );
         let id = state
@@ -2338,14 +2340,16 @@ mod tests {
         };
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Archive Stand-In".into(),
-                types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::r#static(
-                    deckmaste_core::StaticSpec::Replacement(Arc::new(archive)),
-                )],
-                ..deckmaste_card::CardFace::default()
-            }),
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: "Archive Stand-In".into(),
+                    types: vec![Type::Enchantment.def()],
+                    abilities: vec![deckmaste_core::Ability::r#static(
+                        deckmaste_core::StaticSpec::Replacement(Arc::new(archive)),
+                    )],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )),
         );
 
         let frame = frame_for(&state, p0);
@@ -2378,32 +2382,34 @@ mod tests {
         }
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Mill Watcher".into(),
-                types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::triggered(
-                    deckmaste_core::TriggeredAbility {
-                        ability_word: None,
-                        where_x: None,
-                        targets: [].into(),
-                        from: None,
-                        condition: None,
-                        limits: Vec::new().into(),
-                        event: deckmaste_core::EventFilter::Act {
-                            verb: deckmaste_core::VerbName::from("Mill"),
-                            who: Predicate::Any,
-                            on: Predicate::Any,
-                            cause: None,
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: "Mill Watcher".into(),
+                    types: vec![Type::Enchantment.def()],
+                    abilities: vec![deckmaste_core::Ability::triggered(
+                        deckmaste_core::TriggeredAbility {
+                            ability_word: None,
+                            where_x: None,
+                            targets: [].into(),
+                            from: None,
+                            condition: None,
+                            limits: Vec::new().into(),
+                            event: deckmaste_core::EventFilter::Act {
+                                verb: deckmaste_core::VerbName::from("Mill"),
+                                who: Predicate::Any,
+                                on: Predicate::Any,
+                                cause: None,
+                            },
+                            effect: Instruction::act(Action::ChangeLife(
+                                Reference::Reg(deckmaste_core::RefId(1)),
+                                LifeOp::Up(Count::Literal(1)),
+                            ))
+                            .into(),
                         },
-                        effect: Instruction::act(Action::ChangeLife(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            LifeOp::Up(Count::Literal(1)),
-                        ))
-                        .into(),
-                    },
-                )],
-                ..deckmaste_card::CardFace::default()
-            }),
+                    )],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )),
         );
 
         let frame = frame_for(&state, p0);
@@ -2436,13 +2442,15 @@ mod tests {
     fn batch_fight_records_one_aggregate_fact_per_fighter() {
         let mut state = game();
         let fighter = |name: &str| {
-            Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![Type::Creature.def()],
-                power: Some(deckmaste_core::StatValue::Number(2)),
-                toughness: Some(deckmaste_core::StatValue::Number(5)),
-                ..deckmaste_card::CardFace::default()
-            })
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    power: Some(deckmaste_core::StatValue::Number(2)),
+                    toughness: Some(deckmaste_core::StatValue::Number(5)),
+                    ..deckmaste_card::Characteristics::default()
+                },
+            ))
         };
         let a = mint_on_field(&mut state, fighter("Batch Fighter A"));
         let b = mint_on_field(&mut state, fighter("Batch Fighter B"));
@@ -2499,13 +2507,15 @@ mod tests {
     fn batch_fight_with_zero_power_still_records_its_aggregate_fact() {
         let mut state = game();
         let fighter = |name: &str| {
-            Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![Type::Creature.def()],
-                power: Some(deckmaste_core::StatValue::Number(0)),
-                toughness: Some(deckmaste_core::StatValue::Number(1)),
-                ..deckmaste_card::CardFace::default()
-            })
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    power: Some(deckmaste_core::StatValue::Number(0)),
+                    toughness: Some(deckmaste_core::StatValue::Number(1)),
+                    ..deckmaste_card::Characteristics::default()
+                },
+            ))
         };
         let a = mint_on_field(&mut state, fighter("Zero Fighter A"));
         let b = mint_on_field(&mut state, fighter("Zero Fighter B"));
@@ -3254,21 +3264,23 @@ mod tests {
         );
         let fixture = mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Grant Capture Fixture".into(),
-                types: vec![Type::Creature.def()],
-                abilities: vec![Ability::activated(ActivatedAbility {
-                    ability_word: None,
-                    cost: Cost::default(),
-                    from: None,
-                    window: None,
-                    condition: None,
-                    limits: Arc::from([]),
-                    targets: Arc::from([]),
-                    effect: grant_region.clone(),
-                })],
-                ..deckmaste_card::CardFace::default()
-            }),
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: "Grant Capture Fixture".into(),
+                    types: vec![Type::Creature.def()],
+                    abilities: vec![Ability::activated(ActivatedAbility {
+                        ability_word: None,
+                        cost: Cost::default(),
+                        from: None,
+                        window: None,
+                        condition: None,
+                        limits: Arc::from([]),
+                        targets: Arc::from([]),
+                        effect: grant_region.clone(),
+                    })],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )),
         );
         let bare = frame_src(&state, fixture);
         let activation = state.enter_region(&grant_region, &bare);
@@ -4808,6 +4820,7 @@ mod tests {
     /// Returns `(state, p0, library_before)`.
     fn secrets_on_stack(permanents: usize) -> (GameState, PlayerId, usize) {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::SpellAbility;
 
@@ -4817,10 +4830,10 @@ mod tests {
         // A stocked library and an empty hand, so the post-resolution hand size
         // IS the number of cards drawn. Mint plain library objects under p0;
         // their identity is irrelevant — a draw just remints the top.
-        let dummy = Card::Normal(CardFace {
+        let dummy = Card::Normal(CardFace::from(Characteristics {
             name: "Library Filler".into(),
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let dummy_card = state.cards.push(Arc::new(dummy), p0);
         for _ in 0..10 {
             let id = state
@@ -4837,11 +4850,11 @@ mod tests {
         // p0's battlefield: `permanents` plain artifacts. Card-backed (mirrors
         // a real board), all controlled by p0 — the gate counts these.
         for i in 0..permanents {
-            let perm = Card::Normal(CardFace {
+            let perm = Card::Normal(CardFace::from(Characteristics {
                 name: format!("Permanent {i}").into(),
                 types: vec![Type::Artifact.def()],
-                ..CardFace::default()
-            });
+                ..Characteristics::default()
+            }));
             let card_id = state.cards.push(Arc::new(perm), p0);
             let id = state
                 .objects
@@ -4851,7 +4864,7 @@ mod tests {
         assert_eq!(state.zones.battlefield.len(), permanents);
 
         // The synthetic Secrets-of-the-Golden-City spell on the stack.
-        let spell_card = Card::Normal(CardFace {
+        let spell_card = Card::Normal(CardFace::from(Characteristics {
             name: "Secrets of the Golden City".into(),
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
@@ -4860,8 +4873,8 @@ mod tests {
                 targets: [].into(),
                 effect: secrets_effect().into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let spell_card_id = state.cards.push(Arc::new(spell_card), p0);
         let spell = state
             .objects
@@ -5083,11 +5096,13 @@ mod tests {
     /// lone `push_back` object is the top card.
     fn mint_library_top(state: &mut GameState, owner: PlayerId, name: &str, ty: Type) -> ObjectId {
         let cid = state.cards.push(
-            Arc::new(Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![ty.def()],
-                ..deckmaste_card::CardFace::default()
-            })),
+            Arc::new(Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![ty.def()],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            ))),
             owner,
         );
         let id = state
@@ -5101,11 +5116,13 @@ mod tests {
     fn explorer_on_field(state: &mut GameState) -> ObjectId {
         mint_on_field(
             state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Explorer".into(),
-                types: vec![Type::Creature.def()],
-                ..deckmaste_card::CardFace::default()
-            }),
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: "Explorer".into(),
+                    types: vec![Type::Creature.def()],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )),
         )
     }
 
@@ -5134,9 +5151,9 @@ mod tests {
         // A zone change remints the object under a fresh id, so match the moved
         // card by identity, not the pre-move `land` id.
         assert!(
-            state.zones.hands[p0.index()]
-                .iter()
-                .any(|&o| matches!(state.def(o), Card::Normal(f) if &*f.name == "Forest")),
+            state.zones.hands[p0.index()].iter().any(
+                |&o| matches!(state.def(o), Card::Normal(f) if &*f.characteristics.name == "Forest")
+            ),
             "a revealed land card is put into hand ([CR#701.44a])"
         );
         assert!(
@@ -5201,14 +5218,15 @@ mod tests {
     #[test]
     fn bottom_of_library_and_union_resolve_as_groups() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
 
         let mut state = game();
         let p0 = PlayerId(0);
         let make_card = |name: &str| {
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
-                ..CardFace::default()
-            })
+                ..Characteristics::default()
+            }))
         };
         let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
         let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
@@ -5265,14 +5283,15 @@ mod tests {
     #[test]
     fn top_of_graveyard_resolves_top_down_and_fizzles_on_bad_of() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
 
         let mut state = game();
         let p0 = PlayerId(0);
         let make_card = |name: &str| {
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
-                ..CardFace::default()
-            })
+                ..Characteristics::default()
+            }))
         };
         let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
         let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);
@@ -6511,6 +6530,7 @@ mod tests {
     #[test]
     fn a_let_pins_the_ordered_top_of_library_group() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -6518,10 +6538,10 @@ mod tests {
         // Build three distinct library cards and mint them in order a→b→c
         // (a at front = top).
         let make_card = |name: &str| {
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
-                ..CardFace::default()
-            })
+                ..Characteristics::default()
+            }))
         };
         let mint = |state: &mut GameState, name: &str| {
             let cid = state.cards.push(Arc::new(make_card(name)), p0);
@@ -6603,14 +6623,16 @@ mod tests {
         };
         mint_on_field(
             &mut state,
-            Card::Normal(deckmaste_card::CardFace {
-                name: "Bruvac Stand-In".into(),
-                types: vec![Type::Enchantment.def()],
-                abilities: vec![deckmaste_core::Ability::r#static(
-                    deckmaste_core::StaticSpec::Replacement(Arc::new(bruvac)),
-                )],
-                ..deckmaste_card::CardFace::default()
-            }),
+            Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: "Bruvac Stand-In".into(),
+                    types: vec![Type::Enchantment.def()],
+                    abilities: vec![deckmaste_core::Ability::r#static(
+                        deckmaste_core::StaticSpec::Replacement(Arc::new(bruvac)),
+                    )],
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )),
         );
 
         let frame = player_frame(&state, p0);

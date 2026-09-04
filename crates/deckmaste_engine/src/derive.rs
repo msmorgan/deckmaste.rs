@@ -62,7 +62,7 @@ pub fn face_of(state: &GameState, id: ObjectId) -> &CardFace {
 /// (`Cards::push`) and cached on the `CardInstance`.
 #[must_use]
 pub(crate) fn printed_of_face(face: &CardFace) -> Vec<Ability> {
-    face.abilities.clone()
+    face.characteristics.abilities.clone()
 }
 
 /// The object's PRINTED abilities, from the per-card cache.
@@ -208,7 +208,7 @@ pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Abili
                 Some(id) => face_of(state, id),
                 None => face(&state.cards.get(card).def),
             };
-            let printed = &current.abilities;
+            let printed = &current.characteristics.abilities;
             let mut out = Vec::with_capacity(printed.len());
             for ability in printed {
                 flatten_composites(ability, &mut out);
@@ -409,6 +409,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::EventFilter;
     use deckmaste_core::Instruction;
@@ -469,11 +470,11 @@ mod tests {
             name: deckmaste_core::Ident::new("Ward"),
             abilities: vec![Ability::triggered(trigger.clone())],
         });
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Composite Triggerer".into(),
             abilities: vec![keyword.clone()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
 
         let derived = super::abilities_of_source(&state, ObjectSource::Card(card_id));
@@ -516,11 +517,11 @@ mod tests {
             confer: Property::Ability(Arc::new(Ability::Keyword(KeywordAbility::Trample))),
         }];
 
-        let walker = Card::Normal(CardFace {
+        let walker = Card::Normal(CardFace::from(Characteristics {
             name: "Test Walker".into(),
             types: vec![Type::Planeswalker.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let walker_card = state.cards.push(Arc::new(walker), PlayerId(0));
         let walker_id = state.objects.mint(
             ObjectSource::Card(walker_card),
@@ -529,11 +530,11 @@ mod tests {
         );
         state.zones.battlefield.push(walker_id);
 
-        let bear = Card::Normal(CardFace {
+        let bear = Card::Normal(CardFace::from(Characteristics {
             name: "Test Bear".into(),
             types: vec![Type::Creature.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let bear_card = state.cards.push(Arc::new(bear), PlayerId(0));
         let bear_id = state.objects.mint(
             ObjectSource::Card(bear_card),
@@ -570,6 +571,7 @@ mod tests {
     fn back_up_permanent_sources_triggers_from_back_face() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
         use deckmaste_core::Type;
@@ -599,21 +601,21 @@ mod tests {
         // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE
         // triggered ability the front lacks — distinct printed lengths (0 vs
         // 1).
-        let front = CardFace {
+        let front = CardFace::from(Characteristics {
             name: "Front Vanilla".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(1)),
             toughness: Some(StatValue::Number(1)),
-            ..CardFace::default()
-        };
-        let back = CardFace {
+            ..Characteristics::default()
+        });
+        let back = CardFace::from(Characteristics {
             name: "Back Triggerer".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(3)),
             toughness: Some(StatValue::Number(2)),
             abilities: vec![Ability::triggered(back_trigger.clone())],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
             front,

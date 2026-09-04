@@ -244,7 +244,9 @@ mod tests {
         assert!(count > 0, "the demo game has cards");
         for i in 0..count {
             let id = CardId(u32::try_from(i).expect("card count fits in a CardId"));
-            let engine = &deckmaste_engine::face(&game.state.cards.get(id).def).name;
+            let engine = &deckmaste_engine::face(&game.state.cards.get(id).def)
+                .characteristics
+                .name;
             let semantic = game
                 .cards
                 .get(id)

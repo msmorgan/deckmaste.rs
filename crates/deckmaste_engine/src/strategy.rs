@@ -503,7 +503,12 @@ impl StrategyEvaluator {
             }) => {
                 let name = state.zones.hands[player.index()].first().map_or_else(
                     || "Mountain".to_owned(),
-                    |&id| crate::derive::face(state.def(id)).name.to_string(),
+                    |&id| {
+                        crate::derive::face(state.def(id))
+                            .characteristics
+                            .name
+                            .to_string()
+                    },
                 );
                 Decision::CardName(name)
             }
@@ -948,6 +953,7 @@ mod tests {
     #[test]
     fn modal_fallback_skips_an_unsatisfiable_first_mode() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::ChooseSpec;
@@ -962,7 +968,7 @@ mod tests {
                 Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
             )),
         );
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Modal strategy fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Instant.def()],
@@ -994,8 +1000,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let mut state = empty_two_player();
         let spell = put_in_hand(&mut state, &card, PlayerId(0));
         state.begin_cast(spell);

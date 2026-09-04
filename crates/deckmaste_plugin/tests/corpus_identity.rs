@@ -274,12 +274,12 @@ fn load_card_pair(plugin: &Plugin, path: &Path) -> anyhow::Result<deckmaste_plug
 /// `abilities` list. [`nested_in_any`] does the descent past that point.
 fn core_abilities(card: &deckmaste_card::Card) -> impl Iterator<Item = &deckmaste_core::Ability> {
     let parts: Vec<&deckmaste_card::Characteristics> = match card {
-        deckmaste_card::Card::Normal(face) => vec![face],
+        deckmaste_card::Card::Normal(face) => vec![&face.characteristics],
         deckmaste_card::Card::DoubleFaced { front, back, .. }
         | deckmaste_card::Card::Split {
             left: front,
             right: back,
-        } => vec![front, back],
+        } => vec![&front.characteristics, &back.characteristics],
         deckmaste_card::Card::Flip {
             normal,
             alternative,
@@ -287,7 +287,7 @@ fn core_abilities(card: &deckmaste_card::Card) -> impl Iterator<Item = &deckmast
         | deckmaste_card::Card::Adventurer {
             normal,
             adventure: alternative,
-        } => vec![normal, alternative],
+        } => vec![&normal.characteristics, alternative],
     };
     parts.into_iter().flat_map(|part| part.abilities.iter())
 }

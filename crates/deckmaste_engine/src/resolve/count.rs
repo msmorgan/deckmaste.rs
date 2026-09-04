@@ -48,20 +48,21 @@ impl GameState {
         };
         let value = match stat {
             deckmaste_core::Stat::Power => {
-                crate::layer::base_stat(face.power.as_ref()).unwrap_or(0) + counter("P1P1Counter")
+                crate::layer::base_stat(face.characteristics.power.as_ref()).unwrap_or(0)
+                    + counter("P1P1Counter")
                     - counter("M1M1Counter")
             }
             deckmaste_core::Stat::Toughness => {
-                crate::layer::base_stat(face.toughness.as_ref()).unwrap_or(0)
+                crate::layer::base_stat(face.characteristics.toughness.as_ref()).unwrap_or(0)
                     + counter("P1P1Counter")
                     - counter("M1M1Counter")
             }
             deckmaste_core::Stat::ManaValue => {
-                deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+                deckmaste_core::Int::try_from(face.characteristics.mana_cost.mana_value())
                     .expect("mana value fits Int")
             }
             deckmaste_core::Stat::Loyalty => {
-                crate::layer::base_stat(face.loyalty.as_ref()).unwrap_or(0)
+                crate::layer::base_stat(face.characteristics.loyalty.as_ref()).unwrap_or(0)
             }
             deckmaste_core::Stat::Defense => counter("DefenseCounter"),
         };
@@ -117,6 +118,7 @@ impl GameState {
                         .and_then(crate::object::GameObject::card_id)
                     {
                         Some(_) => crate::derive::face(self.def(id))
+                            .characteristics
                             .mana_cost
                             .iter()
                             .filter(|sym| pred.matches(sym))
@@ -186,7 +188,7 @@ impl GameState {
                     // announce-slot X work.
                     deckmaste_core::Stat::ManaValue => {
                         let face = crate::derive::face(self.def(id));
-                        deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+                        deckmaste_core::Int::try_from(face.characteristics.mana_cost.mana_value())
                             .expect("mana value fits Int")
                     }
                     // [CR#209.1,306.5a]: `Stat::Loyalty` is the PRINTED loyalty
@@ -195,10 +197,13 @@ impl GameState {
                     // LoyaltyCounter)`). `Number(n)→n`, `DefinedByAbility`/
                     // `Variable`/absent → 0 (the chosen-X for a `Variable`
                     // loyalty rides the unbuilt announce-slot X work).
-                    deckmaste_core::Stat::Loyalty => {
-                        crate::layer::base_stat(crate::derive::face(self.def(id)).loyalty.as_ref())
-                            .unwrap_or(0)
-                    }
+                    deckmaste_core::Stat::Loyalty => crate::layer::base_stat(
+                        crate::derive::face(self.def(id))
+                            .characteristics
+                            .loyalty
+                            .as_ref(),
+                    )
+                    .unwrap_or(0),
                     deckmaste_core::Stat::Defense => deckmaste_core::Int::try_from(
                         self.objects
                             .obj(id)
@@ -569,21 +574,38 @@ impl GameState {
         use deckmaste_core::Characteristic as Ch;
         let face = crate::derive::face(self.def(id));
         match characteristic {
-            Ch::Types => face.types.iter().map(|t| format!("{t:?}")).collect(),
-            Ch::Subtypes => face.subtypes.iter().map(|s| s.name.to_string()).collect(),
+            Ch::Types => face
+                .characteristics
+                .types
+                .iter()
+                .map(|t| format!("{t:?}"))
+                .collect(),
+            Ch::Subtypes => face
+                .characteristics
+                .subtypes
+                .iter()
+                .map(|s| s.name.to_string())
+                .collect(),
             // [CR#205.3i]: only the five basic land types contribute keys.
             Ch::BasicLandTypes => face
+                .characteristics
                 .subtypes
                 .iter()
                 .map(|s| s.name.to_string())
                 .filter(|n| deckmaste_core::BASIC_LAND_TYPES.contains(&n.as_str()))
                 .collect(),
-            Ch::Supertypes => face.supertypes.iter().map(|s| format!("{s:?}")).collect(),
-            Ch::Name => vec![face.name.to_string()],
-            Ch::ManaCost => vec![format!("{}", face.mana_cost.mana_value())],
+            Ch::Supertypes => face
+                .characteristics
+                .supertypes
+                .iter()
+                .map(|s| format!("{s:?}"))
+                .collect(),
+            Ch::Name => vec![face.characteristics.name.to_string()],
+            Ch::ManaCost => vec![format!("{}", face.characteristics.mana_cost.mana_value())],
             Ch::Colors => {
-                let mut colors: Vec<deckmaste_core::Color> = face.color_indicator.clone();
-                for sym in face.mana_cost.iter() {
+                let mut colors: Vec<deckmaste_core::Color> =
+                    face.characteristics.color_indicator.clone();
+                for sym in face.characteristics.mana_cost.iter() {
                     colors.extend(crate::layer::symbol_colors(sym));
                 }
                 colors.iter().map(|c| format!("{c:?}")).collect()
@@ -698,6 +720,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Action;
     use deckmaste_core::Count;
     use deckmaste_core::Countable;
@@ -1198,12 +1221,12 @@ mod tests {
     /// other characteristics — the fixture the pip-count (devotion,
     /// [CR#700.5]) tests below drive.
     fn permanent_with_cost(state: &mut GameState, mana_cost: &str) -> ObjectId {
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Permanent".into(),
             mana_cost: mana_cost.parse().unwrap(),
             types: vec![Type::Artifact.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
         let obj = state.objects.mint(
             ObjectSource::Card(cid),
@@ -1287,13 +1310,13 @@ mod tests {
         reason = "shared fixture retained for neighboring count cases"
     )]
     fn creature_with_power(state: &mut GameState, power: deckmaste_core::Int) -> ObjectId {
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Creature".into(),
             types: vec![Type::Creature.def()],
             power: Some(deckmaste_core::StatValue::Number(power)),
             toughness: Some(deckmaste_core::StatValue::Number(power)),
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
         let obj = state.objects.mint(
             ObjectSource::Card(cid),
@@ -1584,12 +1607,12 @@ mod tests {
         use deckmaste_core::Stat;
 
         let (mut state, _bear) = bear_on_field();
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Walker".into(),
             types: vec![Type::Planeswalker.def()],
             loyalty: Some(deckmaste_core::StatValue::Number(4)),
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
         let walker = state.objects.mint(
             ObjectSource::Card(cid),
@@ -1655,14 +1678,14 @@ mod tests {
         fn goblin(state: &mut GameState, name: &str) -> ObjectId {
             mint_on_field(
                 state,
-                Card::Normal(CardFace {
+                Card::Normal(CardFace::from(Characteristics {
                     name: name.into(),
                     types: vec![Type::Creature.def()],
                     subtypes: vec![subtype("Goblin")],
                     power: Some(deckmaste_core::StatValue::Number(1)),
                     toughness: Some(deckmaste_core::StatValue::Number(1)),
-                    ..CardFace::default()
-                }),
+                    ..Characteristics::default()
+                })),
             )
         }
 
@@ -2423,12 +2446,12 @@ mod tests {
         // never-matching filter — folds to 0 (never-crash). `src` itself
         // lives in hand, so `InZone(Battlefield)` matches nothing.
         let mut empty_state = game();
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Card".into(),
             mana_cost: "{1}".parse().unwrap(),
             types: vec![Type::Artifact.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = empty_state.cards.push(Arc::new(card), PlayerId(0));
         let src = empty_state
             .objects

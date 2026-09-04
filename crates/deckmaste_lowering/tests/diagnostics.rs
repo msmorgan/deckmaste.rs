@@ -95,7 +95,7 @@ fn a_refusal_does_not_poison_the_next_card() {
     let deckmaste_card::Card::Normal(lowered) = good else {
         panic!("a Normal card lowers to a Normal card");
     };
-    assert_eq!(&*lowered.name, "Good Card");
+    assert_eq!(&*lowered.characteristics.name, "Good Card");
 }
 
 /// Only explicit resolver refusals use the diagnostic channel. An invariant
@@ -144,7 +144,7 @@ fn a_resolvable_card_lowers_through_the_diagnostic_entry() {
     let deckmaste_card::Card::Normal(face) = lowered else {
         panic!("a Normal card lowers to a Normal card");
     };
-    assert_eq!(face.abilities.len(), 1);
+    assert_eq!(face.characteristics.abilities.len(), 1);
 }
 
 /// A bare `Source` reference is a damage-history query with no register to

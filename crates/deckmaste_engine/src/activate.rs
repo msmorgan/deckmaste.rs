@@ -495,16 +495,22 @@ impl GameState {
             Stat::Power => view.power(id),
             Stat::Toughness => view.toughness(id),
             Stat::ManaValue => deckmaste_core::Int::try_from(
-                crate::derive::face(self.def(id)).mana_cost.mana_value(),
+                crate::derive::face(self.def(id))
+                    .characteristics
+                    .mana_cost
+                    .mana_value(),
             )
             .ok(),
             // [CR#209.1,306.5a]: loyalty is the PRINTED loyalty characteristic
             // off the card face — never the live counter count (current loyalty
             // is `CounterCount(This, LoyaltyCounter)`). `base_stat` maps
             // `Number(n)→n`, `DefinedByAbility`/`Variable`/absent → 0.
-            Stat::Loyalty => {
-                crate::layer::base_stat(crate::derive::face(self.def(id)).loyalty.as_ref())
-            }
+            Stat::Loyalty => crate::layer::base_stat(
+                crate::derive::face(self.def(id))
+                    .characteristics
+                    .loyalty
+                    .as_ref(),
+            ),
             Stat::Defense => deckmaste_core::Int::try_from(
                 self.objects
                     .obj(id)
@@ -784,13 +790,15 @@ mod tests {
     }
 
     fn creature_card(power: i32, toughness: i32) -> Arc<deckmaste_card::Card> {
-        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Activation fixture".into(),
-            types: vec![deckmaste_core::Type::Creature.def()],
-            power: Some(deckmaste_core::StatValue::Number(power)),
-            toughness: Some(deckmaste_core::StatValue::Number(toughness)),
-            ..deckmaste_card::CardFace::default()
-        }))
+        Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "Activation fixture".into(),
+                types: vec![deckmaste_core::Type::Creature.def()],
+                power: Some(deckmaste_core::StatValue::Number(power)),
+                toughness: Some(deckmaste_core::StatValue::Number(toughness)),
+                ..deckmaste_card::Characteristics::default()
+            }),
+        ))
     }
 
     fn announce_activation_to_payment(
@@ -1028,10 +1036,12 @@ mod tests {
         // `ObjectSource::Player` synthetic was absent from the view, so
         // the battlefield-wide `Cant(Activate)` collector's `view.get`
         // could not resolve it.
-        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Gate Fixture".into(),
-            ..deckmaste_card::CardFace::default()
-        }));
+        let card = Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "Gate Fixture".into(),
+                ..deckmaste_card::Characteristics::default()
+            }),
+        ));
         let card_id = state.cards.push(card, player);
         let id = state
             .objects
@@ -1709,19 +1719,21 @@ mod tests {
     // In-module fixture: no macro/serde path exercised, so no plugin round-trip
     // needed.
     fn card_with_activated(act: ActivatedAbility) -> Arc<deckmaste_card::Card> {
-        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Activated Fixture".into(),
-            mana_cost: ManaCost::from(Arc::from(vec![])),
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![deckmaste_core::Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![Ability::activated(act)],
-            power: None,
-            toughness: None,
-            loyalty: None,
-            defense: None,
-        }))
+        Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "Activated Fixture".into(),
+                mana_cost: ManaCost::from(Arc::from(vec![])),
+                color_indicator: vec![],
+                supertypes: vec![],
+                types: vec![deckmaste_core::Type::Artifact.def()],
+                subtypes: vec![],
+                abilities: vec![Ability::activated(act)],
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None,
+            }),
+        ))
     }
 
     /// A card with the given printed mana cost whose only ability is `act`
@@ -1730,19 +1742,21 @@ mod tests {
         mana_cost: ManaCost,
         act: ActivatedAbility,
     ) -> Arc<deckmaste_card::Card> {
-        Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "ManaCostOf Fixture".into(),
-            mana_cost,
-            color_indicator: vec![],
-            supertypes: vec![],
-            types: vec![deckmaste_core::Type::Artifact.def()],
-            subtypes: vec![],
-            abilities: vec![Ability::activated(act)],
-            power: None,
-            toughness: None,
-            loyalty: None,
-            defense: None,
-        }))
+        Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "ManaCostOf Fixture".into(),
+                mana_cost,
+                color_indicator: vec![],
+                supertypes: vec![],
+                types: vec![deckmaste_core::Type::Artifact.def()],
+                subtypes: vec![],
+                abilities: vec![Ability::activated(act)],
+                power: None,
+                toughness: None,
+                loyalty: None,
+                defense: None,
+            }),
+        ))
     }
 
     /// `ManaCostOf(This)` resolves to the source object's printed mana cost

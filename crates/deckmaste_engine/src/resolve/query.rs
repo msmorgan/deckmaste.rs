@@ -1237,6 +1237,7 @@ mod tests {
     fn valid_targets_for_intersects_slots_rather_than_unioning_them() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
@@ -1250,14 +1251,14 @@ mod tests {
         let (mut state, bear_a, bear_b) = two_permanents_on_field();
         let land = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Test Land".into(),
                 types: vec![Type::Land.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
 
-        let face = CardFace {
+        let face = CardFace::from(Characteristics {
             name: "Two-Slot Spell".into(),
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::Spell(Arc::new(SpellAbility {
@@ -1283,8 +1284,8 @@ mod tests {
                 ))
                 .into(),
             }))],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let cid = state.cards.push(Arc::new(Card::Normal(face)), PlayerId(0));
         let spell = state
             .objects

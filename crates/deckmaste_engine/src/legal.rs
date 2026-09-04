@@ -1717,12 +1717,13 @@ mod tests {
     ) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: types.into_iter().map(Type::def).collect(),
             abilities,
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1762,7 +1763,8 @@ mod tests {
     ) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: types.into_iter().map(Type::def).collect(),
             subtypes: vec![deckmaste_core::Subtype {
@@ -1770,8 +1772,8 @@ mod tests {
                 types: Vec::new().into(),
                 confers: rules.into(),
             }],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2235,12 +2237,13 @@ mod tests {
     fn flash_spell_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: "{1}".parse().unwrap(),
             types: vec![cant_cast_instant_typedef()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state
             .objects
@@ -2263,7 +2266,8 @@ mod tests {
     ) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
@@ -2276,8 +2280,8 @@ mod tests {
                     tag: None,
                 },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state
             .objects
@@ -2356,11 +2360,12 @@ mod tests {
     fn cant_cast_ignores_triggered_stack_stand_ins_source_statics() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
 
         let mut state = game();
         let spell = flash_spell_in_hand(&mut state, "Bolt", PlayerId(0));
 
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Departed Permanent".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
@@ -2373,8 +2378,8 @@ mod tests {
                     tag: None,
                 },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(1));
         let source = ObjectSource::Card(card_id);
 
@@ -2539,11 +2544,12 @@ mod tests {
     fn conferred_land_on_field(state: &mut GameState, name: &str) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![land_typedef()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2731,12 +2737,13 @@ mod tests {
     ) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![creature_typedef()],
             abilities: extra,
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2962,14 +2969,15 @@ mod tests {
     ) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
                 DeonticAction::Activate { what, by, cost },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state
             .objects
@@ -3099,11 +3107,12 @@ mod tests {
     fn land_in_hand(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        let card = Card::Normal(CardFace {
+        use deckmaste_card::Characteristics;
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![land_typedef()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state
             .objects

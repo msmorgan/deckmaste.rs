@@ -60,9 +60,9 @@ fn snow_forest() -> Card {
     let Card::Normal(face) = &mut forest else {
         panic!("Forest is a Normal card");
     };
-    face.name = "Snow-Covered Forest".into();
-    if !face.supertypes.contains(&Supertype::Snow) {
-        face.supertypes.push(Supertype::Snow);
+    face.characteristics.name = "Snow-Covered Forest".into();
+    if !face.characteristics.supertypes.contains(&Supertype::Snow) {
+        face.characteristics.supertypes.push(Supertype::Snow);
     }
     forest
 }
@@ -80,7 +80,7 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.name,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
     }
 }
 

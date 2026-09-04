@@ -1067,6 +1067,7 @@ pub(crate) mod tests_support {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::StaticSpec;
     use deckmaste_core::Type;
@@ -1109,11 +1110,11 @@ pub(crate) mod tests_support {
     /// Mint a synthetic vanilla 2/2 creature on the battlefield for player 0
     /// and return its `ObjectId`.
     pub(crate) fn mint_creature_on_battlefield(state: &mut GameState) -> ObjectId {
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Test Creature".into(),
             types: vec![Type::Creature.def()],
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let card_id = state.cards.push(card, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1145,10 +1146,10 @@ pub(crate) mod tests_support {
             subtypes: std::collections::HashMap::new(),
             types: std::collections::HashMap::new(),
         });
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Test Card".into(),
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let card_id = state.cards.push(card, owner);
         let id = state
             .objects
@@ -1172,12 +1173,12 @@ pub(crate) mod tests_support {
             subtypes: std::collections::HashMap::new(),
             types: std::collections::HashMap::new(),
         });
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Test Creature".into(),
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::r#static(effect)],
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let card_id = state.cards.push(card, PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1408,11 +1409,13 @@ mod tests {
         // A spell object per caster (the fact record's actor is its
         // controller).
         let mut spell = |controller: crate::player::PlayerId| {
-            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-                name: "Test Spell".into(),
-                types: vec![deckmaste_core::Type::Sorcery.def()],
-                ..deckmaste_card::CardFace::default()
-            }));
+            let card = Arc::new(deckmaste_card::Card::Normal(
+                deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                    name: "Test Spell".into(),
+                    types: vec![deckmaste_core::Type::Sorcery.def()],
+                    ..deckmaste_card::Characteristics::default()
+                }),
+            ));
             let cid = state.cards.push(card, controller);
             state
                 .objects

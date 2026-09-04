@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Ident;
 use deckmaste_core::Subtype;
@@ -136,7 +137,7 @@ impl Cards {
                 .join(" ")
                 .into()
         });
-        let def = Arc::new(Card::Normal(CardFace {
+        let def = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name,
             mana_cost: deckmaste_core::ManaCost::default(),
             color_indicator: token.color_indicator.to_vec(),
@@ -148,7 +149,7 @@ impl Cards {
             toughness: token.toughness.clone(),
             loyalty: None,
             defense: None,
-        }));
+        })));
         self.push_inner(def, owner, true, false)
     }
 
@@ -161,10 +162,10 @@ impl Cards {
     /// same derivation / layer machinery as a token, so its abilities function
     /// through `abilities_of_source` unchanged.
     pub(crate) fn push_emblem(&mut self, abilities: Vec<Ability>, owner: PlayerId) -> CardId {
-        let def = Arc::new(Card::Normal(CardFace {
+        let def = Arc::new(Card::Normal(CardFace::from(Characteristics {
             abilities,
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         self.push_inner(def, owner, false, true)
     }
 
@@ -181,10 +182,10 @@ impl Cards {
         let id = CardId(Uint::try_from(self.0.len()).expect("card table fits in Uint"));
         let build = |face: &CardFace| FaceCache {
             printed: Arc::new(crate::derive::printed_of_face(face)),
-            subtypes: Arc::new(face.subtypes.clone()),
+            subtypes: Arc::new(face.characteristics.subtypes.clone()),
             colors: Arc::new(crate::layer::base_colors(face)),
-            card_types: Arc::new(face.types.clone()),
-            supertypes: Arc::new(face.supertypes.clone()),
+            card_types: Arc::new(face.characteristics.types.clone()),
+            supertypes: Arc::new(face.characteristics.supertypes.clone()),
         };
         let front = build(crate::derive::face(&def));
         let back = match def.as_ref() {
@@ -496,8 +497,8 @@ mod tests {
         let Card::Normal(face) = inst.def.as_ref() else {
             panic!("a token synthesizes a one-faced Normal card");
         };
-        assert_eq!(face.power, Some(StatValue::Number(1)));
-        assert_eq!(face.toughness, Some(StatValue::Number(1)));
+        assert_eq!(face.characteristics.power, Some(StatValue::Number(1)));
+        assert_eq!(face.characteristics.toughness, Some(StatValue::Number(1)));
     }
 
     /// An unnamed token still synthesizes subtypes + "Token" [CR#111.4] — the
@@ -526,7 +527,7 @@ mod tests {
             panic!("a token synthesizes a one-faced Normal card");
         };
         assert_eq!(
-            &*face.name, "Bear Token",
+            &*face.characteristics.name, "Bear Token",
             "[CR#111.4]: no explicit name -> subtypes + \"Token\""
         );
     }
@@ -556,7 +557,7 @@ mod tests {
             panic!("a token synthesizes a one-faced Normal card");
         };
         assert_eq!(
-            &*face.name, "Grizzly Bears",
+            &*face.characteristics.name, "Grizzly Bears",
             "[CR#707.2]: an explicit name is carried verbatim, not resynthesized"
         );
     }

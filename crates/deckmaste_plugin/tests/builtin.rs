@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
@@ -109,14 +110,14 @@ fn land_type() -> deckmaste_core::TypeDef {
 }
 
 fn basic_land(name: &str) -> Card {
-    Card::Normal(CardFace {
+    Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         mana_cost: ManaCost::default(),
         supertypes: vec![Supertype::Basic],
         types: vec![land_type()],
         subtypes: vec![basic_land_subtype(name, basic_color(name))],
         ..Default::default()
-    })
+    }))
 }
 
 /// builtin is the prelude every other plugin depends on, so this guards it
@@ -160,7 +161,7 @@ fn basic_lands_parse_against_the_subtype_macros() {
         let Card::Normal(face) = &card else {
             panic!("{name} should be single-faced");
         };
-        for subtype in &face.subtypes {
+        for subtype in &face.characteristics.subtypes {
             let declared = plugin
                 .subtypes
                 .get(&subtype.name)

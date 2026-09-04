@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::Count;
@@ -293,11 +294,11 @@ pub(super) fn drain_passing_priority(state: &mut GameState, n: usize) {
 /// Mint a fresh card-backed object into `owner`'s hand. Returns its id.
 pub(super) fn mint_in_hand(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
     let cid = state.cards.push(
-        Arc::new(Card::Normal(CardFace {
+        Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![Type::Creature.def()],
-            ..CardFace::default()
-        })),
+            ..Characteristics::default()
+        }))),
         owner,
     );
     let id = state
@@ -358,7 +359,7 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } if &*f.name == *name)
+        | Card::Adventurer { normal: f, .. } if &*f.characteristics.name == *name)
             })
             .or_else(|| {
                 state.zones.libraries[p].iter().copied().find(|&o| {
@@ -367,7 +368,7 @@ pub(super) fn battlefield_with(names: &[&str]) -> (GameState, Vec<ObjectId>) {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } if &*f.name == *name)
+        | Card::Adventurer { normal: f, .. } if &*f.characteristics.name == *name)
                 })
             })
             .unwrap_or_else(|| panic!("no {name} in P0's hand or library"));

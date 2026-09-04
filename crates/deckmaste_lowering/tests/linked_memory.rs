@@ -64,7 +64,7 @@ fn abilities(card: &deckmaste_card::Card) -> &[deckmaste_core::Ability] {
     let deckmaste_card::Card::Normal(face) = card else {
         panic!("a Normal card lowers to a Normal card");
     };
-    &face.abilities
+    &face.characteristics.abilities
 }
 
 fn region_of(ability: &deckmaste_core::Ability) -> &deckmaste_core::Region {

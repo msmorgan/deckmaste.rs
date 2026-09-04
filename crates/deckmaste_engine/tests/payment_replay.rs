@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
@@ -70,7 +71,7 @@ fn activation_fixture_with_extras(
     extras: Vec<Arc<Card>>,
 ) -> (GameState, PlayerId, deckmaste_engine::ObjectId) {
     let payer = PlayerId(0);
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Replay fixture".into(),
         abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
@@ -82,8 +83,8 @@ fn activation_fixture_with_extras(
             limits: Arc::from([]),
             effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut deck = vec![card];
     deck.extend(extras);
     let mut state = GameState::new(GameConfig {
@@ -101,7 +102,15 @@ fn activation_fixture_with_extras(
     let source = state.zones.hands[payer.index()]
         .iter()
         .copied()
-        .find(|&object| state.def(object).primary_face().name.as_ref() == "Replay fixture")
+        .find(|&object| {
+            state
+                .def(object)
+                .primary_face()
+                .characteristics
+                .name
+                .as_ref()
+                == "Replay fixture"
+        })
         .unwrap();
     state.zones.hands[payer.index()].retain(|&object| object != source);
     state.objects.obj_mut(source).zone = Some(Zone::Battlefield);
@@ -162,7 +171,7 @@ fn mana_source(name: &str, cost: Cost, color: Color) -> Arc<Card> {
 }
 
 fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -180,8 +189,8 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
             ))
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn suspending_barred_mana_source() -> Arc<Card> {
@@ -207,7 +216,7 @@ fn suspending_barred_mana_source() -> Arc<Card> {
         ]
         .into(),
     });
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Suspending barred mana source".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -237,8 +246,8 @@ fn suspending_barred_mana_source() -> Arc<Card> {
             )
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn token_creating_barred_mana_source() -> Arc<Card> {
@@ -252,7 +261,7 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
         power: None,
         toughness: None,
     };
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Token-creating barred source".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -289,8 +298,8 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
             )
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
@@ -339,7 +348,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
         power: None,
         toughness: None,
     };
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Created-source producer".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -376,8 +385,8 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
             )
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
@@ -426,14 +435,14 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             .into(),
         ),
     };
-    let creator = Arc::new(Card::Normal(CardFace {
+    let creator = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Fulfillment source creator".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             creator_replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let optional_replacement = Replacement::Instead {
         would: EventFilter::ZoneChange {
             what: Predicate::Any,
@@ -450,14 +459,14 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
             if_not: None,
         }),
     };
-    let optional = Arc::new(Card::Normal(CardFace {
+    let optional = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Fulfillment source consumer".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             optional_replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     (creator, optional)
 }
 
@@ -472,7 +481,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
         power: None,
         toughness: None,
     };
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Same-record choice source".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -525,8 +534,8 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
             )
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn token_revealing_reversible_mana_source() -> Arc<Card> {
@@ -540,7 +549,7 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
         power: None,
         toughness: None,
     };
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Transient token source".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -588,8 +597,8 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
             )
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 /// Krark-Clan Ironworks: "Sacrifice an artifact: Add {C}{C}."
@@ -618,7 +627,7 @@ fn krark_clan_ironworks() -> Arc<Card> {
             Reference::Reg(chosen.into()),
         )),
     ];
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Krark-Clan Ironworks".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -636,8 +645,8 @@ fn krark_clan_ironworks() -> Arc<Card> {
             ))
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn wheel_of_sun_and_moon() -> Arc<Card> {
@@ -664,14 +673,14 @@ fn wheel_of_sun_and_moon() -> Arc<Card> {
             .into(),
         ),
     };
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Wheel of Sun and Moon".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             instead,
         )))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn mox_amber_fixture() -> Arc<Card> {
@@ -703,7 +712,7 @@ fn mox_amber_fixture() -> Arc<Card> {
         Count::Literal(1),
         ManaSpec::AmongColorsOf(sole_eligible_legend).into(),
     ));
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Mox Amber".into(),
         mana_cost: "{0}".parse().unwrap(),
         supertypes: vec![Supertype::Legendary],
@@ -718,12 +727,12 @@ fn mox_amber_fixture() -> Arc<Card> {
             limits: Arc::from([]),
             effect: effect.into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn colored_legendary_artifact() -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Colored legendary artifact".into(),
         mana_cost: "{G}".parse().unwrap(),
         supertypes: vec![Supertype::Legendary],
@@ -738,8 +747,8 @@ fn colored_legendary_artifact() -> Arc<Card> {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn omnath_fixture() -> Arc<Card> {
@@ -747,7 +756,7 @@ fn omnath_fixture() -> Arc<Card> {
         Reference::Reg(deckmaste_core::RefId(1)),
         Color::Green.into(),
     );
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Omnath, Locus of Mana".into(),
         mana_cost: "{2}{G}".parse().unwrap(),
         supertypes: vec![Supertype::Legendary],
@@ -764,12 +773,12 @@ fn omnath_fixture() -> Arc<Card> {
                 .into(),
             ),
         ))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn mana_cylix_fixture() -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Mana Cylix".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
@@ -793,8 +802,8 @@ fn mana_cylix_fixture() -> Arc<Card> {
             ))
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn bighorner_rancher_fixture() -> Arc<Card> {
@@ -822,7 +831,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
             ))),
         },
     );
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Bighorner Rancher".into(),
         mana_cost: "{4}{G}".parse().unwrap(),
         types: vec![Type::Creature.def()],
@@ -843,8 +852,8 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
             ))
             .into(),
         }))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn put_named_in_play(
@@ -855,7 +864,15 @@ fn put_named_in_play(
     let object = state.zones.hands[payer.index()]
         .iter()
         .copied()
-        .find(|&object| state.def(object).primary_face().name.as_ref() == name)
+        .find(|&object| {
+            state
+                .def(object)
+                .primary_face()
+                .characteristics
+                .name
+                .as_ref()
+                == name
+        })
         .unwrap();
     state.zones.hands[payer.index()].retain(|&candidate| candidate != object);
     state.objects.obj_mut(object).zone = Some(Zone::Battlefield);
@@ -1100,10 +1117,10 @@ fn move_chosen(
 fn unreplayable_dependency_rejects_without_repair_or_mutation() {
     let battlefield = Predicate::State(StatePredicate::InZone(Zone::Battlefield));
     let graveyard = Predicate::State(StatePredicate::InZone(Zone::Graveyard));
-    let resource = Arc::new(Card::Normal(CardFace {
+    let resource = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Replay resource".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut cost = move_chosen(
         deckmaste_core::DefId(3),
         battlefield,
@@ -1161,7 +1178,7 @@ fn unreplayable_dependency_rejects_without_repair_or_mutation() {
 
 #[test]
 fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
-    let watcher = Arc::new(Card::Normal(CardFace {
+    let watcher = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Life-loss watcher".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::triggered(TriggeredAbility {
@@ -1177,8 +1194,8 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(2)),
@@ -1215,14 +1232,14 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
 fn replay_rebinds_a_retained_card_after_an_earlier_zone_remint_is_omitted() {
     let battlefield = Predicate::State(StatePredicate::InZone(Zone::Battlefield));
     let graveyard = Predicate::State(StatePredicate::InZone(Zone::Graveyard));
-    let first_card = Arc::new(Card::Normal(CardFace {
+    let first_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "First replay card".into(),
-        ..CardFace::default()
-    }));
-    let retained_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let retained_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Retained replay card".into(),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut cost = move_chosen(
         deckmaste_core::DefId(3),
         battlefield.clone(),
@@ -1269,8 +1286,8 @@ fn replay_rebinds_a_retained_card_after_an_earlier_zone_remint_is_omitted() {
         .iter()
         .copied()
         .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == "Retained replay card",
-            other => other.primary_face().name.as_ref() == "Retained replay card",
+            Card::Normal(face) => face.characteristics.name.as_ref() == "Retained replay card",
+            other => other.primary_face().characteristics.name.as_ref() == "Retained replay card",
         })
         .unwrap();
     fulfill(
@@ -1794,15 +1811,15 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
         },
         instead: Instruction::Sequentially(Arc::from([])),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Double replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![
             Ability::r#static(StaticSpec::Replacement(Arc::new(replacement.clone()))),
             Ability::r#static(StaticSpec::Replacement(Arc::new(replacement))),
         ],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
         Reference::Reg(deckmaste_core::RefId(0)),
@@ -1859,14 +1876,14 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
             if_not: None,
         }),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Optional replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
         Reference::Reg(deckmaste_core::RefId(0)),
@@ -1946,14 +1963,14 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
             if_not: None,
         }),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let helper_card = green_source("Fulfillment-owned helper");
     let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
@@ -2067,14 +2084,14 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
             .into(),
         ),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Barred optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let helper_card = green_source("Barred fulfillment helper");
     let sacrifice = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
@@ -2193,7 +2210,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
         .find(|&object| {
             matches!(
                 state.def(object),
-                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+                Card::Normal(face) if face.characteristics.name.as_ref() == "Fulfillment-created helper"
             )
         })
         .expect("the retained fulfillment creates the later mana source");
@@ -2266,7 +2283,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
         .find(|&object| {
             matches!(
                 state.def(object),
-                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+                Card::Normal(face) if face.characteristics.name.as_ref() == "Fulfillment-created helper"
             )
         })
         .expect("replay remints the retained child's source");
@@ -2281,7 +2298,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
         .find(|&object| {
             matches!(
                 reversed_state.def(object),
-                Card::Normal(face) if face.name.as_ref() == "Fulfillment-created helper"
+                Card::Normal(face) if face.characteristics.name.as_ref() == "Fulfillment-created helper"
             )
         })
         .expect("reversing only the child retains its source creator");
@@ -2347,14 +2364,14 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
             .into(),
         ),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Suspended optional mana replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let helper_card = green_source("Suspended fulfillment helper");
     let filter_card = mana_source(
         "Suspended fulfillment filter",
@@ -2545,14 +2562,14 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
             .into(),
         ),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Barred replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
         Reference::Reg(deckmaste_core::RefId(0)),
@@ -2651,14 +2668,14 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
             .into(),
         ),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Create-remint replacement".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let pay_life = CostComponent::do_action(CoreAction::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(Count::Literal(1)),
@@ -2726,14 +2743,14 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
             .into(),
         ),
     };
-    let shield = Arc::new(Card::Normal(CardFace {
+    let shield = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Observe then choose".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let sacrifice_self = CostComponent::do_action(CoreAction::Sacrifice(
         Reference::Reg(deckmaste_core::RefId(1)),
         Reference::Reg(deckmaste_core::RefId(0)),
@@ -2905,7 +2922,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
         .iter()
         .copied()
         .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == "Replay mana token",
+            Card::Normal(face) => face.characteristics.name.as_ref() == "Replay mana token",
             _ => false,
         })
         .expect("the retained producer creates its mana-source token");
@@ -2969,7 +2986,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
         .iter()
         .copied()
         .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == "Replay mana token",
+            Card::Normal(face) => face.characteristics.name.as_ref() == "Replay mana token",
             _ => false,
         })
         .expect("the replay remints the retained producer's token");
@@ -3013,7 +3030,7 @@ fn retained_mana_action_rebinds_a_later_decision_to_its_own_created_object() {
         .iter()
         .copied()
         .find(|&object| {
-            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Same-record choice token")
+            matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Same-record choice token")
         })
         .unwrap();
     state
@@ -3028,7 +3045,7 @@ fn retained_mana_action_rebinds_a_later_decision_to_its_own_created_object() {
     assert_eq!(state.payment_depth(), 0);
     assert_eq!(state.zones.libraries[payer.index()].len(), 1);
     assert!(state.zones.battlefield.iter().any(|&object| {
-        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Same-record choice token")
+        matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Same-record choice token")
     }));
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
 }
@@ -3043,7 +3060,7 @@ fn declining_can_reverse_the_creator_of_an_observed_transient_token() {
     announce(&mut state, parent);
     let action = submit_tap_mana_action(&mut state, source);
     assert!(state.zones.battlefield.iter().any(|&object| {
-        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Observed transient token")
+        matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Observed transient token")
     }));
 
     state
@@ -3061,7 +3078,7 @@ fn declining_can_reverse_the_creator_of_an_observed_transient_token() {
     assert!(!state.objects.obj(source).tapped);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
     assert!(!state.zones.battlefield.iter().any(|&object| {
-        matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Observed transient token")
+        matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Observed transient token")
     }));
 }
 

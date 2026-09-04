@@ -8,6 +8,7 @@
 use std::sync::Arc;
 
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::CounterRef;
 use deckmaste_core::DamageResultRule;
@@ -38,12 +39,12 @@ fn loyalty_rule() -> DamageResultRule {
 
 /// A synthetic non-creature planeswalker (types `[Planeswalker]`).
 fn walker_card() -> deckmaste_card::Card {
-    deckmaste_card::Card::Normal(CardFace {
+    deckmaste_card::Card::Normal(CardFace::from(Characteristics {
         name: "Test Walker".into(),
         types: vec![Type::Planeswalker.def()],
         loyalty: Some(StatValue::Number(5)),
-        ..CardFace::default()
-    })
+        ..Characteristics::default()
+    }))
 }
 
 /// A `Creature` `TypeDef` carrying the combat confers inline — the production
@@ -119,14 +120,14 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
 /// `combatant_creature_def`), so combat-damage marking sees it as a combatant
 /// ([CR#120.3d]).
 fn creature_walker_card() -> deckmaste_card::Card {
-    deckmaste_card::Card::Normal(CardFace {
+    deckmaste_card::Card::Normal(CardFace::from(Characteristics {
         name: "Test Creature Walker".into(),
         types: vec![combatant_creature_def(), Type::Planeswalker.def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
         loyalty: Some(StatValue::Number(5)),
-        ..CardFace::default()
-    })
+        ..Characteristics::default()
+    }))
 }
 
 /// A two-player game whose player 0 decks `card`, with `damage_result_rules`

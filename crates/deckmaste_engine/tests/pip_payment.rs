@@ -67,7 +67,7 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.name,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
     }
 }
 
@@ -77,7 +77,7 @@ fn printed_mana_value(state: &GameState, id: ObjectId) -> u32 {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => f.mana_cost.mana_value(),
+        | Card::Adventurer { normal: f, .. } => f.characteristics.mana_cost.mana_value(),
     }
 }
 

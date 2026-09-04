@@ -53,7 +53,7 @@ mod tests {
 
     fn names(deck: &[Arc<Card>]) -> Vec<String> {
         deck.iter()
-            .map(|c| c.primary_face().name.to_string())
+            .map(|c| c.primary_face().characteristics.name.to_string())
             .collect()
     }
 

@@ -180,6 +180,6 @@ mod tests {
         let deckmaste_card::Card::Normal(core_face) = &resolved[0].core else {
             panic!("Forest is a Normal card");
         };
-        assert_eq!(semantic_face.name, core_face.name);
+        assert_eq!(semantic_face.name, core_face.characteristics.name);
     }
 }

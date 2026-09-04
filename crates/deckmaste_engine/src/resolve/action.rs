@@ -1047,6 +1047,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::Action;
     use deckmaste_core::Anchor;
@@ -1141,11 +1142,12 @@ mod tests {
     fn may_attach_creature_equipment(state: &mut GameState) -> ObjectId {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::Deontic;
         use deckmaste_core::DeonticAction;
         use deckmaste_core::StaticSpec;
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Equipment".into(),
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::May(
@@ -1154,8 +1156,8 @@ mod tests {
                     to: Predicate::creature(),
                 },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -1268,6 +1270,7 @@ mod tests {
     #[test]
     fn attach_illegal_noop() {
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
 
         let mut state = game();
         // The attachment: an Equipment-shaped artifact whose May(Attach) grant
@@ -1275,11 +1278,11 @@ mod tests {
         let equip = may_attach_creature_equipment(&mut state);
 
         // The host: a non-creature artifact "Rock".
-        let rock_card = Card::Normal(CardFace {
+        let rock_card = Card::Normal(CardFace::from(Characteristics {
             name: "Rock".into(),
             types: vec![Type::Artifact.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let rock_id = state.cards.push(Arc::new(rock_card), PlayerId(0));
         let rock = state.objects.mint(
             ObjectSource::Card(rock_id),
@@ -1561,7 +1564,7 @@ mod tests {
         // A battlefield permanent (player 0's) carrying the replacement.
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Mill Warden".into(),
                 types: vec![Type::Creature.def()],
                 abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -1578,8 +1581,8 @@ mod tests {
                         )),
                     },
                 )))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let a = mint_in_library(&mut state, PlayerId(0), "A");
         let b = mint_in_library(&mut state, PlayerId(0), "B");
@@ -1955,12 +1958,12 @@ mod tests {
                 Zone::Exile,
             )),
         };
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Rest in Peace".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(rip)))],
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let card_id = state.cards.push(card, PlayerId(0));
         let rip_id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2070,7 +2073,7 @@ mod tests {
     /// backing card, never a pre-move `ObjectId`.
     fn zone_has_named(state: &GameState, zone: &[crate::object::ObjectId], name: &str) -> bool {
         zone.iter()
-            .any(|&o| matches!(state.def(o), deckmaste_card::Card::Normal(f) if &*f.name == name))
+            .any(|&o| matches!(state.def(o), deckmaste_card::Card::Normal(f) if &*f.characteristics.name == name))
     }
 
     /// [CR#702.35a]: the madness window — a replacement over `Act(Discard)`
@@ -2108,14 +2111,14 @@ mod tests {
         };
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Madness Watcher".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
                     madness,
                 )))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let mad = mint_in_hand(&mut state, PlayerId(0), "Madness Card");
         let plain = state.zones.hands[0][0];
@@ -2176,7 +2179,7 @@ mod tests {
         use deckmaste_core::ManaSymbol;
         use deckmaste_core::SimpleManaSymbol;
         use deckmaste_core::StatValue;
-        CardFace {
+        CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: ManaCost::from(Arc::from(vec![
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(3)),
@@ -2188,8 +2191,8 @@ mod tests {
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
             abilities: vec![keyword("Madness([Mana([Generic(1), Red])])")],
-            ..CardFace::default()
-        }
+            ..Characteristics::default()
+        })
     }
 
     /// Grant `player` `n` red mana (enough to cover a `{1}{R}` madness cost
@@ -2220,7 +2223,7 @@ mod tests {
         use deckmaste_core::VerbName;
         mint_on_field(
             state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Megrim Fixture".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
@@ -2242,8 +2245,8 @@ mod tests {
                     ))
                     .into(),
                 })],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
     }
 
@@ -2448,12 +2451,12 @@ mod tests {
         let ability: Ability = deckmaste_lowering::Lower::lower(semantic);
         mint_on_field(
             state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Rest in Peace Fixture".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![ability],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
     }
 
@@ -2558,7 +2561,8 @@ mod tests {
     /// Falkenrath-Gorger-plus-own-madness "choose one" shape ([CR#702.35a]).
     fn double_madness_creature(name: &str) -> CardFace {
         let mut face = madness_creature(name);
-        face.abilities
+        face.characteristics
+            .abilities
             .push(keyword("Madness([Mana([Generic(2), Black])])"));
         face
     }
@@ -2776,11 +2780,11 @@ mod tests {
         let card = mint_in_hand_with(
             &mut state,
             PlayerId(0),
-            CardFace {
+            CardFace::from(Characteristics {
                 name: "Conferred Vampire".into(),
                 types: vec![Type::Creature.def()],
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         );
         // Bound discard ("discard this card"): the frame's source IS the card.
         let frame = frame_src(&state, card);
@@ -2840,11 +2844,11 @@ mod tests {
 
         let host = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Destroy Host".into(),
                 types: vec![Type::Creature.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_src(&state, host);
         state.run_effect(
@@ -2907,11 +2911,11 @@ mod tests {
 
         let _host = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Trigger Host".into(),
                 types: vec![Type::Creature.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let life_before = state.player(PlayerId(0)).life;
 
@@ -2970,13 +2974,13 @@ mod tests {
         let vampire = mint_in_hand_with(
             &mut state,
             PlayerId(0),
-            CardFace {
+            CardFace::from(Characteristics {
                 name: "Printed-Madness Vampire".into(),
                 types: vec![Type::Creature.def()],
                 subtypes: vec![subtype("Vampire")],
                 abilities: vec![keyword("Madness([Mana([Red])])")],
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         );
         let frame = frame_src(&state, vampire);
         state.run_effect(
@@ -3023,7 +3027,7 @@ mod tests {
             .zones
             .exile
             .iter()
-            .filter(|&&o| matches!(state.def(o), Card::Normal(f) if &*f.name == "Printed-Madness Vampire"))
+            .filter(|&&o| matches!(state.def(o), Card::Normal(f) if &*f.characteristics.name == "Printed-Madness Vampire"))
             .count();
         assert_eq!(
             in_exile, 1,
@@ -3046,12 +3050,12 @@ mod tests {
     /// A vanilla (no printed madness) Vampire creature card — its only possible
     /// madness source is Falkenrath Gorger's conferral.
     fn vanilla_vampire(name: &str) -> CardFace {
-        CardFace {
+        CardFace::from(Characteristics {
             name: name.into(),
             types: vec![Type::Creature.def()],
             subtypes: vec![subtype("Vampire")],
-            ..CardFace::default()
-        }
+            ..Characteristics::default()
+        })
     }
 
     /// Whether the layer view grants `id` a madness-shaped self-replacement —
@@ -3171,12 +3175,12 @@ mod tests {
         let mad = mint_in_hand_with(
             &mut state,
             PlayerId(0),
-            CardFace {
+            CardFace::from(Characteristics {
                 name: "Hand Madness".into(),
                 types: vec![Type::Creature.def()],
                 abilities: vec![keyword("Madness([Mana([Red])])")],
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         );
         let plain = mint_in_hand(&mut state, PlayerId(0), "Hand Plain");
         // Anje's OWN attack-trigger effect (discard your hand, then draw
@@ -3185,7 +3189,8 @@ mod tests {
             let Card::Normal(face) = state.def(anje) else {
                 panic!("Anje's Ravager is single-faced")
             };
-            face.abilities
+            face.characteristics
+                .abilities
                 .iter()
                 .find_map(|a| a.as_triggered().map(|t| t.effect.clone()))
                 .expect("Anje's Ravager has an attack trigger")
@@ -3269,7 +3274,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "No Discards".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::r#static(StaticSpec::CantHappen(
@@ -3280,8 +3285,8 @@ mod tests {
                         cause: None,
                     },
                 ))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let hand_before = state.zones.hands[0].len();
         let frame = frame_src(&state, a);
@@ -3324,7 +3329,7 @@ mod tests {
         // b: a creature carrying "this creature can't fight".
         let b = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Pacifist Bear".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
@@ -3337,8 +3342,8 @@ mod tests {
                         cause: None,
                     },
                 ))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         // Fight(a, b) with b SECOND-named.
         let frame = frame_src_targets(&state, a, vec![a, b]);
@@ -3382,7 +3387,7 @@ mod tests {
         use deckmaste_core::VerbName;
         mint_on_field(
             state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Foe-Razer Fixture".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
@@ -3416,8 +3421,8 @@ mod tests {
                     ))
                     .into(),
                 })],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
     }
 
@@ -3428,13 +3433,13 @@ mod tests {
     fn foe_razer_creature(state: &mut GameState, controller: PlayerId) -> ObjectId {
         use deckmaste_core::StatValue;
         let cid = state.cards.push(
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: "Foe-Razer Bear".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            })),
+                ..Characteristics::default()
+            }))),
             controller,
         );
         let id = state
@@ -3564,7 +3569,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Megrim Fixture".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
@@ -3586,8 +3591,8 @@ mod tests {
                     ))
                     .into(),
                 })],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let hand_before = state.zones.hands[0].len();
         let life_before = state.player(PlayerId(0)).life;
@@ -4537,7 +4542,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         // Mint an instant carrying "this spell can't be countered" and push it
         // onto the stack, owned/controlled by player 0.
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Uncounterable".into(),
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
@@ -4546,8 +4551,8 @@ mod tests {
                     on: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                 },
             )))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
         let spell = state
             .objects
@@ -4768,13 +4773,13 @@ mod tests {
     fn vanilla_creature(state: &mut GameState, name: &str) -> ObjectId {
         mint_on_field(
             state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
                 toughness: Some(deckmaste_core::StatValue::Number(2)),
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         )
     }
 
@@ -4790,13 +4795,13 @@ mod tests {
         // equipped creature".
         let equipment = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Test Sword".into(),
                 types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])"), host_pump(1)],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         // Base host is 2/2.
         assert_eq!(state.layers().power(host), Some(2));
@@ -4837,13 +4842,13 @@ mod tests {
         // A real Aura: Enchant(creature) keyword (targeting Spell + May(Attach)
         // grant + AsEnters) + the Aura subtype's conferred graveyard rule +
         // "+2/+2".
-        let aura_card = Card::Normal(CardFace {
+        let aura_card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Aura".into(),
             types: vec![Type::Enchantment.def()],
             subtypes: vec![subtype("Aura")],
             abilities: vec![keyword("Enchant(Type(Creature))"), host_pump(2)],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         // Stand the Aura up as a spell on the stack, target = the host.
         let cid = state.cards.push(Arc::new(aura_card), PlayerId(0));
         let spell = state
@@ -4913,13 +4918,13 @@ mod tests {
         let host = vanilla_creature(&mut state, "Doomed Bear");
         let equipment = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Sticky Sword".into(),
                 types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])")],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         state.objects.obj_mut(equipment).attached_to = Some(host);
 
@@ -4959,7 +4964,7 @@ mod tests {
         // red, to: This))` (the Protection-conferred shape, [CR#702.16d]).
         let host = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Protected Bear".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(deckmaste_core::StatValue::Number(2)),
@@ -4972,20 +4977,20 @@ mod tests {
                         to: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
                     },
                 )))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         // A RED Equipment attached to the host.
         let equipment = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Red Sword".into(),
                 types: vec![Type::Artifact.def()],
                 color_indicator: vec![Color::Red],
                 subtypes: vec![subtype("Equipment")],
                 abilities: vec![keyword("Equip([Tap])")],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         state.objects.obj_mut(equipment).attached_to = Some(host);
         // Sanity: it is currently illegal (protection) — the SBA will catch it.
@@ -5009,21 +5014,21 @@ mod tests {
         let mut state = game();
         let land = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Target Land".into(),
                 types: vec![Type::Land.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let fortification = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Test Banner".into(),
                 types: vec![Type::Artifact.def()],
                 subtypes: vec![subtype("Fortification")],
                 abilities: vec![keyword("Fortify([Tap])")],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_src_targets(&state, fortification, vec![land]);
         state.run_effect(
@@ -5054,15 +5059,15 @@ mod tests {
         // A reconfigure Equipment creature (it IS a creature when unattached).
         let equip_creature = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Living Weapon".into(),
                 types: vec![Type::Artifact.def(), Type::Creature.def()],
                 subtypes: vec![subtype("Equipment")],
                 power: Some(deckmaste_core::StatValue::Number(1)),
                 toughness: Some(deckmaste_core::StatValue::Number(1)),
                 abilities: vec![keyword("Reconfigure([Tap])")],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         // Attach via reconfigure's first ability shape (Attach to a creature).
         let frame = frame_src_targets(&state, equip_creature, vec![host]);
@@ -5105,15 +5110,15 @@ mod tests {
         let host = vanilla_creature(&mut state, "Recon Host");
         let equip_creature = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Living Weapon".into(),
                 types: vec![Type::Artifact.def(), Type::Creature.def()],
                 subtypes: vec![subtype("Equipment")],
                 power: Some(deckmaste_core::StatValue::Number(1)),
                 toughness: Some(deckmaste_core::StatValue::Number(1)),
                 abilities: vec![keyword("Reconfigure([Tap])")],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         state.objects.obj_mut(equip_creature).attached_to = Some(host);
         // Would-be: attached → not a creature.
@@ -5186,11 +5191,11 @@ mod tests {
     /// (`push_back`; the front is the top). Returns its id.
     fn mint_in_library(state: &mut GameState, owner: PlayerId, name: &str) -> ObjectId {
         let cid = state.cards.push(
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
                 types: vec![Type::Creature.def()],
-                ..CardFace::default()
-            })),
+                ..Characteristics::default()
+            }))),
             owner,
         );
         let id = state
@@ -5325,12 +5330,14 @@ mod tests {
         use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
 
-        let face = |name: &str, (p, t): (deckmaste_core::Int, deckmaste_core::Int)| CardFace {
-            name: name.into(),
-            types: vec![Type::Creature.def()],
-            power: Some(StatValue::Number(p)),
-            toughness: Some(StatValue::Number(t)),
-            ..CardFace::default()
+        let face = |name: &str, (p, t): (deckmaste_core::Int, deckmaste_core::Int)| {
+            CardFace::from(Characteristics {
+                name: name.into(),
+                types: vec![Type::Creature.def()],
+                power: Some(StatValue::Number(p)),
+                toughness: Some(StatValue::Number(t)),
+                ..Characteristics::default()
+            })
         };
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
@@ -5361,13 +5368,13 @@ mod tests {
         let mut state = game();
         let dfc = transforming_dfc_on_field(&mut state, (1, 1), (3, 2));
         // A plain 2/2 with no other face.
-        let normal_card = Card::Normal(CardFace {
+        let normal_card = Card::Normal(CardFace::from(Characteristics {
             name: "Just A Bear".into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let normal_id = state.cards.push(Arc::new(normal_card), PlayerId(0));
         let normal = state.objects.mint(
             ObjectSource::Card(normal_id),
@@ -5441,18 +5448,18 @@ mod tests {
 
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
-            front: CardFace {
+            front: CardFace::from(Characteristics {
                 name: "Creature Front".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            },
-            back: CardFace {
+                ..Characteristics::default()
+            }),
+            back: CardFace::from(Characteristics {
                 name: "Sorcery Back".into(),
                 types: vec![Type::Sorcery.def()],
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         };
         let mut state = game();
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -5674,7 +5681,7 @@ mod tests {
         let b = mint_in_library(&mut state, p0, "B");
         mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Scry Warden".into(),
                 types: vec![Type::Creature.def()],
                 abilities: vec![Ability::r#static(StaticSpec::CantHappen(
@@ -5685,8 +5692,8 @@ mod tests {
                         cause: None,
                     },
                 ))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         let frame = frame_for(&state, p0);
         state.run_effect(scry_effect(1), &frame);
@@ -6383,7 +6390,7 @@ mod tests {
         let mut state = game();
         let field = mint_on_field(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Leyline".into(),
                 types: vec![Type::Creature.def()],
                 abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -6400,8 +6407,8 @@ mod tests {
                         )),
                     },
                 )))],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
         );
         // A card in player 0's hand to discard.
         let card = mint_in_hand(&mut state, PlayerId(0), "Discardee");

@@ -66,7 +66,11 @@ impl Probes {
                 GameEvent::Blocked(Blocked { .. }) => self.blocks_declared += 1,
                 GameEvent::Tapped(Tapped { object: o, .. })
                     if state.zones.battlefield.contains(o)
-                        && !face(state.def(*o)).types.iter().any(|t| t.name == "Land") =>
+                        && !face(state.def(*o))
+                            .characteristics
+                            .types
+                            .iter()
+                            .any(|t| t.name == "Land") =>
                 {
                     self.nonland_taps += 1;
                 }

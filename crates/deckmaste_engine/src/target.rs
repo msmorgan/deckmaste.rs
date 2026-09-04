@@ -354,14 +354,18 @@ pub(crate) fn matches_with_activation(
         // "named X" ([CR#201]): printed face name; a player proxy has no card.
         Predicate::Characteristic(CharacteristicPredicate::Named(name)) => {
             state.objects.obj(id).card_id().is_some()
-                && &*crate::derive::face(state.def(id)).name == name.as_str()
+                && &*crate::derive::face(state.def(id)).characteristics.name == name.as_str()
         }
         Predicate::Characteristic(CharacteristicPredicate::NamedReg(reference)) => {
             state.objects.obj(id).card_id().is_some()
                 && state
                     .activation_symbol(activation, *reference)
                     .is_some_and(|expected| {
-                        crate::derive::face(state.def(id)).name.as_ref() == expected
+                        crate::derive::face(state.def(id))
+                            .characteristics
+                            .name
+                            .as_ref()
+                            == expected
                     })
         }
         // Color predicates over the DERIVED colors ([CR#105.2,202.2]) — a
@@ -829,7 +833,10 @@ fn derived_stat(
         // contribution rides the X announce slot, not yet wired).
         deckmaste_core::Stat::ManaValue => Some(
             deckmaste_core::Int::try_from(
-                crate::derive::face(state.def(id)).mana_cost.mana_value(),
+                crate::derive::face(state.def(id))
+                    .characteristics
+                    .mana_cost
+                    .mana_value(),
             )
             .expect("mana value fits Int"),
         ),
@@ -838,9 +845,12 @@ fn derived_stat(
         // `CounterCount(This, LoyaltyCounter)`). `base_stat` maps `Number(n)→n`,
         // `DefinedByAbility`/`Variable`/absent → 0, and `None` (no printed
         // loyalty) → `None`, mirroring the P/T arms above.
-        deckmaste_core::Stat::Loyalty => {
-            crate::layer::base_stat(crate::derive::face(state.def(id)).loyalty.as_ref())
-        }
+        deckmaste_core::Stat::Loyalty => crate::layer::base_stat(
+            crate::derive::face(state.def(id))
+                .characteristics
+                .loyalty
+                .as_ref(),
+        ),
         deckmaste_core::Stat::Defense => Some(
             deckmaste_core::Int::try_from(
                 state
@@ -2074,15 +2084,16 @@ mod tests {
     fn adjacent_matches_the_one_neighbor_in_the_stated_direction() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Adjacency;
 
         let mut state = game();
         let p0 = PlayerId(0);
         let make_card = |name: &str| {
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: name.into(),
-                ..CardFace::default()
-            })
+                ..Characteristics::default()
+            }))
         };
         let card_a = state.cards.push(Arc::new(make_card("Alpha")), p0);
         let card_b = state.cards.push(Arc::new(make_card("Beta")), p0);

@@ -2483,10 +2483,12 @@ mod tests {
     /// `apply_zone_will_change` requires, since it reads the card's owner
     /// ([CR#108.3]) via `ObjectSource::Card` on the way out.
     fn mint_card_backed(state: &mut GameState, controller: PlayerId) -> ObjectId {
-        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Test Card".into(),
-            ..deckmaste_card::CardFace::default()
-        }));
+        let card = Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "Test Card".into(),
+                ..deckmaste_card::Characteristics::default()
+            }),
+        ));
         let card_id = state.cards.push(card, controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -2969,14 +2971,16 @@ mod tests {
         }
 
         fn legendary_creature(state: &mut GameState, name: &str, controller: PlayerId) -> ObjectId {
-            let card = Arc::new(Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![Type::Creature.def()],
-                supertypes: vec![Supertype::Legendary],
-                power: Some(StatValue::Number(2)),
-                toughness: Some(StatValue::Number(2)),
-                ..deckmaste_card::CardFace::default()
-            }));
+            let card = Arc::new(Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    supertypes: vec![Supertype::Legendary],
+                    power: Some(StatValue::Number(2)),
+                    toughness: Some(StatValue::Number(2)),
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )));
             let card_id = state.cards.push(Arc::clone(&card), controller);
             let id = state.objects.mint(
                 ObjectSource::Card(card_id),
@@ -3022,14 +3026,16 @@ mod tests {
             name: &str,
             controller: PlayerId,
         ) -> ObjectId {
-            let card = Arc::new(Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![Type::Creature.def()],
-                supertypes: vec![],
-                power: Some(StatValue::Number(2)),
-                toughness: Some(StatValue::Number(2)),
-                ..deckmaste_card::CardFace::default()
-            }));
+            let card = Arc::new(Card::Normal(deckmaste_card::CardFace::from(
+                deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![Type::Creature.def()],
+                    supertypes: vec![],
+                    power: Some(StatValue::Number(2)),
+                    toughness: Some(StatValue::Number(2)),
+                    ..deckmaste_card::Characteristics::default()
+                },
+            )));
             let card_id = state.cards.push(Arc::clone(&card), controller);
             let id = state.objects.mint(
                 ObjectSource::Card(card_id),
@@ -3107,11 +3113,13 @@ mod tests {
         controller: PlayerId,
         abilities: Vec<deckmaste_core::Ability>,
     ) -> ObjectId {
-        let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-            name: "Untap Fixture".into(),
-            abilities,
-            ..deckmaste_card::CardFace::default()
-        }));
+        let card = Arc::new(deckmaste_card::Card::Normal(
+            deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                name: "Untap Fixture".into(),
+                abilities,
+                ..deckmaste_card::Characteristics::default()
+            }),
+        ));
         let card_id = state.cards.push(card, controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -3307,20 +3315,21 @@ mod tests {
     fn transformed_event_toggles_side() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_card::DoubleFacedLayout;
 
         use crate::object::Side;
 
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
-            front: CardFace {
+            front: CardFace::from(Characteristics {
                 name: "Delverish".into(),
-                ..CardFace::default()
-            },
-            back: CardFace {
+                ..Characteristics::default()
+            }),
+            back: CardFace::from(Characteristics {
                 name: "Insectile Aberration".into(),
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         };
         let mut state = game();
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
@@ -3357,11 +3366,13 @@ mod tests {
         let frame = crate::test_support::frame_src(&state, source);
         // Two cards in hand to discard.
         for name in ["Discard A", "Discard B"] {
-            let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
-                name: name.into(),
-                types: vec![deckmaste_core::Type::Sorcery.def()],
-                ..deckmaste_card::CardFace::default()
-            }));
+            let card = Arc::new(deckmaste_card::Card::Normal(
+                deckmaste_card::CardFace::from(deckmaste_card::Characteristics {
+                    name: name.into(),
+                    types: vec![deckmaste_core::Type::Sorcery.def()],
+                    ..deckmaste_card::Characteristics::default()
+                }),
+            ));
             let cid = state.cards.push(card, PlayerId(0));
             let id = state
                 .objects

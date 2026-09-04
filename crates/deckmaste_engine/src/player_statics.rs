@@ -69,7 +69,10 @@ impl GameState {
                 continue;
             }
             let mut sources = Vec::new();
-            for ability in &crate::derive::face_of(self, obj.id).abilities {
+            for ability in &crate::derive::face_of(self, obj.id)
+                .characteristics
+                .abilities
+            {
                 crate::derive::flatten_composites(ability, &mut sources);
             }
             for ability in &sources {
@@ -167,6 +170,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::Count;
     use deckmaste_core::PlayerAttr;
@@ -201,15 +205,15 @@ mod tests {
     /// battlefield under `controller`.
     fn modify_player_permanent(state: &mut GameState, controller: PlayerId, pmod: PlayerMod) {
         use deckmaste_core::Zone;
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Player Static".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::r#static(StaticSpec::ModifyPlayer(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 pmod,
             ))],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), controller);
         let id = state.objects.mint(
             ObjectSource::Card(card_id),
@@ -260,20 +264,20 @@ mod tests {
 
         use crate::object::Side;
 
-        let front = CardFace {
+        let front = CardFace::from(Characteristics {
             name: "Quiet Front".into(),
             types: vec![Type::Enchantment.def()],
-            ..CardFace::default()
-        };
-        let back = CardFace {
+            ..Characteristics::default()
+        });
+        let back = CardFace::from(Characteristics {
             name: "Exploring Back".into(),
             types: vec![Type::Enchantment.def()],
             abilities: vec![Ability::r#static(StaticSpec::ModifyPlayer(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
             ))],
-            ..CardFace::default()
-        };
+            ..Characteristics::default()
+        });
         let card = Card::DoubleFaced {
             layout: DoubleFacedLayout::Transforming,
             front,

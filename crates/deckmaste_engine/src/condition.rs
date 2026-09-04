@@ -474,6 +474,7 @@ mod tests {
     fn intervening_if_rechecked_at_resolution() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
+        use deckmaste_card::Characteristics;
         use deckmaste_core::Ability;
         use deckmaste_core::EventFilter;
         use deckmaste_core::Instruction;
@@ -493,7 +494,7 @@ mod tests {
             // is on the battlefield". The event is irrelevant at resolution;
             // the effect is a no-op sequence — the test observes only whether
             // it gets scheduled.
-            let card = Card::Normal(CardFace {
+            let card = Card::Normal(CardFace::from(Characteristics {
                 name: "Conditional Trigger Artifact".into(),
                 types: vec![Type::Artifact.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
@@ -510,8 +511,8 @@ mod tests {
                     ))
                     .into(),
                 })],
-                ..CardFace::default()
-            });
+                ..Characteristics::default()
+            }));
             let card_id = state.cards.push(Arc::new(card), PlayerId(0));
             let source = state.objects.mint(
                 ObjectSource::Card(card_id),

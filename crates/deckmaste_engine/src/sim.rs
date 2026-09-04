@@ -81,7 +81,9 @@ fn has_type(state: &GameState, id: ObjectId, ty: Type) -> bool {
             | Card::DoubleFaced { front: f, .. }
             | Card::Split { left: f, .. }
             | Card::Flip { normal: f, .. }
-            | Card::Adventurer { normal: f, .. } => f.types.iter().any(|t| t.name == ty.name()),
+            | Card::Adventurer { normal: f, .. } => {
+                f.characteristics.types.iter().any(|t| t.name == ty.name())
+            }
         }
 }
 
@@ -99,7 +101,7 @@ fn mana_value(state: &GameState, id: ObjectId) -> Uint {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.mana_cost,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.mana_cost,
     };
     cost.mana_value()
 }
@@ -523,7 +525,12 @@ pub(crate) fn mechanical(state: &GameState, pending: &DecisionPointKind) -> Deci
         }) => {
             let name = state.zones.hands[player.index()].first().map_or_else(
                 || "Mountain".to_owned(),
-                |&id| crate::derive::face(state.def(id)).name.to_string(),
+                |&id| {
+                    crate::derive::face(state.def(id))
+                        .characteristics
+                        .name
+                        .to_string()
+                },
             );
             Decision::CardName(name)
         }

@@ -44,6 +44,7 @@ pub(crate) fn transform_legal(state: &GameState, object: ObjectId) -> bool {
         Side::Back => front,
     };
     !dest
+        .characteristics
         .types
         .iter()
         .any(|t| t.name == Type::Instant.name() || t.name == Type::Sorcery.name())

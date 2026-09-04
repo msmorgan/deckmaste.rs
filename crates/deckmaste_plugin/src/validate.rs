@@ -207,14 +207,14 @@ fn lint_all_card_faces(
         lint_keyword_refs(path, &chars.abilities, macros, out);
     };
     match card {
-        Card::Normal(face) => lint_one(face, out),
+        Card::Normal(face) => lint_one(&face.characteristics, out),
         Card::DoubleFaced { front, back, .. }
         | Card::Split {
             left: front,
             right: back,
         } => {
-            lint_one(front, out);
-            lint_one(back, out);
+            lint_one(&front.characteristics, out);
+            lint_one(&back.characteristics, out);
         }
         Card::Flip {
             normal,
@@ -224,7 +224,7 @@ fn lint_all_card_faces(
             normal,
             adventure: alternative,
         } => {
-            lint_one(normal, out);
+            lint_one(&normal.characteristics, out);
             lint_one(alternative, out);
         }
     }

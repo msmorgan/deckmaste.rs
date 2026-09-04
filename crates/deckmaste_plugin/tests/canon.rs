@@ -71,17 +71,17 @@ fn grizzly_bears_expand_the_creature_type_macro() {
         .unwrap()
         .expand_all()
         .lower();
-    assert_eq!(face.types, vec![creature_type]);
+    assert_eq!(face.characteristics.types, vec![creature_type]);
     assert_eq!(
-        face.subtypes,
+        face.characteristics.subtypes,
         vec![Subtype {
             name: "Bear".into(),
             types: vec![Type::Creature, Type::Kindred].into(),
             confers: vec![].into(),
         }]
     );
-    assert_eq!(face.power, Some(StatValue::Number(2)));
-    assert_eq!(face.toughness, Some(StatValue::Number(2)));
+    assert_eq!(face.characteristics.power, Some(StatValue::Number(2)));
+    assert_eq!(face.characteristics.toughness, Some(StatValue::Number(2)));
 }
 
 /// Target-position interception through real data: the bare `AnyTarget`
@@ -106,7 +106,7 @@ fn lightning_bolt_expands_target_macros() {
         .unwrap()
         .expand_all()
         .lower();
-    let [Ability::Spell(spell)] = face.abilities.as_slice() else {
+    let [Ability::Spell(spell)] = face.characteristics.abilities.as_slice() else {
         panic!("expected one spell ability")
     };
     assert_eq!(spell.targets.as_ref(), std::slice::from_ref(&any_target));
@@ -138,7 +138,7 @@ fn do_or_die_lowers_pile_labels_to_registers() {
     let Card::Normal(face) = plugin.card("Do or Die").unwrap().core else {
         panic!("Do or Die should be single-faced");
     };
-    let Ability::Spell(ref spell) = face.abilities[0] else {
+    let Ability::Spell(ref spell) = face.characteristics.abilities[0] else {
         panic!("expected a spell ability");
     };
     let [Instruction::SeparatePiles(separate)] = spell.effect.body.as_ref() else {
@@ -186,7 +186,7 @@ fn tribal_flames_expands_the_domain_count() {
     let Card::Normal(face) = plugin.card("Tribal Flames").unwrap().core else {
         panic!("Tribal Flames should be single-faced");
     };
-    let Ability::Spell(ref spell) = face.abilities[0] else {
+    let Ability::Spell(ref spell) = face.characteristics.abilities[0] else {
         panic!("expected a spell ability");
     };
     let [
@@ -229,7 +229,7 @@ fn any_target_body_replaces_its_expansion_on_the_loaded_card() {
     let Card::Normal(face) = plugin.card("Lightning Bolt").unwrap().core else {
         panic!("Lightning Bolt should be single-faced");
     };
-    let Ability::Spell(ref spell) = face.abilities[0] else {
+    let Ability::Spell(ref spell) = face.characteristics.abilities[0] else {
         panic!("expected a spell ability");
     };
     let any_target: deckmaste_semantics::TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
@@ -267,7 +267,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     let Card::Normal(face) = plugin.card("Mana Leak").unwrap().core else {
         panic!("Mana Leak should be single-faced");
     };
-    let Ability::Spell(ref spell) = face.abilities[0] else {
+    let Ability::Spell(ref spell) = face.characteristics.abilities[0] else {
         panic!("expected a spell ability");
     };
     let [Instruction::May(m)] = spell.effect.body.as_ref() else {
@@ -342,7 +342,7 @@ fn fate_transfer_cost_is_hybrid_blue_black() {
         panic!("Fate Transfer should be single-faced");
     };
     assert_eq!(
-        face.mana_cost,
+        face.characteristics.mana_cost,
         ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(1)),
             ManaSymbol::Hybrid(SimpleManaSymbol::from(Color::Blue), Color::Black),
@@ -359,8 +359,8 @@ fn pounce_is_instant_type() {
     // The plugin-expanded Instant carries its May(Cast(InstantSpeed)) confer
     // (Task 6, casting-window), so compare by the canonical type NAME rather
     // than the confer-less `Type::Instant.def()` fixture.
-    assert_eq!(face.types.len(), 1);
-    assert_eq!(face.types[0].name, Type::Instant.name());
+    assert_eq!(face.characteristics.types.len(), 1);
+    assert_eq!(face.characteristics.types[0].name, Type::Instant.name());
 }
 
 #[test]
@@ -369,7 +369,7 @@ fn arc_lightning_targets_any_target() {
     let Card::Normal(face) = plugin.card("Arc Lightning").unwrap().core else {
         panic!("Arc Lightning should be single-faced");
     };
-    let Ability::Spell(ref spell) = face.abilities[0] else {
+    let Ability::Spell(ref spell) = face.characteristics.abilities[0] else {
         panic!("expected a spell ability");
     };
     let TargetSpec::Target(count, filter) = &spell.targets[0] else {

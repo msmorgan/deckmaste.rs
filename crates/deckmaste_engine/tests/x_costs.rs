@@ -50,7 +50,7 @@ fn find_in_hand(state: &GameState, player: PlayerId, name: &str) -> ObjectId {
             | Card::DoubleFaced { front: f, .. }
             | Card::Split { left: f, .. }
             | Card::Flip { normal: f, .. }
-            | Card::Adventurer { normal: f, .. } => &f.name,
+            | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
         }
     }
     fn is_card(state: &GameState, id: ObjectId, name: &str) -> bool {

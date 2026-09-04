@@ -67,8 +67,8 @@ pub enum CopyException {
     AdditionalEffect(EnterRider),
 }
 
-/// The copiable characteristics of an object ([CR#707.2]) — the `CardFace`
-/// characteristic set, produced by the copy model and consumed by token
+/// The copiable characteristics of an object ([CR#707.2]) — a card face's
+/// `Characteristics`, produced by the copy model and consumed by token
 /// execution here and by `base_values` downstream.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct CopiableValues {

@@ -2504,6 +2504,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Color;
     use deckmaste_core::Cost;
     use deckmaste_core::CostComponent;
@@ -2540,11 +2541,11 @@ mod tests {
 
     fn fixture(printed_mana: &str) -> (GameState, PlayerId, crate::ObjectId) {
         let payer = PlayerId(0);
-        let card = Arc::new(Card::Normal(CardFace {
+        let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: "Payment subject".into(),
             mana_cost: printed_mana.parse().expect("test mana cost parses"),
-            ..CardFace::default()
-        }));
+            ..Characteristics::default()
+        })));
         let state = GameState::new(GameConfig {
             players: vec![
                 PlayerConfig { deck: vec![card] },
@@ -2825,10 +2826,10 @@ mod tests {
         );
 
         let resource_card = state.cards.push(
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: "Payment resource".into(),
-                ..CardFace::default()
-            })),
+                ..Characteristics::default()
+            }))),
             payer,
         );
         let resource = state.objects.mint(
@@ -3045,7 +3046,7 @@ mod tests {
             instead: Instruction::Sequentially(Arc::from([])),
         };
         let shield_card = state.cards.push(
-            Arc::new(Card::Normal(CardFace {
+            Arc::new(Card::Normal(CardFace::from(Characteristics {
                 name: "Two replacement shields".into(),
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![
@@ -3056,8 +3057,8 @@ mod tests {
                         replacement,
                     ))),
                 ],
-                ..CardFace::default()
-            })),
+                ..Characteristics::default()
+            }))),
             payer,
         );
         let shield = state.objects.mint(
@@ -3168,11 +3169,11 @@ mod tests {
         (0..n)
             .map(|index| {
                 let cid = state.cards.push(
-                    Arc::new(Card::Normal(CardFace {
+                    Arc::new(Card::Normal(CardFace::from(Characteristics {
                         name: format!("Sacrificial creature {index}").into(),
                         types: vec![Type::Creature.def()],
-                        ..CardFace::default()
-                    })),
+                        ..Characteristics::default()
+                    }))),
                     owner,
                 );
                 let id =

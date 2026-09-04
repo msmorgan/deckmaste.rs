@@ -64,7 +64,7 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.name,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
     }
 }
 
@@ -88,9 +88,11 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
             | Card::DoubleFaced { front: f, .. }
             | Card::Split { left: f, .. }
             | Card::Flip { normal: f, .. }
-            | Card::Adventurer { normal: f, .. } => {
-                f.types.iter().any(|t| t.name == Type::Land.name())
-            }
+            | Card::Adventurer { normal: f, .. } => f
+                .characteristics
+                .types
+                .iter()
+                .any(|t| t.name == Type::Land.name()),
         })
 }
 

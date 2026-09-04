@@ -516,12 +516,12 @@ impl Plugin {
 
 fn validate_card_regions(card: &deckmaste_card::Card) -> anyhow::Result<()> {
     let parts: Vec<&deckmaste_card::Characteristics> = match card {
-        deckmaste_card::Card::Normal(face) => vec![face],
+        deckmaste_card::Card::Normal(face) => vec![&face.characteristics],
         deckmaste_card::Card::DoubleFaced { front, back, .. }
         | deckmaste_card::Card::Split {
             left: front,
             right: back,
-        } => vec![front, back],
+        } => vec![&front.characteristics, &back.characteristics],
         deckmaste_card::Card::Flip {
             normal,
             alternative,
@@ -529,7 +529,7 @@ fn validate_card_regions(card: &deckmaste_card::Card) -> anyhow::Result<()> {
         | deckmaste_card::Card::Adventurer {
             normal,
             adventure: alternative,
-        } => vec![normal, alternative],
+        } => vec![&normal.characteristics, alternative],
     };
     for part in parts {
         for ability in &part.abilities {

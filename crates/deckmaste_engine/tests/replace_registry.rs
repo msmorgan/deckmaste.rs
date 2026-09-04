@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::CausePattern;
@@ -90,7 +91,7 @@ fn face_name(state: &GameState, id: ObjectId) -> Option<&str> {
             | Card::DoubleFaced { front: f, .. }
             | Card::Split { left: f, .. }
             | Card::Flip { normal: f, .. }
-            | Card::Adventurer { normal: f, .. } => &*f.name,
+            | Card::Adventurer { normal: f, .. } => &*f.characteristics.name,
         })
 }
 
@@ -180,7 +181,7 @@ fn force_onto_battlefield(state: &mut GameState, obj: ObjectId) {
 /// will be in player 0's opening hand. Then force it onto the battlefield.
 /// Returns `(state, id)`.
 fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) {
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Test Creature".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
@@ -188,8 +189,8 @@ fn creature_with_replacement(replacement: Replacement) -> (GameState, ObjectId) 
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
             replacement,
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig { deck: vec![card] },
@@ -220,14 +221,14 @@ fn creature_with_abilities(
     toughness: i32,
     abilities: Vec<Ability>,
 ) -> (GameState, ObjectId) {
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(toughness)),
         abilities,
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig { deck: vec![card] },
@@ -383,7 +384,7 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
         would: destroyed_self(),
         instead: Instruction::Sequentially(vec![].into()),
     };
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Double Shield".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
@@ -393,8 +394,8 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
             Ability::r#static(StaticSpec::Replacement(Arc::new(instead.clone()))),
             Ability::r#static(StaticSpec::Replacement(Arc::new(instead))),
         ],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig { deck: vec![card] },
@@ -536,13 +537,13 @@ fn vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
 /// and assert the resulting marked damage — `step.rs` now gates that marking
 /// on `is_combatant` ([CR#120.3d,120.3e]).
 fn combatant_vanilla_creature(power: i32, toughness: i32) -> (GameState, ObjectId) {
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Vanilla".into(),
         types: vec![combatant_creature_def()],
         power: Some(StatValue::Number(power)),
         toughness: Some(StatValue::Number(toughness)),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig { deck: vec![card] },
@@ -826,20 +827,20 @@ fn regenerate_target_creature_heals_the_subject_not_the_source() {
     use deckmaste_engine::InstanceId;
     use deckmaste_engine::ReplacementInstance;
 
-    let subj_card = Arc::new(Card::Normal(CardFace {
+    let subj_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Subject".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        ..CardFace::default()
-    }));
-    let src_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let src_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Source".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(1)),
         toughness: Some(StatValue::Number(1)),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -1005,18 +1006,18 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     };
 
     // Creature card: a 2/2 with no abilities.
-    let creature_card = Arc::new(Card::Normal(CardFace {
+    let creature_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Host Creature".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
 
     // Aura card: Enchantment with the umbra-armor static PLUS the default-deny
     // `May(Attach to: Creature)` grant, without which the SBA sweep would treat
     // the manual attachment as illegal and unattach it.
-    let aura_card = Arc::new(Card::Normal(CardFace {
+    let aura_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Umbra Armor".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![
@@ -1026,8 +1027,8 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
             }))),
             Ability::r#static(StaticSpec::Replacement(Arc::new(umbra_armor))),
         ],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
 
     let mut state = GameState::new(GameConfig {
         players: vec![
@@ -1119,13 +1120,13 @@ fn umbra_armor_redirects_host_destruction_to_aura() {
 /// Ordinary destroy (no replacement) still sends the creature to the graveyard.
 #[test]
 fn ordinary_destroy_goes_to_graveyard() {
-    let card = Arc::new(Card::Normal(CardFace {
+    let card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Vanilla Creature".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(2)),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig { deck: vec![card] },
@@ -1466,15 +1467,15 @@ fn double_damage_lineage_terminates() {
 /// Build a source creature with the given abilities plus a separate target
 /// creature, both on player 0's battlefield. Returns `(state, source, target)`.
 fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, ObjectId) {
-    let src_card = Arc::new(Card::Normal(CardFace {
+    let src_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Source".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(3)),
         toughness: Some(StatValue::Number(3)),
         abilities: source_abilities,
-        ..CardFace::default()
-    }));
-    let tgt_card = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let tgt_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Target".into(),
         // A COMBATANT (confers `May(Attack)`/`May(Block)`), unlike a bare
         // `Type::Creature.def()` — `by_matcher_fires_only_for_damage_from_its_own_source`
@@ -1483,8 +1484,8 @@ fn source_and_target(source_abilities: Vec<Ability>) -> (GameState, ObjectId, Ob
         types: vec![combatant_creature_def()],
         power: Some(StatValue::Number(4)),
         toughness: Some(StatValue::Number(4)),
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -1705,22 +1706,22 @@ fn wither_batch_places_counters_for_every_member_and_sbas_run_after() {
         "M1M1Counter",
     );
     let four_four = |name: &str| {
-        Arc::new(Card::Normal(CardFace {
+        Arc::new(Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             types: vec![Type::Creature.def()],
             power: Some(StatValue::Number(4)),
             toughness: Some(StatValue::Number(4)),
-            ..CardFace::default()
-        }))
+            ..Characteristics::default()
+        })))
     };
-    let src_card = Arc::new(Card::Normal(CardFace {
+    let src_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Source".into(),
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(3)),
         toughness: Some(StatValue::Number(3)),
         abilities: vec![wither],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {

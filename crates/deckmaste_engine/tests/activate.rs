@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
@@ -96,7 +97,7 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.name,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
     }
 }
 
@@ -120,9 +121,11 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
             | Card::DoubleFaced { front: f, .. }
             | Card::Split { left: f, .. }
             | Card::Flip { normal: f, .. }
-            | Card::Adventurer { normal: f, .. } => {
-                f.types.iter().any(|t| t.name == Type::Land.name())
-            }
+            | Card::Adventurer { normal: f, .. } => f
+                .characteristics
+                .types
+                .iter()
+                .any(|t| t.name == Type::Land.name()),
         })
 }
 
@@ -1208,7 +1211,7 @@ fn gain_zero() -> Instruction {
 /// and a harmless no-target effect. Built in-Rust so a test pins the exact
 /// cost components; `Cards::push` derives its printed abilities like any card.
 fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         mana_cost: ManaCost::from(Arc::<[ManaSymbol]>::from(vec![])),
         color_indicator: vec![],
@@ -1241,7 +1244,7 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
         toughness: None,
         loyalty: None,
         defense: None,
-    }))
+    })))
 }
 
 /// Builds a two-player game whose player-0 deck is five copies of `card` plus
@@ -2373,7 +2376,7 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
 /// cost and a harmless no-target effect. Instant timing keeps it castable at
 /// any priority.
 fn instant_with_cost(name: &str, cost: ManaCost) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         mana_cost: cost,
         color_indicator: vec![],
@@ -2385,7 +2388,7 @@ fn instant_with_cost(name: &str, cost: ManaCost) -> Arc<Card> {
         toughness: None,
         loyalty: None,
         defense: None,
-    }))
+    })))
 }
 
 /// The `CastSpell` action for `object` in `legal`, if offered.
@@ -2459,7 +2462,7 @@ fn artifact_with_cost_and_effect(
     cost: Vec<CostComponent>,
     effect: Instruction,
 ) -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: name.into(),
         mana_cost: ManaCost::from(Arc::<[ManaSymbol]>::from(vec![])),
         color_indicator: vec![],
@@ -2480,7 +2483,7 @@ fn artifact_with_cost_and_effect(
         toughness: None,
         loyalty: None,
         defense: None,
-    }))
+    })))
 }
 
 /// A candidate region matching "another creature" — register 0 is the candidate

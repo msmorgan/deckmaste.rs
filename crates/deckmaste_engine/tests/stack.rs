@@ -78,7 +78,7 @@ fn face_name(state: &GameState, id: ObjectId) -> &str {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } => &f.name,
+        | Card::Adventurer { normal: f, .. } => &f.characteristics.name,
     }
 }
 
@@ -519,7 +519,10 @@ fn printed_pt(state: &GameState, id: ObjectId) -> Option<(i64, i64)> {
         Some(StatValue::Number(n)) => Some(i64::from(*n)),
         _ => None,
     };
-    Some((num(&face.power)?, num(&face.toughness)?))
+    Some((
+        num(&face.characteristics.power)?,
+        num(&face.characteristics.toughness)?,
+    ))
 }
 
 // --- tests --------------------------------------------------------------------
@@ -1339,7 +1342,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
         | Card::DoubleFaced { front: f, .. }
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
-        | Card::Adventurer { normal: f, .. } if &*f.name == "Grizzly Bears")
+        | Card::Adventurer { normal: f, .. } if &*f.characteristics.name == "Grizzly Bears")
             })
         })
         .expect("the reminted Vanilla Creature is on the battlefield");
@@ -2327,7 +2330,7 @@ fn etb_trigger_draws_a_card() {
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
         | Card::Adventurer { normal: f, .. }
-                    if &*f.name == "Elvish Visionary")
+                    if &*f.characteristics.name == "Elvish Visionary")
             })
         })
         .expect("the ETB creature is on the battlefield");
@@ -2916,7 +2919,7 @@ fn two_triggers_same_player_order_triggers_surfaces() {
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
         | Card::Adventurer { normal: f, .. }
-                        if &*f.name == "Moonlit Wake")
+                        if &*f.characteristics.name == "Moonlit Wake")
                 })
             }),
         "at least one watcher is still on the battlefield (the bear died, not the watchers)"
@@ -2987,7 +2990,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
         | Card::Adventurer { normal: f, .. }
-                        if &*f.name == "Diregraf Ghoul")
+                        if &*f.characteristics.name == "Diregraf Ghoul")
                 })
             })
             .expect("the reminted Diregraf Ghoul is on the battlefield");
@@ -3028,7 +3031,7 @@ fn creature_enters_tapped_via_as_enters_replacement() {
         | Card::Split { left: f, .. }
         | Card::Flip { normal: f, .. }
         | Card::Adventurer { normal: f, .. }
-                        if &*f.name == "Grizzly Bears")
+                        if &*f.characteristics.name == "Grizzly Bears")
                 })
             })
             .expect("the reminted Vanilla Creature is on the battlefield");
@@ -3511,47 +3514,49 @@ fn inline_blink() -> Card {
         },
     ]);
 
-    Card::Normal(deckmaste_card::CardFace {
-        name: "Blink".into(),
-        mana_cost: "{W}".parse().unwrap(),
-        types: vec![deckmaste_core::Type::Instant.def()],
-        abilities: vec![deckmaste_core::Ability::spell(
-            deckmaste_core::SpellAbility {
-                ability_word: None,
-                cost: deckmaste_core::Cost::default(),
-                targets: vec![TargetSpec::Target(
-                    Quantity::one(),
-                    Arc::new(Region::candidate(Predicate::creature())),
-                )]
-                .into(),
-                effect: Region::new(
-                    params,
-                    Instruction::Sequentially(
-                        vec![
-                            Instruction::producing(
-                                exiled,
-                                Action::Move(
-                                    Reference::Reg(RefId(2)),
-                                    Destination::Zone(Zone::Exile),
+    Card::Normal(deckmaste_card::CardFace::from(
+        deckmaste_card::Characteristics {
+            name: "Blink".into(),
+            mana_cost: "{W}".parse().unwrap(),
+            types: vec![deckmaste_core::Type::Instant.def()],
+            abilities: vec![deckmaste_core::Ability::spell(
+                deckmaste_core::SpellAbility {
+                    ability_word: None,
+                    cost: deckmaste_core::Cost::default(),
+                    targets: vec![TargetSpec::Target(
+                        Quantity::one(),
+                        Arc::new(Region::candidate(Predicate::creature())),
+                    )]
+                    .into(),
+                    effect: Region::new(
+                        params,
+                        Instruction::Sequentially(
+                            vec![
+                                Instruction::producing(
+                                    exiled,
+                                    Action::Move(
+                                        Reference::Reg(RefId(2)),
+                                        Destination::Zone(Zone::Exile),
+                                        vec![].into(),
+                                        None,
+                                    ),
+                                ),
+                                Instruction::act(Action::Move(
+                                    Reference::Reg(exiled.into()),
+                                    Destination::Zone(Zone::Battlefield),
                                     vec![].into(),
                                     None,
-                                ),
-                            ),
-                            Instruction::act(Action::Move(
-                                Reference::Reg(exiled.into()),
-                                Destination::Zone(Zone::Battlefield),
-                                vec![].into(),
-                                None,
-                            )),
-                        ]
+                                )),
+                            ]
+                            .into(),
+                        )
                         .into(),
-                    )
-                    .into(),
-                ),
-            },
-        )],
-        ..deckmaste_card::CardFace::default()
-    })
+                    ),
+                },
+            )],
+            ..deckmaste_card::Characteristics::default()
+        },
+    ))
 }
 
 /// Cloudshift end-to-end ([CR#400.7j,110.2a]): a REAL canon card (unlike

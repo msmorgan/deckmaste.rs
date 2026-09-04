@@ -400,6 +400,7 @@ impl GameState {
     #[must_use]
     pub(crate) fn is_permanent_spell(&self, id: ObjectId) -> bool {
         crate::derive::face(self.def(id))
+            .characteristics
             .types
             .iter()
             .any(|t| t.permanent_type)
@@ -482,6 +483,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Type;
     use deckmaste_core::Zone;
 
@@ -527,13 +529,13 @@ mod tests {
 
         // Drive a REAL resolution: mint a vanilla creature spell object and
         // push its `StackEntry` by hand, then resolve it.
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Bear".into(),
             types: vec![Type::Creature.def()],
             power: Some(deckmaste_core::StatValue::Number(2)),
             toughness: Some(deckmaste_core::StatValue::Number(2)),
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let cid = state.cards.push(Arc::new(card), PlayerId(0));
         let spell = state
             .objects
@@ -564,11 +566,11 @@ mod tests {
     /// Mints a stack-zone spell object (player 0) whose printed face carries
     /// exactly `types`, for `is_permanent_spell` fixtures.
     fn spell_with_types(state: &mut GameState, types: Vec<deckmaste_core::TypeDef>) -> ObjectId {
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Test Spell".into(),
             types,
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let card_id = state.cards.push(Arc::new(card), PlayerId(0));
         state
             .objects

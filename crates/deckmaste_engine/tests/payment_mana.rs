@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use deckmaste_card::Card;
 use deckmaste_card::CardFace;
+use deckmaste_card::Characteristics;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
@@ -120,20 +121,20 @@ fn payment_fixture_with_source_ability_and_extras(
     deckmaste_engine::ObjectId,
 ) {
     let payer = PlayerId(0);
-    let parent = Arc::new(Card::Normal(CardFace {
+    let parent = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Parent ability".into(),
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())].into()),
             Instruction::Sequentially(Arc::from([])),
         ))],
-        ..CardFace::default()
-    }));
-    let mana_source = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let mana_source = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Green source".into(),
         types: vec![Type::Land.def()],
         abilities: vec![source_ability],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut deck = vec![parent, mana_source];
     deck.extend(extras);
     let mut state = GameState::new(GameConfig {
@@ -194,7 +195,7 @@ fn nested_optional_mana_fixture() -> (
             .into(),
         ),
     )));
-    let helper_card = Arc::new(Card::Normal(CardFace {
+    let helper_card = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Nested optional helper".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -205,8 +206,8 @@ fn nested_optional_mana_fixture() -> (
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, parent, optional_source) =
         payment_fixture_with_source_ability_and_extras(optional_source, vec![helper_card]);
     let helper = put_in_play(&mut state, payer, "Nested optional helper");
@@ -272,7 +273,7 @@ fn cost_replacement_nested_mana_fixture() -> (
             .into(),
         ),
     )));
-    let replacement = Arc::new(Card::Normal(CardFace {
+    let replacement = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Cost replacement optional".into(),
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::r#static(StaticSpec::Replacement(Arc::new(
@@ -293,9 +294,9 @@ fn cost_replacement_nested_mana_fixture() -> (
                 }),
             },
         )))],
-        ..CardFace::default()
-    }));
-    let helper = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let helper = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Ownership helper".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -306,8 +307,8 @@ fn cost_replacement_nested_mana_fixture() -> (
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, parent, outer) =
         payment_fixture_with_source_ability_and_extras(outer, vec![replacement, helper]);
     put_in_play(&mut state, payer, "Cost replacement optional");
@@ -464,7 +465,7 @@ fn modal_payment_fixture_with_ordinary_mode(
 }
 
 fn blanket_activate_lockout_card() -> Arc<Card> {
-    Arc::new(Card::Normal(CardFace {
+    Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Split-second-style lockout".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
@@ -474,15 +475,23 @@ fn blanket_activate_lockout_card() -> Arc<Card> {
                 cost: None,
             },
         )))],
-        ..CardFace::default()
-    }))
+        ..Characteristics::default()
+    })))
 }
 
 fn put_in_play(state: &mut GameState, player: PlayerId, name: &str) -> deckmaste_engine::ObjectId {
     let object = state.zones.hands[player.index()]
         .iter()
         .copied()
-        .find(|&object| state.def(object).primary_face().name.as_ref() == name)
+        .find(|&object| {
+            state
+                .def(object)
+                .primary_face()
+                .characteristics
+                .name
+                .as_ref()
+                == name
+        })
         .unwrap();
     state.zones.hands[player.index()].retain(|&candidate| candidate != object);
     state.objects.obj_mut(object).zone = Some(Zone::Battlefield);
@@ -498,15 +507,15 @@ fn triggered_mana_fixture() -> (
     deckmaste_engine::ObjectId,
 ) {
     let payer = PlayerId(0);
-    let parent = Arc::new(Card::Normal(CardFace {
+    let parent = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Triggered parent".into(),
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())].into()),
             Instruction::Sequentially(Arc::from([])),
         ))],
-        ..CardFace::default()
-    }));
-    let source = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let source = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Triggering source".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -517,9 +526,9 @@ fn triggered_mana_fixture() -> (
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
         )))],
-        ..CardFace::default()
-    }));
-    let watcher = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let watcher = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Mana watcher".into(),
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
@@ -539,8 +548,8 @@ fn triggered_mana_fixture() -> (
             ))
             .into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -583,15 +592,15 @@ fn nested_resolution_cast_trigger_fixture() -> (
     deckmaste_engine::ObjectId,
 ) {
     let payer = PlayerId(0);
-    let parent = Arc::new(Card::Normal(CardFace {
+    let parent = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Nested cast parent".into(),
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{B}".parse().unwrap())].into()),
             Instruction::Sequentially(Arc::from([])),
         ))],
-        ..CardFace::default()
-    }));
-    let source = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let source = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Nested cast source".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -602,9 +611,9 @@ fn nested_resolution_cast_trigger_fixture() -> (
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
         )))],
-        ..CardFace::default()
-    }));
-    let cast_spell = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let cast_spell = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Nested cast spell".into(),
         mana_cost: "{G}".parse().unwrap(),
         types: vec![Type::Instant.def()],
@@ -614,15 +623,15 @@ fn nested_resolution_cast_trigger_fixture() -> (
             targets: [].into(),
             effect: Instruction::Sequentially(Arc::from([])).into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let cast_ref = Reference::Single(
         Selection::SelectAll(Arc::new(deckmaste_core::Region::candidate(
             Predicate::Characteristic(CharacteristicPredicate::Named("Nested cast spell".into())),
         )))
         .into(),
     );
-    let watcher = Arc::new(Card::Normal(CardFace {
+    let watcher = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Nested cast watcher".into(),
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
@@ -663,8 +672,8 @@ fn nested_resolution_cast_trigger_fixture() -> (
             )
             .into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -689,7 +698,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         .iter()
         .copied()
         .find(|&object| {
-            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Nested cast spell")
+            matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Nested cast spell")
         })
         .unwrap();
     state.turn.priority = Some(PriorityRound {
@@ -770,24 +779,24 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
     deckmaste_engine::ObjectId,
 ) {
     let payer = PlayerId(0);
-    let parent = Arc::new(Card::Normal(CardFace {
+    let parent = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Causal parent".into(),
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{G}".parse::<ManaCost>().unwrap())].into()),
             Instruction::Sequentially(Arc::from([])),
         ))],
-        ..CardFace::default()
-    }));
-    let source = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let source = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Causal source".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
             source_effect,
         )))],
-        ..CardFace::default()
-    }));
-    let watcher = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let watcher = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Causal watcher".into(),
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
@@ -799,8 +808,8 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
             limits,
             effect: trigger_effect.into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -849,13 +858,13 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         )),
     );
     ordinary.limits = Arc::from([deckmaste_core::UseLimit::LoyaltyOncePerTurn]);
-    let source = Arc::new(Card::Normal(CardFace {
+    let source = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Loyalty mana-adding ability".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::activated(ordinary)],
-        ..CardFace::default()
-    }));
-    let watcher = Arc::new(Card::Normal(CardFace {
+        ..Characteristics::default()
+    })));
+    let watcher = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Bare ManaAdded watcher".into(),
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
@@ -875,8 +884,8 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
             ))
             .into(),
         })],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -1372,7 +1381,7 @@ fn nested_optional_replay_activates_a_mana_source_created_by_the_outer_action() 
         .mana_abilities
         .iter()
         .find_map(|&(source, ability)| {
-            matches!(state.def(source), Card::Normal(face) if face.name.as_ref() == "Nested created helper")
+            matches!(state.def(source), Card::Normal(face) if face.characteristics.name.as_ref() == "Nested created helper")
                 .then_some((source, ability))
         })
         .expect("the outer mana action creates the optional payment's helper");
@@ -1423,7 +1432,7 @@ fn nested_optional_replay_activates_a_mana_source_created_by_the_outer_action() 
         .iter()
         .copied()
         .find(|&object| {
-            matches!(state.def(object), Card::Normal(face) if face.name.as_ref() == "Nested created helper")
+            matches!(state.def(object), Card::Normal(face) if face.characteristics.name.as_ref() == "Nested created helper")
         })
         .expect("replay remints the helper before replaying its nested activation");
     assert!(state.objects.obj(outer).tapped);
@@ -2406,15 +2415,15 @@ fn kci_fixture() -> (
     deckmaste_engine::ObjectId,
 ) {
     let payer = PlayerId(0);
-    let parent = Arc::new(Card::Normal(CardFace {
+    let parent = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Artifact parent".into(),
         types: vec![Type::Artifact.def(), Type::Creature.def()],
         abilities: vec![Ability::activated(activated_ability(
             Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
             Instruction::Sequentially(Arc::from([])),
         ))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let artifact = Predicate::And(
         vec![
             Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
@@ -2437,7 +2446,7 @@ fn kci_fixture() -> (
             Reference::Reg(PAID_REF),
         )),
     ];
-    let kci = Arc::new(Card::Normal(CardFace {
+    let kci = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "KCI".into(),
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -2448,8 +2457,8 @@ fn kci_fixture() -> (
                 ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
             )),
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let mut state = GameState::new(GameConfig {
         players: vec![
             PlayerConfig {
@@ -2532,7 +2541,7 @@ fn resolution_scope_mana_fixture() -> (
             .into(),
         ),
     )));
-    let helper = Arc::new(Card::Normal(CardFace {
+    let helper = Arc::new(Card::Normal(CardFace::from(Characteristics {
         name: "Resolution scope helper".into(),
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
@@ -2558,8 +2567,8 @@ fn resolution_scope_mana_fixture() -> (
                 .into(),
             ),
         )))],
-        ..CardFace::default()
-    }));
+        ..Characteristics::default()
+    })));
     let (mut state, payer, parent, outer) =
         payment_fixture_with_source_ability_and_extras(outer, vec![helper]);
     let helper = put_in_play(&mut state, payer, "Resolution scope helper");

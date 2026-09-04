@@ -100,7 +100,7 @@ fn object_detail(
     let power = chars.power.map(SemanticStatValue::Number);
     let toughness = chars.toughness.map(SemanticStatValue::Number);
     let card_view = CardView {
-        name: &printed.name,
+        name: &printed.characteristics.name,
         mana_cost: semantic_face.map(|f| &f.mana_cost),
         supertypes: &supertypes,
         types: &types,
@@ -297,7 +297,7 @@ mod tests {
             d.provenance_refs(),
         ));
         assert!(
-            s.contains(&*face(state.def(id)).name),
+            s.contains(&*face(state.def(id)).characteristics.name),
             "detail names the card: {s}"
         );
     }
@@ -320,7 +320,7 @@ mod tests {
             .iter()
             .filter(|o| o.card_id().is_some())
             .map(|o| o.id)
-            .find(|&id| &*face(state.def(id)).name == "Elvish Visionary")
+            .find(|&id| &*face(state.def(id)).characteristics.name == "Elvish Visionary")
             .expect("Elvish Visionary in game");
         let s = text_to_string(&render(
             state,
@@ -346,7 +346,7 @@ mod tests {
             .iter()
             .filter(|o| o.card_id().is_some())
             .map(|o| o.id)
-            .find(|&id| &*face(state.def(id)).name == "Mogg Fanatic")
+            .find(|&id| &*face(state.def(id)).characteristics.name == "Mogg Fanatic")
             .expect("Mogg Fanatic in game");
         let s = text_to_string(&render(
             state,
@@ -409,7 +409,7 @@ mod tests {
         let state = &d.state;
         let view = state.layers();
         assert!(
-            view.get(host).abilities.len() > face(state.def(host)).abilities.len(),
+            view.get(host).abilities.len() > face(state.def(host)).characteristics.abilities.len(),
             "the counter granted an ability the printed card does not have",
         );
         let s = text_to_string(&render(
@@ -453,7 +453,7 @@ mod tests {
             .iter()
             .filter(|o| o.card_id().is_some())
             .map(|o| o.id)
-            .find(|&id| &*face(state.def(id)).name == "Elvish Visionary")
+            .find(|&id| &*face(state.def(id)).characteristics.name == "Elvish Visionary")
             .expect("Elvish Visionary in game");
 
         let empty = ProvenanceIndex::default();
@@ -476,7 +476,7 @@ mod tests {
             "one marker per unraisable component, none silently dropped: {s}",
         );
         assert!(
-            s.contains(&*face(state.def(id)).name),
+            s.contains(&*face(state.def(id)).characteristics.name),
             "the card is still named: {s}"
         );
     }

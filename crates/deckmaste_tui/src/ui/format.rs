@@ -26,7 +26,7 @@ pub fn object_row(state: &GameState, view: &LayeredView, id: ObjectId) -> String
     if let ObjectSource::Player(pid) = state.objects.obj(id).source {
         return format!("Player {} — {} life", pid.0, state.player(pid).life);
     }
-    let mut row = face(state.def(id)).name.to_string();
+    let mut row = face(state.def(id)).characteristics.name.to_string();
     let chars = view.get(id);
     if let (Some(p), Some(t)) = (chars.power, chars.toughness) {
         let _ = write!(row, " {p}/{t}");
@@ -70,7 +70,7 @@ pub fn object_name(state: &GameState, id: ObjectId) -> String {
     if let ObjectSource::Player(pid) = state.objects.obj(id).source {
         format!("Player {}", pid.0)
     } else {
-        face(state.def(id)).name.to_string()
+        face(state.def(id)).characteristics.name.to_string()
     }
 }
 
@@ -201,7 +201,7 @@ mod tests {
         let chars = view.get(id);
         let expected = format!(
             "{} {}/{}",
-            face(state.def(id)).name,
+            face(state.def(id)).characteristics.name,
             chars.power.unwrap(),
             chars.toughness.unwrap()
         );
@@ -318,7 +318,10 @@ mod tests {
             x: None,
             copy: false,
         };
-        assert_eq!(stack_label(&state, &entry), &*face(state.def(id)).name);
+        assert_eq!(
+            stack_label(&state, &entry),
+            &*face(state.def(id)).characteristics.name
+        );
     }
 
     #[test]
@@ -369,7 +372,7 @@ mod tests {
         };
         let label = stack_label(&state, &entry);
         assert!(
-            label.contains(&*face(state.def(id)).name),
+            label.contains(&*face(state.def(id)).characteristics.name),
             "names the spell: {label}"
         );
         assert!(label.contains("→ Player 1"), "shows the target: {label}");

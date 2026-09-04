@@ -1000,7 +1000,7 @@ impl GameState {
         // offer; an alternative cost ([CR#118.6a], May(Cast(cost: …)) rows)
         // is the future unlock. {0} is spelled [Generic(0)] and payable
         // ([CR#118.5]).
-        if face.mana_cost.is_empty() {
+        if face.characteristics.mana_cost.is_empty() {
             return None;
         }
         let cost = self.mana_cost(object)?;
@@ -1293,7 +1293,7 @@ impl GameState {
         if alternative_cost.is_none() {
             // [CR#118.6]: an empty mana cost is "no mana cost" — an unpayable base.
             let face = crate::derive::face(self.def(object));
-            if face.mana_cost.is_empty() {
+            if face.characteristics.mana_cost.is_empty() {
                 return false;
             }
             if self.mana_cost(object).is_none() {
@@ -2397,7 +2397,10 @@ impl GameState {
     /// zero. Modifying the cost never changes the mana cost itself
     /// ([CR#118.7]): mana-value reads keep going to the printed face.
     fn modified_mana_cost(&self, object: ObjectId) -> ManaCost {
-        let printed = crate::derive::face(self.def(object)).mana_cost.clone();
+        let printed = crate::derive::face(self.def(object))
+            .characteristics
+            .mana_cost
+            .clone();
         let rows = self.cost_modifier_rows(object);
         if rows.is_empty() {
             return printed;
@@ -2983,6 +2986,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::Ability;
     use deckmaste_core::CostChange;
     use deckmaste_core::Count;
@@ -3063,7 +3067,7 @@ mod tests {
                 Type::Creature,
             ))),
         );
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Modal announcement fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Instant.def()],
@@ -3102,16 +3106,16 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         put_synthetic(
             &mut state,
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Modal target fixture".into(),
                 types: vec![Type::Creature.def()],
-                ..CardFace::default()
-            }),
+                ..Characteristics::default()
+            })),
             PlayerId(0),
             Zone::Battlefield,
         );
@@ -3157,7 +3161,7 @@ mod tests {
             .into(),
             cost: deckmaste_core::Cost::default(),
         };
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Ordered modal announcement fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Sorcery.def()],
@@ -3177,8 +3181,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
 
@@ -3216,7 +3220,7 @@ mod tests {
             effect: Instruction::Sequentially(Arc::from([])).into(),
             cost: deckmaste_core::Cost::default(),
         };
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Impossible modal spell".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Instant.def()],
@@ -3236,8 +3240,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
 
@@ -3292,7 +3296,7 @@ mod tests {
             ),
             cost: deckmaste_core::Cost::default(),
         };
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Modal resolution fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Sorcery.def()],
@@ -3312,8 +3316,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         let p0 = PlayerId(0);
         let p1 = PlayerId(1);
@@ -3372,7 +3376,7 @@ mod tests {
                 .into(),
             ),
         };
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Modal cost fixture".into(),
             mana_cost: "{1}".parse().unwrap(),
             types: vec![Type::Sorcery.def()],
@@ -3392,8 +3396,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
 
@@ -3432,7 +3436,7 @@ mod tests {
             .into(),
             cost: deckmaste_core::Cost::default(),
         };
-        let card = Card::Normal(CardFace {
+        let card = Card::Normal(CardFace::from(Characteristics {
             name: "Entwine fixture".into(),
             mana_cost: "{1}".parse().unwrap(),
             types: vec![Type::Sorcery.def()],
@@ -3454,8 +3458,8 @@ mod tests {
                 })
                 .into(),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let mut state = cm_game();
         let spell = put_synthetic(&mut state, card, PlayerId(0), Zone::Hand);
 
@@ -3493,7 +3497,7 @@ mod tests {
             cost: deckmaste_core::Cost(vec![CostComponent::Mana(mana.parse().unwrap())].into()),
         };
         let card = || {
-            Card::Normal(CardFace {
+            Card::Normal(CardFace::from(Characteristics {
                 name: "Modal X-cost fixture".into(),
                 mana_cost: "{1}".parse().unwrap(),
                 types: vec![Type::Sorcery.def()],
@@ -3513,8 +3517,8 @@ mod tests {
                     })
                     .into(),
                 })],
-                ..CardFace::default()
-            })
+                ..Characteristics::default()
+            }))
         };
 
         let mut without_x = cm_game();
@@ -3545,18 +3549,18 @@ mod tests {
     }
 
     fn vanilla_artifact(name: &str) -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: "{1}".parse().unwrap(),
             types: vec![Type::Artifact.def()],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// An affinity-shaped self-row ([CR#702.41a]): "costs {1} less for each
     /// battlefield artifact".
     fn affinity_card(printed: &str) -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: "Fromite".into(),
             mana_cost: printed.parse().unwrap(),
             types: vec![Type::Artifact.def()],
@@ -3577,8 +3581,8 @@ mod tests {
                     ))),
                 },
             })],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// Affinity's `Scaled(Reduce)` self-row lowers the generic component by
@@ -3631,15 +3635,15 @@ mod tests {
     #[test]
     fn battlefield_taxer_raises_and_colored_reduce_removes_pip() {
         let mut state = cm_game();
-        let bear = Card::Normal(CardFace {
+        let bear = Card::Normal(CardFace::from(Characteristics {
             name: "Bear".into(),
             mana_cost: "{1}{G}".parse().unwrap(),
             types: vec![Type::Creature.def()],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         let spell = put_synthetic(&mut state, bear, PlayerId(0), Zone::Hand);
 
-        let taxer = Card::Normal(CardFace {
+        let taxer = Card::Normal(CardFace::from(Characteristics {
             name: "Thorn Totem".into(),
             types: vec![Type::Artifact.def()],
             abilities: vec![Ability::r#static(StaticSpec::CostModifier {
@@ -3648,8 +3652,8 @@ mod tests {
                     vec![CostComponent::Mana("{1}".parse().unwrap())].into(),
                 ),
             })],
-            ..CardFace::default()
-        });
+            ..Characteristics::default()
+        }));
         put_synthetic(&mut state, taxer, PlayerId(1), Zone::Battlefield);
         // Increase appends: [{1}, {G}] + {1} -> [{1}, {G}, {1}].
         let expected: ManaCost = Arc::<[ManaSymbol]>::from(vec![
@@ -3705,13 +3709,13 @@ mod tests {
             ))
             .into(),
         });
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: ManaCost::default(),
             types: vec![Type::Land.def()],
             abilities: vec![Ability::Activated(ability)],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// The plugin-loaded Instant `TypeDef`: its conferred
@@ -3744,23 +3748,23 @@ mod tests {
     /// `instant_typedef`), with no targets — so `castable_cost_ignoring_mana`
     /// turns purely on cost + mana.
     fn instant(name: &str, mc: &str) -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: mc.parse().unwrap(),
             types: vec![instant_typedef()],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// A sorcery — no casting-window confer, so it is castable only at sorcery
     /// speed. `Type::Sorcery.def()` carries the correct (empty) confers.
     fn sorcery(name: &str, mc: &str) -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: mc.parse().unwrap(),
             types: vec![Type::Sorcery.def()],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// [CR#307.1,117.1a,702.8a] casting-window brick: with the `Type::Instant`
@@ -3827,12 +3831,12 @@ mod tests {
     /// A land carrying its conferred `May(Play)` marker (see `land_typedef`),
     /// with the empty mana cost every real land has.
     fn conferred_land(name: &str) -> Card {
-        Card::Normal(CardFace {
+        Card::Normal(CardFace::from(Characteristics {
             name: name.into(),
             mana_cost: ManaCost::default(),
             types: vec![land_typedef()],
-            ..CardFace::default()
-        })
+            ..Characteristics::default()
+        }))
     }
 
     /// [CR#305.9,116.2a,701.18] land-play brick: with the `Type::Land` literal

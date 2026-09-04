@@ -104,17 +104,17 @@ pub fn copiable_values(state: &GameState, source: ObjectId) -> Option<CopiableVa
     let card = obj.card_id()?;
     let face = crate::derive::face(&state.cards.get(card).def);
     Some(CopiableValues {
-        name: face.name.clone(),
-        mana_cost: face.mana_cost.clone(),
-        color_indicator: face.color_indicator.clone(),
-        supertypes: face.supertypes.clone(),
-        types: face.types.clone(),
-        subtypes: face.subtypes.clone(),
-        abilities: face.abilities.clone(),
-        power: face.power.clone(),
-        toughness: face.toughness.clone(),
-        loyalty: face.loyalty.clone(),
-        defense: face.defense.clone(),
+        name: face.characteristics.name.clone(),
+        mana_cost: face.characteristics.mana_cost.clone(),
+        color_indicator: face.characteristics.color_indicator.clone(),
+        supertypes: face.characteristics.supertypes.clone(),
+        types: face.characteristics.types.clone(),
+        subtypes: face.characteristics.subtypes.clone(),
+        abilities: face.characteristics.abilities.clone(),
+        power: face.characteristics.power.clone(),
+        toughness: face.characteristics.toughness.clone(),
+        loyalty: face.characteristics.loyalty.clone(),
+        defense: face.characteristics.defense.clone(),
     })
 }
 
@@ -325,7 +325,7 @@ fn apply_modification(result: &mut CopiableValues, m: &Modification) {
         }
         // Loyalty/defense have no 613 layer in the live engine (`layer.rs`
         // stubs `BaseLoyalty`/`BaseDefense` for that reason), but
-        // `CopiableValues` mirrors `CardFace` directly, so "except it enters
+        // `CopiableValues` mirrors `Characteristics` directly, so "except it enters
         // with base loyalty N"/defense N is a plain field write — no CDA-drop
         // (loyalty/defense CDAs are outside `defines_pt`'s scope; see the
         // module doc).
@@ -599,6 +599,7 @@ mod tests {
 
     use deckmaste_card::Card;
     use deckmaste_card::CardFace;
+    use deckmaste_card::Characteristics;
     use deckmaste_core::CollectionOp;
     use deckmaste_core::CopiableValues;
     use deckmaste_core::CopyException;
@@ -845,13 +846,13 @@ mod tests {
         let mut state = bare_game();
         let id = mint_card(
             &mut state,
-            CardFace {
+            CardFace::from(Characteristics {
                 name: "Grizzly Bears".into(),
                 types: vec![Type::Creature.def()],
                 power: Some(StatValue::Number(2)),
                 toughness: Some(StatValue::Number(2)),
-                ..CardFace::default()
-            },
+                ..Characteristics::default()
+            }),
         );
         let values = copiable_values(&state, id).expect("card-backed object has copiable values");
         assert_eq!(&*values.name, "Grizzly Bears");

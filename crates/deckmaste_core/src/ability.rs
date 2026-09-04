@@ -216,7 +216,7 @@ pub enum ActivatedManaProfile {
 
 /// All four struct-carrying variants (`Static`/`Activated`/`Triggered`/`Spell`)
 /// are boxed. This drops `Vec<Ability>`
-/// (`CardFace::abilities`) elements from ~1416 B to ~88 B and clears
+/// (`Characteristics::abilities`) elements from ~1416 B to ~88 B and clears
 /// `large_enum_variant` without a suppression. Build them via the boxing
 /// constructors ([`Ability::triggered`] / `activated` / `spell` / `r#static`)
 /// rather than `Ability::Triggered(Arc::new(…))`. See
