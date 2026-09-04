@@ -177,9 +177,6 @@ pub struct Projection {
 pub enum Count {
     /// A numeric value stored in the current region's activation record.
     Reg(crate::RefId),
-    /// The value chosen for {X} as the spell or ability was put on the
-    /// stack ([CR#107.3]).
-    X,
     /// How many objects/mana symbols match a [`Countable`] source
     /// ([CR#107.3], "for each"; [CR#700.5] devotion).
     CountOf(Countable),
@@ -264,8 +261,6 @@ pub enum Count {
     /// the magnitude is each matched fact's carried amount. `EventCount`
     /// counts; `EventSum` sums.
     EventSum(Arc<crate::EventFilter>, crate::Lookback),
-    /// A noted number read back from a slot ([CR#607.2] linked values).
-    Noted(crate::Ident),
     /// How many times the tagged optional cost
     /// ([`OptionalCost`](crate::OptionalCost)) was paid for this object —
     /// multikicker's "for each time it was kicked" ([CR#702.33c,702.33d]).
@@ -317,16 +312,12 @@ impl Count {
         }
     }
 
-    /// Whether this count reads the announced X ([CR#107.3a]) anywhere —
-    /// directly (`Count::X`) or nested inside an arithmetic combinator
-    /// (`Minus(TargetsOf(This), X)`, "half X", …). The
-    /// activate-time X-announce trigger asks this of a non-mana cost verb's
-    /// count operand to decide whether X must be announced for the activation
-    /// even without an `{X}` mana symbol (a loyalty `−X`).
+    /// Whether this count reads `reference` anywhere, including inside an
+    /// arithmetic combinator.
     #[must_use]
-    pub fn mentions_x(&self) -> bool {
+    pub fn mentions_register(&self, reference: crate::RefId) -> bool {
         match self {
-            Count::X => true,
+            Count::Reg(found) => *found == reference,
             Count::Min(a, b)
             | Count::Max(a, b)
             | Count::Plus(a, b)
@@ -334,8 +325,8 @@ impl Count {
             | Count::Times(a, b)
             | Count::Divide(_, a, b)
             | Count::Mod(a, b)
-            | Count::Pow(a, b) => a.mentions_x() || b.mentions_x(),
-            Count::Half(_, c) => c.mentions_x(),
+            | Count::Pow(a, b) => a.mentions_register(reference) || b.mentions_register(reference),
+            Count::Half(_, c) => c.mentions_register(reference),
             _ => false,
         }
     }

@@ -355,7 +355,7 @@ impl GameState {
             Action::ChooseValue(who, kind, key) => {
                 let actor = self.acting_player(who, frame);
                 match kind {
-                    // Number → the `Count::Noted` reader (scalar `resolution_notes`).
+                    // Number → an activation-register binding.
                     ChosenValueKind::Number => vec![WorkItem::ChooseNoteNumber {
                         player: actor,
                         key: *key,

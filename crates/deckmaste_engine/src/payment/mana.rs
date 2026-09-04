@@ -714,7 +714,7 @@ impl GameState {
                 ability: ability_u,
             }),
         );
-        let mut seed = ExecutionFrame::bare(source, controller);
+        let mut seed = self.frame(source, controller);
         self.frame_set_source_lki(&mut seed, bindings.this.clone());
         self.frame_set_defending_player(&mut seed, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -723,7 +723,11 @@ impl GameState {
             bindings.that_player,
             bindings.that_patient.clone(),
         );
-        let activation = self.enter_created_region(&triggered.effect, &seed, &bindings.captures);
+        let mut effect = triggered.effect.clone();
+        if effect.params.is_empty() {
+            effect.params = deckmaste_core::triggered_region_params(triggered.targets.len());
+        }
+        let activation = self.enter_created_region(&effect, &seed, &bindings.captures);
         let mut frame = ExecutionFrame {
             activation,
             payment: None,

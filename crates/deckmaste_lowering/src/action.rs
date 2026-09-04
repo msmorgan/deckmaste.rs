@@ -35,7 +35,7 @@ mod tests {
     fn lowers_anchor_from_top() {
         assert_matches!(
             deckmaste_semantics::Anchor::FromTop(minimal_count()).lower(),
-            deckmaste_core::Anchor::FromTop(deckmaste_core::Count::X)
+            deckmaste_core::Anchor::FromTop(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -43,7 +43,7 @@ mod tests {
     fn lowers_anchor_from_bottom() {
         assert_matches!(
             deckmaste_semantics::Anchor::FromBottom(minimal_count()).lower(),
-            deckmaste_core::Anchor::FromBottom(deckmaste_core::Count::X)
+            deckmaste_core::Anchor::FromBottom(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -60,7 +60,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Destination::Library(minimal_anchor()).lower(),
             deckmaste_core::Destination::Library(deckmaste_core::Anchor::FromTop(
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             ))
         );
     }
@@ -114,7 +114,7 @@ mod tests {
                 .lower(),
             deckmaste_core::EnterRider::WithCounters(
                 deckmaste_core::CounterRef(_),
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -177,7 +177,7 @@ mod tests {
             .lower(),
             deckmaste_core::Action::DealDamage(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
@@ -312,7 +312,7 @@ mod tests {
             deckmaste_core::Action::MoveCounters(
                 deckmaste_core::CounterSpec::Named(
                     deckmaste_core::CounterRef(_),
-                    deckmaste_core::Count::X
+                    deckmaste_core::Count::Literal(0)
                 ),
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
@@ -326,7 +326,7 @@ mod tests {
             deckmaste_semantics::Action::ChangeLife(minimal_reference(), minimal_life_op()).lower(),
             deckmaste_core::Action::ChangeLife(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::LifeOp::Set(deckmaste_core::Count::X)
+                deckmaste_core::LifeOp::Set(deckmaste_core::Count::Literal(0))
             )
         );
     }
@@ -342,7 +342,7 @@ mod tests {
             .lower(),
             deckmaste_core::Action::AddMana(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::ManaProduction::WithRiders {
                     mana: deckmaste_core::ManaSpec::AnyColor,
                     riders: _
@@ -363,7 +363,7 @@ mod tests {
             .lower(),
             deckmaste_core::Action::Create {
                 agent: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                count: deckmaste_core::Count::X,
+                count: deckmaste_core::Count::Literal(0),
                 token: deckmaste_core::TokenSpec::Token(_),
                 riders: _
             }
@@ -531,7 +531,7 @@ mod tests {
                 .lower(),
             deckmaste_core::Action::FlipCoins(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 false
             )
         );
@@ -543,7 +543,7 @@ mod tests {
             deckmaste_semantics::Action::RollDice(minimal_reference(), minimal_count(), 0).lower(),
             deckmaste_core::Action::RollDice(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 0
             )
         );
@@ -571,7 +571,7 @@ mod tests {
             deckmaste_core::Action::PutCounters(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CounterRef(_),
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -588,7 +588,7 @@ mod tests {
             deckmaste_core::Action::RemoveCounters(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::CounterRef(_),
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -674,7 +674,7 @@ mod tests {
             .lower(),
             deckmaste_core::Action::DealDamage(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             )
         );
@@ -684,7 +684,7 @@ mod tests {
     fn lowers_life_op_set() {
         assert_matches!(
             deckmaste_semantics::LifeOp::Set(minimal_count()).lower(),
-            deckmaste_core::LifeOp::Set(deckmaste_core::Count::X)
+            deckmaste_core::LifeOp::Set(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -692,7 +692,7 @@ mod tests {
     fn lowers_life_op_up() {
         assert_matches!(
             deckmaste_semantics::LifeOp::Up(minimal_count()).lower(),
-            deckmaste_core::LifeOp::Up(deckmaste_core::Count::X)
+            deckmaste_core::LifeOp::Up(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -700,7 +700,7 @@ mod tests {
     fn lowers_life_op_down() {
         assert_matches!(
             deckmaste_semantics::LifeOp::Down(minimal_count()).lower(),
-            deckmaste_core::LifeOp::Down(deckmaste_core::Count::X)
+            deckmaste_core::LifeOp::Down(deckmaste_core::Count::Literal(0))
         );
     }
 

@@ -6100,7 +6100,7 @@ mod tests {
             })
             .into(),
         );
-        let mut reading = crate::stack::ExecutionFrame::bare(a, PlayerId(0));
+        let mut reading = state.frame(a, PlayerId(0));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);

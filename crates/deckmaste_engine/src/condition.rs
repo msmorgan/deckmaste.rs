@@ -258,7 +258,6 @@ mod tests {
     use crate::lki::LkiSnapshot;
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
-    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -631,7 +630,7 @@ mod tests {
                 "the dying object's id is stale after removal"
             );
 
-            let mut frame = ExecutionFrame::bare(bear, PlayerId(0));
+            let mut frame = state.frame(bear, PlayerId(0));
             state.frame_set_source_lki(&mut frame, Some(snapshot));
             let cond = Condition::Matches(
                 Reference::Reg(deckmaste_core::RefId(0)),

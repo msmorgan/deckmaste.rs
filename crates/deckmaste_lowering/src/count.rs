@@ -270,10 +270,15 @@ mod tests {
 
     #[test]
     fn lowers_count_x() {
-        assert_matches!(
-            deckmaste_semantics::Count::X.lower(),
-            deckmaste_core::Count::X
-        );
+        use deckmaste_semantics::Count as SemValue;
+
+        let (params, lowered) =
+            crate::region::in_region(crate::region::RegionKind::Spell, 0, || SemValue::X.lower());
+        let x = params
+            .iter()
+            .find(|param| param.provenance == deckmaste_core::Provenance::AnnouncedX)
+            .expect("spell regions declare X");
+        assert_eq!(lowered, deckmaste_core::Count::Reg(x.def.into()));
     }
 
     #[test]
@@ -489,9 +494,15 @@ mod tests {
 
     #[test]
     fn lowers_count_noted() {
-        assert_matches!(
-            deckmaste_semantics::Count::Noted("X".into()).lower(),
-            deckmaste_core::Count::Noted(_)
+        use deckmaste_semantics::Count as SemValue;
+
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            crate::region::bind_named("X".into(), deckmaste_core::RefId(0));
+            SemValue::Noted("X".into()).lower()
+        });
+        assert_eq!(
+            lowered,
+            deckmaste_core::Count::Reg(deckmaste_core::RefId(0))
         );
     }
 
@@ -561,7 +572,7 @@ mod tests {
                 value: Box::new(minimal_count())
             })
             .lower(),
-            deckmaste_core::Count::X
+            deckmaste_core::Count::Literal(0)
         );
     }
 
@@ -736,9 +747,9 @@ impl Lower for deckmaste_semantics::Count {
     type Target = deckmaste_core::Count;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::X => {
-                crate::region::x().map_or(deckmaste_core::Count::X, deckmaste_core::Count::Reg)
-            }
+            Self::X => deckmaste_core::Count::Reg(
+                crate::region::x().expect("X count outside a region with an announced-X parameter"),
+            ),
             Self::CountOf(f0) => deckmaste_core::Count::CountOf(f0.lower()),
             Self::CountDistinct(f0, f1) => {
                 deckmaste_core::Count::CountDistinct(f0.lower(), f1.lower())
@@ -771,14 +782,18 @@ impl Lower for deckmaste_semantics::Count {
             ),
             Self::EventCount(f0, f1) => deckmaste_core::Count::EventCount(f0.lower(), f1.lower()),
             Self::EventSum(f0, f1) => deckmaste_core::Count::EventSum(f0.lower(), f1.lower()),
-            // A region-local binding wins; then the card's linked memory cell
-            // ([CR#607.1], ADR law 8). `Count::Noted` survives as the
-            // resolution-scoped number note a `ChooseAndNote` player action
-            // writes, which is not linked memory and has no register.
+            // A region-local definition wins; then the card's declared linked
+            // memory parameter ([CR#607.1], ADR law 8). There is no
+            // resolution-local name-keyed fallback.
             Self::Noted(name) => crate::region::named(&name)
                 .or_else(|| crate::region::cell_read(&name))
                 .map_or_else(
-                    || deckmaste_core::Count::Noted(name.lower()),
+                    || {
+                        crate::region::refuse(&format!(
+                            "noted number `{name}` has no region definition or declared linked cell"
+                        ));
+                        deckmaste_core::Count::Reg(deckmaste_core::RefId(0))
+                    },
                     deckmaste_core::Count::Reg,
                 ),
             Self::TimesPaid(f0) => deckmaste_core::Count::TimesPaid(f0.lower()),

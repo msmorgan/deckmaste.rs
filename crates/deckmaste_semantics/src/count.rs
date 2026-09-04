@@ -327,7 +327,7 @@ impl Count {
     }
 
     /// Whether this count reads the announced X ([CR#107.3a]) anywhere —
-    /// directly (`Count::X`) or nested inside an arithmetic combinator
+    /// directly (the `X` variant) or nested inside an arithmetic combinator
     /// (`Minus(TargetsOf(This), X)`, "half X", …) or a macro invocation. The
     /// activate-time X-announce trigger asks this of a non-mana cost verb's
     /// count operand to decide whether X must be announced for the activation
@@ -335,7 +335,7 @@ impl Count {
     #[must_use]
     pub fn mentions_x(&self) -> bool {
         match self {
-            Count::X => true,
+            Self::X => true,
             Count::Min(a, b)
             | Count::Max(a, b)
             | Count::Plus(a, b)
@@ -356,6 +356,8 @@ mod tests {
     use super::*;
     use crate::reference::Reference;
 
+    type SemValue = Count;
+
     fn read(source: &str) -> Count {
         crate::ron::options().from_str(source).unwrap()
     }
@@ -372,12 +374,12 @@ mod tests {
         assert_eq!(write(&Count::Literal(3)), "3");
     }
 
-    /// `mentions_x` sees `Count::X` directly and nested inside an arithmetic
+    /// `mentions_x` sees the `X` variant directly and nested inside an arithmetic
     /// combinator ([CR#107.3a]), and says no for an X-free count — the check
     /// the non-mana X-cost announce trigger relies on.
     #[test]
     fn mentions_x_detects_direct_and_nested_x() {
-        assert!(Count::X.mentions_x(), "bare X");
+        assert!(SemValue::X.mentions_x(), "bare X");
         assert!(
             read("Minus(TargetsOf(This), X)").mentions_x(),
             "X nested in a Minus operand"
@@ -395,7 +397,7 @@ mod tests {
 
     #[test]
     fn constructors_read_named() {
-        assert_eq!(read("X"), Count::X);
+        assert_eq!(read("X"), SemValue::X);
         assert_eq!(read("ThatMuch"), Count::ThatMuch);
         assert_eq!(read("Allotment"), Count::Allotment);
         assert_eq!(write(&Count::Allotment), "Allotment");
@@ -494,19 +496,19 @@ mod tests {
         let cases = [
             (
                 "Plus(X, 1)",
-                Count::Plus(Arc::new(Count::X), Arc::new(Count::Literal(1))),
+                Count::Plus(Arc::new(SemValue::X), Arc::new(Count::Literal(1))),
             ),
             (
                 "Minus(3, X)",
-                Count::Minus(Arc::new(Count::Literal(3)), Arc::new(Count::X)),
+                Count::Minus(Arc::new(Count::Literal(3)), Arc::new(SemValue::X)),
             ),
             (
                 "Times(2, X)",
-                Count::Times(Arc::new(Count::Literal(2)), Arc::new(Count::X)),
+                Count::Times(Arc::new(Count::Literal(2)), Arc::new(SemValue::X)),
             ),
             (
                 "Max(X, 1)",
-                Count::Max(Arc::new(Count::X), Arc::new(Count::Literal(1))),
+                Count::Max(Arc::new(SemValue::X), Arc::new(Count::Literal(1))),
             ),
             (
                 "Half(RoundUp, StatOf(This, Power))",
@@ -519,17 +521,17 @@ mod tests {
                 "Divide(RoundDown, X, 2)",
                 Count::Divide(
                     RoundMode::RoundDown,
-                    Arc::new(Count::X),
+                    Arc::new(SemValue::X),
                     Arc::new(Count::Literal(2)),
                 ),
             ),
             (
                 "Mod(X, 2)",
-                Count::Mod(Arc::new(Count::X), Arc::new(Count::Literal(2))),
+                Count::Mod(Arc::new(SemValue::X), Arc::new(Count::Literal(2))),
             ),
             (
                 "Pow(2, X)",
-                Count::Pow(Arc::new(Count::Literal(2)), Arc::new(Count::X)),
+                Count::Pow(Arc::new(Count::Literal(2)), Arc::new(SemValue::X)),
             ),
         ];
         for (src, want) in cases {

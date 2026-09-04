@@ -156,7 +156,7 @@ mod tests {
 
     /// A variable "−X" loyalty cost carries the `X` count token — the engine
     /// announces X onto the activation slot and concretizes the cost verb
-    /// ([CR#601.2b], `activate.rs`'s `Count::X` gate).
+    /// ([CR#601.2b], `activate.rs`'s semantic-X gate).
     #[test]
     fn minus_x_variable_cost() {
         assert_eq!(

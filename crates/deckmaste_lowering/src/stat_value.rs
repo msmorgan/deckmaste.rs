@@ -57,7 +57,7 @@ mod tests {
     fn lowers_stat_value_count() {
         assert_matches!(
             deckmaste_semantics::StatValue::Count(minimal_count()).lower(),
-            deckmaste_core::StatValue::Count(deckmaste_core::Count::X)
+            deckmaste_core::StatValue::Count(deckmaste_core::Count::Literal(0))
         );
     }
 }

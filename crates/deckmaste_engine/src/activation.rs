@@ -14,16 +14,11 @@ use crate::trigger::EventPatient;
 
 /// Stable identity of one entered core region during a resolution.
 ///
-/// Bare evaluation scopes carry only their source/controller pair. Entering a
-/// region materializes that scope in the activation table; resolving work
-/// items therefore carry only the stored identity.
+/// Every execution scope is materialized in the activation table; resolving
+/// work items therefore carry only the stored identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ActivationId {
     None,
-    Bare {
-        source: ObjectId,
-        controller: crate::player::PlayerId,
-    },
     Stored(u64),
 }
 
@@ -31,10 +26,6 @@ impl ActivationId {
     /// Frames constructed directly by legacy engine tests have no region.
     /// Lowered ability execution always replaces this sentinel at entry.
     pub const NONE: Self = Self::None;
-
-    pub(crate) const fn bare(source: ObjectId, controller: crate::player::PlayerId) -> Self {
-        Self::Bare { source, controller }
-    }
 }
 
 /// One object-valued register product. `current` is the live identity used by
@@ -134,7 +125,7 @@ struct ActivationContext {
 }
 
 impl ActivationContext {
-    fn bare(source: ObjectId, controller: crate::player::PlayerId) -> Self {
+    fn new(source: ObjectId, controller: crate::player::PlayerId) -> Self {
         Self {
             source,
             controller,
@@ -163,6 +154,44 @@ impl crate::state::GameState {
         ActivationId::Stored(next)
     }
 
+    /// Enter the closed source/controller region used by rule and cost
+    /// scopes, and return its lightweight execution cursor.
+    pub fn frame(&self, source: ObjectId, controller: crate::player::PlayerId) -> ExecutionFrame {
+        let mut context = ActivationContext::new(source, controller);
+        // [CR#400.7d]: an ability of a permanent reads what was paid to cast
+        // the spell that became it.
+        context.paid_costs = self
+            .paid_costs_by_object
+            .get(&source)
+            .cloned()
+            .unwrap_or_default();
+        let params = deckmaste_core::source_controller_params();
+        let values = vec![
+            Value::Object(ReferenceProduct {
+                current: self.objects.get(source).map(|_| source),
+                lki: None,
+            }),
+            Value::Object(ReferenceProduct {
+                current: Some(self.player(controller).object),
+                lki: None,
+            }),
+        ];
+        let id = self.mint_activation_id();
+        self.activations.borrow_mut().insert(
+            id,
+            Activation {
+                root: id,
+                params,
+                values,
+                context,
+            },
+        );
+        ExecutionFrame {
+            activation: id,
+            payment: None,
+        }
+    }
+
     /// Enter `region`, populating its declared parameter prefix from the
     /// resolution inputs carried by `frame`.
     pub(crate) fn enter_region<T>(
@@ -188,21 +217,16 @@ impl crate::state::GameState {
         let next_activation = self.next_activation.get();
         let activation = self.enter_region(region, frame);
         let result = probe(activation);
-        self.remove_activation_family(activation);
-        // Matching candidates may enter arbitrarily many child regions. They
-        // all inherit this probe's root and are reclaimed with it; only rewind
-        // the counter once no minted identity remains live.
-        let can_rewind = self.activations.borrow().keys().all(|id| match id {
+        // The caller's frame is a real, persistent parent now. Family removal
+        // would reclaim that parent too, while rule frames minted inside the
+        // probe can have independent roots. The probe is read-only, so reclaim
+        // exactly every identity allocated after its saved cursor regardless
+        // of family, then make the allocation observationally invisible.
+        self.activations.borrow_mut().retain(|id, _| match id {
             ActivationId::Stored(raw) => *raw < next_activation,
-            ActivationId::None | ActivationId::Bare { .. } => true,
+            ActivationId::None => true,
         });
-        debug_assert!(
-            can_rewind,
-            "every activation minted by a temporary probe belongs to its family"
-        );
-        if can_rewind {
-            self.next_activation.set(next_activation);
-        }
+        self.next_activation.set(next_activation);
         result
     }
 
@@ -514,26 +538,13 @@ impl crate::state::GameState {
 
     fn activation_context(&self, activation: ActivationId) -> ActivationContext {
         match activation {
-            ActivationId::Bare { source, controller } => {
-                let mut context = ActivationContext::bare(source, controller);
-                // [CR#400.7d]: an ability of a permanent reads what was paid to
-                // cast the spell that became it. A bare frame is exactly that
-                // case — a trigger or activation of the permanent itself, with
-                // no announce record of its own.
-                context.paid_costs = self
-                    .paid_costs_by_object
-                    .get(&source)
-                    .cloned()
-                    .unwrap_or_default();
-                context
-            }
             ActivationId::Stored(_) => self
                 .activations
                 .borrow()
                 .get(&activation)
                 .map(|record| record.context.clone())
                 .expect("stored activation exists"),
-            ActivationId::None => panic!("a region entry requires source/controller bindings"),
+            ActivationId::None => panic!("a region entry requires a parent activation"),
         }
     }
 
@@ -596,68 +607,6 @@ impl crate::state::GameState {
             .get(index)
             .cloned()
             .unwrap_or_default()
-    }
-
-    pub(crate) fn activation_context_product(
-        &self,
-        activation: ActivationId,
-        provenance: &Provenance,
-    ) -> Option<ReferenceProduct> {
-        if activation == ActivationId::NONE {
-            return None;
-        }
-        let context = self.activation_context(activation);
-        let live = |object| self.objects.get(object).map(|_| object);
-        match provenance {
-            Provenance::Source => Some(ReferenceProduct {
-                current: live(context.source),
-                lki: context.source_lki,
-            }),
-            Provenance::Controller => Some(ReferenceProduct {
-                current: Some(self.player(context.controller).object),
-                lki: None,
-            }),
-            Provenance::EventObject => context.event_object.map(|snapshot| ReferenceProduct {
-                current: live(snapshot.object),
-                lki: Some(snapshot),
-            }),
-            Provenance::EventPatient => match context.event_patient {
-                Some(EventPatient::Object(snapshot)) => Some(ReferenceProduct {
-                    current: live(snapshot.object),
-                    lki: Some(snapshot),
-                }),
-                Some(EventPatient::Player(player)) => Some(ReferenceProduct {
-                    current: Some(self.player(player).object),
-                    lki: None,
-                }),
-                None => None,
-            },
-            Provenance::EventActor => context.event_actor.map(|player| ReferenceProduct {
-                current: Some(self.player(player).object),
-                lki: None,
-            }),
-            Provenance::DefendingPlayer => {
-                context.defending_player.map(|player| ReferenceProduct {
-                    current: Some(self.player(player).object),
-                    lki: None,
-                })
-            }
-            Provenance::AnnouncedTarget(index) => context
-                .targets
-                .get(*index as usize)
-                .and_then(|slot| slot.iter().copied().find(|object| live(*object).is_some()))
-                .map(|object| ReferenceProduct {
-                    current: Some(object),
-                    lki: None,
-                }),
-            Provenance::EventAmount
-            | Provenance::AnnouncedX
-            | Provenance::Capture(_)
-            | Provenance::Linked(_)
-            | Provenance::LoopElement
-            | Provenance::Allotment
-            | Provenance::Candidate(_) => None,
-        }
     }
 
     fn materialize_frame(&self, frame: &mut ExecutionFrame) {
@@ -904,6 +853,27 @@ impl crate::state::GameState {
         }
     }
 
+    pub(crate) fn activation_symbol(
+        &self,
+        activation: ActivationId,
+        reference: RefId,
+    ) -> Option<String> {
+        match self
+            .activations
+            .borrow()
+            .get(&activation)?
+            .values
+            .get(reference.0 as usize)?
+        {
+            Value::Symbol(symbol) => Some(symbol.clone()),
+            Value::Unavailable
+            | Value::Object(_)
+            | Value::Objects(_)
+            | Value::Pile(_)
+            | Value::Number(_) => None,
+        }
+    }
+
     pub(crate) fn activation_provenance(
         &self,
         activation: ActivationId,
@@ -915,6 +885,20 @@ impl crate::state::GameState {
             .params
             .get(reference.0 as usize)
             .map(|param| param.provenance.clone())
+    }
+
+    pub(crate) fn activation_parameter(
+        &self,
+        activation: ActivationId,
+        provenance: &Provenance,
+    ) -> Option<RefId> {
+        self.activations
+            .borrow()
+            .get(&activation)?
+            .params
+            .iter()
+            .find(|param| &param.provenance == provenance)
+            .map(|param| param.def.into())
     }
 
     pub(crate) fn activation_reference_is(
@@ -940,7 +924,7 @@ impl crate::state::GameState {
 
     /// The announced-target slots the register file currently holds
     /// ([CR#601.2c]) — empty before the announcement writes any, and empty for
-    /// a bare `ActivationId::NONE` probe.
+    /// an `ActivationId::NONE` probe.
     #[must_use]
     pub(crate) fn announced_targets(&self, activation: ActivationId) -> Vec<Vec<ObjectId>> {
         self.activations
@@ -1336,13 +1320,16 @@ mod tests {
         let mut state = bare_game();
         let source = state.player(PlayerId(0)).object;
         let region = Region::closed(());
-        let root = state.enter_region(&region, &ExecutionFrame::bare(source, PlayerId(0)));
-        let mut nested_frame = ExecutionFrame::bare(source, PlayerId(0));
-        nested_frame.activation = root;
+        let seed = state.frame(source, PlayerId(0));
+        let root = state.enter_region(&region, &seed);
+        let nested_frame = ExecutionFrame {
+            activation: root,
+            payment: None,
+        };
         let nested = state.enter_region(&region, &nested_frame);
         let cloned = state.clone_activation(nested);
 
-        assert_eq!(state.activations.borrow().len(), 3);
+        assert_eq!(state.activations.borrow().len(), 4);
         state.remove_activation_family(root);
         assert_eq!(state.activations.borrow().len(), 1);
         assert!(state.activation_product(cloned, RefId(0)).is_none());
@@ -1372,7 +1359,7 @@ mod tests {
             Provenance::Candidate(deckmaste_core::Domain::Entity),
             (),
         );
-        let frame = ExecutionFrame::bare(source, PlayerId(0));
+        let frame = state.frame(source, PlayerId(0));
 
         let by_id = state.enter_candidate_region(&region, &frame, candidate);
         assert_eq!(
@@ -1403,7 +1390,7 @@ mod tests {
         let state = bare_game();
         let source = state.player(PlayerId(0)).object;
         let region = Region::closed(());
-        let activation = state.enter_region(&region, &ExecutionFrame::bare(source, PlayerId(0)));
+        let activation = state.enter_region(&region, &state.frame(source, PlayerId(0)));
         state.activation_write(
             activation,
             deckmaste_core::DefId(0),

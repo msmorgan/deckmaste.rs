@@ -65,7 +65,10 @@ fn activated_ability(cost: Cost, effect: Instruction) -> ActivatedAbility {
         window: None,
         condition: None,
         limits: Arc::from([]),
-        effect: effect.into(),
+        effect: deckmaste_core::Region::new(
+            deckmaste_core::announced_region_params(0),
+            effect.into(),
+        ),
     }
 }
 
@@ -407,6 +410,7 @@ fn modal_payment_fixture_with_ordinary_mode(
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
+    let ordinary_params = deckmaste_core::announced_region_params(ordinary_targets.len());
     let effect = Instruction::Modal(Modal {
         choose: ChooseSpec {
             count: Quantity::one(),
@@ -418,17 +422,20 @@ fn modal_payment_fixture_with_ordinary_mode(
         modes: vec![
             Mode {
                 targets: [].into(),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                ))
-                .into(),
+                effect: deckmaste_core::Region::new(
+                    deckmaste_core::announced_region_params(0),
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    ))
+                    .into(),
+                ),
                 cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: ordinary_targets,
-                effect: ordinary_effect.into(),
+                effect: deckmaste_core::Region::new(ordinary_params, ordinary_effect.into()),
                 cost: deckmaste_core::Cost::default(),
             },
         ]
@@ -514,7 +521,7 @@ fn triggered_mana_fixture() -> (
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Mana watcher".into(),
-        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+        abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             targets: [].into(),
@@ -531,7 +538,7 @@ fn triggered_mana_fixture() -> (
                 ManaSpec::ProducedByEvent.into(),
             ))
             .into(),
-        }))],
+        })],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -617,7 +624,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
     );
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Nested cast watcher".into(),
-        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+        abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             targets: [].into(),
@@ -655,7 +662,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
                 .into(),
             )
             .into(),
-        }))],
+        })],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -782,7 +789,7 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Causal watcher".into(),
-        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+        abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             targets: [].into(),
@@ -791,7 +798,7 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
             condition: None,
             limits,
             effect: trigger_effect.into(),
-        }))],
+        })],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -850,7 +857,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Bare ManaAdded watcher".into(),
-        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+        abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
             where_x: None,
             targets: [].into(),
@@ -867,7 +874,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
                 ManaSpec::Specific(Color::Black.into()).into(),
             ))
             .into(),
-        }))],
+        })],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {

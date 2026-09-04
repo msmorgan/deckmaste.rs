@@ -290,7 +290,6 @@ pub(crate) struct ResolutionScopeSnapshot {
     resolution_events: Vec<GameEvent>,
     resolution_contained_act_commits: std::collections::HashMap<deckmaste_core::VerbName, u64>,
     resolution_contained_act_serial: u64,
-    resolution_notes: std::collections::HashMap<deckmaste_core::Ident, NotedValue>,
     arrange_scope: Option<ArrangeScope>,
 }
 
@@ -501,24 +500,6 @@ pub struct GameImage {
     /// every evolution stage ([CR#603.2c]; a destroy-all's
     /// dies-facts are one occurrence).
     pub(crate) evolving_batch: Option<Vec<GameEvent>>,
-    /// [CR#608.2c] resolution-scoped scalar note slots: a mid-resolution
-    /// choice ("choose a number") stored under a note key and read back
-    /// LATER IN THE SAME resolution ([CR#607.2] slot values). This map holds
-    /// scalar choice anaphora ("that number"); an object-SET product group
-    /// ("destroyed this way" — [CR#608.2c] reads it against the clause that
-    /// caused the moves) is not stored at all: it is a query over the
-    /// resolution's enacted `ZoneChange` facts in `GameState.history`, and its
-    /// core spelling arrives with linked memory (ADR law 8).
-    /// A flat map suffices because resolution is stack-disciplined (one entry
-    /// resolves at a time); `resolve_object` clears it as each fresh
-    /// resolution begins, so a note never leaks into the next resolution
-    /// ([CR#608.2c] — the choice exists only within that instruction
-    /// sequence; values that OUTLIVE resolution are linked abilities
-    /// [CR#607] or as-enters choices, held by separate stores). Written by
-    /// `PlayerAction::ChooseAndNote`, read by `Count::Noted` and the dynamic
-    /// same-resolution `Named(key)` form.
-    pub(crate) resolution_notes:
-        std::collections::HashMap<deckmaste_core::Ident, crate::state::NotedValue>,
     /// [CR#401.4]: the armed post-pick arrange collector. `Some` while an
     /// `Each`/`MoveGroup` whose body repositions cards into ordered library
     /// positions is resolving; each landing records here, and the
@@ -548,7 +529,6 @@ impl GameImage {
             resolution_contained_act_serial: std::mem::take(
                 &mut self.resolution_contained_act_serial,
             ),
-            resolution_notes: std::mem::take(&mut self.resolution_notes),
             arrange_scope: self.arrange_scope.take(),
         });
     }
@@ -562,7 +542,6 @@ impl GameImage {
         self.resolution_events = snapshot.resolution_events;
         self.resolution_contained_act_commits = snapshot.resolution_contained_act_commits;
         self.resolution_contained_act_serial = snapshot.resolution_contained_act_serial;
-        self.resolution_notes = snapshot.resolution_notes;
         self.arrange_scope = snapshot.arrange_scope;
     }
 }
@@ -613,21 +592,6 @@ impl std::ops::DerefMut for GameState {
             .and_then(|controller| controller.frames.last_mut())
             .map_or(&mut self.committed, |frame| &mut frame.working)
     }
-}
-
-/// The scalar value a resolution note slot stores ([CR#607.2] slots;
-/// [CR#608.2c] a choice made while applying an effect). This store
-/// mints scalar `Number` and `CardName` values. Object-set notes ride the
-/// fact-backed `noted` product group (`NotedMember`) instead of this map;
-/// Color/Piles stay unbuilt until reader grammar for them lands.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NotedValue {
-    /// A chosen non-negative number ("note that number") — written by
-    /// `PlayerAction::ChooseAndNote(_, NotedKind::Number)`, read by
-    /// `Count::Noted`.
-    Number(Uint),
-    /// A chosen card name, read by `Named(key)` during this resolution.
-    CardName(String),
 }
 
 impl GameState {
@@ -735,7 +699,6 @@ impl GameState {
             next_batch: 0,
             next_payment: 0,
             evolving_batch: None,
-            resolution_notes: std::collections::HashMap::new(),
             arrange_scope: None,
             control_stack: Vec::new(),
             resolving_mana_actions: Vec::new(),
@@ -1188,10 +1151,7 @@ impl GameState {
         for (i, s) in self.shields.iter().enumerate() {
             if let ForAsLongAs(cond) = &s.duration
                 && let Some(obj) = self.objects.get(s.source)
-                && !self.condition_holds(
-                    cond,
-                    &crate::stack::ExecutionFrame::bare(s.source, obj.controller),
-                )
+                && !self.condition_holds(cond, &self.frame(s.source, obj.controller))
             {
                 drop_sh[i] = true;
             }

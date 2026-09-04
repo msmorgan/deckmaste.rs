@@ -250,7 +250,10 @@ impl Ability {
 
     /// Build [`Ability::Activated`], boxing the payload.
     #[must_use]
-    pub fn activated(ability: ActivatedAbility) -> Self {
+    pub fn activated(mut ability: ActivatedAbility) -> Self {
+        if ability.effect.params.is_empty() {
+            ability.effect.params = crate::announced_region_params(ability.targets.len());
+        }
         Ability::Activated(Arc::new(ability))
     }
 
@@ -263,29 +266,7 @@ impl Ability {
     #[must_use]
     pub fn triggered(mut ability: TriggeredAbility) -> Self {
         if ability.effect.params.is_empty() {
-            let mut params = crate::event_region_params()
-                .iter()
-                .map(|param| (param.kind, param.provenance.clone()))
-                .collect::<Vec<_>>();
-            params.extend(ability.targets.iter().enumerate().map(|(index, _)| {
-                (
-                    crate::Kind::Entities,
-                    crate::Provenance::AnnouncedTarget(
-                        u32::try_from(index).expect("target index fits u32"),
-                    ),
-                )
-            }));
-            params.push((crate::Kind::Number, crate::Provenance::AnnouncedX));
-            ability.effect.params = params
-                .into_iter()
-                .enumerate()
-                .map(|(index, (kind, provenance))| crate::Param {
-                    def: crate::DefId(u32::try_from(index).expect("parameter index fits u32")),
-                    kind,
-                    provenance,
-                })
-                .collect::<Vec<_>>()
-                .into();
+            ability.effect.params = crate::triggered_region_params(ability.targets.len());
         }
         Ability::Triggered(Arc::new(ability))
     }
@@ -409,7 +390,10 @@ impl Ability {
 
     /// Build [`Ability::Spell`], boxing the payload.
     #[must_use]
-    pub fn spell(ability: SpellAbility) -> Self {
+    pub fn spell(mut ability: SpellAbility) -> Self {
+        if ability.effect.params.is_empty() {
+            ability.effect.params = crate::announced_region_params(ability.targets.len());
+        }
         Ability::Spell(Arc::new(ability))
     }
 }

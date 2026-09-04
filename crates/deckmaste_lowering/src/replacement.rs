@@ -68,7 +68,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Prevention::PreventNext {
-                n: deckmaste_core::Count::X,
+                n: deckmaste_core::Count::Literal(0),
                 from: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 to: deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
                 duration: None

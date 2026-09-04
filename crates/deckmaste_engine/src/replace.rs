@@ -192,8 +192,7 @@ impl GameState {
         entering: crate::object::ObjectId,
         region: &deckmaste_core::Region<T>,
     ) -> crate::stack::ExecutionFrame {
-        let mut frame =
-            crate::stack::ExecutionFrame::bare(entering, self.objects.obj(entering).controller);
+        let mut frame = self.frame(entering, self.objects.obj(entering).controller);
         frame.activation = self.enter_region(region, &frame);
         frame
     }

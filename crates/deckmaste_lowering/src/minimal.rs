@@ -277,7 +277,7 @@ pub fn minimal_cost_tag() -> deckmaste_semantics::CostTag {
 }
 
 pub fn minimal_count() -> deckmaste_semantics::Count {
-    deckmaste_semantics::Count::X
+    deckmaste_semantics::Count::Literal(0)
 }
 
 pub fn minimal_count_bound() -> deckmaste_semantics::CountBound {

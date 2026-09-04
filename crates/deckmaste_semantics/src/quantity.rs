@@ -66,6 +66,8 @@ mod tests {
     use super::*;
     use crate::Count;
 
+    type SemValue = Count;
+
     fn read(source: &str) -> Quantity {
         crate::ron::options().from_str(source).unwrap()
     }
@@ -92,7 +94,7 @@ mod tests {
                 Quantity::Range(None, Some(Count::Literal(3))),
             ),
             ("Range(None, None)", Quantity::Range(None, None)),
-            ("Range(X, None)", Quantity::Range(Some(Count::X), None)),
+            ("Range(X, None)", Quantity::Range(Some(SemValue::X), None)),
         ];
         for (src, want) in cases {
             assert_eq!(read(src), want, "parse failed for {src}");

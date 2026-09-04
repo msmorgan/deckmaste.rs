@@ -51,9 +51,9 @@ pub enum Visibility {
 /// `ChooseAndNote`/`NotedKind`, split per the action-role-reshape design,
 /// 2026-08-01): a resolution CHOICE the player makes and the engine stores
 /// under a note key, distinct from the persisted OBJECT-SET note kinds
-/// ([`NotedKind`], staying store-side with their writers). Readers:
-/// `Reference::Linked(key)`,
-/// `Count::Noted(key)`.
+/// ([`NotedKind`], staying store-side with their writers). Chosen scalar
+/// values are read from their declared register; object sets use
+/// `Reference::Linked(key)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum ChosenValueKind {
     Color,

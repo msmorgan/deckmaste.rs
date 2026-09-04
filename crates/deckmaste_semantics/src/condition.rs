@@ -160,6 +160,8 @@ impl Condition {
 mod tests {
     use super::*;
 
+    type SemValue = Count;
+
     fn read(source: &str) -> Condition {
         crate::ron::options().from_str(source).unwrap()
     }
@@ -168,7 +170,7 @@ mod tests {
     fn compare_reads() {
         assert_eq!(
             read("Compare(X, AtLeast, Literal(3))"),
-            Condition::Compare(Count::X, Cmp::AtLeast, Count::Literal(3)),
+            Condition::Compare(SemValue::X, Cmp::AtLeast, Count::Literal(3)),
         );
     }
 

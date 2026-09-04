@@ -102,6 +102,51 @@ pub struct Param {
     pub provenance: Provenance,
 }
 
+/// The intrinsic parameters of an engine rule or cost scope.
+///
+/// These scopes are closed regions even when they have no authored body of
+/// their own: source and controller are ordinary indexed inputs, not an
+/// out-of-band frame environment.
+#[must_use]
+pub fn source_controller_params() -> Arc<[Param]> {
+    Arc::from([
+        Param {
+            def: DefId(0),
+            kind: Kind::Entity,
+            provenance: Provenance::Source,
+        },
+        Param {
+            def: DefId(1),
+            kind: Kind::Entity,
+            provenance: Provenance::Controller,
+        },
+    ])
+}
+
+/// The intrinsic parameter prefix of a spell or activated-ability region.
+///
+/// # Panics
+///
+/// Panics if `target_count` cannot be represented by the region's 32-bit
+/// definition and target indices.
+#[must_use]
+pub fn announced_region_params(target_count: usize) -> Arc<[Param]> {
+    let mut params = source_controller_params().to_vec();
+    params.extend((0..target_count).map(|index| Param {
+        def: DefId(u32::try_from(2 + index).expect("parameter count fits u32")),
+        kind: Kind::Entities,
+        provenance: Provenance::AnnouncedTarget(
+            u32::try_from(index).expect("target index fits u32"),
+        ),
+    }));
+    params.push(Param {
+        def: DefId(u32::try_from(params.len()).expect("parameter count fits u32")),
+        kind: Kind::Number,
+        provenance: Provenance::AnnouncedX,
+    });
+    params.into()
+}
+
 /// The fixed event-role prefix shared by static, triggered, and transitional
 /// floating-replacement regions.
 ///
@@ -145,6 +190,32 @@ pub fn event_region_params() -> Arc<[Param]> {
             provenance: Provenance::EventAmount,
         },
     ])
+}
+
+/// The event-role prefix plus a triggered ability's announced targets and X.
+///
+/// # Panics
+///
+/// Panics if `target_count` cannot be represented by the region's 32-bit
+/// definition and target indices.
+#[must_use]
+pub fn triggered_region_params(target_count: usize) -> Arc<[Param]> {
+    let mut params = event_region_params().to_vec();
+    for index in 0..target_count {
+        params.push(Param {
+            def: DefId(u32::try_from(params.len()).expect("parameter count fits u32")),
+            kind: Kind::Entities,
+            provenance: Provenance::AnnouncedTarget(
+                u32::try_from(index).expect("target index fits u32"),
+            ),
+        });
+    }
+    params.push(Param {
+        def: DefId(u32::try_from(params.len()).expect("parameter count fits u32")),
+        kind: Kind::Number,
+        provenance: Provenance::AnnouncedX,
+    });
+    params.into()
 }
 
 /// A textual sequence of instructions.

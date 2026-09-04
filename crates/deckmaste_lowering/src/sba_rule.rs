@@ -51,9 +51,9 @@ mod tests {
         assert_matches!(
             lowered.region.body.when,
             deckmaste_core::Condition::Compare(
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
         assert!(is_minimal_lowered_effect(&lowered.region.body.then));

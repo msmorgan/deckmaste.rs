@@ -1938,7 +1938,7 @@ impl GameState {
     /// [CR#608.2c,608.2d]: surface the resolution-time NUMBER choice for a
     /// `ChooseAndNote(key, NotedKind::Number)` ("choose a number"). Always
     /// surfaces (engine policy: every choice is explicit); the submit stores
-    /// the answer in `resolution_notes[key]`, where `Count::Noted` reads it.
+    /// the answer in the armed activation register.
     fn open_choose_note_number(
         &mut self,
         player: PlayerId,

@@ -135,9 +135,9 @@ mod tests {
             )
             .lower(),
             deckmaste_core::Condition::Compare(
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -228,7 +228,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Condition::Crossed {
-                value: deckmaste_core::Count::X,
+                value: deckmaste_core::Count::Literal(0),
                 thresholds: _
             }
         );
@@ -313,9 +313,9 @@ mod tests {
             })
             .lower(),
             deckmaste_core::Condition::Compare(
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }

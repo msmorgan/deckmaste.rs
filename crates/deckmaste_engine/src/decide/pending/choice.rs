@@ -251,7 +251,7 @@ impl DecisionHandler for YesNo {
 /// `ChooseAndNote(key, NotedKind::Number)` ("choose a number"). Any
 /// nonnegative value is legal (unbounded, like `ChooseXValue`); the answer
 /// — reusing the `Decision::XValue(Uint)` shape, which is exactly a chosen
-/// nonnegative number — is stored in `resolution_notes[key]`.
+/// nonnegative number — is stored in the armed activation register.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChooseNoteNumber {
     pub player: PlayerId,
@@ -263,22 +263,20 @@ impl DecisionHandler for ChooseNoteNumber {
         let Decision::XValue(n) = answer else {
             return Err(DecisionError::WrongKind);
         };
-        // [CR#608.2c,607.2]: record the chosen number in the
-        // resolution note slot; `Count::Noted(key)` reads it back
-        // within THIS resolution. Any value >= 0 is legal (unbounded,
+        // [CR#608.2c,607.2]: record the chosen number in the destination
+        // register for indexed reads within THIS resolution. Any value >= 0 is legal (unbounded,
         // like the X-announce), so no re-validation gate is needed.
         // The answer reuses `Decision::XValue` — a chosen non-negative
         // number — rather than mint a note-only twin.
-        let key = self.key;
         g.pending = None;
-        if let Some(crate::state::DecisionContinuation::BindNumber { dest, activation }) =
+        let Some(crate::state::DecisionContinuation::BindNumber { dest, activation }) =
             g.choice.take()
-        {
-            g.activation_write_number(activation, dest, n);
-        } else {
-            g.resolution_notes
-                .insert(key, crate::state::NotedValue::Number(n));
-        }
+        else {
+            return Err(DecisionError::Illegal {
+                reason: format!("number choice `{}` has no destination register", self.key),
+            });
+        };
+        g.activation_write_number(activation, dest, n);
         Ok(())
     }
 }
@@ -300,16 +298,18 @@ impl DecisionHandler for ChooseNoteCardName {
                 reason: "a card name can't be empty".to_owned(),
             });
         }
-        let key = self.key;
         g.pending = None;
-        if let Some(crate::state::DecisionContinuation::BindSymbol { dest, activation }) =
+        let Some(crate::state::DecisionContinuation::BindSymbol { dest, activation }) =
             g.choice.take()
-        {
-            g.activation_write_symbol(activation, dest, name);
-        } else {
-            g.resolution_notes
-                .insert(key, crate::state::NotedValue::CardName(name));
-        }
+        else {
+            return Err(DecisionError::Illegal {
+                reason: format!(
+                    "card-name choice `{}` has no destination register",
+                    self.key
+                ),
+            });
+        };
+        g.activation_write_symbol(activation, dest, name);
         Ok(())
     }
 }

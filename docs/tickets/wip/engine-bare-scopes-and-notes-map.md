@@ -84,3 +84,56 @@ Acceptance:
   not deleted.
 
 Standard constraints apply. Effort: **L**.
+
+## Landing record
+
+Implemented by a Codex delegate; diff reviewed and every gate re-run by the
+orchestrator before commit.
+
+**Shape.** Rule frames now create stored activation records with explicit source
+and controller parameters. Spell and activated regions declare source,
+controller, announced targets and announced X; triggered regions declare their
+event roles, targets and X. Directly constructed legacy abilities with empty
+regions normalize to the same explicit shape at the execution boundary. A noted
+number lowers to a region definition or a declared linked-cell parameter, and X
+lowers to the region's declared announced-X register.
+
+**The printed-name filter.** The literal `Named` match survives untouched, with
+`named_matches_card_name` discriminating a hit, a miss, and a non-card. A chosen
+card name became a SEPARATE variant beside it, `NamedReg(RefId)`: the value
+instruction stores the symbol in the activation register and the filter reads it
+by index. The note override inside the literal variant is gone, which is exactly
+the split the ticket asked for.
+
+**Absent from the workspace**, by grep: `ActivationId::Bare`, `Frame::bare`,
+`resolution_notes`, `Count::Noted`, `Count::X`, and the source/controller
+provenance fallback in the indexed read.
+
+**The protected seam is intact.** The unimplemented marker in the condition
+module still stands. The only change in that file is inside its own test module,
+swapping the bare-frame constructor this task deletes for the ordinary one.
+
+**Tests.** added 0 · re-spelled 8 · removed 0 · weakened 0 · ignored 0 added.
+This is a removal task whose acceptance is that outcomes are preserved, so the
+eight re-spellings are the substance: the noted-number, chosen-card-name and X
+fixtures all assert what they did before against the register shape.
+
+**Gates**, re-run by the orchestrator on the final tree:
+
+- `cargo test --workspace` — 127 result lines, no failures. The
+  `deckmaste_construction` compile-fail fixture that was failing earlier in this
+  queue has since been fixed by another session, so the workspace gate this
+  ticket's acceptance names is genuinely green rather than green-except-one.
+- `cargo xtask idris-check plugins/canon --differential` — `differential OK: 0
+  disagreements`.
+- `cargo xtask cite check` — 0 stale; `--list-noncompliant` — empty.
+- `cargo clippy --workspace --all-targets` — 11 warnings in
+  `deckmaste_lowering`, all PRE-EXISTING and none introduced here: 10
+  redundant-pattern lints in `card.rs:166-184` and one items-after-test-module in
+  `ability.rs`. Verified by reproducing the identical breakdown on the default
+  line. They want their own sweep and are not this ticket's business.
+
+**Deviations and additions.** None. Scope held to the three parts the ticket
+names; 65 files touched, all mechanical consequences of deleting the five
+constructs.
+

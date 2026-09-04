@@ -10,7 +10,7 @@ use crate::state::GameState;
 /// shape, enough to evaluate the context-free conditions these unit tests
 /// exercise.
 pub(crate) fn frame_for(state: &GameState, player: PlayerId) -> ExecutionFrame {
-    ExecutionFrame::bare(state.player(player).object, player)
+    state.frame(state.player(player).object, player)
 }
 
 /// A plain resolution frame anchored on `source` (controlled by player 0) with
@@ -27,7 +27,7 @@ pub(crate) fn frame_src_targets(
     source: crate::object::ObjectId,
     targets: Vec<crate::object::ObjectId>,
 ) -> ExecutionFrame {
-    let mut frame = ExecutionFrame::bare(source, PlayerId(0));
+    let mut frame = state.frame(source, PlayerId(0));
     let slots: Vec<_> = targets.into_iter().map(|target| vec![target]).collect();
     state.frame_set_targets(&mut frame, &slots);
     let provenances = [

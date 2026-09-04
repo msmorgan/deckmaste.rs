@@ -895,7 +895,7 @@ mod tests {
     fn resolve_source_self_card_is_the_frame_source() {
         let mut state = bare_game();
         let id = mint_card(&mut state, CardFace::default());
-        let frame = ExecutionFrame::bare(id, PlayerId(0));
+        let frame = state.frame(id, PlayerId(0));
         assert_eq!(
             resolve_source(&state, &frame, &CopySource::SelfCard),
             Some(id)
@@ -906,7 +906,7 @@ mod tests {
     fn resolve_source_nonexistent_object_is_none() {
         let state = bare_game();
         let dead = ObjectId::from_raw(999);
-        let frame = ExecutionFrame::bare(dead, PlayerId(0));
+        let frame = state.frame(dead, PlayerId(0));
         assert_eq!(resolve_source(&state, &frame, &CopySource::SelfCard), None);
     }
 

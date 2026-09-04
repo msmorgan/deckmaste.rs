@@ -14,7 +14,6 @@ use deckmaste_core::Zone;
 
 use crate::object::ObjectId;
 use crate::object::ObjectSource;
-use crate::stack::ExecutionFrame;
 use crate::stack::StackObject;
 use crate::state::GameState;
 
@@ -260,7 +259,7 @@ pub(crate) fn matches_with_activation(
                 {
                     None => false,
                     Some((carrier, controller)) => {
-                        let mut frame = crate::stack::ExecutionFrame::bare(carrier, controller);
+                        let mut frame = state.frame(carrier, controller);
                         if activation != crate::ActivationId::NONE {
                             frame.activation = activation;
                         }
@@ -354,12 +353,16 @@ pub(crate) fn matches_with_activation(
 
         // "named X" ([CR#201]): printed face name; a player proxy has no card.
         Predicate::Characteristic(CharacteristicPredicate::Named(name)) => {
-            let expected = match state.resolution_notes.get(name) {
-                Some(crate::state::NotedValue::CardName(chosen)) => chosen.as_str(),
-                _ => name.as_str(),
-            };
             state.objects.obj(id).card_id().is_some()
-                && &*crate::derive::face(state.def(id)).name == expected
+                && &*crate::derive::face(state.def(id)).name == name.as_str()
+        }
+        Predicate::Characteristic(CharacteristicPredicate::NamedReg(reference)) => {
+            state.objects.obj(id).card_id().is_some()
+                && state
+                    .activation_symbol(activation, *reference)
+                    .is_some_and(|expected| {
+                        crate::derive::face(state.def(id)).name.as_ref() == expected
+                    })
         }
         // Color predicates over the DERIVED colors ([CR#105.2,202.2]) — a
         // layer-5 color change counts. Same per-call layers() perf seam as
@@ -912,7 +915,7 @@ fn resolve_count(
     if let Some(w) = watcher
         && let Some(carrier) = state.objects.iter().find(|o| o.source == w)
     {
-        let mut frame = ExecutionFrame::bare(carrier.id, carrier.controller);
+        let mut frame = state.frame(carrier.id, carrier.controller);
         if activation != crate::ActivationId::NONE {
             frame.activation = activation;
         }
@@ -1021,7 +1024,7 @@ pub(crate) fn matches_region_with_activation(
             state.activation_controller(activation),
         )
     };
-    let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
+    let mut frame = state.frame(source, controller);
     if activation != crate::ActivationId::NONE {
         frame.activation = activation;
     }

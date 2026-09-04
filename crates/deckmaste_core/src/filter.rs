@@ -144,6 +144,8 @@ pub enum CharacteristicPredicate {
     ColorIs(Color),
     /// The object has the given name ([CR#201]).
     Named(Ident),
+    /// The object has the card name stored in this region's symbol register.
+    NamedReg(crate::RefId),
     /// A printed/defined stat compares as stated, e.g.
     /// `Stat(Power, AtLeast, 3)` — mana value via `Stat(ManaValue, …)`
     /// ([CR#208,202.3]).

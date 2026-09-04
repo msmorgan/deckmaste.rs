@@ -820,7 +820,7 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
         ..CardFace::default()
     }));
     let search = CostComponent::Search(deckmaste_core::Search {
-        dest: deckmaste_core::DefId(2),
+        dest: deckmaste_core::DefId(3),
         by: Reference::Reg(deckmaste_core::RefId(1)),
         whose: Reference::Reg(deckmaste_core::RefId(1)),
         from: Arc::from([Zone::Library]),
@@ -901,18 +901,18 @@ fn unresolved_choice_cannot_construct_a_runnable_core_act() {
 // ---- cost-block payment cases ----
 
 /// A cost block's first instruction definition in these fixtures. An
-/// announcement's register file opens with source(0) and controller(1), so a
-/// payment-time decision writes register 2 ([CR#601.2b]).
-const PAID: deckmaste_core::DefId = deckmaste_core::DefId(2);
+/// announcement's register file opens with source(0), controller(1), and
+/// announced X(2), so a payment-time decision writes register 3 ([CR#601.2b]).
+const PAID: deckmaste_core::DefId = deckmaste_core::DefId(3);
 
 /// [`PAID`] as the register the verbs that spend the payment subject read.
-const PAID_REF: deckmaste_core::RefId = deckmaste_core::RefId(2);
+const PAID_REF: deckmaste_core::RefId = deckmaste_core::RefId(3);
 
 /// The second payment subject of a two-decision cost block.
-const SECOND_PAID: deckmaste_core::DefId = deckmaste_core::DefId(3);
+const SECOND_PAID: deckmaste_core::DefId = deckmaste_core::DefId(4);
 
 /// [`SECOND_PAID`] as a register read.
-const SECOND_PAID_REF: deckmaste_core::RefId = deckmaste_core::RefId(3);
+const SECOND_PAID_REF: deckmaste_core::RefId = deckmaste_core::RefId(4);
 
 /// "Discard two cards" as a cost BLOCK ([CR#701.9,601.2b]): the keyword
 /// composite's own chooser is lifted into its own cost instruction, and the

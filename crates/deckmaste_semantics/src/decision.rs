@@ -54,8 +54,8 @@ pub enum Visibility {
 /// under a note key, distinct from the persisted OBJECT-SET note kinds
 /// ([`NotedKind`], written by
 /// [`Noting`](crate::Noting)/[`SeparatePiles`](crate::SeparatePiles) and
-/// staying store-side with their writers). Readers: `Reference::Linked(key)`,
-/// `Count::Noted(key)`.
+/// staying store-side with their writers). During lowering, chosen scalar
+/// values bind a region definition; object sets use `Reference::Linked(key)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]
 pub enum ChosenValueKind {
     Color,

@@ -577,7 +577,7 @@ fn gather(
                 let grant_runtimes = state.capture_grant_runtimes_in_created_region(
                     &changes,
                     effect,
-                    &crate::stack::ExecutionFrame::bare(obj.id, obj.controller),
+                    &state.frame(obj.id, obj.controller),
                     captures,
                 );
                 effects.push(ActiveEffect {
@@ -1100,10 +1100,7 @@ fn condition_holds_derived(
             .iter()
             .find(|object| Some(object.source) == watcher)
             .is_some_and(|source| {
-                state.condition_holds(
-                    condition,
-                    &crate::stack::ExecutionFrame::bare(source.id, controller),
-                )
+                state.condition_holds(condition, &state.frame(source.id, controller))
             }),
         // `LegallyAttached` needs the deontic attachment view, which cannot be
         // rebuilt recursively while this view is in progress. A crossing gate
@@ -1532,8 +1529,8 @@ fn eval_count(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
-        // `EventSum`, `Noted`) is unavailable during layer derivation — those
+        // Announce-time / history context (`ThatMuch`, `EventCount`,
+        // `EventSum`) is unavailable during layer derivation — those
         // need a resolution `ExecutionFrame` (`resolve.rs::eval_count`), so a continuous
         // effect built on one defaults to `0` here (a documented seam).
         //
@@ -1546,11 +1543,9 @@ fn eval_count(
         // list — announce-time context this ExecutionFrame-less layer pass lacks
         // (same seam as `TimesPaid`'s paid-cost record) — defaults to 0.
         Count::Reg(_)
-        | Count::X
         | Count::EventCount(..)
         | Count::EventSum(..)
         | Count::TimesPaid(_)
-        | Count::Noted(_)
         | Count::TargetsOf(_)
         | Count::Aggregate(..) => 0,
     }
@@ -2626,7 +2621,7 @@ mod tests {
         let island = Subtype {
             name: "Island".into(),
             types: vec![Type::Land].into(),
-            confers: vec![Property::Ability(Arc::new(Ability::Activated(Arc::new(
+            confers: vec![Property::Ability(Arc::new(Ability::activated(
                 deckmaste_core::ActivatedAbility {
                     ability_word: None,
                     targets: [].into(),
@@ -2644,7 +2639,7 @@ mod tests {
                     ))
                     .into(),
                 },
-            ))))]
+            )))]
             .into(),
         };
         let mut state = game();

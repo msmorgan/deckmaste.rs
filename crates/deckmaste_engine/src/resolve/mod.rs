@@ -58,7 +58,7 @@ impl GameState {
                 payment: None,
             };
         }
-        let mut frame = ExecutionFrame::bare(source, controller);
+        let mut frame = self.frame(source, controller);
         if let Some(bindings) = bindings {
             self.frame_set_source_lki(&mut frame, bindings.this.clone());
             self.frame_set_defending_player(&mut frame, bindings.defending_player);
@@ -113,17 +113,6 @@ impl GameState {
         // satisfy a later aggregate's watcher.
         self.resolution_contained_act_commits.clear();
         self.resolution_contained_act_serial = 0;
-        // [CR#608.2c]: resolution note slots exist only within the resolving
-        // entry's instruction sequence. This fresh-resolution boundary is the
-        // one canonical clear point for ALL resolution-scoped registers (see
-        // `moved_chain`/`resolution_events` above): clearing here — before any
-        // of this resolution's work items run — is equivalent to and simpler
-        // than clearing at the previous entry's completion, because no note
-        // READER (`Count::Noted`/`AmongNoted`) ever runs outside a resolution,
-        // so a note can never be observed after its own resolution ends and
-        // before the next begins. A value that must OUTLIVE resolution is a
-        // linked ability ([CR#607]) or an as-enters choice — a separate store.
-        self.resolution_notes.clear();
         match &entry.object {
             StackObject::Spell(spell) => {
                 let spell = *spell;
@@ -293,7 +282,7 @@ impl GameState {
                 // stored activation's announced-X parameter is filled here, at
                 // resolution — the one moment [CR#608.2h] allows the
                 // information to be determined. The toll's `{X}` and every
-                // `Count::X` in the body are then the same indexed read.
+                // X occurrences in the body are then the same indexed read.
                 if let Some(where_x) = &t.where_x {
                     let x = self.eval_count(where_x, &frame);
                     self.activation_set_x(frame.activation, x);
@@ -420,10 +409,17 @@ impl GameState {
     /// effect, .. })`, cloned. Returns `None` if there is no Spell ability.
     #[must_use]
     pub(crate) fn spell_effect(&self, id: ObjectId) -> Option<deckmaste_core::Region> {
+        let target_count = self.spell_targets(id).len();
         crate::derive::abilities(self, id)
             .iter()
             .find_map(|a| spell_ability_effect(a))
             .cloned()
+            .map(|mut effect| {
+                if effect.params.is_empty() {
+                    effect.params = deckmaste_core::announced_region_params(target_count);
+                }
+                effect
+            })
     }
 
     /// The spell's PRINTED ADDITIONAL cost ([CR#118.8,601.2b]) — the cost

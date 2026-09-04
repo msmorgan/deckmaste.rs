@@ -183,7 +183,7 @@ impl GameState {
                         .expect("StatOf(Toughness) on an object with a toughness"),
                     // [CR#202.3]: the printed cost's total. The on-stack
                     // announced-X contribution ([CR#202.3e]) rides the
-                    // announce-slot X work (see `Count::X` below).
+                    // announce-slot X work.
                     deckmaste_core::Stat::ManaValue => {
                         let face = crate::derive::face(self.def(id));
                         deckmaste_core::Int::try_from(face.mana_cost.mana_value())
@@ -394,9 +394,6 @@ impl GameState {
             // value announced as it was cast (engine-x-costs threads it onto the
             // resolution frame). [CR#107.3f] text-X chosen at resolution is a
             // separate seam.
-            Count::X => self.activation_x(frame.activation).expect(
-                "Count::X on a frame with no announced X — a card referenced X without an {X} cost",
-            ),
             // [CR#608.2i]: count history facts matching `event` within `within` —
             // the count-valued twin of `Condition::Happened`, through the one
             // evaluator's History lane over per-fact LKI views ([CR#603.10a]).
@@ -459,17 +456,6 @@ impl GameState {
             // `eprintln!` breadcrumb and degrade to 0 (no `debug_assert`: the
             // fizzle must never panic; a fizzling `Count` read is the principled
             // fix, tracked by engine-stat-none-fizzle).
-            Count::Noted(key) => match self.resolution_notes.get(key) {
-                Some(crate::state::NotedValue::Number(n)) => *n,
-                absent_or_mistyped => {
-                    eprintln!(
-                        "deckmaste: Count::Noted({key:?}) found no number note \
-                         ({absent_or_mistyped:?}); treating as 0 — effect fizzles \
-                         (engine-stat-none-fizzle)"
-                    );
-                    0
-                }
-            },
             // [CR#120.3]: the damage marked on the referenced object — read
             // directly off the base state (damage is not a derived stat).
             // [CR#702.33c]: multikicker's "for each time it was kicked" — the
@@ -732,7 +718,6 @@ mod tests {
     use crate::object::ObjectSource;
     use crate::player::PlayerId;
     use crate::resolve::fixtures::*;
-    use crate::stack::ExecutionFrame;
     use crate::state::GameConfig;
     use crate::state::GameState;
     use crate::state::PlayerConfig;
@@ -1438,20 +1423,36 @@ mod tests {
     #[test]
     fn count_x_reads_announced_value() {
         let (state, src) = bear_on_field();
-        let mut frame = ExecutionFrame::bare(src, PlayerId(0));
+        let mut frame = state.frame(src, PlayerId(0));
+        let region = deckmaste_core::Region::new(
+            [
+                deckmaste_core::source_controller_params().as_ref(),
+                &[deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Number,
+                    provenance: deckmaste_core::Provenance::AnnouncedX,
+                }],
+            ]
+            .concat()
+            .into(),
+            (),
+        );
+        frame.activation = state.enter_region(&region, &frame);
         state.frame_set_x(&mut frame, Some(3));
-        assert_eq!(state.eval_count(&Count::X, &frame), 3);
+        assert_eq!(
+            state.eval_count(&Count::Reg(deckmaste_core::RefId(2)), &frame),
+            3
+        );
     }
 
-    /// [CR#607.2,608.2c] a `Count::Noted` read of an ABSENT key is a
-    /// semantic-input mistake — it fizzles to 0 (engine-stat-none-fizzle),
-    /// never a panic and never a silent-but-plausible value.
+    /// An unavailable declared number parameter fizzles to 0
+    /// (engine-stat-none-fizzle), never a panic or stale value.
     #[test]
-    fn count_noted_missing_key_fizzles_to_zero() {
+    fn unavailable_declared_number_parameter_fizzles_to_zero() {
         let (state, a) = bear_on_field();
         let frame = frame_src(&state, a);
         assert_eq!(
-            state.eval_count(&Count::Noted(deckmaste_core::Ident::from("absent")), &frame),
+            state.eval_count(&Count::Reg(deckmaste_core::RefId(6)), &frame),
             0
         );
     }
@@ -1546,7 +1547,7 @@ mod tests {
         state.objects.remove(bear);
         assert!(state.objects.get(bear).is_none(), "the object is gone");
 
-        let mut frame = ExecutionFrame::bare(bear, PlayerId(0));
+        let mut frame = state.frame(bear, PlayerId(0));
         state.frame_set_source_lki(&mut frame, Some(snapshot));
 
         assert_eq!(

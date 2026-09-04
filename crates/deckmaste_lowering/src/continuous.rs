@@ -60,9 +60,9 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::Duration::ForAsLongAs(minimal_condition()).lower(),
             deckmaste_core::Duration::ForAsLongAs(deckmaste_core::Condition::Compare(
-                deckmaste_core::Count::X,
+                deckmaste_core::Count::Literal(0),
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             ))
         );
     }
@@ -95,7 +95,7 @@ mod tests {
     fn lowers_numeric_op_up() {
         assert_matches!(
             deckmaste_semantics::NumericOp::Up(minimal_count()).lower(),
-            deckmaste_core::NumericOp::Up(deckmaste_core::Count::X)
+            deckmaste_core::NumericOp::Up(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -103,7 +103,7 @@ mod tests {
     fn lowers_numeric_op_down() {
         assert_matches!(
             deckmaste_semantics::NumericOp::Down(minimal_count()).lower(),
-            deckmaste_core::NumericOp::Down(deckmaste_core::Count::X)
+            deckmaste_core::NumericOp::Down(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -349,7 +349,7 @@ mod tests {
             .lower(),
             deckmaste_core::CostChange::Scaled {
                 change: _,
-                times: deckmaste_core::Count::X
+                times: deckmaste_core::Count::Literal(0)
             }
         );
     }
@@ -410,9 +410,9 @@ mod tests {
             .lower(),
             deckmaste_core::StaticSpec::Conditionally(
                 deckmaste_core::Condition::Compare(
-                    deckmaste_core::Count::X,
+                    deckmaste_core::Count::Literal(0),
                     deckmaste_core::Cmp::Eq,
-                    deckmaste_core::Count::X
+                    deckmaste_core::Count::Literal(0)
                 ),
                 _
             )
@@ -481,7 +481,7 @@ mod tests {
                     to: None,
                     cause: None
                 },
-                extra: deckmaste_core::Count::X,
+                extra: deckmaste_core::Count::Literal(0),
                 affected: deckmaste_core::Predicate::Class(
                     deckmaste_core::ObjectClass::AbilityOnStack
                 )
@@ -501,7 +501,7 @@ mod tests {
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::PlayerMod::SetTo(
                     deckmaste_core::PlayerAttr::Life,
-                    deckmaste_core::Count::X
+                    deckmaste_core::Count::Literal(0)
                 )
             )
         );
@@ -609,7 +609,7 @@ mod tests {
                     to: None,
                     cause: None
                 },
-                extra: deckmaste_core::Count::X,
+                extra: deckmaste_core::Count::Literal(0),
                 ignore: deckmaste_core::IgnoreRule::IgnoreLowest
             }
         );
@@ -754,7 +754,7 @@ mod tests {
             deckmaste_semantics::PlayerMod::SetTo(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::SetTo(
                 deckmaste_core::PlayerAttr::Life,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -765,7 +765,7 @@ mod tests {
             deckmaste_semantics::PlayerMod::Raise(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::Raise(
                 deckmaste_core::PlayerAttr::Life,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -776,7 +776,7 @@ mod tests {
             deckmaste_semantics::PlayerMod::Lower(minimal_player_attr(), minimal_count()).lower(),
             deckmaste_core::PlayerMod::Lower(
                 deckmaste_core::PlayerAttr::Life,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }

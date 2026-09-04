@@ -36,7 +36,7 @@ pub(crate) fn eval_frame(
     seat: PlayerId,
     candidate: Option<ObjectId>,
 ) -> ExecutionFrame {
-    ExecutionFrame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
+    state.frame(candidate.unwrap_or_else(|| state.player(seat).object), seat)
 }
 
 /// A data-driven seat: answers the engine's decisions by walking a

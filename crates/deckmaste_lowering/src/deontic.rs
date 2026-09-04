@@ -229,7 +229,7 @@ mod tests {
     fn lowers_count_bound_eq() {
         assert_matches!(
             deckmaste_semantics::CountBound::Eq(minimal_count()).lower(),
-            deckmaste_core::CountBound::Eq(deckmaste_core::Count::X)
+            deckmaste_core::CountBound::Eq(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -237,7 +237,7 @@ mod tests {
     fn lowers_count_bound_at_least() {
         assert_matches!(
             deckmaste_semantics::CountBound::AtLeast(minimal_count()).lower(),
-            deckmaste_core::CountBound::AtLeast(deckmaste_core::Count::X)
+            deckmaste_core::CountBound::AtLeast(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -245,7 +245,7 @@ mod tests {
     fn lowers_count_bound_at_most() {
         assert_matches!(
             deckmaste_semantics::CountBound::AtMost(minimal_count()).lower(),
-            deckmaste_core::CountBound::AtMost(deckmaste_core::Count::X)
+            deckmaste_core::CountBound::AtMost(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -253,7 +253,7 @@ mod tests {
     fn lowers_count_bound_greater() {
         assert_matches!(
             deckmaste_semantics::CountBound::Greater(minimal_count()).lower(),
-            deckmaste_core::CountBound::Greater(deckmaste_core::Count::X)
+            deckmaste_core::CountBound::Greater(deckmaste_core::Count::Literal(0))
         );
     }
 
@@ -261,7 +261,7 @@ mod tests {
     fn lowers_count_bound_less() {
         assert_matches!(
             deckmaste_semantics::CountBound::Less(minimal_count()).lower(),
-            deckmaste_core::CountBound::Less(deckmaste_core::Count::X)
+            deckmaste_core::CountBound::Less(deckmaste_core::Count::Literal(0))
         );
     }
 

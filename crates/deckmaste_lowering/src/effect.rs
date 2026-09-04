@@ -357,8 +357,8 @@ mod tests {
         };
         assert_eq!(
             *count,
-            deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
-            "announced X is a declared region parameter, not a frame field"
+            deckmaste_core::Count::Literal(0),
+            "the batch preserves its count"
         );
         assert!(is_minimal_lowered_effect(body));
     }
@@ -375,7 +375,7 @@ mod tests {
         let deckmaste_core::Instruction::Repeat(count, body) = &lowered else {
             panic!("a semantic Repeat lowers to a core Repeat");
         };
-        assert_eq!(*count, deckmaste_core::Count::Reg(deckmaste_core::RefId(2)));
+        assert_eq!(*count, deckmaste_core::Count::Literal(0));
         assert!(is_minimal_lowered_effect(body));
     }
 
@@ -401,9 +401,9 @@ mod tests {
             in_spell_region(|| deckmaste_semantics::OneShotEffect::If(minimal_if()).lower()),
             deckmaste_core::Instruction::If(deckmaste_core::If {
                 condition: deckmaste_core::Condition::Compare(
-                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
+                    deckmaste_core::Count::Literal(0),
                     deckmaste_core::Cmp::Eq,
-                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
+                    deckmaste_core::Count::Literal(0)
                 ),
                 then: _,
                 otherwise: None
@@ -422,9 +422,9 @@ mod tests {
             .lower()),
             deckmaste_core::If {
                 condition: deckmaste_core::Condition::Compare(
-                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2)),
+                    deckmaste_core::Count::Literal(0),
                     deckmaste_core::Cmp::Eq,
-                    deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
+                    deckmaste_core::Count::Literal(0)
                 ),
                 then: _,
                 otherwise: None
@@ -638,10 +638,7 @@ mod tests {
         else {
             panic!("the binder's definition precedes the distribution that reads it");
         };
-        assert_eq!(
-            distribute.amount,
-            deckmaste_core::Count::Reg(deckmaste_core::RefId(2))
-        );
+        assert_eq!(distribute.amount, deckmaste_core::Count::Literal(0));
         assert_eq!(
             distribute.over,
             deckmaste_core::Selection::Reg((*dest).into())
@@ -1019,7 +1016,9 @@ mod tests {
     /// overwrite. That alone makes the wrong-magnitude bug unrepresentable.
     #[test]
     fn a_two_magnitude_card_pins_each_magnitude_separately() {
-        let lowered = two_magnitudes_then(sem::Count::Noted("first".into()), Some("first")).lower();
+        use sem::Count as SemValue;
+
+        let lowered = two_magnitudes_then(SemValue::Noted("first".into()), Some("first")).lower();
         let pins = numeric_pins(&lowered);
         assert_eq!(
             pins.len(),
@@ -1160,7 +1159,9 @@ mod tests {
     /// named clause's register.
     #[test]
     fn a_named_magnitude_reads_the_clause_that_bound_it() {
-        let lowered = two_magnitudes_then(sem::Count::Noted("first".into()), Some("first")).lower();
+        use sem::Count as SemValue;
+
+        let lowered = two_magnitudes_then(SemValue::Noted("first".into()), Some("first")).lower();
         let pins = numeric_pins(&lowered);
         let pinned: Vec<&deckmaste_core::Count> = lowered
             .effect

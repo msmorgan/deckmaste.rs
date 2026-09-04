@@ -297,9 +297,7 @@ fn runnable_count_is_bound(count: &crate::Count) -> bool {
         // supported runnable cost magnitude until that grammar has its own
         // checked representation.
         Count::EventCount(..) | Count::EventSum(..) => false,
-        Count::Reg(_) | Count::X | Count::Noted(_) | Count::TimesPaid(_) | Count::Literal(_) => {
-            true
-        }
+        Count::Reg(_) | Count::TimesPaid(_) | Count::Literal(_) => true,
     }
 }
 

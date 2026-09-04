@@ -34,7 +34,10 @@ impl Lower for deckmaste_semantics::CharacteristicPredicate {
             Self::Subtype(f0) => deckmaste_core::CharacteristicPredicate::Subtype(f0.lower()),
             Self::Supertype(f0) => deckmaste_core::CharacteristicPredicate::Supertype(f0.lower()),
             Self::ColorIs(f0) => deckmaste_core::CharacteristicPredicate::ColorIs(f0.lower()),
-            Self::Named(f0) => deckmaste_core::CharacteristicPredicate::Named(f0.lower()),
+            Self::Named(name) => crate::region::named(&name).map_or_else(
+                || deckmaste_core::CharacteristicPredicate::Named(name.lower()),
+                deckmaste_core::CharacteristicPredicate::NamedReg,
+            ),
             Self::Stat(f0, f1, f2) => {
                 deckmaste_core::CharacteristicPredicate::Stat(f0.lower(), f1.lower(), f2.lower())
             }
@@ -247,7 +250,7 @@ mod tests {
             deckmaste_core::CharacteristicPredicate::Stat(
                 deckmaste_core::Stat::Power,
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }
@@ -366,7 +369,7 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::StatePredicate::TargetCount(minimal_count_bound()).lower(),
             deckmaste_core::StatePredicate::TargetCount(deckmaste_core::CountBound::Eq(
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             ))
         );
     }
@@ -557,7 +560,7 @@ mod tests {
             deckmaste_core::Predicate::PlayerStatCmp(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Cmp::Eq,
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }

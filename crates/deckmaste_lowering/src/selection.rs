@@ -156,7 +156,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Selection::TopOfLibrary {
-                count: deckmaste_core::Count::X,
+                count: deckmaste_core::Count::Literal(0),
                 whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
@@ -171,7 +171,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Selection::BottomOfLibrary {
-                count: deckmaste_core::Count::X,
+                count: deckmaste_core::Count::Literal(0),
                 whose: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );
@@ -196,7 +196,7 @@ mod tests {
             }
             .lower(),
             deckmaste_core::Selection::TopOfGraveyard {
-                count: deckmaste_core::Count::X,
+                count: deckmaste_core::Count::Literal(0),
                 of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
         );

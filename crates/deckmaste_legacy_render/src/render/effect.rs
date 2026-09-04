@@ -44,6 +44,8 @@ use deckmaste_semantics::Zone;
 use super::Ctx;
 use super::fragment;
 
+type SemValue = Count;
+
 /// MTG card text uses second-person verb agreement only for the pronoun "you";
 /// every other payer ("that player", "its controller", a player's name) takes
 /// the third-person `-s` form. Returns the `(does, doesn't, pays)` verb forms
@@ -1689,7 +1691,7 @@ fn action(a: &Action, ctx: &Ctx) -> String {
 /// a bare macro name.
 fn damage_amount(amount: &Count) -> (String, Option<String>) {
     match amount {
-        Count::Literal(_) | Count::X | Count::ThatMany | Count::ThatMuch => {
+        Count::Literal(_) | SemValue::X | Count::ThatMany | Count::ThatMuch => {
             (fragment::count(amount), None)
         }
         // A dynamic amount: skip a macro invocation's own one-word template
@@ -1902,7 +1904,7 @@ fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
 /// `is_loyalty_ability` discriminator — any other counter cost (a different
 /// counter, or one on a non-`This` subject) returns `None` and renders through
 /// the generic `player_action` clause. A bare literal count brackets, and so
-/// does the variable `−X` loyalty cost ([CR#601.2b] — `Count::X`, printed as
+/// does the variable `−X` loyalty cost ([CR#601.2b] — the semantic X variant, printed as
 /// `[−X]`, e.g. Ugin, the Spirit Dragon); any other dynamic count falls
 /// back to the generic render.
 fn loyalty_cost_prefix(action: &Action) -> Option<String> {
@@ -1914,7 +1916,7 @@ fn loyalty_cost_prefix(action: &Action) -> Option<String> {
                 n => Some(format!("[+{n}]")),
             }
         }
-        Action::RemoveCounters(Reference::This, counter, Count::X) if is_loyalty(counter) => {
+        Action::RemoveCounters(Reference::This, counter, SemValue::X) if is_loyalty(counter) => {
             Some("[\u{2212}X]".to_owned())
         }
         Action::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
@@ -2597,7 +2599,7 @@ fn token_count_word(count: &Count) -> &'static str {
         Count::Literal(7) => "seven",
         Count::Literal(8) => "eight",
         Count::Literal(9) => "nine",
-        Count::X => "X",
+        SemValue::X => "X",
         _ => "some",
     }
 }

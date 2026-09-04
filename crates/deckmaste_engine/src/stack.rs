@@ -185,25 +185,12 @@ pub struct ExecutionFrame {
     /// The one shared activation record for this region entry.
     pub activation: crate::activation::ActivationId,
     /// `Some` iff this frame is running as part of a cost payment's drain
-    /// ([CR#118.10]) — see [`Payment`]. `None` (the default, via
-    /// [`ExecutionFrame::bare`]) keeps every existing `Cause::*` construction exactly
+    /// ([CR#118.10]) — see [`Payment`]. `None` keeps every existing `Cause::*` construction exactly
     /// as `Agency::EffectInstruction`.
     pub payment: Option<Payment>,
 }
 
 impl ExecutionFrame {
-    /// A bare resolution frame: the exophoric `source`/`controller`, no trigger
-    /// snapshot (a spell frame's source parameter reads the live `source`), no
-    /// combat defender, and not a payment. The common
-    /// starting shape for gate/payability/instant frames.
-    #[must_use]
-    pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
-        ExecutionFrame {
-            activation: crate::activation::ActivationId::bare(source, controller),
-            payment: None,
-        }
-    }
-
     pub(crate) fn source(&self, state: &crate::state::GameState) -> ObjectId {
         state.activation_source(self.activation)
     }

@@ -693,7 +693,7 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
             other => panic!("unexpected stop: {other:?}"),
         }
     }
-    // Count::X read inside DealDamage dealt exactly X=3 to the opponent.
+    // The declared-X register read inside DealDamage dealt exactly 3 to the opponent.
     assert_eq!(
         state.players[1].life,
         life_before - 3,

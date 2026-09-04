@@ -1223,7 +1223,19 @@ fn artifact_with_cost(name: &str, cost: Vec<CostComponent>) -> Arc<Card> {
             cost: Arc::<[deckmaste_core::CostComponent]>::from(cost).into(),
             condition: None,
             limits: vec![].into(),
-            effect: gain_zero().into(),
+            effect: deckmaste_core::Region::new(
+                [
+                    deckmaste_core::source_controller_params().as_ref(),
+                    &[deckmaste_core::Param {
+                        def: deckmaste_core::DefId(2),
+                        kind: deckmaste_core::Kind::Number,
+                        provenance: deckmaste_core::Provenance::AnnouncedX,
+                    }],
+                ]
+                .concat()
+                .into(),
+                gain_zero().into(),
+            ),
         })],
         power: None,
         toughness: None,
@@ -1467,7 +1479,7 @@ fn activated_ability_pays_loyalty_minus_cost() {
 }
 
 /// [CR#601.2b,107.3a,606.6]: a loyalty `−X` cost —
-/// `Do(RemoveCounters(This, LoyaltyCounter, X))` — carries a `Count::X` operand
+/// `Do(RemoveCounters(This, LoyaltyCounter, X))` — carries a declared-X operand
 /// but NO `{X}` mana symbol. The activate-time X-announce trigger must still
 /// fire (a `ChooseXValue` surfaces), and the announced value must bind the cost
 /// verb so it removes exactly X counters. This pins the non-mana X-cost
@@ -1483,7 +1495,7 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
             CostComponent::do_action(CoreAction::RemoveCounters(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 "LoyaltyCounter".into(),
-                Count::X,
+                Count::Reg(deckmaste_core::RefId(2)),
             )),
         ],
     );
@@ -1496,7 +1508,7 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
         .counters
         .insert("LoyaltyCounter".into(), 5);
 
-    // Activate the ability — even with no `{X}` mana, the cost's `Count::X`
+    // Activate the ability — even with no `{X}` mana, the cost's X operand
     // verb operand must trigger the X announcement.
     let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     let activate =

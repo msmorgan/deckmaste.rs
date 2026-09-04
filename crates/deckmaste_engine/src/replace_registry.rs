@@ -504,7 +504,7 @@ fn replacement_frame(
             this: Some(LkiSnapshot::capture(state, source)),
             ..crate::trigger::TriggerBindings::default()
         });
-    let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
+    let mut frame = state.frame(source, controller);
     state.frame_set_source_lki(&mut frame, roles.this);
     state.frame_set_defending_player(&mut frame, roles.defending_player);
     state.frame_set_event_bindings(
@@ -850,7 +850,7 @@ fn schedule_body(
                 (Some(snapshot.clone()), Some(EventPatient::Object(snapshot)))
             }
         });
-    let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
+    let mut frame = state.frame(source, controller);
     state.frame_set_action_context(&mut frame, applied.clone(), false);
     state.frame_set_event_bindings(&mut frame, event_object, None, event_patient);
     // [CR#107.3]: the replaced intent's own magnitude reaches the body through

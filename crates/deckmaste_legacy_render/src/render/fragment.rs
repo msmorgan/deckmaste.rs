@@ -25,6 +25,8 @@ use deckmaste_semantics::Zone;
 
 use super::Ctx;
 
+type SemValue = Count;
+
 /// Small literal counts of OBJECTS spell out as words in oracle text
 /// ("draw three cards", "put two cards…"); amounts of damage/life keep
 /// digits ("deals 3 damage", "gain 2 life").
@@ -58,7 +60,7 @@ pub(super) fn number_word(n: u32) -> Option<&'static str> {
 pub(super) fn count(c: &Count) -> String {
     match c {
         Count::Literal(n) => n.to_string(),
-        Count::X => "X".to_string(),
+        SemValue::X => "X".to_string(),
         Count::Damage(r) => format!("damage marked on {}", reference(r, &it_ctx())),
         // [CR#122.1]: the counter-count read — "the number of experience
         // counters you have" (a player-borne kind), "the number of lore

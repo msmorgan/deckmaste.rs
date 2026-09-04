@@ -1483,6 +1483,6 @@ impl GameState {
         self.objects
             .iter()
             .find(|ob| ob.source == watcher)
-            .map(|ob| ExecutionFrame::bare(ob.id, ob.controller))
+            .map(|ob| self.frame(ob.id, ob.controller))
     }
 }

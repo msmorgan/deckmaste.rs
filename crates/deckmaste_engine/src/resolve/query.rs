@@ -386,31 +386,19 @@ impl GameState {
     }
 
     /// Resolve the complete object product carried by a reference. Declared
-    /// region registers read their activation-table values; residual bare
-    /// rule and cost scopes read the same activation context until those
-    /// scopes gain regions of their own.
+    /// region registers read their activation-table values.
     pub(crate) fn eval_reference_product(
         &self,
         reference: &Reference,
         frame: &ExecutionFrame,
     ) -> crate::activation::ReferenceProduct {
         if let Reference::Reg(register) = reference {
-            let product = self
+            return self
                 .activation_product(frame.activation, *register)
-                .or_else(|| {
-                    let provenance = if *reference == Reference::source_parameter() {
-                        Some(deckmaste_core::Provenance::Source)
-                    } else if *reference == Reference::controller_parameter() {
-                        Some(deckmaste_core::Provenance::Controller)
-                    } else {
-                        None
-                    }?;
-                    self.activation_context_product(frame.activation, &provenance)
+                .unwrap_or(crate::activation::ReferenceProduct {
+                    current: None,
+                    lki: None,
                 });
-            return product.unwrap_or(crate::activation::ReferenceProduct {
-                current: None,
-                lki: None,
-            });
         }
 
         let current_id = self.eval_reference(reference, frame);

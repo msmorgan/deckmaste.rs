@@ -74,6 +74,8 @@ use deckmaste_semantics::Count;
 use deckmaste_semantics::CountBound;
 use deckmaste_semantics::Countable;
 use deckmaste_semantics::CounterSpec;
+
+type SemValue = Count;
 use deckmaste_semantics::Deontic;
 use deckmaste_semantics::DeonticAction;
 use deckmaste_semantics::Destination;
@@ -1061,7 +1063,7 @@ fn emit_aggregate_op(op: &deckmaste_semantics::AggregateOp) -> String {
 
 fn emit_count(c: &Count) -> R {
     Ok(match c {
-        Count::X => "X".to_string(),
+        SemValue::X => "X".to_string(),
         Count::Literal(n) => app("Literal", vec![n.to_string()].into()),
         Count::CountOf(source) => match source {
             Countable::Objects(f) => format!("(CountMatching {})", emit_filter(f)?),
@@ -1177,7 +1179,9 @@ fn emit_count(c: &Count) -> R {
         Count::EventSum(..) => {
             return Err(gap("Count::EventSum (history lookback) not yet mapped"));
         }
-        Count::Noted(_) => return Err(gap("Count::Noted has no Idris counterpart")),
+        SemValue::Noted(_) => {
+            return Err(gap("the noted-count form has no Idris counterpart"));
+        }
         Count::TimesPaid(tag) => app("TimesPaid", vec![ilit(tag.as_str())].into()),
         Count::Damage(r) => app("Damage", vec![emit_reference(r)?].into()),
         // The floated-mana-pool reader is a data-driven-strategy sensing

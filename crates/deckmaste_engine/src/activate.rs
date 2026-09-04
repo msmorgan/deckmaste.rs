@@ -218,7 +218,7 @@ impl GameState {
         if summary.mana_cost_of.is_empty() {
             return summary.mana.clone();
         }
-        let frame = ExecutionFrame::bare(source, controller);
+        let frame = self.frame(source, controller);
         let mut symbols: Vec<ManaSymbol> = summary.mana.iter().copied().collect();
         for reference in &summary.mana_cost_of {
             let object = self.eval_reference(reference, &frame);
@@ -335,7 +335,7 @@ impl GameState {
         // The gate runs before targets are chosen, so the frame carries none;
         // `Ref(This)`/`Is(This, …)` anchors to the live source.
         if let Some(c) = &ability.condition {
-            let frame = ExecutionFrame::bare(object, player);
+            let frame = self.frame(object, player);
             if !self.condition_holds(c, &frame) {
                 return false;
             }
@@ -442,7 +442,7 @@ impl GameState {
                     watcher,
                     crate::ActivationId::NONE,
                 );
-                let frame = ExecutionFrame::bare(source, controller);
+                let frame = self.frame(source, controller);
                 let (lo, _hi) = choice.quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
@@ -454,7 +454,7 @@ impl GameState {
                     watcher,
                     crate::ActivationId::NONE,
                 );
-                let frame = ExecutionFrame::bare(source, controller);
+                let frame = self.frame(source, controller);
                 let (lo, _) = sample.quantity.bounds();
                 let need = lo.map_or(0, |count| self.eval_count(count, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
@@ -533,11 +533,11 @@ impl GameState {
     ) -> bool {
         // The payer is the controller, and `~`/`This` is the live source.
         // [CR#601.2b]: this test-only helper has no announced X, so it uses an
-        // X binding of 0. A `Count::X` cost verb (a loyalty `−X`) therefore
+        // X binding of 0. A semantic-X cost verb (a loyalty `−X`) therefore
         // reads as removing zero counters. The real payment protocol binds and
-        // pays the announced X. Without this binding, `eval_count(Count::X, …)`
+        // pays the announced X. Without this binding, evaluating X
         // on an X-less frame would panic.
-        let mut frame = ExecutionFrame::bare(subject, player);
+        let mut frame = self.frame(subject, player);
         self.frame_set_x(&mut frame, Some(0));
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
         // NOT YET ENFORCED. Under a continuous effect saying a player can't
@@ -685,9 +685,12 @@ impl GameState {
             .get(index)
             .expect("ability index from the legal list is in bounds");
         let captures = crate::derive::usable_ability_captures(self, object, index, compiled);
-        let ability = as_activated(compiled)
+        let mut ability = as_activated(compiled)
             .expect("BeginActivate names an activated ability")
             .clone();
+        if ability.effect.params.is_empty() {
+            ability.effect.params = deckmaste_core::announced_region_params(ability.targets.len());
+        }
         let controller = self.objects.obj(object).controller;
         if self.payment.is_none() {
             self.begin_payment_proposal(controller);
@@ -707,7 +710,7 @@ impl GameState {
         // this same id into the committed entry.
         let src = self.objects.obj(object).source;
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
-        let mut frame = crate::stack::ExecutionFrame::bare(object, controller);
+        let mut frame = self.frame(object, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         let activation = self.enter_created_region(&ability.effect, &frame, &captures);
         self.announcing = Some(PendingStackEntry {
@@ -1886,7 +1889,10 @@ mod tests {
             );
         };
         assert_eq!(*source, obj);
-        assert_eq!(**ability, act, "the ability VALUE rides, cloned");
+        let Ability::Activated(expected) = Ability::activated(act) else {
+            unreachable!("the constructor preserves the ability kind")
+        };
+        assert_eq!(**ability, *expected, "the ability VALUE rides, cloned");
         let this = bindings.this.as_ref().expect("the source's LKI snapshot");
         assert_eq!(this.object, obj, "LKI names the announce-time source");
         assert_eq!(this.left, Zone::Battlefield);

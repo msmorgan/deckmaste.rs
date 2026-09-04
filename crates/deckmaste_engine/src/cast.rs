@@ -467,10 +467,10 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// `ChooseObjects` decision and writes its own dest register.
 ///
 /// `x` is the value announced for this activation ([CR#601.2b]) — threaded onto
-/// each cost-verb frame so a `Count::X` operand (a loyalty `−X`'s
+/// each cost-verb frame so a semantic X operand (a loyalty `−X`'s
 /// `RemoveCounters(This, LoyaltyCounter, X)`) pays the announced amount,
 /// exactly as the effect-side frame reads X. `None` when no X was announced
-/// (the common no-X cost), leaving each `Count::X`-free verb untouched.
+/// (the common no-X cost), leaving each X-free verb untouched.
 ///
 /// `payment` ([CR#118.10]) is stamped onto every frame this call
 /// mints — the caller mints ONE [`crate::stack::Payment`] per cost payment
@@ -529,45 +529,45 @@ fn verb_payment_items(
 /// trigger: an activation whose cost carries such a verb must announce X even
 /// without an `{X}` mana symbol. Looks through `Expanded` macro wrappers,
 /// mirroring `verb_cost_payable`.
-fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
+fn verb_mentions_cost_x(verb: &CoreAction, x: deckmaste_core::RefId) -> bool {
     match verb {
         // Pay-X-life ([CR#119.4]) only — a gain/set-life cost never reads X
         // this way, mirroring the former `PlayerAction::LoseLife`-only match.
         CoreAction::ChangeLife(_, deckmaste_core::LifeOp::Down(count))
         | CoreAction::PutCounters(_, _, count)
-        | CoreAction::RemoveCounters(_, _, count) => count.mentions_x(),
+        | CoreAction::RemoveCounters(_, _, count) => count.mentions_register(x),
         // An X-discard ("discard X cards") — the count rides the body's
         // `With` binder's `Quantity`.
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
-            deckmaste_core::discard_body_count(body).is_some_and(deckmaste_core::Count::mentions_x)
+            deckmaste_core::discard_body_count(body).is_some_and(|count| count.mentions_register(x))
         }
         _ => false,
     }
 }
 
 /// Whether a cardinality used by a cost-side choice reads the announced X.
-fn quantity_mentions_cost_x(quantity: &deckmaste_core::Quantity) -> bool {
+fn quantity_mentions_cost_x(quantity: &deckmaste_core::Quantity, x: deckmaste_core::RefId) -> bool {
     let (lower, upper) = quantity.bounds();
-    lower.is_some_and(deckmaste_core::Count::mentions_x)
-        || upper.is_some_and(deckmaste_core::Count::mentions_x)
+    lower.is_some_and(|count| count.mentions_register(x))
+        || upper.is_some_and(|count| count.mentions_register(x))
 }
 
 /// Whether a runnable cost component reads the one X value announced for the
 /// spell or ability. This follows nested/lowered cost structure so modal and
 /// optional additions participate only after they have actually been chosen.
-fn cost_component_mentions_x(component: &CostComponent) -> bool {
+fn cost_component_mentions_x(component: &CostComponent, x: deckmaste_core::RefId) -> bool {
     match component {
         CostComponent::Mana(mana) => mana
             .iter()
             .any(|symbol| matches!(symbol, ManaSymbol::Variable)),
-        CostComponent::Act { action, .. } => verb_mentions_cost_x(action),
-        CostComponent::Cost(nested) => nested.iter().any(cost_component_mentions_x),
-        CostComponent::TapTotal { count, .. } => count.mentions_x(),
+        CostComponent::Act { action, .. } => verb_mentions_cost_x(action, x),
+        CostComponent::Cost(nested) => nested.iter().any(|part| cost_component_mentions_x(part, x)),
+        CostComponent::TapTotal { count, .. } => count.mentions_register(x),
         // A payment-time choice's cardinality reads X ("sacrifice X
         // creatures", [CR#601.2b]).
-        CostComponent::Choose(choice) => quantity_mentions_cost_x(&choice.quantity),
-        CostComponent::Sample(sample) => quantity_mentions_cost_x(&sample.quantity),
-        CostComponent::Search(search) => quantity_mentions_cost_x(&search.quantity),
+        CostComponent::Choose(choice) => quantity_mentions_cost_x(&choice.quantity, x),
+        CostComponent::Sample(sample) => quantity_mentions_cost_x(&sample.quantity, x),
+        CostComponent::Search(search) => quantity_mentions_cost_x(&search.quantity, x),
         CostComponent::Let(_)
         | CostComponent::ManaCostOf(_)
         | CostComponent::Tap
@@ -575,8 +575,10 @@ fn cost_component_mentions_x(component: &CostComponent) -> bool {
     }
 }
 
-fn cost_components_mention_x(components: &[CostComponent]) -> bool {
-    components.iter().any(cost_component_mentions_x)
+fn cost_components_mention_x(components: &[CostComponent], x: deckmaste_core::RefId) -> bool {
+    components
+        .iter()
+        .any(|component| cost_component_mentions_x(component, x))
 }
 
 /// Unwrap the `CostComponent::Do(action)` verbs `concretize` produces for
@@ -866,7 +868,7 @@ impl GameState {
             if crate::resolve::announced_prefix_len(&specs) != 0 {
                 return self.with_temporary_region_activation(
                     effect,
-                    &ExecutionFrame::bare(source, controller),
+                    &self.frame(source, controller),
                     |activation| self.target_announcement_satisfiable(&specs, source, activation),
                 );
             }
@@ -880,7 +882,7 @@ impl GameState {
             return selection_satisfiable(&[]);
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
-        let frame = ExecutionFrame::bare(source, controller);
+        let frame = self.frame(source, controller);
         let (lo, hi) = modal.choose.count.bounds();
         let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
         let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
@@ -1222,14 +1224,11 @@ impl GameState {
         obj.controller = controller;
         let region = self.spell_effect(object).unwrap_or_else(|| {
             deckmaste_core::Region::new(
-                Arc::from([]),
+                deckmaste_core::announced_region_params(0),
                 Instruction::Sequentially(Arc::from([])).into(),
             )
         });
-        let activation = self.enter_region(
-            &region,
-            &crate::stack::ExecutionFrame::bare(object, controller),
-        );
+        let activation = self.enter_region(&region, &self.frame(object, controller));
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
@@ -1413,7 +1412,7 @@ impl GameState {
             return 0;
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
-        let frame = ExecutionFrame::bare(source, controller);
+        let frame = self.frame(source, controller);
         let (lo, hi) = modal.choose.count.bounds();
         let lo = lo.map_or(0, |count| self.eval_count(count, &frame));
         let hi = hi.map_or(options, |count| self.eval_count(count, &frame));
@@ -1719,7 +1718,7 @@ impl GameState {
 
     /// [CR#601.2b]: surface a `ChooseXValue` if the in-flight announce's cost
     /// reads X — either an `{X}` mana symbol (`ManaSymbol::Variable`) or a
-    /// non-mana cost verb whose count operand is `Count::X` (a loyalty `−X`'s
+    /// non-mana cost verb whose count operand is semantic X (a loyalty `−X`'s
     /// `RemoveCounters(This, LoyaltyCounter, X)`, which carries no `{X}` mana).
     /// One announcement per activation covers both — the same chosen value
     /// binds the mana and every X-cost verb. Runs before `announce_targets`
@@ -1731,6 +1730,9 @@ impl GameState {
     pub(crate) fn announce_x(&mut self) {
         let pending = self.announcing.as_ref().expect("an announce in flight");
         let controller = pending.controller;
+        let x = self
+            .activation_parameter(pending.activation, &deckmaste_core::Provenance::AnnouncedX)
+            .expect("spell and activated-ability regions declare announced X");
         let (base_has_x, effect) = match &pending.object {
             StackObject::Spell(o) => (
                 pending.alternative_cost.as_ref().map_or_else(
@@ -1740,18 +1742,18 @@ impl GameState {
                                 .any(|symbol| matches!(symbol, ManaSymbol::Variable))
                         })
                     },
-                    |cost| cost_components_mention_x(cost),
+                    |cost| cost_components_mention_x(cost, x),
                 )
                     // [CR#118.8,601.2b]: the printed additional cost is part of
                     // the same announcement, so "sacrifice X creatures"
                     // triggers the X announcement too.
-                    || cost_components_mention_x(&self.spell_additional_cost(*o)),
+                    || cost_components_mention_x(&self.spell_additional_cost(*o), x),
                 self.spell_effect(*o),
             ),
             StackObject::Activated { ability, .. } => {
                 let summary = crate::activate::cost_summary(&ability.cost)
                     .expect("can_activate vetted the cost");
-                // [CR#601.2b]: an `{X}` mana symbol OR a `Count::X` in any
+                // [CR#601.2b]: an `{X}` mana symbol OR semantic X in any
                 // cost-eligible verb (the loyalty `−X` case) triggers the
                 // announcement — checked together so a cost carrying both
                 // announces X exactly once.
@@ -1760,8 +1762,11 @@ impl GameState {
                         .mana
                         .iter()
                         .any(|symbol| matches!(symbol, ManaSymbol::Variable))
-                        || summary.verbs.iter().any(verb_mentions_cost_x)
-                        || cost_components_mention_x(&ability.cost),
+                        || summary
+                            .verbs
+                            .iter()
+                            .any(|verb| verb_mentions_cost_x(verb, x))
+                        || cost_components_mention_x(&ability.cost, x),
                     Some(ability.effect.clone()),
                 )
             }
@@ -1773,8 +1778,8 @@ impl GameState {
             announced_mode_cost_components(&effect, pending.chosen_modes.as_ref())
         });
         let has_x = base_has_x
-            || cost_components_mention_x(&pending.optional_components)
-            || cost_components_mention_x(&mode_components);
+            || cost_components_mention_x(&pending.optional_components, x)
+            || cost_components_mention_x(&mode_components, x);
         if has_x {
             self.pending = Some(DecisionPointKind::ChooseXValue(
                 crate::decide::pending::ChooseXValue { player: controller },
@@ -2016,7 +2021,7 @@ impl GameState {
                 );
                 (
                     crate::payment::PaymentSubject::Spell(object),
-                    ExecutionFrame::bare(object, payer),
+                    self.frame(object, payer),
                     components,
                     self.payment_pip_alternatives(object),
                 )
@@ -2034,7 +2039,7 @@ impl GameState {
                         ability: pending.id,
                         source,
                     },
-                    ExecutionFrame::bare(source, payer),
+                    self.frame(source, payer),
                     components,
                     Vec::new(),
                 )
@@ -2432,7 +2437,7 @@ impl GameState {
                     && self.filter_matches_live(of, object, source)
                 {
                     rows.push((
-                        ExecutionFrame::bare(object, self.objects.obj(object).controller),
+                        self.frame(object, self.objects.obj(object).controller),
                         change.clone(),
                     ));
                 }
@@ -2447,7 +2452,7 @@ impl GameState {
                     && self.filter_matches_live(of, object, self.objects.obj(id).source)
                 {
                     rows.push((
-                        ExecutionFrame::bare(id, self.objects.obj(id).controller),
+                        self.frame(id, self.objects.obj(id).controller),
                         change.clone(),
                     ));
                 }
@@ -2464,7 +2469,7 @@ impl GameState {
                 if let deckmaste_core::StaticSpec::CostModifier { of, change } = row
                     && self.filter_matches_live(of, object, source)
                 {
-                    rows.push((ExecutionFrame::bare(carrier, ce.controller), change.clone()));
+                    rows.push((self.frame(carrier, ce.controller), change.clone()));
                 }
             }
         }

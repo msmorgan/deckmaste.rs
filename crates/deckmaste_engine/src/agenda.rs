@@ -277,7 +277,7 @@ pub enum WorkItem {
     },
     /// [CR#608.2c,608.2d]: a resolving `ChooseValue(who, Number, key)` —
     /// surface a resolution-time NUMBER choice for `player`, whose answer is
-    /// stored in `resolution_notes[key]` (`Count::Noted` reads it back). The
+    /// stored in the armed activation register for a later indexed read. The
     /// verb (`&self`) can only schedule this; the handler (`&mut self`)
     /// surfaces the decision.
     ChooseNoteNumber {

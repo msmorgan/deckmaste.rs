@@ -979,10 +979,12 @@ mod tests {
     /// straight through.
     #[test]
     fn count_sugar_applies_to_core_count() {
+        use deckmaste_semantics::Count as SemValue;
+
         let count: Count = macro_set().read_str("3").unwrap();
         assert_eq!(count, Count::Literal(3));
         let count: Count = macro_set().read_str("X").unwrap();
-        assert_eq!(count, Count::X);
+        assert_eq!(count, SemValue::X);
     }
 
     /// A `Count` macro expands at the *anchor* slot of a `Move`-to-library

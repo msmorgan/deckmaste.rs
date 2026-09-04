@@ -69,7 +69,7 @@ mod tests {
             deckmaste_semantics::CounterSpec::Named(minimal_counter_ref(), minimal_count()).lower(),
             deckmaste_core::CounterSpec::Named(
                 deckmaste_core::CounterRef(_),
-                deckmaste_core::Count::X
+                deckmaste_core::Count::Literal(0)
             )
         );
     }

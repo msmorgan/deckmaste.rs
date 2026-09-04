@@ -292,7 +292,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
         (
             n("Action", "ChooseValue"),
             "BLOCKED: reader-gated engine runtime now exists for the note kinds that HAVE a reader \
-            (Number → Count::Noted; Objects → the noted group / AmongNoted; Color/CardName/Piles \
+            (Number → a declared register; Objects → the noted group / AmongNoted; Color/CardName/Piles \
             stay loud — no reader grammar), but no covered simple real single-effect card \
             spells ChooseAndNote (Three Tree City needs a Color+creature-type domain \
             NotedKind doesn't have).",
@@ -779,7 +779,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("Reference", "Linked"),
             "BLOCKED: the linked-ability value read ([CR#607]) stays an unbound-ref fizzle — it \
             needs a per-(ObjectId, Ident) association store (engine-linked-abilities), distinct \
-            from the resolution note store that now serves ChooseAndNote/Count::Noted; and no \
+            from activation registers used by scalar choices; and no \
             covered real card spells it regardless.",
         ),
         (

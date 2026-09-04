@@ -154,6 +154,14 @@ pub struct CreatedTrigger {
     pub bindings: TriggerBindings,
 }
 
+fn triggered_effect_region(ability: &deckmaste_core::TriggeredAbility) -> deckmaste_core::Region {
+    let mut effect = ability.effect.clone();
+    if effect.params.is_empty() {
+        effect.params = deckmaste_core::triggered_region_params(ability.targets.len());
+    }
+    effect
+}
+
 /// A triggered ability whose placement is mid-flight: its stack id is minted
 /// and the `ChooseTargets` decision is open ([CR#603.3d]). The trigger analogue
 /// of `announcing` — but a trigger is *not* an announce (no cost, no priority
@@ -408,6 +416,11 @@ impl GameState {
             Predicate::Characteristic(CharacteristicPredicate::Named(n)) => {
                 snapshot_face(self, snapshot).is_some_and(|f| &*f.name == n.as_str())
             }
+            Predicate::Characteristic(CharacteristicPredicate::NamedReg(reference)) => self
+                .activation_symbol(activation, *reference)
+                .is_some_and(|expected| {
+                    snapshot_face(self, snapshot).is_some_and(|f| f.name.as_ref() == expected)
+                }),
             Predicate::Characteristic(CharacteristicPredicate::Supertype(s)) => {
                 snapshot_face(self, snapshot).is_some_and(|f| f.supertypes.contains(s))
             }
@@ -559,7 +572,7 @@ impl GameState {
             {
                 None => false,
                 Some((carrier, controller)) => {
-                    let mut frame = ExecutionFrame::bare(carrier, controller);
+                    let mut frame = self.frame(carrier, controller);
                     if activation != crate::ActivationId::NONE {
                         frame.activation = activation;
                     }
@@ -759,7 +772,7 @@ impl GameState {
             .this
             .as_ref()
             .map_or_else(|| self.player(ct.controller).object, |s| s.object);
-        let mut frame = ExecutionFrame::bare(source, ct.controller);
+        let mut frame = self.frame(source, ct.controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         self.frame_set_defending_player(&mut frame, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -774,8 +787,8 @@ impl GameState {
             bindings.produced_mana.clone(),
             bindings.crossed,
         );
-        frame.activation =
-            self.enter_created_region(&ct.ability.effect, &frame, &bindings.captures);
+        let region = triggered_effect_region(&ct.ability);
+        frame.activation = self.enter_created_region(&region, &frame, &bindings.captures);
         frame
     }
 
@@ -1072,7 +1085,8 @@ impl GameState {
                     captures: ability_captures[idx].clone(),
                     ..TriggerBindings::default()
                 });
-                let frame = self.trigger_gate_frame(&t.effect, controller, &bindings);
+                let region = triggered_effect_region(t);
+                let frame = self.trigger_gate_frame(&region, controller, &bindings);
                 let matches = self.event_matches_with_frame(&t.event, event, source, &frame)
                     && t.condition
                         .as_ref()
@@ -1408,13 +1422,11 @@ impl GameState {
     ) -> crate::ActivationId {
         let region = created.map_or_else(
             || {
-                crate::derive::abilities_of_source(self, source)[ability]
-                    .as_triggered()
-                    .expect("trigger index")
-                    .effect
-                    .clone()
+                let abilities = crate::derive::abilities_of_source(self, source);
+                let trigger = abilities[ability].as_triggered().expect("trigger index");
+                triggered_effect_region(trigger)
             },
-            |trigger| trigger.effect.clone(),
+            triggered_effect_region,
         );
         self.trigger_gate_frame(&region, controller, bindings)
             .activation
@@ -1430,7 +1442,7 @@ impl GameState {
             || self.player(controller).object,
             |snapshot| snapshot.object,
         );
-        let mut frame = crate::stack::ExecutionFrame::bare(source, controller);
+        let mut frame = self.frame(source, controller);
         self.frame_set_source_lki(&mut frame, bindings.this.clone());
         self.frame_set_defending_player(&mut frame, bindings.defending_player);
         self.frame_set_event_bindings(
@@ -1653,7 +1665,7 @@ mod tests {
     /// A minimal player-anchored gate frame (no bindings, no targets) for the
     /// trigger-fire intervening-if check ([CR#603.4]).
     fn gate_frame(state: &GameState, player: PlayerId) -> ExecutionFrame {
-        ExecutionFrame::bare(state.player(player).object, player)
+        state.frame(state.player(player).object, player)
     }
 
     fn builtin() -> Plugin {
@@ -2351,7 +2363,7 @@ mod tests {
         reason = "shared fixture retained for neighboring trigger cases"
     )]
     fn carrier_gate_frame(state: &GameState, carrier: ObjectId) -> ExecutionFrame {
-        let mut frame = ExecutionFrame::bare(carrier, PlayerId(0));
+        let mut frame = state.frame(carrier, PlayerId(0));
         state.frame_set_source_lki(
             &mut frame,
             Some(crate::lki::LkiSnapshot::capture(state, carrier)),
@@ -4537,11 +4549,9 @@ mod tests {
         use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
-        use crate::stack::ExecutionFrame;
-
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = ExecutionFrame::bare(src, PlayerId(0));
+        let frame = state.frame(src, PlayerId(0));
         let ability = draw_on(EventFilter::LifeGained {
             who: Predicate::any(),
             amount: None,
@@ -4596,8 +4606,6 @@ mod tests {
         use deckmaste_core::Instruction;
         use deckmaste_core::Predicate;
 
-        use crate::stack::ExecutionFrame;
-
         let ability = draw_on(EventFilter::LifeGained {
             who: Predicate::any(),
             amount: None,
@@ -4607,7 +4615,7 @@ mod tests {
         // registers for a FUTURE occurrence and fires nothing now.
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = ExecutionFrame::bare(src, PlayerId(0));
+        let frame = state.frame(src, PlayerId(0));
         state.run_effect(Instruction::Delayed(Arc::new(ability.clone())), &frame);
         assert_eq!(
             total_fired(&state),
@@ -4625,7 +4633,7 @@ mod tests {
         // unification) and is NOT registered.
         let mut state = empty_game();
         let src = put_synthetic_on_field(&mut state, upkeep_trigger_from(None), PlayerId(0));
-        let frame = ExecutionFrame::bare(src, PlayerId(0));
+        let frame = state.frame(src, PlayerId(0));
         state
             .resolution_events
             .push(GameEvent::LifeGained(LifeGained {
@@ -6476,7 +6484,7 @@ mod tests {
             },
             deckmaste_core::Lookback::ThisGame,
         );
-        let frame = ExecutionFrame::bare(bear, controller);
+        let frame = state.frame(bear, controller);
         assert!(!state.condition_holds(&gate, &frame), "no use recorded yet");
         state.record_history_fact(
             1,
@@ -6491,7 +6499,7 @@ mod tests {
             "Happened(Used(of: This)) sees the recorded self-use"
         );
         // Another object's use is NOT this object's ([CR#400.7]).
-        let other_gate_frame = ExecutionFrame::bare(state.player(controller).object, controller);
+        let other_gate_frame = state.frame(state.player(controller).object, controller);
         assert!(
             !state.condition_holds(&gate, &other_gate_frame),
             "object-scoped: a different carrier does not match"

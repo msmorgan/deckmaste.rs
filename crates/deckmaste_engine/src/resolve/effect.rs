@@ -2601,31 +2601,31 @@ mod tests {
         );
     }
 
-    /// [CR#608.2c,607.2] the resolution note store round-trips a NUMBER choice:
+    /// [CR#608.2c,607.2] an activation register round-trips a NUMBER choice:
     /// `ChooseAndNote(Number)` surfaces a resolution-time number decision; the
-    /// submitted value lands in `resolution_notes`; a LATER clause of the SAME
-    /// resolution reads it back via `Count::Noted`. The two clauses run as
+    /// submitted value lands in a register; a LATER clause of the SAME
+    /// resolution reads that register. The two clauses run as
     /// separate `Sequentially` children — each carrying its OWN frame clone
     /// (`Sequentially` clones the frame per child up front) — so this asserts
-    /// the note rides the resolution-scoped STORE, not the frame (the
-    /// cloned-frame trap the store exists to avoid).
+    /// the value rides the shared activation record, not either frame clone.
     #[test]
-    fn choose_and_note_number_round_trips_through_the_store() {
+    fn choose_and_note_number_round_trips_through_the_register() {
+        const NOTE: deckmaste_core::DefId = deckmaste_core::DefId(7);
+
         use crate::decide::Decision;
         use crate::decide::DecisionPointKind;
 
         let (mut state, a) = bear_on_field();
-        let key = deckmaste_core::Ident::from("n");
         let effect = Instruction::Sequentially(
             vec![
-                Instruction::Act(Action::ChooseValue(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    ChosenValueKind::Number,
-                    key,
-                )),
+                Instruction::ChooseValue(deckmaste_core::ChooseValue {
+                    dest: NOTE,
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    domain: ChosenValueKind::Number,
+                }),
                 Instruction::mill(
                     deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Noted(key),
+                    Count::Reg(NOTE.into()),
                 ),
             ]
             .into(),
@@ -2647,79 +2647,36 @@ mod tests {
             PlayerId(0),
             "the effect's controller notes the number"
         );
-        assert_eq!(pk, key);
+        assert_eq!(pk, deckmaste_core::Ident::from("register"));
 
         state
             .submit_decision(Decision::XValue(2))
             .expect("a non-negative note number is always legal");
         assert_eq!(
-            state.resolution_notes.get(&key),
-            Some(&crate::state::NotedValue::Number(2)),
-            "the submitted value is stored under the note key"
+            state.activation_number(frame.activation, NOTE.into()),
+            Some(2)
         );
 
-        // The SECOND child reads it back: Mill(Noted(key)) mills exactly 2.
+        // The SECOND child reads it back by index and mills exactly 2.
         run_injected(&mut state);
         assert_eq!(
             state.zones.graveyards[0].len(),
             2,
-            "Count::Noted read 2 from the store in the second child's frame clone"
+            "the second child reads 2 from the shared activation register"
         );
     }
 
-    /// [CR#608.2c] scope: a resolution note lives ONLY within its resolution.
-    /// A note written in one resolution is GONE when the next begins —
-    /// `resolve_object` clears `resolution_notes` at the fresh-resolution
-    /// boundary — so a `Count::Noted` read in the next resolution finds nothing
-    /// and fizzles to 0 (never a stale value, never a panic). Mirrors
-    /// `moved_chain_resets_when_a_resolution_begins`.
+    /// [CR#608.2c] scope: activation registers do not leak between activations.
     #[test]
-    fn resolution_notes_clear_when_a_fresh_resolution_begins() {
-        use deckmaste_card::CardFace;
-        use deckmaste_core::StatValue;
-
-        let (mut state, _a) = bear_on_field();
-        let key = deckmaste_core::Ident::from("n");
-        state
-            .resolution_notes
-            .insert(key, crate::state::NotedValue::Number(5));
-
-        // Drive a REAL resolution: mint a vanilla creature spell, push its
-        // `StackEntry`, and resolve it.
-        let card = Card::Normal(CardFace {
-            name: "Test Bear".into(),
-            types: vec![Type::Creature.def()],
-            power: Some(StatValue::Number(2)),
-            toughness: Some(StatValue::Number(2)),
-            ..CardFace::default()
-        });
-        let cid = state.cards.push(Arc::new(card), PlayerId(0));
-        let spell = state
-            .objects
-            .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
-        state.stack.push(StackEntry {
-            activation: crate::ActivationId::NONE,
-            id: spell,
-            object: StackObject::Spell(spell),
-            controller: PlayerId(0),
-            targets: vec![],
-            chosen_modes: std::sync::Arc::from([]),
-            x: None,
-            paid_costs: vec![],
-            copy: false,
-        });
-        state.resolve_object(spell);
-
-        assert!(
-            state.resolution_notes.is_empty(),
-            "a fresh resolution clears the note store ([CR#608.2c])"
-        );
-        // The consuming read fizzles to 0 (not the stale 5), never panics.
-        let frame = frame_src(&state, spell);
+    fn resolution_registers_do_not_leak_into_a_fresh_activation() {
+        let (state, a) = bear_on_field();
+        let first = frame_src(&state, a);
+        state.activation_write_number(first.activation, deckmaste_core::DefId(7), 5);
+        let second = frame_src(&state, a);
         assert_eq!(
-            state.eval_count(&Count::Noted(key), &frame),
-            0,
-            "Count::Noted on a cleared note fizzles to 0"
+            state.activation_number(second.activation, deckmaste_core::RefId(7)),
+            None,
+            "a fresh activation cannot observe the prior activation's register"
         );
     }
 
@@ -2753,35 +2710,45 @@ mod tests {
     }
 
     #[test]
-    fn choose_value_card_name_records_the_choice() {
+    fn choose_value_card_name_reaches_the_printed_name_filter() {
+        const NAME: deckmaste_core::DefId = deckmaste_core::DefId(7);
+
         use crate::decide::Decision;
         use crate::decide::DecisionPointKind;
 
         let (mut state, a) = bear_on_field();
         let frame = frame_src(&state, a);
-        let key = deckmaste_core::Ident::from("cn");
         state.run_effect(
-            Instruction::Act(Action::ChooseValue(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                ChosenValueKind::CardName,
-                key,
-            )),
+            Instruction::ChooseValue(deckmaste_core::ChooseValue {
+                dest: NAME,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                domain: ChosenValueKind::CardName,
+            }),
             &frame,
         );
         run_injected(&mut state);
         assert!(matches!(
             state.pending,
-            Some(DecisionPointKind::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName { key: pending, .. })) if pending == key
+            Some(DecisionPointKind::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName { key: pending, .. })) if pending == deckmaste_core::Ident::from("register")
         ));
         state
             .submit_decision(Decision::CardName("Grizzly Bears".to_owned()))
             .unwrap();
         assert_eq!(
-            state.resolution_notes.get(&key),
-            Some(&crate::state::NotedValue::CardName(
-                "Grizzly Bears".to_owned()
-            ))
+            state
+                .activation_symbol(frame.activation, NAME.into())
+                .as_deref(),
+            Some("Grizzly Bears")
         );
+        assert!(crate::target::matches_with_activation(
+            &state,
+            a,
+            &deckmaste_core::Predicate::Characteristic(
+                deckmaste_core::CharacteristicPredicate::NamedReg(NAME.into()),
+            ),
+            Some(state.objects.obj(a).source),
+            frame.activation,
+        ));
     }
 
     /// Seam filled for the new decision kind: the mechanical strategy
@@ -4737,10 +4704,7 @@ mod tests {
         );
         assert!(
             state
-                .activation_context_product(
-                    frame.activation,
-                    &deckmaste_core::Provenance::EventPatient,
-                )
+                .activation_product(frame.activation, deckmaste_core::RefId(3))
                 .is_some(),
             "the outer event role is still there — it simply is not what the body reads"
         );
@@ -5262,7 +5226,7 @@ mod tests {
         state.zones.libraries[p0.index()].push_back(b);
         state.zones.libraries[p0.index()].push_back(c);
         let source = state.player(p0).object;
-        let frame = ExecutionFrame::bare(source, p0);
+        let frame = state.frame(source, p0);
 
         // BottomOfLibrary(count:2) → the bottom two, nearest-to-bottom first.
         let bottom2 = state.eval_selection_set(
@@ -5327,7 +5291,7 @@ mod tests {
         state.zones.graveyards[p0.index()].push(b);
         state.zones.graveyards[p0.index()].push(c);
         let source = state.player(p0).object;
-        let frame = ExecutionFrame::bare(source, p0);
+        let frame = state.frame(source, p0);
 
         let top1 = state.eval_selection_set(
             &Selection::TopOfGraveyard {
@@ -5354,7 +5318,7 @@ mod tests {
                 count: Count::Literal(1),
                 of: deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
             },
-            &ExecutionFrame::bare(a, p0),
+            &state.frame(a, p0),
         );
         assert_eq!(
             bad,
@@ -7316,7 +7280,7 @@ mod tests {
             ))
             .into(),
         );
-        let mut reading = ExecutionFrame::bare(a, PlayerId(0));
+        let mut reading = state.frame(a, PlayerId(0));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);
@@ -7392,7 +7356,7 @@ mod tests {
             ))
             .into(),
         );
-        let mut reading = ExecutionFrame::bare(other, PlayerId(1));
+        let mut reading = state.frame(other, PlayerId(1));
         reading.activation = state.enter_region(&reader, &reading);
         state.run_effect(Instruction::Sequentially(reader.body.0.clone()), &reading);
         run_injected(&mut state);

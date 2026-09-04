@@ -393,7 +393,7 @@ mod tests {
     fn render_cost_renders_tap_total_crew() {
         use deckmaste_semantics::Cmp;
         use deckmaste_semantics::CostComponent;
-        use deckmaste_semantics::Count;
+        use deckmaste_semantics::Count as SemValue;
         use deckmaste_semantics::Predicate;
         use deckmaste_semantics::Reference;
         use deckmaste_semantics::RelationPredicate;
@@ -405,7 +405,7 @@ mod tests {
         let crew = CostComponent::TapTotal {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
-            count: Count::Literal(3),
+            count: SemValue::Literal(3),
             filter: Arc::new(Predicate::And(
                 vec![
                     Predicate::r#type(Type::Creature),
@@ -426,7 +426,7 @@ mod tests {
         let dynamic = CostComponent::TapTotal {
             stat: Stat::Power,
             cmp: Cmp::AtLeast,
-            count: Count::X,
+            count: SemValue::X,
             filter: Arc::new(Predicate::creature()),
         };
         assert_eq!(render_cost(&[dynamic]), None);
