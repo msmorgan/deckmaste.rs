@@ -1698,8 +1698,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) p
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
 wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
-wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
-  onStackZone zn && not (isCopyOrigin og)
+wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = onStackZone zn
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ ChosenPlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl

@@ -417,6 +417,39 @@ public export
 copyParticipleUnwritten : actNamesParticiple "Copy" = False
 copyParticipleUnwritten = Refl
 
+||| "Copy target instant or sorcery spell twice. You may choose new targets for
+||| those spells." A copy of a spell is itself a spell [CR#707.10,112.1a], so
+||| the plural spell read reaches the copies.
+public export
+okPluralSpellReadAfterCopy : Instruction []
+okPluralSpellReadAfterCopy =
+  Sequentially
+    [ Copy FromStack You
+        (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 2) []
+    , Macros.may You (ChooseNewTargets (Macros.That SpellW ManyOf)) ]
+
+||| "Copy target instant or sorcery spell. You may choose new targets for the
+||| copy."
+public export
+okCopyReadAfterCopy : Instruction []
+okCopyReadAfterCopy =
+  Sequentially
+    [ Copy FromStack You
+        (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 1) []
+    , Macros.may You (ChooseNewTargets (Macros.That CopyW OneOf)) ]
+
+||| "Copy target instant or sorcery spell. You may choose new targets for that
+||| spell." Refused: the copy is itself a spell [CR#707.10], so the singular
+||| spell read reaches the original and the copy alike. `That CopyW` spells the
+||| copy (`okCopyReadAfterCopy`).
+public export
+badSingularSpellReadAfterCopy : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ Copy FromStack You
+        (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 1) []
+    , Macros.may You (ChooseNewTargets (Macros.That SpellW OneOf {ok = ok})) ])
+badSingularSpellReadAfterCopy Refl impossible
+
 ||| "Change the target of target spell or ability with a single target."
 public export
 spellOrAbilityJoin : Payload (Object \/ Ability)
