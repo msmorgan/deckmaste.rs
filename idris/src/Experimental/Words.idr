@@ -664,7 +664,7 @@ actFacts =
   , MkActFacts "Adapt" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Airbend" Nothing Nothing False [] False
+  , MkActFacts "Airbend" Nothing (Just Exile) False [] False
       noRole noRole
       False False Nothing False False False False
   , MkActFacts "Amass" Nothing Nothing False [] False
@@ -688,16 +688,16 @@ actFacts =
   , MkActFacts "Clash" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Cloak" Nothing Nothing False [] False
+  , MkActFacts "Cloak" Nothing (Just Battlefield) False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Collect Evidence" Nothing Nothing False [] False
+  , MkActFacts "Collect Evidence" Nothing (Just Exile) False [] False
       noRole noRole
       False False Nothing False False False False
   , MkActFacts "Connive" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Create" Nothing Nothing False [] False
+  , MkActFacts "Create" Nothing (Just Battlefield) False [] False
       noRole noRole
       False False Nothing False False False False
   , MkActFacts "Detain" Nothing Nothing False [] False
@@ -745,16 +745,16 @@ actFacts =
   , MkActFacts "Heal" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Incubate" Nothing Nothing False [] False
+  , MkActFacts "Incubate" Nothing (Just Battlefield) False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Investigate" Nothing Nothing False [] False
+  , MkActFacts "Investigate" Nothing (Just Battlefield) False [] False
       noRole noRole
       False False Nothing False False False False
   , MkActFacts "Learn" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
-  , MkActFacts "Manifest" Nothing Nothing False [] False
+  , MkActFacts "Manifest" Nothing (Just Battlefield) False [] False
       noRole noRole
       False False Nothing False False False False
   , MkActFacts "Manifest Dread" Nothing Nothing False [] False
@@ -2660,9 +2660,12 @@ public export
 data Designation
   = -- PLAYER-held ([CR#725.1], [CR#726.1], [CR#702.131c], [CR#702.195b]).
     Monarch | TheInitiative | CitysBlessing | EnduringStory
-  | -- OBJECT-held: the permanent markers ([CR#701.15b], [CR#701.54b]).
+  | -- OBJECT-held: the permanent markers ([CR#701.15b], [CR#701.54b],
+    -- [CR#701.64b], [CR#716.2b], [CR#719.3b]).
     Goaded | RingBearer | Monstrous | Renowned | Suspected | Saddled
-  | Prepared
+  | Prepared | Harnessed | Level | Solved
+  | -- OBJECT-held, the three sector designations ([CR#702.158b]).
+    AlphaSector | BetaSector | GammaSector
   | -- OBJECT-held, the unlocked pair ([CR#709.5c]).
     LeftHalfUnlocked | RightHalfUnlocked
   | -- CARD-held ([CR#903.3]).
@@ -2694,6 +2697,12 @@ designationFacts Renowned = MkDesignationFacts (HeldBy Object) True (Just Battle
 designationFacts Suspected = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
 designationFacts Saddled = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
 designationFacts Prepared = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts Harnessed = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts Level = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts Solved = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
+designationFacts AlphaSector = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts BetaSector = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
+designationFacts GammaSector = MkDesignationFacts (HeldBy Object) True (Just Battlefield) (Just Creature)
 designationFacts LeftHalfUnlocked = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
 designationFacts RightHalfUnlocked = MkDesignationFacts (HeldBy Object) True (Just Battlefield) Nothing
 designationFacts CommanderD = MkDesignationFacts HeldByCard False Nothing Nothing
@@ -2717,11 +2726,17 @@ designationIx Renowned = 7
 designationIx Suspected = 8
 designationIx Saddled = 9
 designationIx Prepared = 10
-designationIx LeftHalfUnlocked = 11
-designationIx RightHalfUnlocked = 12
-designationIx CommanderD = 13
-designationIx Day = 14
-designationIx Night = 15
+designationIx Harnessed = 11
+designationIx Level = 12
+designationIx Solved = 13
+designationIx AlphaSector = 14
+designationIx BetaSector = 15
+designationIx GammaSector = 16
+designationIx LeftHalfUnlocked = 17
+designationIx RightHalfUnlocked = 18
+designationIx CommanderD = 19
+designationIx Day = 20
+designationIx Night = 21
 
 public export
 Eq Designation where

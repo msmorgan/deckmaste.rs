@@ -1430,14 +1430,38 @@ const DESIGNATION_SCOPE: &str = "both directions bind, through the stub-name →
 const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, onPermanentCard, onSpellCard, \
                             paidCost, bodied, wantsModes) stay hand-kept in xtask's overlay: \
                             plugins/builtin_v2/macros/meta/KeywordAbility.ron declares no field \
-                            that could carry them.";
+                            that could carry them, and its `metadata` block is read into \
+                            deckmaste_construction_core::macro_def::Metadata, which is \
+                            deny_unknown_fields over spelling/grammar/noun_class/category, so a \
+                            home in the stub schema moves that crate's English-v2 metadata seam \
+                            and all 195 stubs rather than this overlay.";
+
+const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole) stay hand-kept per \
+                            deed: they are the gate on a deontic clause ([noun] can't/must \
+                            [deed]) through Effect.Deontic's DeedFits obligation, not a \
+                            transcription of the deed's [CR#701] entry — the Destroy row carries \
+                            roleTypes = [] though [CR#701.8a] destroys a permanent of any type — \
+                            so each is authored as a bench sentence spells its deed. The \
+                            destination column is a CR fact and is authored from the entry.";
+
+const REGIME_AXIS: &str = "regime carries two facts on one axis: Effect.keywordBodyFits reads it \
+                           as `the keyword's triggered body keys on a spell cast`, \
+                           Effect.grantSubjectFits as `the keyword functions only while its \
+                           object is on the stack`. Prowess, extort and increment are triggered \
+                           abilities of permanents [CR#702.108a,702.101a,702.191a], which \
+                           function on the battlefield [CR#113.6], so their Just AtCasting makes \
+                           `Other creatures you control have prowess` (Bria, Riptide Rogue) \
+                           unspellable. Separating the two columns rewrites Effect.abRegime, so \
+                           it is recorded here rather than taken.";
 
 /// Keyword-ability stubs the workbench does not row.
 const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[Exempt {
     label: "Prototype",
-    reason: "its `[Cost, Power, Toughness]` signature wants a KeywordParamShape carrying a \
-             second power/toughness pair beside the cost [CR#702.160a] — a new sort, which is \
-             design work beyond a row",
+    reason: "a layout keyword, not a keyword-ability row: the prototype ability is the inset \
+             frame itself [CR#702.160a,718.1], so the workbench spells it as the `Card` wrapper \
+             `Prototype (inner) (alt)` whose pair is the alternative mana cost and printed box \
+             [CR#718.1]; a row carrying its `[Cost, Power, Toughness]` signature would be a \
+             second representation of the same ability",
 }];
 
 /// Rows whose label is a CR-defined variant of a keyword that has its own
@@ -1457,27 +1481,10 @@ const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
     },
 ];
 
-/// Designation stubs with no `Words.Designation` constructor. Each wants a
-/// constructor and a `designationFacts` row whose scope, persistence and
-/// carrier columns are hand-authored, which is design work beyond a mapping.
-const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[
-    Exempt {
-        label: "Harnessed",
-        reason: "the harnessed designation [CR#701.64b] has no `Designation` constructor",
-    },
-    Exempt {
-        label: "Level",
-        reason: "the level designation [CR#716.2b] has no `Designation` constructor",
-    },
-    Exempt {
-        label: "Sector",
-        reason: "the sector designations [CR#702.158b] have no `Designation` constructor",
-    },
-    Exempt {
-        label: "Solved",
-        reason: "the solved designation [CR#719.3b] has no `Designation` constructor",
-    },
-];
+/// Designation stubs with no `Words.Designation` constructor. Every stub has
+/// one, so the list is empty; a stub the CR made a non-object property would
+/// be recorded here rather than rowed.
+const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[];
 
 /// The designation stubs whose name is not the Idris constructor's; every
 /// other stub name is the constructor name.
@@ -1485,6 +1492,7 @@ const DESIGNATION_MAP: &[(&str, &[&str])] = &[
     ("Commander", &["CommanderD"]),
     ("Initiative", &["TheInitiative"]),
     ("DayNight", &["Day", "Night"]),
+    ("Sector", &["AlphaSector", "BetaSector", "GammaSector"]),
 ];
 
 /// A label reduced to its comparable core: the workbench spells a multi-word
@@ -1701,6 +1709,8 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         println!("  designation mapping: {stub} → {}", ctors.join(", "));
     }
     println!("{GATE_COLUMNS}");
+    println!("{ROLE_COLUMNS}");
+    println!("{REGIME_AXIS}");
 
     anyhow::ensure!(ok, "the stub and table label sets differ");
     Ok(())
@@ -1805,12 +1815,48 @@ mod tests {
         let ctors = designation_ctors(&words);
         assert!(ctors.contains(&"CommanderD".to_owned()));
         assert!(ctors.contains(&"Day".to_owned()) && ctors.contains(&"Night".to_owned()));
+        for ctor in [
+            "Harnessed",
+            "Level",
+            "Solved",
+            "AlphaSector",
+            "BetaSector",
+            "GammaSector",
+        ] {
+            assert!(
+                ctors.contains(&ctor.to_owned()),
+                "{ctor}: no designationFacts row"
+            );
+        }
         assert!(
             !ctors.iter().any(|c| c == ":"),
             "a type signature was read as a constructor"
         );
         let mapped = designation_labels(&["DayNight".to_owned(), "Goaded".to_owned()]);
         assert_eq!(mapped, vec!["Day", "Night", "Goaded"]);
+        assert_eq!(
+            designation_labels(&["Sector".to_owned()]),
+            vec!["AlphaSector", "BetaSector", "GammaSector"]
+        );
+    }
+
+    #[test]
+    fn keyword_action_destinations_come_from_their_cr_entry() {
+        let words = fs::read_to_string(root().join(WORDS)).expect("reading Words.idr");
+        for (label, zone) in [
+            ("Create", "Battlefield"),
+            ("Investigate", "Battlefield"),
+            ("Incubate", "Battlefield"),
+            ("Manifest", "Battlefield"),
+            ("Cloak", "Battlefield"),
+            ("Airbend", "Exile"),
+            ("Collect Evidence", "Exile"),
+        ] {
+            assert!(
+                words.contains(&format!(r#"MkActFacts "{label}" Nothing (Just {zone})"#)),
+                "{label}: no {zone} destination"
+            );
+        }
     }
 
     #[test]
