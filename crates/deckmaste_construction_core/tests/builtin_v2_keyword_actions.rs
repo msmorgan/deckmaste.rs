@@ -324,7 +324,7 @@ fn exchange_has_every_attested_representable_tail_shape() {
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,
-                        CustomTailAtom::Literal("with".to_owned()),
+                        CustomTailAtom::Lex("Preposition".to_owned(), "With".to_owned()),
                         CustomTailAtom::ObjectNounPhrase,
                     ],
                     vec![
