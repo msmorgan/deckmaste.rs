@@ -973,7 +973,7 @@ const fn nominal_attachment_name(value: super::NominalAttachmentPhase) -> &'stat
     }
 }
 
-fn agreement_name(value: super::PersonNumber) -> String {
+fn agreement_name(value: super::Agreement) -> String {
     format!(
         "{}_{}",
         match value.person {

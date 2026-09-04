@@ -14,11 +14,11 @@ use crate::features::Comma;
 use crate::features::Conjunction;
 use crate::features::Number;
 use crate::features::Person;
+use crate::grammar::Agreement;
 use crate::grammar::CoordinationDomain;
 use crate::grammar::Features;
 use crate::grammar::NounForm;
 use crate::grammar::NounPhraseCoordinationState;
-use crate::grammar::PersonNumber;
 use crate::grammar::QuantityFeatures;
 use crate::grammar::SetExceptionState;
 use crate::syntax::AnyNumberOfNounPhrase;
@@ -209,8 +209,8 @@ fn noun_phrase_is_plural(value: &NounPhrase) -> bool {
     }
 }
 
-fn nominal_agreement(nominal: &NominalPhrase) -> PersonNumber {
-    PersonNumber {
+fn nominal_agreement(nominal: &NominalPhrase) -> Agreement {
+    Agreement {
         person: Person::Third,
         number: match nominal.head().kind() {
             NounInstanceKind::Plural(_) => Number::Plural,
@@ -221,11 +221,11 @@ fn nominal_agreement(nominal: &NominalPhrase) -> PersonNumber {
 
 fn coordinated_agreements(
     conjunction: Conjunction,
-    first: Vec<PersonNumber>,
-    last: Vec<PersonNumber>,
-) -> Vec<PersonNumber> {
+    first: Vec<Agreement>,
+    last: Vec<Agreement>,
+) -> Vec<Agreement> {
     match conjunction {
-        Conjunction::And => vec![PersonNumber {
+        Conjunction::And => vec![Agreement {
             person: Person::Third,
             number: Number::Plural,
         }],
@@ -235,19 +235,19 @@ fn coordinated_agreements(
     }
 }
 
-fn public_agreements(value: &NounPhrase) -> Vec<PersonNumber> {
+fn public_agreements(value: &NounPhrase) -> Vec<Agreement> {
     match value.kind() {
         NounPhraseKind::Nominal(nominal) => vec![nominal_agreement(nominal)],
         NounPhraseKind::Pronoun { pronoun, .. } => match pronoun {
-            Pronoun::You => vec![PersonNumber {
+            Pronoun::You => vec![Agreement {
                 person: Person::Second,
                 number: Number::Singular,
             }],
-            Pronoun::It(_) => vec![PersonNumber {
+            Pronoun::It(_) => vec![Agreement {
                 person: Person::Third,
                 number: Number::Singular,
             }],
-            Pronoun::They => vec![PersonNumber {
+            Pronoun::They => vec![Agreement {
                 person: Person::Third,
                 number: Number::Plural,
             }],
@@ -258,31 +258,31 @@ fn public_agreements(value: &NounPhrase) -> Vec<PersonNumber> {
         NounPhraseKind::Demonstrative(Demonstrative::This | Demonstrative::That)
         | NounPhraseKind::PossessiveThisCard(_)
         | NounPhraseKind::Arithmetic(_)
-        | NounPhraseKind::TargetsBeyondFirst => vec![PersonNumber {
+        | NounPhraseKind::TargetsBeyondFirst => vec![Agreement {
             person: Person::Third,
             number: Number::Singular,
         }],
         NounPhraseKind::Demonstrative(Demonstrative::These | Demonstrative::Those) => {
-            vec![PersonNumber {
+            vec![Agreement {
                 person: Person::Third,
                 number: Number::Plural,
             }]
         }
-        NounPhraseKind::Quantity(quantity) => vec![PersonNumber {
+        NounPhraseKind::Quantity(quantity) => vec![Agreement {
             person: Person::Third,
             number: crate::constructions::quantity::standalone_number(*quantity),
         }],
         NounPhraseKind::ThisCard(_) => vec![
-            PersonNumber {
+            Agreement {
                 person: Person::Third,
                 number: Number::Singular,
             },
-            PersonNumber {
+            Agreement {
                 person: Person::Third,
                 number: Number::Plural,
             },
         ],
-        NounPhraseKind::Partitive(partitive) => vec![PersonNumber {
+        NounPhraseKind::Partitive(partitive) => vec![Agreement {
             person: Person::Third,
             number: match partitive.head {
                 PartitiveHead::Each => Number::Singular,
@@ -291,7 +291,7 @@ fn public_agreements(value: &NounPhrase) -> Vec<PersonNumber> {
                 }
             },
         }],
-        NounPhraseKind::AnyNumberOf(value) => vec![PersonNumber {
+        NounPhraseKind::AnyNumberOf(value) => vec![Agreement {
             person: Person::Third,
             number: value.plurality(),
         }],
@@ -763,7 +763,7 @@ pub(crate) const fn rounding_spelling(value: Rounding) -> &'static str {
 }
 
 fn noun_phrase(
-    agreement: Option<PersonNumber>,
+    agreement: Option<Agreement>,
     coordination_domain: Option<CoordinationDomain>,
     pronoun_case: Option<PronounCase>,
     adjunct: Option<crate::word::BareNominalAdjunct>,
@@ -797,7 +797,7 @@ fn reduce_nominal(noun: &Features, rules_object_followup: bool) -> Option<Featur
         return None;
     };
     let mut features = noun_phrase(
-        Some(PersonNumber {
+        Some(Agreement {
             person: Person::Third,
             number: match form {
                 NounForm::Plural => Number::Plural,
@@ -847,7 +847,7 @@ fn reduce_quantity(quantity: &Features) -> Option<Features> {
         return None;
     };
     Some(noun_phrase(
-        Some(PersonNumber {
+        Some(Agreement {
             person: Person::Third,
             number: *standalone_number,
         }),
@@ -869,7 +869,7 @@ fn reduce_this_card(value: &Features) -> Option<Features> {
 
 fn reduce_targets_beyond_first() -> Option<Features> {
     Some(noun_phrase(
-        Some(PersonNumber {
+        Some(Agreement {
             person: Person::Third,
             number: Number::Singular,
         }),
@@ -903,7 +903,7 @@ fn reduce_partitive(head: &Features) -> Option<Features> {
         return None;
     };
     Some(noun_phrase(
-        Some(PersonNumber {
+        Some(Agreement {
             person: Person::Third,
             number: *standalone_number,
         }),
@@ -918,7 +918,7 @@ fn reduce_partitive(head: &Features) -> Option<Features> {
 fn reduce_each_partitive(head: &Features) -> Option<Features> {
     matches!(head, Features::Determiner { .. }).then(|| {
         noun_phrase(
-            Some(PersonNumber {
+            Some(Agreement {
                 person: Person::Third,
                 number: Number::Singular,
             }),
@@ -933,7 +933,7 @@ fn reduce_each_partitive(head: &Features) -> Option<Features> {
 
 fn reduce_any_number_of(whole: &Features) -> Option<Features> {
     let Features::NounPhrase {
-        agreement: Some(PersonNumber {
+        agreement: Some(Agreement {
             number: Number::Plural,
             ..
         }),
@@ -944,7 +944,7 @@ fn reduce_any_number_of(whole: &Features) -> Option<Features> {
         return None;
     };
     Some(noun_phrase(
-        Some(PersonNumber {
+        Some(Agreement {
             person: Person::Third,
             number: Number::Plural,
         }),
@@ -959,7 +959,7 @@ fn reduce_any_number_of(whole: &Features) -> Option<Features> {
 fn reduce_arithmetic(value: &Features) -> Option<Features> {
     matches!(value, Features::NounPhrase { .. }).then(|| {
         noun_phrase(
-            Some(PersonNumber {
+            Some(Agreement {
                 person: Person::Third,
                 number: Number::Singular,
             }),

@@ -5,29 +5,58 @@
 mod finite_copula_inflectional_forms {
     use deckmaste_construction_core::macro_def::InflectionalForm;
 
+    use crate::constructions::ConcordClass;
     use crate::constructions::FiniteCopula;
-
-    fn inflectional_form(copula: FiniteCopula) -> InflectionalForm {
-        match copula {
-            FiniteCopula::Is | FiniteCopula::Isnt => InflectionalForm::ThirdPersonSingularPresent,
-            FiniteCopula::Are | FiniteCopula::Arent => InflectionalForm::Plain,
-            FiniteCopula::Was | FiniteCopula::Were => InflectionalForm::Preterite,
-        }
-    }
+    use crate::constructions::concord_class_for_finite_copula;
 
     #[test]
-    fn every_finite_copula_has_its_own_inflectional_form() {
-        for copula in [FiniteCopula::Is, FiniteCopula::Isnt] {
-            assert_eq!(
-                inflectional_form(copula),
+    fn every_finite_copula_concord_class_matches_its_inflectional_form() {
+        for (copula, form, expected) in [
+            (
+                FiniteCopula::Is,
                 InflectionalForm::ThirdPersonSingularPresent,
+                ConcordClass::ThirdPersonSingular,
+            ),
+            (
+                FiniteCopula::Isnt,
+                InflectionalForm::ThirdPersonSingularPresent,
+                ConcordClass::ThirdPersonSingular,
+            ),
+            (
+                FiniteCopula::Are,
+                InflectionalForm::Plain,
+                ConcordClass::Other,
+            ),
+            (
+                FiniteCopula::Arent,
+                InflectionalForm::Plain,
+                ConcordClass::Other,
+            ),
+            (
+                FiniteCopula::Was,
+                InflectionalForm::Preterite,
+                ConcordClass::ThirdPersonSingular,
+            ),
+            (
+                FiniteCopula::Were,
+                InflectionalForm::Preterite,
+                ConcordClass::Other,
+            ),
+        ] {
+            let derived = concord_class_for_finite_copula(copula);
+            assert_eq!(
+                derived, expected,
+                "{copula:?} derives the wrong Concord Class"
             );
-        }
-        for copula in [FiniteCopula::Are, FiniteCopula::Arent] {
-            assert_eq!(inflectional_form(copula), InflectionalForm::Plain);
-        }
-        for copula in [FiniteCopula::Was, FiniteCopula::Were] {
-            assert_eq!(inflectional_form(copula), InflectionalForm::Preterite);
+            let applicability = form.concord_class_applicability();
+            let permitted = match derived {
+                ConcordClass::Other => applicability.other,
+                ConcordClass::ThirdPersonSingular => applicability.third_person_singular,
+            };
+            assert!(
+                permitted,
+                "{copula:?} pairs {derived:?} with an Inflectional Form that cannot realize it",
+            );
         }
     }
 }

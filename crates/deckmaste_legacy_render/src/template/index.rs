@@ -192,7 +192,7 @@ where
             let (sing, plur) = m.split_once('|')?;
             let (arg, used) = slot_reader(slot.ty.as_str(), rest)?;
             let after_arg = cursor + used;
-            // Number selection mirrors the render side: a literal 1 is singular,
+            // Agreement mirrors the render side: a literal 1 is singular,
             // any other literal — and every dynamic count — is plural.
             let noun = match arg.trim().parse::<i64>() {
                 Ok(1) => sing,

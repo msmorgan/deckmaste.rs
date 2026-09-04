@@ -26,7 +26,7 @@
 //! citation form says "draws … card". So before comparing, the same rewrites
 //! are applied to the target, through the *same code path* the compiler used
 //! ([`crate::compile`]'s citation normalizer, driven with the frame's own
-//! [`FeatureDep`] list). Two further surface facts are neutralized:
+//! [`AgreementDep`] list). Two further surface facts are neutralized:
 //!
 //! - **numeral orthography.** A `Count` hole's witness is always the Arabic
 //!   numeral `41`, so every compiled frame claims `Numeral::Arabic` — but "Draw
@@ -63,7 +63,7 @@ use serde::Serialize;
 
 use crate::CompiledGuard;
 use crate::HoleClass;
-use crate::compile::FeatureDep;
+use crate::compile::AgreementDep;
 use crate::guard;
 use crate::lexicon::Entry;
 use crate::lexicon::Lexicon;
@@ -884,7 +884,7 @@ fn roots_align(pattern: &ProjectionTree, target: &ProjectionTree) -> bool {
 /// Rewrites the target's hole-driven inflections to citation form, exactly as
 /// the compiler did to the frame.
 ///
-/// The frame's [`FeatureDep`] sites are paths into its *whole* tree; a
+/// The frame's [`AgreementDep`] sites are paths into its *whole* tree; a
 /// pattern peeled `depth` newtype wrappers deep needs them rebased by
 /// dropping the stable named-role prefix. A site outside the peeled pattern
 /// does not address anything inside it and is dropped.
@@ -894,7 +894,7 @@ fn roots_align(pattern: &ProjectionTree, target: &ProjectionTree) -> bool {
 /// are actually compiled to.
 fn neutralize_agreement(
     target: &mut ProjectionTree,
-    agreement: &[FeatureDep],
+    agreement: &[AgreementDep],
     pattern_prefix: &ProjectionPath,
 ) {
     let mut rebased = agreement
@@ -903,7 +903,7 @@ fn neutralize_agreement(
             dependency
                 .site
                 .strip_prefix(pattern_prefix)
-                .map(|site| FeatureDep {
+                .map(|site| AgreementDep {
                     site,
                     kind: dependency.kind,
                     normalized: Vec::new(),

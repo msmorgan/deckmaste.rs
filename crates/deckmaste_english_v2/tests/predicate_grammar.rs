@@ -582,7 +582,7 @@ fn combat_frames_keep_active_frame_set_passive_agents_and_if_able_distinct() {
     ] {
         assert!(
             parser.parse(crossed, &context).is_err(),
-            "combat concord_class and passive-agent syntax reject {crossed:?}",
+            "combat Concord Class and passive-agent syntax reject {crossed:?}",
         );
     }
 }
@@ -1495,7 +1495,7 @@ fn shared_active_frames_reject_complement_and_concord_class_reciprocals() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "wrong frame or concord_class must reject {text:?}",
+            "wrong frame or Concord Class must reject {text:?}",
         );
     }
     assert_selected_with_specificity(&parser, &context, "Connive target player.", true);
