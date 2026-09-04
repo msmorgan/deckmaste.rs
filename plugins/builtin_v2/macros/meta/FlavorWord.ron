@@ -1,0 +1,18 @@
+(
+    name: "FlavorWord",
+    kinds: [Macro],
+    params: {
+        "name": String,
+        "spelling": String,
+        "grammar": Elidable(Any),
+    },
+    body: (
+        name: Param(name),
+        kinds: [FlavorWord],
+        metadata: (
+            spelling: Param(spelling),
+            grammar: Param(grammar),
+        ),
+        body: (),
+    ),
+)

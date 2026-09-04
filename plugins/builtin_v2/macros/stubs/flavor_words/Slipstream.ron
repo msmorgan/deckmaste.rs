@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Slipstream",
+    spelling: "Slipstream",
+    grammar: FixedTerm(surface: "Slipstream"),
+)

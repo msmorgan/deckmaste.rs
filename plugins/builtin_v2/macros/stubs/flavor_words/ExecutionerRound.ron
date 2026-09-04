@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ExecutionerRound",
+    spelling: "Executioner Round",
+    grammar: FixedTerm(surface: "Executioner Round"),
+)

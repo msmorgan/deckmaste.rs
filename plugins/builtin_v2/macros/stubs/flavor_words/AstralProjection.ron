@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "AstralProjection",
+    spelling: "Astral Projection",
+    grammar: FixedTerm(surface: "Astral Projection"),
+)

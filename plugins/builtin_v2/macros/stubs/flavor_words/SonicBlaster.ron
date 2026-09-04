@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SonicBlaster",
+    spelling: "Sonic Blaster",
+    grammar: FixedTerm(surface: "Sonic Blaster"),
+)

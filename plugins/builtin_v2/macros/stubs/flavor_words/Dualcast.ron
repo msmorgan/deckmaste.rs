@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Dualcast",
+    spelling: "Dualcast",
+    grammar: FixedTerm(surface: "Dualcast"),
+)

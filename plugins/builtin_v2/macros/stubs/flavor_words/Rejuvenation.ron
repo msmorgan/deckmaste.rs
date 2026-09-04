@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Rejuvenation",
+    spelling: "Rejuvenation",
+    grammar: FixedTerm(surface: "Rejuvenation"),
+)

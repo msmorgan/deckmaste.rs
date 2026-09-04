@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ScavengeTheDead",
+    spelling: "Scavenge the Dead",
+    grammar: FixedTerm(surface: "Scavenge the Dead"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "PsychicDefense",
+    spelling: "Psychic Defense",
+    grammar: FixedTerm(surface: "Psychic Defense"),
+)

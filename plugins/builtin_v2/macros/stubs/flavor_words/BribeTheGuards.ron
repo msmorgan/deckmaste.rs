@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "BribeTheGuards",
+    spelling: "Bribe the Guards",
+    grammar: FixedTerm(surface: "Bribe the Guards"),
+)

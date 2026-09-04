@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Affirmative",
+    spelling: "Affirmative",
+    grammar: FixedTerm(surface: "Affirmative"),
+)

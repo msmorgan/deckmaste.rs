@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "TranslocationProtocols",
+    spelling: "Translocation Protocols",
+    grammar: FixedTerm(surface: "Translocation Protocols"),
+)

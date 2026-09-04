@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "CommandProtocols",
+    spelling: "Command Protocols",
+    grammar: FixedTerm(surface: "Command Protocols"),
+)

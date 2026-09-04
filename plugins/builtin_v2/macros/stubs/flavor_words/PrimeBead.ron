@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "PrimeBead",
+    spelling: "Prime Bead",
+    grammar: FixedTerm(surface: "Prime Bead"),
+)

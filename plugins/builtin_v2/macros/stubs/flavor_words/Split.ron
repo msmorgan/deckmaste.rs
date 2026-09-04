@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Split",
+    spelling: "Split",
+    grammar: FixedTerm(surface: "Split"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "BenedictionOfTheOmnissiah",
+    spelling: "Benediction of the Omnissiah",
+    grammar: FixedTerm(surface: "Benediction of the Omnissiah"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Chainsword",
+    spelling: "Chainsword",
+    grammar: FixedTerm(surface: "Chainsword"),
+)

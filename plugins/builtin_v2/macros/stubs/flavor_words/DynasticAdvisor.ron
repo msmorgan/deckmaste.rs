@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "DynasticAdvisor",
+    spelling: "Dynastic Advisor",
+    grammar: FixedTerm(surface: "Dynastic Advisor"),
+)

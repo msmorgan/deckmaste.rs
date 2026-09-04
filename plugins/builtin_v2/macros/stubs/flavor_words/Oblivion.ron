@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Oblivion",
+    spelling: "Oblivion",
+    grammar: FixedTerm(surface: "Oblivion"),
+)

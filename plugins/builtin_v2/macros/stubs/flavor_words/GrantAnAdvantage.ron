@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "GrantAnAdvantage",
+    spelling: "Grant an Advantage",
+    grammar: FixedTerm(surface: "Grant an Advantage"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "CoruscatingFlames",
+    spelling: "Coruscating Flames",
+    grammar: FixedTerm(surface: "Coruscating Flames"),
+)

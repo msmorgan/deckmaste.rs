@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "HorrificSymbiosis",
+    spelling: "Horrific Symbiosis",
+    grammar: FixedTerm(surface: "Horrific Symbiosis"),
+)

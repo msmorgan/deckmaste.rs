@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SolarBeam",
+    spelling: "Solar Beam",
+    grammar: FixedTerm(surface: "Solar Beam"),
+)

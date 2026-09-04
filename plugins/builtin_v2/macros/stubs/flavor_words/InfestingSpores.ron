@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "InfestingSpores",
+    spelling: "Infesting Spores",
+    grammar: FixedTerm(surface: "Infesting Spores"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "PlayArcanum",
+    spelling: "Play Arcanum",
+    grammar: FixedTerm(surface: "Play Arcanum"),
+)

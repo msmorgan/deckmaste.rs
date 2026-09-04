@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "GrandSummon",
+    spelling: "Grand Summon",
+    grammar: FixedTerm(surface: "Grand Summon"),
+)

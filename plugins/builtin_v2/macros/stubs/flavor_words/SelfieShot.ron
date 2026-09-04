@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SelfieShot",
+    spelling: "Selfie Shot",
+    grammar: FixedTerm(surface: "Selfie Shot"),
+)

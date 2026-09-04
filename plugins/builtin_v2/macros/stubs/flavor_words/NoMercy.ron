@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "NoMercy",
+    spelling: "No Mercy",
+    grammar: FixedTerm(surface: "No Mercy"),
+)

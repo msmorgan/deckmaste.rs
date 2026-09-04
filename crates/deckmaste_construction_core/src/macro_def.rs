@@ -33,6 +33,7 @@ const DECLARATION_META_MACROS: &[&str] = &[
     include_str!("../../../plugins/builtin_v2/macros/meta/AbilityWord.ron"),
     include_str!("../../../plugins/builtin_v2/macros/meta/CounterKind.ron"),
     include_str!("../../../plugins/builtin_v2/macros/meta/Designation.ron"),
+    include_str!("../../../plugins/builtin_v2/macros/meta/FlavorWord.ron"),
     include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAbility.ron"),
     include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAction.ron"),
     include_str!("../../../plugins/builtin_v2/macros/meta/Subtype.ron"),
@@ -117,6 +118,7 @@ pub enum DeclarationKind {
     KeywordAction,
     KeywordAbility,
     AbilityWord,
+    FlavorWord,
     Subtype(SubtypeCategory),
     Type,
     TurnPart,
@@ -130,6 +132,7 @@ impl fmt::Display for DeclarationKind {
             DeclarationKind::KeywordAction => f.write_str("keyword action"),
             DeclarationKind::KeywordAbility => f.write_str("keyword ability"),
             DeclarationKind::AbilityWord => f.write_str("ability word"),
+            DeclarationKind::FlavorWord => f.write_str("flavor word"),
             DeclarationKind::Subtype(category) => write!(f, "{category} subtype"),
             DeclarationKind::Type => f.write_str("type"),
             DeclarationKind::TurnPart => f.write_str("turn part"),
@@ -708,6 +711,7 @@ enum DiagnosticInvocation<'a> {
     KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
     KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
+    FlavorWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
@@ -977,6 +981,7 @@ impl ValidationSourceMap {
             DiagnosticInvocation::KeywordAction(fields)
             | DiagnosticInvocation::KeywordAbility(fields)
             | DiagnosticInvocation::AbilityWord(fields)
+            | DiagnosticInvocation::FlavorWord(fields)
             | DiagnosticInvocation::Type(fields)
             | DiagnosticInvocation::TurnPart(fields)
             | DiagnosticInvocation::CounterKind(fields)
@@ -1508,6 +1513,7 @@ fn normalized_kind(
         "KeywordAction" => DeclarationKind::KeywordAction,
         "KeywordAbility" => DeclarationKind::KeywordAbility,
         "AbilityWord" => DeclarationKind::AbilityWord,
+        "FlavorWord" => DeclarationKind::FlavorWord,
         "Subtype" => DeclarationKind::Subtype(category.ok_or_else(|| {
             validation_error_at(
                 path,
@@ -2377,6 +2383,7 @@ fn expected_builtin_identity(
         ["keyword_actions", _] => DeclarationKind::KeywordAction,
         ["keyword_abilities", _] => DeclarationKind::KeywordAbility,
         ["ability_words", _] => DeclarationKind::AbilityWord,
+        ["flavor_words", _] => DeclarationKind::FlavorWord,
         ["types", _] => DeclarationKind::Type,
         ["turn_parts", _] => DeclarationKind::TurnPart,
         ["counter_kinds", _] => DeclarationKind::CounterKind,

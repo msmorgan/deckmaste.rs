@@ -887,6 +887,12 @@ constructions! {
             kinds = [AbilityWord];
         }
     }
+    codec FlavorWordTerm {
+        generate declaration_term {
+            position = FixedTerm;
+            kinds = [FlavorWord];
+        }
+    }
     codec DeclaredCounterKind {
         generate declaration_term {
             position = FixedTerm;
@@ -1288,10 +1294,15 @@ constructions! {
     abstract sum ModeMarker {
         Bullet: BulletMarker,
         Weighted: WeightedMarker,
+        FlavorWord: FlavorWordModeMarker,
     }
     construction bullet_marker: ModeMarker {
         element BulletMarker {}
         form bullet_marker = sentence_initial("• ");
+    }
+    construction flavor_word_mode_marker: ModeMarker {
+        element FlavorWordModeMarker { term: lex FlavorWordTerm, }
+        form flavor_word_mode_marker = sentence_initial("• ") lex(term) sentence_initial(" — ");
     }
     // Spree's plus sign and the pawprint symbols are the same weighted mode
     // marker: the plus sign carries no rules meaning [CR#702.172a,702.172b]
@@ -4751,17 +4762,35 @@ constructions! {
     abstract sum BlockLabel {
         AbilityWord: AbilityWordLabel,
         Chapter: ChapterLabel,
+        FlavorWord: FlavorWordLabel,
     }
     construction ability_word_label: BlockLabel {
         element AbilityWordLabel { term: lex AbilityWordTerm, }
         form ability_word_label = lex(term);
     }
+    construction flavor_word_label: BlockLabel {
+        element FlavorWordLabel { term: lex FlavorWordTerm, }
+        form flavor_word_label = lex(term);
+    }
+    abstract sum ChapterSecondaryLabel {
+        AbilityWord: ChapterSecondaryAbilityWordLabel,
+        FlavorWord: ChapterSecondaryFlavorWordLabel,
+    }
+    construction chapter_secondary_ability_word_label: ChapterSecondaryLabel {
+        element ChapterSecondaryAbilityWordLabel { term: lex AbilityWordTerm, }
+        form chapter_secondary_ability_word_label = sentence_initial(" — ") lex(term);
+    }
+    construction chapter_secondary_flavor_word_label: ChapterSecondaryLabel {
+        element ChapterSecondaryFlavorWordLabel { term: lex FlavorWordTerm, }
+        form chapter_secondary_flavor_word_label = sentence_initial(" — ") lex(term);
+    }
     construction chapter_label: BlockLabel {
         element ChapterLabel {
             numerals: seq lex ChapterNumeral separated by ", ",
+            secondary: opt ChapterSecondaryLabel,
         }
         require len(numerals) >= 1;
-        form chapter_label = lex(numerals);
+        form chapter_label = lex(numerals) secondary;
     }
     construction labelled_ability: LabelledAbility {
         element LabelledAbilityValue {

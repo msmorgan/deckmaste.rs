@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SpiritualLeader",
+    spelling: "Spiritual Leader",
+    grammar: FixedTerm(surface: "Spiritual Leader"),
+)

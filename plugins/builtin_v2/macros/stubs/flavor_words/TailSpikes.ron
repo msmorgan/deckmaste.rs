@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "TailSpikes",
+    spelling: "Tail Spikes",
+    grammar: FixedTerm(surface: "Tail Spikes"),
+)

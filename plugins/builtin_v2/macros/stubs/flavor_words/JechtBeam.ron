@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "JechtBeam",
+    spelling: "Jecht Beam",
+    grammar: FixedTerm(surface: "Jecht Beam"),
+)

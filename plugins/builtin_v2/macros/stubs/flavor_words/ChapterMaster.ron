@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ChapterMaster",
+    spelling: "Chapter Master",
+    grammar: FixedTerm(surface: "Chapter Master"),
+)

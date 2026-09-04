@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SensationalSave",
+    spelling: "Sensational Save",
+    grammar: FixedTerm(surface: "Sensational Save"),
+)

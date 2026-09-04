@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "InvasionBeams",
+    spelling: "Invasion Beams",
+    grammar: FixedTerm(surface: "Invasion Beams"),
+)

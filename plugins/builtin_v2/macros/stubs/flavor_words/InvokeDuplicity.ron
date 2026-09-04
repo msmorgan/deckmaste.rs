@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "InvokeDuplicity",
+    spelling: "Invoke Duplicity",
+    grammar: FixedTerm(surface: "Invoke Duplicity"),
+)

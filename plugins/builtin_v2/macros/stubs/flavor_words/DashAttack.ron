@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "DashAttack",
+    spelling: "Dash Attack",
+    grammar: FixedTerm(surface: "Dash Attack"),
+)

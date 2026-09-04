@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "CrossSlash",
+    spelling: "Cross-Slash",
+    grammar: FixedTerm(surface: "Cross-Slash"),
+)

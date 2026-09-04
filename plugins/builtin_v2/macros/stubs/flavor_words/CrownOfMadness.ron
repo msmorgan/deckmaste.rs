@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "CrownOfMadness",
+    spelling: "Crown of Madness",
+    grammar: FixedTerm(surface: "Crown of Madness"),
+)

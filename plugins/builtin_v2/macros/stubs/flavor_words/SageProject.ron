@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SageProject",
+    spelling: "Sage Project",
+    grammar: FixedTerm(surface: "Sage Project"),
+)

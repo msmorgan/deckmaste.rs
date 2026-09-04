@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ThrowEllipsis",
+    spelling: "Throw ...",
+    grammar: FixedTerm(surface: "Throw ..."),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Immune",
+    spelling: "Immune",
+    grammar: FixedTerm(surface: "Immune"),
+)

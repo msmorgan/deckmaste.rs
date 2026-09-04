@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "RoughDivide",
+    spelling: "Rough Divide",
+    grammar: FixedTerm(surface: "Rough Divide"),
+)

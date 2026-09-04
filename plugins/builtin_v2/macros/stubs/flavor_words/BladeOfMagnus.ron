@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "BladeOfMagnus",
+    spelling: "Blade of Magnus",
+    grammar: FixedTerm(surface: "Blade of Magnus"),
+)

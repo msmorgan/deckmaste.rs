@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "TwoHeadedCoin",
+    spelling: "Two-Headed Coin",
+    grammar: FixedTerm(surface: "Two-Headed Coin"),
+)

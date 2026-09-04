@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "XenosCunning",
+    spelling: "Xenos Cunning",
+    grammar: FixedTerm(surface: "Xenos Cunning"),
+)

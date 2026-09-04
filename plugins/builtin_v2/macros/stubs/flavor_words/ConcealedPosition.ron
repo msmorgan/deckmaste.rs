@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ConcealedPosition",
+    spelling: "Concealed Position",
+    grammar: FixedTerm(surface: "Concealed Position"),
+)

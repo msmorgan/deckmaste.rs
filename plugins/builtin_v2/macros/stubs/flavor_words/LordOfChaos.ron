@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "LordOfChaos",
+    spelling: "Lord of Chaos",
+    grammar: FixedTerm(surface: "Lord of Chaos"),
+)

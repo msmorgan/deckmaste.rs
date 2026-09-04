@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SymphonyOfPain",
+    spelling: "Symphony of Pain",
+    grammar: FixedTerm(surface: "Symphony of Pain"),
+)

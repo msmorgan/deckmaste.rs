@@ -487,6 +487,7 @@ dependencies = [
 name = "deckmaste_construction_core"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_data",
  "macro_ron",
  "prettyplease",
  "proc-macro2",

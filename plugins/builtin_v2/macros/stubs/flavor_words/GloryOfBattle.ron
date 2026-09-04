@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "GloryOfBattle",
+    spelling: "Glory of Battle",
+    grammar: FixedTerm(surface: "Glory of Battle"),
+)

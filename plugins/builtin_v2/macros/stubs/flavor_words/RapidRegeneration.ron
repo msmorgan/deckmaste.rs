@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "RapidRegeneration",
+    spelling: "Rapid Regeneration",
+    grammar: FixedTerm(surface: "Rapid Regeneration"),
+)

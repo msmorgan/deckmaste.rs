@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "InquisitionAgents",
+    spelling: "Inquisition Agents",
+    grammar: FixedTerm(surface: "Inquisition Agents"),
+)

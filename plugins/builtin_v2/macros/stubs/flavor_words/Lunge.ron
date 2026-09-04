@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Lunge",
+    spelling: "Lunge",
+    grammar: FixedTerm(surface: "Lunge"),
+)

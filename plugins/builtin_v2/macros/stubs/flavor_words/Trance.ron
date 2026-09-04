@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "Trance",
+    spelling: "Trance",
+    grammar: FixedTerm(surface: "Trance"),
+)

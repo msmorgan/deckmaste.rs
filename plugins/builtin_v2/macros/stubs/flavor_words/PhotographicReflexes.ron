@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "PhotographicReflexes",
+    spelling: "Photographic Reflexes",
+    grammar: FixedTerm(surface: "Photographic Reflexes"),
+)

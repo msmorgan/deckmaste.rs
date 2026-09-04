@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "FullParty",
+    spelling: "Full Party",
+    grammar: FixedTerm(surface: "Full Party"),
+)

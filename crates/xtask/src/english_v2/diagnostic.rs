@@ -929,6 +929,7 @@ enum NonterminalKind {
     ModeMarker,
     BulletMarker,
     WeightedMarker,
+    FlavorWordModeMarker,
     AdditionalCostMark,
     ModalHead,
     DashHead,
@@ -1021,6 +1022,10 @@ enum NonterminalKind {
     LabelledAbility,
     BlockLabel,
     AbilityWordLabel,
+    FlavorWordLabel,
+    ChapterSecondaryLabel,
+    ChapterSecondaryAbilityWordLabel,
+    ChapterSecondaryFlavorWordLabel,
     ChapterLabel,
     BareCopularPredicate,
     PassiveMovementPredicate,
@@ -1608,6 +1613,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ModeMarker => NonterminalKind::ModeMarker,
         NonterminalCategory::BulletMarker => NonterminalKind::BulletMarker,
         NonterminalCategory::WeightedMarker => NonterminalKind::WeightedMarker,
+        NonterminalCategory::FlavorWordModeMarker => NonterminalKind::FlavorWordModeMarker,
         NonterminalCategory::AdditionalCostMark => NonterminalKind::AdditionalCostMark,
         NonterminalCategory::ModalHead => NonterminalKind::ModalHead,
         NonterminalCategory::DashHead => NonterminalKind::DashHead,
@@ -1728,6 +1734,14 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::LabelledAbility => NonterminalKind::LabelledAbility,
         NonterminalCategory::BlockLabel => NonterminalKind::BlockLabel,
         NonterminalCategory::AbilityWordLabel => NonterminalKind::AbilityWordLabel,
+        NonterminalCategory::FlavorWordLabel => NonterminalKind::FlavorWordLabel,
+        NonterminalCategory::ChapterSecondaryLabel => NonterminalKind::ChapterSecondaryLabel,
+        NonterminalCategory::ChapterSecondaryAbilityWordLabel => {
+            NonterminalKind::ChapterSecondaryAbilityWordLabel
+        }
+        NonterminalCategory::ChapterSecondaryFlavorWordLabel => {
+            NonterminalKind::ChapterSecondaryFlavorWordLabel
+        }
         NonterminalCategory::ChapterLabel => NonterminalKind::ChapterLabel,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
         NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,

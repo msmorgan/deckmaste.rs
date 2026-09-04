@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "SeismicTakedown",
+    spelling: "Seismic Takedown",
+    grammar: FixedTerm(surface: "Seismic Takedown"),
+)

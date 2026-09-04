@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "MegaFlare",
+    spelling: "Mega Flare",
+    grammar: FixedTerm(surface: "Mega Flare"),
+)

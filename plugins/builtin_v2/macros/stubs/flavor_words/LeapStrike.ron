@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "LeapStrike",
+    spelling: "Leap Strike",
+    grammar: FixedTerm(surface: "Leap Strike"),
+)

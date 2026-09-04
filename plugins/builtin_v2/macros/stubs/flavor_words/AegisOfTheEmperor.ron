@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "AegisOfTheEmperor",
+    spelling: "Aegis of the Emperor",
+    grammar: FixedTerm(surface: "Aegis of the Emperor"),
+)

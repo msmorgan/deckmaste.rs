@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "CommandSection",
+    spelling: "Command Section",
+    grammar: FixedTerm(surface: "Command Section"),
+)

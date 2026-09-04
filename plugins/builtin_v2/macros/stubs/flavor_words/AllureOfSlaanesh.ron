@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "AllureOfSlaanesh",
+    spelling: "Allure of Slaanesh",
+    grammar: FixedTerm(surface: "Allure of Slaanesh"),
+)

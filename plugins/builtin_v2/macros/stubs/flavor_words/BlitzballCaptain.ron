@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "BlitzballCaptain",
+    spelling: "Blitzball Captain",
+    grammar: FixedTerm(surface: "Blitzball Captain"),
+)

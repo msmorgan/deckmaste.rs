@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "PrismaticGallery",
+    spelling: "Prismatic Gallery",
+    grammar: FixedTerm(surface: "Prismatic Gallery"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "RitesOfBanishment",
+    spelling: "Rites of Banishment",
+    grammar: FixedTerm(surface: "Rites of Banishment"),
+)

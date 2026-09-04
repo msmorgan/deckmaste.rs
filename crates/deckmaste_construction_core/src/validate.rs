@@ -3106,13 +3106,13 @@ fn validate_declaration_term_source(
         let name = identifier_key(kind);
         if !matches!(
             name.as_str(),
-            "KeywordAbility" | "AbilityWord" | "CounterKind" | "Designation"
+            "KeywordAbility" | "AbilityWord" | "FlavorWord" | "CounterKind" | "Designation"
         ) {
             combine(
                 errors,
                 syn::Error::new(
                     kind.span(),
-                    "declaration_term kinds must be `KeywordAbility`, `AbilityWord`, `CounterKind`, or `Designation`",
+                    "declaration_term kinds must be `KeywordAbility`, `AbilityWord`, `FlavorWord`, `CounterKind`, or `Designation`",
                 ),
             );
             continue;
@@ -3131,7 +3131,10 @@ fn validate_declaration_term_source(
             let compatible = matches!(
                 (position.as_str(), name.as_str()),
                 ("FixedKeyword", "KeywordAbility")
-                    | ("FixedTerm", "AbilityWord" | "CounterKind" | "Designation")
+                    | (
+                        "FixedTerm",
+                        "AbilityWord" | "FlavorWord" | "CounterKind" | "Designation"
+                    )
             );
             if !compatible {
                 combine(
@@ -6621,6 +6624,7 @@ fn open_declaration_kind(kind: &syn::Ident) -> Option<crate::macro_def::Declarat
     match kind.to_string().as_str() {
         "KeywordAction" => Some(DeclarationKind::KeywordAction),
         "KeywordAbility" => Some(DeclarationKind::KeywordAbility),
+        "FlavorWord" => Some(DeclarationKind::FlavorWord),
         "Type" => Some(DeclarationKind::Type),
         "TurnPart" => Some(DeclarationKind::TurnPart),
         "CounterKind" => Some(DeclarationKind::CounterKind),

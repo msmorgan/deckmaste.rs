@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "HallOfSorrow",
+    spelling: "Hall of Sorrow",
+    grammar: FixedTerm(surface: "Hall of Sorrow"),
+)
