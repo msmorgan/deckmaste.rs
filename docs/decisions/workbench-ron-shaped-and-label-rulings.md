@@ -126,3 +126,75 @@ Facts rows are generated, so a keyword's parameter shapes and its `bodied` /
 - [Core is explicit regions](core-explicit-regions.md)
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md)
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md)
+
+## Rulings 2026-09-04 (cleanroom review 3)
+
+From the third cleanroom review of the `Experimental.*` workbench and the
+grill session on it. Twelve rulings; settled, and a round that wants to reopen
+one stops first.
+
+- **Reads are one `Pro` over a window.** `Window = Whole | Top n | Below n`
+  over a `Nat`, and `countReach r pl` across the window is the only anaphora
+  gate. `Phrase.Noun.Own` and `ItOtherThan` are deleted, and no
+  `bs = own ++ outer` proof survives anywhere. The offset is derived by the
+  macro, never written on a card; `Macros.agentRef` re-reads the agent through
+  the window instead of splitting on which reference it is.
+  Sweep: `workbench-windowed-pro`.
+- **Simultaneous moves publish the destination.** After
+  `Simultaneously [Move …]` the moved object is readable where it went, as it
+  is after `Sequentially`, so `Effect.instrProfile`'s `announced` row is the
+  post-move stack. One profile table and one plural-agent function replace the
+  two context tables and the four `does*Intro` case tables.
+  Sweep: `workbench-profile-table-drift`.
+- **Contradiction gates keep only rules-defined clashes** — token against
+  card, permanent against spell, status, and whatever else the CR makes
+  meaningless. `Phrase.predEq`, `noNegatedPair` and `noRepeatedPair` are
+  deleted, not completed. Sweep: `workbench-contradiction-gates`.
+- **Exchange is one core row.** `Exchange (what : Exchanged bs)`, with
+  `Exchanged` covering life totals, control, and the zone and card exchanges
+  of [CR#701.12d..701.12f]. `Effect.ExchangeLife` folds in and the macro of
+  two simultaneous control grants goes; atomicity is the rule's own — if the
+  entire exchange can't be completed, no part of it occurs [CR#701.12a].
+  Sweep: `workbench-exchange-row`.
+- **"Tapped for mana" is its own `EventName`** [CR#106.12a]. The
+  `forMana : Bool` axis on `Triggers.VerbedEvent` and the single-verb
+  `actForMana` column go with it. Sweep: `workbench-tapped-for-mana-event`.
+- **The `Card` law bundles are kept.** `MkCharacteristicsLaws`,
+  `MkLevelBandLaws`, `MkCardLine`, `MkSharedLineHalfLaws` and
+  `MkPrototypeAltLaws` stay as the one exception to "no proof-bundle witness
+  types"; every other such type is restated as an obligation on the
+  constructor that needs it. No sweep — record the exception in `VERIFY.md`
+  beside the `OptOk` note.
+- **`ForEachOf` publishes its group binding**, pluralised, after the loop,
+  together with the body delta; `ForEachKindOf` follows the same rule.
+  Sweep: `workbench-foreach-group-survives`.
+- **The zone possessor is derived, not a slot.** "Its owner's hand" and "your
+  hand" read the same zone because an object that would go to a library,
+  graveyard or hand other than its owner's goes to its owner's [CR#400.3].
+  Zones get no possessor slot and `BareScope` stays the spelling. No sweep.
+- **`Unless` is a macro, not a row.** It spells the deontic offer with a cost
+  (`May offer (Pay …) …`), and the `Effect.Unless` constructor goes.
+  Sweep: `workbench-unless-macro`.
+- **One `Delta` for every numeric change.** `Words.Delta = Up a | Down a |
+  Set a` is shared by all of them; `PtUp`, `PtDown`, `PtShift`, `CharOp`,
+  `Gets`, `LifeUp` and `LifeDown` fold away. A characteristic change is one
+  `StaticSpec` row `Modify (referent) (property) (delta)`, named for
+  [CR#613.4c]; "gets +1/+1 until end of turn" is `Continuously (Modify …)
+  span` and "+1/+1" is two `Modify`s combined by a macro; `Becomes` stays for
+  non-numeric characteristics. Life is not a continuous effect but one
+  `Instruction` row over the same `Delta`, with the engine classifying gain,
+  loss and no-op from the resulting total — macros never do arithmetic.
+  Counters, loyalty included, keep their own lane.
+  Sweep: `workbench-delta-modify`.
+- **Deed fit is permissive** wherever the described head type can be animated,
+  sharing the `StatOf` predicate: "target land can't attack" is admitted
+  [CR#508.1a], and so is a duration-less one-shot restriction. No pin refuses
+  on absence. Sweep: `workbench-too-tight-pins`.
+- **The standing constraints, restated.** RON-shaped (§1 above); positional
+  parameters only; one row per meaning; references as written on the card; no
+  case split on which reference a noun is; anaphora by counted uniqueness
+  only; no proof-bundle witness type whose constructors carry only implicit
+  proofs, the `Card` law bundles excepted; the workbench proves rules text and
+  never reminder text [CR#207.2a]; a count of printed cards never refuses a
+  rules-meaningful shape; every pin has a same-module positive twin; witnesses
+  are VINTAGE-legal cards.
