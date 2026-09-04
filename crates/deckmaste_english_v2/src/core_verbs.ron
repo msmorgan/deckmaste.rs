@@ -74,12 +74,14 @@
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Role("QuotedAbility")]),
         Predicate([Role("KeywordAbility")]),
+        Predicate([Role("AbilityExpression")]),
     ]),
     (identity: Get, bare: "get", third_person: "gets", frames: [
         Predicate([Role("PowerToughnessAdjustment")]),
     ]),
     (identity: Have, bare: "have", third_person: "has", frames: [
         Predicate([Role("QuotedAbility")]),
+        Predicate([Role("AbilityExpression")]),
         Predicate([ObjectNounPhrase, PredicativeComplement]),
         Predicate([Role("Object"), Role("VerbPhrase")]),
         Predicate([ObjectNounPhrase]),

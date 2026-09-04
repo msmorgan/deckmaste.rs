@@ -2020,6 +2020,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_)
         | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
@@ -2126,7 +2127,9 @@ fn lower_atom(
             lower_atom(validated, row, form, value, lowering)?;
             push_fixed_form_literal(lowering, suffix);
         }
-        AtomPlan::Literal(literal) | AtomPlan::SentenceInitialLiteral(literal) => {
+        AtomPlan::Literal(literal)
+        | AtomPlan::SentenceInitialLiteral(literal)
+        | AtomPlan::StructuralLiteral(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             lowering
                 .patterns

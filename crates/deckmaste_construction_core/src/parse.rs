@@ -903,6 +903,27 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                     "sentence_initial atoms cannot nest",
                 ));
             }
+            "structural" if allow_bound => {
+                let literal = content.parse::<LitStr>().map_err(|_| {
+                    content.error("structural form atoms require exactly one literal")
+                })?;
+                if literal.value().is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        literal,
+                        "structural target must realize at least one byte",
+                    ));
+                }
+                if !content.is_empty() {
+                    return Err(content.error("structural form atoms require exactly one literal"));
+                }
+                FormAtom::StructuralLiteral(literal)
+            }
+            "structural" => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    "structural atoms cannot nest",
+                ));
+            }
             "prefix" | "suffix" if allow_bound => {
                 let direction = if ident == "prefix" {
                     crate::model::BoundDirection::Prefix
@@ -3386,6 +3407,49 @@ mod tests {
             error,
             "sentence_initial target must realize at least one byte",
         );
+    }
+
+    #[test]
+    fn structural_form_surfaces_parse_as_nonempty_unnested_literals() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = structural(" ") "item";
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a structural form surface parses");
+
+        let crate::Declaration::Construction(item) = &declarations.declarations[0] else {
+            panic!("first declaration is the construction")
+        };
+        assert!(matches!(
+            item.forms[0].atoms.as_slice(),
+            [
+                crate::FormAtom::StructuralLiteral(_),
+                crate::FormAtom::Literal(_)
+            ]
+        ));
+
+        for malformed in [
+            quote::quote! { structural() },
+            quote::quote! { structural(value) },
+            quote::quote! { structural("") },
+            quote::quote! { structural(structural(" ")) },
+            quote::quote! { structural(" ", " ") },
+        ] {
+            let source = quote::quote! {
+                construction invalid: Root {
+                    element Invalid {}
+                    form invalid = #malformed;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            };
+            assert!(
+                crate::parse_declarations(source).is_err(),
+                "invalid structural form surface rejects: {malformed}",
+            );
+        }
     }
 
     #[test]

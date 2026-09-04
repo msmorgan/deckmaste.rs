@@ -388,6 +388,12 @@ fn generated_form_boundaries(plan: &SemanticPlan) -> Vec<String> {
                             )]
                             .into_iter()
                         }
+                        crate::semantic::AtomPlan::StructuralLiteral(surface) => vec![format!(
+                            "{}.{}[{atom_index}].structural={surface}",
+                            construction.construction_id(),
+                            form.name(),
+                        )]
+                        .into_iter(),
                         crate::semantic::AtomPlan::Literal(_)
                         | crate::semantic::AtomPlan::Category { .. }
                         | crate::semantic::AtomPlan::Lex { .. }
@@ -726,6 +732,29 @@ mod tests {
         assert_eq!(
             report.generated_form_boundaries(),
             ["item.item[1].sentence_initial=: "],
+        );
+        assert!(report.stored_form_boundary_fields().is_empty());
+    }
+
+    #[test]
+    fn structural_form_surface_is_reported_without_a_stored_ast_field() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction item: Root {
+                    element ItemValue {}
+                    form item = structural(" ") "item";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("structural report fixture parses"),
+        )
+        .expect("structural report fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("report seals");
+
+        assert_eq!(
+            report.generated_form_boundaries(),
+            ["item.item[0].structural= "],
         );
         assert!(report.stored_form_boundary_fields().is_empty());
     }

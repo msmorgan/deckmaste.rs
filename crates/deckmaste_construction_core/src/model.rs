@@ -292,6 +292,7 @@ pub enum FormAtom {
     /// changes neither parsing nor rendering.
     LicensedLiteral(LitStr),
     SentenceInitial(LitStr),
+    StructuralLiteral(LitStr),
     Role(Ident),
     Lex(Ident),
     /// A fixed vocabulary member written `Vocabulary::Member`. It carries no

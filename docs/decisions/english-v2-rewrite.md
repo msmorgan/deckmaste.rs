@@ -265,6 +265,12 @@ terminators are rejected. The English lexical boundary inventory admits the
 exact `:`, `]`, and `}` delimiters required by these form and circumfix
 surfaces, without treating arbitrary punctuation as a word boundary.
 
+The exact form annotation `structural(surface)` owns a nonempty, unnested
+literal through the same structural scanner and renderer path while applying
+`StructuralTransition::Preserve`. It exists for a constituent-owned boundary
+whose following lexical item must retain the current case position; it emits no
+AST field or form tag and names no English vocabulary item.
+
 Fixed surfaces carry one sealed case transition: `Preserve`,
 `SentenceInitial`, or `Continuation`; the states cannot be combined. The
 annotation `continuation(surface)` is the sequence-separator counterpart to

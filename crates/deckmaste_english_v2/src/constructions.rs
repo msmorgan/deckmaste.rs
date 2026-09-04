@@ -696,6 +696,14 @@ constructions! {
             feature = ConcordClass;
         }
     }
+    codec AbilityExpressionVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [AbilityExpression];
+            feature = ConcordClass;
+        }
+    }
     codec HaveKeywordAbilityVerb {
         generate declaration_verb {
             class = Predicate;
@@ -1101,6 +1109,7 @@ constructions! {
         Edge: EdgeOfPhrase,
         Keyword: GrantedKeywordLine,
         Quoted: QuotedAbility,
+        Ability: AbilityExpression,
         ScalarMeasure: ScalarMeasureValue,
         DegreeMeasure: DegreeMeasure,
         PowerToughness: PowerToughnessValue,
@@ -4509,6 +4518,14 @@ constructions! {
         derive concord_class = head.concord_class;
         form have_keyword_ability = verb(head) lex(ability);
     }
+    construction ability_expression_predicate: VerbPhrase {
+        element AbilityExpressionPredicate {
+            head: lex AbilityExpressionVerb,
+            abilities: AbilityExpression,
+        }
+        derive concord_class = head.concord_class;
+        form ability_expression_predicate = verb(head) abilities;
+    }
     construction quote_terminated_statement: AbilityBody {
         element QuoteTerminatedStatement {
             sentence: Sentence checked by rightmost_leaf_is::<QuotedBlock>(),
@@ -4612,6 +4629,10 @@ constructions! {
         Qualified: QualifiedKeywordLineItem,
         QualityCosted: QualityCostKeywordLineItem,
         Subject: SubjectKeywordLineItem,
+    }
+    abstract sum AbilityExpressionMember {
+        Keyword: KeywordLineItem,
+        Quoted: AbilityQuotedAbility,
     }
     abstract sum KeywordCost {
         Mana: KeywordManaCost,
@@ -4727,13 +4748,58 @@ constructions! {
         form subject_keyword_line_item = lex(keyword) subject;
     }
     construction granted_keyword_line: GrantedKeywordLine {
-        element GrantedKeywordLineValue {
-            items: seq KeywordLineItem separated by " and ",
-        }
-        require len(items) >= 1;
+        element GrantedKeywordLineValue { item: KeywordLineItem, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
-        form granted_keyword_line = items;
+        form granted_keyword_line = item;
+    }
+    construction ability_quoted_ability: AbilityQuotedAbility {
+        element AbilityQuotedAbilityValue { block: QuotedBlock, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form ability_quoted_ability = sentence_initial("\"") suffix(block, "\"");
+    }
+    construction and_ability_coordination: AbilityExpression {
+        element AndAbilityCoordination {
+            members: seq AbilityExpressionMember separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form and_ability_coordination = structural(" ") members;
+    }
+    construction or_ability_coordination: AbilityExpression {
+        element OrAbilityCoordination {
+            members: seq AbilityExpressionMember separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form or_ability_coordination = structural(" ") members;
+    }
+    construction and_or_ability_coordination: AbilityExpression {
+        element AndOrAbilityCoordination {
+            members: seq AbilityExpressionMember separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form and_or_ability_coordination = structural(" ") members;
     }
     construction reference_keyword_subject: KeywordSubject {
         element ReferenceKeywordSubject { subject: NounPhrase, }

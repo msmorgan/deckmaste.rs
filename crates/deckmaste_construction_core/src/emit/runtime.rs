@@ -605,7 +605,8 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
                     .filter_map(move |(atom_index, atom)| {
                         let surface = match atom {
                             AtomPlan::Literal(surface)
-                            | AtomPlan::SentenceInitialLiteral(surface) => surface,
+                            | AtomPlan::SentenceInitialLiteral(surface)
+                            | AtomPlan::StructuralLiteral(surface) => surface,
                             AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::LexFixed { .. }

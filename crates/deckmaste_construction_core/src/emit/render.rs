@@ -1893,6 +1893,7 @@ fn render_allocator(
             match atom {
                 AtomPlan::Literal(_)
                 | AtomPlan::SentenceInitialLiteral(_)
+                | AtomPlan::StructuralLiteral(_)
                 | AtomPlan::LexFixed { .. } => {}
                 AtomPlan::Category { role, .. } | AtomPlan::Marked { role, .. } => {
                     let field = fields
@@ -2822,6 +2823,15 @@ fn render_atom_statement(
                 );
             })
         }
+        AtomPlan::StructuralLiteral(value) => {
+            let literal = syn::LitStr::new(value, Span::call_site());
+            Ok(quote! {
+                #method_writer.structural_surface(
+                    #literal,
+                    StructuralTransition::Preserve,
+                );
+            })
+        }
         AtomPlan::LexFixed {
             terminal, variant, ..
         } => {
@@ -3304,6 +3314,7 @@ fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_)
         | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_) => None,
@@ -3341,7 +3352,9 @@ fn render_owner(
 ) -> syn::Result<TokenStream> {
     let atom = atom.value_atom();
     match atom {
-        AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => {
+        AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_) => {
             let stable_id = syn::LitStr::new(
                 &format!(
                     "form:{}/{}/{}",
@@ -4412,6 +4425,7 @@ fn implicit_verb_onset(
         }
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_)
         | AtomPlan::Category { .. }
         | AtomPlan::Lex { .. }
         | AtomPlan::LexFixed { .. }
@@ -6497,6 +6511,28 @@ mod tests {
             "transition : StructuralTransition :: SentenceInitial",
             "writer . structural_surface (\": \" , StructuralTransition :: SentenceInitial",
             "structural:Pair/values/separator/uniform/0",
+        ] {
+            assert!(source.contains(expected), "missing `{expected}`: {source}");
+        }
+    }
+
+    #[test]
+    fn authored_structural_form_surface_preserves_case_in_rules_and_rendering() {
+        let expansion = crate::generate(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = structural(" ") "item";
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a structural form surface generates");
+        let source = expansion.tokens().to_string();
+
+        for expected in [
+            "LexicalOwnerTemplate :: TransitionedStatic",
+            "transition : StructuralTransition :: Preserve",
+            "writer . structural_surface (\" \" , StructuralTransition :: Preserve",
+            "form:item/item/0",
         ] {
             assert!(source.contains(expected), "missing `{expected}`: {source}");
         }

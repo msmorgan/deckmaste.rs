@@ -113,6 +113,26 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAbility(name:"Equip",params:[Cost],spelling:"equip <Param(0)>",grammar:FixedKeyword(surface:"equip",participial_adjective:(surface:"equipped")))"#,
         ),
         (
+            "/synthetic/keyword_abilities/Enchant.ron",
+            r#"KeywordAbility(name:"Enchant",params:[Subject],spelling:"enchant",grammar:FixedKeyword(surface:"enchant",participial_adjective:(surface:"enchanted")))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Deathtouch.ron",
+            r#"KeywordAbility(name:"Deathtouch",spelling:"deathtouch",grammar:FixedKeyword(surface:"deathtouch"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Haste.ron",
+            r#"KeywordAbility(name:"Haste",spelling:"haste",grammar:FixedKeyword(surface:"haste"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Reach.ron",
+            r#"KeywordAbility(name:"Reach",spelling:"reach",grammar:FixedKeyword(surface:"reach"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Trample.ron",
+            r#"KeywordAbility(name:"Trample",spelling:"trample",grammar:FixedKeyword(surface:"trample"))"#,
+        ),
+        (
             "/synthetic/types/Creature.ron",
             r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         ),
@@ -961,6 +981,72 @@ fn quote_boundary_discharges_the_enclosing_sentence_terminator() {
             )
             .is_err(),
         "a trailing literal keeps an earlier quoted block from discharging the sentence terminator",
+    );
+}
+
+#[test]
+fn ability_expressions_use_the_general_coordination_algebra() {
+    let parser = parser();
+    let context = context();
+    let witnesses = [
+        (
+            r#"Create a 1/1 red Goblin creature token with trample, haste, and "This creature can't block.""#,
+            "AbilityExpressionAndAbilityCoordination",
+        ),
+        (
+            "Destroy target creature with deathtouch, hexproof, reach, or trample.",
+            "AbilityExpressionOrAbilityCoordination",
+        ),
+        (
+            "Destroy target creature with deathtouch and/or trample.",
+            "AbilityExpressionAndOrAbilityCoordination",
+        ),
+        (
+            r#"Enchanted creature has "This creature can't block." and "This creature can't attack.""#,
+            "AbilityExpressionAndAbilityCoordination",
+        ),
+    ];
+
+    for (text, expected_path_member) in witnesses {
+        let analysis = parser.analyze(text, &context);
+        assert_selected_with_specificity(&parser, &context, text, true);
+        let decision = analysis
+            .decision()
+            .expect("ability coordination witness has a selection decision");
+        let ordinal = decision
+            .selected()
+            .expect("ability coordination witness has a selected derivation");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("selected ordinal names an ability coordination derivation");
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|name| name == expected_path_member),
+            "{text:?}: {:#?}",
+            selected.construction_path(),
+        );
+        if text.starts_with("Enchanted creature has") {
+            assert!(
+                selected
+                    .construction_path()
+                    .iter()
+                    .any(|name| name == "VerbPhraseAbilityExpressionPredicate"),
+                "{text:?}: {:#?}",
+                selected.construction_path(),
+            );
+        }
+    }
+
+    assert_selected_with_specificity(&parser, &context, "If it has haste, draw a card.", true);
+
+    let uncoordinated = "Destroy target creature with deathtouch, trample.";
+    assert!(
+        parser.analyze(uncoordinated, &context).decision().is_none(),
+        "a comma alone does not coordinate granted abilities",
     );
 }
 

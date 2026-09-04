@@ -1571,9 +1571,9 @@ mod tests {
             (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 3),
             (CoreVerbIdentity::Enter, "enter", "enters", None, 5),
             (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
-            (CoreVerbIdentity::Gain, "gain", "gains", None, 4),
+            (CoreVerbIdentity::Gain, "gain", "gains", None, 5),
             (CoreVerbIdentity::Get, "get", "gets", None, 1),
-            (CoreVerbIdentity::Have, "have", "has", None, 5),
+            (CoreVerbIdentity::Have, "have", "has", None, 6),
             (CoreVerbIdentity::Leave, "leave", "leaves", None, 2),
             (CoreVerbIdentity::Look, "look", "looks", None, 1),
             (CoreVerbIdentity::Lose, "lose", "loses", None, 2),
@@ -1896,6 +1896,14 @@ mod tests {
         assert!(environment.verb_frame_licenses(
             &core(CoreVerbIdentity::Have),
             predicate(&[Role("KeywordAbility")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Have),
+            predicate(&[Role("AbilityExpression")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Gain),
+            predicate(&[Role("AbilityExpression")]),
         ));
         assert!(environment.verb_frame_licenses(
             &core(CoreVerbIdentity::Cost),

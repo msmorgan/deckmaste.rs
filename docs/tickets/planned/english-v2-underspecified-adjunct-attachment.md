@@ -78,3 +78,5 @@ from that ticket and deferred here.
   choose between them. The missing piece is the general
   bracketing-preference/attachment device this ticket pins, so the arm lands
   with it, not before it.
+
+2026-09-04: `english-v2-granted-ability-coordination` takes over the granted-line residue for this item only; the attachment residue above remains here.

@@ -618,9 +618,9 @@ pub(super) fn declaration_provenance(source: &str) -> anyhow::Result<Declaration
         for form in &construction.forms {
             for (atom_index, atom) in form.atoms.iter().enumerate() {
                 let surface = match atom {
-                    FormAtom::Literal(surface) | FormAtom::SentenceInitial(surface) => {
-                        surface.value()
-                    }
+                    FormAtom::Literal(surface)
+                    | FormAtom::SentenceInitial(surface)
+                    | FormAtom::StructuralLiteral(surface) => surface.value(),
                     FormAtom::LicensedLiteral(_)
                     | FormAtom::Role(_)
                     | FormAtom::Lex(_)

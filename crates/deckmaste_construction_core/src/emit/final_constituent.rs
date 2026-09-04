@@ -238,6 +238,7 @@ fn atom_expression(
             }
             AtomPlan::Literal(_)
             | AtomPlan::SentenceInitialLiteral(_)
+            | AtomPlan::StructuralLiteral(_)
             | AtomPlan::LexFixed { .. }
             | AtomPlan::VerbFixed { .. }
             | AtomPlan::OpenDeclaration(_) => quote! { false },

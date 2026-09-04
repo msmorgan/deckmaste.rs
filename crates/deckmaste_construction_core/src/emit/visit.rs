@@ -946,6 +946,7 @@ fn emit_construction_walker(
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
             AtomPlan::Literal(_)
             | AtomPlan::SentenceInitialLiteral(_)
+            | AtomPlan::StructuralLiteral(_)
             | AtomPlan::Category { .. }
             | AtomPlan::Noun { .. }
             | AtomPlan::OpenDeclaration(_) => None,
@@ -1165,7 +1166,9 @@ fn emit_construction_form_walker_calls(
             continue;
         }
         let call = match atom.value_atom() {
-            AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => None,
+            AtomPlan::Literal(_)
+            | AtomPlan::SentenceInitialLiteral(_)
+            | AtomPlan::StructuralLiteral(_) => None,
             AtomPlan::Category { role, category } => {
                 let field = fields
                     .get(role)
@@ -1300,6 +1303,7 @@ fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_)
         | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_) => None,

@@ -1858,6 +1858,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::StructuralLiteral(_)
         | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
@@ -1877,13 +1878,17 @@ fn value_name(value: &ValueKindPlan) -> &str {
     }
 }
 
-fn form_literal_owner(stable_id: &syn::LitStr, sentence_initial: bool) -> TokenStream {
-    if sentence_initial {
+fn form_literal_owner(
+    stable_id: &syn::LitStr,
+    transition: Option<StructuralTransitionPlan>,
+) -> TokenStream {
+    if let Some(transition) = transition {
+        let transition = emit_structural_transition(transition);
         quote! {
             LexicalOwnerTemplate::TransitionedStatic {
                 kind: LexicalProvenanceKind::FormLiteral,
                 stable_id: #stable_id,
-                transition: StructuralTransition::SentenceInitial,
+                transition: #transition,
             }
         }
     } else {
@@ -1893,6 +1898,15 @@ fn form_literal_owner(stable_id: &syn::LitStr, sentence_initial: bool) -> TokenS
                 stable_id: #stable_id,
             }
         }
+    }
+}
+
+fn form_literal_transition(atom: &AtomPlan) -> Option<StructuralTransitionPlan> {
+    match atom {
+        AtomPlan::Literal(_) => None,
+        AtomPlan::SentenceInitialLiteral(_) => Some(StructuralTransitionPlan::SentenceInitial),
+        AtomPlan::StructuralLiteral(_) => Some(StructuralTransitionPlan::Preserve),
+        _ => unreachable!("form literal branch contains only form literals"),
     }
 }
 
@@ -1987,7 +2001,9 @@ fn emit_position(
         }
     }
     match atom {
-        AtomPlan::Literal(literal) | AtomPlan::SentenceInitialLiteral(literal) => {
+        AtomPlan::Literal(literal)
+        | AtomPlan::SentenceInitialLiteral(literal)
+        | AtomPlan::StructuralLiteral(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             let stable_id = syn::LitStr::new(
                 &format!(
@@ -1998,10 +2014,7 @@ fn emit_position(
                 ),
                 Span::call_site(),
             );
-            let owner = form_literal_owner(
-                &stable_id,
-                matches!(atom, AtomPlan::SentenceInitialLiteral(_)),
-            );
+            let owner = form_literal_owner(&stable_id, form_literal_transition(atom));
             Ok(lexical_terminal_with_boundary(
                 &quote! { Lexical::Literal(#literal) },
                 &owner,

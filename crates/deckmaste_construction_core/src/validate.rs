@@ -455,6 +455,7 @@ pub(crate) fn validate_declaration_verb_consumers(semantic: &SemanticPlan) -> sy
             | crate::semantic::AtomPlan::Marked { terminal, .. } => Some(terminal.as_str()),
             crate::semantic::AtomPlan::Literal(_)
             | crate::semantic::AtomPlan::SentenceInitialLiteral(_)
+            | crate::semantic::AtomPlan::StructuralLiteral(_)
             | crate::semantic::AtomPlan::Category { .. }
             | crate::semantic::AtomPlan::LexFixed { .. }
             | crate::semantic::AtomPlan::Identity { .. }
@@ -1185,7 +1186,8 @@ fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKin
     match atom {
         FormAtom::Literal(value)
         | FormAtom::LicensedLiteral(value)
-        | FormAtom::SentenceInitial(value) => !value.value().is_empty(),
+        | FormAtom::SentenceInitial(value)
+        | FormAtom::StructuralLiteral(value) => !value.value().is_empty(),
         FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
             fields.get(&identifier_key(role)).is_some_and(|kind| {
                 !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
@@ -6241,6 +6243,7 @@ fn validate_bound_form_atom<'a>(
         FormAtom::Literal(_)
         | FormAtom::LicensedLiteral(_)
         | FormAtom::SentenceInitial(_)
+        | FormAtom::StructuralLiteral(_)
         | FormAtom::FixedLex(_)
         | FormAtom::Verb(VerbOperand::Fixed(_))
         | FormAtom::OpenVerb(_)
@@ -6491,7 +6494,8 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
                     FormAtom::Literal(_)
                     | FormAtom::LicensedLiteral(_)
-                    | FormAtom::SentenceInitial(_) => {}
+                    | FormAtom::SentenceInitial(_)
+                    | FormAtom::StructuralLiteral(_) => {}
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                     FormAtom::Circumfix(_) => {
                         unreachable!("circumfix atoms were validated before ordinary atoms")
@@ -6661,7 +6665,8 @@ fn validate_feature_guarded_traversal_programs(
                 match atom {
                     FormAtom::Literal(_)
                     | FormAtom::LicensedLiteral(_)
-                    | FormAtom::SentenceInitial(_) => None,
+                    | FormAtom::SentenceInitial(_)
+                    | FormAtom::StructuralLiteral(_) => None,
                     FormAtom::FixedLex(path) => Some(format!("lex-fixed:{}", path_name(path))),
                     FormAtom::Marked(marked) => Some(format!(
                         "marked:{}:{}",
@@ -6938,7 +6943,8 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             let resolved = match atom {
                 FormAtom::Literal(_)
                 | FormAtom::LicensedLiteral(_)
-                | FormAtom::SentenceInitial(_) => Some(AtomContribution::Literal),
+                | FormAtom::SentenceInitial(_)
+                | FormAtom::StructuralLiteral(_) => Some(AtomContribution::Literal),
                 FormAtom::Role(role) => fields
                     .get(&identifier_key(role))
                     .map(|kind| field_kind_leaf(kind))
@@ -7540,7 +7546,8 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     | FormAtom::OpenVerb(_)
                     | FormAtom::Literal(_)
                     | FormAtom::LicensedLiteral(_)
-                    | FormAtom::SentenceInitial(_) => None,
+                    | FormAtom::SentenceInitial(_)
+                    | FormAtom::StructuralLiteral(_) => None,
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                     FormAtom::Circumfix(circumfix) => Some(&circumfix.role),
                 };
@@ -9404,6 +9411,7 @@ fn seal_feature_resolutions(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::StructuralLiteral(_)
                         | FormAtom::FixedLex(_)
                         | FormAtom::Marked(_)
                         | FormAtom::Role(_)
@@ -9513,6 +9521,7 @@ fn seal_category_render_capabilities(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::StructuralLiteral(_)
                         | FormAtom::FixedLex(_)
                         | FormAtom::Marked(_)
                         | FormAtom::Role(_)
@@ -9713,6 +9722,7 @@ fn seal_category_render_capabilities(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::StructuralLiteral(_)
                         | FormAtom::FixedLex(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Verb(_)

@@ -1090,6 +1090,9 @@ enum NonterminalKind {
     CountComparison,
     ScalarMeasureAssignedValue,
     ScalarMeasureValue,
+    AbilityExpression,
+    AbilityExpressionMember,
+    AbilityQuotedAbility,
     GrantedKeywordLine,
     DegreeMeasure,
     PostmodifiedReference,
@@ -1823,6 +1826,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::ScalarMeasureAssignedValue
         }
         NonterminalCategory::ScalarMeasureValue => NonterminalKind::ScalarMeasureValue,
+        NonterminalCategory::AbilityExpression => NonterminalKind::AbilityExpression,
+        NonterminalCategory::AbilityExpressionMember => NonterminalKind::AbilityExpressionMember,
+        NonterminalCategory::AbilityQuotedAbility => NonterminalKind::AbilityQuotedAbility,
         NonterminalCategory::GrantedKeywordLine => NonterminalKind::GrantedKeywordLine,
         NonterminalCategory::DegreeMeasure => NonterminalKind::DegreeMeasure,
         NonterminalCategory::PostmodifiedReference => NonterminalKind::PostmodifiedReference,

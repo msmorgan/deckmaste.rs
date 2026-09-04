@@ -654,6 +654,7 @@ pub(crate) enum PredicateMemberPlan {
 pub(crate) enum AtomPlan {
     Literal(String),
     SentenceInitialLiteral(String),
+    StructuralLiteral(String),
     Category {
         role: String,
         category: String,
@@ -3738,7 +3739,9 @@ fn form_atom_is_nullable(
     nullable_types: &HashSet<String>,
 ) -> bool {
     match atom {
-        AtomPlan::Literal(value) | AtomPlan::SentenceInitialLiteral(value) => value.is_empty(),
+        AtomPlan::Literal(value)
+        | AtomPlan::SentenceInitialLiteral(value)
+        | AtomPlan::StructuralLiteral(value) => value.is_empty(),
         AtomPlan::Category { role, category } => fields
             .iter()
             .find(|field| field.name_key() == *role)
@@ -4731,6 +4734,9 @@ impl AtomPlan {
             (FormAtom::SentenceInitial(literal), AtomContribution::Literal) => {
                 Ok(Self::SentenceInitialLiteral(literal.value()))
             }
+            (FormAtom::StructuralLiteral(literal), AtomContribution::Literal) => {
+                Ok(Self::StructuralLiteral(literal.value()))
+            }
             (FormAtom::Role(authored), AtomContribution::Category { role, category }) => {
                 ensure_atom_name(authored, role, "category atom role name")?;
                 Ok(Self::Category {
@@ -4870,6 +4876,7 @@ impl AtomPlan {
         match self {
             Self::Literal(_) => "literal".to_owned(),
             Self::SentenceInitialLiteral(_) => "sentence_initial(literal)".to_owned(),
+            Self::StructuralLiteral(_) => "structural(literal)".to_owned(),
             Self::Category { role, category } => format!("category({role}: {category})"),
             Self::Lex { role, .. } => format!("lex({role})"),
             Self::LexFixed {
@@ -4947,7 +4954,8 @@ fn form_atom_span(atom: &FormAtom) -> Span {
     match atom {
         FormAtom::Literal(literal)
         | FormAtom::LicensedLiteral(literal)
-        | FormAtom::SentenceInitial(literal) => literal.span(),
+        | FormAtom::SentenceInitial(literal)
+        | FormAtom::StructuralLiteral(literal) => literal.span(),
         FormAtom::Role(role)
         | FormAtom::Lex(role)
         | FormAtom::Identity(role)
@@ -5051,6 +5059,7 @@ fn number_carry_categories(
                     } if found == &identifier_key(role) => Some(category.clone()),
                     AtomPlan::Literal(_)
                     | AtomPlan::SentenceInitialLiteral(_)
+                    | AtomPlan::StructuralLiteral(_)
                     | AtomPlan::Category { .. }
                     | AtomPlan::Lex { .. }
                     | AtomPlan::LexFixed { .. }
@@ -5224,6 +5233,7 @@ fn validate_onset_provider_capabilities(
                             }
                             AtomPlan::Literal(_)
                             | AtomPlan::SentenceInitialLiteral(_)
+                            | AtomPlan::StructuralLiteral(_)
                             | AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::LexFixed { .. }
