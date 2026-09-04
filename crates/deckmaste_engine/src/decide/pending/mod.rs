@@ -1,11 +1,11 @@
-//! Per-variant payload structs for [`crate::decide::PendingDecision`] — one
+//! Per-variant payload structs for [`crate::decide::DecisionPointKind`] — one
 //! newtype struct per enum variant, grouped by decision family. The enum
 //! definition and its inherent methods live in the parent `decide` module;
 //! this dir-module only holds the field shapes.
 //!
 //! Re-exported `pub` (not `pub(crate)`): `crate::decide::pending` is itself
 //! only crate-visible, but `lib.rs` re-exports every struct at the crate
-//! root (alongside `PendingDecision`) for external (integration-test)
+//! root (alongside `DecisionPointKind`) for external (integration-test)
 //! construction/matching — that promotion requires the item itself be `pub`
 //! here, not merely `pub(crate)`.
 

@@ -1,6 +1,6 @@
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::stack::PendingStackEntry;
-use crate::state::ChoiceContinuation;
+use crate::state::DecisionContinuation;
 use crate::state::GameImage;
 use crate::state::ReplaceState;
 use crate::trigger::PendingTrigger;
@@ -12,8 +12,8 @@ use crate::trigger::PendingTrigger;
 #[derive(Debug, Clone)]
 pub struct ControlSnapshot {
     pub announcing: Option<PendingStackEntry>,
-    pub pending: Option<PendingDecision>,
-    pub choice: Option<ChoiceContinuation>,
+    pub pending: Option<DecisionPointKind>,
+    pub choice: Option<DecisionContinuation>,
     pub placing_trigger: Option<PendingTrigger>,
     pub replace_state: Option<ReplaceState>,
 }

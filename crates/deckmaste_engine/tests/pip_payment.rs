@@ -13,6 +13,7 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::IouKind;
@@ -23,7 +24,6 @@ use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentStage;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -102,18 +102,17 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -159,7 +158,7 @@ fn cast_is_offered(state: &mut GameState, spell: ObjectId) -> bool {
 /// payment; fulfillment remains explicit in `Paying`.
 fn begin_payment_with_one_pip_alternative(state: &mut GameState, object: ObjectId) {
     let (_, stop) = step_to_stop(state);
-    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) = stop else {
         panic!("expected the payment protocol after announcement, got {stop:?}");
     };
     assert_eq!(prompt.stage, PaymentStage::PrePayment);
@@ -278,15 +277,15 @@ fn convoke_taps_a_creature_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }
@@ -382,15 +381,15 @@ fn delve_exiles_a_graveyard_card_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }
@@ -580,15 +579,15 @@ fn improvise_taps_an_artifact_to_pay_a_pip_without_changing_mana_value() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&spell) {
                     break;
                 }

@@ -424,7 +424,7 @@ impl DecisionHandler for ChooseModes {
         picks.sort_unstable();
         if matches!(
             g.choice,
-            Some(crate::state::ChoiceContinuation::AnnounceModes)
+            Some(crate::state::DecisionContinuation::AnnounceModes)
         ) && !g.announced_mode_selection_is_legal(&picks)
         {
             return Err(DecisionError::Illegal {
@@ -437,14 +437,14 @@ impl DecisionHandler for ChooseModes {
             .take()
             .expect("a ChooseModes decision stashed its continuation");
         match continuation {
-            crate::state::ChoiceContinuation::AnnounceModes => {
+            crate::state::DecisionContinuation::AnnounceModes => {
                 g.announcing
                     .as_mut()
                     .expect("an announce is in flight across ChooseModes")
                     .chosen_modes = picks.clone().into();
                 g.route_root_modal_mana_mode(&picks);
             }
-            crate::state::ChoiceContinuation::Modal { modes, frame } => {
+            crate::state::DecisionContinuation::Modal { modes, frame } => {
                 // A resolution-time modal instruction applies the chosen
                 // modes' effects in printed order. [CR#608.2c,700.2d]
                 let items = picks

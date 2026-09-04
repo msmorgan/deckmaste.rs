@@ -85,7 +85,7 @@ pub enum SpecialAction {
 /// `Progress::NeedsDecision` stays the kind-only notification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecisionPoint {
-    pub pending: PendingDecision,
+    pub pending: DecisionPointKind,
     pub decider: DeciderSpec,
     pub lock: LockPoint,
     pub visibility: Visibility,
@@ -101,16 +101,16 @@ impl DecisionPoint {
     }
 }
 
-impl PendingDecision {
+impl DecisionPointKind {
     /// The choices.md §2 schema row: nominal decider. Refinements
     /// (delegation, APNAP per-combatant) arrive with the kinds' behavior.
     #[must_use]
     pub fn decider_spec(&self) -> DeciderSpec {
         match self {
-            PendingDecision::Priority(_) => DeciderSpec::PriorityHolder,
-            PendingDecision::DeclareAttackers(_) => DeciderSpec::ActivePlayer,
-            PendingDecision::DeclareBlockers(_) => DeciderSpec::DefendingPlayer,
-            PendingDecision::Vote(_) => DeciderSpec::EachInTurnOrder,
+            DecisionPointKind::Priority(_) => DeciderSpec::PriorityHolder,
+            DecisionPointKind::DeclareAttackers(_) => DeciderSpec::ActivePlayer,
+            DecisionPointKind::DeclareBlockers(_) => DeciderSpec::DefendingPlayer,
+            DecisionPointKind::Vote(_) => DeciderSpec::EachInTurnOrder,
             _ => DeciderSpec::Controller,
         }
     }
@@ -120,35 +120,35 @@ impl PendingDecision {
     #[must_use]
     pub fn decider_player(&self) -> PlayerId {
         match self {
-            PendingDecision::Priority(h) => h.player,
-            PendingDecision::DiscardToHandSize(h) => h.player,
-            PendingDecision::DiscardCards(h) => h.player,
-            PendingDecision::CallFlip(h) => h.player,
-            PendingDecision::ChooseManaColor(h) => h.player,
-            PendingDecision::ChooseManaMode(h) => h.player,
-            PendingDecision::ChooseTargets(h) => h.player,
-            PendingDecision::Retarget(h) => h.player,
-            PendingDecision::PayMana(h) => h.player,
-            PendingDecision::Payment(h) => h.payer,
-            PendingDecision::ChooseManaReversals(h) => h.player,
-            PendingDecision::OrderTriggers(h) => h.player,
-            PendingDecision::DeclareAttackers(h) => h.player,
-            PendingDecision::DeclareBlockers(h) => h.player,
-            PendingDecision::AssignCombatDamage(h) => h.player,
-            PendingDecision::ChooseModes(h) => h.player,
-            PendingDecision::Division(h) => h.player,
-            PendingDecision::Vote(h) => h.player,
-            PendingDecision::YesNo(h) => h.player,
-            PendingDecision::OrderReplacements(h) => h.player,
-            PendingDecision::ChooseCostOptions(h) => h.player,
-            PendingDecision::ChooseXValue(h) => h.player,
-            PendingDecision::ChooseNoteNumber(h) => h.player,
-            PendingDecision::ChooseNoteCardName(h) => h.player,
-            PendingDecision::ChooseObjects(h) => h.player,
-            PendingDecision::PreGame(h) => h.player,
-            PendingDecision::LegendRule(h) => h.player,
-            PendingDecision::ArrangePile(h) => h.player,
-            PendingDecision::ChooseReplacement(h) => h.chooser,
+            DecisionPointKind::Priority(h) => h.player,
+            DecisionPointKind::DiscardToHandSize(h) => h.player,
+            DecisionPointKind::DiscardCards(h) => h.player,
+            DecisionPointKind::CallFlip(h) => h.player,
+            DecisionPointKind::ChooseManaColor(h) => h.player,
+            DecisionPointKind::ChooseManaMode(h) => h.player,
+            DecisionPointKind::ChooseTargets(h) => h.player,
+            DecisionPointKind::Retarget(h) => h.player,
+            DecisionPointKind::PayMana(h) => h.player,
+            DecisionPointKind::Payment(h) => h.payer,
+            DecisionPointKind::ChooseManaReversals(h) => h.player,
+            DecisionPointKind::OrderTriggers(h) => h.player,
+            DecisionPointKind::DeclareAttackers(h) => h.player,
+            DecisionPointKind::DeclareBlockers(h) => h.player,
+            DecisionPointKind::AssignCombatDamage(h) => h.player,
+            DecisionPointKind::ChooseModes(h) => h.player,
+            DecisionPointKind::Division(h) => h.player,
+            DecisionPointKind::Vote(h) => h.player,
+            DecisionPointKind::YesNo(h) => h.player,
+            DecisionPointKind::OrderReplacements(h) => h.player,
+            DecisionPointKind::ChooseCostOptions(h) => h.player,
+            DecisionPointKind::ChooseXValue(h) => h.player,
+            DecisionPointKind::ChooseNoteNumber(h) => h.player,
+            DecisionPointKind::ChooseNoteCardName(h) => h.player,
+            DecisionPointKind::ChooseObjects(h) => h.player,
+            DecisionPointKind::PreGame(h) => h.player,
+            DecisionPointKind::LegendRule(h) => h.player,
+            DecisionPointKind::ArrangePile(h) => h.player,
+            DecisionPointKind::ChooseReplacement(h) => h.chooser,
         }
     }
 
@@ -156,19 +156,19 @@ impl PendingDecision {
     #[must_use]
     pub fn lock(&self) -> LockPoint {
         match self {
-            PendingDecision::ChooseTargets(_)
-            | PendingDecision::ChooseModes(_)
-            | PendingDecision::ChooseCostOptions(_)
-            | PendingDecision::ChooseXValue(_)
-            | PendingDecision::Division(_) => LockPoint::Announce,
-            PendingDecision::PayMana(_)
-            | PendingDecision::Payment(_)
-            | PendingDecision::ChooseManaReversals(_) => LockPoint::Payment,
-            PendingDecision::OrderTriggers(_) => LockPoint::StackPlacement,
-            PendingDecision::DeclareAttackers(_)
-            | PendingDecision::DeclareBlockers(_)
-            | PendingDecision::AssignCombatDamage(_) => LockPoint::Declaration,
-            PendingDecision::PreGame(_) => LockPoint::PreGame,
+            DecisionPointKind::ChooseTargets(_)
+            | DecisionPointKind::ChooseModes(_)
+            | DecisionPointKind::ChooseCostOptions(_)
+            | DecisionPointKind::ChooseXValue(_)
+            | DecisionPointKind::Division(_) => LockPoint::Announce,
+            DecisionPointKind::PayMana(_)
+            | DecisionPointKind::Payment(_)
+            | DecisionPointKind::ChooseManaReversals(_) => LockPoint::Payment,
+            DecisionPointKind::OrderTriggers(_) => LockPoint::StackPlacement,
+            DecisionPointKind::DeclareAttackers(_)
+            | DecisionPointKind::DeclareBlockers(_)
+            | DecisionPointKind::AssignCombatDamage(_) => LockPoint::Declaration,
+            DecisionPointKind::PreGame(_) => LockPoint::PreGame,
             // Priority actions and resolution-stage choices bind as applied.
             _ => LockPoint::Resolution,
         }
@@ -179,7 +179,7 @@ impl PendingDecision {
     #[must_use]
     pub fn visibility(&self) -> Visibility {
         match self {
-            PendingDecision::PreGame(PreGame {
+            DecisionPointKind::PreGame(PreGame {
                 kind: PreGameKind::Mulligan,
                 ..
             }) => Visibility::CommittedHidden,
@@ -191,7 +191,7 @@ impl PendingDecision {
 /// What the engine is waiting on. `step()` returns `NeedsDecision` (without
 /// mutating) until `submit_decision` answers it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PendingDecision {
+pub enum DecisionPointKind {
     Priority(Priority),
     DiscardToHandSize(DiscardToHandSize),
     DiscardCards(DiscardCards),
@@ -225,7 +225,7 @@ pub enum PendingDecision {
 
 /// One pending-decision kind's answer-validate-and-apply behavior, dispatched
 /// by `submit_decision`'s routing match — the whole dispatch, one arm per
-/// `PendingDecision` variant. Each newtype payload struct under `pending/`
+/// `DecisionPointKind` variant. Each newtype payload struct under `pending/`
 /// implements exactly this one method.
 pub(crate) trait DecisionHandler {
     /// Validate `answer` against this pending decision and apply it. On success
@@ -553,47 +553,48 @@ impl GameState {
         // Clone the complete image BEFORE a legal spell/non-mana-ability
         // proposal mutates it. The priority handler then runs unchanged
         // through `DerefMut`, against the isolated working image.
-        if let (PendingDecision::Priority(priority), Decision::Act(action)) = (&pending, &decision)
+        if let (DecisionPointKind::Priority(priority), Decision::Act(action)) =
+            (&pending, &decision)
             && priority.legal.contains(action)
             && self.action_starts_payment_proposal(action)
         {
             self.begin_payment_proposal(priority.player);
         }
-        // The whole dispatch: one arm per `PendingDecision` variant, each
+        // The whole dispatch: one arm per `DecisionPointKind` variant, each
         // routing to that kind's `DecisionHandler::resolve`. `.clone()` is
         // needed because `self.pending` can't be moved out of while `self`
         // is passed to `h.resolve` mutably.
         let recorded = decision.clone();
         let result = match pending {
-            PendingDecision::Priority(h) => h.resolve(self, decision),
-            PendingDecision::DiscardToHandSize(h) => h.resolve(self, decision),
-            PendingDecision::DiscardCards(h) => h.resolve(self, decision),
-            PendingDecision::CallFlip(h) => h.resolve(self, decision),
-            PendingDecision::ChooseManaColor(h) => h.resolve(self, decision),
-            PendingDecision::ChooseManaMode(h) => h.resolve(self, decision),
-            PendingDecision::ChooseTargets(h) => h.resolve(self, decision),
-            PendingDecision::Retarget(h) => h.resolve(self, decision),
-            PendingDecision::PayMana(h) => h.resolve(self, decision),
-            PendingDecision::Payment(h) => h.resolve(self, decision),
-            PendingDecision::ChooseManaReversals(h) => h.resolve(self, decision),
-            PendingDecision::OrderTriggers(h) => h.resolve(self, decision),
-            PendingDecision::DeclareAttackers(h) => h.resolve(self, decision),
-            PendingDecision::DeclareBlockers(h) => h.resolve(self, decision),
-            PendingDecision::AssignCombatDamage(h) => h.resolve(self, decision),
-            PendingDecision::ChooseModes(h) => h.resolve(self, decision),
-            PendingDecision::Division(h) => h.resolve(self, decision),
-            PendingDecision::Vote(h) => h.resolve(self, decision),
-            PendingDecision::YesNo(h) => h.resolve(self, decision),
-            PendingDecision::ChooseCostOptions(h) => h.resolve(self, decision),
-            PendingDecision::ChooseXValue(h) => h.resolve(self, decision),
-            PendingDecision::ChooseNoteNumber(h) => h.resolve(self, decision),
-            PendingDecision::ChooseNoteCardName(h) => h.resolve(self, decision),
-            PendingDecision::OrderReplacements(h) => h.resolve(self, decision),
-            PendingDecision::ChooseReplacement(h) => h.resolve(self, decision),
-            PendingDecision::PreGame(h) => h.resolve(self, decision),
-            PendingDecision::ChooseObjects(h) => h.resolve(self, decision),
-            PendingDecision::LegendRule(h) => h.resolve(self, decision),
-            PendingDecision::ArrangePile(h) => h.resolve(self, decision),
+            DecisionPointKind::Priority(h) => h.resolve(self, decision),
+            DecisionPointKind::DiscardToHandSize(h) => h.resolve(self, decision),
+            DecisionPointKind::DiscardCards(h) => h.resolve(self, decision),
+            DecisionPointKind::CallFlip(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseManaColor(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseManaMode(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseTargets(h) => h.resolve(self, decision),
+            DecisionPointKind::Retarget(h) => h.resolve(self, decision),
+            DecisionPointKind::PayMana(h) => h.resolve(self, decision),
+            DecisionPointKind::Payment(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseManaReversals(h) => h.resolve(self, decision),
+            DecisionPointKind::OrderTriggers(h) => h.resolve(self, decision),
+            DecisionPointKind::DeclareAttackers(h) => h.resolve(self, decision),
+            DecisionPointKind::DeclareBlockers(h) => h.resolve(self, decision),
+            DecisionPointKind::AssignCombatDamage(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseModes(h) => h.resolve(self, decision),
+            DecisionPointKind::Division(h) => h.resolve(self, decision),
+            DecisionPointKind::Vote(h) => h.resolve(self, decision),
+            DecisionPointKind::YesNo(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseCostOptions(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseXValue(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseNoteNumber(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseNoteCardName(h) => h.resolve(self, decision),
+            DecisionPointKind::OrderReplacements(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseReplacement(h) => h.resolve(self, decision),
+            DecisionPointKind::PreGame(h) => h.resolve(self, decision),
+            DecisionPointKind::ChooseObjects(h) => h.resolve(self, decision),
+            DecisionPointKind::LegendRule(h) => h.resolve(self, decision),
+            DecisionPointKind::ArrangePile(h) => h.resolve(self, decision),
         };
         if result.is_ok() {
             self.record_payment_decision(&recorded);
@@ -1229,7 +1230,7 @@ mod tests {
         // action that is NOT in it.
         let mut state = game();
         let player = PlayerId(0);
-        state.pending = Some(PendingDecision::Priority(Priority {
+        state.pending = Some(DecisionPointKind::Priority(Priority {
             player,
             legal: vec![Action::Pass],
         }));

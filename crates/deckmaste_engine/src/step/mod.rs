@@ -18,7 +18,7 @@ use crate::agenda::FinalizeMark;
 use crate::agenda::FinalizeWatch;
 use crate::agenda::MagnitudeSource;
 use crate::agenda::WorkItem;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::event::Act;
 use crate::event::Attached;
 use crate::event::CoinFlipped;
@@ -77,7 +77,7 @@ pub enum StepOutcome {
     /// One unit of work happened.
     Progress(Progress),
     /// No mutation; `submit_decision` to proceed.
-    NeedsDecision(PendingDecision),
+    NeedsDecision(DecisionPointKind),
     GameOver(GameOutcome),
 }
 
@@ -348,17 +348,19 @@ impl GameState {
                 // [CR#118.12a]: surface the toll's mana demand; the `PayMana`
                 // answer validates coverage and drains the pool, then the
                 // agenda continues (payment is continuation-free).
-                self.pending = Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
-                    player,
-                    cost,
-                    pool: self.player(player).mana_pool.clone(),
-                    subject,
-                }));
+                self.pending = Some(DecisionPointKind::PayMana(
+                    crate::decide::pending::PayMana {
+                        player,
+                        cost,
+                        pool: self.player(player).mana_pool.clone(),
+                        subject,
+                    },
+                ));
                 Progress::CostPaid
             }
             WorkItem::ChooseNoteNumber { player, key } => self.open_choose_note_number(player, key),
             WorkItem::ChooseNoteCardName { player, key } => {
-                self.pending = Some(PendingDecision::ChooseNoteCardName(
+                self.pending = Some(DecisionPointKind::ChooseNoteCardName(
                     crate::decide::pending::ChooseNoteCardName { player, key },
                 ));
                 Progress::NoteChoiceOpened
@@ -1633,7 +1635,7 @@ impl GameState {
         // submission re-checks, so remaining groups and the mechanical sweep
         // follow.
         if let Some((player, candidates)) = sba::legend_rule_groups(self).into_iter().next() {
-            self.pending = Some(PendingDecision::LegendRule(
+            self.pending = Some(DecisionPointKind::LegendRule(
                 crate::decide::pending::LegendRule { player, candidates },
             ));
             return Progress::SbasChecked { actions: 0 };
@@ -1698,7 +1700,7 @@ impl GameState {
             None => 0,
         };
         if discarding > 0 {
-            self.pending = Some(PendingDecision::DiscardToHandSize(
+            self.pending = Some(DecisionPointKind::DiscardToHandSize(
                 crate::decide::pending::DiscardToHandSize {
                     player: active,
                     count: discarding,
@@ -1750,7 +1752,7 @@ impl GameState {
     /// scope, groups its landings into piles by (library, end), and for each
     /// pile of more than one card surfaces one arrange decision (the arranger
     /// orders it) — walked one pile at a time via
-    /// [`ChoiceContinuation::ArrangePiles`]. Piles of ≤1 card need no order and
+    /// [`DecisionContinuation::ArrangePiles`]. Piles of ≤1 card need no order and
     /// surface nothing (the reposition already placed them).
     fn arrange_piles(&mut self) -> Progress {
         let Some(scope) = self.arrange_scope.take() else {
@@ -1833,7 +1835,7 @@ impl GameState {
 
     /// Surface the next pending pile's arrange decision (or nothing when the
     /// walk is done), stashing the walk state in
-    /// [`ChoiceContinuation::ArrangePiles`]. `arranger` is the ordering player.
+    /// [`DecisionContinuation::ArrangePiles`]. `arranger` is the ordering player.
     pub(crate) fn open_next_arrange(
         &mut self,
         arranger: PlayerId,
@@ -1843,13 +1845,13 @@ impl GameState {
             return;
         }
         let current = piles.remove(0);
-        self.pending = Some(PendingDecision::ArrangePile(
+        self.pending = Some(DecisionPointKind::ArrangePile(
             crate::decide::pending::ArrangePile {
                 player: arranger,
                 objects: current.objects.clone(),
             },
         ));
-        self.choice = Some(crate::state::ChoiceContinuation::ArrangePiles {
+        self.choice = Some(crate::state::DecisionContinuation::ArrangePiles {
             current,
             remaining: piles,
         });
@@ -1922,7 +1924,7 @@ impl GameState {
             }
         }
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
-        self.pending = Some(PendingDecision::Retarget(
+        self.pending = Some(DecisionPointKind::Retarget(
             crate::decide::pending::Retarget {
                 player,
                 entry,
@@ -1942,7 +1944,7 @@ impl GameState {
         player: PlayerId,
         key: deckmaste_core::Ident,
     ) -> Progress {
-        self.pending = Some(PendingDecision::ChooseNoteNumber(
+        self.pending = Some(DecisionPointKind::ChooseNoteNumber(
             crate::decide::pending::ChooseNoteNumber { player, key },
         ));
         Progress::NoteChoiceOpened
@@ -1957,10 +1959,10 @@ impl GameState {
             return Progress::CoinsFlipped { count: 0 };
         }
         if called {
-            self.pending = Some(PendingDecision::CallFlip(
+            self.pending = Some(DecisionPointKind::CallFlip(
                 crate::decide::pending::CallFlip { player },
             ));
-            self.choice = Some(crate::state::ChoiceContinuation::CallFlip {
+            self.choice = Some(crate::state::DecisionContinuation::CallFlip {
                 player,
                 remaining: count,
                 events: Vec::new(),
@@ -2015,7 +2017,7 @@ impl GameState {
             !options.is_empty(),
             "a mana choice offers at least one option"
         );
-        self.pending = Some(PendingDecision::ChooseManaColor(
+        self.pending = Some(DecisionPointKind::ChooseManaColor(
             crate::decide::pending::ChooseManaColor {
                 player,
                 options,
@@ -2042,7 +2044,7 @@ impl GameState {
             !options.is_empty() && options.iter().all(|run| !run.is_empty()),
             "a mana-run choice offers at least one non-empty run"
         );
-        self.pending = Some(PendingDecision::ChooseManaMode(
+        self.pending = Some(DecisionPointKind::ChooseManaMode(
             crate::decide::pending::ChooseManaMode {
                 player,
                 options,
@@ -2068,7 +2070,7 @@ impl GameState {
         let defender = self.next_live_after(active);
         let legal_targets = crate::legal::legal_attack_targets(self, defender);
         let count = Uint::try_from(legal.len()).expect("attacker count fits in Uint");
-        self.pending = Some(PendingDecision::DeclareAttackers(
+        self.pending = Some(DecisionPointKind::DeclareAttackers(
             crate::decide::pending::DeclareAttackers {
                 player: active,
                 legal,
@@ -2089,7 +2091,7 @@ impl GameState {
         let defender = self.next_live_after(self.turn.active_player);
         let legal = legal_blockers(self, defender);
         let count = Uint::try_from(legal.len()).expect("blocker count fits in Uint");
-        self.pending = Some(PendingDecision::DeclareBlockers(
+        self.pending = Some(DecisionPointKind::DeclareBlockers(
             crate::decide::pending::DeclareBlockers {
                 player: defender,
                 legal,
@@ -2289,7 +2291,7 @@ impl GameState {
             let recipients = next.recipients.clone();
             // [CR#510.1c]: the divider is the source's (attacker's) controller.
             let player = self.objects.obj(source).controller;
-            self.pending = Some(PendingDecision::AssignCombatDamage(
+            self.pending = Some(DecisionPointKind::AssignCombatDamage(
                 crate::decide::pending::AssignCombatDamage {
                     player,
                     source,
@@ -2338,7 +2340,7 @@ impl GameState {
             holder
         };
         let legal = legal_actions(self, holder);
-        self.pending = Some(PendingDecision::Priority(
+        self.pending = Some(DecisionPointKind::Priority(
             crate::decide::pending::Priority {
                 player: holder,
                 legal,
@@ -2926,7 +2928,7 @@ mod tests {
         use deckmaste_plugin::plugin::Plugin;
 
         use crate::agenda::WorkItem;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::object::ObjectId;
         use crate::object::ObjectSource;
         use crate::player::PlayerId;
@@ -3004,7 +3006,7 @@ mod tests {
             assert!(
                 matches!(
                     outcome,
-                    StepOutcome::NeedsDecision(PendingDecision::LegendRule(
+                    StepOutcome::NeedsDecision(DecisionPointKind::LegendRule(
                         crate::decide::pending::LegendRule {
                             player: PlayerId(0),
                             ..
@@ -3083,13 +3085,13 @@ mod tests {
             state.schedule_front(vec![WorkItem::CheckSbas]);
             assert!(!matches!(
                 state.step(),
-                StepOutcome::NeedsDecision(PendingDecision::LegendRule(
+                StepOutcome::NeedsDecision(DecisionPointKind::LegendRule(
                     crate::decide::pending::LegendRule { .. }
                 ))
             ));
             assert!(!matches!(
                 state.step(),
-                StepOutcome::NeedsDecision(PendingDecision::LegendRule(
+                StepOutcome::NeedsDecision(DecisionPointKind::LegendRule(
                     crate::decide::pending::LegendRule { .. }
                 ))
             ));

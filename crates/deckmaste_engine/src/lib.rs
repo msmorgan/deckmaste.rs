@@ -70,7 +70,7 @@ mod decide;
 pub use decide::Action;
 pub use decide::Decision;
 pub use decide::DecisionError;
-pub use decide::PendingDecision;
+pub use decide::DecisionPointKind;
 pub use decide::pending::ArrangePile;
 pub use decide::pending::AssignCombatDamage;
 pub use decide::pending::CallFlip;

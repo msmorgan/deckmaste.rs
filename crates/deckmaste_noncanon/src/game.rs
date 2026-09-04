@@ -6,12 +6,12 @@ use std::sync::Arc;
 use deckmaste_card::Card;
 use deckmaste_core::Int;
 use deckmaste_core::Uint;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::GameState;
 use deckmaste_engine::Occurrence;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -116,7 +116,7 @@ pub fn play_game(setup: Setup, p0: &dyn Strategy, p1: &dyn Strategy) -> GameReco
 
 /// The seat owning a pending decision. (Relocated from the deleted lookahead
 /// module; seam-agnostic.)
-fn pending_player(pending: &PendingDecision) -> PlayerId {
+fn pending_player(pending: &DecisionPointKind) -> PlayerId {
     pending.decider_player()
 }
 

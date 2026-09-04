@@ -1068,7 +1068,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use crate::Decision;
-    use crate::PendingDecision;
+    use crate::DecisionPointKind;
     use crate::agenda::WorkItem;
     use crate::event::AbilityCountered;
     use crate::event::Act;
@@ -1995,7 +1995,7 @@ mod tests {
     #[test]
     fn discard_choice_realizes_per_card_act_events() {
         use crate::Decision;
-        use crate::PendingDecision;
+        use crate::DecisionPointKind;
         use crate::step::StepOutcome;
 
         let (mut state, a) = bear_on_field();
@@ -2016,7 +2016,7 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
@@ -2087,7 +2087,7 @@ mod tests {
         use deckmaste_core::VerbName;
 
         use crate::Decision;
-        use crate::PendingDecision;
+        use crate::DecisionPointKind;
         use crate::step::StepOutcome;
 
         let (mut state, a) = bear_on_field();
@@ -2138,7 +2138,8 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects { .. }) = pending
+        let DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects { .. }) =
+            pending
         else {
             panic!("expected the batched card choice, got {pending:?}");
         };
@@ -2269,7 +2270,7 @@ mod tests {
     fn drive_declining_or_casting(state: &mut GameState, cast: bool) {
         use crate::decide::Action as Act;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::step::StepOutcome;
         for _ in 0..200 {
             // Mana empties at every step boundary ([CR#500.5]); the delayed
@@ -2280,7 +2281,7 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     crate::decide::pending::Priority { .. },
                 )) => {
                     if state.stack.is_empty() {
@@ -2288,12 +2289,12 @@ mod tests {
                     }
                     state.submit_decision(Decision::Act(Act::Pass)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::YesNo(
+                StepOutcome::NeedsDecision(DecisionPointKind::YesNo(
                     crate::decide::pending::YesNo { .. },
                 )) => {
                     state.submit_decision(Decision::Answer(cast)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => {
                     if cast && prompt.stage == crate::payment::PaymentStage::PrePayment {
                         assert!(
                             prompt.outstanding.iter().any(|iou| matches!(
@@ -2319,7 +2320,7 @@ mod tests {
                         .submit_decision(decision)
                         .expect("automatic payment succeeds");
                 }
-                StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                     let maximal = prompt
                         .legal
                         .iter()
@@ -2330,7 +2331,7 @@ mod tests {
                         .submit_decision(Decision::ManaReversals(maximal))
                         .expect("automatic reversal succeeds");
                 }
-                StepOutcome::NeedsDecision(PendingDecision::PayMana(
+                StepOutcome::NeedsDecision(DecisionPointKind::PayMana(
                     crate::decide::pending::PayMana { cost, .. },
                 )) => {
                     // The pool only ever holds the {1}{R} madness cost (topped
@@ -2357,13 +2358,13 @@ mod tests {
                     let pay = state.auto_pay_pending();
                     state.submit_decision(Decision::Pay(pay)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                StepOutcome::NeedsDecision(DecisionPointKind::OrderTriggers(
                     crate::decide::pending::OrderTriggers { triggers, .. },
                 )) => {
                     let order: Vec<usize> = (0..triggers.len()).collect();
                     state.submit_decision(Decision::Order(order)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement(
+                StepOutcome::NeedsDecision(DecisionPointKind::ChooseReplacement(
                     crate::decide::pending::ChooseReplacement { applicable, .. },
                 )) => {
                     // Apply madness first — its self-replacement is sourced
@@ -2483,7 +2484,7 @@ mod tests {
         assert!(
             matches!(
                 state.pending,
-                Some(crate::decide::PendingDecision::ChooseReplacement(crate::decide::pending::ChooseReplacement { chooser, .. }))
+                Some(crate::decide::DecisionPointKind::ChooseReplacement(crate::decide::pending::ChooseReplacement { chooser, .. }))
                     if chooser == PlayerId(0)
             ),
             "the discarding player chooses the replacement order ([CR#616.1])"
@@ -2521,7 +2522,7 @@ mod tests {
             );
             run_injected(&mut state);
 
-            let Some(crate::decide::PendingDecision::ChooseReplacement(
+            let Some(crate::decide::DecisionPointKind::ChooseReplacement(
                 crate::decide::pending::ChooseReplacement {
                     chooser,
                     applicable,
@@ -2583,7 +2584,7 @@ mod tests {
         );
         run_injected(&mut state);
 
-        let Some(crate::decide::PendingDecision::ChooseReplacement(
+        let Some(crate::decide::DecisionPointKind::ChooseReplacement(
             crate::decide::pending::ChooseReplacement { applicable, .. },
         )) = state.pending.clone()
         else {
@@ -2626,7 +2627,7 @@ mod tests {
     fn count_cast_offers(state: &mut GameState) -> usize {
         use crate::decide::Action as Act;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::step::StepOutcome;
         let mut offers = 0;
         for _ in 0..200 {
@@ -2644,7 +2645,7 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     crate::decide::pending::Priority { .. },
                 )) => {
                     if state.stack.is_empty() {
@@ -2652,13 +2653,13 @@ mod tests {
                     }
                     state.submit_decision(Decision::Act(Act::Pass)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::YesNo(
+                StepOutcome::NeedsDecision(DecisionPointKind::YesNo(
                     crate::decide::pending::YesNo { .. },
                 )) => {
                     offers += 1;
                     state.submit_decision(Decision::Answer(false)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(
+                StepOutcome::NeedsDecision(DecisionPointKind::OrderTriggers(
                     crate::decide::pending::OrderTriggers { triggers, .. },
                 )) => {
                     let order: Vec<usize> = (0..triggers.len()).collect();
@@ -2995,7 +2996,7 @@ mod tests {
         // sourced from the same off-battlefield card, so whichever
         // applies first exiles it and the sibling then has nothing left
         // to replace ([CR#616.1f]).
-        let Some(crate::decide::PendingDecision::ChooseReplacement(
+        let Some(crate::decide::DecisionPointKind::ChooseReplacement(
             crate::decide::pending::ChooseReplacement {
                 chooser,
                 applicable,
@@ -3609,7 +3610,7 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             candidates,
             min,
             ..
@@ -3637,7 +3638,7 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     crate::decide::pending::Priority { .. },
                 )) => {
                     state
@@ -5238,7 +5239,7 @@ mod tests {
         });
         state.run_effect(effect, &frame);
         drain_events(&mut state, 60);
-        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+        let Some(DecisionPointKind::ArrangePile(crate::decide::pending::ArrangePile {
             player,
             objects,
         })) = state.pending.clone()
@@ -5659,7 +5660,7 @@ mod tests {
         assert!(
             matches!(
                 state.pending,
-                Some(PendingDecision::ChooseModes(
+                Some(DecisionPointKind::ChooseModes(
                     crate::decide::pending::ChooseModes { .. }
                 ))
             ),
@@ -5694,7 +5695,7 @@ mod tests {
         assert!(
             !matches!(
                 state.pending,
-                Some(PendingDecision::ChooseModes(
+                Some(DecisionPointKind::ChooseModes(
                     crate::decide::pending::ChooseModes { .. }
                 ))
             ),
@@ -5736,7 +5737,7 @@ mod tests {
         drain_events(&mut state, 60);
         state.submit_decision(Decision::Modes(vec![0])).unwrap(); // b → top
         drain_events(&mut state, 60);
-        let Some(PendingDecision::ArrangePile(crate::decide::pending::ArrangePile {
+        let Some(DecisionPointKind::ArrangePile(crate::decide::pending::ArrangePile {
             player,
             objects,
         })) = state.pending.clone()
@@ -5768,7 +5769,7 @@ mod tests {
         assert!(
             !matches!(
                 state.pending,
-                Some(PendingDecision::ArrangePile(
+                Some(DecisionPointKind::ArrangePile(
                     crate::decide::pending::ArrangePile { .. }
                 ))
             ),
@@ -5833,7 +5834,7 @@ mod tests {
         assert!(
             matches!(
                 state.pending,
-                Some(PendingDecision::ChooseModes(
+                Some(DecisionPointKind::ChooseModes(
                     crate::decide::pending::ChooseModes { .. }
                 ))
             ),
@@ -6147,7 +6148,7 @@ mod tests {
         );
 
         drain_events(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,

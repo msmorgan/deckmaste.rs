@@ -2369,7 +2369,7 @@ mod tests {
     fn cant_win_gated_player_still_wins_last_standing() {
         use crate::decide::Action;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::object::ObjectSource;
 
         let persecutor = Arc::new(canon().card("Abyssal Persecutor").unwrap().core);
@@ -2404,7 +2404,7 @@ mod tests {
         for _ in 0..500 {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     crate::decide::pending::Priority { player, .. },
                 )) => {
                     let answer = if player == PlayerId(1) { Action::Concede } else { Action::Pass };

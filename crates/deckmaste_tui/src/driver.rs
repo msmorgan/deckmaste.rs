@@ -3,9 +3,9 @@
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameOutcome;
 use deckmaste_engine::GameState;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::StepOutcome;
 use deckmaste_engine::sim::Strategy;
 use deckmaste_plugin::provenance::ProvenanceIndex;
@@ -23,7 +23,7 @@ pub(crate) const HEADLESS_BUDGET: usize = 100_000;
 pub enum Stop {
     /// An interactive decision is pending (interactive mode only). Carries the
     /// pending decision so the UI can build an `Interaction` for it.
-    Decision(PendingDecision),
+    Decision(DecisionPointKind),
     /// The game ended.
     GameOver(GameOutcome),
     /// The step budget was exhausted (headless mode only).
@@ -75,7 +75,7 @@ impl Driver {
     /// (a wiring bug — `Strategy` is expected to answer legally).
     fn drive(
         &mut self,
-        stop_pred: impl Fn(&PendingDecision) -> bool,
+        stop_pred: impl Fn(&DecisionPointKind) -> bool,
         budget: usize,
     ) -> Result<Stop, DecisionError> {
         for _ in 0..budget {
@@ -114,7 +114,7 @@ impl Driver {
             |p| {
                 matches!(
                     p,
-                    PendingDecision::Priority(deckmaste_engine::Priority { .. })
+                    DecisionPointKind::Priority(deckmaste_engine::Priority { .. })
                 )
             },
             Self::DECISION_BUDGET,
@@ -163,7 +163,8 @@ impl Driver {
                 continue;
             }
             // Feature 2: per-player pass mode on a priority window.
-            if let PendingDecision::Priority(deckmaste_engine::Priority { player, .. }) = pending {
+            if let DecisionPointKind::Priority(deckmaste_engine::Priority { player, .. }) = pending
+            {
                 let player = *player;
                 if let (Some(mode), Some(armed)) = (pass.mode(player), pass.armed(player)) {
                     let now = crate::shortcuts::Snapshot::of(&self.state);
@@ -177,7 +178,7 @@ impl Driver {
             // (land drop unused). Reached only after the pass-mode check, so a
             // yielding player still plays their land when their main is reached.
             if crate::shortcuts::AUTOPLAY_LANDS
-                && let PendingDecision::Priority(deckmaste_engine::Priority { player, legal }) =
+                && let DecisionPointKind::Priority(deckmaste_engine::Priority { player, legal }) =
                     pending
             {
                 let player = *player;
@@ -261,24 +262,24 @@ mod tests {
     /// First-legal answer to a surfaced non-priority decision, for driving a
     /// game in tests (mirrors the choices in interact.rs's integration
     /// test).
-    fn answer(state: &GameState, pending: &PendingDecision) -> Decision {
+    fn answer(state: &GameState, pending: &DecisionPointKind) -> Decision {
         match pending {
-            PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. }) => {
+            DecisionPointKind::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. }) => {
                 Decision::Targets(legal.iter().map(|c| vec![c[0]]).collect())
             }
-            PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers { .. }) => {
+            DecisionPointKind::DeclareAttackers(deckmaste_engine::DeclareAttackers { .. }) => {
                 Decision::Attackers(vec![])
             }
-            PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { .. }) => {
+            DecisionPointKind::DeclareBlockers(deckmaste_engine::DeclareBlockers { .. }) => {
                 Decision::Blocks(vec![])
             }
             // Discards now surface to the human, so the test driver answers them
             // too — drop the first `count` cards.
-            PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
+            DecisionPointKind::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
                 player,
                 count,
             })
-            | PendingDecision::DiscardCards(deckmaste_engine::DiscardCards { player, count }) => {
+            | DecisionPointKind::DiscardCards(deckmaste_engine::DiscardCards { player, count }) => {
                 Decision::Discard(
                     state.zones.hands[player.index()]
                         .iter()
@@ -328,7 +329,7 @@ mod tests {
         for _ in 0..100 {
             match &stop {
                 Stop::GameOver(_) | Stop::Budget => break,
-                Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
+                Stop::Decision(DecisionPointKind::Priority(deckmaste_engine::Priority {
                     legal,
                     ..
                 })) => {
@@ -381,16 +382,17 @@ mod tests {
             match stop {
                 Stop::GameOver(_) | Stop::Budget => return, // terminated → guard works
                 Stop::Decision(ref pending) => {
-                    let decision = if let PendingDecision::Priority(deckmaste_engine::Priority {
-                        player,
-                        ..
-                    }) = pending
-                    {
-                        pass.arm(*player, PassMode::Turn, &driver.state);
-                        Decision::Act(Action::Pass)
-                    } else {
-                        answer(&driver.state, pending)
-                    };
+                    let decision =
+                        if let DecisionPointKind::Priority(deckmaste_engine::Priority {
+                            player,
+                            ..
+                        }) = pending
+                        {
+                            pass.arm(*player, PassMode::Turn, &driver.state);
+                            Decision::Act(Action::Pass)
+                        } else {
+                            answer(&driver.state, pending)
+                        };
                     stop = driver
                         .submit_and_advance(decision, &mut pass)
                         .expect("no decision error");
@@ -442,7 +444,7 @@ mod tests {
         for _ in 0..2000 {
             match &stop {
                 Stop::GameOver(_) | Stop::Budget => break,
-                Stop::Decision(PendingDecision::Priority(deckmaste_engine::Priority {
+                Stop::Decision(DecisionPointKind::Priority(deckmaste_engine::Priority {
                     player,
                     legal,
                 })) => {

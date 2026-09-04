@@ -263,12 +263,12 @@ pub(super) fn drain_progress(state: &mut GameState, n: usize) -> Vec<Progress> {
 /// triggered ability actually resolve.
 pub(super) fn drain_passing_priority(state: &mut GameState, n: usize) {
     use crate::decide::Decision;
-    use crate::decide::PendingDecision;
+    use crate::decide::DecisionPointKind;
 
     for _ in 0..n {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(_)) => {
                 if state
                     .submit_decision(Decision::Act(crate::decide::Action::Pass))
                     .is_err()
@@ -279,7 +279,7 @@ pub(super) fn drain_passing_priority(state: &mut GameState, n: usize) {
             // [CR#603.3b]: several of one player's triggers going on the stack
             // together are ordered by that player. Any order will do for a
             // fixture that asserts on the outcome of all of them.
-            StepOutcome::NeedsDecision(PendingDecision::OrderTriggers(order)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::OrderTriggers(order)) => {
                 let identity: Vec<usize> = (0..order.triggers.len()).collect();
                 if state.submit_decision(Decision::Order(identity)).is_err() {
                     return;

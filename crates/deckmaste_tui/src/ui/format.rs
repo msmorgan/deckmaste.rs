@@ -217,7 +217,7 @@ mod tests {
         use deckmaste_core::Type;
         use deckmaste_engine::Action;
         use deckmaste_engine::Decision;
-        use deckmaste_engine::PendingDecision;
+        use deckmaste_engine::DecisionPointKind;
 
         use crate::driver::Driver;
         use crate::driver::Stop;
@@ -249,7 +249,7 @@ mod tests {
                 Stop::Decision(p) => p.clone(),
             };
             let decision = match &pending {
-                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => {
+                DecisionPointKind::Priority(deckmaste_engine::Priority { legal, .. }) => {
                     let pick = legal
                         .iter()
                         .find(|a| matches!(a, Action::PlayLand { .. }))
@@ -258,7 +258,7 @@ mod tests {
                         .unwrap_or(Action::Pass);
                     Decision::Act(pick)
                 }
-                PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { .. }) => {
+                DecisionPointKind::ChooseTargets(deckmaste_engine::ChooseTargets { .. }) => {
                     let mut it = Interaction::for_decision(&pending).expect("interactive");
                     loop {
                         if let Some(&first) = it.candidates().first() {
@@ -270,12 +270,12 @@ mod tests {
                         }
                     }
                 }
-                PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+                DecisionPointKind::DeclareAttackers(deckmaste_engine::DeclareAttackers {
                     ..
                 }) => Decision::Attackers(vec![]),
-                PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers { .. }) => {
-                    Decision::Blocks(vec![])
-                }
+                DecisionPointKind::DeclareBlockers(deckmaste_engine::DeclareBlockers {
+                    ..
+                }) => Decision::Blocks(vec![]),
                 other => panic!("unexpected surfaced kind: {other:?}"),
             };
             stop = driver.submit(decision).expect("legal decision");

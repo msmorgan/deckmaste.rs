@@ -746,7 +746,7 @@ impl GameState {
             frame.stage = PaymentStage::Ready;
         }
         let prompt = frame.prompt(Vec::new());
-        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         self.refresh_payment_prompt();
     }
 

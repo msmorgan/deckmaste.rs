@@ -37,13 +37,13 @@ use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::ChooseTargets;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentSubject;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
@@ -215,30 +215,30 @@ fn count(n: deckmaste_core::Uint) -> usize {
 /// takes the first legal minimum (so "each player sacrifices N" picks N of that
 /// player's own candidates — the point being *whose* candidates the prompt
 /// offers, which the assertions read off the board).
-fn routine(state: &GameState, pending: &PendingDecision) -> Option<Decision> {
+fn routine(state: &GameState, pending: &DecisionPointKind) -> Option<Decision> {
     match pending {
-        PendingDecision::Priority(_) => Some(Decision::Act(Action::Pass)),
-        PendingDecision::PayMana(_) => Some(Decision::Pay(state.auto_pay_pending())),
-        PendingDecision::Payment(_) => state.auto_payment_pending(),
-        PendingDecision::ChooseManaReversals(prompt) => prompt
+        DecisionPointKind::Priority(_) => Some(Decision::Act(Action::Pass)),
+        DecisionPointKind::PayMana(_) => Some(Decision::Pay(state.auto_pay_pending())),
+        DecisionPointKind::Payment(_) => state.auto_payment_pending(),
+        DecisionPointKind::ChooseManaReversals(prompt) => prompt
             .legal
             .iter()
             .max_by_key(|set| set.len())
             .cloned()
             .map(Decision::ManaReversals),
-        PendingDecision::OrderTriggers(prompt) => {
+        DecisionPointKind::OrderTriggers(prompt) => {
             Some(Decision::Order((0..prompt.triggers.len()).collect()))
         }
-        PendingDecision::DeclareAttackers(_) => Some(Decision::Attackers(Vec::new())),
-        PendingDecision::DeclareBlockers(_) => Some(Decision::Blocks(Vec::new())),
-        PendingDecision::DiscardToHandSize(prompt) => Some(Decision::Discard(
+        DecisionPointKind::DeclareAttackers(_) => Some(Decision::Attackers(Vec::new())),
+        DecisionPointKind::DeclareBlockers(_) => Some(Decision::Blocks(Vec::new())),
+        DecisionPointKind::DiscardToHandSize(prompt) => Some(Decision::Discard(
             state.zones.hands[prompt.player.index()]
                 .iter()
                 .copied()
                 .take(count(prompt.count))
                 .collect(),
         )),
-        PendingDecision::ChooseObjects(prompt) => Some(Decision::Chosen(
+        DecisionPointKind::ChooseObjects(prompt) => Some(Decision::Chosen(
             prompt
                 .candidates
                 .iter()
@@ -246,11 +246,11 @@ fn routine(state: &GameState, pending: &PendingDecision) -> Option<Decision> {
                 .take(count(prompt.min))
                 .collect(),
         )),
-        PendingDecision::LegendRule(prompt) => prompt
+        DecisionPointKind::LegendRule(prompt) => prompt
             .candidates
             .first()
             .map(|&id| Decision::Chosen(vec![id])),
-        PendingDecision::YesNo(_) => Some(Decision::Answer(true)),
+        DecisionPointKind::YesNo(_) => Some(Decision::Answer(true)),
         _ => None,
     }
 }
@@ -262,7 +262,7 @@ fn routine(state: &GameState, pending: &PendingDecision) -> Option<Decision> {
 fn drive<S, A>(state: &mut GameState, stop: S, answer: &mut A) -> Vec<Progress>
 where
     S: Fn(&GameState, PlayerId) -> bool,
-    A: FnMut(&GameState, &PendingDecision) -> Option<Decision>,
+    A: FnMut(&GameState, &DecisionPointKind) -> Option<Decision>,
 {
     let mut trace = Vec::new();
     for _ in 0..2000 {
@@ -272,7 +272,7 @@ where
             StepOutcome::NeedsDecision(pending) => pending,
             other => panic!("the game ended before the fixture's stop: {other:?}"),
         };
-        if let PendingDecision::Priority(Priority { player, .. }) = &pending
+        if let DecisionPointKind::Priority(Priority { player, .. }) = &pending
             && stop(state, *player)
         {
             return trace;
@@ -296,7 +296,7 @@ fn to_target_prompt(state: &mut GameState) -> ChooseTargets {
         let StepOutcome::NeedsDecision(pending) = outcome else {
             panic!("the game ended before a target prompt: {outcome:?}");
         };
-        if let PendingDecision::ChooseTargets(prompt) = pending {
+        if let DecisionPointKind::ChooseTargets(prompt) = pending {
             return prompt;
         }
         let decision =
@@ -317,7 +317,7 @@ fn to_retarget_prompt(state: &mut GameState) -> deckmaste_engine::Retarget {
         let StepOutcome::NeedsDecision(pending) = outcome else {
             panic!("the game ended before a retarget prompt: {outcome:?}");
         };
-        if let PendingDecision::Retarget(prompt) = pending {
+        if let DecisionPointKind::Retarget(prompt) = pending {
             return prompt;
         }
         let decision =
@@ -332,7 +332,7 @@ fn to_retarget_prompt(state: &mut GameState) -> deckmaste_engine::Retarget {
 /// The `ActivateAbility` action for `object` offered by the priority window in
 /// flight — read off the legal list rather than guessing an ability index.
 fn activation_of(state: &GameState, object: ObjectId) -> Action {
-    let Some(PendingDecision::Priority(Priority { legal, .. })) = &state.pending else {
+    let Some(DecisionPointKind::Priority(Priority { legal, .. })) = &state.pending else {
         panic!("activation_of expects a priority window in flight");
     };
     legal
@@ -358,14 +358,14 @@ fn attack_player(state: &GameState, attackers: &[ObjectId]) -> Decision {
 }
 
 /// No fixture-specific answer — every prompt takes the routine one.
-fn plain(_: &GameState, _: &PendingDecision) -> Option<Decision> {
+fn plain(_: &GameState, _: &DecisionPointKind) -> Option<Decision> {
     None
 }
 
 /// Runs to `player`'s priority in `phase`.
 fn to_phase<A>(state: &mut GameState, player: PlayerId, phase: PhaseStep, answer: &mut A)
 where
-    A: FnMut(&GameState, &PendingDecision) -> Option<Decision>,
+    A: FnMut(&GameState, &DecisionPointKind) -> Option<Decision>,
 {
     drive(state, |s, p| p == player && s.turn.current == phase, answer);
 }
@@ -374,7 +374,7 @@ where
 /// resolved" stop.
 fn settle<A>(state: &mut GameState, answer: &mut A) -> Vec<Progress>
 where
-    A: FnMut(&GameState, &PendingDecision) -> Option<Decision>,
+    A: FnMut(&GameState, &DecisionPointKind) -> Option<Decision>,
 {
     drive(state, |s, _| s.stack.is_empty(), answer)
 }
@@ -387,7 +387,7 @@ fn float(state: &mut GameState, player: PlayerId, color: deckmaste_core::Color, 
         .mana_pool
         .add(color.into(), n, ManaProvenance::default());
     assert!(
-        matches!(state.pending, Some(PendingDecision::Priority(_))),
+        matches!(state.pending, Some(DecisionPointKind::Priority(_))),
         "float expects a priority window in flight"
     );
     state.pending = None;
@@ -398,7 +398,7 @@ fn float(state: &mut GameState, player: PlayerId, color: deckmaste_core::Color, 
 /// runs until the stack empties again.
 fn cast<A>(state: &mut GameState, spell: ObjectId, answer: &mut A) -> Vec<Progress>
 where
-    A: FnMut(&GameState, &PendingDecision) -> Option<Decision>,
+    A: FnMut(&GameState, &DecisionPointKind) -> Option<Decision>,
 {
     state
         .submit_decision(Decision::Act(Action::CastSpell { object: spell }))
@@ -410,7 +410,7 @@ where
 /// runs until the stack empties again.
 fn activate<A>(state: &mut GameState, object: ObjectId, index: usize, answer: &mut A)
 where
-    A: FnMut(&GameState, &PendingDecision) -> Option<Decision>,
+    A: FnMut(&GameState, &DecisionPointKind) -> Option<Decision>,
 {
     state
         .submit_decision(Decision::Act(Action::ActivateAbility {
@@ -448,9 +448,9 @@ impl Targeting {
         }
     }
 
-    fn answer(&mut self, _: &GameState, pending: &PendingDecision) -> Option<Decision> {
+    fn answer(&mut self, _: &GameState, pending: &DecisionPointKind) -> Option<Decision> {
         match pending {
-            PendingDecision::ChooseTargets(ChooseTargets { legal, .. }) => {
+            DecisionPointKind::ChooseTargets(ChooseTargets { legal, .. }) => {
                 self.offered.push(legal.clone());
                 Some(Decision::Targets(self.picks.clone()))
             }
@@ -891,7 +891,7 @@ fn angel_of_finality_exiles_only_the_target_players_graveyard() {
     let victim = proxy(&state, PlayerId(1));
     let mut targeting = Targeting::new(vec![vec![victim]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| targeting.answer(s, p);
+        let mut answer = |s: &GameState, p: &DecisionPointKind| targeting.answer(s, p);
         cast(&mut state, spell, &mut answer);
     }
 
@@ -966,7 +966,7 @@ fn rivers_rebuke_bounces_only_the_target_players_nonlands() {
     let victim = proxy(&state, PlayerId(1));
     let mut targeting = Targeting::new(vec![vec![victim]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| targeting.answer(s, p);
+        let mut answer = |s: &GameState, p: &DecisionPointKind| targeting.answer(s, p);
         cast(&mut state, spell, &mut answer);
     }
 
@@ -1041,8 +1041,8 @@ fn tribute_to_hunger_gains_the_sacrificed_creatures_last_known_toughness() {
     let mut offered: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
     let mut targeting = Targeting::new(vec![vec![victim]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::ChooseObjects(prompt) => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::ChooseObjects(prompt) => {
                 offered.push((prompt.player, prompt.candidates.clone()));
                 None
             }
@@ -1145,8 +1145,8 @@ fn duress_offers_the_caster_only_the_targets_noncreature_nonlands() {
     let mut offered: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
     let mut targeting = Targeting::new(vec![vec![victim]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::ChooseObjects(prompt) => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::ChooseObjects(prompt) => {
                 offered.push((prompt.player, prompt.candidates.clone()));
                 None
             }
@@ -1228,8 +1228,8 @@ fn pilfer_offers_the_caster_every_nonland_card_in_the_targets_hand() {
     let mut offered: Vec<(PlayerId, Vec<ObjectId>)> = Vec::new();
     let mut targeting = Targeting::new(vec![vec![victim]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::ChooseObjects(prompt) => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::ChooseObjects(prompt) => {
                 offered.push((prompt.player, prompt.candidates.clone()));
                 None
             }
@@ -1466,8 +1466,8 @@ fn trygon_predator_targets_only_the_damaged_players_permanents() {
     let mut targeting = Targeting::new(vec![vec![their_artifact]]);
     let mut declared = false;
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::DeclareAttackers(_) if !declared => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::DeclareAttackers(_) if !declared => {
                 declared = true;
                 Some(attack_player(s, &[predator]))
             }
@@ -1574,12 +1574,12 @@ fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
     let mut declared = false;
     let mut blocked = false;
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::DeclareAttackers(_) if !declared => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::DeclareAttackers(_) if !declared => {
                 declared = true;
                 Some(attack_player(s, &[slime]))
             }
-            PendingDecision::DeclareBlockers(_) if !blocked => {
+            DecisionPointKind::DeclareBlockers(_) if !blocked => {
                 blocked = true;
                 Some(Decision::Blocks(vec![(victim, slime)]))
             }
@@ -1618,7 +1618,7 @@ fn predator_ooze_counts_only_creatures_it_damaged_this_turn() {
     // damaged it leaves the count alone.
     let mut targeting = Targeting::new(vec![vec![bystander]]);
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| targeting.answer(s, p);
+        let mut answer = |s: &GameState, p: &DecisionPointKind| targeting.answer(s, p);
         cast(&mut state, doom_spell, &mut answer);
     }
     assert!(
@@ -1708,8 +1708,8 @@ fn steel_hellkite_case(damaged: &str) {
 
     let mut declared = false;
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::DeclareAttackers(_) if !declared => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::DeclareAttackers(_) if !declared => {
                 declared = true;
                 Some(attack_player(s, &[dragon]))
             }
@@ -1739,8 +1739,8 @@ fn steel_hellkite_case(damaged: &str) {
         .submit_decision(Decision::Act(action))
         .expect("the {X} ability is activatable");
     {
-        let mut answer = |_: &GameState, p: &PendingDecision| match p {
-            PendingDecision::ChooseXValue(_) => Some(Decision::XValue(2)),
+        let mut answer = |_: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::ChooseXValue(_) => Some(Decision::XValue(2)),
             _ => None,
         };
         settle(&mut state, &mut answer);
@@ -1788,7 +1788,7 @@ fn cross_target_spell_without_a_complete_announcement_is_not_castable() {
         PhaseStep::PrecombatMain,
         &mut plain,
     );
-    let Some(PendingDecision::Priority(Priority { legal, .. })) = &state.pending else {
+    let Some(DecisionPointKind::Priority(Priority { legal, .. })) = &state.pending else {
         panic!("the fixture stopped outside priority: {:?}", state.pending);
     };
     assert!(
@@ -2233,8 +2233,8 @@ fn painful_quandary_punishes_the_caster_it_triggered_on() {
     );
     let held = refused.zones.hands[1].len();
     {
-        let mut answer = |_: &GameState, p: &PendingDecision| match p {
-            PendingDecision::Payment(prompt)
+        let mut answer = |_: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::Payment(prompt)
                 if matches!(prompt.subject, PaymentSubject::Effect { .. }) =>
             {
                 Some(Decision::Payment(PaymentCommand::DeclinePayment))
@@ -2406,8 +2406,8 @@ fn perforating_artist_taxes_each_opponent_who_will_not_pay() {
 
     let mut declared = false;
     {
-        let mut answer = |s: &GameState, p: &PendingDecision| match p {
-            PendingDecision::DeclareAttackers(_) if !declared => {
+        let mut answer = |s: &GameState, p: &DecisionPointKind| match p {
+            DecisionPointKind::DeclareAttackers(_) if !declared => {
                 declared = true;
                 Some(attack_player(s, &[devil]))
             }

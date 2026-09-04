@@ -791,7 +791,7 @@ mod tests {
         ability: usize,
     ) -> crate::payment::PaymentPrompt {
         use crate::agenda::WorkItem;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::step::StepOutcome;
 
         state.schedule_front(GameState::announce_schedule(
@@ -804,7 +804,7 @@ mod tests {
         for _ in 0..20 {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => return prompt,
+                StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => return prompt,
                 other => panic!("expected activation payment, got {other:?}"),
             }
         }
@@ -1314,7 +1314,7 @@ mod tests {
     #[test]
     fn gate_rejects_pay_life_cost_when_life_too_low() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::FulfillmentWitness;
         use crate::payment::IouKind;
         use crate::payment::PaymentCommand;
@@ -1361,7 +1361,7 @@ mod tests {
                 .is_err(),
             "the explicit fulfillment rejects paying 2 life from a total of 1"
         );
-        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(after)) = state.pending.as_ref() else {
             panic!("the rejected fulfillment keeps the payment prompt open")
         };
         assert_eq!(
@@ -1783,7 +1783,7 @@ mod tests {
         use deckmaste_core::Color;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::IouKind;
         use crate::payment::ManaCoverage;
         use crate::payment::ManaPip;
@@ -1838,7 +1838,7 @@ mod tests {
                 .is_err(),
             "empty coverage cannot satisfy the locked {{1}}{{U}} IOUs"
         );
-        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(after)) = state.pending.as_ref() else {
             panic!("the rejected coverage keeps the payment prompt open")
         };
         assert_eq!(
@@ -1944,7 +1944,7 @@ mod tests {
                     activated = true;
                     break;
                 }
-                StepOutcome::NeedsDecision(crate::decide::PendingDecision::Payment(_)) => {
+                StepOutcome::NeedsDecision(crate::decide::DecisionPointKind::Payment(_)) => {
                     let decision = state
                         .auto_payment_pending()
                         .expect("automatic payment decision");
@@ -1953,7 +1953,7 @@ mod tests {
                         .expect("automatic payment succeeds");
                 }
                 StepOutcome::NeedsDecision(
-                    crate::decide::PendingDecision::ChooseManaReversals(prompt),
+                    crate::decide::DecisionPointKind::ChooseManaReversals(prompt),
                 ) => {
                     let maximal = prompt
                         .legal

@@ -18,6 +18,7 @@ use deckmaste_engine::Action;
 use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
 use deckmaste_engine::DecisionError;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
@@ -26,7 +27,6 @@ use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::ObjectSource;
 use deckmaste_engine::Occurrence;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -160,7 +160,7 @@ fn step_to_stop_auto_payment(state: &mut GameState) -> (Vec<Progress>, StepOutco
         trace.extend(more);
         if matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_))
         ) {
             let decision = state
                 .auto_payment_pending()
@@ -234,7 +234,7 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     ));
 
     // The decision surfaces on the NEXT call, idempotently, without mutating.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         ..
     })) = state.step()
@@ -244,7 +244,9 @@ fn turn_one_walks_to_upkeep_priority_one_event_at_a_time() {
     assert_eq!(player, PlayerId(0));
     assert!(matches!(
         state.step(),
-        StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+        StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+            deckmaste_engine::Priority { .. }
+        ))
     ));
 }
 
@@ -256,12 +258,12 @@ fn pass_to_stop(state: &mut GameState) -> StepOutcome {
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+            StepOutcome::NeedsDecision(DecisionPointKind::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
             )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
@@ -283,12 +285,12 @@ fn step_until(
         if pred(state, &outcome) {
             return outcome;
         }
-        if let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-            ..
-        })) = outcome
+        if let StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+            deckmaste_engine::Priority { .. },
+        )) = outcome
         {
             state.submit_decision(Decision::Act(Action::Pass)).unwrap();
-        } else if let StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+        } else if let StepOutcome::NeedsDecision(DecisionPointKind::DeclareAttackers(
             deckmaste_engine::DeclareAttackers { .. },
         )) = outcome
         {
@@ -314,7 +316,9 @@ fn submission_errors() {
     let (_, stop) = step_to_stop(&mut state);
     assert!(matches!(
         stop,
-        StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+        StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+            deckmaste_engine::Priority { .. }
+        ))
     ));
     assert_eq!(
         state.submit_decision(Decision::Discard(vec![])),
@@ -342,7 +346,7 @@ fn a_full_pass_around_advances_the_step() {
     // P0 passes; priority rotates to P1 (same step).
     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         ..
     })) = stop
@@ -368,11 +372,11 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
     let mut state = two_player_plains(42, 20);
     // Drive to P0's precombat main.
     let stop = step_until(&mut state, |s, o| {
-        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { player, .. }))
+        matches!(o, StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority { player, .. }))
             if *player == PlayerId(0))
             && s.turn.current == PhaseStep::PrecombatMain
     });
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         legal,
         ..
     })) = stop
@@ -411,7 +415,7 @@ fn land_drop_tap_for_mana_and_pool_emptying() {
         "same CardId, reminted"
     );
     assert_eq!(state.lands_played_this_turn(PlayerId(0)), 1);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         legal,
     })) = stop
@@ -462,7 +466,7 @@ fn cleanup_discards_to_hand_size() {
     let mut state = two_player_plains(42, 20);
     // All-pass: P1 draws on turn 2 (8 cards) and must discard at cleanup.
     let stop = pass_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::DiscardToHandSize(
+    let StepOutcome::NeedsDecision(DecisionPointKind::DiscardToHandSize(
         deckmaste_engine::DiscardToHandSize { player, count },
     )) = stop
     else {
@@ -556,10 +560,12 @@ fn runner_recovers_the_auto_stepping_ergonomics() {
     let (_, mut stop) = runner.run();
     loop {
         match stop {
-            RunStop::Decision(PendingDecision::Priority(deckmaste_engine::Priority { .. })) => {
+            RunStop::Decision(DecisionPointKind::Priority(deckmaste_engine::Priority {
+                ..
+            })) => {
                 (_, stop) = runner.submit(Decision::Act(Action::Pass)).unwrap();
             }
-            RunStop::Decision(PendingDecision::DeclareAttackers(
+            RunStop::Decision(DecisionPointKind::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
             )) => {
                 (_, stop) = runner.submit(Decision::Attackers(vec![])).unwrap();
@@ -624,19 +630,18 @@ fn state_is_assertable_between_two_untap_events() {
                 break; // turn 5 has begun; its untap events are next.
             }
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                legal,
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { legal, .. },
+            )) => {
                 let action = script(&state, &legal);
                 state.submit_decision(Decision::Act(action)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+            StepOutcome::NeedsDecision(DecisionPointKind::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
             )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("a Payment prompt has an automatic runner answer");
@@ -727,7 +732,7 @@ fn replay_is_deterministic() {
         let mut state = two_player_plains(123, 20);
         for _ in 0..40 {
             match state.step() {
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     deckmaste_engine::Priority { legal, .. },
                 )) => {
                     let action = legal
@@ -737,7 +742,7 @@ fn replay_is_deterministic() {
                         .clone();
                     state.submit_decision(Decision::Act(action)).unwrap();
                 }
-                StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+                StepOutcome::NeedsDecision(DecisionPointKind::DeclareAttackers(
                     deckmaste_engine::DeclareAttackers { .. },
                 )) => {
                     state.submit_decision(Decision::Attackers(vec![])).unwrap();
@@ -1226,7 +1231,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
         state.step(),
         StepOutcome::Progress(Progress::PriorityOpened(PlayerId(0)))
     ));
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         legal,
     })) = state.step()
@@ -1293,11 +1298,11 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
 fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
     let mut state = two_player_with("Kabira Crossroads", 42, 20);
     let stop = step_until(&mut state, |s, o| {
-        matches!(o, StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority { player, .. }))
+        matches!(o, StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority { player, .. }))
             if *player == PlayerId(0))
             && s.turn.current == PhaseStep::PrecombatMain
     });
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         legal,
         ..
     })) = stop
@@ -1352,7 +1357,7 @@ fn tapland_played_from_hand_enters_tapped_and_fires_its_enter_trigger() {
 fn concession_ends_the_game() {
     let mut state = two_player_plains(42, 20);
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         legal,
     })) = stop

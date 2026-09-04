@@ -19,11 +19,11 @@ use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -151,18 +151,17 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -181,7 +180,9 @@ fn resurface_priority(state: &mut GameState) {
     assert!(
         matches!(
             state.pending,
-            Some(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+            Some(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. }
+            ))
         ),
         "resurface_priority expects a Priority decision in flight"
     );
@@ -237,29 +238,28 @@ fn run_to_priority_through_combat(
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareAttackers(
+            StepOutcome::NeedsDecision(DecisionPointKind::DeclareAttackers(
                 deckmaste_engine::DeclareAttackers { .. },
             )) => {
                 state.submit_decision(Decision::Attackers(vec![])).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::DeclareBlockers(
+            StepOutcome::NeedsDecision(DecisionPointKind::DeclareBlockers(
                 deckmaste_engine::DeclareBlockers { .. },
             )) => {
                 state.submit_decision(Decision::Blocks(vec![])).unwrap();

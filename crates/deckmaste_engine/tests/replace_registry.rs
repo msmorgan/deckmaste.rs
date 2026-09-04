@@ -33,12 +33,12 @@ use deckmaste_core::Zone;
 use deckmaste_engine::CardId;
 use deckmaste_engine::DamageDealt;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::Frame;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::LifeGained;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::ReplacementKey;
@@ -422,7 +422,7 @@ fn creature_with_two_replacements() -> (GameState, ObjectId) {
 
 /// Drive, stopping when a `NeedsDecision` is returned. Panics after 50 steps
 /// without surfacing one.
-fn drive_to_decision(state: &mut GameState) -> PendingDecision {
+fn drive_to_decision(state: &mut GameState) -> DecisionPointKind {
     state.agenda.push_front(WorkItem::CheckSbas);
     for _ in 0..50 {
         match state.step() {
@@ -461,8 +461,9 @@ fn two_applicable_replacements_surface_choice() {
 
     // Drive to the ChooseReplacement decision.
     let dec = drive_to_decision(&mut state);
-    let PendingDecision::ChooseReplacement(deckmaste_engine::ChooseReplacement {
-        applicable, ..
+    let DecisionPointKind::ChooseReplacement(deckmaste_engine::ChooseReplacement {
+        applicable,
+        ..
     }) = dec
     else {
         panic!("expected ChooseReplacement, got {dec:?}");
@@ -496,8 +497,9 @@ fn two_applicable_replacements_second_choice_also_survives() {
     state.objects.obj_mut(id).set_marked_damage(2);
 
     let dec = drive_to_decision(&mut state);
-    let PendingDecision::ChooseReplacement(deckmaste_engine::ChooseReplacement {
-        applicable, ..
+    let DecisionPointKind::ChooseReplacement(deckmaste_engine::ChooseReplacement {
+        applicable,
+        ..
     }) = dec
     else {
         panic!("expected ChooseReplacement, got {dec:?}");

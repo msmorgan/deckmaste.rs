@@ -6,11 +6,11 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -85,30 +85,29 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                 let reversals = prompt
                     .legal
                     .iter()
@@ -132,7 +131,9 @@ fn resurface_priority(state: &mut GameState) {
     assert!(
         matches!(
             state.pending,
-            Some(PendingDecision::Priority(deckmaste_engine::Priority { .. }))
+            Some(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. }
+            ))
         ),
         "resurface_priority expects a Priority decision in flight"
     );
@@ -202,9 +203,9 @@ fn cast_x_draw_announces_pays_and_draws_x() {
 
     // [CR#601.2b]: X is announced first.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
-        player,
-    })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
+        deckmaste_engine::ChooseXValue { player },
+    )) = stop
     else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
@@ -215,13 +216,13 @@ fn cast_x_draw_announces_pays_and_draws_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -229,7 +230,7 @@ fn cast_x_draw_announces_pays_and_draws_x() {
                     .submit_decision(decision)
                     .expect("automatic payment succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                 let reversals = prompt
                     .legal
                     .iter()
@@ -240,9 +241,9 @@ fn cast_x_draw_announces_pays_and_draws_x() {
                     .submit_decision(Decision::ManaReversals(reversals))
                     .expect("automatic reversal succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&xdraw) {
                     break;
                 }
@@ -277,9 +278,9 @@ fn unpayable_x_reaches_payment_and_can_be_declined() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
-        ..
-    })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
+        deckmaste_engine::ChooseXValue { .. },
+    )) = stop
     else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
@@ -289,7 +290,7 @@ fn unpayable_x_reaches_payment_and_can_be_declined() {
     // oracle. The complete five-pip obligation reaches the ordinary payment
     // protocol, where the player may decline the proposal.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) = stop else {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) = stop else {
         panic!("expected Payment after announcing X, got {stop:?}");
     };
     assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
@@ -308,7 +309,7 @@ fn unpayable_x_reaches_payment_and_can_be_declined() {
     // Declining returns the spell to hand and gives priority back to the
     // caster; the pool remains untouched.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         ..
     })) = stop
@@ -352,9 +353,9 @@ fn x_zero_draws_nothing_and_resolves() {
         .unwrap();
 
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
-        ..
-    })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
+        deckmaste_engine::ChooseXValue { .. },
+    )) = stop
     else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
@@ -363,13 +364,13 @@ fn x_zero_draws_nothing_and_resolves() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -377,7 +378,7 @@ fn x_zero_draws_nothing_and_resolves() {
                     .submit_decision(decision)
                     .expect("automatic payment succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                 let reversals = prompt
                     .legal
                     .iter()
@@ -388,9 +389,9 @@ fn x_zero_draws_nothing_and_resolves() {
                     .submit_decision(Decision::ManaReversals(reversals))
                     .expect("automatic reversal succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&xdraw) {
                     break;
                 }
@@ -450,7 +451,7 @@ fn non_x_cast_surfaces_no_choose_x() {
     assert!(
         !matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
                 deckmaste_engine::ChooseXValue { .. }
             ))
         ),
@@ -517,9 +518,9 @@ fn activate_x_draw_announces_pays_and_draws_x() {
 
     // [CR#601.2b]: X is announced first — on the activation slot too.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
-        player,
-    })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
+        deckmaste_engine::ChooseXValue { player },
+    )) = stop
     else {
         panic!("expected ChooseXValue, got {stop:?}");
     };
@@ -530,13 +531,13 @@ fn activate_x_draw_announces_pays_and_draws_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -544,7 +545,7 @@ fn activate_x_draw_announces_pays_and_draws_x() {
                     .submit_decision(decision)
                     .expect("automatic payment succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                 let reversals = prompt
                     .legal
                     .iter()
@@ -555,9 +556,9 @@ fn activate_x_draw_announces_pays_and_draws_x() {
                     .submit_decision(Decision::ManaReversals(reversals))
                     .expect("automatic reversal succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() {
                     break;
                 }
@@ -624,9 +625,9 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
 
     // [CR#601.2b]: X is announced FIRST...
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseXValue(deckmaste_engine::ChooseXValue {
-        player,
-    })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseXValue(
+        deckmaste_engine::ChooseXValue { player },
+    )) = stop
     else {
         panic!("expected ChooseXValue first, got {stop:?}");
     };
@@ -637,7 +638,7 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     // `AnyTarget` candidate.
     let opp = state.players[1].object;
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseTargets(
         deckmaste_engine::ChooseTargets { legal, .. },
     )) = stop
     else {
@@ -656,13 +657,13 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
@@ -670,7 +671,7 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
                     .submit_decision(decision)
                     .expect("automatic payment succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                 let reversals = prompt
                     .legal
                     .iter()
@@ -681,9 +682,9 @@ fn cast_x_burn_announces_x_then_targets_then_deals_x() {
                     .submit_decision(Decision::ManaReversals(reversals))
                     .expect("automatic reversal succeeds");
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 if state.stack.is_empty() && !state.zones.hands[0].contains(&burn) {
                     break;
                 }

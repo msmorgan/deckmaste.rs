@@ -827,7 +827,7 @@ impl GameState {
     /// Panics if an internally inconsistent payment prompt has no active frame.
     #[must_use]
     pub fn auto_payment_pending(&self) -> Option<crate::decide::Decision> {
-        let Some(crate::decide::PendingDecision::Payment(prompt)) = self.pending.as_ref() else {
+        let Some(crate::decide::DecisionPointKind::Payment(prompt)) = self.pending.as_ref() else {
             return None;
         };
         let command = match prompt.stage {
@@ -1154,7 +1154,7 @@ impl GameState {
         };
         top.initialize(locked);
         let prompt = top.prompt(Vec::new());
-        top.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        top.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         self.refresh_payment_prompt();
     }
 
@@ -1171,7 +1171,7 @@ impl GameState {
             .expect("OpenPayment has a proposal frame");
         frame.initialize(locked);
         let prompt = frame.prompt(Vec::new());
-        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         self.refresh_payment_prompt();
     }
 
@@ -1367,7 +1367,7 @@ impl GameState {
         frame.progress = PaymentProgress::Idle;
         frame.recording = None;
         let prompt = frame.prompt(Vec::new());
-        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         self.refresh_payment_prompt();
         Ok(())
     }
@@ -1404,7 +1404,7 @@ impl GameState {
             PaymentStage::Paying
         };
         let prompt = frame.prompt(Vec::new());
-        frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+        frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         self.refresh_payment_prompt();
         Ok(())
     }
@@ -1586,7 +1586,7 @@ impl GameState {
                 }
                 let legal = self.legal_mana_reversal_sets();
                 if legal.iter().any(|set| !set.is_empty()) {
-                    self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+                    self.pending = Some(crate::decide::DecisionPointKind::ChooseManaReversals(
                         crate::decide::pending::ChooseManaReversals {
                             player: payer,
                             legal,
@@ -1607,7 +1607,7 @@ impl GameState {
     ) -> Result<(), crate::decide::DecisionError> {
         let legal = self.legal_mana_reversal_sets();
         if legal.iter().any(|set| !set.is_empty()) {
-            self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+            self.pending = Some(crate::decide::DecisionPointKind::ChooseManaReversals(
                 crate::decide::pending::ChooseManaReversals {
                     player: payer,
                     legal,
@@ -1730,7 +1730,7 @@ impl GameState {
     ) -> Result<(), crate::decide::DecisionError> {
         let legal = self.legal_nested_mana_reversal_sets();
         if legal.iter().any(|set| !set.is_empty()) {
-            self.pending = Some(crate::decide::PendingDecision::ChooseManaReversals(
+            self.pending = Some(crate::decide::DecisionPointKind::ChooseManaReversals(
                 crate::decide::pending::ChooseManaReversals {
                     player: payer,
                     legal,
@@ -2515,11 +2515,11 @@ mod tests {
     use super::*;
     use crate::CostOptionChoices;
     use crate::Decision;
+    use crate::DecisionPointKind;
     use crate::GameConfig;
     use crate::GameState;
     use crate::ManaProvenance;
     use crate::ObjectSource;
-    use crate::PendingDecision;
     use crate::PlayerConfig;
     use crate::PlayerId;
     use crate::StartingPlayer;
@@ -2582,7 +2582,7 @@ mod tests {
         for _ in 0..20 {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => return,
+                StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => return,
                 other => panic!("expected payment to resume, got {other:?}"),
             }
         }
@@ -2865,7 +2865,7 @@ mod tests {
             &frame,
         );
 
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("May(Pay) should open an optional payment frame");
         };
         assert_eq!(prompt.stage, PaymentStage::PrePayment);
@@ -2904,7 +2904,7 @@ mod tests {
             ),
             &frame,
         );
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("May(Pay) should open an optional payment frame");
         };
         assert_eq!(prompt.stage, PaymentStage::Paying);
@@ -2951,7 +2951,7 @@ mod tests {
             ),
             &Frame::bare(subject, payer),
         );
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("nested May(Pay) should open an optional payment frame");
         };
         state
@@ -2992,7 +2992,7 @@ mod tests {
             ),
             &Frame::bare(subject, payer),
         );
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("nested May(Pay) should open an optional payment frame");
         };
         state
@@ -3070,7 +3070,7 @@ mod tests {
             ),
             &frame,
         );
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("May(Pay) should open an optional payment frame");
         };
         let iou = prompt.outstanding[0].id;
@@ -3083,7 +3083,7 @@ mod tests {
         loop {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement(_)) => break,
+                StepOutcome::NeedsDecision(DecisionPointKind::ChooseReplacement(_)) => break,
                 other => panic!("expected a suspended replacement choice, got {other:?}"),
             }
         }

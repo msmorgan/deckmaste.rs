@@ -932,7 +932,7 @@ mod tests {
     use deckmaste_core::Uint;
     use deckmaste_core::Zone;
 
-    use crate::PendingDecision;
+    use crate::DecisionPointKind;
     use crate::agenda::WorkItem;
     use crate::event::CoinFlipped;
     use crate::event::DieRolled;
@@ -1327,7 +1327,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -1352,7 +1352,7 @@ mod tests {
             &frame,
         );
         let _ = state.step(); // ManaColorOpened
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(
+        let StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaColor(
             crate::decide::pending::ChooseManaColor {
                 player,
                 options,
@@ -1391,7 +1391,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -1409,7 +1409,7 @@ mod tests {
             &frame,
         );
         let _ = state.step(); // ManaModeOpened
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseManaMode(
+        let StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaMode(
             crate::decide::pending::ChooseManaMode {
                 player, options, ..
             },
@@ -1486,7 +1486,7 @@ mod tests {
     #[test]
     fn discard_surfaces_choice_validates_and_clamps() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
@@ -1507,7 +1507,7 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             min,
             max,
@@ -1551,7 +1551,7 @@ mod tests {
                 _ => None,
             })
             .expect("a ChooseObjects decision surfaces within a few steps");
-        let PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects { max, .. }) =
+        let DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects { max, .. }) =
             pending
         else {
             panic!("expected ChooseObjects, got {pending:?}");
@@ -2190,7 +2190,7 @@ mod tests {
         use deckmaste_core::Token;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, src) = bear_on_field();
         // Mint the creature token to be populated (a 2/2 Bear token you
@@ -2237,7 +2237,7 @@ mod tests {
 
         // The `With(ChooseOne(...))` surfaces the pick.
         let _ = state.step();
-        let Some(PendingDecision::ChooseObjects(choose)) = state.pending.clone() else {
+        let Some(DecisionPointKind::ChooseObjects(choose)) = state.pending.clone() else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
         assert!(
@@ -2339,7 +2339,7 @@ mod tests {
         let mut choose = None;
         for _ in 0..30 {
             match state.step() {
-                StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(c)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::ChooseObjects(c)) => {
                     choose = Some(c);
                     break;
                 }
@@ -2414,7 +2414,7 @@ mod tests {
 
         use crate::decide::Action as Act;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, actor) = bear_on_field();
         let source_face = CardFace {
@@ -2471,7 +2471,7 @@ mod tests {
         for _ in 0..200 {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(_)) => {
                     if state.stack.is_empty() {
                         break;
                     }
@@ -2935,7 +2935,7 @@ mod tests {
         assert!(
             !matches!(
                 state.pending,
-                Some(PendingDecision::ChooseObjects(
+                Some(DecisionPointKind::ChooseObjects(
                     crate::decide::pending::ChooseObjects { .. }
                 ))
             ),
@@ -3032,7 +3032,7 @@ mod tests {
     fn call_flip_rejects_wrong_decision_kind() {
         use crate::decide::Decision;
         use crate::decide::DecisionError;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -3048,7 +3048,7 @@ mod tests {
         drain_progress(&mut state, 20);
         assert!(matches!(
             state.pending,
-            Some(PendingDecision::CallFlip(
+            Some(DecisionPointKind::CallFlip(
                 crate::decide::pending::CallFlip { .. }
             ))
         ));
@@ -3060,7 +3060,7 @@ mod tests {
         assert!(
             matches!(
                 state.pending,
-                Some(PendingDecision::CallFlip(
+                Some(DecisionPointKind::CallFlip(
                     crate::decide::pending::CallFlip { .. }
                 ))
             ),
@@ -3158,7 +3158,7 @@ mod tests {
         use deckmaste_core::EventFilter;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -3185,7 +3185,7 @@ mod tests {
             // Pop exactly the front-scheduled `FlipCoins` work item — it
             // sets `pending` directly; no decision surfaces on this step.
             step_n(&mut state, 1);
-            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+            let Some(DecisionPointKind::CallFlip(crate::decide::pending::CallFlip { player })) =
                 state.pending.clone()
             else {
                 panic!(
@@ -3350,7 +3350,7 @@ mod tests {
         use deckmaste_core::Uint;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         /// One drive's recorded surface: `(heads, won)` per coin, `(natural,
         /// result)` per die, and the discard sample's positions in `minted`.
@@ -3398,7 +3398,7 @@ mod tests {
             step_n(&mut state, 1);
             assert!(matches!(
                 state.pending,
-                Some(PendingDecision::CallFlip(
+                Some(DecisionPointKind::CallFlip(
                     crate::decide::pending::CallFlip { .. }
                 ))
             ));
@@ -3566,7 +3566,7 @@ mod tests {
     #[test]
     fn called_flip_surfaces_call_and_scores_won() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -3580,7 +3580,7 @@ mod tests {
             &frame,
         );
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+        let Some(DecisionPointKind::CallFlip(crate::decide::pending::CallFlip { player })) =
             state.pending.clone()
         else {
             panic!("expected a pending CallFlip, got {:?}", state.pending);
@@ -3635,7 +3635,7 @@ mod tests {
     #[test]
     fn multi_coin_called_flip_pauses_per_coin() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -3651,7 +3651,7 @@ mod tests {
         drain_progress(&mut state, 20);
 
         for (i, call) in [true, false, true].into_iter().enumerate() {
-            let Some(PendingDecision::CallFlip(crate::decide::pending::CallFlip { player })) =
+            let Some(DecisionPointKind::CallFlip(crate::decide::pending::CallFlip { player })) =
                 state.pending.clone()
             else {
                 panic!(
@@ -3749,7 +3749,7 @@ mod tests {
                 &frame,
             );
             drain_progress(&mut state, 20);
-            while let Some(crate::decide::PendingDecision::CallFlip(_)) = state.pending.clone() {
+            while let Some(crate::decide::DecisionPointKind::CallFlip(_)) = state.pending.clone() {
                 state
                     .submit_decision(crate::decide::Decision::Answer(true))
                     .unwrap();

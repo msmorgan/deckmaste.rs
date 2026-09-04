@@ -260,7 +260,7 @@ pub(crate) fn reconstruct_frame(
     replay_frame.stage = PaymentStage::Paying;
     replay_frame.coverage.clone_from(&frame.coverage);
     let prompt = replay_frame.prompt(Vec::new());
-    replay_frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    replay_frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
     let payment_logical_objects = frame
         .logical_objects
         .iter()
@@ -530,7 +530,7 @@ fn replay_fulfillment_answers(
     let mut incomplete_facts = None;
     loop {
         if let Some(pending) = state.pending.clone() {
-            if matches!(pending, crate::decide::PendingDecision::Payment(_))
+            if matches!(pending, crate::decide::DecisionPointKind::Payment(_))
                 && state.payment_depth() == parent_depth
             {
                 break;
@@ -598,7 +598,7 @@ fn replay_fulfillment_answers(
             continue;
         }
         match state.step() {
-            StepOutcome::NeedsDecision(crate::decide::PendingDecision::Payment(_))
+            StepOutcome::NeedsDecision(crate::decide::DecisionPointKind::Payment(_))
                 if state.payment_depth() == parent_depth =>
             {
                 break;
@@ -694,7 +694,7 @@ fn replay_mana_action_answers(
         }
         if !matches!(
             state.pending,
-            Some(crate::decide::PendingDecision::Payment(_))
+            Some(crate::decide::DecisionPointKind::Payment(_))
         ) {
             return Err(ReplayError::MissingDecision);
         }
@@ -720,7 +720,7 @@ fn replay_mana_action_answers(
         if finished
             && matches!(
                 state.pending,
-                Some(crate::decide::PendingDecision::Payment(_))
+                Some(crate::decide::DecisionPointKind::Payment(_))
             )
         {
             return Ok(());
@@ -1307,7 +1307,7 @@ fn enter_decline_fulfillment_replay(
     replay_frame.progress = super::PaymentProgress::Idle;
     replay_frame.recording = None;
     let prompt = replay_frame.prompt(Vec::new());
-    replay_frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    replay_frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
     Ok(())
 }
 
@@ -1343,7 +1343,7 @@ fn replay_omitted_fulfillment_mana_actions(
     window.observations = observations;
     window.logical_objects = logical_objects;
     let prompt = window.prompt(Vec::new());
-    window.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    window.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
     state
         .payment
         .as_mut()
@@ -1374,7 +1374,7 @@ fn replay_omitted_fulfillment_mana_actions(
     parent.observations.extend(window.observations);
     parent.logical_objects.extend(window.logical_objects);
     let prompt = parent.prompt(Vec::new());
-    parent.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    parent.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
     Ok(())
 }
 
@@ -1403,7 +1403,7 @@ pub(crate) fn reconstruct_decline(
     replay_frame.payment_base = None;
     replay_frame.coverage = None;
     let prompt = replay_frame.prompt(Vec::new());
-    replay_frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+    replay_frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
     let payment_logical_objects = frame
         .logical_objects
         .iter()

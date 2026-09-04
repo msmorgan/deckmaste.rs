@@ -15,7 +15,7 @@ use rand_chacha::ChaCha8Rng;
 
 use crate::agenda::WorkItem;
 use crate::combat::CombatState;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::event::GameEvent;
 use crate::layer::ContinuousEffect;
 use crate::object::Cards;
@@ -146,7 +146,7 @@ pub struct GameConfig {
 /// while that decision is pending (alongside `pending`), taken on submit. The
 /// resolution-time analogue of the `announcing` cast slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ChoiceContinuation {
+pub enum DecisionContinuation {
     /// [CR#601.2b,702.33d]: the pending `YesNo` answers "pay this tagged
     /// optional cost (again)?" for the in-flight announce. Yes records the
     /// tag (+1) and adds `components` to the total ([CR#601.2f]); a
@@ -264,7 +264,7 @@ pub struct ArrangePile {
 ///
 /// When `replace_event` needs a player choice (≥ 2 applicable replacements),
 /// it stores the in-progress event and lineage here, surfaces
-/// `PendingDecision::ChooseReplacement`, and returns `Suspend`. The submit
+/// `DecisionPointKind::ChooseReplacement`, and returns `Suspend`. The submit
 /// handler resumes by running `apply_one` on the chosen replacement, then
 /// re-entering the replacement loop on the (possibly modified) event.
 #[derive(Debug, Clone)]
@@ -310,9 +310,9 @@ pub struct GameImage {
     pub announcing: Option<PendingStackEntry>,
     pub turn: TurnState,
     pub agenda: VecDeque<WorkItem>,
-    pub pending: Option<PendingDecision>,
+    pub pending: Option<DecisionPointKind>,
     /// The continuation waiting on an open `ChooseObjects` decision.
-    pub choice: Option<ChoiceContinuation>,
+    pub choice: Option<DecisionContinuation>,
     pub outcome: Option<GameOutcome>,
     /// [CR#603.2]: triggers that have fired but are not yet on the stack.
     /// Populated only by applying a `TriggerFired` event; drained by the
@@ -1035,7 +1035,7 @@ impl GameState {
     /// `UntilEvent`, `EndOfGame`) have no sweep/tracking yet — `resolve`
     /// trips a seam before any instance carrying one is created.
     /// The choices.md §6 boundary record for the pending decision, schema
-    /// derived from the kind (see `PendingDecision`'s schema methods).
+    /// derived from the kind (see `DecisionPointKind`'s schema methods).
     #[must_use]
     pub fn decision_point(&self) -> Option<crate::decide::DecisionPoint> {
         self.pending
@@ -1229,7 +1229,7 @@ mod tests {
 
     use super::*;
     use crate::decide::Action;
-    use crate::decide::PendingDecision;
+    use crate::decide::DecisionPointKind;
     use crate::decide::pending::Priority;
     use crate::event::LossReason;
     use crate::event::PlayerLost;
@@ -1284,11 +1284,11 @@ mod tests {
             optional_components: vec![],
             alternative_cost: None,
         });
-        state.pending = Some(PendingDecision::Priority(Priority {
+        state.pending = Some(DecisionPointKind::Priority(Priority {
             player,
             legal: vec![Action::Pass],
         }));
-        state.choice = Some(ChoiceContinuation::AnnounceModes);
+        state.choice = Some(DecisionContinuation::AnnounceModes);
         state.placing_trigger = Some(PendingTrigger {
             activation: crate::ActivationId::NONE,
             id,
@@ -1317,8 +1317,11 @@ mod tests {
 
         image.resume_control().unwrap();
         assert!(image.announcing.is_some());
-        assert!(matches!(image.pending, Some(PendingDecision::Priority(_))));
-        assert_eq!(image.choice, Some(ChoiceContinuation::AnnounceModes));
+        assert!(matches!(
+            image.pending,
+            Some(DecisionPointKind::Priority(_))
+        ));
+        assert_eq!(image.choice, Some(DecisionContinuation::AnnounceModes));
         assert!(image.placing_trigger.is_some());
         assert!(matches!(
             image.replace_state.as_ref().map(|state| &state.current),

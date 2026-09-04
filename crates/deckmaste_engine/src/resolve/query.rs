@@ -962,7 +962,7 @@ mod tests {
     /// [CR#701.21a]).
     #[test]
     fn foreign_by_routes_choice_to_that_player() {
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, bear) = bear_on_field();
         let _theirs = second_bear_to_player_1(&mut state);
@@ -985,7 +985,7 @@ mod tests {
             &frame,
         );
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             ..
         })) = state.pending.clone()

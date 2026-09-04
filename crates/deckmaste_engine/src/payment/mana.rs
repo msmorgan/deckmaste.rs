@@ -189,10 +189,10 @@ impl GameState {
         };
         if matches!(
             frame.working.pending,
-            Some(crate::decide::PendingDecision::Payment(_))
+            Some(crate::decide::DecisionPointKind::Payment(_))
         ) {
             let prompt = frame.prompt(mana_abilities);
-            frame.working.pending = Some(crate::decide::PendingDecision::Payment(prompt));
+            frame.working.pending = Some(crate::decide::DecisionPointKind::Payment(prompt));
         }
     }
 

@@ -20,6 +20,7 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
 use deckmaste_engine::GameState;
@@ -27,7 +28,6 @@ use deckmaste_engine::ManaProvenance;
 use deckmaste_engine::ObjectId;
 use deckmaste_engine::Occurrence;
 use deckmaste_engine::PaymentCommand;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -203,24 +203,23 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("a Payment prompt has an automatic runner answer");
@@ -252,23 +251,23 @@ fn activate_and_drive(state: &mut GameState, object: ObjectId, ability: usize) -
             // Pass priorities while the loyalty ability is still resolving; once
             // it (and any cast it put on the stack) has left, an empty-stack
             // priority means resolution settled with no YesNo — return it.
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) if state.stack.is_empty() => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) if state.stack.is_empty() => {
                 return stop;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("a Payment prompt has an automatic runner answer");
@@ -353,7 +352,7 @@ fn impulse_decline_deals_two_and_card_stays_exiled() {
     float(&mut state, PlayerId(0), Color::Green, 2);
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+    let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(deckmaste_engine::YesNo { player })) =
         stop
     else {
         panic!("expected the impulse's may-cast YesNo, got {stop:?}");
@@ -384,7 +383,7 @@ fn impulse_accept_puts_card_on_stack_and_deals_no_damage() {
     float(&mut state, PlayerId(0), Color::Green, 2);
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { .. })) = stop
+    let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(deckmaste_engine::YesNo { .. })) = stop
     else {
         panic!("expected the impulse's may-cast YesNo, got {stop:?}");
     };
@@ -421,7 +420,7 @@ fn impulse_unfunded_cast_is_offered_and_can_be_declined() {
     // No mana floated: the proposal is still legal, but cannot be completed.
 
     let stop = activate_and_drive(&mut state, chandra, 0);
-    let StepOutcome::NeedsDecision(PendingDecision::YesNo(deckmaste_engine::YesNo { player })) =
+    let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(deckmaste_engine::YesNo { player })) =
         stop
     else {
         panic!("expected the unfunded cast proposal, got {stop:?}");
@@ -432,7 +431,7 @@ fn impulse_unfunded_cast_is_offered_and_can_be_declined() {
     assert!(
         matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_))
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_))
         ),
         "accepting an unfunded cast should reach explicit payment, got {stop:?}"
     );
@@ -501,18 +500,17 @@ fn full_card_abilities_activate() {
     let legal = loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player,
-                legal,
-            })) if player == PlayerId(0) && state.stack.is_empty() => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player, legal },
+            )) if player == PlayerId(0) && state.stack.is_empty() => {
                 break legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("the loyalty cost has an automatic runner answer");
@@ -570,24 +568,24 @@ fn minus_three_kills_a_creature() {
     loop {
         let (_, stop) = step_to_stop(&mut state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseTargets(
                 deckmaste_engine::ChooseTargets { .. },
             )) => {
                 state
                     .submit_decision(Decision::Targets(vec![vec![victim]]))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) if state.stack.is_empty() => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) if state.stack.is_empty() => {
                 break;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("the loyalty cost has an automatic runner answer");
@@ -625,7 +623,7 @@ fn ultimate_mints_an_emblem() {
     assert!(
         matches!(
             stop,
-            StepOutcome::NeedsDecision(PendingDecision::Priority(
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                 deckmaste_engine::Priority { .. }
             ))
         ),

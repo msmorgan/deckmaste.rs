@@ -24,7 +24,7 @@ use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
 use crate::decide::Action;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::event::Cause;
 use crate::event::GameEvent;
 use crate::event::Occurrence;
@@ -1417,7 +1417,7 @@ impl GameState {
         let max = if modal.choose.repeats { hi } else { hi.min(options) };
         let min = if modal.choose.up_to { 0 } else { lo.min(max) };
         let player = self.acting_player(&modal.choose.chooser, &frame);
-        self.pending = Some(PendingDecision::ChooseModes(
+        self.pending = Some(DecisionPointKind::ChooseModes(
             crate::decide::pending::ChooseModes {
                 player,
                 options,
@@ -1430,7 +1430,7 @@ impl GameState {
                 ),
             },
         ));
-        self.choice = Some(crate::state::ChoiceContinuation::AnnounceModes);
+        self.choice = Some(crate::state::DecisionContinuation::AnnounceModes);
         options
     }
 
@@ -1551,7 +1551,7 @@ impl GameState {
     ) -> Uint {
         let legal = self.legal_targets_for_specs(&specs, targeting_id, activation);
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
-        self.pending = Some(PendingDecision::ChooseTargets(
+        self.pending = Some(DecisionPointKind::ChooseTargets(
             crate::decide::pending::ChooseTargets {
                 player,
                 spec: specs,
@@ -1773,7 +1773,7 @@ impl GameState {
             || cost_components_mention_x(&pending.optional_components)
             || cost_components_mention_x(&mode_components);
         if has_x {
-            self.pending = Some(PendingDecision::ChooseXValue(
+            self.pending = Some(DecisionPointKind::ChooseXValue(
                 crate::decide::pending::ChooseXValue { player: controller },
             ));
         }
@@ -1885,7 +1885,7 @@ impl GameState {
         // [CR#601.2b]: the player announces each reading; the submission handler
         // concretizes and stashes it together with every already-concrete
         // nonmana component.
-        self.pending = Some(PendingDecision::ChooseCostOptions(
+        self.pending = Some(DecisionPointKind::ChooseCostOptions(
             crate::decide::pending::ChooseCostOptions {
                 player: controller,
                 cost,
@@ -1917,10 +1917,10 @@ impl GameState {
         let Some(option) = rows.get(index) else {
             return false;
         };
-        self.pending = Some(crate::decide::PendingDecision::YesNo(
+        self.pending = Some(crate::decide::DecisionPointKind::YesNo(
             crate::decide::pending::YesNo { player: controller },
         ));
-        self.choice = Some(crate::state::ChoiceContinuation::OptionalCost {
+        self.choice = Some(crate::state::DecisionContinuation::OptionalCost {
             tag: option.tag,
             components: option.components.to_vec(),
             repeatable: option.repeatable,
@@ -2144,15 +2144,16 @@ impl GameState {
                 }
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
-                    self.pending =
-                        Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
+                    self.pending = Some(DecisionPointKind::PayMana(
+                        crate::decide::pending::PayMana {
                             player: controller,
                             cost: mana,
                             pool,
                             // [CR#106.6]: a spell's stack identity is its own id —
                             // the object SpendOnly riders judge.
                             subject: object,
-                        }));
+                        },
+                    ));
                 }
                 // Empty cost (no mana required): no decision surfaces, cast
                 // continues (the verbs above already front-scheduled).
@@ -2221,8 +2222,8 @@ impl GameState {
                 let mana = concretize_x(&mana, announced_x);
                 if !mana.is_empty() {
                     let pool = self.player(controller).mana_pool.clone();
-                    self.pending =
-                        Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
+                    self.pending = Some(DecisionPointKind::PayMana(
+                        crate::decide::pending::PayMana {
                             player: controller,
                             // [CR#601.2b]: the concretized mana (hybrid/Phyrexian
                             // resolved, {X} applied), not the printed cost.
@@ -2231,7 +2232,8 @@ impl GameState {
                             // [CR#106.6]: an activated ability's mana is spent on
                             // its source — that is the object SpendOnly judges.
                             subject: source,
-                        }));
+                        },
+                    ));
                 }
             }
             StackObject::Triggered { .. } => {
@@ -2639,7 +2641,7 @@ impl GameState {
     #[must_use]
     pub fn auto_pay_pending(&self) -> Payment {
         match &self.pending {
-            Some(PendingDecision::PayMana(crate::decide::pending::PayMana {
+            Some(DecisionPointKind::PayMana(crate::decide::pending::PayMana {
                 cost,
                 pool,
                 subject,
@@ -3109,7 +3111,7 @@ mod tests {
         assert_eq!(state.announce_modes(), 2);
         assert!(matches!(
             state.pending,
-            Some(PendingDecision::ChooseModes(_))
+            Some(DecisionPointKind::ChooseModes(_))
         ));
 
         state
@@ -3121,7 +3123,7 @@ mod tests {
         );
 
         assert_eq!(state.announce_targets(), 1);
-        let Some(PendingDecision::ChooseTargets(choice)) = &state.pending else {
+        let Some(DecisionPointKind::ChooseTargets(choice)) = &state.pending else {
             panic!("the selected targeted mode should announce its target");
         };
         assert_eq!(choice.spec, vec![target]);
@@ -3527,7 +3529,7 @@ mod tests {
         with_x.announce_x();
         assert!(matches!(
             with_x.pending,
-            Some(PendingDecision::ChooseXValue(_))
+            Some(DecisionPointKind::ChooseXValue(_))
         ));
     }
 
@@ -3883,7 +3885,7 @@ mod tests {
     fn autotap_covers_a_single_colored_pip() {
         use crate::agenda::WorkItem;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::event::GameEvent;
         use crate::payment::IouKind;
         use crate::payment::ManaCoverage;
@@ -3911,7 +3913,7 @@ mod tests {
         let prompt = loop {
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => break prompt,
+                StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => break prompt,
                 other => panic!("expected cast payment, got {other:?}"),
             }
         };
@@ -3930,7 +3932,7 @@ mod tests {
                 .is_err(),
             "empty coverage cannot satisfy the locked red pip"
         );
-        let Some(PendingDecision::Payment(after)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(after)) = state.pending.as_ref() else {
             panic!("the rejected coverage keeps the payment prompt open")
         };
         assert_eq!(

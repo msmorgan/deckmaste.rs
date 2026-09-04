@@ -9,7 +9,7 @@ use crate::agenda::WorkItem;
 use crate::decide::Decision;
 use crate::decide::DecisionError;
 use crate::decide::DecisionHandler;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::decide::PreGameKind;
 use crate::event::CoinFlipped;
 use crate::event::GameEvent;
@@ -79,7 +79,7 @@ impl DecisionHandler for CallFlip {
             .choice
             .take()
             .expect("a CallFlip decision stashed its continuation");
-        let crate::state::ChoiceContinuation::CallFlip {
+        let crate::state::DecisionContinuation::CallFlip {
             player,
             remaining,
             mut events,
@@ -96,8 +96,8 @@ impl DecisionHandler for CallFlip {
         }));
         let remaining = remaining - 1;
         if remaining > 0 {
-            g.pending = Some(PendingDecision::CallFlip(CallFlip { player }));
-            g.choice = Some(crate::state::ChoiceContinuation::CallFlip {
+            g.pending = Some(DecisionPointKind::CallFlip(CallFlip { player }));
+            g.choice = Some(crate::state::DecisionContinuation::CallFlip {
                 player,
                 remaining,
                 events,
@@ -185,7 +185,7 @@ impl DecisionHandler for YesNo {
             // [CR#118.12]: `OneShotEffect::May` — yes runs `effect` then
             // `if_did`; no runs `if_not` (or nothing). Front-scheduled
             // in order so `effect` precedes `if_did`.
-            crate::state::ChoiceContinuation::May { may, frame } => {
+            crate::state::DecisionContinuation::May { may, frame } => {
                 if yes
                     && let Some((caster, object, alternative_cost)) =
                         g.may_cast_referent(&may, &frame)
@@ -219,7 +219,7 @@ impl DecisionHandler for YesNo {
             // (again)?" — yes records the tag and adds its components
             // to the total ([CR#601.2f]); a repeatable row re-offers
             // ([CR#702.33c] multikicker), else the walk advances.
-            crate::state::ChoiceContinuation::OptionalCost {
+            crate::state::DecisionContinuation::OptionalCost {
                 tag,
                 components,
                 repeatable,
@@ -271,7 +271,7 @@ impl DecisionHandler for ChooseNoteNumber {
         // number — rather than mint a note-only twin.
         let key = self.key;
         g.pending = None;
-        if let Some(crate::state::ChoiceContinuation::BindNumber { dest, activation }) =
+        if let Some(crate::state::DecisionContinuation::BindNumber { dest, activation }) =
             g.choice.take()
         {
             g.activation_write_number(activation, dest, n);
@@ -302,7 +302,7 @@ impl DecisionHandler for ChooseNoteCardName {
         }
         let key = self.key;
         g.pending = None;
-        if let Some(crate::state::ChoiceContinuation::BindSymbol { dest, activation }) =
+        if let Some(crate::state::DecisionContinuation::BindSymbol { dest, activation }) =
             g.choice.take()
         {
             g.activation_write_symbol(activation, dest, name);
@@ -425,7 +425,7 @@ impl DecisionHandler for ChooseObjects {
         {
             // [CR#608.2d]: the ordinary binder path — bind the picks
             // as `chosen` and re-run the choosing effect.
-            crate::state::ChoiceContinuation::BindChoice {
+            crate::state::DecisionContinuation::BindChoice {
                 dest,
                 frame,
                 if_none,
@@ -529,7 +529,7 @@ impl DecisionHandler for ArrangePile {
         // pile. Take the walk state, reorder that pile, then surface the
         // next pending pile (or finish).
         let arranger = self.player;
-        let crate::state::ChoiceContinuation::ArrangePiles { current, remaining } = g
+        let crate::state::DecisionContinuation::ArrangePiles { current, remaining } = g
             .choice
             .take()
             .expect("an ArrangePile decision stashed its continuation")
@@ -541,7 +541,8 @@ impl DecisionHandler for ArrangePile {
         if order.len() != current.objects.len() || want != got {
             // Restore the continuation so the (idempotent) decision can be
             // re-answered.
-            g.choice = Some(crate::state::ChoiceContinuation::ArrangePiles { current, remaining });
+            g.choice =
+                Some(crate::state::DecisionContinuation::ArrangePiles { current, remaining });
             return Err(DecisionError::Illegal {
                 reason: "an arrangement is a permutation of the offered pile".into(),
             });

@@ -241,7 +241,7 @@ pub struct ReplacementInstance {
 /// Stable identity for a replacement effect — either a static ability effect
 /// slot or a floating instance. Used in the [CR#614.5] lineage set so the same
 /// replacement can't be applied twice to the modified event. `pub` so
-/// `PendingDecision::ChooseReplacement` (and its integration tests) can name
+/// `DecisionPointKind::ChooseReplacement` (and its integration tests) can name
 /// it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ReplacementKey {
@@ -907,7 +907,7 @@ pub(crate) fn affected_player(state: &GameState, e: &GameEvent) -> PlayerId {
 }
 
 /// Store a suspended replacement-loop state into `GameState.replace_state` and
-/// surface a `PendingDecision::ChooseReplacement` to the pending slot.
+/// surface a `DecisionPointKind::ChooseReplacement` to the pending slot.
 ///
 /// Called when ≥ 2 applicable replacements are found for the same event.
 /// The `remaining` field is set to `vec![]` here because `replace_event` is
@@ -926,7 +926,7 @@ pub(crate) fn surface_choice(
         applied,
         remaining: vec![], // batch remainders written by apply_occurrence after Suspend
     });
-    state.pending = Some(crate::decide::PendingDecision::ChooseReplacement(
+    state.pending = Some(crate::decide::DecisionPointKind::ChooseReplacement(
         crate::decide::pending::ChooseReplacement {
             chooser,
             applicable: keys,
@@ -1199,7 +1199,7 @@ mod tests {
     use deckmaste_core::Zone;
 
     use super::*;
-    use crate::decide::PendingDecision;
+    use crate::decide::DecisionPointKind;
     use crate::event::Cause;
     use crate::event::GameEvent;
 
@@ -1858,7 +1858,7 @@ mod tests {
             &two_applicable,
         );
 
-        let Some(PendingDecision::ChooseReplacement(crate::decide::pending::ChooseReplacement {
+        let Some(DecisionPointKind::ChooseReplacement(crate::decide::pending::ChooseReplacement {
             chooser,
             ..
         })) = state.pending

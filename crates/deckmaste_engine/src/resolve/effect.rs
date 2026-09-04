@@ -313,7 +313,7 @@ impl GameState {
                     frame.activation,
                 );
                 let (min, max) = self.choice_bounds(&choice.quantity, candidates.len(), frame);
-                self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                self.pending = Some(crate::decide::DecisionPointKind::ChooseObjects(
                     crate::decide::pending::ChooseObjects {
                         player: self.acting_player(&choice.by, frame),
                         candidates,
@@ -321,7 +321,7 @@ impl GameState {
                         max,
                     },
                 ));
-                self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
+                self.choice = Some(crate::state::DecisionContinuation::BindChoice {
                     dest: choice.dest,
                     frame: frame.clone(),
                     if_none: deckmaste_core::Block::default(),
@@ -356,7 +356,7 @@ impl GameState {
                 } else {
                     0
                 };
-                self.pending = Some(crate::decide::PendingDecision::ChooseObjects(
+                self.pending = Some(crate::decide::DecisionPointKind::ChooseObjects(
                     crate::decide::pending::ChooseObjects {
                         player: self.acting_player(&search.by, frame),
                         candidates,
@@ -364,7 +364,7 @@ impl GameState {
                         max,
                     },
                 ));
-                self.choice = Some(crate::state::ChoiceContinuation::BindChoice {
+                self.choice = Some(crate::state::DecisionContinuation::BindChoice {
                     dest: search.dest,
                     frame: frame.clone(),
                     if_none: search.if_none,
@@ -374,25 +374,25 @@ impl GameState {
                 let actor = self.acting_player(&choice.by, frame);
                 match choice.domain {
                     deckmaste_core::ChosenValueKind::Number => {
-                        self.pending = Some(crate::decide::PendingDecision::ChooseNoteNumber(
+                        self.pending = Some(crate::decide::DecisionPointKind::ChooseNoteNumber(
                             crate::decide::pending::ChooseNoteNumber {
                                 player: actor,
                                 key: "register".into(),
                             },
                         ));
-                        self.choice = Some(crate::state::ChoiceContinuation::BindNumber {
+                        self.choice = Some(crate::state::DecisionContinuation::BindNumber {
                             dest: choice.dest,
                             activation: frame.activation,
                         });
                     }
                     deckmaste_core::ChosenValueKind::CardName => {
-                        self.pending = Some(crate::decide::PendingDecision::ChooseNoteCardName(
+                        self.pending = Some(crate::decide::DecisionPointKind::ChooseNoteCardName(
                             crate::decide::pending::ChooseNoteCardName {
                                 player: actor,
                                 key: "register".into(),
                             },
                         ));
-                        self.choice = Some(crate::state::ChoiceContinuation::BindSymbol {
+                        self.choice = Some(crate::state::DecisionContinuation::BindSymbol {
                             dest: choice.dest,
                             activation: frame.activation,
                         });
@@ -1004,10 +1004,10 @@ impl GameState {
                 // You` is the only spelling in canon today, so this is
                 // behavior-preserving for every existing card.
                 let player = self.acting_player(&may.who, frame);
-                self.pending = Some(crate::decide::PendingDecision::YesNo(
+                self.pending = Some(crate::decide::DecisionPointKind::YesNo(
                     crate::decide::pending::YesNo { player },
                 ));
-                self.choice = Some(crate::state::ChoiceContinuation::May {
+                self.choice = Some(crate::state::DecisionContinuation::May {
                     may,
                     frame: frame.clone(),
                 });
@@ -1060,7 +1060,7 @@ impl GameState {
                 // are not built: see the seam note on
                 // `GameState::acting_player`.
                 let player = self.acting_player(&modal.choose.chooser, frame);
-                self.pending = Some(crate::decide::PendingDecision::ChooseModes(
+                self.pending = Some(crate::decide::DecisionPointKind::ChooseModes(
                     crate::decide::pending::ChooseModes {
                         player,
                         options,
@@ -1070,7 +1070,7 @@ impl GameState {
                         entwine: false,
                     },
                 ));
-                self.choice = Some(crate::state::ChoiceContinuation::Modal {
+                self.choice = Some(crate::state::DecisionContinuation::Modal {
                     modes: modal.modes.to_vec(),
                     frame: frame.clone(),
                 });
@@ -2052,14 +2052,14 @@ mod tests {
     #[test]
     fn repeat_over_a_choice_bearing_body_steps_each_iteration_independently() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         // Pump steps until a decision surfaces (a `RunEffect` work item's own
         // `step()` call only *sets* `self.pending` as a side effect and
         // returns `Progress::Resolving` for that step; `NeedsDecision` is
         // reported on the NEXT `step()` call, which sees `pending` already
         // set — so this may take more than one `step()`).
-        fn step_to_decision(state: &mut GameState) -> crate::decide::PendingDecision {
+        fn step_to_decision(state: &mut GameState) -> crate::decide::DecisionPointKind {
             loop {
                 match state.step() {
                     StepOutcome::NeedsDecision(d) => return d,
@@ -2091,7 +2091,7 @@ mod tests {
         );
 
         // First iteration's decision.
-        let PendingDecision::YesNo(crate::decide::pending::YesNo { player }) =
+        let DecisionPointKind::YesNo(crate::decide::pending::YesNo { player }) =
             step_to_decision(&mut state)
         else {
             panic!("expected the first iteration's YesNo");
@@ -2106,7 +2106,7 @@ mod tests {
         );
 
         // Second iteration's OWN decision — not skipped, not pre-answered.
-        let PendingDecision::YesNo(crate::decide::pending::YesNo { player }) =
+        let DecisionPointKind::YesNo(crate::decide::pending::YesNo { player }) =
             step_to_decision(&mut state)
         else {
             panic!("expected the second iteration's own YesNo");
@@ -2595,7 +2595,7 @@ mod tests {
     #[test]
     fn choose_and_note_number_round_trips_through_the_store() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, a) = bear_on_field();
         let key = deckmaste_core::Ident::from("n");
@@ -2618,7 +2618,7 @@ mod tests {
         run_injected(&mut state);
 
         // The first child surfaced the number choice.
-        let Some(PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+        let Some(DecisionPointKind::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
             player,
             key: pk,
         })) = state.pending.clone()
@@ -2738,7 +2738,7 @@ mod tests {
     #[test]
     fn choose_value_card_name_records_the_choice() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, a) = bear_on_field();
         let frame = frame_src(&state, a);
@@ -2754,7 +2754,7 @@ mod tests {
         run_injected(&mut state);
         assert!(matches!(
             state.pending,
-            Some(PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName { key: pending, .. })) if pending == key
+            Some(DecisionPointKind::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName { key: pending, .. })) if pending == key
         ));
         state
             .submit_decision(Decision::CardName("Grizzly Bears".to_owned()))
@@ -2773,13 +2773,14 @@ mod tests {
     #[test]
     fn strategy_and_seat_cover_the_note_number_choice() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (state, _a) = bear_on_field();
-        let pending = PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
-            player: PlayerId(1),
-            key: deckmaste_core::Ident::from("n"),
-        });
+        let pending =
+            DecisionPointKind::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+                player: PlayerId(1),
+                key: deckmaste_core::Ident::from("n"),
+            });
         assert_eq!(
             crate::sim::mechanical(&state, &pending),
             Decision::XValue(0)
@@ -3892,7 +3893,7 @@ mod tests {
         use deckmaste_core::May;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let gain = |n| {
             OneShotEffect::Act(Action::ChangeLife(
@@ -3914,7 +3915,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may()), &frame);
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+        let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(crate::decide::pending::YesNo {
             player,
         })) = state.step()
         else {
@@ -3963,7 +3964,7 @@ mod tests {
         use deckmaste_core::Mode;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let gain_mode = |n| Mode {
             targets: [].into(),
@@ -3998,7 +3999,7 @@ mod tests {
             }),
             &frame,
         );
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes(
+        let StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(
             crate::decide::pending::ChooseModes {
                 player,
                 options,
@@ -4211,7 +4212,7 @@ mod tests {
         use deckmaste_core::Mode;
         use deckmaste_core::Quantity;
 
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let gain_mode = |n| Mode {
             targets: [].into(),
@@ -4242,7 +4243,7 @@ mod tests {
             }),
             &frame,
         );
-        let StepOutcome::NeedsDecision(PendingDecision::ChooseModes(
+        let StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(
             crate::decide::pending::ChooseModes { player, .. },
         )) = state.step()
         else {
@@ -4261,7 +4262,7 @@ mod tests {
     fn run_effect_may_surfaces_yes_no_to_the_named_decider() {
         use deckmaste_core::May;
 
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let p0 = PlayerId(0);
         let p1 = PlayerId(1);
@@ -4281,7 +4282,7 @@ mod tests {
             }),
             &frame,
         );
-        let StepOutcome::NeedsDecision(PendingDecision::YesNo(crate::decide::pending::YesNo {
+        let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(crate::decide::pending::YesNo {
             player,
         })) = state.step()
         else {
@@ -4301,7 +4302,7 @@ mod tests {
         use deckmaste_core::May;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::FulfillmentWitness;
         use crate::payment::PaymentCommand;
 
@@ -4330,7 +4331,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(must_pay()), &frame);
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
         assert_eq!(prompt.payer, p0, "the payer decides");
@@ -4375,7 +4376,7 @@ mod tests {
         use deckmaste_core::May;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::FulfillmentWitness;
         use crate::payment::PaymentCommand;
 
@@ -4407,7 +4408,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may_pay()), &frame);
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
         assert_eq!(prompt.payer, p0, "the payer decides");
@@ -4452,7 +4453,7 @@ mod tests {
         use deckmaste_core::May;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::FulfillmentWitness;
         use crate::payment::PaymentCommand;
 
@@ -4477,7 +4478,7 @@ mod tests {
         };
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may), &frame);
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("expected optional payment, got {:?}", state.pending);
         };
         let iou = prompt.outstanding[0].id;
@@ -4523,7 +4524,7 @@ mod tests {
         use deckmaste_core::May;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::payment::FulfillmentWitness;
         use crate::payment::PaymentCommand;
 
@@ -4554,7 +4555,7 @@ mod tests {
         };
         let life0 = state.player(p0).life;
         state.run_effect(OneShotEffect::May(may), &frame);
-        let Some(PendingDecision::Payment(prompt)) = state.pending.as_ref() else {
+        let Some(DecisionPointKind::Payment(prompt)) = state.pending.as_ref() else {
             panic!("unaffordable cost should still open payment");
         };
         let iou = prompt.outstanding[0].id;
@@ -5765,7 +5766,7 @@ mod tests {
                 break;
             }
             if let crate::step::StepOutcome::NeedsDecision(
-                crate::decide::PendingDecision::ChooseObjects(
+                crate::decide::DecisionPointKind::ChooseObjects(
                     crate::decide::pending::ChooseObjects {
                         candidates,
                         min,
@@ -5803,7 +5804,7 @@ mod tests {
         use deckmaste_core::Quantity;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, bear) = bear_on_field();
         let theirs = second_bear_to_player_1(&mut state);
@@ -5830,7 +5831,7 @@ mod tests {
         );
         // The choice is made for the WHOLE group before iterating.
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             min,
             max,
             candidates,
@@ -6132,7 +6133,7 @@ mod tests {
             );
             drain_progress(&mut state, 20);
             let found: Vec<_> = match state.pending.clone() {
-                Some(crate::decide::PendingDecision::ChooseObjects(
+                Some(crate::decide::DecisionPointKind::ChooseObjects(
                     crate::decide::pending::ChooseObjects { candidates, .. },
                 )) => candidates,
                 other => panic!("expected ChooseObjects, got {other:?}"),
@@ -6173,7 +6174,7 @@ mod tests {
         use deckmaste_core::Quantity;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -6207,7 +6208,7 @@ mod tests {
         );
 
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             candidates,
             min,
             max,
@@ -6251,7 +6252,7 @@ mod tests {
     /// the stated-quality floor the tests above pin.
     #[test]
     fn search_one_bare_quantity_compels_a_find_when_present() {
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -6268,7 +6269,7 @@ mod tests {
         );
 
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             candidates,
             min,
             max,
@@ -6291,7 +6292,7 @@ mod tests {
     #[test]
     fn search_one_bare_quantity_finds_none_from_an_empty_library() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -6313,7 +6314,7 @@ mod tests {
         );
 
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             candidates,
             min,
             max,
@@ -6400,7 +6401,7 @@ mod tests {
         use deckmaste_core::EnterRider;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let mut state = game();
         let p0 = PlayerId(0);
@@ -6430,7 +6431,7 @@ mod tests {
         );
 
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
@@ -6689,7 +6690,7 @@ mod tests {
     #[test]
     fn among_noted_constrained_quantity_surfaces_and_binds_chooser() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, a, b) = two_permanents_on_field();
         // The group this reads is "them" — the members a preceding clause
@@ -6727,7 +6728,7 @@ mod tests {
         );
 
         drain_progress(&mut state, 20);
-        let Some(PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        let Some(DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             player,
             candidates,
             min,
@@ -6833,7 +6834,7 @@ mod tests {
     #[test]
     fn a_chooser_nested_under_a_chooser_resolves_its_own_picks() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         // The loop body declares element(0), source(1), controller(2), so its
         // own first definition is register 3.
@@ -6877,7 +6878,7 @@ mod tests {
 
         let answer = |state: &mut GameState, pick| {
             drain_progress(state, 20);
-            let Some(PendingDecision::ChooseObjects(_)) = state.pending.clone() else {
+            let Some(DecisionPointKind::ChooseObjects(_)) = state.pending.clone() else {
                 panic!("expected ChooseObjects, got {:?}", state.pending);
             };
             state.submit_decision(Decision::Chosen(vec![pick])).unwrap();

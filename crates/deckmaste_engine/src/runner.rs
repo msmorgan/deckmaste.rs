@@ -2,7 +2,7 @@
 
 use crate::decide::Decision;
 use crate::decide::DecisionError;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::state::GameOutcome;
 use crate::state::GameState;
 use crate::step::Progress;
@@ -11,7 +11,7 @@ use crate::step::StepOutcome;
 /// Where a run stopped: the engine needs input, or the game is over.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RunStop {
-    Decision(PendingDecision),
+    Decision(DecisionPointKind),
     GameOver(GameOutcome),
 }
 

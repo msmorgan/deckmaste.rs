@@ -31,6 +31,7 @@ use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::EngineIncident;
 use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
@@ -45,7 +46,6 @@ use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentDeclined;
 use deckmaste_engine::PaymentProgress;
 use deckmaste_engine::PaymentStage;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
@@ -124,7 +124,7 @@ fn activation_fixture_with_card(
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![action],
     }));
@@ -250,7 +250,7 @@ fn announce_to_payment(state: &mut GameState, source: deckmaste_engine::ObjectId
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => return,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => return,
             other => panic!("unexpected stop while announcing payment fixture: {other:?}"),
         }
     }
@@ -258,7 +258,7 @@ fn announce_to_payment(state: &mut GameState, source: deckmaste_engine::ObjectId
 
 fn payment_prompt(state: &GameState) -> deckmaste_engine::PaymentPrompt {
     match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("expected payment prompt, got {other:?}"),
     }
 }
@@ -268,7 +268,7 @@ fn submit_and_run_to_payment(state: &mut GameState, command: PaymentCommand) {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => return,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => return,
             other => panic!("unexpected stop while completing a fulfillment: {other:?}"),
         }
     }
@@ -572,7 +572,7 @@ fn builtin_crew_activates_and_its_creature_type_expires_at_end_of_turn() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => {
                 assert_eq!(prompt.stage, PaymentStage::Ready);
                 break;
             }
@@ -590,7 +590,7 @@ fn builtin_crew_activates_and_its_creature_type_expires_at_end_of_turn() {
     let first_priority = loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority(priority)) => break priority,
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(priority)) => break priority,
             other => panic!("unexpected stop before Crew reaches the stack: {other:?}"),
         }
     };
@@ -599,7 +599,7 @@ fn builtin_crew_activates_and_its_creature_type_expires_at_end_of_turn() {
     let second_priority = loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority(priority)) => break priority,
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(priority)) => break priority,
             other => panic!("unexpected stop before the opponent passes: {other:?}"),
         }
     };
@@ -611,7 +611,7 @@ fn builtin_crew_activates_and_its_creature_type_expires_at_end_of_turn() {
         }
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(_)) => break,
             other => panic!("unexpected stop while Crew resolves: {other:?}"),
         }
     }
@@ -775,7 +775,7 @@ fn announcement_decline_restores_preannouncement_priority() {
         .unwrap();
 
     assert!(state.announcing.is_none());
-    let Some(PendingDecision::Priority(priority)) = state.pending.as_ref() else {
+    let Some(DecisionPointKind::Priority(priority)) = state.pending.as_ref() else {
         panic!("declining an announcement should restore its priority prompt");
     };
     assert_eq!(priority.player, payer);
@@ -804,7 +804,7 @@ fn unaffordable_activation_is_still_a_legal_proposal() {
     state.agenda = VecDeque::from([WorkItem::OpenPriority]);
 
     assert!(matches!(state.step(), StepOutcome::Progress(_)));
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(priority)) = state.step() else {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(priority)) = state.step() else {
         panic!("OpenPriority should surface a priority decision");
     };
     assert_eq!(priority.player, payer);
@@ -1842,7 +1842,7 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: source,

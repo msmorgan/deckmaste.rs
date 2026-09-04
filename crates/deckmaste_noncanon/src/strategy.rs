@@ -7,8 +7,8 @@
 //! attack, block, and every forced/mechanical decision — rides the evaluator.
 
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameState;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::StrategyEvaluator;
 use deckmaste_engine::sim::Strategy;
@@ -47,13 +47,13 @@ impl MatchupStrategy {
 }
 
 impl Strategy for MatchupStrategy {
-    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+    fn decide(&self, state: &GameState, pending: &DecisionPointKind) -> Decision {
         match pending {
             // [CR#704.5j]: the engine strategy fallback `todo!()`s on the legend
             // rule, which the full-proxied matchup surfaces (duplicate
             // legendaries). Keep the first same-name legendary — identical
             // copies here, so the pick is strategy-neutral.
-            PendingDecision::LegendRule(deckmaste_engine::LegendRule { candidates, .. }) => {
+            DecisionPointKind::LegendRule(deckmaste_engine::LegendRule { candidates, .. }) => {
                 Decision::Chosen(vec![candidates[0]])
             }
             // Burn targeting (aim at the opponent's face) is now pure RON: the

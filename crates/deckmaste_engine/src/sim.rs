@@ -24,6 +24,7 @@ use deckmaste_core::Uint;
 use crate::Action;
 use crate::DamageDealt;
 use crate::Decision;
+use crate::DecisionPointKind;
 use crate::GameConfig;
 use crate::GameEvent;
 use crate::GameOutcome;
@@ -31,7 +32,6 @@ use crate::GameState;
 use crate::ManaPool;
 use crate::ObjectId;
 use crate::Occurrence;
-use crate::PendingDecision;
 use crate::PlayerConfig;
 use crate::PlayerId;
 use crate::Progress;
@@ -148,7 +148,7 @@ fn pool_total(pool: &ManaPool) -> usize {
 /// every decision its own way.
 pub trait Strategy {
     /// Answer the surfaced `pending` decision in the context of `state`.
-    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision;
+    fn decide(&self, state: &GameState, pending: &DecisionPointKind) -> Decision;
 }
 
 /// P0's seat: develop a land, then float and cast a creature whenever it can,
@@ -158,9 +158,9 @@ pub trait Strategy {
 pub struct GreedyCreatures;
 
 impl Strategy for GreedyCreatures {
-    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+    fn decide(&self, state: &GameState, pending: &DecisionPointKind) -> Decision {
         match pending {
-            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
+            DecisionPointKind::Priority(crate::decide::pending::Priority { player, legal }) => {
                 Decision::Act(greedy_priority(
                     state,
                     *player,
@@ -181,12 +181,12 @@ impl Strategy for GreedyCreatures {
 pub struct GreedyRemoval;
 
 impl Strategy for GreedyRemoval {
-    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+    fn decide(&self, state: &GameState, pending: &DecisionPointKind) -> Decision {
         match pending {
-            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
+            DecisionPointKind::Priority(crate::decide::pending::Priority { player, legal }) => {
                 Decision::Act(greedy_priority(state, *player, legal, Type::Instant, true))
             }
-            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets {
                 player,
                 legal,
                 ..
@@ -216,9 +216,9 @@ impl Strategy for GreedyRemoval {
 pub struct GreedyDemo;
 
 impl Strategy for GreedyDemo {
-    fn decide(&self, state: &GameState, pending: &PendingDecision) -> Decision {
+    fn decide(&self, state: &GameState, pending: &DecisionPointKind) -> Decision {
         match pending {
-            PendingDecision::Priority(crate::decide::pending::Priority { player, legal }) => {
+            DecisionPointKind::Priority(crate::decide::pending::Priority { player, legal }) => {
                 Decision::Act(greedy_priority(
                     state,
                     *player,
@@ -229,7 +229,7 @@ impl Strategy for GreedyDemo {
             }
             // The demo's burn / sac-outlet pings ("any target") and any other
             // targeted effect: a legal candidate set per spec slot.
-            PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+            DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets {
                 player,
                 spec,
                 legal,
@@ -237,7 +237,7 @@ impl Strategy for GreedyDemo {
             }) => Decision::Targets(choose_targets_any(state, *player, spec, legal)),
             // A multi-blocked attacker ([CR#510.1c]): any split summing to the
             // source's power is legal; dump it all on the first recipient.
-            PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+            DecisionPointKind::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
                 source,
                 recipients,
                 ..
@@ -429,31 +429,31 @@ fn choose_discards(state: &GameState, player: PlayerId, count: Uint) -> Vec<Obje
 /// strategy delegates here for everything but its own priority actions (and,
 /// for removal, targeting) — so `Priority` and `ChooseTargets` are unreachable
 /// here, which also asserts that the creature seat never chooses targets.
-pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decision {
+pub(crate) fn mechanical(state: &GameState, pending: &DecisionPointKind) -> Decision {
     match pending {
-        PendingDecision::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
+        DecisionPointKind::DiscardToHandSize(crate::decide::pending::DiscardToHandSize {
             player,
             count,
         })
-        | PendingDecision::DiscardCards(crate::decide::pending::DiscardCards { player, count }) => {
+        | DecisionPointKind::DiscardCards(crate::decide::pending::DiscardCards { player, count }) => {
             Decision::Discard(choose_discards(state, *player, *count))
         }
         // Greedy default: the first offered option (printed order).
-        PendingDecision::ChooseManaColor(crate::decide::pending::ChooseManaColor {
+        DecisionPointKind::ChooseManaColor(crate::decide::pending::ChooseManaColor {
             options,
             ..
         }) => Decision::ManaColor(*options.first().expect("a mana choice offers options")),
         // Greedy default: the first offered run (printed order).
-        PendingDecision::ChooseManaMode(crate::decide::pending::ChooseManaMode { .. }) => {
+        DecisionPointKind::ChooseManaMode(crate::decide::pending::ChooseManaMode { .. }) => {
             Decision::ManaMode(0)
         }
         // Route through `auto_pay_pending` so the autotapper honors the
         // subject's `SpendOnly` restrictions ([CR#106.6]).
-        PendingDecision::PayMana(crate::decide::pending::PayMana { .. }) => {
+        DecisionPointKind::PayMana(crate::decide::pending::PayMana { .. }) => {
             Decision::Pay(state.auto_pay_pending())
         }
-        PendingDecision::Payment(_) => state.auto_payment_pending().expect("Payment is pending"),
-        PendingDecision::ChooseManaReversals(crate::decide::pending::ChooseManaReversals {
+        DecisionPointKind::Payment(_) => state.auto_payment_pending().expect("Payment is pending"),
+        DecisionPointKind::ChooseManaReversals(crate::decide::pending::ChooseManaReversals {
             legal,
             ..
         }) => Decision::ManaReversals(
@@ -463,14 +463,15 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
                 .cloned()
                 .expect("a mana-reversal prompt offers at least one legal set"),
         ),
-        PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
-            triggers, ..
+        DecisionPointKind::OrderTriggers(crate::decide::pending::OrderTriggers {
+            triggers,
+            ..
         }) => Decision::Order((0..triggers.len()).collect()),
         // Attack with everything legal (the creature seat swings; the removal
         // seat has no creatures, so its set is always empty). Each attacker
         // attacks the defending player's proxy ([CR#508.1b]) — the sole
         // legal target when no planeswalkers are in play.
-        PendingDecision::DeclareAttackers(crate::decide::pending::DeclareAttackers {
+        DecisionPointKind::DeclareAttackers(crate::decide::pending::DeclareAttackers {
             legal,
             legal_targets,
             ..
@@ -481,22 +482,22 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
             Decision::Attackers(legal.iter().map(|&a| (a, target)).collect())
         }
         // The defender never has a creature to block with.
-        PendingDecision::DeclareBlockers(crate::decide::pending::DeclareBlockers { .. }) => {
+        DecisionPointKind::DeclareBlockers(crate::decide::pending::DeclareBlockers { .. }) => {
             Decision::Blocks(vec![])
         }
         // Unblocked attackers are forced (one recipient); no multi-block arises.
-        PendingDecision::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
+        DecisionPointKind::AssignCombatDamage(crate::decide::pending::AssignCombatDamage {
             source,
             recipients,
             ..
         }) => unreachable!(
             "no multi-block in this matchup (source {source:?}, recipients {recipients:?})"
         ),
-        PendingDecision::Priority(crate::decide::pending::Priority { .. })
-        | PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets { .. }) => {
+        DecisionPointKind::Priority(crate::decide::pending::Priority { .. })
+        | DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets { .. }) => {
             unreachable!("priority and targeting are a strategy's own concern")
         }
-        PendingDecision::ChooseObjects(crate::decide::pending::ChooseObjects {
+        DecisionPointKind::ChooseObjects(crate::decide::pending::ChooseObjects {
             candidates,
             min,
             ..
@@ -512,11 +513,11 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         // number") — both answered through the `Decision::XValue` shape. A
         // smarter value is a follow-up; the note-number arm closes that slice
         // of the shell-decision-strategy seam.
-        PendingDecision::ChooseXValue(crate::decide::pending::ChooseXValue { .. })
-        | PendingDecision::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber { .. }) => {
-            Decision::XValue(0)
-        }
-        PendingDecision::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
+        DecisionPointKind::ChooseXValue(crate::decide::pending::ChooseXValue { .. })
+        | DecisionPointKind::ChooseNoteNumber(crate::decide::pending::ChooseNoteNumber {
+            ..
+        }) => Decision::XValue(0),
+        DecisionPointKind::ChooseNoteCardName(crate::decide::pending::ChooseNoteCardName {
             player,
             ..
         }) => {
@@ -528,17 +529,20 @@ pub(crate) fn mechanical(state: &GameState, pending: &PendingDecision) -> Decisi
         }
         // [CR#705.2]: the call is strategically null (win is a fair coin
         // either way) — the headless strategy always calls heads.
-        PendingDecision::CallFlip(crate::decide::pending::CallFlip { .. }) => {
+        DecisionPointKind::CallFlip(crate::decide::pending::CallFlip { .. }) => {
             Decision::Answer(true)
         }
         // [CR#707.10c]: keeping every current target is always legal (the
         // union rule) — the headless strategy re-targets nothing.
-        PendingDecision::Retarget(crate::decide::pending::Retarget {
-            entry, spec, legal, ..
+        DecisionPointKind::Retarget(crate::decide::pending::Retarget {
+            entry,
+            spec,
+            legal,
+            ..
         }) => Decision::Targets(keep_current_targets(state, *entry, spec, legal)),
         other => todo!(
             "engine seam: shell decision strategy for {other:?} — no mechanical/pending-player \
-             handling wired for this PendingDecision kind yet; owner: engine-shell-decision-strategies"
+             handling wired for this DecisionPointKind kind yet; owner: engine-shell-decision-strategies"
         ),
     }
 }
@@ -569,7 +573,7 @@ pub(crate) fn keep_current_targets(
 }
 
 /// The seat a surfaced decision is waiting on — every variant names its player.
-pub(crate) fn pending_player(pending: &PendingDecision) -> PlayerId {
+pub(crate) fn pending_player(pending: &DecisionPointKind) -> PlayerId {
     pending.decider_player()
 }
 

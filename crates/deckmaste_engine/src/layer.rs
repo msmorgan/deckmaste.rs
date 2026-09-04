@@ -2577,7 +2577,7 @@ mod tests {
         use deckmaste_core::Subtype;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::step::StepOutcome;
 
         // The Island registry row's conferral ([CR#305.6]): "{T}: Add {U}",
@@ -2663,7 +2663,7 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                     let decision = state
                         .auto_payment_pending()
                         .expect("automatic payment decision");
@@ -2671,7 +2671,7 @@ mod tests {
                         .submit_decision(decision)
                         .expect("automatic payment succeeds");
                 }
-                StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(prompt)) => {
+                StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(prompt)) => {
                     let maximal = prompt
                         .legal
                         .iter()

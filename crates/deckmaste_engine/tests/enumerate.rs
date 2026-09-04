@@ -14,10 +14,10 @@ use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::ActionViewKind;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Progress;
@@ -216,30 +216,29 @@ fn run_to_priority(state: &mut GameState, player: PlayerId, phase: PhaseStep) ->
     loop {
         let (_, stop) = step_to_stop(state);
         match stop {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                player: p,
-                legal,
-            })) if p == player && state.turn.current == phase => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { player: p, legal },
+            )) if p == player && state.turn.current == phase => {
                 return legal;
             }
-            StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
-                ..
-            })) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(
+                deckmaste_engine::Priority { .. },
+            )) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::PayMana(deckmaste_engine::PayMana {
+            StepOutcome::NeedsDecision(DecisionPointKind::PayMana(deckmaste_engine::PayMana {
                 ..
             })) => {
                 let pay = state.auto_pay_pending();
                 state.submit_decision(Decision::Pay(pay)).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => {
                 let decision = state
                     .auto_payment_pending()
                     .expect("automatic payment decision");
                 state.submit_decision(decision).unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaReversals(choice)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaReversals(choice)) => {
                 let reversals = choice
                     .legal
                     .iter()
@@ -262,7 +261,7 @@ fn float_mana(state: &mut GameState, player: PlayerId, count: usize) {
     for _ in 0..count {
         // Re-derive the legal list each iteration: tapping a land removes its
         // ability from the next list.
-        let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+        let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
             legal,
             ..
         })) = state.step()
@@ -324,7 +323,7 @@ fn abilities_index_matches_activate_ability_action() {
 
     // Find the offered ActivateAbility for the pinger and read its ability back
     // by the SAME index — that round-trip is the public indexing contract.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         legal,
         ..
     })) = state.step()
@@ -380,7 +379,7 @@ fn mana_ability_identifies_a_mountains_tap_for_red() {
 fn decision_point_exposes_the_decider_player() {
     let mut state = activation_game(7, PINGER, 1);
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         player,
         ..
     })) = state.step()
@@ -522,7 +521,7 @@ fn cast_spell_is_enumerated_before_payment_is_proven() {
     // Floating {R} changes how the later payment can be completed, not whether
     // the proposal appears in a priority window.
     float_mana(&mut state, PlayerId(0), 1);
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         legal,
         ..
     })) = state.step()
@@ -574,7 +573,7 @@ fn priority_enumerates_all_action_kinds_at_one_window() {
     // Float one red: taps the first untapped Mountain, leaving the other untapped.
     float_mana(&mut state, PlayerId(0), 1);
 
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         legal,
         ..
     })) = state.step()
@@ -632,7 +631,7 @@ fn choose_targets_candidates_resolve_to_names() {
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
     float_mana(&mut state, PlayerId(0), 1);
     // Drain to the priority where Bolt is castable, then cast it.
-    let StepOutcome::NeedsDecision(PendingDecision::Priority(deckmaste_engine::Priority {
+    let StepOutcome::NeedsDecision(DecisionPointKind::Priority(deckmaste_engine::Priority {
         ..
     })) = state.step()
     else {
@@ -645,7 +644,7 @@ fn choose_targets_candidates_resolve_to_names() {
     // Step until ChooseTargets surfaces; its candidate ids include the bears,
     // and each id resolves to a renderable name.
     let (_, stop) = step_to_stop(&mut state);
-    let StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(
+    let StepOutcome::NeedsDecision(DecisionPointKind::ChooseTargets(
         deckmaste_engine::ChooseTargets { legal, .. },
     )) = stop
     else {

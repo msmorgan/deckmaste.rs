@@ -39,6 +39,7 @@ use deckmaste_core::UseLimit;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
 use deckmaste_engine::GameEvent;
@@ -47,7 +48,6 @@ use deckmaste_engine::Occurrence;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentPrompt;
 use deckmaste_engine::PaymentStage;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
@@ -155,7 +155,7 @@ fn payment_fixture_with_source_ability_and_extras(
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: parent,
@@ -585,7 +585,7 @@ fn triggered_mana_fixture() -> (
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: parent,
@@ -721,7 +721,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: parent,
@@ -855,7 +855,7 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: parent,
@@ -927,7 +927,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: source,
@@ -941,7 +941,7 @@ fn run_to_payment(state: &mut GameState) -> PaymentPrompt {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => return prompt,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => return prompt,
             other => panic!("expected a payment prompt, got {other:?}"),
         }
     }
@@ -1239,7 +1239,7 @@ fn nested_mana_during_an_unsubmitted_action_cost_keeps_its_record_owner() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("the nested helper remains a separately reversible mana action");
     };
     assert!(choice.legal.contains(&vec![]));
@@ -1338,7 +1338,7 @@ fn declining_optional_payment_keeps_its_mana_child_separately_reversible() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose the nested action despite the outer barrier");
     };
     assert!(choice.legal.contains(&Vec::new()));
@@ -1467,7 +1467,7 @@ fn nested_optional_replay_activates_a_mana_source_created_by_the_outer_action() 
 #[test]
 fn standalone_mana_activation_uses_root_payment_and_resolves_stacklessly() {
     let (mut state, payer, _parent, source) = payment_fixture();
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: source,
@@ -1497,7 +1497,8 @@ fn standalone_mana_activation_uses_root_payment_and_resolves_stacklessly() {
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
     for _ in 0..40 {
-        if state.payment_depth() == 0 && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        if state.payment_depth() == 0
+            && matches!(state.pending, Some(DecisionPointKind::Priority(_)))
         {
             break;
         }
@@ -1533,20 +1534,20 @@ fn modal_mana_child_rejects_a_nonmana_announced_mode_without_mutation() {
         }))
         .unwrap();
     for _ in 0..20 {
-        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::ChooseModes(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
     }
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::ChooseModes(_))
+        Some(DecisionPointKind::ChooseModes(_))
     ));
 
     assert!(state.submit_decision(Decision::Modes(vec![1])).is_err());
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::ChooseModes(_))
+        Some(DecisionPointKind::ChooseModes(_))
     ));
     assert!(
         state
@@ -1563,7 +1564,7 @@ fn modal_mana_child_rejects_a_nonmana_announced_mode_without_mutation() {
 #[test]
 fn modal_mana_profile_routes_an_ordinary_mode_through_the_stack() {
     let (mut state, payer, _parent, source) = modal_payment_fixture();
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: source,
@@ -1577,7 +1578,7 @@ fn modal_mana_profile_routes_an_ordinary_mode_through_the_stack() {
         }))
         .unwrap();
     for _ in 0..20 {
-        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::ChooseModes(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
@@ -1617,7 +1618,7 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
     state.agenda.clear();
     state.agenda.push_front(WorkItem::OpenPriority);
     assert!(matches!(state.step(), StepOutcome::Progress(_)));
-    let PendingDecision::Priority(prompt) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::Priority(prompt) = state.pending.as_ref().unwrap() else {
         panic!("OpenPriority should expose the mixed modal activation")
     };
     let activation = Action::ActivateAbility {
@@ -1631,7 +1632,7 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
 
     state.submit_decision(Decision::Act(activation)).unwrap();
     for _ in 0..20 {
-        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::ChooseModes(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
@@ -1640,7 +1641,7 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
     assert!(state.submit_decision(Decision::Modes(vec![1])).is_err());
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::ChooseModes(_))
+        Some(DecisionPointKind::ChooseModes(_))
     ));
     assert!(
         state
@@ -1664,7 +1665,8 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
     for _ in 0..40 {
-        if state.payment_depth() == 0 && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        if state.payment_depth() == 0
+            && matches!(state.pending, Some(DecisionPointKind::Priority(_)))
         {
             break;
         }
@@ -1706,7 +1708,7 @@ fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
     state.agenda.clear();
     state.agenda.push_front(WorkItem::OpenPriority);
     assert!(matches!(state.step(), StepOutcome::Progress(_)));
-    let PendingDecision::Priority(priority) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::Priority(priority) = state.pending.as_ref().unwrap() else {
         panic!("OpenPriority should expose the mixed modal activation")
     };
     assert!(priority.legal.contains(&Action::ActivateAbility {
@@ -1720,7 +1722,7 @@ fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
         }))
         .unwrap();
     for _ in 0..20 {
-        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::ChooseModes(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
@@ -1729,7 +1731,7 @@ fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
     assert!(state.submit_decision(Decision::Modes(vec![1])).is_err());
     assert!(matches!(
         state.pending,
-        Some(PendingDecision::ChooseModes(_))
+        Some(DecisionPointKind::ChooseModes(_))
     ));
     assert!(
         state
@@ -1747,7 +1749,7 @@ fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
 #[test]
 fn modal_mana_profile_routes_a_qualifying_mode_stacklessly() {
     let (mut state, payer, _parent, source) = modal_payment_fixture();
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: source,
@@ -1761,7 +1763,7 @@ fn modal_mana_profile_routes_a_qualifying_mode_stacklessly() {
         }))
         .unwrap();
     for _ in 0..20 {
-        if matches!(state.pending, Some(PendingDecision::ChooseModes(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::ChooseModes(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
@@ -1780,7 +1782,8 @@ fn modal_mana_profile_routes_a_qualifying_mode_stacklessly() {
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
     for _ in 0..40 {
-        if state.payment_depth() == 0 && matches!(state.pending, Some(PendingDecision::Priority(_)))
+        if state.payment_depth() == 0
+            && matches!(state.pending, Some(DecisionPointKind::Priority(_)))
         {
             break;
         }
@@ -1894,7 +1897,7 @@ fn triggered_mana_resolution_cast_owns_a_nested_announcement_frame() {
         .submit_decision(Decision::Payment(PaymentCommand::SubmitPayment))
         .unwrap();
     for _ in 0..80 {
-        if matches!(state.pending, Some(PendingDecision::YesNo(_))) {
+        if matches!(state.pending, Some(DecisionPointKind::YesNo(_))) {
             break;
         }
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
@@ -2076,7 +2079,7 @@ fn activation_triggered_mana_waits_for_the_source_mana_effect() {
                 event,
             )))) => additions.push(event.mana),
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => break,
             other => panic!("unexpected outcome while resolving mana action: {other:?}"),
         }
     }
@@ -2142,7 +2145,7 @@ fn mana_added_triggers_wait_for_all_effects_of_the_source_mana_ability() {
                 event,
             )))) => additions.push(event.mana),
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => break,
             other => panic!("unexpected outcome while resolving mana action: {other:?}"),
         }
     }
@@ -2359,12 +2362,12 @@ fn bare_nonmana_ability_mana_added_trigger_resolves_immediately() {
                 .mana_pool
                 .amount(deckmaste_core::ColorOrColorless::Color(Color::Black))
                 == 1
-            && matches!(state.pending, Some(PendingDecision::Priority(_)))
+            && matches!(state.pending, Some(DecisionPointKind::Priority(_)))
         {
             break;
         }
         match state.step() {
-            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::Priority(_)) => {
                 state.submit_decision(Decision::Act(Action::Pass)).unwrap();
             }
             StepOutcome::Progress(_) => {}
@@ -2500,7 +2503,7 @@ fn kci_fixture() -> (
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![Action::ActivateAbility {
             object: parent,

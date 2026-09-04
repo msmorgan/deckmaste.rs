@@ -7,9 +7,9 @@ use deckmaste_core::PhaseStep;
 use deckmaste_core::Uint;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::GameState;
 use deckmaste_engine::ObjectId;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerId;
 
 /// If every inner slice has exactly one element, the vector of those elements;
@@ -32,13 +32,13 @@ pub fn single_each<T: Copy>(legal: &[Vec<T>]) -> Option<Vec<T>> {
 /// single-legal kinds (e.g. a lone trigger ordering) already auto-resolve via
 /// the driver's `Strategy` partition (`is_interactive` returns false for them).
 #[must_use]
-pub fn auto_answer(pending: &PendingDecision) -> Option<Decision> {
+pub fn auto_answer(pending: &DecisionPointKind) -> Option<Decision> {
     match pending {
         // [CR#707.10c]: a `Retarget` slot is force-single exactly like
         // a `ChooseTargets` one when its unioned `legal` set collapses to one
         // candidate (e.g. the current target is the only object in play).
-        PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. })
-        | PendingDecision::Retarget(deckmaste_engine::Retarget { legal, .. }) => {
+        DecisionPointKind::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. })
+        | DecisionPointKind::Retarget(deckmaste_engine::Retarget { legal, .. }) => {
             single_each(legal)
             // Each forced slot becomes a singleton chosen set ([CR#601.2c]).
             .map(|picks| Decision::Targets(picks.into_iter().map(|p| vec![p]).collect()))
@@ -201,7 +201,7 @@ mod tests {
 
     #[test]
     fn auto_answer_never_resolves_priority() {
-        let p = PendingDecision::Priority(deckmaste_engine::Priority {
+        let p = DecisionPointKind::Priority(deckmaste_engine::Priority {
             player: PlayerId(0),
             legal: vec![],
         });
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn auto_answer_ignores_non_target_kinds() {
-        let p = PendingDecision::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
+        let p = DecisionPointKind::DiscardToHandSize(deckmaste_engine::DiscardToHandSize {
             player: PlayerId(0),
             count: 1,
         });

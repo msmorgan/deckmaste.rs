@@ -42,6 +42,7 @@ use deckmaste_core::Type;
 use deckmaste_core::Zone;
 use deckmaste_engine::Action;
 use deckmaste_engine::Decision;
+use deckmaste_engine::DecisionPointKind;
 use deckmaste_engine::EngineIncident;
 use deckmaste_engine::FulfillmentWitness;
 use deckmaste_engine::GameConfig;
@@ -51,7 +52,6 @@ use deckmaste_engine::ManaCoverage;
 use deckmaste_engine::ManaPayment;
 use deckmaste_engine::PaymentCommand;
 use deckmaste_engine::PaymentPrompt;
-use deckmaste_engine::PendingDecision;
 use deckmaste_engine::PlayerConfig;
 use deckmaste_engine::PlayerId;
 use deckmaste_engine::Priority;
@@ -116,7 +116,7 @@ fn activation_fixture_with_extras(
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![action],
     }));
@@ -127,7 +127,7 @@ fn run_to_payment(state: &mut GameState) -> PaymentPrompt {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::Payment(prompt)) => return prompt,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(prompt)) => return prompt,
             other => panic!("expected payment, got {other:?}"),
         }
     }
@@ -1016,7 +1016,7 @@ fn rescind_replays_unrelated_later_fulfillment() {
         .unwrap();
 
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt,
+        Some(DecisionPointKind::Payment(prompt)) => prompt,
         other => panic!("rescind should return to payment, got {other:?}"),
     };
     assert!(!state.objects.obj(source).tapped);
@@ -1061,7 +1061,10 @@ fn library_barrier_rejects_selective_rescind_without_mutation() {
     );
 
     assert_eq!(state.zones.libraries[payer.index()], before_library);
-    assert_eq!(state.pending, Some(PendingDecision::Payment(before_prompt)));
+    assert_eq!(
+        state.pending,
+        Some(DecisionPointKind::Payment(before_prompt))
+    );
     assert_eq!(state.payment_records().unwrap(), before_records);
 }
 
@@ -1091,7 +1094,10 @@ fn decline_unannounces_while_retaining_a_barred_root_fulfillment() {
     // The activation reverses only as far as the library barrier permits,
     // then returns priority so the player may take another action
     // ([CR#733.1,733.2]).
-    assert!(matches!(state.pending, Some(PendingDecision::Priority(_))));
+    assert!(matches!(
+        state.pending,
+        Some(DecisionPointKind::Priority(_))
+    ));
     assert!(matches!(
         state.incidents(),
         [EngineIncident::PaymentDeclined(incident)]
@@ -1320,7 +1326,7 @@ fn replay_rebinds_a_retained_card_after_an_earlier_zone_remint_is_omitted() {
     assert!(state.zones.battlefield.contains(&first_card));
     assert_eq!(state.zones.exile.len(), 1);
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt,
+        Some(DecisionPointKind::Payment(prompt)) => prompt,
         other => panic!("rescind should return to payment, got {other:?}"),
     };
     assert_eq!(
@@ -1351,7 +1357,7 @@ fn decline_selectively_reverses_independent_mana_actions() {
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
 
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose legal mana reversals");
     };
     assert!(
@@ -1375,7 +1381,10 @@ fn decline_selectively_reverses_independent_mana_actions() {
         .unwrap();
 
     assert_eq!(state.payment_depth(), 0);
-    assert!(matches!(state.pending, Some(PendingDecision::Priority(_))));
+    assert!(matches!(
+        state.pending,
+        Some(DecisionPointKind::Priority(_))
+    ));
     assert!(!state.objects.obj(first).tapped);
     assert!(state.objects.obj(second).tapped);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
@@ -1456,7 +1465,7 @@ fn producer_cannot_reverse_while_a_retained_mana_action_spent_its_mana() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose dependency-aware reversal sets");
     };
     assert!(!choice.legal.contains(&vec![producer_action]));
@@ -1532,7 +1541,7 @@ fn replay_rebinds_mana_after_an_unrelated_earlier_producer_is_omitted() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose reversal sets");
     };
     assert!(choice.legal.contains(&vec![unrelated_action]));
@@ -1552,7 +1561,7 @@ fn rescinding_every_fulfillment_returns_to_prepayment_with_mana_actions_intact()
     let action = submit_tap_mana_action(&mut state, source);
     let mana = state.player(payer).mana_pool.units()[0].id;
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("mana action should resume payment, got {other:?}"),
     };
     let pip = prompt.outstanding[0].id;
@@ -1567,7 +1576,7 @@ fn rescinding_every_fulfillment_returns_to_prepayment_with_mana_actions_intact()
         .submit_decision(Decision::Payment(PaymentCommand::RescindFulfillment(pip)))
         .unwrap();
 
-    let PendingDecision::Payment(prompt) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::Payment(prompt) = state.pending.as_ref().unwrap() else {
         panic!("rescind should return to payment");
     };
     assert_eq!(prompt.stage, deckmaste_engine::PaymentStage::PrePayment);
@@ -1623,7 +1632,7 @@ fn nested_mana_action_is_an_independently_reversible_unit() {
     );
     let nested_action = submit_tap_mana_action(&mut state, nested);
     let outer_prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("nested action should resume outer payment, got {other:?}"),
     };
     let pip = outer_prompt
@@ -1662,7 +1671,7 @@ fn nested_mana_action_is_an_independently_reversible_unit() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose nested and outer actions");
     };
     assert!(choice.legal.contains(&vec![nested_action]));
@@ -1712,7 +1721,7 @@ fn declining_an_outer_mana_action_offers_reversal_of_its_completed_nested_action
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
 
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("declining the outer action should expose its nested reversal");
     };
     assert!(choice.legal.contains(&Vec::new()));
@@ -1725,7 +1734,7 @@ fn declining_an_outer_mana_action_offers_reversal_of_its_completed_nested_action
     assert!(!state.objects.obj(outer).tapped);
     assert!(!state.objects.obj(nested).tapped);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
-    assert!(matches!(state.pending, Some(PendingDecision::Payment(_))));
+    assert!(matches!(state.pending, Some(DecisionPointKind::Payment(_))));
 }
 
 #[test]
@@ -1762,7 +1771,7 @@ fn a_nested_producer_spent_by_a_barred_outer_cost_is_forced_to_remain() {
     assert_eq!(child.stage, deckmaste_engine::PaymentStage::PrePayment);
     let _nested_action = submit_tap_mana_action(&mut state, nested);
     let child = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("nested payer should resume outer payment, got {other:?}"),
     };
     let pip = child
@@ -1848,7 +1857,7 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseReplacement(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseReplacement(_)) => break,
             other => panic!("expected replacement choice, got {other:?}"),
         }
     }
@@ -1859,7 +1868,10 @@ fn decline_is_available_during_an_in_flight_replacement_choice() {
 
     assert_eq!(state.payment_depth(), 0);
     assert!(state.zones.battlefield.contains(&source));
-    assert!(matches!(state.pending, Some(PendingDecision::Priority(_))));
+    assert!(matches!(
+        state.pending,
+        Some(DecisionPointKind::Priority(_))
+    ));
 }
 
 #[test]
@@ -1945,7 +1957,7 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
         .submit_decision(Decision::Payment(PaymentCommand::RescindFulfillment(tap)))
         .unwrap();
 
-    let PendingDecision::Payment(rebuilt) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::Payment(rebuilt) = state.pending.as_ref().unwrap() else {
         panic!("rescind should resume the reconstructed parent payment");
     };
     assert_eq!(rebuilt.fulfilled, vec![sacrifice]);
@@ -2036,7 +2048,7 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose the fulfillment-owned mana action");
     };
     assert!(choice.legal.contains(&Vec::new()));
@@ -2160,7 +2172,7 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("the retained fulfillment should still expose its child reversal");
     };
     assert!(choice.legal.contains(&vec![child_action]));
@@ -2270,7 +2282,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("decline should expose the fulfillment-owned mana action");
     };
     assert!(choice.legal.contains(&Vec::new()));
@@ -2465,7 +2477,7 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(_)) => break,
             other => panic!("the fulfillment should suspend after Optional decline, got {other:?}"),
         }
     }
@@ -2475,7 +2487,7 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("suspended decline should expose the nested child reversal");
     };
     assert!(choice.legal.contains(&Vec::new()));
@@ -2595,7 +2607,7 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(_)) => break,
             other => panic!("expected the cost's modal choice, got {other:?}"),
         }
     }
@@ -2776,7 +2788,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(_)) => break,
             other => panic!("expected modal choice, got {other:?}"),
         }
     }
@@ -2952,7 +2964,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseObjects(_)) => break,
             other => panic!("the created mana source should choose an artifact, got {other:?}"),
         }
     }
@@ -2973,7 +2985,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("the created token's reversible action should expose a choice");
     };
     assert!(choice.legal.contains(&vec![token_action]));
@@ -3028,7 +3040,7 @@ fn retained_mana_action_rebinds_a_later_decision_to_its_own_created_object() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseObjects(_)) => break,
             other => panic!("the mana action should choose its created token, got {other:?}"),
         }
     }
@@ -3074,7 +3086,7 @@ fn declining_can_reverse_the_creator_of_an_observed_transient_token() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("the observation-only action remains physically reversible");
     };
     assert!(choice.legal.contains(&vec![action]));
@@ -3159,7 +3171,7 @@ fn declining_a_suspended_submitted_child_retains_its_in_flight_library_barrier()
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseModes(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseModes(_)) => break,
             other => panic!("expected the submitted mana effect to suspend, got {other:?}"),
         }
     }
@@ -3280,7 +3292,7 @@ fn mox_kci_payment_fixture(
         holder: payer,
         consecutive_passes: 0,
     });
-    state.pending = Some(PendingDecision::Priority(Priority {
+    state.pending = Some(DecisionPointKind::Priority(Priority {
         player: payer,
         legal: vec![action.clone()],
     }));
@@ -3347,17 +3359,17 @@ fn submit_mox_action(
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(choice)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaColor(choice)) => {
                 let selected = color.expect("a colorless Mox state must not open a choice");
                 assert!(choice.options.contains(&selected.into()));
                 state
                     .submit_decision(Decision::ManaColor(selected.into()))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::ChooseObjects(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseObjects(_)) => {
                 panic!("Mox chooses a color, never a legendary permanent")
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => break,
             other => panic!("expected Mox to resume parent payment, got {other:?}"),
         }
     }
@@ -3410,7 +3422,7 @@ fn kci_before_mox_removes_the_only_eligible_color_so_mox_adds_nothing_without_a_
     assert!(state.objects.obj(mox).tapped);
     assert_eq!(state.player(payer).mana_pool.units().len(), 2);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);
-    assert!(matches!(state.pending, Some(PendingDecision::Payment(_))));
+    assert!(matches!(state.pending, Some(DecisionPointKind::Payment(_))));
 }
 
 #[test]
@@ -3426,7 +3438,7 @@ fn declining_after_mox_then_kci_restores_the_same_legend_checkpoint() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("declining should expose both independent mana actions");
     };
     assert!(choice.legal.contains(&vec![mox_action, kci_action]));
@@ -3468,7 +3480,7 @@ fn wheel_forces_mox_then_kci_sacrifice_and_kci_mana_to_remain() {
     state
         .submit_decision(Decision::Payment(PaymentCommand::DeclinePayment))
         .unwrap();
-    let PendingDecision::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
+    let DecisionPointKind::ChooseManaReversals(choice) = state.pending.as_ref().unwrap() else {
         panic!("declining should still expose the independent Mox reversal");
     };
     assert!(choice.legal.contains(&vec![mox_action]));
@@ -3505,7 +3517,7 @@ fn mox_then_kci_can_pay_for_the_sacrificed_colored_legends_ability() {
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 1);
     submit_kci_action(&mut state, kci, legend);
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("KCI should resume parent payment, got {other:?}"),
     };
     assert!(!state.zones.battlefield.contains(&legend));
@@ -3605,12 +3617,12 @@ fn filter_mana_spent_in_a_child_reduces_omnath_before_rancher_produces() {
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaColor(_)) => {
                 state
                     .submit_decision(Decision::ManaColor(Color::Black.into()))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => break,
             other => panic!("expected Cylix to resume parent payment, got {other:?}"),
         }
     }
@@ -3620,7 +3632,7 @@ fn filter_mana_spent_in_a_child_reduces_omnath_before_rancher_produces() {
 
     submit_tap_mana_action(&mut state, rancher);
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("Rancher should resume parent payment, got {other:?}"),
     };
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 5);
@@ -3740,12 +3752,12 @@ fn rancher_before_cylix_produces_exact_coverage_and_omnath_tracks_each_green_spe
     loop {
         match state.step() {
             StepOutcome::Progress(_) => {}
-            StepOutcome::NeedsDecision(PendingDecision::ChooseManaColor(_)) => {
+            StepOutcome::NeedsDecision(DecisionPointKind::ChooseManaColor(_)) => {
                 state
                     .submit_decision(Decision::ManaColor(Color::Black.into()))
                     .unwrap();
             }
-            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => break,
+            StepOutcome::NeedsDecision(DecisionPointKind::Payment(_)) => break,
             other => panic!("expected Cylix to resume parent payment, got {other:?}"),
         }
     }
@@ -3754,7 +3766,7 @@ fn rancher_before_cylix_produces_exact_coverage_and_omnath_tracks_each_green_spe
     assert_eq!(state.layers().power(omnath), Some(7));
 
     let prompt = match state.pending.as_ref() {
-        Some(PendingDecision::Payment(prompt)) => prompt.clone(),
+        Some(DecisionPointKind::Payment(prompt)) => prompt.clone(),
         other => panic!("Cylix should resume parent payment, got {other:?}"),
     };
     let green_ids: Vec<_> = state
@@ -3853,7 +3865,7 @@ fn declining_unsubmitted_mana_child_retains_only_its_barred_cost() {
         .unwrap();
 
     assert_eq!(state.payment_depth(), 1);
-    assert!(matches!(state.pending, Some(PendingDecision::Payment(_))));
+    assert!(matches!(state.pending, Some(DecisionPointKind::Payment(_))));
     assert!(!state.zones.battlefield.contains(&source));
     assert_eq!(state.zones.libraries[payer.index()].len(), 1);
     assert_eq!(state.player(payer).mana_pool.amount(Color::Green.into()), 0);

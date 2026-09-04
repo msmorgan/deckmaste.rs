@@ -24,7 +24,7 @@ use deckmaste_core::Uint;
 use deckmaste_core::Zone;
 
 use crate::agenda::WorkItem;
-use crate::decide::PendingDecision;
+use crate::decide::DecisionPointKind;
 use crate::event::Act;
 use crate::event::Attacking;
 use crate::event::BecameTarget;
@@ -1214,7 +1214,7 @@ impl GameState {
 
         if mine.len() > 1 {
             // [CR#603.3b]: this player orders their simultaneous triggers.
-            self.pending = Some(PendingDecision::OrderTriggers(
+            self.pending = Some(DecisionPointKind::OrderTriggers(
                 crate::decide::pending::OrderTriggers {
                     player,
                     triggers: mine,
@@ -1349,7 +1349,7 @@ impl GameState {
         // minted-but-unused stack identity.
         let droppable = matches!(
             &self.pending,
-            Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets { spec, legal, .. }))
+            Some(DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets { spec, legal, .. }))
                 if !crate::resolve::announce_satisfiable(spec, legal)
         );
         if droppable {
@@ -4061,7 +4061,7 @@ mod tests {
         use deckmaste_core::StatValue;
 
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::object::Side;
         use crate::step::StepOutcome;
 
@@ -4170,7 +4170,7 @@ mod tests {
                 if state.objects.obj(d).side == Side::Back {
                     break;
                 }
-                if let StepOutcome::NeedsDecision(PendingDecision::YesNo(_)) = state.step() {
+                if let StepOutcome::NeedsDecision(DecisionPointKind::YesNo(_)) = state.step() {
                     state.submit_decision(Decision::Answer(true)).unwrap();
                 }
             }
@@ -4198,7 +4198,7 @@ mod tests {
             state.run_effect(upkeep_effect(), &crate::test_support::frame_src(&state, d));
             for _ in 0..40 {
                 match state.step() {
-                    StepOutcome::NeedsDecision(PendingDecision::YesNo(_)) => {
+                    StepOutcome::NeedsDecision(DecisionPointKind::YesNo(_)) => {
                         panic!("a non-instant/sorcery top card must NOT offer a may-reveal");
                     }
                     // Any other decision is `empty_game`'s ambient turn cascade
@@ -4834,7 +4834,7 @@ mod tests {
         use crate::agenda::WorkItem;
         use crate::decide::Action;
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
         use crate::step::StepOutcome;
 
         let mut state = empty_game();
@@ -4858,7 +4858,7 @@ mod tests {
             }
             match state.step() {
                 StepOutcome::Progress(_) => {}
-                StepOutcome::NeedsDecision(PendingDecision::Priority(
+                StepOutcome::NeedsDecision(DecisionPointKind::Priority(
                     crate::decide::pending::Priority { .. },
                 )) => {
                     state.submit_decision(Decision::Act(Action::Pass)).unwrap();
@@ -5110,7 +5110,7 @@ mod tests {
     /// always admits the two player proxies.)
     #[test]
     fn targeting_trigger_surfaces_choose_targets_at_placement() {
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, gob) = fixture_on_field("Footlight Fiend");
         let source = state.objects.obj(gob).source;
@@ -5130,7 +5130,7 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "a target choice surfaces instead of an immediate placement"
         );
-        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+        let Some(DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets {
             player,
             legal,
             ..
@@ -5159,7 +5159,7 @@ mod tests {
     /// trigger could illegally target a hexproof permanent.
     #[test]
     fn targeting_trigger_excludes_opponent_hexproof() {
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         // A `Footlight Fiend` dies-trigger (P0, "any target").
         let (mut state, fiend) = fixture_on_field("Footlight Fiend");
@@ -5182,7 +5182,7 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "a target choice surfaces instead of an immediate placement"
         );
-        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+        let Some(DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets {
             legal,
             ..
         })) = &state.pending
@@ -5206,7 +5206,7 @@ mod tests {
     /// filtering must not over-exclude).
     #[test]
     fn targeting_trigger_may_target_own_hexproof() {
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         let (mut state, fiend) = fixture_on_field("Footlight Fiend");
         let source = state.objects.obj(fiend).source;
@@ -5223,7 +5223,7 @@ mod tests {
         });
 
         state.place_triggers();
-        let Some(PendingDecision::ChooseTargets(crate::decide::pending::ChooseTargets {
+        let Some(DecisionPointKind::ChooseTargets(crate::decide::pending::ChooseTargets {
             legal,
             ..
         })) = &state.pending
@@ -5339,7 +5339,7 @@ mod tests {
     #[test]
     fn two_triggers_one_player_surface_order_triggers() {
         use crate::decide::Decision;
-        use crate::decide::PendingDecision;
+        use crate::decide::DecisionPointKind;
 
         // Two dies-watchers under player 0 (non-targeting `LoseLife`).
         let (mut state, w0) = fixture_on_field("Moonlit Wake");
@@ -5368,7 +5368,7 @@ mod tests {
             crate::step::Progress::TriggersPlaced { placed: 0 },
             "ordering is needed first — nothing placed yet"
         );
-        let Some(PendingDecision::OrderTriggers(crate::decide::pending::OrderTriggers {
+        let Some(DecisionPointKind::OrderTriggers(crate::decide::pending::OrderTriggers {
             player,
             triggers,
         })) = &state.pending

@@ -295,7 +295,7 @@ mod tests {
     )]
     fn blocker_step_steers_onto_a_legal_blocker_and_pairing_submits() {
         use deckmaste_engine::Decision;
-        use deckmaste_engine::PendingDecision;
+        use deckmaste_engine::DecisionPointKind;
         use deckmaste_engine::sim::GreedyDemo;
         use deckmaste_engine::sim::Strategy;
 
@@ -315,8 +315,9 @@ mod tests {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(p) => p.clone(),
             };
-            if let PendingDecision::DeclareBlockers(deckmaste_engine::DeclareBlockers {
-                legal, ..
+            if let DecisionPointKind::DeclareBlockers(deckmaste_engine::DeclareBlockers {
+                legal,
+                ..
             }) = &pending
                 && !legal.is_empty()
             {
@@ -350,7 +351,7 @@ mod tests {
 
             let decision = match &pending {
                 // P1 holds creatures back so they can block P0's attacks.
-                PendingDecision::DeclareAttackers(deckmaste_engine::DeclareAttackers {
+                DecisionPointKind::DeclareAttackers(deckmaste_engine::DeclareAttackers {
                     player,
                     ..
                 }) if player.0 == 1 => Decision::Attackers(vec![]),
@@ -369,7 +370,7 @@ mod tests {
     )]
     fn targeting_step_steers_onto_a_candidate_and_targets_path_submits() {
         use deckmaste_engine::Decision;
-        use deckmaste_engine::PendingDecision;
+        use deckmaste_engine::DecisionPointKind;
         use deckmaste_engine::sim::GreedyDemo;
         use deckmaste_engine::sim::Strategy;
 
@@ -388,8 +389,9 @@ mod tests {
                 Stop::GameOver(_) | Stop::Budget => break,
                 Stop::Decision(p) => p.clone(),
             };
-            if let PendingDecision::ChooseTargets(deckmaste_engine::ChooseTargets { legal, .. }) =
-                &pending
+            if let DecisionPointKind::ChooseTargets(deckmaste_engine::ChooseTargets {
+                legal, ..
+            }) = &pending
                 && legal.iter().any(|spec| !spec.is_empty())
             {
                 let mut it = Interaction::for_decision(&pending).expect("interactive");
@@ -424,7 +426,7 @@ mod tests {
             }
 
             let decision = match &pending {
-                PendingDecision::Priority(deckmaste_engine::Priority { legal, .. }) => legal
+                DecisionPointKind::Priority(deckmaste_engine::Priority { legal, .. }) => legal
                     .iter()
                     .find(|action| {
                         let view = driver.state.describe_action(action);
