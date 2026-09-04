@@ -460,12 +460,12 @@ noManaSpentToCast n =
   CompareAmt (manaValueSpentToCast n {sb} {one}) Eq (Lit 0)
 
 public export
-theRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
-theRest = TheRest ManyOf {ok}
+theRest : (k : Kind) -> {auto 0 ok : So (theRestOk k bs)} -> Noun bs k
+theRest k = TheRest k ManyOf {ok}
 
 public export
-theOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
-theOther = TheRest OneOf {ok}
+theOther : (k : Kind) -> {auto 0 ok : So (theOtherOk k bs)} -> Noun bs k
+theOther k = TheRest k OneOf {ok}
 
 public export
 castBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
@@ -616,11 +616,12 @@ forEach : {bs : Bindings} -> {k : Kind} -> (n : Nat) -> (p : Predicate bs k) ->
 forEach n p = times n (countOf p {ph} {pl}) {nz}
 
 public export
-move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
+move : {k : Kind} -> (what : Noun bs k) -> (to : ZoneExpr (nomIntro what)) ->
+       {auto 0 mk : Movable what} ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur what) to} ->
        {auto 0 pl : Placeable (nounTy what) (zoneSort to)} -> Instruction bs
-move what to = Move what to [] {ok} {arr} {pl}
+move what to = Move what to [] {mk} {ok} {arr} {pl}
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
@@ -628,10 +629,11 @@ destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} 
 destroy n = Enact Nothing "Destroy" (Move n graveyardZ [])
 
 public export
-exile : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-        {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.exileZ [])} ->
+exile : {k : Kind} -> (agent : Noun bs Player) -> (n : Noun (agentIntro agent) k) ->
+        {auto 0 mk : Movable n} ->
+        {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.exileZ [] {mk})} ->
         Instruction bs
-exile agent n = Enact (Just agent) "Exile" (Move n exileZ []) {ke}
+exile agent n = Enact (Just agent) "Exile" (Move n exileZ [] {mk}) {ke}
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
@@ -1295,12 +1297,12 @@ allAmong : (descr : Predicate bs Object) -> (grp : Noun bs Object) ->
 allAmong descr grp = SomeOf WholeSlice (Just descr) grp {gm}
 
 public export
-onePile : {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
+onePile : {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Pile
 onePile = PileOf (CountedSlice (exactly 1)) Nothing {ok}
 
 public export
 pileOfChoice : (by : Noun bs Player) ->
-               {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
+               {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Pile
 pileOfChoice by = PileOf (CountedSlice (exactly 1)) (Just by) {ok}
 
 public export
@@ -1544,11 +1546,11 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
                     (lookedTop (Experimental.Phrase.agentIntro agent) amt) = 1} ->
     {auto 0 ps : Placeable
                     (tyOfReach Bare ManyOf (lookedTop (Experimental.Phrase.agentIntro agent) amt)) z} ->
-    {auto 0 tr : So (theRestOk
+    {auto 0 tr : So (theRestOk Object
                       (agentMovedRest
                         (lookedTop (Experimental.Phrase.agentIntro agent) amt) mn z))} ->
     {auto 0 pr : Placeable
-                    (tyOfGroup
+                    (tyOfGroup Object
                       (agentMovedRest
                         (lookedTop (Experimental.Phrase.agentIntro agent) amt) mn z)) Library} ->
     LookReq agent amt z
@@ -1574,11 +1576,11 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
                     (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) = 1} ->
     {auto 0 ps : Placeable
                     (tyOfReach Bare ManyOf (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt)) z} ->
-    {auto 0 tr : So (theRestOk
+    {auto 0 tr : So (theRestOk Object
                       (agentMovedRest
                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) mn z))} ->
     {auto 0 pr : Placeable
-                    (tyOfGroup
+                    (tyOfGroup Object
                       (agentMovedRest
                         (agentLookedTop (Experimental.Phrase.agentIntro agent) an amt) mn z))
                     Library} ->
@@ -1603,7 +1605,7 @@ scryBody agent amt (YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}) =
                     (Pro Bare ManyOf {ok = mn}) {gm = Oh})
             (onBottomIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-     , move (theRest {ok = tr})
+     , move (theRest Object {ok = tr})
             (onTopIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
 scryBody agent amt (TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}) =
@@ -1620,7 +1622,7 @@ scryBody agent amt (TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}) =
                     (Pro Bare ManyOf {ok = mn}) {gm = Oh})
             (onBottomIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-     , move (theRest {ok = tr})
+     , move (theRest Object {ok = tr})
             (onTopIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
 
@@ -1645,12 +1647,12 @@ fateseal : {bs : Bindings} ->
                      (tyOfReach Bare ManyOf
                        (agentLookedTop
                          (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt)) Library} ->
-           {auto 0 tr : So (theRestOk
+           {auto 0 tr : So (theRestOk Object
                         (agentMovedRest
                           (agentLookedTop
                             (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library))} ->
            {auto 0 pr : Placeable
-                     (tyOfGroup
+                     (tyOfGroup Object
                        (agentMovedRest
                          (agentLookedTop
                            (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library)) Library} ->
@@ -1663,7 +1665,7 @@ fateseal amt =
                           (Pro Bare ManyOf {ok = mn}) {gm = Oh})
                   (onBottomIn AnyOrder {af = Oh})
                   {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-           , move (theRest {ok = tr})
+           , move (theRest Object {ok = tr})
                   (onTopIn AnyOrder {af = Oh})
                   {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
@@ -1684,7 +1686,7 @@ surveilBody agent amt (YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}) =
      , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
                     (Pro Bare ManyOf {ok = mn}) {gm = Oh})
             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-     , move (theRest {ok = tr})
+     , move (theRest Object {ok = tr})
             (onTopIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
 surveilBody agent amt (TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}) =
@@ -1699,7 +1701,7 @@ surveilBody agent amt (TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}) =
      , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
                     (Pro Bare ManyOf {ok = mn}) {gm = Oh})
             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-     , move (theRest {ok = tr})
+     , move (theRest Object {ok = tr})
             (onTopIn AnyOrder {af = Oh})
             {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
 

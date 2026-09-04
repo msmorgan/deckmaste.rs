@@ -313,7 +313,7 @@ mutual
                   (r : Comparator) -> (bound : Amount bs) ->
                   Predicate bs k
     InZone : ZoneExpr bs -> Predicate bs Object
-    InPile : (pile : Noun bs Object) -> {auto 0 pm : PileMention pile} ->
+    InPile : (pile : Noun bs Pile) -> {auto 0 pm : PileMention pile} ->
              Predicate bs Object
     ExiledWith : (src : Noun bs Object) ->
                  {auto 0 ls : LinkSource src} -> Predicate bs Object
@@ -1329,10 +1329,10 @@ mutual
     NamesAgree : (agr : NameAgreement) -> (grp : Noun bs Object) ->
                  {auto 0 cm : CountedMention grp} ->
                  {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
-    TheRest : (pl : Plurality) -> {auto 0 ok : So (theRestFits pl bs)} ->
-              Noun bs Object
+    TheRest : (k : Kind) -> (pl : Plurality) ->
+              {auto 0 ok : So (theRestFits k pl bs)} -> Noun bs k
     PileOf : (q : SliceCount bs) -> (by : Maybe (Noun bs Player)) ->
-             {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Object
+             {auto 0 ok : countReach (Word PileW) ManyOf bs = 1} -> Noun bs Pile
     Pro : (r : Reach) -> (pl : Plurality) ->
           {auto 0 ok : countReach r pl bs = 1} -> Noun bs (reachKind r)
     ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
@@ -1387,7 +1387,7 @@ mutual
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
-  nounEqRef (TheRest _) _ = False
+  nounEqRef (TheRest _ _) _ = False
   nounEqRef (PileOf _ _) _ = False
   nounEqRef (Pro Bare OneOf) (Pro Bare OneOf) = True
   nounEqRef (Pro (Word AbilityW) OneOf) (Pro (Word AbilityW) OneOf) = True
@@ -1479,14 +1479,14 @@ mutual
     MkBinding PartD Object (slicePlur q)
               (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing (sliceExact q))
       :: (sliceCountDelta q ++ sliceDelta d ++ nounDelta grp)
-  nounDelta (TheRest _) = []
+  nounDelta (TheRest _ _) = []
   nounDelta (PileOf q Nothing) =
-    MkBinding PartD Object (slicePlur q)
+    MkBinding PartD Pile (slicePlur q)
               (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
                      (faceOfReach (Word PileW) ManyOf bs))
       :: sliceCountDelta q
   nounDelta (PileOf q (Just by)) =
-    MkBinding PartD Object (slicePlur q)
+    MkBinding PartD Pile (slicePlur q)
               (PileP (zoneOfReach (Word PileW) ManyOf bs) (sliceExact q)
                      (faceOfReach (Word PileW) ManyOf bs))
       :: (sliceCountDelta q ++ nounDelta by)
@@ -2068,7 +2068,7 @@ mutual
   nounDet (LibrarySlice _ _ _) = Just TheD
   nounDet (SomeOf _ _ _) = Just PartD
   nounDet (NamesAgree _ grp) = nounDet grp
-  nounDet (TheRest _) = Just TheD
+  nounDet (TheRest _ _) = Just TheD
   nounDet (PileOf _ _) = Just PartD
   nounDet (OneEachOf _ _) = Just BareD
   nounDet _ = Nothing
@@ -2093,7 +2093,7 @@ mutual
                        LinkSource (AsType t This sub {asc = Oh} {way})
 
   public export
-  data PileMention : Noun bs Object -> Type where
+  data PileMention : Noun bs Pile -> Type where
     PilePartitive : {0 q : SliceCount bs} ->
                     {0 by : Maybe (Noun bs Player)} ->
                     {0 ok : countReach (Word PileW) ManyOf bs = 1} ->
@@ -2669,6 +2669,16 @@ mutual
   SingleRecipient : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   SingleRecipient {bs} {k} n = nounPlur n = OneOf
 
+  ||| Only permanents have status [CR#110.5d]; a pile is not an object [CR#700.3b].
+  public export
+  data StatusHolder : Noun bs k -> Type where
+    ObjectHoldsStatus : StatusHolder {k = Object} n
+
+  public export
+  data Movable : Noun bs k -> Type where
+    ObjectMoves : Movable {k = Object} n
+    PileMoves : Movable {k = Pile} n
+
   public export
   data DiscardOk : Noun bs Object -> Type where
     DiscardThis : DiscardOk This
@@ -2678,8 +2688,8 @@ mutual
   setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og sz)) =
     MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
-  setZone p z (MkBinding det Object plur (PileP _ sz fc)) =
-    MkBinding det Object plur (PileP z sz fc)
+  setZone p z (MkBinding det Pile plur (PileP _ sz fc)) =
+    MkBinding det Pile plur (PileP z sz fc)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det Player plur ChosenPlayerP) =
     MkBinding det Player plur ChosenPlayerP
@@ -2721,7 +2731,7 @@ mutual
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(OneEachOf _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p (TheRest _) z = groupSpent bs
+  moveIntro p (TheRest k _) z = groupSpent k bs
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
   moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
@@ -2777,7 +2787,7 @@ mutual
 
   public export
   nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
-  nounProv (TheRest _) = provOfGroup bs
+  nounProv (TheRest k _) = provOfGroup k bs
   nounProv (Pro r pl) = provOfReach r pl bs
   nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
   nounProv (Own pl own _) = provOfReach Bare pl own
@@ -2804,7 +2814,7 @@ mutual
   nounZone (EitherOf _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ _ grp) = nounZone grp
-  nounZone (TheRest _) = zoneOfGroup bs
+  nounZone (TheRest k _) = zoneOfGroup k bs
   nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
   nounZone (Pro r pl) = zoneOfReach r pl bs
   nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
@@ -2848,7 +2858,7 @@ mutual
   nounTy (EitherOf _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ d grp) = sliceTy d grp
-  nounTy (TheRest _) = tyOfGroup bs
+  nounTy (TheRest k _) = tyOfGroup k bs
   nounTy (PileOf _ _) = Nothing
   nounTy (Pro r pl) = tyOfReach r pl bs
   nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
@@ -2909,7 +2919,7 @@ mutual
     if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = slicePlur q
-  nounPlur (TheRest pl) = pl
+  nounPlur (TheRest _ pl) = pl
   nounPlur (PileOf q _) = slicePlur q
   nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf

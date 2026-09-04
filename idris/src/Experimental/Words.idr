@@ -209,6 +209,8 @@ data Kind : Type where
   Gap : Kind
   LetterK : Letter -> Kind
   TurnRef : Kind
+  ||| A pile of objects; the pile itself is not an object [CR#700.3b].
+  Pile : Kind
   (\/) : Kind -> Kind -> Kind
 
 public export
@@ -220,7 +222,8 @@ kindIx Outcome = 3
 kindIx Gap = 4
 kindIx (LetterK _) = 5
 kindIx TurnRef = 6
-kindIx (_ \/ _) = 7
+kindIx Pile = 7
+kindIx (_ \/ _) = 8
 
 mutual
   public export
@@ -266,6 +269,7 @@ sameKindRefl Outcome = Oh
 sameKindRefl Gap = Oh
 sameKindRefl (LetterK w) = sameLetterRefl w
 sameKindRefl TurnRef = Oh
+sameKindRefl Pile = Oh
 sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
 
 public export
@@ -288,6 +292,7 @@ kindLteInL Outcome a b ok = orSo (Left ok)
 kindLteInL Gap a b ok = orSo (Left ok)
 kindLteInL (LetterK _) a b ok = orSo (Left ok)
 kindLteInL TurnRef a b ok = orSo (Left ok)
+kindLteInL Pile a b ok = orSo (Left ok)
 kindLteInL (p \/ q) a b ok =
   andSo (kindLteInL p a b (fst (soAnd ok)), kindLteInL q a b (snd (soAnd ok)))
 
@@ -300,6 +305,7 @@ kindLteInR Outcome a b ok = orSo (Right ok)
 kindLteInR Gap a b ok = orSo (Right ok)
 kindLteInR (LetterK _) a b ok = orSo (Right ok)
 kindLteInR TurnRef a b ok = orSo (Right ok)
+kindLteInR Pile a b ok = orSo (Right ok)
 kindLteInR (p \/ q) a b ok =
   andSo (kindLteInR p a b (fst (soAnd ok)), kindLteInR q a b (snd (soAnd ok)))
 
@@ -312,6 +318,7 @@ kindLteRefl Outcome = Oh
 kindLteRefl Gap = Oh
 kindLteRefl (LetterK w) = sameLetterRefl w
 kindLteRefl TurnRef = Oh
+kindLteRefl Pile = Oh
 kindLteRefl (a \/ b) =
   andSo (kindLteInL a a b (kindLteRefl a), kindLteInR b a b (kindLteRefl b))
 
@@ -1024,7 +1031,7 @@ data Payload : Kind -> Type where
   ||| and no zone of its own [CR#109.1,113.1c,405.1].
   AbilityP : (orig : Maybe Origin) -> Payload Object
   PileP : (zone : Maybe Zone) -> (size : Maybe Nat) ->
-          (face : Maybe PileFace) -> Payload Object
+          (face : Maybe PileFace) -> Payload Pile
   JoinP : Payload a -> Payload b -> Payload (a \/ b)
 
 public export
@@ -1112,8 +1119,8 @@ public export
 sized : Maybe Nat -> Binding -> Binding
 sized sz (MkBinding det Object pl (ObjectP ty zn pv og _)) =
   MkBinding det Object pl (ObjectP ty zn pv og sz)
-sized sz (MkBinding det Object pl (PileP zn _ fc)) =
-  MkBinding det Object pl (PileP zn sz fc)
+sized sz (MkBinding det Pile pl (PileP zn _ fc)) =
+  MkBinding det Pile pl (PileP zn sz fc)
 sized _ b = b
 
 
@@ -1382,81 +1389,83 @@ countManys k (MkBinding _ k' ManyOf _ :: bs) =
 countManys k (_ :: bs) = countManys k bs
 
 public export
-objGroup : Binding -> Bool
-objGroup b = kindLte Object b.kind && not (isOne b.plur)
+objGroup : Kind -> Binding -> Bool
+objGroup k b = kindLte k b.kind && not (isOne b.plur)
 
 public export
-countGroups : Bindings -> Nat
-countGroups [] = Z
-countGroups (MkBinding PartD _ _ _ :: bs) = countGroups bs
-countGroups (MkBinding BareD _ _ _ :: bs) = countGroups bs
-countGroups (b :: bs) =
-  if objGroup b then S (countGroups bs) else countGroups bs
+countGroups : Kind -> Bindings -> Nat
+countGroups k [] = Z
+countGroups k (MkBinding PartD _ _ _ :: bs) = countGroups k bs
+countGroups k (MkBinding BareD _ _ _ :: bs) = countGroups k bs
+countGroups k (b :: bs) =
+  if objGroup k b then S (countGroups k bs) else countGroups k bs
 
 public export
-countParts : Bindings -> Nat
-countParts [] = Z
-countParts (b@(MkBinding PartD _ _ _) :: bs) =
-  if kindLte Object b.kind then S (countParts bs) else countParts bs
-countParts (_ :: bs) = countParts bs
+countParts : Kind -> Bindings -> Nat
+countParts k [] = Z
+countParts k (b@(MkBinding PartD _ _ _) :: bs) =
+  if kindLte k b.kind then S (countParts k bs) else countParts k bs
+countParts k (_ :: bs) = countParts k bs
 
 public export
-theRestOk : Bindings -> Bool
-theRestOk bs = countGroups bs <= 1 && not (countParts bs == Z)
+theRestOk : Kind -> Bindings -> Bool
+theRestOk k bs = countGroups k bs <= 1 && not (countParts k bs == Z)
 
 public export
-partsTaken : Bindings -> Nat
-partsTaken [] = Z
-partsTaken (b@(MkBinding PartD _ _ _) :: bs) =
-  if kindLte Object b.kind
+partsTaken : Kind -> Bindings -> Nat
+partsTaken k [] = Z
+partsTaken k (b@(MkBinding PartD _ _ _) :: bs) =
+  if kindLte k b.kind
     then (case bindingSize b of
-            Just n => n + partsTaken bs
-            Nothing => S (partsTaken bs))
-    else partsTaken bs
-partsTaken (_ :: bs) = partsTaken bs
+            Just n => n + partsTaken k bs
+            Nothing => S (partsTaken k bs))
+    else partsTaken k bs
+partsTaken k (_ :: bs) = partsTaken k bs
 
 public export
-countedGroupSize : Bindings -> Maybe Nat
-countedGroupSize [] = Nothing
-countedGroupSize (MkBinding PartD _ _ _ :: bs) = countedGroupSize bs
-countedGroupSize (MkBinding BareD _ _ _ :: bs) = countedGroupSize bs
-countedGroupSize (b :: bs) =
-  if objGroup b then bindingSize b else countedGroupSize bs
+countedGroupSize : Kind -> Bindings -> Maybe Nat
+countedGroupSize k [] = Nothing
+countedGroupSize k (MkBinding PartD _ _ _ :: bs) = countedGroupSize k bs
+countedGroupSize k (MkBinding BareD _ _ _ :: bs) = countedGroupSize k bs
+countedGroupSize k (b :: bs) =
+  if objGroup k b then bindingSize b else countedGroupSize k bs
 
 public export
-theOtherOk : Bindings -> Bool
-theOtherOk bs = theRestOk bs &&
-                (case countedGroupSize bs of
-                   Nothing => False
-                   Just n => n == S (partsTaken bs))
+theOtherOk : Kind -> Bindings -> Bool
+theOtherOk k bs = theRestOk k bs &&
+                  (case countedGroupSize k bs of
+                     Nothing => False
+                     Just n => n == S (partsTaken k bs))
 
 public export
-theRestFits : Plurality -> Bindings -> Bool
-theRestFits OneOf bs = theOtherOk bs
-theRestFits ManyOf bs = theRestOk bs
+theRestFits : Kind -> Plurality -> Bindings -> Bool
+theRestFits k OneOf bs = theOtherOk k bs
+theRestFits k ManyOf bs = theRestOk k bs
 
 public export
-groupSpent : Bindings -> Bindings
-groupSpent [] = []
-groupSpent (MkBinding PartD k pl p :: bs) = MkBinding TheD k pl p :: groupSpent bs
-groupSpent (b :: bs) = if objGroup b then groupSpent bs else b :: groupSpent bs
+groupSpent : Kind -> Bindings -> Bindings
+groupSpent k [] = []
+groupSpent k (MkBinding PartD j pl p :: bs) =
+  MkBinding TheD j pl p :: groupSpent k bs
+groupSpent k (b :: bs) =
+  if objGroup k b then groupSpent k bs else b :: groupSpent k bs
 
 public export
-restSource : Bindings -> Maybe Binding
-restSource [] = Nothing
-restSource (b@(MkBinding PartD _ _ _) :: bs) =
-  case restSource bs of
+restSource : Kind -> Bindings -> Maybe Binding
+restSource k [] = Nothing
+restSource k (b@(MkBinding PartD _ _ _) :: bs) =
+  case restSource k bs of
     Just s => Just s
-    Nothing => if kindLte Object b.kind then Just b else Nothing
-restSource (b :: bs) = if objGroup b then Just b else restSource bs
+    Nothing => if kindLte k b.kind then Just b else Nothing
+restSource k (b :: bs) = if objGroup k b then Just b else restSource k bs
 
 public export
-zoneOfGroup : Bindings -> Maybe Zone
-zoneOfGroup bs = restSource bs >>= bindingZone
+zoneOfGroup : Kind -> Bindings -> Maybe Zone
+zoneOfGroup k bs = restSource k bs >>= bindingZone
 
 public export
-tyOfGroup : Bindings -> Maybe CardType
-tyOfGroup bs = restSource bs >>= bindingTy
+tyOfGroup : Kind -> Bindings -> Maybe CardType
+tyOfGroup k bs = restSource k bs >>= bindingTy
 
 public export
 anyTargeted : Kind -> Bindings -> Bool
@@ -1869,7 +1878,7 @@ kindOfW JoinW = Object \/ Player
 kindOfW StackW = Object
 kindOfW AbilityW = Object
 kindOfW AbilityCopyW = Object
-kindOfW PileW = Object
+kindOfW PileW = Pile
 
 public export
 reachKind : Reach -> Kind
@@ -1985,8 +1994,8 @@ countTokenSpecs (MkBinding _ _ _ (ObjectP _ _ _ og _) :: bs) =
 countTokenSpecs (_ :: bs) = countTokenSpecs bs
 
 public export
-provOfGroup : Bindings -> Maybe Stamp
-provOfGroup bs = restSource bs >>= (\b => payloadProv b.payload)
+provOfGroup : Kind -> Bindings -> Maybe Stamp
+provOfGroup k bs = restSource k bs >>= (\b => payloadProv b.payload)
 
 public export
 tyOfThoseAny : NounWord -> Bindings -> Maybe CardType

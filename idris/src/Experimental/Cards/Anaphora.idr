@@ -50,25 +50,25 @@ phyrexianInfiltrator =
 impulse : Instruction []
 impulse = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                        , Macros.move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ
-                       , Macros.move Macros.theRest (Macros.onBottomIn AnyOrder)
+                       , Macros.move (Macros.theRest Object) (Macros.onBottomIn AnyOrder)
                        ]
 
 anticipate : Instruction []
 anticipate = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 3)))
                           , Macros.move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ
-                          , Macros.move Macros.theRest (Macros.onBottomIn AnyOrder)
+                          , Macros.move (Macros.theRest Object) (Macros.onBottomIn AnyOrder)
                           ]
 
 revealFourPartition : Instruction []
 revealFourPartition = Sequentially [ Macros.revealCards ((Macros.topSlice (Lit 4)))
                                    , Macros.move (Macros.someOf (Macros.exactly 1) (Macros.That CardW ManyOf)) Macros.handZ
-                                   , Macros.move Macros.theRest Macros.graveyardZ
+                                   , Macros.move (Macros.theRest Object) Macros.graveyardZ
                                    ]
 
 exileFourOfThem : Instruction []
 exileFourOfThem = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 8)))
                                , Macros.exile You (Macros.someOf (Macros.exactly 4) ((Macros.It ManyOf)))
-                               , Macros.move Macros.theRest (Macros.onTopIn AnyOrder)
+                               , Macros.move (Macros.theRest Object) (Macros.onTopIn AnyOrder)
                                ]
 
 sylvanScrying : Instruction []
@@ -214,7 +214,7 @@ writeIntoBeingPlacement : Instruction []
 writeIntoBeingPlacement =
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 2)))
                , Macros.exile You (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf)))
-               , Macros.move Macros.theRest Macros.topOrBottomZ ]
+               , Macros.move (Macros.theRest Object) Macros.topOrBottomZ ]
 
 ||| Mystical Tutor
 public export
@@ -699,7 +699,7 @@ codecrackerHoundLook =
   Sequentially
     [ Macros.lookAt (Macros.topSlice (Lit 2))
     , Macros.move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ
-    , Macros.move Macros.theOther Macros.graveyardZ ]
+    , Macros.move (Macros.theOther Object) Macros.graveyardZ ]
 
 public export
 oneOfTheTopTwo : Noun [] Object
@@ -718,23 +718,23 @@ theArtifactsAmongTheTopFive =
 
 public export
 theOtherAfterATwoCardLook :
-  theOtherOk (nomIntro Anaphora.oneOfTheTopTwo) = True
+  theOtherOk Object (nomIntro Anaphora.oneOfTheTopTwo) = True
 theOtherAfterATwoCardLook = Refl
 
 public export
 theOtherNeedsAStatedCount :
-  theOtherOk (nomIntro Anaphora.oneOfAnUncountedTop) = False
+  theOtherOk Object (nomIntro Anaphora.oneOfAnUncountedTop) = False
 theOtherNeedsAStatedCount = Refl
 
 public export
 theRestStandsWhereTheOtherRefuses :
-  theRestOk (nomIntro Anaphora.oneOfAnUncountedTop) = True
+  theRestOk Object (nomIntro Anaphora.oneOfAnUncountedTop) = True
 theRestStandsWhereTheOtherRefuses = Refl
 
 public export
 theOtherRefusesTheUniversalSlice :
-  (theOtherOk (nomIntro Anaphora.theArtifactsAmongTheTopFive),
-   theRestOk (nomIntro Anaphora.theArtifactsAmongTheTopFive))
+  (theOtherOk Object (nomIntro Anaphora.theArtifactsAmongTheTopFive),
+   theRestOk Object (nomIntro Anaphora.theArtifactsAmongTheTopFive))
     = (False, True)
 theOtherRefusesTheUniversalSlice = Refl
 
@@ -755,7 +755,7 @@ factOrFiction =
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
                   , Macros.move Macros.onePile Macros.handZ
-                  , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+                  , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
 unsummon : Instruction []
@@ -824,9 +824,9 @@ churningEddy : Card
 churningEddy =
   Macros.card "Churning Eddy" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.move (Both (Macros.target Macros.creature)
-                                    (Macros.target Macros.land))
-                            Macros.handZ) ]
+       [ Spell (Macros.returnTo (Both (Macros.target Macros.creature)
+                                        (Macros.target Macros.land))
+                                Macros.handZ []) ]
        Nothing
 
 ||| Secret Rendezvous

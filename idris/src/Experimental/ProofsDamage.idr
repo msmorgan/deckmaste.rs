@@ -303,34 +303,34 @@ okRestAfterPart : Instruction []
 okRestAfterPart =
   Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
                , Move (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Macros.handZ []
-               , Move Macros.theRest Macros.graveyardZ []
+               , Move (Macros.theRest Object) Macros.graveyardZ []
                ]
 
 ||| "Put the rest into your graveyard."
 public export
 badRestWithoutGroup : Unspellable (Instruction []) (\ok =>
-  Move (Macros.theRest {ok}) Macros.graveyardZ [])
+  Move (Macros.theRest Object {ok}) Macros.graveyardZ [])
 badRestWithoutGroup Oh impossible
 
 ||| "Look at the top four cards of your library. Put the rest on the bottom."
 public export
 badRestWithoutPart : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Move (Macros.theRest {ok}) Macros.onBottomZ []])
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Move (Macros.theRest Object {ok}) Macros.onBottomZ []])
 badRestWithoutPart Oh impossible
 
 public export
 badRestDisposedTwice : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
-               , Move Macros.theRest Macros.onBottomZ []
-               , Move (Macros.theRest {ok}) Macros.graveyardZ []
+               , Move (Macros.theRest Object) Macros.onBottomZ []
+               , Move (Macros.theRest Object {ok}) Macros.graveyardZ []
                ])
 badRestDisposedTwice Oh impossible
 
 public export
 badRestOverTwoAnnouncements : Unspellable (Instruction []) (\ok =>
   Sequentially [ Fights (Macros.target Macros.creatureYouControl) (Macros.target Macros.creatureYouDontControl)
-               , Move (Macros.theRest {ok}) Macros.graveyardZ []
+               , Move (Macros.theRest Object {ok}) Macros.graveyardZ []
                ])
 badRestOverTwoAnnouncements Oh impossible
 

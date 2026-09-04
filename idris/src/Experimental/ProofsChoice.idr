@@ -254,12 +254,12 @@ afterChoiceRestDisposed : Bindings
 afterChoiceRestDisposed =
   instrIntro (the (Instruction [])
     (Sequentially [ Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)
-                  , Macros.destroy Macros.theRest ]))
+                  , Macros.destroy (Macros.theRest Object) ]))
 
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."
 public export
 badChoiceRestDisposedTwice :
-  Unspellable (Noun ProofsChoice.afterChoiceRestDisposed Object) (\ok => Macros.theRest {ok})
+  Unspellable (Noun ProofsChoice.afterChoiceRestDisposed Object) (\ok => Macros.theRest Object {ok})
 badChoiceRestDisposedTwice Oh impossible
 
 ||| "an opponent who controls more lands than they control"

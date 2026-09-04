@@ -1053,7 +1053,8 @@ mutual
              {auto 0 zb : ZoneIs (nounZone b) Battlefield} ->
              {auto 0 tb : So (deedNounOk "Attack" Agent b)} ->
              {auto 0 pb : nounPlur b = OneOf} -> Instruction bs
-    SetStatus : {c : StatusCat} -> (v : StatusVal c) -> (n : Noun bs Object) ->
+    SetStatus : {k : Kind} -> {c : StatusCat} -> (v : StatusVal c) ->
+                (n : Noun bs k) -> {auto 0 sh : StatusHolder n} ->
                 {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
                 {auto 0 at : StatusEffectVal v} -> Instruction bs
     TurnOver : (what : Noun bs Object) ->
@@ -1119,8 +1120,9 @@ mutual
            (voters : Noun (agentIntro first) Player) ->
            (disc : Disclosure) ->
            (ballot : Ballot (nomIntro voters)) -> Instruction bs
-    Move : (what : Noun bs Object) -> (to : ZoneExpr (nomIntro what)) ->
+    Move : {k : Kind} -> (what : Noun bs k) -> (to : ZoneExpr (nomIntro what)) ->
            (riders : List (TokenRider (nomIntro what))) ->
+           {auto 0 mk : Movable what} ->
            {auto 0 ok : DestOk to} ->
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
            {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
@@ -1604,9 +1606,9 @@ mutual
   instrIntro GameDrawn = bs
   instrIntro RestartsGame = bs
   instrIntro (SeparateIntoPiles who grp piles faces) =
-    MkBinding TheD Object ManyOf
+    MkBinding TheD Pile ManyOf
               (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
-      :: groupSpent (nomIntro grp)
+      :: groupSpent Object (nomIntro grp)
   instrIntro (CounterSpell what) = nomIntro what
   instrIntro (Copy {k} {ph} src agent what times exc) =
     MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
@@ -1828,10 +1830,10 @@ mutual
   instrProfile RestartsGame = sameIntro bs []
   instrProfile (SeparateIntoPiles who grp piles faces) =
     MkInstrProfile (nomIntro grp)
-                 (MkBinding TheD Object ManyOf
+                 (MkBinding TheD Pile ManyOf
                             (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
-                    :: groupSpent (nomIntro grp))
-                 ([MkBinding TheD Object ManyOf
+                    :: groupSpent Object (nomIntro grp))
+                 ([MkBinding TheD Pile ManyOf
                              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))])
   instrProfile (CounterSpell what) = sameIntro (nomIntro what) []
   instrProfile (Copy {k} {ph} src agent what times exc) =

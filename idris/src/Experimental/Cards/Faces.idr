@@ -574,7 +574,7 @@ riddlesInTheDark =
                   , SeparateIntoPiles You ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
                   , Macros.chooses Macros.anOpponent Macros.onePile
                   , Macros.move (Macros.That PileW OneOf) Macros.handZ
-                  , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+                  , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
 ||| Fortune's Favor
@@ -589,7 +589,7 @@ fortunesFavor =
                            (ExposedCards (Macros.topSlice (Lit 4)))
                   , SeparateIntoPiles They ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
                   , Macros.move Macros.onePile Macros.handZ
-                  , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+                  , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
 ||| Curator of Destinies
@@ -607,7 +607,7 @@ curatorOfDestinies =
               , SeparateIntoPiles You ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
               , Macros.chooses Macros.anOpponent Macros.onePile
               , Macros.move (Macros.That PileW OneOf) Macros.handZ
-              , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+              , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Just (5, 5))
 
 ||| Atris, Oracle of Half-Truths
@@ -624,7 +624,7 @@ atrisOracleOfHalfTruths =
                        (ExposedCards (Macros.topSlice (Lit 3)))
               , SeparateIntoPiles They ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
               , Macros.move Macros.onePile Macros.handZ
-              , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+              , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Macros.printedBox (Just (3, 2)))
 
 ||| Garruk Relentless // Garruk, the Veil-Cursed

@@ -213,7 +213,7 @@ murmursFromBeyond =
                   [ Macros.revealCards ((Macros.topSlice (Lit 3)))
                   , Macros.chooses (Macros.a Opponent) (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf)))
                   , Macros.move (Macros.That CardW OneOf) Macros.graveyardZ
-                  , Macros.move Macros.theRest Macros.handZ ]) ]
+                  , Macros.move (Macros.theRest Object) Macros.handZ ]) ]
        Nothing
 
 ||| Helica Glider
@@ -1177,7 +1177,7 @@ public export
 duneblast : Instruction []
 duneblast =
   Sequentially [ Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)
-               , Macros.destroy Macros.theRest ]
+               , Macros.destroy (Macros.theRest Object) ]
 
 ||| Boreas Charger
 public export
@@ -1194,7 +1194,7 @@ boreasChargerSpell =
                                    (HasSubtype (landType "Plains"))
     , Macros.revealCards (Macros.That CardW ManyOf)
     , Macros.putOntoBattlefieldTapped (Macros.someOf (Macros.exactly 1) (Macros.That CardW ManyOf))
-    , Macros.move Macros.theRest Macros.handZ ]
+    , Macros.move (Macros.theRest Object) Macros.handZ ]
 
 ||| Sandstone Oracle
 public export
@@ -1284,7 +1284,7 @@ communeWithTheGods =
                (Macros.move (Macros.fromAmong (Macros.exactly 1) (Or [Macros.creature, Macros.enchantment])
                                                  ((Macros.It ManyOf)))
                             Macros.handZ)
-           , Macros.move Macros.theRest Macros.graveyardZ ]) ]
+           , Macros.move (Macros.theRest Object) Macros.graveyardZ ]) ]
        Nothing
 
 public export
@@ -1688,4 +1688,4 @@ stickTogether =
            (Macros.counted (Macros.upTo 1)
               (And [Macros.creature, HasSubtype (creatureType "Wizard"),
                     HasPossessor ControllerAx Macros.They]))
-       , Macros.sacrifice Macros.They Macros.theRest ])
+       , Macros.sacrifice Macros.They (Macros.theRest Object) ])

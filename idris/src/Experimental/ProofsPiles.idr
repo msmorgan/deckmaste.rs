@@ -68,6 +68,14 @@ okOnePileAfterPartition =
                , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
                , Macros.move Macros.onePile Macros.handZ ]
 
+||| "Put target player into your hand." -- a zone holds objects [CR#400.1];
+||| a player is not one.
+public export
+badPlayerMovedToAZone : Unspellable (Instruction []) (\ok =>
+  Move (Macros.target AnyPlayer) Macros.handZ [] {mk = ok})
+badPlayerMovedToAZone ObjectMoves impossible
+badPlayerMovedToAZone PileMoves impossible
+
 ||| "Put one pile into your hand."
 public export
 badPilePartitiveWithoutAPartition : Unspellable (Instruction []) (\ok =>
@@ -87,17 +95,18 @@ okMembershipInAPile =
                                 Macros.handZ ]) ]
        Nothing
 
+||| "Reveal the top five cards of your library. Put each card in those
+||| piles into your hand." -- no effect grouped them into piles [CR#700.3].
 public export
-badMembershipInANonPile : Unspellable Card (\ok =>
+badMembershipWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , Macros.move (Macros.allOf (And [IsCard, InPile ((Macros.It ManyOf)) {pm = ok}]))
+                  , Macros.move (Macros.allOf (And [IsCard,
+                                    InPile (Macros.That PileW ManyOf {ok = ok})]))
                                 Macros.handZ ]) ]
        Nothing)
-badMembershipInANonPile PilePartitive impossible
-badMembershipInANonPile ThatPile impossible
-badMembershipInANonPile ThosePiles impossible
+badMembershipWithoutAPartition Refl impossible
 
 ||| "Turn target creature face down."
 public export
@@ -105,15 +114,16 @@ okStatusOnBattlefieldNoun : Instruction []
 okStatusOnBattlefieldNoun =
   SetStatus FaceDown (Macros.target Macros.creature)
 
+||| "Separate all creatures into two piles. Turn those piles face down."
+||| -- only permanents have status [CR#110.5d]; a pile is not one [CR#700.3b].
 public export
 badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-                  [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
-                  , SetStatus FaceDown (Macros.That PileW ManyOf) {ok = ok} ]) ]
+                  [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
+                  , SetStatus FaceDown (Macros.That PileW ManyOf) {sh = ok} ]) ]
        Nothing)
-badPileFaceAsAStatus Oh impossible
+badPileFaceAsAStatus ObjectHoldsStatus impossible
 
 public export
 lessAsThoughCondition : AsThough []

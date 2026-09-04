@@ -20,7 +20,7 @@ tezzeretsGatebreaker =
                      [ Macros.revealCards
                          (Macros.fromAmong (Macros.exactly 1) (Or [ColorIs Blue, Macros.artifact]) ((Macros.It ManyOf)))
                      , Macros.move (Macros.That CardW OneOf) Macros.handZ ])
-              , Macros.move Macros.theRest (Macros.onBottomIn RandomOrder) ])
+              , Macros.move (Macros.theRest Object) (Macros.onBottomIn RandomOrder) ])
        , Macros.activated
            (Compound [Mana [Macros.generic 5, Macros.pip Blue], TapSymbol,
                       Do (Macros.sacrifice You Macros.thisArtifact)])
@@ -187,7 +187,7 @@ deathOrGlory =
                       (Macros.allOf (And [Macros.creature,
                                    InZone (Macros.graveyardOf You)])) 2 []
                   , Macros.exile You (Macros.pileOfChoice Macros.anOpponent)
-                  , Macros.move Macros.theOther Macros.battlefieldZ ]) ]
+                  , Macros.move (Macros.theOther Pile) Macros.battlefieldZ ]) ]
        Nothing
 
 ||| Steam Augury
@@ -202,7 +202,7 @@ steamAugury =
                   , SeparateIntoPiles You ((Macros.It ManyOf)) 2 []
                   , Macros.chooses Macros.anOpponent Macros.onePile
                   , Macros.move (Macros.That PileW OneOf) Macros.handZ
-                  , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+                  , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
 ||| Do or Die

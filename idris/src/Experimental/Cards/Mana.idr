@@ -1093,7 +1093,7 @@ collectedCompany =
                                                  Compare [CharAxis ManaValue] AtMost (Lit 3)])
                                            ((Macros.It ManyOf)))
                          Macros.battlefieldZ
-           , Macros.move Macros.theRest (Macros.onBottomIn AnyOrder) ]) ]
+           , Macros.move (Macros.theRest Object) (Macros.onBottomIn AnyOrder) ]) ]
        Nothing
 
 ||| Soldevi Adnate

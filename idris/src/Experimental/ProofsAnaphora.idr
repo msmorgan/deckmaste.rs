@@ -676,14 +676,14 @@ badBarePaymentLookback MkLookbackSubject impossible
 ||| "Destroy the rest."
 public export
 badRestWithoutAPartition : Unspellable (Noun [] Object) (\ok =>
-  Macros.theRest {ok})
+  Macros.theRest Object {ok})
 badRestWithoutAPartition Oh impossible
 
 ||| "Choose any number of target creatures. Destroy the rest."
 public export
 badRestAfterTargetChoice : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature)
-               , Macros.destroy (Macros.theRest {ok}) ])
+               , Macros.destroy (Macros.theRest Object {ok}) ])
 badRestAfterTargetChoice Oh impossible
 
 public export
@@ -894,6 +894,7 @@ countOutcomesIsFold s (MkBinding d (Quality q) p pay :: bs) = countOutcomesIsFol
 countOutcomesIsFold s (MkBinding d Gap p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (LetterK l) p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d TurnRef p pay :: bs) = countOutcomesIsFold s bs
+countOutcomesIsFold s (MkBinding d Pile p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
 
 public export
@@ -917,6 +918,7 @@ countQuantOutcomesIsFold (MkBinding d (Quality q) p pay :: bs) = countQuantOutco
 countQuantOutcomesIsFold (MkBinding d Gap p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d (LetterK l) p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Pile p pay :: bs) = countQuantOutcomesIsFold bs
 countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomesIsFold bs
 
 public export
@@ -1013,35 +1015,35 @@ public export
 groupOne : Binding -> Bool
 groupOne (MkBinding PartD _ _ _) = False
 groupOne (MkBinding BareD _ _ _) = False
-groupOne b = objGroup b
+groupOne b = objGroup Object b
 
 public export
-countGroupsIsFold : (bs : Bindings) -> countGroups bs = countBy groupOne bs
+countGroupsIsFold : (bs : Bindings) -> countGroups Object bs = countBy groupOne bs
 countGroupsIsFold [] = Refl
 countGroupsIsFold (MkBinding PartD j p pay :: bs) = countGroupsIsFold bs
 countGroupsIsFold (MkBinding TargetD j p pay :: bs)
-    with (objGroup (MkBinding TargetD j p pay))
+    with (objGroup Object (MkBinding TargetD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
-countGroupsIsFold (MkBinding AD j p pay :: bs) with (objGroup (MkBinding AD j p pay))
+countGroupsIsFold (MkBinding AD j p pay :: bs) with (objGroup Object (MkBinding AD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
 countGroupsIsFold (MkBinding EachD j p pay :: bs)
-    with (objGroup (MkBinding EachD j p pay))
+    with (objGroup Object (MkBinding EachD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
-countGroupsIsFold (MkBinding AllD j p pay :: bs) with (objGroup (MkBinding AllD j p pay))
+countGroupsIsFold (MkBinding AllD j p pay :: bs) with (objGroup Object (MkBinding AllD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
-countGroupsIsFold (MkBinding TheD j p pay :: bs) with (objGroup (MkBinding TheD j p pay))
+countGroupsIsFold (MkBinding TheD j p pay :: bs) with (objGroup Object (MkBinding TheD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
 countGroupsIsFold (MkBinding CountD j p pay :: bs)
-    with (objGroup (MkBinding CountD j p pay))
+    with (objGroup Object (MkBinding CountD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
 countGroupsIsFold (MkBinding SelfD j p pay :: bs)
-    with (objGroup (MkBinding SelfD j p pay))
+    with (objGroup Object (MkBinding SelfD j p pay))
   _ | True = cong S (countGroupsIsFold bs)
   _ | False = countGroupsIsFold bs
 countGroupsIsFold (MkBinding BareD j p pay :: bs) = countGroupsIsFold bs
@@ -1052,7 +1054,7 @@ partOne (MkBinding PartD j _ _) = kindLte Object j
 partOne b = False
 
 public export
-countPartsIsFold : (bs : Bindings) -> countParts bs = countBy partOne bs
+countPartsIsFold : (bs : Bindings) -> countParts Object bs = countBy partOne bs
 countPartsIsFold [] = Refl
 countPartsIsFold (MkBinding PartD j p pay :: bs) with (kindLte Object j)
   _ | True = cong S (countPartsIsFold bs)
@@ -1339,19 +1341,19 @@ notZeroSucc (S k) ok = (k ** Refl)
 
 ||| "the rest"
 public export
-theRestReadsOnlyPrefix : (bs : Bindings) -> So (theRestOk bs) -> Noun bs Object
-theRestReadsOnlyPrefix bs ok = Macros.theRest {bs} {ok}
+theRestReadsOnlyPrefix : (bs : Bindings) -> So (theRestOk Object bs) -> Noun bs Object
+theRestReadsOnlyPrefix bs ok = Macros.theRest Object {bs} {ok}
 
 public export
-theRestResolvesInPrefix : (bs : Bindings) -> So (theRestOk bs) ->
+theRestResolvesInPrefix : (bs : Bindings) -> So (theRestOk Object bs) ->
                           (p : Binding ** (Elem p bs, So (partOne p)))
 theRestResolvesInPrefix bs ok =
-  let (_, pOk) = soAnd {a = countGroups bs <= 1} ok
-      (k ** pEq) = notZeroSucc (countParts bs) pOk
+  let (_, pOk) = soAnd {a = countGroups Object bs <= 1} ok
+      (k ** pEq) = notZeroSucc (countParts Object bs) pOk
    in countByWitness partOne bs k (trans (sym (countPartsIsFold bs)) pEq)
 
 public export
-theRestGroupResolvesInPrefix : (bs : Bindings) -> countGroups bs = 1 ->
+theRestGroupResolvesInPrefix : (bs : Bindings) -> countGroups Object bs = 1 ->
                                (g : Binding ** (Elem g bs, So (groupOne g)))
 theRestGroupResolvesInPrefix bs gEq =
   countByWitness groupOne bs Z (trans (sym (countGroupsIsFold bs)) gEq)
@@ -1721,7 +1723,7 @@ markTyKeepsOnes : (j : Kind) -> (ty : Maybe CardType) -> (b : Binding) ->
 markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
-markTyKeepsOnes j ty (MkBinding det Object plur (PileP zn sz fc)) = Refl
+markTyKeepsOnes j ty (MkBinding det Pile plur (PileP zn sz fc)) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
@@ -1737,7 +1739,7 @@ markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
                 reaches (AtSlot sl) OneOf (markTy ty b) = reaches (AtSlot sl) OneOf b
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
-markTyKeepsAt sl ty (MkBinding det Object plur (PileP zn sz fc)) = Refl
+markTyKeepsAt sl ty (MkBinding det Pile plur (PileP zn sz fc)) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl

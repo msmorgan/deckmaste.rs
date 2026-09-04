@@ -1322,7 +1322,7 @@ uneshCriosphinxSovereign =
               [ Macros.revealCards (Macros.topSlice (Lit 4))
               , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
               , Macros.move Macros.onePile Macros.handZ
-              , Macros.move Macros.theOther Macros.graveyardZ ]) ]
+              , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Just (4, 4))
 
 opt : Card
