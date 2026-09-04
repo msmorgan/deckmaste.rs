@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -39,7 +40,11 @@ impl CoverageLockPolicy {
     const ENVIRONMENT_VARIABLE: &'static str = "DECKMASTE_COVERAGE_LOCK";
 
     fn from_environment() -> anyhow::Result<Self> {
-        match std::env::var(Self::ENVIRONMENT_VARIABLE) {
+        Self::from_value(std::env::var(Self::ENVIRONMENT_VARIABLE))
+    }
+
+    fn from_value(value: Result<String, std::env::VarError>) -> anyhow::Result<Self> {
+        match value {
             Ok(value) => Self::parse(&value),
             Err(std::env::VarError::NotPresent) => Ok(Self::Ratchet),
             Err(error) => Err(error).with_context(|| {
@@ -68,6 +73,12 @@ impl CoverageLockPolicy {
             Self::Report => "report",
         }
     }
+}
+
+/// What a lock delta prints for one corpus identity.
+pub(super) struct LockDeltaDetail<'a> {
+    pub(super) card: String,
+    pub(super) selected_analysis: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -506,6 +517,13 @@ pub(super) struct CoverageRow {
 }
 
 impl CoverageRow {
+    fn card_label(&self) -> String {
+        match &self.face_name {
+            Some(face) => format!("{} ({face})", self.card_name),
+            None => self.card_name.clone(),
+        }
+    }
+
     #[cfg(test)]
     const fn status(&self) -> CoverageStatus {
         self.status
@@ -1213,16 +1231,33 @@ impl CoverageReport {
         Ok(ids)
     }
 
-    pub(super) fn selected_coverage_for_lock(&self, id: &str) -> Option<(&str, &str)> {
-        self.rows.iter().find_map(|row| {
-            if row.id == id && row.status == CoverageStatus::SelectedCovered {
-                row.selected
-                    .as_ref()
-                    .map(|selected| (row.card_name.as_str(), selected.rendered_text.as_str()))
-            } else {
-                None
+    /// Card labels and selected analyses for every corpus identity in this
+    /// report, so a lock delta names identities from the current corpus rather
+    /// than from the lock it is compared against.
+    pub(super) fn lock_delta_details(&self) -> HashMap<&str, LockDeltaDetail<'_>> {
+        let mut details = HashMap::with_capacity(self.rows.len());
+        for row in &self.rows {
+            let selected_analysis = row
+                .selected
+                .as_ref()
+                .filter(|_| row.status == CoverageStatus::SelectedCovered)
+                .map(|selected| selected.rendered_text.as_str());
+            let detail = LockDeltaDetail {
+                card: row.card_label(),
+                selected_analysis,
+            };
+            match details.entry(row.id.as_str()) {
+                std::collections::hash_map::Entry::Vacant(slot) => {
+                    slot.insert(detail);
+                }
+                std::collections::hash_map::Entry::Occupied(mut slot) => {
+                    if slot.get().selected_analysis.is_none() && selected_analysis.is_some() {
+                        slot.insert(detail);
+                    }
+                }
             }
-        })
+        }
+        details
     }
 
     #[cfg(test)]
@@ -1710,61 +1745,13 @@ impl CoverageReport {
         unresolved: usize,
         internal: usize,
     ) -> Self {
-        let empty_ownership = || CoverageOwnership {
-            covered: true,
-            claims: 0,
-            claimed_bytes: 0,
-            form_literal_claims: 0,
-            form_literal_bytes: 0,
-            vocab_claims: 0,
-            vocab_bytes: 0,
-            lexeme_claims: 0,
-            lexeme_bytes: 0,
-            codec_claims: 0,
-            codec_bytes: 0,
-            identity_claims: 0,
-            identity_bytes: 0,
-            gap_spans: 0,
-            gap_bytes: 0,
-            overlap_spans: 0,
-            overlap_bytes: 0,
-            synthetic_claims: 0,
-            provenance_plan_mismatches: 0,
-            failures: Vec::new(),
-        };
         let mut rows = covered
             .into_iter()
-            .map(|id| CoverageRow {
-                source_id: id.clone(),
-                id,
-                card_name: "Covered".to_owned(),
-                face_name: None,
-                side: None,
-                context_name: "Covered".to_owned(),
-                context_onset: Onset::Consonant,
-                text: String::new(),
-                status: CoverageStatus::SelectedCovered,
-                exception_resolved: false,
-                exception_uses: 0,
-                selected: Some(SelectedCoverage {
-                    rendered_text: String::new(),
-                    ownership: empty_ownership(),
-                    roundtrip_failure: None,
-                    nonterminal_nodes: 0,
-                    visited_constructions: 0,
-                    traversal_failure: None,
-                    expected_leaves: 0,
-                    visited_leaves: 0,
-                    leaf_traversal_failure: None,
-                    longest_form_literal_bytes: 0,
-                }),
-                internal_failure_kind: None,
-                message: None,
-            })
+            .map(|id| covered_row_for_test(id, None))
             .collect::<Vec<_>>();
         let mut next_id = 0x1000usize;
         for _ in 0..selected_uncovered {
-            let mut ownership = empty_ownership();
+            let mut ownership = covered_ownership_for_test();
             ownership.covered = false;
             ownership
                 .failures
@@ -1820,6 +1807,91 @@ impl CoverageReport {
             next_id += 1;
         }
         Self::try_new(source_fingerprint, rows).unwrap()
+    }
+
+    /// A report whose covered identities and whose still-present-but-unparsed
+    /// identities are both named, so a lock-delta test can tell a corpus-sourced
+    /// card name from a lock-sourced one.
+    pub(super) fn for_lock_delta_test(
+        source_fingerprint: String,
+        covered: &[(String, Option<&str>)],
+        parse_failures: &[(String, Option<&str>)],
+    ) -> Self {
+        let mut rows = covered
+            .iter()
+            .map(|(id, face)| covered_row_for_test(id.clone(), *face))
+            .collect::<Vec<_>>();
+        rows.extend(parse_failures.iter().map(|(id, face)| {
+            let mut row = CoverageRow::outcome_for_test(id.clone(), CoverageStatus::ParseFailure);
+            row.card_name = fixture_card_name(id);
+            row.face_name = face.map(str::to_owned);
+            row
+        }));
+        Self::try_new(source_fingerprint, rows).unwrap()
+    }
+}
+
+#[cfg(test)]
+fn fixture_card_name(id: &str) -> String {
+    format!("Card {}", id.get(..8).unwrap_or(id))
+}
+
+#[cfg(test)]
+fn covered_ownership_for_test() -> CoverageOwnership {
+    CoverageOwnership {
+        covered: true,
+        claims: 0,
+        claimed_bytes: 0,
+        form_literal_claims: 0,
+        form_literal_bytes: 0,
+        vocab_claims: 0,
+        vocab_bytes: 0,
+        lexeme_claims: 0,
+        lexeme_bytes: 0,
+        codec_claims: 0,
+        codec_bytes: 0,
+        identity_claims: 0,
+        identity_bytes: 0,
+        gap_spans: 0,
+        gap_bytes: 0,
+        overlap_spans: 0,
+        overlap_bytes: 0,
+        synthetic_claims: 0,
+        provenance_plan_mismatches: 0,
+        failures: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+fn covered_row_for_test(id: String, face_name: Option<&str>) -> CoverageRow {
+    let card_name = fixture_card_name(&id);
+    let rendered_text = format!("analysis {}", id.get(..8).unwrap_or(&id));
+    CoverageRow {
+        source_id: id.clone(),
+        id,
+        card_name,
+        face_name: face_name.map(str::to_owned),
+        side: None,
+        context_name: "Covered".to_owned(),
+        context_onset: Onset::Consonant,
+        text: String::new(),
+        status: CoverageStatus::SelectedCovered,
+        exception_resolved: false,
+        exception_uses: 0,
+        selected: Some(SelectedCoverage {
+            rendered_text,
+            ownership: covered_ownership_for_test(),
+            roundtrip_failure: None,
+            nonterminal_nodes: 0,
+            visited_constructions: 0,
+            traversal_failure: None,
+            expected_leaves: 0,
+            visited_leaves: 0,
+            leaf_traversal_failure: None,
+            longest_form_literal_bytes: 0,
+        }),
+        internal_failure_kind: None,
+        message: None,
     }
 }
 
@@ -3037,13 +3109,34 @@ mod tests {
     }
 
     #[test]
+    fn coverage_lock_policy_reads_the_environment_value() {
+        assert_eq!(
+            CoverageLockPolicy::from_value(Err(std::env::VarError::NotPresent)).unwrap(),
+            CoverageLockPolicy::Ratchet
+        );
+        assert_eq!(
+            CoverageLockPolicy::from_value(Ok("ratchet".to_owned())).unwrap(),
+            CoverageLockPolicy::Ratchet
+        );
+        assert_eq!(
+            CoverageLockPolicy::from_value(Ok("report".to_owned())).unwrap(),
+            CoverageLockPolicy::Report
+        );
+    }
+
+    #[test]
     fn coverage_lock_policy_rejects_unknown_environment_values() {
-        let error = CoverageLockPolicy::parse("not-a-mode")
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("DECKMASTE_COVERAGE_LOCK"), "{error}");
-        assert!(error.contains("ratchet"), "{error}");
-        assert!(error.contains("report"), "{error}");
+        for value in ["not-a-mode", "", " report", "Report"] {
+            let error = CoverageLockPolicy::from_value(Ok(value.to_owned()))
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("DECKMASTE_COVERAGE_LOCK"),
+                "{value:?}: {error}"
+            );
+            assert!(error.contains("ratchet"), "{value:?}: {error}");
+            assert!(error.contains("report"), "{value:?}: {error}");
+        }
     }
 
     #[test]

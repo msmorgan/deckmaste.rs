@@ -421,27 +421,27 @@ fn write_v4_coverage_drift(
         report,
         lost,
         newly_covered,
-        |identity| {
-            baseline
-                .normalization_units
-                .iter()
-                .find(|unit| unit.id == identity)
-                .map(|unit| unit.card_name.as_str())
-        },
+        Some(&baseline.normalization_units),
         lock_policy,
         diagnostics,
     )?;
     Ok(())
 }
 
-fn write_report_delta<'a>(
+/// Renders the lock delta. Losses and gains are named from the current corpus;
+/// an identity the corpus no longer holds at all falls back to the name the
+/// baseline lock recorded for it.
+fn write_report_delta(
     report: &CoverageReport,
     lost: &[&String],
     newly_covered: &[&String],
-    lost_card_name: impl Fn(&str) -> Option<&'a str>,
+    baseline_units: Option<&[NormalizationUnit]>,
     lock_policy: CoverageLockPolicy,
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
+    let details = (lock_policy == CoverageLockPolicy::Report
+        && !(lost.is_empty() && newly_covered.is_empty()))
+    .then(|| report.lock_delta_details());
     if lock_policy == CoverageLockPolicy::Report && !lost.is_empty() {
         writeln!(
             diagnostics,
@@ -451,11 +451,23 @@ fn write_report_delta<'a>(
         )
         .context("writing English-v2 coverage lock diagnostic")?;
         for identity in lost {
-            let card_name = lost_card_name(identity).unwrap_or("<unknown>");
+            let card_name = details
+                .as_ref()
+                .and_then(|details| details.get(identity.as_str()))
+                .map(|detail| detail.card.clone())
+                .or_else(|| {
+                    baseline_units.and_then(|units| {
+                        units
+                            .iter()
+                            .find(|unit| &unit.id == *identity)
+                            .map(|unit| unit.card_name.clone())
+                    })
+                })
+                .unwrap_or_else(|| "<unknown>".to_owned());
             writeln!(
                 diagnostics,
                 "no longer covered\t{identity}\tcard {}",
-                serde_json::to_string(card_name)?
+                serde_json::to_string(&card_name)?
             )
             .context("writing English-v2 coverage lock diagnostic")?;
         }
@@ -471,13 +483,15 @@ fn write_report_delta<'a>(
     }
     for identity in newly_covered {
         let detail = if lock_policy == CoverageLockPolicy::Report {
-            let (card_name, rendered_text) = report
-                .selected_coverage_for_lock(identity)
+            let evidence = details
+                .as_ref()
+                .and_then(|details| details.get(identity.as_str()))
+                .filter(|detail| detail.selected_analysis.is_some())
                 .context("newly covered identity lacks selected coverage evidence")?;
             format!(
                 "\tcard {}\tselected_analysis {}",
-                serde_json::to_string(card_name)?,
-                serde_json::to_string(rendered_text)?,
+                serde_json::to_string(&evidence.card)?,
+                serde_json::to_string(&evidence.selected_analysis)?,
             )
         } else {
             String::new()
@@ -674,7 +688,7 @@ where
                 report,
                 &lost,
                 &newly_covered,
-                |_| None,
+                None,
                 request.lock_policy,
                 diagnostics,
             )
@@ -1616,13 +1630,25 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), text_blessed);
     }
 
+    fn lock_delta_fixture() -> (Vec<u8>, CoverageReport) {
+        let baseline_report = report(&id('1'), vec![id('a'), id('b'), id('d')], 0, 0, 0, 0);
+        let baseline = json_v4(&baseline_report, vec![id('a'), id('b'), id('d')]);
+        // `a` is still in the corpus but no longer parses, and its face makes the
+        // corpus label differ from the name the lock recorded; `d` left the corpus
+        // entirely, so only the lock can name it; `c` is the gain.
+        let changed = CoverageReport::for_lock_delta_test(
+            id('2'),
+            &[(id('b'), None), (id('c'), None)],
+            &[(id('a'), Some("Alternate Face"))],
+        );
+        (baseline, changed)
+    }
+
     #[test]
     fn report_policy_prints_drop_and_gain_delta_and_blesses_without_retirement() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
-        let baseline_report = report(&id('1'), vec![id('a'), id('b')], 0, 0, 0, 0);
-        let baseline = json_v4(&baseline_report, vec![id('a'), id('b')]);
-        let changed = report(&id('2'), vec![id('b'), id('c')], 0, 0, 0, 0);
+        let (baseline, changed) = lock_delta_fixture();
         fs::write(&path, &baseline).unwrap();
 
         let mut diagnostics = Vec::new();
@@ -1640,13 +1666,35 @@ mod tests {
         )
         .unwrap();
         let diagnostics = String::from_utf8(diagnostics).unwrap();
-        assert!(diagnostics.contains("no longer covered 1 corpus identity"));
-        assert!(diagnostics.contains(&format!("no longer covered\t{}\tcard \"Covered\"", id('a'))));
-        assert!(diagnostics.contains("newly covered 1 corpus identity"));
-        assert!(diagnostics.contains(&format!(
-            "newly covered\t{}\tcard \"Covered\"\tselected_analysis \"\"",
-            id('c')
-        )));
+        assert!(
+            diagnostics.contains("no longer covered 2 corpus identities"),
+            "{diagnostics}"
+        );
+        assert!(
+            diagnostics.contains(&format!(
+                "no longer covered\t{}\tcard \"Card aaaaaaaa (Alternate Face)\"",
+                id('a')
+            )),
+            "{diagnostics}"
+        );
+        assert!(
+            diagnostics.contains(&format!(
+                "no longer covered\t{}\tcard \"Card dddddddd\"",
+                id('d')
+            )),
+            "{diagnostics}"
+        );
+        assert!(
+            diagnostics.contains("newly covered 1 corpus identity"),
+            "{diagnostics}"
+        );
+        assert!(
+            diagnostics.contains(&format!(
+                "newly covered\t{}\tcard \"Card cccccccc\"\tselected_analysis \"analysis cccccccc\"",
+                id('c')
+            )),
+            "{diagnostics}"
+        );
         assert_eq!(fs::read(&path).unwrap(), baseline);
 
         let error = apply_with_writer(
@@ -1659,9 +1707,115 @@ mod tests {
         .unwrap_err()
         .to_string();
         assert!(
-            error.contains("lost 1 previously covered corpus identity"),
+            error.contains("lost 2 previously covered corpus identities"),
             "{error}"
         );
+
+        apply_with_writer_and_retirement(
+            &changed,
+            &path,
+            CoverageLockRequest {
+                mode: CoverageLockMode::Bless,
+                lock_policy: CoverageLockPolicy::Report,
+                retirement_path: None,
+            },
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+            &mut |_, _| panic!("report mode must not authenticate retirement"),
+        )
+        .unwrap();
+        assert_eq!(
+            read_lock(&path).unwrap().covered_for_test(),
+            &[id('b'), id('c')]
+        );
+    }
+
+    #[test]
+    fn report_policy_rejects_a_retirement_manifest() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let retirement = directory.path().join("retired.ids");
+        let (baseline, changed) = lock_delta_fixture();
+        fs::write(&path, &baseline).unwrap();
+        fs::write(&retirement, format!("{}\n", id('a'))).unwrap();
+
+        let error = apply_with_writer_and_retirement(
+            &changed,
+            &path,
+            CoverageLockRequest {
+                mode: CoverageLockMode::Bless,
+                lock_policy: CoverageLockPolicy::Report,
+                retirement_path: Some(&retirement),
+            },
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+            &mut |_, _| panic!("report mode must not authenticate retirement"),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("retirement manifests are unavailable in report mode"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn report_policy_reports_a_schema_three_lock_instead_of_demanding_migration() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let changed = CoverageReport::for_lock_delta_test(
+            id('2'),
+            &[(id('b'), None), (id('c'), None)],
+            &[(id('a'), Some("Alternate Face"))],
+        );
+        fs::write(
+            &path,
+            json_v3(&id('1'), &id('9'), &[id('a'), id('b'), id('d')]),
+        )
+        .unwrap();
+
+        let mut diagnostics = Vec::new();
+        apply_with_writer_and_retirement(
+            &changed,
+            &path,
+            CoverageLockRequest {
+                mode: CoverageLockMode::Check,
+                lock_policy: CoverageLockPolicy::Report,
+                retirement_path: None,
+            },
+            &mut diagnostics,
+            &mut super::FilesystemLockWriter,
+            &mut |_, _| panic!("report mode must not authenticate retirement"),
+        )
+        .unwrap();
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(
+            diagnostics.contains(&format!(
+                "no longer covered\t{}\tcard \"Card aaaaaaaa (Alternate Face)\"",
+                id('a')
+            )),
+            "{diagnostics}"
+        );
+        // A schema-3 lock records no per-unit names, so an identity the corpus has
+        // also dropped can only be listed by its identity.
+        assert!(
+            diagnostics.contains(&format!(
+                "no longer covered\t{}\tcard \"<unknown>\"",
+                id('d')
+            )),
+            "{diagnostics}"
+        );
+
+        let error = apply_with_writer(
+            &changed,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("uses schema 3"), "{error}");
 
         apply_with_writer_and_retirement(
             &changed,
