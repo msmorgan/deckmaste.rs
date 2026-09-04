@@ -131,8 +131,8 @@ failures.
 - This record lacked a Deviations and additions section (6 constructions
   deleted / 7 added; −3 host fold, +4) and a performance advisory. Measured by
   the reviewer: coverage 23.03s wall at host load 19–32 (ceiling 16.26s
-  quiet-host), 111.8 µs/B; per-byte thread CPU improved from 116.5 (parent) to
-  113.0 on the same host.
+  quiet-host), 111,800 ns/B; per-byte thread CPU improved from 116,500 ns/B (parent) to
+  113,000 ns/B on the same host.
 - 45 units changed their selected analysis (undisclosed; census was stamped
   against the claim baseline, not the parent). Five are fixes: `that has an
   Adventure` / `that has a -1/-1 counter on it` move from a fused-determinative

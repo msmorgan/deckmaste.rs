@@ -64,11 +64,11 @@ lock identities. The measured lock has 49,421 lines and SHA-256
   quote-boundary regression also passed. The coverage gate reported the
   complete zero-failure ownership and round-trip summary above.
 - Performance advisory: on the final measured tree, ambiguity took 46.480 s
-  at 166.323 accepted thread-CPU microseconds per byte (load 23.31 / 15.53 /
-  18.88) and coverage took 30.505 s at 112.970 microseconds per byte (load
+  at 166,323 accepted thread-CPU nanoseconds per byte (load 23.31 / 15.53 /
+  18.88) and coverage took 30.505 s at 112,970 nanoseconds per byte (load
   23.91 / 16.54 / 19.09), each with 24 workers. The direct refreshed-parent
-  probes took 22.044 s at 112.859 microseconds per byte for ambiguity (load
-  13.57 / 15.83 / 21.00) and 19.004 s at 102.978 microseconds per byte for
+  probes took 22.044 s at 112,859 nanoseconds per byte for ambiguity (load
+  13.57 / 15.83 / 21.00) and 19.004 s at 102,978 nanoseconds per byte for
   coverage (load 13.21 / 15.54 / 20.76). All four exceeded the 16.26 s
   quiet-host ceiling while host load was elevated; the advisory fired and the
   gates remained green.

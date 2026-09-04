@@ -101,7 +101,7 @@ Measured on change `npypvsqz` with 16,702 covered lock identities.
   is pinned only by unit tests in `ability_logic.rs`). Follow-up:
   `english-v2-visitor-leaf-traversal-property`.
 - Performance advisory (measured by the reviewer, absent from the record):
-  parse cost 103–144 µs/B on the landed tree vs 148–149 µs/B on the parent at
+  parse cost 103,000–144,000 ns/B on the landed tree vs 148,000–149,000 ns/B on the parent at
   comparable host load (17–68, other executors running) — no measurable
   parse-time cost; the 16.26s ceiling warning fired on both trees from load.
 - The two removed tests were `visitor_callbacks_have_literal_full_preorders`

@@ -62,12 +62,12 @@ lock identities. The measured lock has 49,421 lines and SHA-256
   --require-resolved --json`; `cargo xtask english_v2 coverage --check
   --json`; and `cargo xtask cite check` all exited zero.
 - Performance advisory: the final 24-worker coverage gate took 20.967337467 s
-  against the 16.26 s quiet-host ceiling and reported 103.762 thread-CPU
-  microseconds per accepted byte over 16,771 units / 1,523,802 bytes. Host load
+  against the 16.26 s quiet-host ceiling and reported 103,762 thread-CPU
+  nanoseconds per accepted byte over 16,771 units / 1,523,802 bytes. Host load
   was 18.10/20.12/26.83, so the command emitted the specified non-failing
   busy-host warning; this is advisory rather than a quiet-host breach. The
   ambiguity gate likewise completed with zero ties at 41.013654664 s and
-  143.966 thread-CPU microseconds per accepted byte under load
+  143,966 thread-CPU nanoseconds per accepted byte under load
   21.13/20.77/27.21.
 - Assurance census: restored 0; re-spelled 0; ignored with blockers 0; added 1
   test function; removed 0. The new test authenticates unique source-role
@@ -93,3 +93,29 @@ lock identities. The measured lock has 49,421 lines and SHA-256
   conflict in the literal/lexicon-collision test: the parent moved 59 -> 60
   while this feature moved 59 -> 58. Harmony resolved the composed value to
   59, after which refresh was a no-op and the complete gate set passed.
+
+### Erratum (landing review, 2026-09-03)
+
+- HIGH: the control-role fence `require control.preposition_attachment is
+  SelectedOnly` admits {into, onto, to, under}, not the `under` the dissolved
+  `ControlPhrase` fenced; no declared feature isolates `under`. Negative
+  oracles now parse (`Put target creature card onto the battlefield into your
+  graveyard.` was a parse failure on the parent) and the three identities this
+  landing added to the lock — Cavalier of Thorns, Animal Magnetism, Genesis
+  Ultimatum (`Put X onto the battlefield and the rest into your graveyard`) —
+  are blessed on a wrong analysis: destination = coordinated NP ["the
+  battlefield", "the rest"], control = `into your graveyard`. They were parse
+  failures on the parent; "preserved" in the record above is wrong. This was
+  an unrecognised STOP. Corrective: `english-v2-control-role-declared-valence`
+  (carries the retirement obligation for the three identities).
+- HIGH: the source-role preemption reads only the outermost postmodifier of an
+  `ObjectNominal`; a `from` PP nested under an outer `of` survives and is
+  settled by specificity weight, which the amendment forbids (≤52 units, e.g.
+  All Suns' Dawn, Aphetto Dredging, Bone Harvest; winner correct in each).
+  Corrective: `english-v2-role-preemption-depth`.
+- The guard is hand-attached per construction with the class hard-coded
+  (`put_onto_source_after` carries none) rather than derived from the valence
+  row. 27 winner changes on previously covered units were undisclosed (19
+  `from among` re-analyses, 8 coordinated-object frame re-attachments; all
+  benign). The collision drop was `"from"` 7 → 6 only. Measured per-byte CPU
+  at review was 97,791 ns/B (record: 103,762).
