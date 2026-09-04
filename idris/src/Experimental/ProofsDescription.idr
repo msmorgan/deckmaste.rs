@@ -548,3 +548,24 @@ public export
 badCantDisjunctSubject : Unspellable (Instruction []) (\ok =>
   Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just ThisTurn) {dp = ok})
 badCantDisjunctSubject Oh impossible
+
+||| "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8].
+public export
+okPartyOfFourRoles : Noun [] Object
+okPartyOfFourRoles = Macros.party
+
+||| "one each of Cleric and Cleric": a repeated role counts one creature twice
+||| [CR#700.8b]. Four independent "a Cleric you control" finds spell that
+||| double count instead, and are a different sentence.
+public export
+badRepeatedPartyRole : Unspellable (Noun [] Object) (\ok =>
+  OneEachOf [HasSubtype (creatureType "Cleric"), HasSubtype (creatureType "Cleric")]
+            (Macros.allOf Macros.creatureYouControl) {rk = ok})
+badRepeatedPartyRole (RolesAre {di = Oh}) impossible
+
+||| "one each of nothing": a one-each group is written from at least one role
+||| [CR#700.8].
+public export
+badEmptyPartyRoles : Unspellable (Noun [] Object) (\ok =>
+  OneEachOf [] (Macros.allOf Macros.creatureYouControl) {rk = ok})
+badEmptyPartyRoles RolesAre impossible

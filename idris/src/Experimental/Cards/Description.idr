@@ -597,3 +597,62 @@ permanentCardPhrase = And [Permanent, IsCard]
 public export
 permanentCardIsPlaceless : phraseZone Description.permanentCardPhrase = Nothing
 permanentCardIsPlaceless = Refl
+
+||| The party the game computes: a maximum assignment of distinct roles to
+||| distinct members, each member filling at most one role [CR#700.8a,700.8b].
+||| A member is written as the list of role indices it could fill.
+public export
+partyCount : List Nat -> List (List Nat) -> Nat
+partyCount used [] = 0
+partyCount used (roles :: ms) =
+  foldl max (partyCount used ms)
+        (map (\r => S (partyCount (r :: used) ms))
+             (filter (\r => not (elem r used)) roles))
+
+||| A lone Cleric Rogue is a party of one, not two [CR#700.8b].
+public export
+loneClericRogueIsPartyOfOne : partyCount [] [[0, 1]] = 1
+loneClericRogueIsPartyOfOne = Refl
+
+||| The party is maximal, not greedy: a Cleric beside a Cleric Rogue is two,
+||| though taking the Cleric Rogue for Cleric first would leave one [CR#700.8b].
+public export
+clericBesideClericRogueIsTwo : partyCount [] [[0], [0, 1]] = 2
+clericBesideClericRogueIsTwo = Refl
+
+||| One creature of each role is a full party [CR#700.8c].
+public export
+oneOfEachRoleIsFullParty : partyCount [] [[0], [1], [2], [3]] = 4
+oneOfEachRoleIsFullParty = Refl
+
+||| Archpriest of Iona
+public export
+archpriestOfIonaPower : Ability
+archpriestOfIonaPower =
+  Static (Macros.hasBasePt Macros.thisCreature Macros.partySize (Lit 2))
+
+||| Archpriest of Iona
+public export
+archpriestOfIonaFullParty : Ability
+archpriestOfIonaFullParty =
+  Macros.triggeredIf At (BeginningOf ThePart Combat (ByPlayer You)) Macros.fullParty
+    (Sequentially
+       [ Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1))
+                     (Just Macros.untilEndOfTurn)
+       , Macros.gains ((Macros.It OneOf)) (Macros.keyword "Flying")
+                      (Just Macros.untilEndOfTurn) ])
+
+||| Squad Commander
+public export
+squadCommanderTokens : Ability
+squadCommanderTokens =
+  Macros.triggered When (Enters Macros.thisCreature Nothing)
+    (Macros.create Macros.partySize
+       (Macros.creatureTok 1 1 [White] [creatureType "Kor", creatureType "Warrior"]))
+
+||| At Knifepoint
+public export
+atKnifepointOutlaws : Ability
+atKnifepointOutlaws =
+  Static (OnlyDuring Turn (Just You)
+           (Gains (Macros.allOf Macros.outlawYouControl) (Macros.keyword "FirstStrike")))

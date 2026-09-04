@@ -2607,3 +2607,64 @@ removedThisWay = TheOutcome CountersRemoved {ok}
 public export
 shortOfCeiling : {auto 0 ok : countOutcomes CeilingShortfall bs = 1} -> Amount bs
 shortOfCeiling = TheOutcome CeilingShortfall {ok}
+
+||| "outlaw": an object with any of the five outlaw creature types [CR#700.12].
+public export
+outlaw : {0 bs : Bindings} -> Predicate bs Object
+outlaw = Or [ HasSubtype (creatureType "Assassin")
+            , HasSubtype (creatureType "Mercenary")
+            , HasSubtype (creatureType "Pirate")
+            , HasSubtype (creatureType "Rogue")
+            , HasSubtype (creatureType "Warlock") ]
+
+||| "outlaws you control": outlaw permanents only [CR#700.12a].
+public export
+outlawYouControl : {0 bs : Bindings} -> Predicate bs Object
+outlawYouControl = And [outlaw, HasPossessor ControllerAx You]
+
+||| The four party roles, in rule order [CR#700.8].
+public export
+partyRoles : {0 bs : Bindings} -> List (Predicate bs Object)
+partyRoles = [ HasSubtype (creatureType "Cleric")
+             , HasSubtype (creatureType "Rogue")
+             , HasSubtype (creatureType "Warrior")
+             , HasSubtype (creatureType "Wizard") ]
+
+||| "[a player]'s party": the joint one-each group the game computes over the
+||| creatures that player controls [CR#700.8,700.8a].
+public export
+partyOf : {bs : Bindings} -> (who : Noun bs Player) ->
+          {auto 0 sh : SoleHolder who} -> Noun bs Object
+partyOf who = OneEachOf partyRoles (allOf (And [creature, HasPossessor ControllerAx who {ps = sh}]))
+
+||| "your party" [CR#700.8].
+public export
+party : {bs : Bindings} -> Noun bs Object
+party = partyOf You
+
+||| "the number of creatures in [a player]'s party" [CR#700.8a].
+public export
+partySizeOf : {bs : Bindings} -> (who : Noun bs Player) ->
+              {auto 0 sh : SoleHolder who} -> Amount bs
+partySizeOf who = CountOf (partyOf who {sh})
+
+||| "the number of creatures in your party" [CR#700.8a].
+public export
+partySize : {bs : Bindings} -> Amount bs
+partySize = partySizeOf You
+
+||| "a creature in your party" [CR#700.8].
+public export
+creatureInYourParty : {bs : Bindings} -> Noun bs Object
+creatureInYourParty = someOf (exactly 1) party
+
+||| "[a player] has a full party": four creatures in that party [CR#700.8c].
+public export
+fullPartyOf : {bs : Bindings} -> (who : Noun bs Player) ->
+              {auto 0 sh : SoleHolder who} -> Condition bs
+fullPartyOf who = CompareAmt (partySizeOf who {sh}) Eq (Lit 4)
+
+||| "you have a full party" [CR#700.8c].
+public export
+fullParty : {bs : Bindings} -> Condition bs
+fullParty = fullPartyOf You

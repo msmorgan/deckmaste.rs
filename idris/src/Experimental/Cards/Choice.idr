@@ -1673,3 +1673,19 @@ rustlerRampage =
                      Macros.gains (Macros.target Macros.creature) (Macros.keyword "DoubleStrike")
                                   (Just Macros.untilEndOfTurn)) ]) ]
        Nothing
+
+||| Stick Together: a chosen party is four up-to-one choices, not the group the
+||| game computes [CR#700.8d].
+public export
+stickTogether : Instruction []
+stickTogether =
+  Sequentially
+    [ Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1) (And [Macros.creature, HasSubtype (creatureType "Cleric")]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1) (And [Macros.creature, HasSubtype (creatureType "Rogue")]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1) (And [Macros.creature, HasSubtype (creatureType "Warrior")]))
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1) (And [Macros.creature, HasSubtype (creatureType "Wizard")]))
+    , Macros.sacrifice (Macros.each AnyPlayer) Macros.theRest ]

@@ -1273,6 +1273,26 @@ mutual
   detOk _ p = ()
 
   public export
+  roleElem : {0 bs : Bindings} -> Predicate bs Object ->
+             List (Predicate bs Object) -> Bool
+  roleElem _ [] = False
+  roleElem p (q :: qs) = predEq p q || roleElem p qs
+
+  ||| One creature is the party member for only one role [CR#700.8b], so a
+  ||| repeated role would count it twice.
+  public export
+  rolesDistinct : {0 bs : Bindings} -> List (Predicate bs Object) -> Bool
+  rolesDistinct [] = True
+  rolesDistinct (p :: ps) = not (roleElem p ps) && rolesDistinct ps
+
+  ||| A one-each group is written from at least one distinct role [CR#700.8].
+  public export
+  data RolesOk : {0 bs : Bindings} -> List (Predicate bs Object) -> Type where
+    RolesAre : {0 r : Predicate bs Object} ->
+               {0 rs : List (Predicate bs Object)} ->
+               {auto 0 di : So (rolesDistinct (r :: rs))} -> RolesOk (r :: rs)
+
+  public export
   data Noun : Bindings -> Kind -> Type where
     This : Noun bs Object       -- the source, by self-name or "this spell" [CR#113.7]
     AsType : (t : CardType) -> (n : Noun bs Object) ->
@@ -1330,6 +1350,9 @@ mutual
                    {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Player
     Designated : (d : Designation) -> (whose : Noun bs Player) ->
                  {auto 0 sc : designationScope d = HeldByCard} -> Noun bs Object
+    OneEachOf : (roles : List (Predicate bs Object)) -> (pool : Noun bs Object) ->
+                {auto 0 pl : nounPlur pool = ManyOf} ->
+                {auto 0 rk : RolesOk roles} -> Noun bs Object
 
   public export
   ascribable : {0 bs : Bindings} -> Noun bs Object -> Bool
@@ -1376,6 +1399,7 @@ mutual
   nounEqRef (PossessorOf _ _) _ = False
   nounEqRef (PossessorsOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
+  nounEqRef (OneEachOf _ _) _ = False
 
   public export
   data DestOk : ZoneExpr bs -> Type where
@@ -1475,6 +1499,10 @@ mutual
   nounDelta (PossessorsOf _ n) =
     MkBinding TheD Player ManyOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (Designated _ _) = []
+  nounDelta (OneEachOf roles pool) =
+    MkBinding BareD Object ManyOf
+              (ObjectP (nounTy pool) (nounZone pool) Nothing Nothing Nothing)
+      :: (predDeltaAll roles ++ nounDelta pool)
 
   public export
   elemPayload : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Maybe Zone ->
@@ -2042,6 +2070,7 @@ mutual
   nounDet (NamesAgree _ grp) = nounDet grp
   nounDet (TheRest _) = Just TheD
   nounDet (PileOf _ _) = Just PartD
+  nounDet (OneEachOf _ _) = Just BareD
   nounDet _ = Nothing
 
   public export
@@ -2109,6 +2138,7 @@ mutual
   groupMention (LibrarySlice _ _ _) = True
   groupMention (Pro _ pl) = not (isOne pl)
   groupMention (Both _ _) = True
+  groupMention (OneEachOf _ _) = True
   groupMention n = nounDet n == Just TargetD
 
   public export
@@ -2690,6 +2720,7 @@ mutual
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(OneEachOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (TheRest _) z = groupSpent bs
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
@@ -2782,6 +2813,7 @@ mutual
   nounZone (PossessorOf _ n) = Nothing
   nounZone (PossessorsOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
+  nounZone (OneEachOf _ pool) = nounZone pool
 
   ||| Whether the noun names an ability on the stack [CR#113.1c] -- read off
   ||| the description and the reading word, never the antecedent stack, so it
@@ -2825,6 +2857,7 @@ mutual
   nounTy (PossessorOf _ n) = Nothing
   nounTy (PossessorsOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
+  nounTy (OneEachOf _ pool) = nounTy pool
 
   public export
   nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List (List CardType)
@@ -2835,6 +2868,7 @@ mutual
   nounHeadTys (AsMarker _ n) = nounHeadTys n
   nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
   nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (OneEachOf _ pool) = nounHeadTys pool
   nounHeadTys n = soleAlt (optCT (nounTy n))
 
   public export
@@ -2884,6 +2918,7 @@ mutual
   nounPlur (PossessorOf _ n) = OneOf
   nounPlur (PossessorsOf _ _) = ManyOf
   nounPlur (Designated _ _) = OneOf
+  nounPlur (OneEachOf _ _) = ManyOf
 
   ||| A plural possessor must distribute over players [CR#102.1].
   public export

@@ -44,3 +44,102 @@ Standard constraints apply, plus the RON-shaped constraint: a core constructor
 is admissible only if the RON re-emitter can produce it from a RON node, and a
 macro only if it names a RON macro
 (`docs/decisions/workbench-ron-shaped-and-label-rulings.md`).
+
+## As landed
+
+- `Phrase.Noun.OneEachOf (roles : List (Predicate bs Object)) (pool : Noun bs
+  Object)` — the joint one-each group, with `{auto 0 pl : nounPlur pool =
+  ManyOf}` and `{auto 0 rk : RolesOk roles}`. `RolesOk` is a named data
+  witness (`RolesAre`) over the new `rolesDistinct`/`roleElem`, so an empty
+  role list and a repeated role fail with different messages.
+- Projections: `nounDelta` introduces one `BareD`/`ManyOf` object binding
+  carrying the pool's type and zone, then the roles' and pool's deltas (the
+  bare-plural group shape); `nounDet = Just BareD`; `nounPlur = ManyOf`;
+  `nounZone`/`nounTy`/`nounHeadTys` read the pool; `nounEqRef = False`;
+  `moveIntro` re-zones the head like `SomeOf`; `groupMention = True`.
+- `Macros`: `outlaw`, `outlawYouControl`, `partyRoles`, `partyOf`, `party`,
+  `partySizeOf`, `partySize`, `creatureInYourParty`, `fullPartyOf`,
+  `fullParty`.
+- Bench (`Cards/Description.idr`): `partyCount` (the maximum-matching model)
+  with `loneClericRogueIsPartyOfOne`, `clericBesideClericRogueIsTwo`,
+  `oneOfEachRoleIsFullParty`; `archpriestOfIonaPower`,
+  `archpriestOfIonaFullParty`, `squadCommanderTokens`, `atKnifepointOutlaws`.
+  `Cards/Choice.idr`: `stickTogether`.
+- Pins (`ProofsDescription.idr`): `badRepeatedPartyRole`,
+  `badEmptyPartyRoles`, with the shared twin `okPartyOfFourRoles`.
+
+## Landing record
+
+Gates (foreground):
+
+- `cd idris && ./scripts/build` (after `rm -rf build`) —
+  `46/46: Building Cards (src/Cards.idr)`; 0 Error lines, 0 Warning lines,
+  bench brace lint green. Module count 46/46.
+- `cargo xtask cite check --list-noncompliant` —
+  `0 non-compliant citation-looking string(s)`.
+- `cargo xtask cite check` —
+  `checked 14174 citations against cr.txt (eff. 2026-08-07); 0 stale`.
+- `cargo xtask cite bless` — registered [CR#700.12a] (read against its claim).
+- `jj --no-pager diff --git > /tmp/po.diff && cargo xtask cite audit --diff
+  < /tmp/po.diff` — `audited 20 citation site(s) — read each rule text
+  against its claim`; every site read.
+
+Pin probes (each mis-stated once, message changed, then restored):
+
+- `badRepeatedPartyRole` with the second role changed to Rogue →
+  `Error: badRepeatedPartyRole RolesAre is not a valid impossible case.`
+- `badEmptyPartyRoles` with a one-role list →
+  `Error: badEmptyPartyRoles RolesAre is not a valid impossible case.`
+- `loneClericRogueIsPartyOfOne` restated as `= 2` →
+  `Mismatch between: S (assert_total (integerToNat 0)) and 0.`
+
+Assurance counts: restored 0, re-spelled 0, ignored-with-blocker 0, added 12
+(1 model function, 3 equational witnesses, 5 card witnesses, 2 pins, 1 twin),
+removed 0.
+
+### Deviations and additions
+
+- **`partyCount` and its three equations.** The ticket asks that "`partySize`
+  of a lone Cleric Rogue is one" be recorded as a bench witness rather than a
+  comment. `OneEachOf`'s denotation is computed by the game, not by the term,
+  so the only compiler-checked record is a small model: `partyCount` takes each
+  member as the list of role indices it could fill and returns the maximum
+  assignment of distinct roles to distinct members. `clericBesideClericRogueIsTwo`
+  records the greedy ban (taking the Cleric Rogue for Cleric first leaves one);
+  `oneOfEachRoleIsFullParty` records [CR#700.8c]. Added beyond the ticket's
+  letter because the ticket bans both wrong compositions and only the first was
+  named as a witness.
+- **`groupMention (OneEachOf _ _) = True`** in addition to `nounDet = Just
+  BareD`. The design note says the row mirrors the bare-plural group, which
+  alone gives `CountableGroup` (so `partySize`) but not `PartitiveBase`; the
+  ticket's fourth macro, "a creature in your party", is a `SomeOf` partitive
+  and needs it. The party is a definite computed group, so the group-mention
+  reading is the right one.
+- **`SoleHolder` threaded.** `partyOf`/`partySizeOf`/`fullPartyOf` carry
+  `{auto 0 sh : SoleHolder who}`, forwarded to the pool's `HasPossessor
+  ControllerAx who`.
+- **Stick Together's controller restriction is carried by the chooser.**
+  `Effect.Choose` takes its noun in `bs`, not in `agentIntro agent`, so a
+  chosen noun cannot refer to the choosing player; `stickTogether` therefore
+  reads "each player chooses up to one Cleric …" with "they control" implied by
+  the `each AnyPlayer` chooser, then `sacrifice (each AnyPlayer) theRest`. The
+  `Choose (UpTo 1)`-per-role structure the ruling is about is exact. The
+  agent-scoped-choice gap is Choice-family, outside this region.
+- **At Knifepoint benched as its first ability only.** `atKnifepointOutlaws`
+  is `OnlyDuring Turn (Just You) (Gains (allOf outlawYouControl) …)`. The
+  card's second ability needs "commits a crime" [CR#700.13], for which the
+  workbench has no event — outside this region.
+- **Archpriest's CDA power** is spelled `hasBasePt thisCreature partySize
+  (Lit 2)`; the workbench's only base-P/T setter sets both, and 2 is the
+  printed toughness.
+- **Squad Commander** added as the second party-reading card (partySize in an
+  amount position); Archpriest's second ability is the `fullParty` witness.
+- **`cr-citations.lock`.** `cite bless` registered [CR#700.12a] and
+  [CR#700.13]. Across the two bless runs it also pruned the [CR#702.147a],
+  [CR#702.28a] and [CR#702.85a] entries, all three of which are still cited in
+  `crates/xtask/src/facts.rs` and none of which `cite check` reported stale —
+  a pre-existing bless/check scan mismatch, out of region. Those three lines
+  were restored by hand so the lock diff is additive-only (two entries added,
+  none removed); `cite check` reports 0 stale with them restored.
+
+No STOP was taken.
