@@ -11,6 +11,9 @@ use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
 use crate::identifier::PRIVATE_ROOT_RENDERER_PREFIX;
+use crate::identifier::RIGHTMOST_LEAF_CATEGORY_TRAIT;
+use crate::identifier::RIGHTMOST_LEAF_IS_FUNCTION;
+use crate::identifier::RIGHTMOST_LEAF_TRAIT;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
 use crate::identifier::RULE_ID_COUNT;
@@ -4774,6 +4777,14 @@ fn generated_name_inventory(
     let fixed_span = proc_macro2::Span::call_site();
     for (name, role) in [
         (VISITOR_TRAIT, "fixed generated visitor trait"),
+        (
+            RIGHTMOST_LEAF_TRAIT,
+            "fixed generated rightmost-leaf traversal trait",
+        ),
+        (
+            RIGHTMOST_LEAF_CATEGORY_TRAIT,
+            "fixed generated rightmost-leaf category trait",
+        ),
         (RULE_CATEGORY_TYPE, "fixed generated rules category type"),
         (
             RULE_CONSTRUCTION_TYPE,
@@ -4792,6 +4803,10 @@ fn generated_name_inventory(
         (
             CHECKED_BUILD_FUNCTION,
             "fixed generated checked-build function",
+        ),
+        (
+            RIGHTMOST_LEAF_IS_FUNCTION,
+            "fixed generated rightmost-leaf predicate",
         ),
         (
             SEQUENCE_SEPARATOR_FUNCTION,
@@ -13545,6 +13560,14 @@ pub(crate) mod tests {
     fn rejects_authored_types_colliding_with_fixed_generated_aggregates() {
         for (fixed, fixed_role) in [
             ("Visitor", "fixed generated visitor trait"),
+            (
+                "RightmostLeaf",
+                "fixed generated rightmost-leaf traversal trait",
+            ),
+            (
+                "RightmostLeafCategory",
+                "fixed generated rightmost-leaf category trait",
+            ),
             ("Category", "fixed generated rules category type"),
             ("Construction", "fixed generated rules construction type"),
             ("RuleId", "fixed generated rules rule-id type"),
@@ -13649,6 +13672,10 @@ pub(crate) mod tests {
             ("RULES", "fixed generated rules table constant"),
             ("build", "fixed generated build function"),
             ("build_checked", "fixed generated checked-build function"),
+            (
+                "rightmost_leaf_is",
+                "fixed generated rightmost-leaf predicate",
+            ),
             (
                 "sequence_separator",
                 "fixed generated structural separator lookup",
@@ -16965,7 +16992,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 136);
+        assert_eq!(expansion.plan().items().len(), 147);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17330,7 +17357,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 136);
+        assert_eq!(expansion.plan().items().len(), 147);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17470,7 +17497,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 136);
+        assert_eq!(emission.items().len(), 147);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

@@ -298,6 +298,7 @@ impl EmissionPlan {
 
 pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     let mut items = crate::emit::ast::emit(plan)?;
+    items.extend(crate::emit::final_constituent::emit(plan)?);
     let (terminal_items, mut terminal_contributions) = crate::emit::terminal::emit(plan)?;
     seal_terminal_contribution_projection(plan, &mut terminal_contributions)?;
     items.extend(terminal_items);
@@ -2647,6 +2648,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the phase-order assertion pins one complete representative prefix"
+    )]
     fn plan_is_unique_repeatable_and_phase_ordered_with_exact_origins() {
         let first = representative_expansion();
         let second = representative_expansion();
@@ -2657,7 +2662,7 @@ mod tests {
             .map(|item| &item.key)
             .collect::<Vec<_>>();
         assert_eq!(
-            &keys[..10],
+            &keys[..17],
             &[
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -2678,6 +2683,34 @@ mod tests {
                 &ItemKey::Named {
                     kind: NamedKind::Type,
                     name: "ActionElement".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Trait,
+                    name: "RightmostLeaf".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Trait,
+                    name: "RightmostLeafCategory".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name: "rightmost_leaf_is".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: Some("RightmostLeafCategory".into()),
+                    self_ty: "Node".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: Some("RightmostLeaf".into()),
+                    self_ty: "Node".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: Some("RightmostLeafCategory".into()),
+                    self_ty: "Action".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: Some("RightmostLeaf".into()),
+                    self_ty: "Action".into()
                 },
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -2701,7 +2734,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 117);
+        assert_eq!(keys.len(), 124);
         assert_representative_agreement_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
@@ -2752,7 +2785,7 @@ mod tests {
             first
                 .items()
                 .iter()
-                .take(10)
+                .take(17)
                 .map(|item| item
                     .origins
                     .iter()
@@ -2764,6 +2797,13 @@ mod tests {
                 vec!["action"],
                 vec!["leaf"],
                 vec!["chain"],
+                vec!["action"],
+                vec!["leaf", "chain", "action"],
+                vec!["leaf", "chain", "action"],
+                vec!["leaf", "chain", "action"],
+                vec!["leaf"],
+                vec!["leaf"],
+                vec!["action"],
                 vec!["action"],
                 vec!["Words"],
                 vec!["Nouns"],

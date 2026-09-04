@@ -911,6 +911,12 @@ fn quote_boundary_discharges_the_enclosing_sentence_terminator() {
         parser.parse("Destroy target creature", &context).is_err(),
         "an ordinary sentence still requires its own final period",
     );
+    assert!(
+        parser
+            .parse("Destroy target creature. Draw a card", &context)
+            .is_err(),
+        "an ordinary final sentence in a sequence still requires its period",
+    );
 }
 
 #[test]

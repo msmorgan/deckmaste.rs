@@ -20,6 +20,7 @@ use crate::semantic::ValueKindPlan;
 
 pub(crate) mod ast;
 pub(crate) mod build;
+pub(crate) mod final_constituent;
 pub(crate) mod render;
 pub(crate) mod rules;
 pub(crate) mod runtime;
