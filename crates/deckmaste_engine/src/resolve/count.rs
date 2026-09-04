@@ -1700,7 +1700,7 @@ mod tests {
             let frame = frame_src(&state, source);
             let before = state.zones.battlefield.len();
             state.run_effect(
-                Instruction::Act(Action::Create {
+                Instruction::act(Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::CountOf(Countable::Objects(Arc::new(
                         deckmaste_core::Region::candidate(parsed),
@@ -2568,11 +2568,11 @@ mod tests {
                         dest: AMOUNT,
                         expr: deckmaste_core::Expr::Number(Count::Literal(3)),
                     }),
-                    Instruction::Act(Action::deal_damage(
+                    Instruction::act(Action::deal_damage(
                         Reference::Reg(TARGET),
                         Count::Reg(AMOUNT.into()),
                     )),
-                    Instruction::Act(Action::ChangeLife(
+                    Instruction::act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         deckmaste_core::LifeOp::Up(Count::Reg(AMOUNT.into())),
                     )),

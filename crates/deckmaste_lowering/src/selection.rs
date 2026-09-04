@@ -62,9 +62,10 @@ impl Lower for deckmaste_semantics::Selection {
             Self::Them(sort) => {
                 let register =
                     crate::region::they(Some(sort)).expect("unbound sorted plural during lowering");
-                match sort.lower().register_kind() {
-                    deckmaste_core::Kind::Pile => deckmaste_core::Selection::Pile(register),
-                    _ => crate::region::group_read(register),
+                if sort == deckmaste_semantics::Sort::Pile {
+                    deckmaste_core::Selection::Pile(register)
+                } else {
+                    crate::region::group_read(register)
                 }
             }
             Self::PilesOf { .. } => {

@@ -74,3 +74,54 @@ deletions and doc fixes are per-file. Only the printer's output shape is a
 judgment call; pin it in the snapshot test.
 
 Standard constraints apply. Effort: **M**.
+
+## Landing record
+
+Implemented by a Codex delegate; diff reviewed and every gate re-run by the
+orchestrator before commit.
+
+**The printer.** `Display` for an instruction and for a region, the region
+printing its parameters before its body. The snapshot test pins every
+parameter's definition id, kind and provenance, a producing instruction's
+destination id, its source reference id, and the indentation, punctuation and
+ordering — so the rider spelling is fixed rather than incidental, which is what
+law 13 asks for.
+
+**Two facts the ticket did not anticipate**, both surfaced by the implementer
+rather than absorbed:
+
+- The transitional alias had ALREADY been removed by another session, which also
+  renamed the real core type. There were zero alias uses left to migrate. What
+  the sweep actually did was re-spell 336 compatibility-constructor call sites
+  onto the real constructor.
+- The retired name is independently a live type in `deckmaste_semantics`. The
+  implementer distinguished the two by path owner rather than by name, and
+  reported the counts separately: zero core-facing matches remain, and every
+  survivor is the semantic type or its documentation.
+
+**Tests.** added 1 · re-spelled 184 (call-spelling only; every assertion and
+expected value retained) · removed 13 · ignored 0 added.
+
+**The 13 removals are justified as a set**: all thirteen live inside the two
+files this ticket deletes — four in core's sort module, nine in lowering's sort
+implementation. Their subject is the sort type and its lowering, both of which
+law 4 already made dead, so there is no replacement shape to re-spell them
+against. Verified by attributing each removed test to its file rather than
+taking the report's word: the implementer reported 9, undercounting the four
+that lived in the core file.
+
+**Gates**, re-run by the orchestrator on the final tree:
+
+- `cargo test --workspace` — 127 result lines, no failures.
+- `cargo doc -p deckmaste_core --no-deps` — none of the seven named unresolved
+  links remain. The aggregate count is deliberately not the gate; a separate
+  ticket owns the citation-bracket collision that makes it meaningless.
+- `cargo xtask idris-check plugins/canon --differential` — `differential OK: 0
+  disagreements`.
+- `cargo xtask cite check` — 0 stale; `--list-noncompliant` — empty.
+- `cargo clippy --workspace --all-targets` — the same 11 pre-existing
+  `deckmaste_lowering` warnings and nothing new.
+- `grep -rn 'pub fn Act'` — no hits; both sort files absent.
+
+**Deviations and additions.** None beyond the ticket's letter.
+

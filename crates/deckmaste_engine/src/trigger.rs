@@ -3674,7 +3674,7 @@ mod tests {
         // An EFFECT destroy (not the lethal-damage SBA) — the dual-facet
         // `Act(Destroy)` commits Battlefield→Graveyard on apply.
         state.run_effect(
-            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         for _ in 0..30 {
@@ -3799,7 +3799,7 @@ mod tests {
         let dfc = put_synthetic_on_field(&mut state, transform_watcher_dfc(), PlayerId(0));
         let frame = crate::test_support::frame_src(&state, dfc);
         state.run_effect(
-            Instruction::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
 
@@ -3943,7 +3943,7 @@ mod tests {
 
         let frame = crate::test_support::frame_src(&state, delver);
         state.run_effect(
-            Instruction::Act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::act(Action::Transform(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         // Break the instant the flip lands — NOT on `agenda.is_empty()`,
@@ -3988,7 +3988,7 @@ mod tests {
         // the graveyard (a real remint, [CR#400.7]) then returns to the
         // battlefield as yet another new object.
         state.run_effect(
-            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
             &frame,
         );
         for _ in 0..30 {
@@ -4007,7 +4007,7 @@ mod tests {
 
         let gy_frame = crate::test_support::frame_src(&state, in_graveyard);
         state.run_effect(
-            Instruction::Act(Action::move_to(
+            Instruction::act(Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Battlefield,
             )),
@@ -4149,11 +4149,11 @@ mod tests {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
                     effect: Arc::new(Instruction::Sequentially(
                         vec![
-                            Instruction::Act(Action::Reveal {
+                            Instruction::act(Action::Reveal {
                                 what: top_ref(),
                                 to: None,
                             }),
-                            Instruction::Act(Action::Transform(Reference::Reg(
+                            Instruction::act(Action::Transform(Reference::Reg(
                                 deckmaste_core::RefId(0),
                             ))),
                         ]
@@ -4282,7 +4282,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: Instruction::Act(Action::Create {
+                effect: Instruction::act(Action::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: goblin_token.into(),
@@ -5721,7 +5721,7 @@ mod tests {
                 },
                 condition: None,
                 limits: limits.into(),
-                effect: Instruction::Act(Action::ChangeLife(
+                effect: Instruction::act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 ))
@@ -6562,7 +6562,7 @@ mod tests {
                 limits: vec![].into(),
                 effect: deckmaste_core::Region::new(
                     deckmaste_core::event_region_params(),
-                    Instruction::Act(Action::ChangeLife(
+                    Instruction::act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         LifeOp::Up(Count::Reg(EVENT_AMOUNT)),
                     ))

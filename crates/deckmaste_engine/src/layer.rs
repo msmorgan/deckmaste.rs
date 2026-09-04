@@ -2630,7 +2630,7 @@ mod tests {
                     window: None,
                     condition: None,
                     limits: vec![].into(),
-                    effect: Instruction::Act(deckmaste_core::Action::AddMana(
+                    effect: Instruction::act(deckmaste_core::Action::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(

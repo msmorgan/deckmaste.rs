@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -167,20 +168,6 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    /// Construct a destination-less primitive instruction.
-    ///
-    /// This preserves the compact `Instruction::Act(action)` Rust spelling
-    /// while the core data model and serialized form use `Act { dest, action
-    /// }`.
-    #[allow(
-        non_snake_case,
-        reason = "compatibility constructor mirrors the Act variant"
-    )]
-    #[must_use]
-    pub fn Act(action: Action) -> Self {
-        Self::Act { dest: None, action }
-    }
-
     /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
     /// [`Batch`](Instruction::Batch) over the per-unit [`Action::mill_one`],
     /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
@@ -213,6 +200,12 @@ impl Instruction {
             dest: Some(dest),
             action,
         }
+    }
+}
+
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 

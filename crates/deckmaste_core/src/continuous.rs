@@ -263,7 +263,7 @@ pub enum StaticSpec {
     /// [`Modification::Several`]); the meaning is unambiguous, so no field
     /// names. Plurality is NEVER implicit here: to affect a set, distribute a
     /// single-object `Modify` with [`Each`](StaticSpec::Each) over a
-    /// [`Selection`]. Mirrors Idris `Modify : Reference AnObject ->
+    /// [`crate::Selection`]. Mirrors Idris `Modify : Reference AnObject ->
     /// Modification -> StaticSpec`.
     Modify(Reference, Modification),
     /// "[object] becomes a copy of [source]" ([CR#707.4]) — a CONTINUOUS
@@ -278,8 +278,8 @@ pub enum StaticSpec {
     /// [`crate::action::EnterRider::AsCopy`],
     /// [`crate::Action::CastCopy`]).
     ///
-    /// NOT a [`Modification`]: [`Layer`](crate::layer) — see
-    /// `deckmaste_engine::layer::Layer` — has no L1 variant, since layer 1
+    /// NOT a [`Modification`]: `deckmaste_engine::layer::Layer` has no L1
+    /// variant, since layer 1
     /// reshapes the *base* copiable values
     /// (`deckmaste_engine::layer::base_values`) rather than applying a
     /// per-op characteristic change; a `BecomesCopy` static is therefore a
@@ -294,13 +294,14 @@ pub enum StaticSpec {
     /// this variant into a no-op here is a documented fizzle, never a
     /// panic.
     BecomesCopy(Reference, crate::CopySpec),
-    /// Distribute an inner static effect over a [`Selection`] — "for each
-    /// object in the selection, bind it as [`Reference::It`](crate::Reference)
-    /// and apply the inner effect." The ONLY way a static reaches many
+    /// Distribute an inner static effect over a [`crate::Selection`] — "for
+    /// each object in the selection, enter the body with that object in its
+    /// declared [`Provenance::Candidate`](crate::Provenance::Candidate)
+    /// parameter and apply the inner effect." The ONLY way a static reaches many
     /// objects (there is no implicit whole-set scope). The selection is
     /// re-evaluated every layer pass, so the affected set tracks state changes
     /// live ([CR#613.6]). Mirrors Idris `Each : Bindable Many -> StaticSpec
-    /// -> StaticSpec`; `Each(SelectAll(F), Modify(It, Δ))` is the anthem.
+    /// -> StaticSpec`; the body reads its candidate by register.
     Each(crate::Selection, Arc<crate::Region<StaticSpec>>),
     /// A conditional static ([CR#611.3a]) — "as long as [condition],
     /// [effect]." Wraps an inner static effect with a game-state predicate; the

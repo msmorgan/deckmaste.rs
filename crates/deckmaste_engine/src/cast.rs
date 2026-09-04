@@ -3082,7 +3082,7 @@ mod tests {
                     modes: vec![
                         deckmaste_core::Mode {
                             targets: [].into(),
-                            effect: Instruction::Act(CoreAction::ChangeLife(
+                            effect: Instruction::act(CoreAction::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
                             ))
@@ -3091,7 +3091,7 @@ mod tests {
                         },
                         Mode {
                             targets: vec![target.clone()].into(),
-                            effect: Instruction::Act(CoreAction::destroy(Reference::Reg(
+                            effect: Instruction::act(CoreAction::destroy(Reference::Reg(
                                 deckmaste_core::RefId(6),
                             )))
                             .into(),
@@ -3150,7 +3150,7 @@ mod tests {
 
         let life_mode = |amount| Mode {
             targets: [].into(),
-            effect: Instruction::Act(CoreAction::ChangeLife(
+            effect: Instruction::act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
             ))
@@ -3284,7 +3284,7 @@ mod tests {
                     },
                 ]
                 .into(),
-                Instruction::Act(CoreAction::ChangeLife(
+                Instruction::act(CoreAction::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     deckmaste_core::LifeOp::Up(Count::Literal(amount)),
                 ))
@@ -3360,7 +3360,7 @@ mod tests {
 
         let mode = |generic| Mode {
             targets: [].into(),
-            effect: Instruction::Act(CoreAction::ChangeLife(
+            effect: Instruction::act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3425,7 +3425,7 @@ mod tests {
 
         let mode = || Mode {
             targets: [].into(),
-            effect: Instruction::Act(CoreAction::ChangeLife(
+            effect: Instruction::act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3485,7 +3485,7 @@ mod tests {
 
         let mode = |mana: &str| Mode {
             targets: [].into(),
-            effect: Instruction::Act(CoreAction::ChangeLife(
+            effect: Instruction::act(CoreAction::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
@@ -3698,7 +3698,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(color).into(),

@@ -2575,14 +2575,14 @@ mod tests {
     ) -> Instruction {
         Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(Instruction::Act(Action::Pay(cost))),
+            effect: Arc::new(Instruction::act(Action::Pay(cost))),
             if_did,
             if_not,
         })
     }
 
     fn gain_life(amount: u32) -> Arc<Instruction> {
-        Arc::new(Instruction::Act(Action::ChangeLife(
+        Arc::new(Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(amount)),
         )))

@@ -429,19 +429,8 @@ impl GameState {
                 let opponent = self.next_live_after(player.id);
                 self.player(opponent).object
             }
-            // The current iteration / projection element — "it" ([CR#608.2]).
-            // Bound per element by an enclosing `Each`/`Distribute` loop, and by
-            // `Predicate::Where` / `Selection::Pick` while testing a candidate (the
-            // role the old `Subject` named). Kind-poly ([CR#120.3]): a card/token
-            // element resolves to its (last-known) id, a player element to its
-            // proxy. Referenced at a frameless position it is a malformed read.
-            // The single object bound by an enclosing `Instruction::With`/cost
-            // `With` one-binder (`TheRef`/`ChooseOne`) — the choice made BEFORE
-            // the verb, so the verb reads an already-bound reference
-            // ([CR#608.2]). Reads the `(One, k)` `that` slot. A many-binder's
-            // group has NO singular read — it is read as `Selection::That` and
-            // iterated with `Each` — so this never silently takes the first of
-            // many. Panics outside an enclosing one-binder `With` — always a bug.
+            // Demote a group-valued expression to one Entity. Empty or ambiguous
+            // groups fail closed rather than silently choosing a member.
             Reference::Single(selection) => {
                 let values = self.eval_selection_set(selection, frame);
                 if let [only] = values.as_slice() { *only } else { ObjectId::null() }
@@ -978,7 +967,7 @@ mod tests {
                         quantity: deckmaste_core::Quantity::one(),
                         filter: candidate_region(creatures_on_the_battlefield()),
                     }),
-                    Instruction::Act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
+                    Instruction::act(Action::destroy(Reference::Reg(FIRST_DEF.into()))),
                 ]
                 .into(),
             ),
@@ -1153,7 +1142,7 @@ mod tests {
         // register finds nothing and does not fall back to an older object.
         let pframe = frame_src(&state, product);
         state.run_effect(
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::source_parameter(),
                 deckmaste_core::Destination::Zone(Zone::Hand),
                 vec![].into(),
@@ -1288,7 +1277,7 @@ mod tests {
                 .into(),
                 // The body is irrelevant to the read under test; any
                 // slot-referencing action keeps the declaration well-formed.
-                effect: Instruction::Act(Action::deal_damage(
+                effect: Instruction::act(Action::deal_damage(
                     Reference::Reg(deckmaste_core::RefId(6)),
                     deckmaste_core::Count::Literal(1),
                 ))
@@ -1384,7 +1373,7 @@ mod tests {
                             None,
                         ),
                     },
-                    Instruction::Act(Action::Move(
+                    Instruction::act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Battlefield),
                         vec![].into(),

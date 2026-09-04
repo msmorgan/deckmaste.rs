@@ -858,7 +858,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: token.into(),
@@ -1017,7 +1017,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = state.frame(bear, PlayerId(0));
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -1173,7 +1173,7 @@ mod tests {
             when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
-            then: Arc::new(Instruction::Act(deckmaste_core::Action::move_to(
+            then: Arc::new(Instruction::act(deckmaste_core::Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Zone::Graveyard,
             ))),
@@ -1224,7 +1224,7 @@ mod tests {
                 condition: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
                     Reference::Reg(deckmaste_core::RefId(0)),
                 )))),
-                effect: Arc::new(Instruction::Act(deckmaste_core::Action::move_to(
+                effect: Arc::new(Instruction::act(deckmaste_core::Action::move_to(
                     Reference::Reg(deckmaste_core::RefId(0)),
                     Zone::Graveyard,
                 ))),
@@ -1508,7 +1508,7 @@ mod tests {
         );
         let ascend = Ability::r#static(StaticSpec::Sba {
             when: Arc::new(gate),
-            then: Arc::new(Instruction::Act(Action::GetDesignation(
+            then: Arc::new(Instruction::act(Action::GetDesignation(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 name,
             ))),
@@ -1607,7 +1607,7 @@ mod tests {
                     ]
                     .into(),
                 )),
-                then: Arc::new(Instruction::Act(Action::GetDesignation(
+                then: Arc::new(Instruction::act(Action::GetDesignation(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     name,
                 ))),

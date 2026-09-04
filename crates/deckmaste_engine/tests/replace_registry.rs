@@ -300,7 +300,7 @@ fn find_in_graveyard(state: &GameState, player: PlayerId, card_id: CardId) -> Op
 #[test]
 fn instead_redirects_destruction_to_exile() {
     // The `instead` body: Move(This, Zone(Exile)) is agent-silent.
-    let instead_body = Instruction::Act(Action::Move(
+    let instead_body = Instruction::act(Action::Move(
         Reference::Reg(deckmaste_core::RefId(0)),
         deckmaste_core::Destination::Zone(Zone::Exile),
         vec![].into(),
@@ -636,11 +636,11 @@ fn regenerate_effect(subject_ref: Reference) -> Instruction {
     let instead = Instruction::Sequentially(
         vec![
             // [CR#701.19a]: remove all damage from the regenerated permanent.
-            Instruction::Act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
+            Instruction::act(Action::RemoveDamage(Reference::Reg(deckmaste_core::RefId(
                 2,
             )))),
             // [CR#701.19a]: its controller taps it.
-            Instruction::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
+            Instruction::act(Action::Tap(Reference::Reg(deckmaste_core::RefId(2)))),
         ]
         .into(),
     );
@@ -654,7 +654,7 @@ fn regenerate_effect(subject_ref: Reference) -> Instruction {
                 dest: REGEN_SUBJECT,
                 expr: deckmaste_core::Expr::Object(subject_ref),
             }),
-            Instruction::Act(Action::CreateReplacement {
+            Instruction::act(Action::CreateReplacement {
                 // The shield reads the register the preceding `Let` pinned —
                 // the declared subject lowering resolves the anaphor to
                 // ([CR#614.1]), not a search of the register file.
@@ -981,11 +981,11 @@ fn enchanted_with_umbra() -> (GameState, CardId, CardId) {
     let instead_body = Instruction::Sequentially(
         vec![
             // [CR#701.19a,702.89a]: remove all damage from the enchanted permanent.
-            Instruction::Act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
+            Instruction::act(Action::RemoveDamage(Reference::AttachHostOf(Arc::new(
                 Reference::Reg(deckmaste_core::RefId(0)),
             )))),
             // [CR#702.89a]: destroy this Aura.
-            Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
+            Instruction::act(Action::destroy(Reference::Reg(deckmaste_core::RefId(0)))),
         ]
         .into(),
     );
@@ -1196,7 +1196,7 @@ fn lifegain_replaced_by_draw() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = Instruction::Act(deckmaste_core::Action::ChangeLife(
+    let instead_body = Instruction::act(deckmaste_core::Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1265,7 +1265,7 @@ fn set_life_above_current_enters_the_replacement_window() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = Instruction::Act(Action::ChangeLife(
+    let instead_body = Instruction::act(Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1282,7 +1282,7 @@ fn set_life_above_current_enters_the_replacement_window() {
     // resolves, computes the +5 delta, and emits `LifeGained{amount: 5}`.
     resolve_and_drive(
         &mut state,
-        Instruction::Act(Action::ChangeLife(
+        Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
@@ -1312,7 +1312,7 @@ fn set_life_equal_to_current_emits_nothing() {
         who: Predicate::Any,
         amount: None,
     };
-    let instead_body = Instruction::Act(Action::ChangeLife(
+    let instead_body = Instruction::act(Action::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Down(deckmaste_core::Count::Literal(1)),
     ));
@@ -1326,7 +1326,7 @@ fn set_life_equal_to_current_emits_nothing() {
 
     resolve_and_drive(
         &mut state,
-        Instruction::Act(Action::ChangeLife(
+        Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Set(deckmaste_core::Count::Literal(target)),
         )),
@@ -1392,7 +1392,7 @@ fn double_damage_lineage_terminates() {
 
     // The `instead` body: deal 10 damage to this creature (a fixed amount
     // rather than a doubled one — see doc-comment above for rationale).
-    let instead_body = Instruction::Act(deckmaste_core::Action::deal_damage(
+    let instead_body = Instruction::act(deckmaste_core::Action::deal_damage(
         Reference::Reg(deckmaste_core::RefId(0)),
         Count::Literal(10),
     ));
@@ -1545,7 +1545,7 @@ fn damage_as_counters_static(on: Predicate, recipient: Reference, kind: &str) ->
         combat: None,
         amount: None,
     };
-    let instead = Instruction::Act(Action::PutCounters(
+    let instead = Instruction::act(Action::PutCounters(
         recipient,
         kind.into(),
         Count::Reg(deckmaste_core::RefId(6)),

@@ -3537,7 +3537,7 @@ fn inline_blink() -> Card {
                                     None,
                                 ),
                             ),
-                            Instruction::Act(Action::Move(
+                            Instruction::act(Action::Move(
                                 Reference::Reg(exiled.into()),
                                 Destination::Zone(Zone::Battlefield),
                                 vec![].into(),

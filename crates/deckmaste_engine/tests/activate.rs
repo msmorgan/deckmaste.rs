@@ -1198,7 +1198,7 @@ fn pinger_fizzles_when_target_dies() {
 /// A nondescript no-target effect: gain 0 life. Resolving it mutates nothing,
 /// so a test can isolate the *cost* being performed from the effect.
 fn gain_zero() -> Instruction {
-    Instruction::Act(CoreAction::ChangeLife(
+    Instruction::act(CoreAction::ChangeLife(
         Reference::Reg(deckmaste_core::RefId(1)),
         LifeOp::Up(Count::Literal(0)),
     ))
@@ -2546,7 +2546,7 @@ fn sacrifice_cost_is_paid_at_activation_and_its_product_is_read_at_resolution() 
                 Reference::Reg(chosen.into()),
             )),
         ],
-        Instruction::Act(CoreAction::ChangeLife(
+        Instruction::act(CoreAction::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::StatOf(
                 Reference::Reg(chosen.into()),

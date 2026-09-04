@@ -2043,7 +2043,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: Instruction::Act(Action::AddMana(
+            effect: Instruction::act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
@@ -2936,7 +2936,7 @@ mod tests {
             window: None,
             condition: None,
             limits: vec![].into(),
-            effect: Instruction::Act(Action::ChangeLife(
+            effect: Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             ))

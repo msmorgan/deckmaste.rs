@@ -8,12 +8,11 @@ use crate::Quantity;
 /// channel: lowering assigns each entry a region parameter, and the body reads
 /// that parameter by position. Rechecked at resolution ([CR#608.2b]).
 ///
-/// A target pushes NO antecedent: `It`/`That(Sort)`/`They`/`Them` resolve over
-/// the antecedent stack (loop elements, binder choices, move/create products)
-/// and can never name a target. A target is not something a clause produced
-/// and then referred back to — it is announced at index `n` and read at index
-/// `n`, so two same-sort slots (the fight family) need no labelling and admit
-/// no ambiguity.
+/// Each target entry declares an
+/// [`AnnouncedTarget`](crate::Provenance::AnnouncedTarget) parameter. The body
+/// reads that indexed register directly; it does not share the candidate,
+/// capture, or instruction-product channels. Two same-kind slots (the fight
+/// family) therefore need no labels and admit no ambiguity.
 ///
 /// Separated from [`crate::Selection`] so that resolution-time choices
 /// (`Each`, `Choose`, …) and announce-time targets never share a position —

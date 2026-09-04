@@ -1941,7 +1941,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(&state, bear, vec![bear]);
         state.run_effect(
-            Instruction::Act(Action::deal_damage(
+            Instruction::act(Action::deal_damage(
                 Reference::Reg(deckmaste_core::RefId(6)),
                 Count::Literal(3),
             )),
@@ -2015,7 +2015,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = Instruction::Act(Action::ChangeLife(
+        let body = Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
@@ -2043,7 +2043,7 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = Instruction::Act(Action::ChangeLife(
+        let body = Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
@@ -2094,7 +2094,7 @@ mod tests {
         let may_gain_3 = || {
             Instruction::May(deckmaste_core::May {
                 who: Reference::Reg(deckmaste_core::RefId(1)),
-                effect: Arc::new(Instruction::Act(Action::ChangeLife(
+                effect: Arc::new(Instruction::act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
@@ -2148,7 +2148,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let agenda_before = state.agenda.len();
 
-        let body = Instruction::Act(Action::ChangeLife(
+        let body = Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
@@ -2200,7 +2200,7 @@ mod tests {
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
 
-        let body = Instruction::Act(Action::ChangeLife(
+        let body = Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(1)),
         ));
@@ -2239,7 +2239,7 @@ mod tests {
         let life0 = state.player(p0).life;
         let agenda_before = state.agenda.len();
 
-        let body = Instruction::Act(Action::ChangeLife(
+        let body = Instruction::act(Action::ChangeLife(
             Reference::Reg(deckmaste_core::RefId(1)),
             LifeOp::Up(Count::Literal(2)),
         ));
@@ -2331,7 +2331,7 @@ mod tests {
             },
             instead: Instruction::Batch(
                 Count::Literal(2),
-                Arc::new(Instruction::Act(deckmaste_core::Action::draw_one(
+                Arc::new(Instruction::act(deckmaste_core::Action::draw_one(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ),
@@ -2395,7 +2395,7 @@ mod tests {
                             on: Predicate::Any,
                             cause: None,
                         },
-                        effect: Instruction::Act(Action::ChangeLife(
+                        effect: Instruction::act(Action::ChangeLife(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::Literal(1)),
                         ))
@@ -2407,7 +2407,7 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+        let mill_one = Instruction::act(deckmaste_core::Action::mill_one(Reference::Reg(
             deckmaste_core::RefId(1),
         )));
         state.run_effect(
@@ -2565,7 +2565,7 @@ mod tests {
         );
 
         let frame = frame_for(&state, p0);
-        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(Reference::Reg(
+        let mill_one = Instruction::act(deckmaste_core::Action::mill_one(Reference::Reg(
             deckmaste_core::RefId(1),
         )));
         let agenda_before = state.agenda.len();
@@ -2698,7 +2698,7 @@ mod tests {
         let (mut state, a) = bear_on_field();
         let frame = frame_src(&state, a);
         state.run_effect(
-            Instruction::Act(Action::ChooseValue(
+            Instruction::act(Action::ChooseValue(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 ChosenValueKind::Color,
                 deckmaste_core::Ident::from("c"),
@@ -3223,7 +3223,7 @@ mod tests {
                         provenance: Provenance::Capture(RefId(1)),
                     },
                 ]),
-                Instruction::Act(deckmaste_core::Action::ChangeLife(
+                Instruction::act(deckmaste_core::Action::ChangeLife(
                     Reference::Reg(captured_controller),
                     LifeOp::Down(deckmaste_core::Count::Literal(1)),
                 ))
@@ -3547,7 +3547,7 @@ mod tests {
         let frame = frame_src(&state, src);
         let seq = Instruction::Sequentially(
             vec![
-                Instruction::Act(Action::ChangeLife(
+                Instruction::act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(1)),
                 )),
@@ -3811,7 +3811,7 @@ mod tests {
         let yes = Condition::Compare(Count::Literal(1), Cmp::AtLeast, Count::Literal(0));
         let no = Condition::Compare(Count::Literal(0), Cmp::AtLeast, Count::Literal(1));
         let gain = |n| {
-            Instruction::Act(Action::ChangeLife(
+            Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -3880,7 +3880,7 @@ mod tests {
         use crate::decide::DecisionPointKind;
 
         let gain = |n| {
-            Instruction::Act(Action::ChangeLife(
+            Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -3952,7 +3952,7 @@ mod tests {
 
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: Instruction::Act(Action::ChangeLife(
+            effect: Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -4048,11 +4048,11 @@ mod tests {
                     targets: [].into(),
                     effect: Instruction::Sequentially(
                         vec![
-                            Instruction::Act(Action::ChangeLife(
+                            Instruction::act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(2)),
                             )),
-                            Instruction::Act(Action::ChangeLife(
+                            Instruction::act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Literal(4)),
                             )),
@@ -4106,7 +4106,7 @@ mod tests {
                 Arc::new(deckmaste_core::Region::candidate(predicate)),
             )]
             .into(),
-            effect: Instruction::Act(Action::ChangeLife(
+            effect: Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(0)),
             ))
@@ -4115,7 +4115,7 @@ mod tests {
         };
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: Instruction::Act(Action::ChangeLife(
+            effect: Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -4200,7 +4200,7 @@ mod tests {
 
         let gain_mode = |n| Mode {
             targets: [].into(),
-            effect: Instruction::Act(Action::ChangeLife(
+            effect: Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(n)),
             ))
@@ -4257,7 +4257,7 @@ mod tests {
                 who: Reference::OpponentOf(std::sync::Arc::new(Reference::Reg(
                     deckmaste_core::RefId(1),
                 ))),
-                effect: Arc::new(Instruction::Act(Action::ChangeLife(
+                effect: Arc::new(Instruction::act(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Up(Count::Literal(3)),
                 ))),
@@ -4292,7 +4292,7 @@ mod tests {
 
         let p0 = PlayerId(0);
         let pay_cost = || {
-            Instruction::Act(Action::Pay(Cost(
+            Instruction::act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
@@ -4304,7 +4304,7 @@ mod tests {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
             if_did: None,
-            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
@@ -4366,7 +4366,7 @@ mod tests {
 
         let p0 = PlayerId(0);
         let pay_cost = || {
-            Instruction::Act(Action::Pay(Cost(
+            Instruction::act(Action::Pay(Cost(
                 vec![CostComponent::do_action(Action::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(2)),
@@ -4377,11 +4377,11 @@ mod tests {
         let may_pay = || May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost()),
-            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
-            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
@@ -4444,7 +4444,7 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let p0 = PlayerId(0);
         let frame = frame_src(&state, bear);
-        let pay_cost = Instruction::Act(Action::Pay(Cost(
+        let pay_cost = Instruction::act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::Sacrifice(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Reference::Reg(deckmaste_core::RefId(0)),
@@ -4454,7 +4454,7 @@ mod tests {
         let may = May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
-            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(7)),
             )))),
@@ -4518,7 +4518,7 @@ mod tests {
         // can't cover a 5-life toll, so the "yes" choice is illegal.
         state.player_mut(p0).life = 1;
         let frame = frame_for(&state, p0);
-        let pay_cost = Instruction::Act(Action::Pay(Cost(
+        let pay_cost = Instruction::act(Action::Pay(Cost(
             vec![CostComponent::do_action(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Down(Count::Literal(5)),
@@ -4528,11 +4528,11 @@ mod tests {
         let may = May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
             effect: Arc::new(pay_cost),
-            if_did: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_did: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(10)),
             )))),
-            if_not: Some(Arc::new(Instruction::Act(Action::ChangeLife(
+            if_not: Some(Arc::new(Instruction::act(Action::ChangeLife(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 LifeOp::Up(Count::Literal(1)),
             )))),
@@ -4776,7 +4776,7 @@ mod tests {
             vec![
                 Instruction::If(If {
                     condition: ascend_gate(),
-                    then: Arc::new(Instruction::Act(Action::GetDesignation(
+                    then: Arc::new(Instruction::act(Action::GetDesignation(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         "CitysBlessing".into(),
                     ))),
@@ -5552,7 +5552,7 @@ mod tests {
         let effect = Instruction::Distribute(Distribute {
             amount: Count::Literal(3),
             over: Selection::Reg(FIRST_DEF.into()),
-            body: allot_region(Instruction::Act(Action::deal_damage(
+            body: allot_region(Instruction::act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(SHARE),
             ))),
@@ -5582,7 +5582,7 @@ mod tests {
         let effect = Instruction::Distribute(Distribute {
             amount: Count::Literal(3),
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-            body: allot_region(Instruction::Act(Action::deal_damage(
+            body: allot_region(Instruction::act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(SHARE),
             ))),
@@ -5614,7 +5614,7 @@ mod tests {
         let frame = frame_src(&state, a);
         let effect = Instruction::Each(deckmaste_core::Each {
             over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-            body: loop_region(Instruction::Act(Action::deal_damage(
+            body: loop_region(Instruction::act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Literal(2),
             ))),
@@ -5717,7 +5717,7 @@ mod tests {
             ]
             .into(),
         );
-        let discard_one = Instruction::Act(Action::Composite {
+        let discard_one = Instruction::act(Action::Composite {
             name: deckmaste_core::VerbName::from("Discard"),
             body: Arc::new(Instruction::Sequentially(
                 vec![
@@ -5727,7 +5727,7 @@ mod tests {
                         quantity: deckmaste_core::Quantity::one(),
                         filter: nested_filter_region(in_your_hand),
                     }),
-                    Instruction::Act(Action::discard_what(Reference::Reg(CHOSEN.into()))),
+                    Instruction::act(Action::discard_what(Reference::Reg(CHOSEN.into()))),
                 ]
                 .into(),
             )),
@@ -5800,7 +5800,7 @@ mod tests {
                     }),
                     Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(
+                        body: loop_region(Instruction::act(Action::destroy(Reference::Reg(
                             ELEMENT,
                         )))),
                     }),
@@ -5856,7 +5856,7 @@ mod tests {
             over: Selection::SelectAll(candidate_region(Predicate::Entity(
                 deckmaste_core::EntityClass::Player,
             ))),
-            body: loop_region(Instruction::Act(Action::deal_damage(
+            body: loop_region(Instruction::act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Literal(20),
             ))),
@@ -5891,7 +5891,7 @@ mod tests {
                 over: Selection::SelectAll(candidate_region(Predicate::Entity(
                     deckmaste_core::EntityClass::Player,
                 ))),
-                body: loop_region(Instruction::Act(Action::deal_damage(
+                body: loop_region(Instruction::act(Action::deal_damage(
                     Reference::Reg(ELEMENT),
                     Count::Literal(1),
                 ))),
@@ -5938,7 +5938,7 @@ mod tests {
                     deckmaste_core::Provenance::Capture(deckmaste_core::RefId(1)),
                 ),
             ]),
-            Instruction::Act(Action::deal_damage(
+            Instruction::act(Action::deal_damage(
                 Reference::Reg(ELEMENT),
                 Count::Reg(deckmaste_core::RefId(2)),
             ))
@@ -5981,7 +5981,7 @@ mod tests {
             whose: Reference::controller_parameter(),
             matches: candidate_region(Predicate::creature()),
             body: deckmaste_core::Region::closed(
-                Instruction::Act(Action::ChangeLife(
+                Instruction::act(Action::ChangeLife(
                     Reference::controller_parameter(),
                     LifeOp::Up(Count::Literal(99)),
                 ))
@@ -6013,7 +6013,7 @@ mod tests {
         state.run_effect(
             Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-                body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(ELEMENT)))),
+                body: loop_region(Instruction::act(Action::destroy(Reference::Reg(ELEMENT)))),
             }),
             &frame,
         );
@@ -6035,7 +6035,7 @@ mod tests {
         state.run_effect(
             Instruction::Each(deckmaste_core::Each {
                 over: Selection::SelectAll(candidate_region(creatures_on_the_battlefield())),
-                body: loop_region(Instruction::Act(Action::ChangeLife(
+                body: loop_region(Instruction::act(Action::ChangeLife(
                     Reference::Reg(LOOP_CONTROLLER),
                     LifeOp::Up(Count::Literal(1)),
                 ))),
@@ -6069,7 +6069,7 @@ mod tests {
     }
 
     fn shuffle_your_library() -> Instruction {
-        Instruction::Act(Action::Shuffle(Selection::LibraryOf(
+        Instruction::act(Action::Shuffle(Selection::LibraryOf(
             Reference::controller_parameter(),
         )))
     }
@@ -6099,7 +6099,7 @@ mod tests {
                         search_library(
                             deckmaste_core::Quantity::one(),
                             Predicate::r#type(Type::Land),
-                            Instruction::Act(Action::ChangeLife(
+                            Instruction::act(Action::ChangeLife(
                                 Reference::controller_parameter(),
                                 LifeOp::Down(Count::Literal(1)),
                             ))
@@ -6173,7 +6173,7 @@ mod tests {
                     ),
                     Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(Instruction::Act(Action::Move(
+                        body: loop_region(Instruction::act(Action::Move(
                             Reference::Reg(ELEMENT),
                             Destination::Zone(Zone::Hand),
                             vec![].into(),
@@ -6338,11 +6338,11 @@ mod tests {
                         Predicate::r#type(Type::Land),
                         deckmaste_core::Block::default(),
                     ),
-                    Instruction::Act(Action::Reveal {
+                    Instruction::act(Action::Reveal {
                         what: Reference::Reg(FIRST_DEF.into()),
                         to: None,
                     }),
-                    Instruction::Act(Action::Move(
+                    Instruction::act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Hand),
                         vec![].into(),
@@ -6397,7 +6397,7 @@ mod tests {
                         Predicate::r#type(Type::Land),
                         deckmaste_core::Block::default(),
                     ),
-                    Instruction::Act(Action::Move(
+                    Instruction::act(Action::Move(
                         Reference::Reg(FIRST_DEF.into()),
                         Destination::Zone(Zone::Battlefield),
                         vec![EnterRider::Tapped].into(),
@@ -6596,7 +6596,7 @@ mod tests {
                     Arc::new(Count::Literal(2)),
                     Arc::new(Count::Reg(EVENT_AMOUNT)),
                 ),
-                Arc::new(Instruction::Act(deckmaste_core::Action::mill_one(
+                Arc::new(Instruction::act(deckmaste_core::Action::mill_one(
                     Reference::controller_parameter(),
                 ))),
             ),
@@ -6614,7 +6614,7 @@ mod tests {
         );
 
         let frame = player_frame(&state, p0);
-        let mill_one = Instruction::Act(deckmaste_core::Action::mill_one(
+        let mill_one = Instruction::act(deckmaste_core::Action::mill_one(
             Reference::controller_parameter(),
         ));
         state.run_effect(
@@ -6697,7 +6697,7 @@ mod tests {
                     }),
                     Instruction::Each(deckmaste_core::Each {
                         over: Selection::Reg(FIRST_DEF.into()),
-                        body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(
+                        body: loop_region(Instruction::act(Action::destroy(Reference::Reg(
                             ELEMENT,
                         )))),
                     }),
@@ -6776,8 +6776,8 @@ mod tests {
                         dest: FIRST_DEF,
                         expr: deckmaste_core::Expr::Number(creature_count.clone()),
                     }),
-                    Instruction::Act(Action::destroy(Reference::Reg(VICTIM.into()))),
-                    Instruction::Act(Action::ChangeLife(
+                    Instruction::act(Action::destroy(Reference::Reg(VICTIM.into()))),
+                    Instruction::act(Action::ChangeLife(
                         Reference::controller_parameter(),
                         LifeOp::Up(Count::Reg(FIRST_DEF.into())),
                     )),
@@ -6843,7 +6843,7 @@ mod tests {
                                     quantity: deckmaste_core::Quantity::one(),
                                     filter: candidate_region(creatures_on_the_battlefield()),
                                 }),
-                                Instruction::Act(Action::destroy(Reference::Reg(INNER_DEF.into()))),
+                                Instruction::act(Action::destroy(Reference::Reg(INNER_DEF.into()))),
                             ]
                             .into(),
                         )),
@@ -6906,7 +6906,7 @@ mod tests {
                                 PlayerAttr::Life,
                             )),
                         }),
-                        Instruction::Act(Action::ChangeLife(
+                        Instruction::act(Action::ChangeLife(
                             Reference::Reg(ELEMENT),
                             LifeOp::Up(Count::Reg(PER_ELEMENT.into())),
                         )),
@@ -7023,7 +7023,7 @@ mod tests {
                             FIRST_DEF_ONE_TARGET.into(),
                             deckmaste_core::Kind::Entities,
                         )]),
-                        Instruction::Act(Action::Move(
+                        Instruction::act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
                             deckmaste_core::Destination::Zone(Zone::Battlefield),
                             vec![].into(),
@@ -7095,7 +7095,7 @@ mod tests {
                             FIRST_DEF_ONE_TARGET.into(),
                             deckmaste_core::Kind::Entities,
                         )]),
-                        Instruction::Act(Action::Move(
+                        Instruction::act(Action::Move(
                             Reference::Reg(deckmaste_core::RefId(8)),
                             deckmaste_core::Destination::Zone(Zone::Battlefield),
                             vec![].into(),
@@ -7114,7 +7114,7 @@ mod tests {
         // object it becomes in the graveyard is a new object ([CR#400.7]).
         let frame = frame_src(&state, a);
         state.run_effect(
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::Reg(TARGET_0),
                 deckmaste_core::Destination::Zone(Zone::Graveyard),
                 vec![].into(),
@@ -7176,7 +7176,7 @@ mod tests {
                     ]),
                     delayed(
                         created_body_params(&[(ELEMENT, deckmaste_core::Kind::Entity)]),
-                        Instruction::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(8)))),
+                        Instruction::act(Action::destroy(Reference::Reg(deckmaste_core::RefId(8)))),
                     )
                     .into(),
                 ),
@@ -7272,7 +7272,7 @@ mod tests {
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 deckmaste_core::Destination::Zone(Zone::Battlefield),
                 vec![].into(),
@@ -7348,7 +7348,7 @@ mod tests {
                     deckmaste_core::Provenance::Linked(deckmaste_core::Ident::from("exiled")),
                 ),
             ]),
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 deckmaste_core::Destination::Zone(Zone::Battlefield),
                 vec![].into(),

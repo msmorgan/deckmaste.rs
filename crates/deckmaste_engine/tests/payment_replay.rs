@@ -173,7 +173,7 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 recipient,
                 Count::Literal(1),
                 ManaSpec::Specific(color.into()).into(),
@@ -220,14 +220,14 @@ fn suspending_barred_mana_source() -> Arc<Card> {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Act(CoreAction::Move(
+                    Instruction::act(CoreAction::Move(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                         Arc::from([]),
                         Some(Zone::Battlefield),
                     )),
                     choose,
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -273,13 +273,13 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Act(CoreAction::Create {
+                    Instruction::act(CoreAction::Create {
                         agent: Reference::Reg(deckmaste_core::RefId(1)),
                         count: Count::Literal(1),
                         token: token.into(),
                         riders: Arc::from([]),
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -319,7 +319,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                         .into(),
                     ))),
                 }),
-                Instruction::Act(CoreAction::AddMana(
+                Instruction::act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
@@ -360,13 +360,13 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
             limits: Arc::from([]),
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Act(CoreAction::Create {
+                    Instruction::act(CoreAction::Create {
                         agent: Reference::Reg(deckmaste_core::RefId(1)),
                         count: Count::Literal(1),
                         token: token.into(),
                         riders: Arc::from([]),
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -389,7 +389,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
         window: None,
         condition: None,
         limits: Arc::from([]),
-        effect: Instruction::Act(CoreAction::AddMana(
+        effect: Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -413,13 +413,13 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Create {
+                Instruction::act(CoreAction::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
                 }),
-                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             ]
@@ -443,7 +443,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
         },
         instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
             if_did: None,
@@ -495,7 +495,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
             // the choice is its own instruction writing register 3.
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Act(CoreAction::Create {
+                    Instruction::act(CoreAction::Create {
                         agent: Reference::Reg(deckmaste_core::RefId(1)),
                         count: Count::Literal(1),
                         token: token.into(),
@@ -515,7 +515,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                             .into(),
                         ))),
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -556,7 +556,7 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
             // reads that register instead of `That(Token)`.
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Act(CoreAction::Create {
+                    Instruction::act(CoreAction::Create {
                         agent: Reference::Reg(deckmaste_core::RefId(1)),
                         count: Count::Literal(1),
                         token: token.into(),
@@ -574,11 +574,11 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                             )),
                         ))),
                     }),
-                    Instruction::Act(CoreAction::Reveal {
+                    Instruction::act(CoreAction::Reveal {
                         what: Reference::Reg(deckmaste_core::RefId(3)),
                         to: None,
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -629,7 +629,7 @@ fn krark_clan_ironworks() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
@@ -650,11 +650,11 @@ fn wheel_of_sun_and_moon() -> Arc<Card> {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Reveal {
+                Instruction::act(CoreAction::Reveal {
                     what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),
-                Instruction::Act(CoreAction::Move(
+                Instruction::act(CoreAction::Move(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
@@ -698,7 +698,7 @@ fn mox_amber_fixture() -> Arc<Card> {
     let sole_eligible_legend = Reference::Single(Arc::new(deckmaste_core::Selection::SelectAll(
         Arc::new(deckmaste_core::Region::candidate(colored_legend)),
     )));
-    let effect = Instruction::Act(CoreAction::AddMana(
+    let effect = Instruction::act(CoreAction::AddMana(
         Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaSpec::AmongColorsOf(sole_eligible_legend).into(),
@@ -786,7 +786,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
@@ -836,7 +836,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 greatest_power,
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -1848,7 +1848,7 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
         },
         instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                 vec![CostComponent::do_action(CoreAction::ChangeLife(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     LifeOp::Down(Count::Literal(1)),
@@ -1939,7 +1939,7 @@ fn fulfillment_owned_mana_child_remains_a_separate_reversal_unit() {
         },
         instead: Instruction::May(May {
             who: Reference::Reg(deckmaste_core::RefId(1)),
-            effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+            effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                 vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
             )))),
             if_did: None,
@@ -2052,12 +2052,12 @@ fn fulfillment_owned_mana_child_can_reverse_under_a_retained_parent() {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -2332,12 +2332,12 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -2534,7 +2534,7 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Move(
+                Instruction::act(CoreAction::Move(
                     Reference::Reg(deckmaste_core::RefId(2)),
                     Destination::Library(Anchor::FromBottom(Count::Literal(0))),
                     Arc::from([]),
@@ -2619,13 +2619,13 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Create {
+                Instruction::act(CoreAction::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
                     riders: Arc::from([]),
                 }),
-                Instruction::Act(CoreAction::Move(
+                Instruction::act(CoreAction::Move(
                     Reference::Single(
                         deckmaste_core::Selection::SelectAll(Arc::new(
                             deckmaste_core::Region::candidate(token_on_battlefield.clone()),
@@ -2636,7 +2636,7 @@ fn decline_replays_a_retained_fulfillment_that_creates_then_remints_a_token() {
                     Arc::from([]),
                     Some(Zone::Battlefield),
                 )),
-                Instruction::Act(CoreAction::Move(
+                Instruction::act(CoreAction::Move(
                     Reference::Single(
                         deckmaste_core::Selection::SelectAll(Arc::new(
                             deckmaste_core::Region::candidate(token_on_battlefield),
@@ -2717,7 +2717,7 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
         },
         instead: Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Reveal {
+                Instruction::act(CoreAction::Reveal {
                     what: Reference::Reg(deckmaste_core::RefId(2)),
                     to: None,
                 }),

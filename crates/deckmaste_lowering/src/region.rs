@@ -10,8 +10,6 @@ use deckmaste_core::RefId;
 use deckmaste_semantics::Ident;
 use deckmaste_semantics::Sort;
 
-use crate::Lower;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RegionKind {
     Static,
@@ -844,17 +842,28 @@ pub(crate) fn scoped_antecedents<T>(f: impl FnOnce() -> T) -> T {
 
 /// Whether an antecedent of sort `have` can answer a mention of `want`.
 ///
-/// The relation lives on the core sort, whose three arms ARE the three
-/// register domains, so an amount mention cannot reach an Entity antecedent
-/// and a pile mention cannot reach an Entity group ([CR#700.3b]).
+/// This is the semantic discourse relation: exact matches plus the three
+/// widened nouns supported by the Idris model.
 fn compatible(want: Sort, have: Sort) -> bool {
-    want.lower().compatible_with(have.lower())
+    use deckmaste_semantics::Sort;
+
+    want == have
+        || matches!(
+            (want, have),
+            (Sort::Card, Sort::Permanent | Sort::OfType(_))
+                | (Sort::StackObject, Sort::Spell)
+                | (Sort::Permanent, Sort::Token | Sort::OfType(_))
+        )
 }
 
 /// Whether a register of shape `have` can answer a mention of `want` — the
-/// same domain split read straight off the sort.
+/// Entity, number, and pile domains never cross ([CR#700.3b]).
 fn kind_compatible(want: Sort, have: Kind) -> bool {
-    want.lower().answered_by(have)
+    match want {
+        Sort::Amount => have == Kind::Number,
+        Sort::Pile => have == Kind::Pile,
+        _ => matches!(have, Kind::Entity | Kind::Entities),
+    }
 }
 
 /// Whether `antecedent` can answer a mention of `cardinality`/`want`.

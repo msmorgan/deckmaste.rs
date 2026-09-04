@@ -404,13 +404,13 @@ pub(super) fn fight_effect(x: &Reference, y: &Reference) -> Instruction {
         )
     };
     let half = |tgt: &Reference, src: &Reference| {
-        Instruction::Act(Action::DealDamage(
+        Instruction::act(Action::DealDamage(
             src.clone(),
             Count::StatOf(src.clone(), Stat::Power),
             tgt.clone(),
         ))
     };
-    Instruction::Act(Action::Composite {
+    Instruction::act(Action::Composite {
         name: deckmaste_core::VerbName::from("Fight"),
         body: Arc::new(Instruction::If(deckmaste_core::If {
             condition: Condition::And(vec![is_creature(x), is_creature(y)].into()),

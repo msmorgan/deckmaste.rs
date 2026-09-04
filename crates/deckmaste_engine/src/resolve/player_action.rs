@@ -984,7 +984,7 @@ mod tests {
             exceptions: vec![],
         };
         state.run_effect(
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Destination::Zone(Zone::Battlefield),
                 vec![EnterRider::AsCopy(spec)].into(),
@@ -1019,7 +1019,7 @@ mod tests {
             state.zones.battlefield.iter().copied().collect();
         let frame = frame_src(state, object);
         state.run_effect(
-            Instruction::Act(Action::Move(
+            Instruction::act(Action::Move(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Destination::Zone(Zone::Battlefield),
                 riders.into(),
@@ -1238,7 +1238,7 @@ mod tests {
         let before: std::collections::HashSet<ObjectId> =
             state.zones.battlefield.iter().copied().collect();
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: token.into(),
@@ -1337,7 +1337,7 @@ mod tests {
         let frame = frame_src(&state, src);
         let green = ColorOrColorless::Color(Color::Green);
         state.run_effect(
-            Instruction::Act(Action::AddMana(
+            Instruction::act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 ManaSpec::Specific(green).into(),
@@ -1348,7 +1348,7 @@ mod tests {
         assert_eq!(state.players[0].mana_pool.amount(green), 2);
 
         state.run_effect(
-            Instruction::Act(Action::AddMana(
+            Instruction::act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
@@ -1402,7 +1402,7 @@ mod tests {
         let white = ColorOrColorless::Color(Color::White);
         let blue = ColorOrColorless::Color(Color::Blue);
         state.run_effect(
-            Instruction::Act(Action::AddMana(
+            Instruction::act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::OneOfRuns(
@@ -1452,7 +1452,7 @@ mod tests {
         let red = ColorOrColorless::Color(Color::Red);
         let rider = ManaRider::SpendOnly(Predicate::Any);
         state.run_effect(
-            Instruction::Act(Action::AddMana(
+            Instruction::act(Action::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaProduction::WithRiders {
@@ -1496,7 +1496,7 @@ mod tests {
         let frame = frame_src(&state, src);
         let hand_before = state.zones.hands[0].len();
         state.run_effect(
-            Instruction::Act(Action::discard(
+            Instruction::act(Action::discard(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 false,
@@ -1542,7 +1542,7 @@ mod tests {
         // Clamp: an instruction to discard far more than the hand holds
         // discards the whole hand.
         state.run_effect(
-            Instruction::Act(Action::discard(
+            Instruction::act(Action::discard(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(99),
                 false,
@@ -1595,7 +1595,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(2),
                 token: token.into(),
@@ -1692,7 +1692,7 @@ mod tests {
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Named(deckmaste_core::TokenName::from(
@@ -1736,7 +1736,7 @@ mod tests {
         let frame = frame_src(&state, src);
         let treasure = builtin().token("Treasure").unwrap().core;
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: treasure.into(),
@@ -1796,7 +1796,7 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(&state, a, vec![b]);
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -1943,7 +1943,7 @@ mod tests {
         let (mut state, a, b) = two_permanents_on_field();
         let frame = frame_src_targets(&state, a, vec![b]);
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -2200,7 +2200,7 @@ mod tests {
         // Mint the creature token to be populated (a 2/2 Bear token you
         // control).
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: Token {
@@ -2452,7 +2452,7 @@ mod tests {
         let frame = frame_src_targets(&state, actor, vec![src]);
         let hand_before = state.zones.hands[PlayerId(0).index()].len();
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -2557,7 +2557,7 @@ mod tests {
         );
         let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -2645,7 +2645,7 @@ mod tests {
         );
         let frame = frame_src_targets(&state, goyf, vec![goyf]);
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -2730,7 +2730,7 @@ mod tests {
         let frame = frame_src_targets(&state, a, vec![b]);
 
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: deckmaste_core::TokenSpec::Copy(
@@ -2757,7 +2757,7 @@ mod tests {
             toughness: None,
         };
         state.run_effect(
-            Instruction::Act(Action::Create {
+            Instruction::act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
                 count: Count::Literal(1),
                 token: plain_token.into(),
@@ -2806,7 +2806,7 @@ mod tests {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
         state.run_effect(
-            Instruction::Act(Action::WinGame(Reference::Reg(deckmaste_core::RefId(1)))),
+            Instruction::act(Action::WinGame(Reference::Reg(deckmaste_core::RefId(1)))),
             &frame,
         );
         let _ = state.step();
@@ -2840,7 +2840,7 @@ mod tests {
         let (mut state, _bear) = bear_on_field();
         let frame = frame_for(&state, PlayerId(0));
         state.run_effect(
-            Instruction::Act(Action::LoseGame(Reference::Reg(deckmaste_core::RefId(1)))),
+            Instruction::act(Action::LoseGame(Reference::Reg(deckmaste_core::RefId(1)))),
             &frame,
         );
         let _ = state.step();
@@ -2916,7 +2916,7 @@ mod tests {
         }
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::discard(
+            Instruction::act(Action::discard(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 true,
@@ -2968,7 +2968,7 @@ mod tests {
             let p0 = PlayerId(0);
             let frame = frame_for(&state, p0);
             state.run_effect(
-                Instruction::Act(Action::FlipCoins(
+                Instruction::act(Action::FlipCoins(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(3),
                     false,
@@ -2977,7 +2977,7 @@ mod tests {
             );
             drain_progress(&mut state, 20);
             state.run_effect(
-                Instruction::Act(Action::RollDice(
+                Instruction::act(Action::RollDice(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(3),
                     6,
@@ -3042,7 +3042,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::FlipCoins(
+            Instruction::act(Action::FlipCoins(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 true,
@@ -3179,7 +3179,7 @@ mod tests {
         let mut won = false;
         for i in 0..50 {
             state.run_effect(
-                Instruction::Act(Action::FlipCoins(
+                Instruction::act(Action::FlipCoins(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     true,
@@ -3265,7 +3265,7 @@ mod tests {
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::FlipCoins(
+            Instruction::act(Action::FlipCoins(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 false,
@@ -3311,7 +3311,7 @@ mod tests {
         );
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::RollDice(
+            Instruction::act(Action::RollDice(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 6,
@@ -3381,7 +3381,7 @@ mod tests {
             // leftover ambient turn-structure agenda, surfacing a stray
             // `Priority` that then blocks the next `run_effect`.)
             state.run_effect(
-                Instruction::Act(Action::FlipCoins(
+                Instruction::act(Action::FlipCoins(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     false,
@@ -3392,7 +3392,7 @@ mod tests {
 
             // 1 called flip — the same call answer on both drives.
             state.run_effect(
-                Instruction::Act(Action::FlipCoins(
+                Instruction::act(Action::FlipCoins(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     true,
@@ -3411,7 +3411,7 @@ mod tests {
 
             // RollDice(2, 20).
             state.run_effect(
-                Instruction::Act(Action::RollDice(
+                Instruction::act(Action::RollDice(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     20,
@@ -3435,7 +3435,7 @@ mod tests {
             // then applying THAT batch actually records the past-form
             // `ZoneChange` facts to history (apply #5).
             state.run_effect(
-                Instruction::Act(Action::discard(
+                Instruction::act(Action::discard(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(2),
                     true,
@@ -3576,7 +3576,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::FlipCoins(
+            Instruction::act(Action::FlipCoins(
                 Reference::controller_parameter(),
                 Count::Literal(1),
                 true,
@@ -3613,7 +3613,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::RollDice(
+            Instruction::act(Action::RollDice(
                 Reference::controller_parameter(),
                 Count::Literal(3),
                 6,
@@ -3645,7 +3645,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::FlipCoins(
+            Instruction::act(Action::FlipCoins(
                 Reference::controller_parameter(),
                 Count::Literal(3),
                 true,
@@ -3686,7 +3686,7 @@ mod tests {
         let p0 = PlayerId(0);
         let frame = frame_for(&state, p0);
         state.run_effect(
-            Instruction::Act(Action::FlipCoins(
+            Instruction::act(Action::FlipCoins(
                 Reference::controller_parameter(),
                 Count::Literal(3),
                 false,

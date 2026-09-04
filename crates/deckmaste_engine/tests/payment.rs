@@ -189,7 +189,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::AnyColor.into(),
@@ -1039,7 +1039,7 @@ fn random_library_exile_two_cost() -> Vec<CostComponent> {
                         kind: deckmaste_core::Kind::Entity,
                         provenance: deckmaste_core::Provenance::LoopElement,
                     }]),
-                    Instruction::Act(CoreAction::Move(
+                    Instruction::act(CoreAction::Move(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         Destination::Zone(Zone::Exile),
                         Arc::from([]),
@@ -1768,7 +1768,7 @@ fn omitted_random_cost_advances_rng_before_a_retained_shuffle() {
                     to: Some(Zone::Exile),
                     cause: None,
                 },
-                also: Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                also: Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
             }),

@@ -249,10 +249,6 @@ pub use status::FaceDownSpec;
 pub use status::Phasing;
 pub use status::Status;
 
-mod sort;
-pub use sort::ReferentSort;
-pub use sort::Sort;
-
 pub mod ron;
 
 mod selection;

@@ -82,9 +82,10 @@ pub enum Provenance {
     /// an [`Instruction::Remember`](crate::Instruction::Remember) on
     /// another ability of the same card and supplied to this region at entry.
     Linked(crate::Ident),
-    /// Reserved by the discourse stage.
+    /// The current element supplied when entering an `Each` or `Distribute`
+    /// body region.
     LoopElement,
-    /// Reserved by the discourse stage.
+    /// The share supplied alongside a `Distribute` body region's loop element.
     Allotment,
     /// The per-candidate subject of a predicate region, carrying the Entity
     /// domain it ranges over ([CR#109.1,102.1] — ADR law 2). The domain fixes
@@ -218,12 +219,10 @@ pub fn triggered_region_params(target_count: usize) -> Arc<[Param]> {
     params.into()
 }
 
-/// A textual sequence of instructions.
+/// A textual sequence of instructions in one lexical region.
 ///
-/// Stage 1 keeps the established instruction tree as the instruction payload;
-/// the following discourse stage splits decision products into individual
-/// instruction arms. Keeping the sequence as a distinct type now makes region
-/// entry and validation explicit without introducing a second core grammar.
+/// Definitions produced by an instruction are visible to later instructions
+/// in this block and to nested blocks, but not after the block closes.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Block(pub Arc<[Instruction]>);
@@ -360,6 +359,35 @@ impl<T> Region<T> {
         self.params
             .get(reference.0 as usize)
             .map(|param| &param.provenance)
+    }
+}
+
+impl fmt::Display for Region<Block> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Region {{")?;
+        writeln!(f, "    params: [")?;
+        for param in self.params.iter() {
+            writeln!(
+                f,
+                "        {:?}: {:?} <- {:?},",
+                param.def, param.kind, param.provenance
+            )?;
+        }
+        writeln!(f, "    ],")?;
+        writeln!(f, "    body: [")?;
+        for instruction in self.body.iter() {
+            let rendered = instruction.to_string();
+            let mut lines = rendered.lines().peekable();
+            while let Some(line) = lines.next() {
+                if lines.peek().is_none() {
+                    writeln!(f, "        {line},")?;
+                } else {
+                    writeln!(f, "        {line}")?;
+                }
+            }
+        }
+        writeln!(f, "    ],")?;
+        write!(f, "}}")
     }
 }
 
@@ -1884,6 +1912,39 @@ mod tests {
             kind: Kind::Entity,
             provenance,
         }
+    }
+
+    #[test]
+    fn region_display_pins_register_riders_and_parameter_provenance() {
+        let region = Region::new(
+            announced_region_params(1),
+            Instruction::producing(
+                DefId(4),
+                crate::Action::Move(
+                    crate::Reference::Reg(RefId(0)),
+                    crate::Destination::Zone(crate::Zone::Exile),
+                    Arc::from([]),
+                    None,
+                ),
+            )
+            .into(),
+        );
+
+        assert_eq!(validate(&region), Ok(()));
+        assert_eq!(
+            region.to_string(),
+            "Region {
+    params: [
+        DefId(0): Entity <- Source,
+        DefId(1): Entity <- Controller,
+        DefId(2): Entities <- AnnouncedTarget(0),
+        DefId(3): Number <- AnnouncedX,
+    ],
+    body: [
+        Act { dest: Some(DefId(4)), action: Move(Reg(RefId(0)), Zone(Exile), [], None) },
+    ],
+}"
+        );
     }
 
     /// A card on the stack is a Card AND a Spell ([CR#108.2,112.1]): the two

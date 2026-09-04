@@ -1492,7 +1492,7 @@ mod tests {
                 to: Some(Zone::Graveyard),
                 cause: None,
             },
-            instead: Instruction::Act(deckmaste_core::Action::move_to(
+            instead: Instruction::act(deckmaste_core::Action::move_to(
                 Reference::Reg(deckmaste_core::RefId(2)),
                 Zone::Exile,
             )),

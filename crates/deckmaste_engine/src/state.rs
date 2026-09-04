@@ -453,12 +453,10 @@ pub struct GameImage {
     pub damage_result_rules: Vec<deckmaste_core::DamageResultRule>,
     /// The resolution-scoped old→new move record ([CR#400.7j]): objects THIS
     /// resolution moved to a PUBLIC zone, as ordered `(pre-move, reminted)`
-    /// pairs — recency IS the antecedent order (a product-sited `That(Sort)`
-    /// reads the newest product; R1-nearest). Written by
-    /// `apply_zone_will_change`, chased transitively by the bound-role reads
-    /// (`It`, the `that` slot), cleared when a stack entry begins resolving —
-    /// same lifecycle as the resolution activation. Hidden destinations
-    /// are never recorded ([CR#400.7] — the object is lost).
+    /// pairs. Written by `apply_zone_will_change`, chased transitively when an
+    /// action reads a region register, and cleared when a stack entry begins
+    /// resolving — the same lifecycle as the resolution activation. Hidden
+    /// destinations are never recorded ([CR#400.7] — the object is lost).
     pub moved_chain: Vec<(crate::object::ObjectId, crate::object::ObjectId)>,
     /// Turn/game event history ([CR#608.2i]): the append-only log the
     /// condition layer queries (`Count::EventCount`/`Count::EventSum`,

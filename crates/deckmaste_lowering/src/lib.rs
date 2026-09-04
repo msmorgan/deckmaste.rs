@@ -216,7 +216,6 @@ mod region;
 mod replacement;
 mod sba_rule;
 mod selection;
-mod sort;
 mod stat_value;
 mod status;
 mod target_spec;

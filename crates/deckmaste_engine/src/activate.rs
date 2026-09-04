@@ -836,7 +836,7 @@ mod tests {
 
     fn noop_effect() -> Instruction {
         // A no-target effect: Sacrifice(You, This) — available in core.
-        Instruction::Act(Action::Sacrifice(
+        Instruction::act(Action::Sacrifice(
             Reference::Reg(deckmaste_core::RefId(1)),
             Reference::Reg(deckmaste_core::RefId(0)),
         ))

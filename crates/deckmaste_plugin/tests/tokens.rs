@@ -124,7 +124,7 @@ fn treasure_token_parses() {
                     .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(Instruction::Act(Action::AddMana(
+                effect: ability_region(Instruction::act(Action::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
@@ -197,7 +197,7 @@ fn food_token_parses() {
                 condition: None,
                 limits: vec![].into(),
                 effect: Region::new(
-                    ability_region(Instruction::Act(Action::ChangeLife(
+                    ability_region(Instruction::act(Action::ChangeLife(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Up(Count::Literal(3)),
                     )))
@@ -208,7 +208,7 @@ fn food_token_parses() {
                                 dest: DefId(3),
                                 expr: deckmaste_core::Expr::Number(Count::Literal(3)),
                             }),
-                            Instruction::Act(Action::ChangeLife(
+                            Instruction::act(Action::ChangeLife(
                                 Reference::Reg(deckmaste_core::RefId(1)),
                                 LifeOp::Up(Count::Reg(deckmaste_core::RefId(3))),
                             )),
@@ -244,7 +244,7 @@ fn gold_token_parses() {
                 cost: Arc::<[CostComponent]>::from(vec![sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: ability_region(Instruction::Act(Action::AddMana(
+                effect: ability_region(Instruction::act(Action::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
@@ -322,7 +322,7 @@ fn vibranium_token_parses() {
     });
     // "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell." The
     // SpendOnly rider admits everything EXCEPT a nonartifact spell.
-    let restricted_mana = Instruction::Act(Action::AddMana(
+    let restricted_mana = Instruction::act(Action::AddMana(
         Reference::Reg(deckmaste_core::RefId(1)),
         Count::Literal(1),
         ManaProduction::WithRiders {

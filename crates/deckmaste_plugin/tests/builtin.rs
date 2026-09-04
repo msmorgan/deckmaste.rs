@@ -64,7 +64,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                 cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: Instruction::Act(Action::AddMana(
+                effect: Instruction::act(Action::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(ColorOrColorless::Color(color)).into(),

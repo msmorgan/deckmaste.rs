@@ -345,7 +345,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: Instruction::Act(Action::PutCounters(
+                    also: Instruction::act(Action::PutCounters(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         "P1P1Counter".into(),
                         Count::Literal(2),
@@ -423,8 +423,8 @@ mod tests {
                     },
                     also: compose(
                         vec![
-                            Instruction::Act(Action::Tap(Reference::Reg(deckmaste_core::RefId(0)))),
-                            Instruction::Act(Action::PutCounters(
+                            Instruction::act(Action::Tap(Reference::Reg(deckmaste_core::RefId(0)))),
+                            Instruction::act(Action::PutCounters(
                                 Reference::Reg(deckmaste_core::RefId(0)),
                                 "SlumberCounter".into(),
                                 Count::Literal(5),
@@ -596,7 +596,7 @@ mod tests {
                     },
                     also: Instruction::If(If {
                         condition: Condition::Not(Arc::new(gate)),
-                        then: Arc::new(Instruction::Act(Action::Tap(Reference::Reg(
+                        then: Arc::new(Instruction::act(Action::Tap(Reference::Reg(
                             deckmaste_core::RefId(0),
                         )))),
                         otherwise: None,
@@ -715,7 +715,7 @@ mod tests {
                         to: Some(Zone::Battlefield),
                         cause: None,
                     },
-                    also: Instruction::Act(Action::PutCounters(
+                    also: Instruction::act(Action::PutCounters(
                         Reference::Reg(deckmaste_core::RefId(0)),
                         "LoyaltyCounter".into(),
                         Count::Literal(3),

@@ -485,12 +485,10 @@ pub enum Action {
     /// Pay a cost as an action ([CR#118.12]) — a slotless `Cost` → `Action`
     /// adapter; the payer is rule-forced by every legal host, never a slot
     /// (spec §5): `May.who` is the payer ([CR#118.12a] — the doer decides),
-    /// `AdditionalCost`'s payer is the controller ([CR#601.2b]), `Do(…)`'s
-    /// payer is the cost's payer by construction. Bare effect-position `Pay`
-    /// is unspellable (no legal host); see
-    /// [`decide::Decision::Pay`](crate::Decision) for the unrelated
-    /// engine-internal payment-decision type — harmless coexistence, no
-    /// serde, never RON-parsed.
+    /// an ability's announced additional cost is paid by its controller
+    /// ([CR#601.2b]), and `Do(…)`'s payer is the cost's payer by construction.
+    /// Bare effect-position `Pay` is unspellable (no legal host); the engine's
+    /// internal `decide::Decision::Pay` is an unrelated, non-serialized type.
     Pay(crate::Cost),
 }
 

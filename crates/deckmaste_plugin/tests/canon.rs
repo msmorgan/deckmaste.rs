@@ -117,7 +117,7 @@ fn lightning_bolt_expands_target_macros() {
                 dest: deckmaste_core::DefId(4),
                 expr: deckmaste_core::Expr::Number(Count::Literal(3)),
             }),
-            Instruction::Act(Action::DealDamage(
+            Instruction::act(Action::DealDamage(
                 Reference::Reg(deckmaste_core::RefId(0)),
                 Count::Reg(deckmaste_core::RefId(4)),
                 Reference::Reg(deckmaste_core::RefId(2)),
@@ -304,7 +304,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         **if_not,
-        Instruction::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(2)))),
+        Instruction::act(Action::Counter(Reference::Reg(deckmaste_core::RefId(2)))),
         "unpaid → counter the spell"
     );
 }

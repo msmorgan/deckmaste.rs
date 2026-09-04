@@ -28,8 +28,9 @@ impl ActivationId {
     pub const NONE: Self = Self::None;
 }
 
-/// One object-valued register product. `current` is the live identity used by
-/// actions; `lki` is the snapshot used by information queries after departure.
+/// One Entity-valued register product. `current` is the live object identity
+/// (including a player's stable proxy) used by actions; `lki` is the snapshot
+/// used by information queries after an object departs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReferenceProduct {
     pub(crate) current: Option<ObjectId>,

@@ -91,7 +91,7 @@ fn payment_fixture_with_source_cost(
 ) {
     payment_fixture_with_source_ability(Ability::Activated(Arc::new(activated_ability(
         source_cost,
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -175,15 +175,15 @@ fn nested_optional_mana_fixture() -> (
         Cost(vec![CostComponent::Tap].into()),
         Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
-                    if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
+                    if_did: Some(Arc::new(Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -199,7 +199,7 @@ fn nested_optional_mana_fixture() -> (
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -223,14 +223,14 @@ fn self_spending_optional_mana_fixture() -> (
         Cost(vec![CostComponent::Tap].into()),
         Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::AddMana(
+                Instruction::act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 )),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -260,10 +260,10 @@ fn cost_replacement_nested_mana_fixture() -> (
         ),
         Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::Reg(
+                Instruction::act(CoreAction::Shuffle(Selection::LibraryOf(Reference::Reg(
                     deckmaste_core::RefId(1),
                 )))),
-                Instruction::Act(CoreAction::AddMana(
+                Instruction::act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
@@ -285,7 +285,7 @@ fn cost_replacement_nested_mana_fixture() -> (
                 },
                 instead: Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
                     if_did: None,
@@ -300,7 +300,7 @@ fn cost_replacement_nested_mana_fixture() -> (
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -323,7 +323,7 @@ fn created_nested_optional_mana_fixture() -> (
 ) {
     let token_ability = Ability::Activated(Arc::new(activated_ability(
         Cost(vec![CostComponent::Tap].into()),
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -343,10 +343,10 @@ fn created_nested_optional_mana_fixture() -> (
         Cost(vec![CostComponent::Tap].into()),
         Instruction::Sequentially(
             vec![
-                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                Instruction::act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
                     Reference::Reg(deckmaste_core::RefId(1)),
                 ))),
-                Instruction::Act(CoreAction::Create {
+                Instruction::act(CoreAction::Create {
                     agent: Reference::Reg(deckmaste_core::RefId(1)),
                     count: Count::Literal(1),
                     token: token.into(),
@@ -354,10 +354,10 @@ fn created_nested_optional_mana_fixture() -> (
                 }),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
-                    if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
+                    if_did: Some(Arc::new(Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -424,7 +424,7 @@ fn modal_payment_fixture_with_ordinary_mode(
                 targets: [].into(),
                 effect: deckmaste_core::Region::new(
                     deckmaste_core::announced_region_params(0),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Green.into()).into(),
@@ -511,7 +511,7 @@ fn triggered_mana_fixture() -> (
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -532,7 +532,7 @@ fn triggered_mana_fixture() -> (
             },
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::ProducedByEvent.into(),
@@ -596,7 +596,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         types: vec![Type::Land.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(vec![CostComponent::Tap].into()),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
@@ -639,21 +639,21 @@ fn nested_resolution_cast_trigger_fixture() -> (
                 vec![
                     Instruction::May(May {
                         who: Reference::Reg(deckmaste_core::RefId(1)),
-                        effect: Arc::new(Instruction::Act(CoreAction::Cast(
+                        effect: Arc::new(Instruction::act(CoreAction::Cast(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             cast_ref,
                             None,
                         ))),
-                        if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                        if_did: Some(Arc::new(Instruction::act(CoreAction::ChangeLife(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::Literal(3)),
                         )))),
-                        if_not: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                        if_not: Some(Arc::new(Instruction::act(CoreAction::ChangeLife(
                             Reference::Reg(deckmaste_core::RefId(1)),
                             LifeOp::Up(Count::Literal(5)),
                         )))),
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Literal(1),
                         ManaSpec::Specific(Color::Black.into()).into(),
@@ -716,7 +716,7 @@ fn causal_trigger_fixture(
 ) {
     causal_trigger_fixture_with_effect(
         event,
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -750,7 +750,7 @@ fn causal_trigger_fixture_with_effect_and_limits(
         event,
         source_effect,
         limits,
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Black.into()).into(),
@@ -842,7 +842,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
     // (Chandra, Torch of Defiance's "+1: Add {R}{R}").
     let mut ordinary = activated_ability(
         Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -868,7 +868,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
             },
             condition: None,
             limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
+            effect: Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Black.into()).into(),
@@ -2071,12 +2071,12 @@ fn mana_added_triggers_wait_for_all_effects_of_the_source_mana_ability() {
     };
     let source_effect = Instruction::Sequentially(
         vec![
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Blue.into()).into(),
@@ -2142,12 +2142,12 @@ fn triggered_mana_use_limit_is_gated_between_causal_firings() {
     };
     let source_effect = Instruction::Sequentially(
         vec![
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Blue.into()).into(),
@@ -2200,14 +2200,14 @@ fn triggered_mana_use_limit_is_gated_between_causal_firings() {
 fn triggered_mana_production_facts_include_units_spent_before_finish() {
     let trigger_effect = Instruction::Sequentially(
         vec![
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Black.into()).into(),
             )),
             Instruction::May(May {
                 who: Reference::Reg(deckmaste_core::RefId(1)),
-                effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                     vec![CostComponent::Mana("{B}".parse().unwrap())].into(),
                 )))),
                 if_did: None,
@@ -2221,7 +2221,7 @@ fn triggered_mana_production_facts_include_units_spent_before_finish() {
             what: Predicate::r#type(Type::Land),
             by: Predicate::Any,
         },
-        Instruction::Act(CoreAction::AddMana(
+        Instruction::act(CoreAction::AddMana(
             Reference::Reg(deckmaste_core::RefId(1)),
             Count::Literal(1),
             ManaSpec::Specific(Color::Green.into()).into(),
@@ -2442,7 +2442,7 @@ fn kci_fixture() -> (
         types: vec![Type::Artifact.def()],
         abilities: vec![Ability::Activated(Arc::new(activated_ability(
             Cost(sacrifice.into()),
-            Instruction::Act(CoreAction::AddMana(
+            Instruction::act(CoreAction::AddMana(
                 Reference::Reg(deckmaste_core::RefId(1)),
                 Count::Literal(2),
                 ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
@@ -2507,23 +2507,23 @@ fn resolution_scope_mana_fixture() -> (
                     dest: AMOUNT,
                     expr: deckmaste_core::Expr::Number(Count::Literal(5)),
                 }),
-                Instruction::Act(CoreAction::DealDamage(
+                Instruction::act(CoreAction::DealDamage(
                     Reference::Reg(deckmaste_core::RefId(0)),
                     Count::Reg(AMOUNT_REF),
                     Reference::Reg(deckmaste_core::RefId(1)),
                 )),
                 Instruction::May(May {
                     who: Reference::Reg(deckmaste_core::RefId(1)),
-                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                    effect: Arc::new(Instruction::act(CoreAction::Pay(Cost(
                         vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
                     )))),
-                    if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                    if_did: Some(Arc::new(Instruction::act(CoreAction::ChangeLife(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         LifeOp::Up(Count::Reg(AMOUNT_REF)),
                     )))),
                     if_not: None,
                 }),
-                Instruction::Act(CoreAction::AddMana(
+                Instruction::act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
@@ -2549,7 +2549,7 @@ fn resolution_scope_mana_fixture() -> (
                         dest: AMOUNT,
                         expr: deckmaste_core::Expr::Number(Count::Literal(1)),
                     }),
-                    Instruction::Act(CoreAction::AddMana(
+                    Instruction::act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         Count::Reg(AMOUNT_REF),
                         ManaSpec::Specific(Color::Green.into()).into(),

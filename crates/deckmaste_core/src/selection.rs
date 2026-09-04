@@ -110,7 +110,8 @@ pub enum Selection {
     /// The [CR#707.10d] for-each-could-target family is COMPOSED from this
     /// rather than built in as a copy mode:
     /// `Each(InChosenOrder(ValidTargetsFor(s), You), CopySpell(You, s,
-    /// TargetsThat(It)))`.
+    /// Reg(candidate)))`, where the nested body declares `candidate` as its
+    /// loop-element parameter.
     ValidTargetsFor(Reference),
     /// The extremal element(s) of a set, ranked by a per-element
     /// [`Projection`] ([CR#107.1]): "the creature with the greatest power" =
@@ -118,9 +119,10 @@ pub enum Selection {
     /// Power)))`. `op` is gated to the extremal ops (`MinOf`/`MaxOf`); a
     /// non-extremal `op` fizzles to the empty group. The element-twin of
     /// [`Count::Aggregate`] — shares [`Projection`] with it; the projection's
-    /// `by` reads each candidate via [`Reference::It`](crate::Reference::It),
-    /// and ties yield the whole group (narrowed by the usual single/choice
-    /// path downstream).
+    /// `by` reads each candidate through its region's declared
+    /// [`Provenance::Candidate`](crate::Provenance::Candidate) parameter, and
+    /// ties yield the whole group (narrowed by the usual single/choice path
+    /// downstream).
     Pick { op: AggregateOp, proj: Projection },
 }
 

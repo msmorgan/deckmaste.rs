@@ -504,7 +504,7 @@ mod tests {
                     event: EventFilter::OneOf(Vec::new().into()),
                     condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
                     limits: Vec::new().into(),
-                    effect: Instruction::Act(deckmaste_core::Action::ChangeLife(
+                    effect: Instruction::act(deckmaste_core::Action::ChangeLife(
                         Reference::Reg(deckmaste_core::RefId(1)),
                         deckmaste_core::LifeOp::Up(deckmaste_core::Count::Literal(0)),
                     ))
