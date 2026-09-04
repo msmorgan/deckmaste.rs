@@ -1297,7 +1297,7 @@ mod structural_trace_tests {
                 (
                     0,
                     7,
-                    "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, concord_class: Other, onset: Consonant }",
+                    "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }) }, concord_class: Other, onset: Consonant }",
                 ),
                 (7, 14, "TargetingMarker(Target)"),
                 (

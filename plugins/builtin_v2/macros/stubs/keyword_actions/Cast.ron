@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "cast",
         participle: "cast",
-        frame_set: AdjunctLicensed(Transitive),
+        frame_set: Transitive,
     ),
 )

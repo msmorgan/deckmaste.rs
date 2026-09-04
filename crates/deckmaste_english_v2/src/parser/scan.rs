@@ -2819,7 +2819,7 @@ mod tests {
                     concord_class: ConcordClass::ThirdPersonSingular,
                     onset: Onset::Consonant,
                 },
-                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, concord_class: ThirdPersonSingular, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, concord_class: ThirdPersonSingular, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),

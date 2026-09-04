@@ -3455,7 +3455,7 @@ constructions! {
     construction positive_object_gap_relative_with_adjunct: PositiveObjectGapRelativeClause {
         element PositiveObjectGapRelativeWithAdjunct {
             subject: Subject,
-            head: lex TransitiveVerb checked by transitive_head_licenses_nonprepositional_adjunct(),
+            head: lex TransitiveVerb,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive head.concord_class = subject.concord_class;
@@ -3464,7 +3464,7 @@ constructions! {
     construction positive_object_gap_relative_with_prepositional_adjunct: PositiveObjectGapRelativeClause {
         element PositiveObjectGapRelativeWithPrepositionalAdjunct {
             subject: Subject,
-            head: lex TransitiveVerb checked by transitive_head_licenses_prepositional_adjunct(),
+            head: lex TransitiveVerb,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive head.concord_class = subject.concord_class;
@@ -3490,7 +3490,7 @@ constructions! {
     construction contracted_perfect_object_gap_relative_with_adjunct: ContractedPerfectAdjunctObjectGapRelativeClause {
         element ContractedPerfectAdjunctObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
-            head: lex DeclaredTransitiveParticipleHead checked by transitive_participle_head_licenses_nonprepositional_adjunct(),
+            head: lex DeclaredTransitiveParticipleHead,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         form contracted_perfect_object_gap_relative_with_adjunct = lex(subject) verb(head) adjunct;
@@ -3498,7 +3498,7 @@ constructions! {
     construction contracted_perfect_object_gap_relative_with_prepositional_adjunct: ContractedPerfectAdjunctObjectGapRelativeClause {
         element ContractedPerfectPrepositionalAdjunctObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
-            head: lex DeclaredTransitiveParticipleHead checked by transitive_participle_head_licenses_prepositional_adjunct(),
+            head: lex DeclaredTransitiveParticipleHead,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         form contracted_perfect_object_gap_relative_with_prepositional_adjunct = lex(subject) verb(head) adjunct;
@@ -3835,7 +3835,7 @@ constructions! {
     construction reduced_passive_adjunct_qualified_reference: PostmodifiedReference {
         element ReducedPassiveAdjunctQualifiedReference {
             reference: PostmodifiedReference,
-            clause: PassivePredicate checked by passive_predicate_licenses_nonprepositional_adjunct(),
+            clause: PassivePredicate,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive concord_class = reference.concord_class;
@@ -3849,7 +3849,7 @@ constructions! {
     construction reduced_passive_prepositional_adjunct_qualified_reference: PostmodifiedReference {
         element ReducedPassivePrepositionalAdjunctQualifiedReference {
             reference: PostmodifiedReference,
-            clause: PassivePredicate checked by passive_predicate_licenses_prepositional_adjunct(),
+            clause: PassivePredicate,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = reference.concord_class;
@@ -5139,78 +5139,6 @@ fn predicate_adjunct_is_nonprepositional(adjunct: &PredicateAdjunct) -> bool {
 
 fn predicate_adjunct_is_duration(adjunct: &PredicateAdjunct) -> bool {
     matches!(adjunct, PredicateAdjunct::Duration(_))
-}
-
-fn transitive_head_licenses_prepositional_adjunct(head: &TransitiveVerb) -> bool {
-    head.prepositional_adjunct_licensed()
-}
-
-fn transitive_head_licenses_nonprepositional_adjunct(head: &TransitiveVerb) -> bool {
-    head.nonprepositional_adjunct_licensed()
-}
-
-fn transitive_participle_head_licenses_prepositional_adjunct(
-    head: &DeclaredTransitiveParticipleHead,
-) -> bool {
-    head.prepositional_adjunct_licensed()
-}
-
-fn transitive_participle_head_licenses_nonprepositional_adjunct(
-    head: &DeclaredTransitiveParticipleHead,
-) -> bool {
-    head.nonprepositional_adjunct_licensed()
-}
-
-fn passive_predicate_adjunct_licenses(predicate: &PassivePredicate) -> (bool, bool) {
-    match predicate {
-        PassivePredicate::Object(value) => {
-            let DeclaredObjectPassivePredicate::DeclaredObjectPassivePredicate(value) =
-                value.as_ref();
-            (
-                value.head.prepositional_adjunct_licensed(),
-                value.head.nonprepositional_adjunct_licensed(),
-            )
-        }
-        PassivePredicate::Movement(value) => {
-            let PassiveMovementPredicate::PassiveMovementPredicate(value) = value.as_ref();
-            (
-                value.head.prepositional_adjunct_licensed(),
-                value.head.nonprepositional_adjunct_licensed(),
-            )
-        }
-        PassivePredicate::Orientation(value) => {
-            let PassiveOrientationPredicate::PassiveOrientationPredicate(value) = value;
-            (
-                value.head.prepositional_adjunct_licensed(),
-                value.head.nonprepositional_adjunct_licensed(),
-            )
-        }
-        PassivePredicate::DeclaredTransitiveFrom(value) => {
-            let DeclaredTransitivePassiveFromPredicate::DeclaredTransitivePassiveFromPredicate(
-                value,
-            ) = value.as_ref();
-            (
-                value.head.prepositional_adjunct_licensed(),
-                value.head.nonprepositional_adjunct_licensed(),
-            )
-        }
-        PassivePredicate::DeclaredToObject(value) => {
-            let DeclaredToObjectPassivePredicate::DeclaredToObjectPassivePredicate(value) =
-                value.as_ref();
-            (
-                value.head.prepositional_adjunct_licensed(),
-                value.head.nonprepositional_adjunct_licensed(),
-            )
-        }
-    }
-}
-
-fn passive_predicate_licenses_prepositional_adjunct(predicate: &PassivePredicate) -> bool {
-    passive_predicate_adjunct_licenses(predicate).0
-}
-
-fn passive_predicate_licenses_nonprepositional_adjunct(predicate: &PassivePredicate) -> bool {
-    passive_predicate_adjunct_licenses(predicate).1
 }
 
 fn bare_preposition_complement_is_licensed(

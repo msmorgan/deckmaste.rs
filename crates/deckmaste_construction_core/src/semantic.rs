@@ -858,7 +858,7 @@ impl VerbFrameKey {
         if self.class != VerbFrameClass::Predicate {
             return false;
         }
-        match frame_set.frame_set() {
+        match frame_set {
             VerbFrameSet::Intransitive => self.atoms.is_empty(),
             VerbFrameSet::Transitive => self.atoms == [VerbFrameAtom::ObjectNounPhrase],
             VerbFrameSet::MeasureComplement => self.atoms == [VerbFrameAtom::Amount],
@@ -896,9 +896,6 @@ impl VerbFrameKey {
                         }
                     })
             }),
-            VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
-                unreachable!("frame_set() removes licence wrappers")
-            }
         }
     }
 }

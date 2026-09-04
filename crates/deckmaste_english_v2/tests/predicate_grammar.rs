@@ -26,7 +26,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Sacrifice.ron",
-            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",frame_set:NonprepositionalAdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Connive.ron",
@@ -42,7 +42,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Discard.ron",
-            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",frame_set:NonprepositionalAdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Create.ron",
@@ -62,7 +62,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Cast.ron",
-            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:AdjunctLicensed(Transitive)))"#,
+            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Search.ron",
@@ -1937,7 +1937,7 @@ fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
 
     for (text, expected_preposition) in [
         (
-            "Untap all permanents you control during each other player's untap step.",
+            "Untap all permanents during each other player's untap step.",
             Preposition::During,
         ),
         (
@@ -1996,7 +1996,7 @@ fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
 }
 
 #[test]
-fn object_gap_adjunct_attachment_follows_the_declared_frame_set_row() {
+fn object_gap_adjunct_attachment_selects_the_low_relative_reading() {
     let parser = parser();
     let context = context();
 
@@ -2025,10 +2025,10 @@ fn object_gap_adjunct_attachment_follows_the_declared_frame_set_row() {
     ] {
         let path = selected_path(text);
         assert!(
-            path.iter().all(|name| {
-                name != "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithAdjunct"
+            path.iter().any(|name| {
+                name == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"
             }),
-            "an unlicensed object-gap row cannot consume the adjunct for {text:?}: {path:?}",
+            "the object-gap relative selects the low adjunct attachment for {text:?}: {path:?}",
         );
     }
 
@@ -2039,9 +2039,9 @@ fn object_gap_adjunct_attachment_follows_the_declared_frame_set_row() {
         let path = selected_path(text);
         assert!(
             path.iter().any(|name| {
-                name == "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate"
+                name == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"
             }),
-            "the temporal PP stays on the outer predicate for {text:?}: {path:?}",
+            "the temporal PP selects the low object-gap-relative attachment for {text:?}: {path:?}",
         );
     }
 
@@ -2056,7 +2056,7 @@ fn object_gap_adjunct_attachment_follows_the_declared_frame_set_row() {
                 == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithAdjunct"
                 || name
                     == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"),
-            "the licensed Cast row consumes the relative-clause adjunct for {text:?}: {path:?}",
+            "the object-gap relative consumes the low adjunct attachment for {text:?}: {path:?}",
         );
     }
 }
@@ -2481,14 +2481,14 @@ fn contracted_perfect_object_gap_relatives_use_participles() {
 }
 
 #[test]
-fn unlicensed_participial_relatives_leave_adjuncts_on_the_outer_predicate() {
+fn participial_relatives_select_low_adjunct_attachment() {
     let parser = parser();
     let context = context();
 
-    for (text, forbidden_inner) in [
+    for (text, inner) in [
         (
             "Destroy a card you've exiled this turn.",
-            "ContractedPerfectAdjunctObjectGapRelativeClauseContractedPerfectAdjunctObjectGapRelativeClauseValue",
+            "ContractedPerfectAdjunctObjectGapRelativeClauseContractedPerfectObjectGapRelativeWithAdjunct",
         ),
         (
             "Destroy each creature turned face up this turn.",
@@ -2509,14 +2509,23 @@ fn unlicensed_participial_relatives_leave_adjuncts_on_the_outer_predicate() {
             .expect("the selected ordinal names a candidate")
             .construction_path();
         assert!(
-            path.iter().all(|name| name != forbidden_inner),
-            "an unlicensed participial row cannot consume the adjunct for {text:?}: {path:?}",
+            path.iter().any(|name| name == inner),
+            "the low participial-relative attachment must win for {text:?}: {path:?}",
         );
-        assert!(
-            path.iter()
-                .any(|name| { name == "PredicateAdjunctPredicatePredicateAdjunctPredicate" }),
-            "the adjunct remains available on the outer predicate for {text:?}: {path:?}",
-        );
+    }
+}
+
+#[test]
+fn participial_relative_adjunct_minimal_pairs_select() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Draw a card for each card you've exiled this turn.",
+        "Draw a card for each card you've revealed this turn.",
+        "Draw a card for each card you've discarded this turn.",
+    ] {
+        assert_selected(&parser, &context, text);
     }
 }
 

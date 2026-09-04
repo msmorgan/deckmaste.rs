@@ -728,7 +728,7 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                         if self.class != VerbFrameClass::Predicate {
                             return false;
                         }
-                        match frame_set.frame_set() {
+                        match frame_set {
                             VerbFrameSet::Intransitive => self.atoms.is_empty(),
                             VerbFrameSet::Transitive => {
                                 self.atoms == [VerbFrameAtom::ObjectNounPhrase]
@@ -764,10 +764,6 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                                         },
                                     )
                             }),
-                            VerbFrameSet::AdjunctLicensed(_)
-                            | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
-                                unreachable!("frame_set() removes licence wrappers")
-                            }
                         }
                     }
                 }

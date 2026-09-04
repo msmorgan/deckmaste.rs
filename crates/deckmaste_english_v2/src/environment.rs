@@ -213,8 +213,6 @@ struct CoreVerbDeclaration {
 #[derive(Debug, Deserialize)]
 enum CoreVerbFrame {
     Predicate(Vec<CoreVerbTailAtom>),
-    AdjunctLicensedPredicate(Vec<CoreVerbTailAtom>),
-    NonprepositionalAdjunctLicensedPredicate(Vec<CoreVerbTailAtom>),
     Auxiliary,
     ProVerb,
 }
@@ -242,8 +240,6 @@ struct IndexedVerbInventoryReading {
 struct OwnedVerbFrameKey {
     class: VerbFrameClass,
     atoms: Vec<OwnedVerbFrameAtom>,
-    prepositional_adjunct_licensed: bool,
-    nonprepositional_adjunct_licensed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -781,40 +777,6 @@ impl ParserEnvironment {
             })
     }
 
-    pub(crate) fn verb_frame_prepositional_adjunct_licensed(
-        &self,
-        reference: &VerbInventoryRef,
-        frame: VerbFrameKey,
-    ) -> bool {
-        self.data
-            .verb_inventory
-            .get(reference)
-            .and_then(|record| {
-                record
-                    .frames
-                    .iter()
-                    .find(|candidate| candidate.matches(frame))
-            })
-            .is_some_and(|candidate| candidate.prepositional_adjunct_licensed)
-    }
-
-    pub(crate) fn verb_frame_nonprepositional_adjunct_licensed(
-        &self,
-        reference: &VerbInventoryRef,
-        frame: VerbFrameKey,
-    ) -> bool {
-        self.data
-            .verb_inventory
-            .get(reference)
-            .and_then(|record| {
-                record
-                    .frames
-                    .iter()
-                    .find(|candidate| candidate.matches(frame))
-            })
-            .is_some_and(|candidate| candidate.nonprepositional_adjunct_licensed)
-    }
-
     pub(crate) fn verb_inventory_surface(
         &self,
         reference: &VerbInventoryRef,
@@ -1248,14 +1210,11 @@ fn reject_literal_lexicon_collisions_from_surfaces(
 }
 
 fn frame_set_licenses_frame(frame_set: &VerbFrameSet, candidate: &[CustomTailAtom]) -> bool {
-    match frame_set.frame_set() {
+    match frame_set {
         VerbFrameSet::Intransitive => candidate.is_empty(),
         VerbFrameSet::Transitive => candidate == [CustomTailAtom::ObjectNounPhrase],
         VerbFrameSet::MeasureComplement => candidate == [CustomTailAtom::Amount],
         VerbFrameSet::Custom { frames } => frames.iter().any(|frame| frame.as_slice() == candidate),
-        VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
-            unreachable!("frame_set() removes licence wrappers")
-        }
     }
 }
 
@@ -1294,14 +1253,11 @@ impl OwnedVerbFrameAtom {
 }
 
 fn normalize_plugin_frame_set(frame_set: &VerbFrameSet) -> Vec<OwnedVerbFrameKey> {
-    let declared_frames = match frame_set.frame_set() {
+    let declared_frames = match frame_set {
         VerbFrameSet::Intransitive => vec![Vec::new()],
         VerbFrameSet::Transitive => vec![vec![CustomTailAtom::ObjectNounPhrase]],
         VerbFrameSet::MeasureComplement => vec![vec![CustomTailAtom::Amount]],
         VerbFrameSet::Custom { frames } => frames.clone(),
-        VerbFrameSet::AdjunctLicensed(_) | VerbFrameSet::NonprepositionalAdjunctLicensed(_) => {
-            unreachable!("frame_set() removes licence wrappers")
-        }
     };
     let mut frames = Vec::new();
     for frame in declared_frames {
@@ -1320,8 +1276,6 @@ fn normalize_plugin_frame_set(frame_set: &VerbFrameSet) -> Vec<OwnedVerbFrameKey
         let frame = OwnedVerbFrameKey {
             class: VerbFrameClass::Predicate,
             atoms,
-            prepositional_adjunct_licensed: frame_set.prepositional_adjunct_licensed(),
-            nonprepositional_adjunct_licensed: frame_set.nonprepositional_adjunct_licensed(),
         };
         if !frames.contains(&frame) {
             frames.push(frame);
@@ -1456,34 +1410,14 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
                 CoreVerbFrame::Predicate(atoms) => OwnedVerbFrameKey {
                     class: VerbFrameClass::Predicate,
                     atoms: owned_core_verb_frame_atoms(atoms),
-                    prepositional_adjunct_licensed: false,
-                    nonprepositional_adjunct_licensed: false,
                 },
-                CoreVerbFrame::AdjunctLicensedPredicate(atoms) => OwnedVerbFrameKey {
-                    class: VerbFrameClass::Predicate,
-                    atoms: owned_core_verb_frame_atoms(atoms),
-                    prepositional_adjunct_licensed: true,
-                    nonprepositional_adjunct_licensed: true,
-                },
-                CoreVerbFrame::NonprepositionalAdjunctLicensedPredicate(atoms) => {
-                    OwnedVerbFrameKey {
-                        class: VerbFrameClass::Predicate,
-                        atoms: owned_core_verb_frame_atoms(atoms),
-                        prepositional_adjunct_licensed: false,
-                        nonprepositional_adjunct_licensed: true,
-                    }
-                }
                 CoreVerbFrame::Auxiliary => OwnedVerbFrameKey {
                     class: VerbFrameClass::Auxiliary,
                     atoms: Vec::new(),
-                    prepositional_adjunct_licensed: false,
-                    nonprepositional_adjunct_licensed: false,
                 },
                 CoreVerbFrame::ProVerb => OwnedVerbFrameKey {
                     class: VerbFrameClass::ProVerb,
                     atoms: Vec::new(),
-                    prepositional_adjunct_licensed: false,
-                    nonprepositional_adjunct_licensed: false,
                 },
             })
             .collect::<Vec<_>>();

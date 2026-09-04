@@ -1077,8 +1077,8 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
     for (text, candidate_count, resolution) in [
         (
             "A creature card you control in exile with mana value 2 or less gains 2 life.",
-            1,
-            SelectionResolution::Unique,
+            2,
+            SelectionResolution::Specificity,
         ),
         (
             "Target creature you control gains 2 life.",
@@ -1176,9 +1176,12 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
             .selected()
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
+        let expected_selected = usize::from(
+            text == "A creature card you control in exile with mana value 2 or less gains 2 life.",
+        );
         assert_eq!(decision.candidates().len(), candidate_count, "{text:?}");
         assert_eq!(decision.resolution(), resolution, "{text:?}: {decision:?}");
-        assert_eq!(decision.selected(), Some(0), "{text:?}");
+        assert_eq!(decision.selected(), Some(expected_selected), "{text:?}");
         let selected_ordinal = decision.selected().expect("selected parse has an ordinal");
         assert_eq!(decision.survivors(), [selected_ordinal]);
         if resolution == SelectionResolution::Unique {

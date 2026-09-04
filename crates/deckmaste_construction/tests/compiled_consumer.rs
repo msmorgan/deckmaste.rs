@@ -1500,44 +1500,6 @@ pub mod declaration_verb_fixture {
             };
             fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
         }
-
-        fn verb_frame_prepositional_adjunct_licensed(
-            &self,
-            reference: &crate::environment::VerbInventoryRef,
-            frame: VerbFrameKey,
-        ) -> bool {
-            let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
-                return false;
-            };
-            self.grammar_recipe(id).is_some_and(|recipe| {
-                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
-                    recipe
-                else {
-                    return false;
-                };
-                fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
-                    && frame_set.prepositional_adjunct_licensed()
-            })
-        }
-
-        fn verb_frame_nonprepositional_adjunct_licensed(
-            &self,
-            reference: &crate::environment::VerbInventoryRef,
-            frame: VerbFrameKey,
-        ) -> bool {
-            let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
-                return false;
-            };
-            self.grammar_recipe(id).is_some_and(|recipe| {
-                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
-                    recipe
-                else {
-                    return false;
-                };
-                fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
-                    && frame_set.nonprepositional_adjunct_licensed()
-            })
-        }
     }
 
     fn declaration_id(

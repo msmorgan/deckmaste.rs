@@ -408,41 +408,7 @@ pub enum VerbFrameSet {
     Intransitive,
     Transitive,
     MeasureComplement,
-    Custom {
-        frames: Vec<VerbFrame>,
-    },
-    /// The wrapped Verb Frame Set admits a post-head predicate adjunct.
-    AdjunctLicensed(Box<VerbFrameSet>),
-    /// The wrapped Verb Frame Set admits only a nonprepositional post-head adjunct.
-    NonprepositionalAdjunctLicensed(Box<VerbFrameSet>),
-}
-
-impl VerbFrameSet {
-    /// Returns the Verb Frame Set independently of its adjunct licence.
-    #[must_use]
-    pub fn frame_set(&self) -> &Self {
-        match self {
-            Self::AdjunctLicensed(frame_set) | Self::NonprepositionalAdjunctLicensed(frame_set) => {
-                frame_set.frame_set()
-            }
-            frame_set => frame_set,
-        }
-    }
-
-    /// Returns whether this Verb Frame Set admits a post-head predicate adjunct.
-    #[must_use]
-    pub fn prepositional_adjunct_licensed(&self) -> bool {
-        matches!(self, Self::AdjunctLicensed(_))
-    }
-
-    /// Returns whether this Verb Frame Set admits a nonprepositional predicate adjunct.
-    #[must_use]
-    pub fn nonprepositional_adjunct_licensed(&self) -> bool {
-        matches!(
-            self,
-            Self::AdjunctLicensed(_) | Self::NonprepositionalAdjunctLicensed(_)
-        )
-    }
+    Custom { frames: Vec<VerbFrame> },
 }
 
 /// The complete serialized atom vocabulary for a custom verb tail.
@@ -2210,7 +2176,7 @@ fn validate_frame_set(
     position: SourcePosition,
     frame_set: &VerbFrameSet,
 ) -> Result<(), ReadError> {
-    let VerbFrameSet::Custom { frames } = frame_set.frame_set() else {
+    let VerbFrameSet::Custom { frames } = frame_set else {
         return Ok(());
     };
     if frames.is_empty() {
