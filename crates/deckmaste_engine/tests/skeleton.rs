@@ -1058,7 +1058,11 @@ fn decks_bolt_vs_bears_with_bear_on_field() -> (GameState, ObjectId) {
 /// Panics if `id` is a player proxy.
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
+        Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } => &f.name,
     }
 }
 

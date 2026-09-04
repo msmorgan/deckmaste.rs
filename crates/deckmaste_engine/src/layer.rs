@@ -3112,7 +3112,7 @@ mod tests {
     fn back_up_permanent_shows_back_face_characteristics() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
         use deckmaste_core::Type;
 
@@ -3131,8 +3131,8 @@ mod tests {
             toughness: Some(StatValue::Number(2)),
             ..CardFace::default()
         };
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front,
             back,
         };

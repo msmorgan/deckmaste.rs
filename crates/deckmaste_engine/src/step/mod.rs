@@ -3305,12 +3305,12 @@ mod tests {
     fn transformed_event_toggles_side() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
 
         use crate::object::Side;
 
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front: CardFace {
                 name: "Delverish".into(),
                 ..CardFace::default()

@@ -77,7 +77,11 @@ fn deck(card: &Arc<Card>, n: usize) -> Vec<Arc<Card>> {
 
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
+        Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } => &f.name,
     }
 }
 

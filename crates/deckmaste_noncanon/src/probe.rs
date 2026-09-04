@@ -16,12 +16,10 @@ use deckmaste_engine::Tapped;
 use deckmaste_engine::ZoneChange;
 
 /// The single card face (relocated from the deleted observe module).
+/// Multi-part cards (double-faced/split/flip/adventurer): probe the primary
+/// face.
 fn face(card: &Card) -> &CardFace {
-    match card {
-        Card::Normal(f) => f,
-        // Two-faced cards (transform/MDFC/split/…): probe the primary face.
-        Card::TwoFaced { front, .. } => front,
-    }
+    card.primary_face()
 }
 
 #[derive(Debug, Clone, Copy, Default)]

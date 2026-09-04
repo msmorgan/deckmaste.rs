@@ -6,7 +6,6 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_card::Card;
 use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 
@@ -16,11 +15,7 @@ fn testing_path() -> PathBuf {
 
 fn assert_testing_card_name(plugin: &Plugin, name: &str) {
     let card = plugin.card(name).unwrap().core;
-    let face_name = match card {
-        Card::Normal(card) => card.name,
-        Card::TwoFaced { front, .. } => front.name,
-    };
-    assert_eq!(face_name.as_ref(), name);
+    assert_eq!(card.primary_face().name.as_ref(), name);
 }
 
 #[test]

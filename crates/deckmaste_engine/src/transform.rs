@@ -1,7 +1,7 @@
 //! Transform legality ([CR#701.27]).
 
 use deckmaste_card::Card;
-use deckmaste_card::FaceLayout;
+use deckmaste_card::DoubleFacedLayout;
 use deckmaste_core::Type;
 use deckmaste_core::Zone;
 
@@ -30,8 +30,8 @@ pub(crate) fn transform_legal(state: &GameState, object: ObjectId) -> bool {
         return false;
     };
     // [CR#701.27c,712.9]: only a transforming two-faced CARD transforms.
-    let Card::TwoFaced {
-        layout: FaceLayout::Transforming,
+    let Card::DoubleFaced {
+        layout: DoubleFacedLayout::Transforming,
         front,
         back,
     } = state.cards.get(card_id).def.as_ref()

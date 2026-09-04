@@ -74,7 +74,11 @@ fn green() -> ColorOrColorless {
 /// Panics if `id` is a player proxy.
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
+        Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } => &f.name,
     }
 }
 
@@ -507,7 +511,11 @@ fn applied(p: &Progress) -> Option<&GameEvent> {
 fn printed_pt(state: &GameState, id: ObjectId) -> Option<(i64, i64)> {
     use deckmaste_core::StatValue;
     let face = match state.def(id) {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => f,
+        Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } => f,
     };
     let num = |s: &Option<StatValue>| match s {
         Some(StatValue::Number(n)) => Some(i64::from(*n)),
@@ -1326,11 +1334,13 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
         .battlefield
         .iter()
         .find(|&&o| {
-            state
-                .objects
-                .obj(o)
-                .card_id()
-                .is_some_and(|_| matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. } if &*f.name == "Grizzly Bears"))
+            state.objects.obj(o).card_id().is_some_and(|_| {
+                matches!(state.def(o), Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } if &*f.name == "Grizzly Bears")
+            })
         })
         .expect("the reminted Vanilla Creature is on the battlefield");
     assert_ne!(entered, bears, "the entering object carries a fresh id");
@@ -2312,7 +2322,11 @@ fn etb_trigger_draws_a_card() {
         .copied()
         .find(|&o| {
             state.objects.obj(o).card_id().is_some_and(|_| {
-                matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
+                matches!(state.def(o), Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. }
                     if &*f.name == "Elvish Visionary")
             })
         })
@@ -2897,7 +2911,11 @@ fn two_triggers_same_player_order_triggers_surfaces() {
         state.objects.get(watcher0).is_some()
             || state.zones.battlefield.iter().any(|&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
-                    matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
+                    matches!(state.def(o), Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. }
                         if &*f.name == "Moonlit Wake")
                 })
             }),
@@ -2964,7 +2982,11 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .iter()
             .find(|&&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
-                    matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
+                    matches!(state.def(o), Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. }
                         if &*f.name == "Diregraf Ghoul")
                 })
             })
@@ -3001,7 +3023,11 @@ fn creature_enters_tapped_via_as_enters_replacement() {
             .iter()
             .find(|&&o| {
                 state.objects.obj(o).card_id().is_some_and(|_| {
-                    matches!(state.def(o), Card::Normal(f) | Card::TwoFaced { front: f, .. }
+                    matches!(state.def(o), Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. }
                         if &*f.name == "Grizzly Bears")
                 })
             })

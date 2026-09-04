@@ -1,6 +1,7 @@
-//! The engine's unit of card definitions: `Card`/`CardFace` and the face
-//! layouts — the packaging of `deckmaste_core`'s loose primitives into a
-//! playable unit. Depends on core; core never depends on this crate.
+//! The engine's unit of card definitions: `Card`, `Characteristics`, and
+//! `CardFace` (the Card Face use of `Characteristics`) — the packaging of
+//! `deckmaste_core`'s loose primitives into a playable unit. Depends on core;
+//! core never depends on this crate.
 
 /// `skip_serializing_if` helper for slice-backed fields (`Vec<T>` and
 /// `Arc<[T]>` alike, via deref coercion at the call site).
@@ -15,4 +16,5 @@ pub(crate) fn slice_is_empty<T>(s: &[T]) -> bool {
 mod card;
 pub use card::Card;
 pub use card::CardFace;
-pub use card::FaceLayout;
+pub use card::Characteristics;
+pub use card::DoubleFacedLayout;

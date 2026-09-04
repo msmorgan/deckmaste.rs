@@ -206,10 +206,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
 }
 
 fn card_name(card: &Card) -> &str {
-    match card {
-        Card::Normal(face) => &face.name,
-        Card::TwoFaced { front, .. } => &front.name,
-    }
+    &card.primary_face().name
 }
 
 fn hand_card(state: &GameState, player: PlayerId, name: &str) -> deckmaste_engine::ObjectId {

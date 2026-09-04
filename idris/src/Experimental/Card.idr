@@ -290,6 +290,10 @@ record CardFace where
   box : Maybe PrintedBox
 
 public export
+Characteristics : Type
+Characteristics = CardFace
+
+public export
 abilityChoiceDelta : {bs : Bindings} -> AbilityAt bs -> List Binding
 abilityChoiceDelta (Activated _ eff _ _ _ _) = effChoiceDelta eff
 abilityChoiceDelta (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff
@@ -387,12 +391,12 @@ data Card : Type where
                     {auto 0 lh : SharedLineHalfLaws line box left} ->
                     {auto 0 rh : SharedLineHalfLaws line box right} -> Card
 
-  Adventurer : (normal : CardFace) -> (inset : CardFace) ->
+  Adventurer : (normal : CardFace) -> (adventure : Characteristics) ->
                {auto 0 nf : FaceLaws Front normal} ->
-               {auto 0 sf : FaceLaws Front inset} ->
-               {auto 0 ai : AdventureInset inset.line} -> Card
+               {auto 0 sf : FaceLaws Front adventure} ->
+               {auto 0 ai : AdventureInset adventure.line} -> Card
 
-  FlipCard : (normal : CardFace) -> (alternative : CardFace) ->
+  FlipCard : (normal : CardFace) -> (alternative : Characteristics) ->
              {auto 0 nf : FaceLaws Front normal} ->
              {auto 0 af : FaceLaws Back alternative} ->
              {auto 0 nh : FlipHalf normal.line} ->

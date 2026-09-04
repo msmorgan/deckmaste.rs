@@ -87,7 +87,11 @@ fn face_name(state: &GameState, id: ObjectId) -> Option<&str> {
         .get(id)
         .and_then(deckmaste_engine::GameObject::card_id)
         .map(|cid| match state.cards.get(cid).def.as_ref() {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => &*f.name,
+            Card::Normal(f)
+            | Card::DoubleFaced { front: f, .. }
+            | Card::Split { left: f, .. }
+            | Card::Flip { normal: f, .. }
+            | Card::Adventurer { normal: f, .. } => &*f.name,
         })
 }
 

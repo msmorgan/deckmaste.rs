@@ -3723,7 +3723,7 @@ mod tests {
     fn transform_watcher_dfc() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::Count;
         use deckmaste_core::OneShotEffect;
@@ -3757,8 +3757,8 @@ mod tests {
             abilities: vec![watch.clone()],
             ..CardFace::default()
         };
-        Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front: face("Front Watcher"),
             back: face("Back Watcher"),
         }
@@ -3827,7 +3827,7 @@ mod tests {
     fn delverish_aberration() -> deckmaste_card::Card {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::KeywordAbility;
         use deckmaste_core::StatValue;
@@ -3847,8 +3847,8 @@ mod tests {
             abilities: vec![Ability::Keyword(KeywordAbility::Trample)],
             ..CardFace::default()
         };
-        Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front,
             back,
         }
@@ -4051,7 +4051,7 @@ mod tests {
     fn delver_upkeep_reveals_instant_and_transforms() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Action;
         use deckmaste_core::Count;
         use deckmaste_core::If;
@@ -4065,13 +4065,13 @@ mod tests {
         use crate::object::Side;
         use crate::step::StepOutcome;
 
-        // Delver as a real TwoFaced permanent (front 1/1, back 3/2 Flying) so
+        // Delver as a real DoubleFaced permanent (front 1/1, back 3/2 Flying) so
         // `Transform(This)` has a back face to flip to. The ability under test
         // is supplied to `run_effect` directly — the trigger-fire path is
         // covered by `delver_transforms_end_to_end` and the StepBegins tests.
         fn delver() -> Card {
-            Card::TwoFaced {
-                layout: FaceLayout::Transforming,
+            Card::DoubleFaced {
+                layout: DoubleFacedLayout::Transforming,
                 front: CardFace {
                     name: "Delver of Secrets".into(),
                     types: vec![Type::Creature.def()],
@@ -4940,7 +4940,7 @@ mod tests {
     {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Ability;
         use deckmaste_core::BeginningStep;
         use deckmaste_core::Count;
@@ -4989,8 +4989,8 @@ mod tests {
             abilities: vec![back_ability],
             ..CardFace::default()
         };
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front,
             back,
         };
@@ -6197,9 +6197,7 @@ mod tests {
         let card = canon().card_from_str(&src).unwrap().core;
         match card {
             deckmaste_card::Card::Normal(face) => face.abilities,
-            other @ deckmaste_card::Card::TwoFaced { .. } => {
-                panic!("unexpected emblem card shape: {other:?}")
-            }
+            other => panic!("unexpected emblem card shape: {other:?}"),
         }
     }
 

@@ -5322,7 +5322,7 @@ mod tests {
         front_pt: (deckmaste_core::Int, deckmaste_core::Int),
         back_pt: (deckmaste_core::Int, deckmaste_core::Int),
     ) -> ObjectId {
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
 
         let face = |name: &str, (p, t): (deckmaste_core::Int, deckmaste_core::Int)| CardFace {
@@ -5332,8 +5332,8 @@ mod tests {
             toughness: Some(StatValue::Number(t)),
             ..CardFace::default()
         };
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front: face("Front Face", front_pt),
             back: face("Back Face", back_pt),
         };
@@ -5434,13 +5434,13 @@ mod tests {
     /// unchanged, no `Transformed` fact.
     #[test]
     fn transform_into_sorcery_face_is_a_noop() {
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
 
         use crate::object::Side;
 
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front: CardFace {
                 name: "Creature Front".into(),
                 types: vec![Type::Creature.def()],

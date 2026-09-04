@@ -497,10 +497,7 @@ fn put_in_play(state: &mut GameState, player: PlayerId, name: &str) -> deckmaste
     let object = state.zones.hands[player.index()]
         .iter()
         .copied()
-        .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == name,
-            Card::TwoFaced { front, .. } => front.name.as_ref() == name,
-        })
+        .find(|&object| state.def(object).primary_face().name.as_ref() == name)
         .unwrap();
     state.zones.hands[player.index()].retain(|&candidate| candidate != object);
     state.objects.obj_mut(object).zone = Some(Zone::Battlefield);

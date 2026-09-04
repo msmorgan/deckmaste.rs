@@ -23,32 +23,62 @@ impl Lower for deckmaste_semantics::CardFace {
     }
 }
 
-impl Lower for deckmaste_semantics::FaceLayout {
-    type Target = deckmaste_card::FaceLayout;
-    fn lower(self) -> <Self as Lower>::Target {
-        match self {
-            Self::Transforming => deckmaste_card::FaceLayout::Transforming,
-            Self::ModalDfc => deckmaste_card::FaceLayout::ModalDfc,
-            Self::Split => deckmaste_card::FaceLayout::Split,
-            Self::Adventure => deckmaste_card::FaceLayout::Adventure,
-            Self::Flip => deckmaste_card::FaceLayout::Flip,
-        }
-    }
-}
-
 impl Lower for deckmaste_semantics::Card {
     type Target = deckmaste_card::Card;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
             Self::Normal(f0) => deckmaste_card::Card::Normal(f0.lower()),
+            // The grammar's `TwoFaced { layout, front, back }` packs all four
+            // non-normal forms behind one shape; `layout` is what tells them
+            // apart, so lowering fans out into core's distinct forms here
+            // rather than carrying that ambiguity into `deckmaste_card`.
             Self::TwoFaced {
-                layout,
+                layout: deckmaste_semantics::FaceLayout::Transforming,
                 front,
                 back,
-            } => deckmaste_card::Card::TwoFaced {
-                layout: layout.lower(),
+            } => deckmaste_card::Card::DoubleFaced {
+                layout: deckmaste_card::DoubleFacedLayout::Transforming,
                 front: front.lower(),
                 back: back.lower(),
+            },
+            Self::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::ModalDfc,
+                front,
+                back,
+            } => deckmaste_card::Card::DoubleFaced {
+                layout: deckmaste_card::DoubleFacedLayout::ModalDfc,
+                front: front.lower(),
+                back: back.lower(),
+            },
+            // Split cards have two card faces on one side [CR#709.1].
+            Self::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Split,
+                front,
+                back,
+            } => deckmaste_card::Card::Split {
+                left: front.lower(),
+                right: back.lower(),
+            },
+            // Flip cards have one card face plus alternative characteristics
+            // used according to flipped status, not a second face
+            // [CR#710.1].
+            Self::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Flip,
+                front,
+                back,
+            } => deckmaste_card::Card::Flip {
+                normal: front.lower(),
+                alternative: back.lower(),
+            },
+            // Adventurer cards have normal characteristics plus alternative
+            // Adventure characteristics, not an Adventure face [CR#715.2].
+            Self::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Adventure,
+                front,
+                back,
+            } => deckmaste_card::Card::Adventurer {
+                normal: front.lower(),
+                adventure: back.lower(),
             },
         }
     }
@@ -103,46 +133,6 @@ mod tests {
     }
 
     #[test]
-    fn lowers_face_layout_transforming() {
-        assert_matches!(
-            deckmaste_semantics::FaceLayout::Transforming.lower(),
-            deckmaste_card::FaceLayout::Transforming
-        );
-    }
-
-    #[test]
-    fn lowers_face_layout_modal_dfc() {
-        assert_matches!(
-            deckmaste_semantics::FaceLayout::ModalDfc.lower(),
-            deckmaste_card::FaceLayout::ModalDfc
-        );
-    }
-
-    #[test]
-    fn lowers_face_layout_split() {
-        assert_matches!(
-            deckmaste_semantics::FaceLayout::Split.lower(),
-            deckmaste_card::FaceLayout::Split
-        );
-    }
-
-    #[test]
-    fn lowers_face_layout_adventure() {
-        assert_matches!(
-            deckmaste_semantics::FaceLayout::Adventure.lower(),
-            deckmaste_card::FaceLayout::Adventure
-        );
-    }
-
-    #[test]
-    fn lowers_face_layout_flip() {
-        assert_matches!(
-            deckmaste_semantics::FaceLayout::Flip.lower(),
-            deckmaste_card::FaceLayout::Flip
-        );
-    }
-
-    #[test]
     fn lowers_card_normal() {
         assert_matches!(
             deckmaste_semantics::Card::Normal(minimal_card_face()).lower(),
@@ -163,42 +153,83 @@ mod tests {
     }
 
     #[test]
-    fn lowers_card_two_faced() {
+    fn lowers_card_double_faced_transforming() {
         assert_matches!(
             deckmaste_semantics::Card::TwoFaced {
-                layout: minimal_face_layout(),
+                layout: deckmaste_semantics::FaceLayout::Transforming,
                 front: minimal_card_face(),
                 back: minimal_card_face()
             }
             .lower(),
-            deckmaste_card::Card::TwoFaced {
-                layout: deckmaste_card::FaceLayout::Transforming,
-                front: deckmaste_card::CardFace {
-                    name: _,
-                    mana_cost: _,
-                    color_indicator: _,
-                    supertypes: _,
-                    types: _,
-                    subtypes: _,
-                    abilities: _,
-                    power: None,
-                    toughness: None,
-                    loyalty: None,
-                    defense: None
-                },
-                back: deckmaste_card::CardFace {
-                    name: _,
-                    mana_cost: _,
-                    color_indicator: _,
-                    supertypes: _,
-                    types: _,
-                    subtypes: _,
-                    abilities: _,
-                    power: None,
-                    toughness: None,
-                    loyalty: None,
-                    defense: None
-                }
+            deckmaste_card::Card::DoubleFaced {
+                layout: deckmaste_card::DoubleFacedLayout::Transforming,
+                front: deckmaste_card::CardFace { name: _, .. },
+                back: deckmaste_card::CardFace { name: _, .. }
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_card_double_faced_modal_dfc() {
+        assert_matches!(
+            deckmaste_semantics::Card::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::ModalDfc,
+                front: minimal_card_face(),
+                back: minimal_card_face()
+            }
+            .lower(),
+            deckmaste_card::Card::DoubleFaced {
+                layout: deckmaste_card::DoubleFacedLayout::ModalDfc,
+                front: deckmaste_card::CardFace { name: _, .. },
+                back: deckmaste_card::CardFace { name: _, .. }
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_card_split() {
+        assert_matches!(
+            deckmaste_semantics::Card::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Split,
+                front: minimal_card_face(),
+                back: minimal_card_face()
+            }
+            .lower(),
+            deckmaste_card::Card::Split {
+                left: deckmaste_card::CardFace { name: _, .. },
+                right: deckmaste_card::CardFace { name: _, .. }
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_card_flip() {
+        assert_matches!(
+            deckmaste_semantics::Card::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Flip,
+                front: minimal_card_face(),
+                back: minimal_card_face()
+            }
+            .lower(),
+            deckmaste_card::Card::Flip {
+                normal: deckmaste_card::CardFace { name: _, .. },
+                alternative: deckmaste_card::Characteristics { name: _, .. }
+            }
+        );
+    }
+
+    #[test]
+    fn lowers_card_adventurer() {
+        assert_matches!(
+            deckmaste_semantics::Card::TwoFaced {
+                layout: deckmaste_semantics::FaceLayout::Adventure,
+                front: minimal_card_face(),
+                back: minimal_card_face()
+            }
+            .lower(),
+            deckmaste_card::Card::Adventurer {
+                normal: deckmaste_card::CardFace { name: _, .. },
+                adventure: deckmaste_card::Characteristics { name: _, .. }
             }
         );
     }

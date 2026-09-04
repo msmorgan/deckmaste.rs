@@ -201,19 +201,31 @@ fn lint_all_card_faces(
     macros: &macro_ron::MacroSet,
     out: &mut Vec<(PathBuf, String)>,
 ) {
+    let lint_one = |chars: &deckmaste_card::Characteristics, out: &mut Vec<(PathBuf, String)>| {
+        lint_card_subtypes(path, &chars.subtypes, declared_subtypes, out);
+        lint_card_types(path, &chars.types, declared_types, out);
+        lint_keyword_refs(path, &chars.abilities, macros, out);
+    };
     match card {
-        Card::Normal(face) => {
-            lint_card_subtypes(path, &face.subtypes, declared_subtypes, out);
-            lint_card_types(path, &face.types, declared_types, out);
-            lint_keyword_refs(path, &face.abilities, macros, out);
+        Card::Normal(face) => lint_one(face, out),
+        Card::DoubleFaced { front, back, .. }
+        | Card::Split {
+            left: front,
+            right: back,
+        } => {
+            lint_one(front, out);
+            lint_one(back, out);
         }
-        Card::TwoFaced { front, back, .. } => {
-            lint_card_subtypes(path, &front.subtypes, declared_subtypes, out);
-            lint_card_types(path, &front.types, declared_types, out);
-            lint_keyword_refs(path, &front.abilities, macros, out);
-            lint_card_subtypes(path, &back.subtypes, declared_subtypes, out);
-            lint_card_types(path, &back.types, declared_types, out);
-            lint_keyword_refs(path, &back.abilities, macros, out);
+        Card::Flip {
+            normal,
+            alternative,
+        }
+        | Card::Adventurer {
+            normal,
+            adventure: alternative,
+        } => {
+            lint_one(normal, out);
+            lint_one(alternative, out);
         }
     }
 }

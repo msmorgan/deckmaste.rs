@@ -27,9 +27,7 @@ type DerivedAbilities = (Vec<Ability>, usize, Vec<AbilityCaptures>);
 /// The face an object presents. Skeleton: the front face.
 #[must_use]
 pub fn face(card: &Card) -> &CardFace {
-    match card {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => f,
-    }
+    card.primary_face()
 }
 
 /// The face an object currently presents on the battlefield
@@ -44,7 +42,7 @@ pub fn face_of(state: &GameState, id: ObjectId) -> &CardFace {
         .get(obj.card_id().expect("card-backed object"))
         .def;
     match (obj.side, card.as_ref()) {
-        (crate::object::Side::Back, Card::TwoFaced { back, .. }) => back,
+        (crate::object::Side::Back, Card::DoubleFaced { back, .. }) => back,
         _ => face(card),
     }
 }
@@ -585,7 +583,7 @@ mod tests {
     fn back_up_permanent_sources_triggers_from_back_face() {
         use deckmaste_card::Card;
         use deckmaste_card::CardFace;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::StatValue;
         use deckmaste_core::Type;
         use deckmaste_core::Zone;
@@ -629,8 +627,8 @@ mod tests {
             abilities: vec![Ability::triggered(back_trigger.clone())],
             ..CardFace::default()
         };
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front,
             back,
         };

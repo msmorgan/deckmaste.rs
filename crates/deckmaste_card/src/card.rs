@@ -10,8 +10,12 @@ use deckmaste_core::TypeDef;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// The printed characteristics [CR#109.3] shared by a Card Face and by a
+/// rules-defined set of Alternative Characteristics (a flip card's upside-down
+/// half [CR#710.1], an adventurer card's inset Adventure characteristics
+/// [CR#715.2]).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
-pub struct CardFace {
+pub struct Characteristics {
     pub name: Arc<str>,
 
     #[serde(default, skip_serializing_if = "ManaCost::is_empty")]
@@ -44,37 +48,151 @@ pub struct CardFace {
     pub defense: Option<StatValue>,
 }
 
-/// How a two-faced card's faces are arranged — the Idris `FaceLayout`. The
-/// layouts share ONE card shape (two full faces, [CR#712.8] — each face has
-/// its own characteristics); what differs per layout — transforming, casting
-/// either face, casting halves, the adventure exile state, flipping — is the
-/// engine's job, not the grammar's. Single-faced "layouts" (saga, class,
-/// leveler, …) are NOT here: their mechanics ride subtypes and abilities on a
-/// `Normal` card.
+/// A Card Face: a set of printed [`Characteristics`] the CR calls a face —
+/// nonmeld double-faced front/back [CR#712.1], split's two faces on one side
+/// [CR#709.1], and the ordinary (non-alternative) side of a flip or adventurer
+/// card. Same value type as [`Characteristics`]; the two names carry the
+/// distinction the CR draws — a face is never a rules-defined alternative,
+/// and an alternative is never a second face.
+pub type CardFace = Characteristics;
+
+/// How a nonmeld double-faced card's two faces are arranged. Meld's oversized
+/// back ([CR#712.4]) is the exception [CR#712.1] states and isn't a
+/// [`CardFace`] pair, so it isn't a layout here — `DoubleFaced` never stands
+/// in for a meld card.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum FaceLayout {
+pub enum DoubleFacedLayout {
     /// A transforming (nonmodal) double-faced card ([CR#712.2]).
     Transforming,
     /// A modal double-faced card — play either face ([CR#712.3]).
     ModalDfc,
-    /// A split card — two halves on one face ([CR#709.1]).
-    Split,
-    /// An adventurer card — a permanent face with an Adventure spell face
-    /// ([CR#715.1]).
-    Adventure,
-    /// A Kamigawa-style flip card — one card, flipped half ([CR#710.1]).
-    Flip,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Card {
     Normal(CardFace),
-    /// A TWO-faced card: `front` (the primary/default face) and `back`,
-    /// arranged per `layout` — the Idris `TwoFaced`. Each face is a full
-    /// [`CardFace`] with its own characteristics ([CR#712.8]).
-    TwoFaced {
-        layout: FaceLayout,
+    /// A nonmeld double-faced card: `front` (the primary/default face) and
+    /// `back`, both full Card Faces with their own characteristics
+    /// ([CR#712.1,712.8]).
+    DoubleFaced {
+        layout: DoubleFacedLayout,
         front: CardFace,
         back: CardFace,
     },
+    /// A split card: two Card Faces on one side ([CR#709.1]).
+    Split {
+        left: CardFace,
+        right: CardFace,
+    },
+    /// A flip card: one Card Face plus Alternative Characteristics used
+    /// according to flipped status, never a second face ([CR#710.1]).
+    Flip {
+        normal: CardFace,
+        alternative: Characteristics,
+    },
+    /// An adventurer card: normal characteristics plus the Alternative
+    /// Characteristics of its Adventure spell — not an Adventure face
+    /// ([CR#715.2]).
+    Adventurer {
+        normal: CardFace,
+        adventure: Characteristics,
+    },
+}
+
+impl Card {
+    /// The card's primary Card Face: its one face, or the front/left/normal
+    /// side of a multi-part card — the face an object presents off the
+    /// battlefield ([CR#712.8a]) and by default on it ([CR#712.8d]).
+    #[must_use]
+    pub fn primary_face(&self) -> &CardFace {
+        match self {
+            Card::Normal(face)
+            | Card::DoubleFaced { front: face, .. }
+            | Card::Split { left: face, .. }
+            | Card::Flip { normal: face, .. }
+            | Card::Adventurer { normal: face, .. } => face,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn characteristics(name: &str) -> Characteristics {
+        Characteristics {
+            name: name.into(),
+            ..Characteristics::default()
+        }
+    }
+
+    /// Delver of Secrets // Insectile Aberration: a nonmeld double-faced card
+    /// has front and back Card Faces ([CR#712.1]).
+    #[test]
+    fn double_faced_witness_has_front_and_back_card_faces() {
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
+            front: characteristics("Delver of Secrets"),
+            back: characteristics("Insectile Aberration"),
+        };
+        let Card::DoubleFaced { front, back, .. } = &card else {
+            panic!("not a DoubleFaced card");
+        };
+        assert_eq!(front.name.as_ref(), "Delver of Secrets");
+        assert_eq!(back.name.as_ref(), "Insectile Aberration");
+        assert_eq!(card.primary_face().name.as_ref(), "Delver of Secrets");
+    }
+
+    /// Fire // Ice: a split card has two card faces on one side ([CR#709.1]).
+    #[test]
+    fn split_witness_has_two_card_faces_on_one_side() {
+        let card = Card::Split {
+            left: characteristics("Fire"),
+            right: characteristics("Ice"),
+        };
+        let Card::Split { left, right } = &card else {
+            panic!("not a Split card");
+        };
+        assert_eq!(left.name.as_ref(), "Fire");
+        assert_eq!(right.name.as_ref(), "Ice");
+        assert_eq!(card.primary_face().name.as_ref(), "Fire");
+    }
+
+    /// Bushi Tenderfoot // Kenzo the Hardhearted: a flip card has one card
+    /// face plus alternative characteristics used according to flipped
+    /// status ([CR#710.1]).
+    #[test]
+    fn flip_witness_has_one_face_and_alternative_characteristics() {
+        let card = Card::Flip {
+            normal: characteristics("Bushi Tenderfoot"),
+            alternative: characteristics("Kenzo the Hardhearted"),
+        };
+        let Card::Flip {
+            normal,
+            alternative,
+        } = &card
+        else {
+            panic!("not a Flip card");
+        };
+        assert_eq!(normal.name.as_ref(), "Bushi Tenderfoot");
+        assert_eq!(alternative.name.as_ref(), "Kenzo the Hardhearted");
+        assert_eq!(card.primary_face().name.as_ref(), "Bushi Tenderfoot");
+    }
+
+    /// Merfolk Secretkeeper // Venture Deeper: an adventurer card has normal
+    /// characteristics plus alternative Adventure characteristics, not an
+    /// Adventure face ([CR#715.2]).
+    #[test]
+    fn adventurer_witness_has_normal_and_alternative_adventure_characteristics() {
+        let card = Card::Adventurer {
+            normal: characteristics("Merfolk Secretkeeper"),
+            adventure: characteristics("Venture Deeper"),
+        };
+        let Card::Adventurer { normal, adventure } = &card else {
+            panic!("not an Adventurer card");
+        };
+        assert_eq!(normal.name.as_ref(), "Merfolk Secretkeeper");
+        assert_eq!(adventure.name.as_ref(), "Venture Deeper");
+        assert_eq!(card.primary_face().name.as_ref(), "Merfolk Secretkeeper");
+    }
 }

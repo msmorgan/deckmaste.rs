@@ -81,7 +81,7 @@ pub struct CardInstance {
     /// Base copiable values for the FRONT face ([CR#712.8d]) — the face every
     /// object presents off the battlefield ([CR#712.8a]) and the default on it.
     pub(crate) front: FaceCache,
-    /// Present only for `Card::TwoFaced` — the back face's base values
+    /// Present only for `Card::DoubleFaced` — the back face's base values
     /// ([CR#712.8e]).
     pub(crate) back: Option<FaceCache>,
 }
@@ -188,8 +188,10 @@ impl Cards {
         };
         let front = build(crate::derive::face(&def));
         let back = match def.as_ref() {
-            Card::TwoFaced { back, .. } => Some(build(back)),
-            Card::Normal(_) => None,
+            Card::DoubleFaced { back, .. } => Some(build(back)),
+            Card::Normal(_) | Card::Split { .. } | Card::Flip { .. } | Card::Adventurer { .. } => {
+                None
+            }
         };
         self.0.push(CardInstance {
             def,
@@ -233,8 +235,9 @@ pub enum ObjectSource {
 }
 
 /// Which face of a double-faced card a battlefield permanent currently shows
-/// ([CR#712.8d,712.8e]). Meaningful only for a `Card::TwoFaced { layout:
-/// Transforming, .. }` on the battlefield; every other object stays `Front`.
+/// ([CR#712.8d,712.8e]). Meaningful only for a `Card::DoubleFaced { layout:
+/// DoubleFacedLayout::Transforming, .. }` on the battlefield; every other
+/// object stays `Front`.
 /// Distinct from the morph `status::Face { Up, Down }` — that is face-up vs
 /// face-down ([CR#708]), this is front vs back ([CR#712]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

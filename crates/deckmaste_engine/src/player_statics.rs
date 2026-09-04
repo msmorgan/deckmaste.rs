@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn back_up_permanent_sources_player_static_from_back_face() {
         use deckmaste_card::Card;
-        use deckmaste_card::FaceLayout;
+        use deckmaste_card::DoubleFacedLayout;
         use deckmaste_core::Zone;
 
         use crate::object::Side;
@@ -274,8 +274,8 @@ mod tests {
             ))],
             ..CardFace::default()
         };
-        let card = Card::TwoFaced {
-            layout: FaceLayout::Transforming,
+        let card = Card::DoubleFaced {
+            layout: DoubleFacedLayout::Transforming,
             front,
             back,
         };

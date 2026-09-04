@@ -273,11 +273,23 @@ fn load_card_pair(plugin: &Plugin, path: &Path) -> anyhow::Result<deckmaste_plug
 /// the core-side twin of [`semantic_faces`], stopping at the face's own
 /// `abilities` list. [`nested_in_any`] does the descent past that point.
 fn core_abilities(card: &deckmaste_card::Card) -> impl Iterator<Item = &deckmaste_core::Ability> {
-    let faces: Vec<&deckmaste_card::CardFace> = match card {
+    let parts: Vec<&deckmaste_card::Characteristics> = match card {
         deckmaste_card::Card::Normal(face) => vec![face],
-        deckmaste_card::Card::TwoFaced { front, back, .. } => vec![front, back],
+        deckmaste_card::Card::DoubleFaced { front, back, .. }
+        | deckmaste_card::Card::Split {
+            left: front,
+            right: back,
+        } => vec![front, back],
+        deckmaste_card::Card::Flip {
+            normal,
+            alternative,
+        }
+        | deckmaste_card::Card::Adventurer {
+            normal,
+            adventure: alternative,
+        } => vec![normal, alternative],
     };
-    faces.into_iter().flat_map(|face| face.abilities.iter())
+    parts.into_iter().flat_map(|part| part.abilities.iter())
 }
 
 /// The core-side twin of [`deckmaste_semantics::AbilitySubterms`]: pushes

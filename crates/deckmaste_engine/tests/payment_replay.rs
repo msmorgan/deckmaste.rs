@@ -102,10 +102,7 @@ fn activation_fixture_with_extras(
     let source = state.zones.hands[payer.index()]
         .iter()
         .copied()
-        .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == "Replay fixture",
-            Card::TwoFaced { front, .. } => front.name.as_ref() == "Replay fixture",
-        })
+        .find(|&object| state.def(object).primary_face().name.as_ref() == "Replay fixture")
         .unwrap();
     state.zones.hands[payer.index()].retain(|&object| object != source);
     state.objects.obj_mut(source).zone = Some(Zone::Battlefield);
@@ -895,10 +892,7 @@ fn put_named_in_play(
     let object = state.zones.hands[payer.index()]
         .iter()
         .copied()
-        .find(|&object| match state.def(object) {
-            Card::Normal(face) => face.name.as_ref() == name,
-            Card::TwoFaced { front, .. } => front.name.as_ref() == name,
-        })
+        .find(|&object| state.def(object).primary_face().name.as_ref() == name)
         .unwrap();
     state.zones.hands[payer.index()].retain(|&candidate| candidate != object);
     state.objects.obj_mut(object).zone = Some(Zone::Battlefield);
@@ -1307,7 +1301,7 @@ fn replay_rebinds_a_retained_card_after_an_earlier_zone_remint_is_omitted() {
         .copied()
         .find(|&object| match state.def(object) {
             Card::Normal(face) => face.name.as_ref() == "Retained replay card",
-            Card::TwoFaced { front, .. } => front.name.as_ref() == "Retained replay card",
+            other => other.primary_face().name.as_ref() == "Retained replay card",
         })
         .unwrap();
     fulfill(
@@ -2937,7 +2931,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
         .copied()
         .find(|&object| match state.def(object) {
             Card::Normal(face) => face.name.as_ref() == "Replay mana token",
-            Card::TwoFaced { .. } => false,
+            _ => false,
         })
         .expect("the retained producer creates its mana-source token");
     state
@@ -3001,7 +2995,7 @@ fn retained_later_mana_action_rebinds_its_created_source_and_fact_trace() {
         .copied()
         .find(|&object| match state.def(object) {
             Card::Normal(face) => face.name.as_ref() == "Replay mana token",
-            Card::TwoFaced { .. } => false,
+            _ => false,
         })
         .expect("the replay remints the retained producer's token");
     assert!(state.objects.obj(replayed_token).tapped);

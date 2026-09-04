@@ -92,7 +92,11 @@ fn red() -> ColorOrColorless {
 /// Panics if `id` is a player proxy.
 fn face_name(state: &GameState, id: ObjectId) -> &str {
     match state.def(id) {
-        Card::Normal(f) | Card::TwoFaced { front: f, .. } => &f.name,
+        Card::Normal(f)
+        | Card::DoubleFaced { front: f, .. }
+        | Card::Split { left: f, .. }
+        | Card::Flip { normal: f, .. }
+        | Card::Adventurer { normal: f, .. } => &f.name,
     }
 }
 
@@ -112,7 +116,11 @@ fn is_land(state: &GameState, id: ObjectId) -> bool {
         .obj(id)
         .card_id()
         .is_some_and(|_| match state.def(id) {
-            Card::Normal(f) | Card::TwoFaced { front: f, .. } => {
+            Card::Normal(f)
+            | Card::DoubleFaced { front: f, .. }
+            | Card::Split { left: f, .. }
+            | Card::Flip { normal: f, .. }
+            | Card::Adventurer { normal: f, .. } => {
                 f.types.iter().any(|t| t.name == Type::Land.name())
             }
         })
