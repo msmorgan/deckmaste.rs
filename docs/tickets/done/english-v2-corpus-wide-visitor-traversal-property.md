@@ -91,3 +91,20 @@ Measured on change `npypvsqz` with 16,702 covered lock identities.
   construction, coverage-lock, or add-only-ratchet change. No scratch or probe
   tree was created.
 - STOPs: none.
+
+### Erratum (landing review, 2026-09-03)
+
+- The pinned property is construction-nodes-only: the corpus gate compares the
+  ordered construction identities the visitor enters against the selected
+  derivation's construction path. It does not observe lexeme leaf visits — a
+  visitor that skips every leaf stays green at the corpus gate (leaf visiting
+  is pinned only by unit tests in `ability_logic.rs`). Follow-up:
+  `english-v2-visitor-leaf-traversal-property`.
+- Performance advisory (measured by the reviewer, absent from the record):
+  parse cost 103–144 µs/B on the landed tree vs 148–149 µs/B on the parent at
+  comparable host load (17–68, other executors running) — no measurable
+  parse-time cost; the 16.26s ceiling warning fired on both trees from load.
+- The two removed tests were `visitor_callbacks_have_literal_full_preorders`
+  and `visitor_callbacks_have_literal_typed_preorders` (literal preorder
+  vectors superseded by the gate); two further tests lost only their
+  `visitor_events` element, all other assertions byte-identical.
