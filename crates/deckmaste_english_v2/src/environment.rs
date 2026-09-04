@@ -501,7 +501,8 @@ struct EnvironmentData {
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
     verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
     initial_verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
-    literal_lexicon_collisions: usize,
+    licensed_vocab_lexicon_homographs: usize,
+    form_literal_vocab_overlaps: usize,
 }
 
 #[cfg(test)]
@@ -672,7 +673,7 @@ impl ParserEnvironment {
             );
         }
         let verb_inventory = normalized_verb_inventory(&records)?;
-        let literal_lexicon_collisions =
+        let (licensed_vocab_lexicon_homographs, form_literal_vocab_overlaps) =
             reject_literal_lexicon_collisions(&records, &verb_inventory)?;
         let (verb_inventory_readings, initial_verb_inventory_readings) =
             index_verb_inventory_readings(&verb_inventory);
@@ -688,7 +689,8 @@ impl ParserEnvironment {
                 verb_inventory,
                 verb_inventory_readings,
                 initial_verb_inventory_readings,
-                literal_lexicon_collisions,
+                licensed_vocab_lexicon_homographs,
+                form_literal_vocab_overlaps,
             }),
         })
     }
@@ -1024,12 +1026,18 @@ impl ParserEnvironment {
         self.data.catalog_providers.contains_key(&provider)
     }
 
-    /// Counts exact fixed-surface collisions observed by the environment
-    /// checker, including form-literal/vocabulary overlaps. Unlicensed
-    /// vocabulary/lexicon and literal/lexicon collisions still reject loading.
+    /// Counts licensed vocabulary/lexicon homographs observed by the
+    /// environment checker.
     #[must_use]
-    pub fn literal_lexicon_collisions(&self) -> usize {
-        self.data.literal_lexicon_collisions
+    pub fn licensed_vocab_lexicon_homographs(&self) -> usize {
+        self.data.licensed_vocab_lexicon_homographs
+    }
+
+    /// Counts unlicensed form-literal/vocabulary overlaps observed by the
+    /// environment checker.
+    #[must_use]
+    pub fn form_literal_vocab_overlaps(&self) -> usize {
+        self.data.form_literal_vocab_overlaps
     }
 
     #[cfg(test)]
@@ -1056,7 +1064,7 @@ impl ParserEnvironment {
 fn reject_literal_lexicon_collisions(
     records: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     verb_inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
-) -> Result<usize, ParserEnvironmentError> {
+) -> Result<(usize, usize), ParserEnvironmentError> {
     reject_literal_lexicon_collisions_from_surfaces(
         records,
         verb_inventory,
@@ -1072,7 +1080,7 @@ fn reject_literal_lexicon_collisions_from_surfaces(
     form_literal_surfaces: &[FormLiteralSurface],
     vocab_surfaces: &[VocabSurface],
     verb_tail_literal_surfaces: &[VerbTailLiteralSurface],
-) -> Result<usize, ParserEnvironmentError> {
+) -> Result<(usize, usize), ParserEnvironmentError> {
     let mut lexical_owners = BTreeMap::<&str, String>::new();
 
     for row in LEXICON_SURFACES {
@@ -1118,7 +1126,8 @@ fn reject_literal_lexicon_collisions_from_surfaces(
     }
 
     let mut collisions = Vec::new();
-    let mut collision_count = 0usize;
+    let mut licensed_vocab_lexicon_homographs = 0usize;
+    let mut form_literal_vocab_overlaps = 0usize;
 
     for row in vocab_surfaces {
         if let Some(lexical_owner) = lexical_owners.get(row.surface) {
@@ -1127,9 +1136,9 @@ fn reject_literal_lexicon_collisions_from_surfaces(
                 literal_owner: format!("vocab `{}::{}`", row.vocabulary, row.member),
                 lexical_owner: lexical_owner.clone(),
             };
-            collision_count += 1;
-            if row.homograph_license != HomographLicense::Licensed {
-                collisions.push(error);
+            match row.homograph_license {
+                HomographLicense::Licensed => licensed_vocab_lexicon_homographs += 1,
+                HomographLicense::Unlicensed => collisions.push(error),
             }
         }
     }
@@ -1158,10 +1167,11 @@ fn reject_literal_lexicon_collisions_from_surfaces(
                 row.construction, row.form, row.atom_index
             ),
         ) {
-            collision_count += 1;
             collisions.push(error);
-        } else if vocab_owners.contains_key(row.surface) {
-            collision_count += 1;
+        } else if vocab_owners.contains_key(row.surface)
+            && row.homograph_license == HomographLicense::Unlicensed
+        {
+            form_literal_vocab_overlaps += 1;
         }
     }
     for row in verb_tail_literal_surfaces {
@@ -1172,7 +1182,6 @@ fn reject_literal_lexicon_collisions_from_surfaces(
                 row.codec, row.atom_index
             ),
         ) {
-            collision_count += 1;
             collisions.push(error);
         }
     }
@@ -1189,16 +1198,18 @@ fn reject_literal_lexicon_collisions_from_surfaces(
                         record.reference
                     ),
                 ) {
-                    collision_count += 1;
                     collisions.push(error);
                 }
             }
         }
     }
-    collisions
-        .into_iter()
-        .next()
-        .map_or(Ok(collision_count), Err)
+    collisions.into_iter().next().map_or(
+        Ok((
+            licensed_vocab_lexicon_homographs,
+            form_literal_vocab_overlaps,
+        )),
+        Err,
+    )
 }
 
 fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bool {
@@ -1694,7 +1705,8 @@ mod tests {
     fn literal_lexicon_tripwire_counts_vocab_and_rejects_form_and_tail_collisions_exactly() {
         let baseline = ParserEnvironment::try_from_declarations([])
             .expect("licensed homographs and closed-class overlaps load cleanly");
-        assert!(baseline.literal_lexicon_collisions() > 1);
+        assert_eq!(baseline.licensed_vocab_lexicon_homographs(), 1);
+        assert_eq!(baseline.form_literal_vocab_overlaps(), 25);
 
         let untap = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Untap.ron",
@@ -1703,9 +1715,10 @@ mod tests {
         .expect("synthetic untap verb is valid");
         let licensed = ParserEnvironment::try_from_declarations([untap])
             .expect("the per-member untap homograph license admits the verb declaration");
+        assert_eq!(licensed.licensed_vocab_lexicon_homographs(), 2);
         assert_eq!(
-            licensed.literal_lexicon_collisions(),
-            baseline.literal_lexicon_collisions() + 1,
+            licensed.form_literal_vocab_overlaps(),
+            baseline.form_literal_vocab_overlaps(),
         );
 
         let noun = deckmaste_construction_core::macro_def::read_str(
@@ -1791,6 +1804,7 @@ mod tests {
             construction: "synthetic_during",
             form: "plain",
             atom_index: 0,
+            homograph_license: HomographLicense::Unlicensed,
         }];
         assert_eq!(
             reject_literal_lexicon_collisions_from_surfaces(
@@ -1800,8 +1814,24 @@ mod tests {
                 &preposition,
                 &[],
             ),
-            Ok(1),
+            Ok((0, 1)),
             "the Preposition surface is a visible collision owner without turning a closed-class overlap into a load error",
+        );
+
+        let licensed_form = [FormLiteralSurface {
+            homograph_license: HomographLicense::Licensed,
+            ..colliding_form[0]
+        }];
+        assert_eq!(
+            reject_literal_lexicon_collisions_from_surfaces(
+                &records,
+                &verb_inventory,
+                &licensed_form,
+                &preposition,
+                &[],
+            ),
+            Ok((0, 0)),
+            "an explicitly licensed form homograph is separate from the overlap ceiling",
         );
     }
 

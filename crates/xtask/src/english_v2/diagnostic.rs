@@ -1020,11 +1020,9 @@ enum NonterminalKind {
     KeywordLine,
     LabelledAbility,
     BlockLabel,
-    AbilityWordLabel,
-    FlavorWordLabel,
-    ChapterSecondaryLabel,
-    ChapterSecondaryAbilityWordLabel,
-    ChapterSecondaryFlavorWordLabel,
+    LabelTerm,
+    AbilityWordLabelTerm,
+    FlavorWordLabelTerm,
     ChapterLabel,
     BareCopularPredicate,
     PassiveMovementPredicate,
@@ -1732,15 +1730,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::KeywordLine => NonterminalKind::KeywordLine,
         NonterminalCategory::LabelledAbility => NonterminalKind::LabelledAbility,
         NonterminalCategory::BlockLabel => NonterminalKind::BlockLabel,
-        NonterminalCategory::AbilityWordLabel => NonterminalKind::AbilityWordLabel,
-        NonterminalCategory::FlavorWordLabel => NonterminalKind::FlavorWordLabel,
-        NonterminalCategory::ChapterSecondaryLabel => NonterminalKind::ChapterSecondaryLabel,
-        NonterminalCategory::ChapterSecondaryAbilityWordLabel => {
-            NonterminalKind::ChapterSecondaryAbilityWordLabel
-        }
-        NonterminalCategory::ChapterSecondaryFlavorWordLabel => {
-            NonterminalKind::ChapterSecondaryFlavorWordLabel
-        }
+        NonterminalCategory::LabelTerm => NonterminalKind::LabelTerm,
+        NonterminalCategory::AbilityWordLabelTerm => NonterminalKind::AbilityWordLabelTerm,
+        NonterminalCategory::FlavorWordLabelTerm => NonterminalKind::FlavorWordLabelTerm,
         NonterminalCategory::ChapterLabel => NonterminalKind::ChapterLabel,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
         NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,

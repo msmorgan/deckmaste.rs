@@ -4,6 +4,7 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CommonNoun;
+use deckmaste_english_v2::ast::CostComparisonDirection;
 use deckmaste_english_v2::ast::CountReference;
 use deckmaste_english_v2::ast::MannerReference;
 use deckmaste_english_v2::ast::Noun;
@@ -355,7 +356,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Destroy one or more target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrMore/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadNounPluralHead",
-            specificity: "NNNNTNNNNNNNNTLLNNNTT",
+            specificity: "NNNNTNNNNNNNNTLTNNNTT",
             candidates: 2,
         },
         Witness {
@@ -418,7 +419,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeAnyNumberQuantifyingDeterminer/SingularHeadNounSingularHead/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadNounPluralHead",
-            specificity: "NNNNTNNNNNNLNTTNNNTT",
+            specificity: "NNNNTNNNNNNTNTTNNNTT",
             candidates: 2,
         },
         Witness {
@@ -747,13 +748,13 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
             "Context Card",
             "Destroy two or more creatures.",
             "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrMore/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadNounPluralHead",
-            "NNNNTNNNNNNNNTLLNNT",
+            "NNNNTNNNNNNNNTLTNNT",
         ),
         (
             "Context Card",
             "Destroy two or fewer creatures.",
             "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrFewer/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadNounPluralHead",
-            "NNNNTNNNNNNNNTLLNNT",
+            "NNNNTNNNNNNNNTLTNNT",
         ),
     ] {
         let context = context(card_name);
@@ -870,8 +871,8 @@ fn assert_former_count_fixture_ownership(
         (
             37,
             42,
-            LexicalProvenanceKind::FormLiteral,
-            "form:scalar_or_less/scalar_or_less/2",
+            LexicalProvenanceKind::Vocab,
+            "vocab:CostComparisonDirection/Less",
         ),
         (42, 47, LexicalProvenanceKind::Lexeme, "core-verb:Gain"),
         (47, 49, LexicalProvenanceKind::Vocab, "vocab:Variable/X"),
@@ -998,16 +999,16 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
             }
         ) if head.noun() == &deckmaste_english_v2::ast::Noun::Lexeme(CommonNoun::Power)
     ));
+    let ScalarComparison::ScalarOrLess(comparison) = &scalar.comparison else {
+        panic!("the parsed comparison keeps its expected Category member")
+    };
     assert!(matches!(
-        &scalar.comparison,
-        ScalarComparison::ScalarOrLess(deckmaste_english_v2::ast::ScalarOrLess {
-            threshold: ScalarThreshold::FixedScalarThreshold(
-                deckmaste_english_v2::ast::FixedScalarThreshold {
-                    value: ScalarNumber { magnitude: 2 },
-                }
-            ),
+        &comparison.threshold,
+        ScalarThreshold::FixedScalarThreshold(deckmaste_english_v2::ast::FixedScalarThreshold {
+            value: ScalarNumber { magnitude: 2 },
         })
     ));
+    assert_eq!(comparison.direction(), CostComparisonDirection::Less);
     let deckmaste_english_v2::ast::Predicate::Atomic(predicate) = predicate else {
         panic!("gain-life comparison keeps an atomic predicate")
     };
@@ -1255,7 +1256,13 @@ fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
     let count = count_analysis
         .selected()
         .unwrap_or_else(|| panic!("the count deictic selects: {count_analysis:?}"));
-    assert_eq!(count, &CountReference::ThatMany(ThatMany {}));
+    assert_eq!(
+        count,
+        &CountReference::ThatMany(
+            ThatMany::new(SingularDemonstrative::That)
+                .expect("the closed member satisfies the demonstrative requirement")
+        )
+    );
     assert_eq!(count.render(&context, parser.environment()), "That many");
     let mut count_visitor = DeicticVisitor::default();
     count_visitor.visit_count_reference(count);
@@ -1275,7 +1282,13 @@ fn deictic_manner_count_and_scalar_forms_are_distinct_generated_categories() {
     let scalar = scalar_analysis
         .selected()
         .unwrap_or_else(|| panic!("the scalar deictic selects: {scalar_analysis:?}"));
-    assert_eq!(scalar, &ScalarReference::ThatMuch(ThatMuch {}));
+    assert_eq!(
+        scalar,
+        &ScalarReference::ThatMuch(
+            ThatMuch::new(SingularDemonstrative::That)
+                .expect("the closed member satisfies the demonstrative requirement")
+        )
+    );
     assert_eq!(scalar.render(&context, parser.environment()), "That much");
     let mut scalar_visitor = DeicticVisitor::default();
     scalar_visitor.visit_scalar_reference(scalar);

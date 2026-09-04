@@ -286,6 +286,7 @@ pub enum FormGuardSource {
 #[derive(Debug)]
 pub enum FormAtom {
     Literal(LitStr),
+    LicensedLiteral(LitStr),
     SentenceInitial(LitStr),
     Role(Ident),
     Lex(Ident),

@@ -1501,7 +1501,8 @@ constructions! {
             body: Clause,
             condition: FiniteClause,
         }
-        form postposed_for_as_long_as_clause = body "for" "as" "long" "as" condition;
+        form postposed_for_as_long_as_clause =
+            body licensed("for") "as" "long" "as" condition;
     }
     construction preposed_predicate_adjunct: ClauseAttachment {
         element PreposedPredicateAdjunct {
@@ -1735,7 +1736,7 @@ constructions! {
     construction predicative_ability: PredicativeAbilityComplement {
         element PredicativeAbilityValue { predicate: Predicate, }
         derive predicate.agreement = Values::Bare;
-        form predicative_ability = "able" "to" predicate;
+        form predicative_ability = "able" licensed("to") predicate;
     }
     construction predicative_power_toughness: PredicativePowerToughnessComplement {
         element PredicativePowerToughnessValue {
@@ -1818,7 +1819,7 @@ constructions! {
         }
         derive agreement = head.agreement;
         derive complement.agreement = Values::Bare;
-        form object_infinitive_predicate = verb(head) object "to" complement;
+        form object_infinitive_predicate = verb(head) object licensed("to") complement;
     }
     construction infinitive_complement: InfinitiveComplement {
         element InfinitiveComplementValue {
@@ -1826,7 +1827,7 @@ constructions! {
             predicate: VerbPhrase,
         }
         derive predicate.agreement = Values::Bare;
-        form infinitive_complement = lex(negator) "to" predicate;
+        form infinitive_complement = lex(negator) licensed("to") predicate;
     }
     construction choose_infinitive_predicate: VerbPhrase {
         element ChooseInfinitivePredicate {
@@ -1903,7 +1904,7 @@ constructions! {
             purpose: BaseVerbFrame,
         }
         derive purpose.agreement = Values::Bare;
-        form purpose_predicate_adjunct = "to" purpose;
+        form purpose_predicate_adjunct = licensed("to") purpose;
     }
     construction duration_predicate_adjunct: PredicateAdjunct {
         element DurationPredicateAdjunct {
@@ -1955,9 +1956,13 @@ constructions! {
         form passive_duration_predicate_adjunct = predicate adjunct;
     }
     construction instead_predicate: InsteadPredicate {
-        element InsteadPredicateValue { predicate: VerbPhrase, }
+        element InsteadPredicateValue {
+            predicate: VerbPhrase,
+            replacement: lex DistributionReplacement,
+        }
+        require replacement is Instead;
         derive agreement = predicate.agreement;
-        form instead_predicate = predicate "instead";
+        form instead_predicate = predicate lex(replacement);
     }
     // A frequency adverbial counts occurrences of the predicate; "more than
     // once" is the comparative form.
@@ -2007,7 +2012,7 @@ constructions! {
     construction controlled_cost_action: ControlledCostAction {
         element ControlledCostActionValue { head: lex TransitiveVerb, }
         derive head.agreement = Values::Bare;
-        form controlled_cost_action = "to" verb(head);
+        form controlled_cost_action = licensed("to") verb(head);
     }
     construction cost_comparison_predicate: CostComparisonPredicate {
         element CostComparisonPredicateValue {
@@ -3106,9 +3111,11 @@ constructions! {
     }
     construction any_number_quantifying_determiner: Determinative {
         element AnyNumberQuantifyingDeterminer {
+            order: lex ObjectOrder,
             unit: SingularHead,
             relation: lex Preposition,
         }
+        require order is Any;
         require relation is Of;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
@@ -3116,17 +3123,18 @@ constructions! {
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Vowel;
-        form any_number_quantifying_determiner = "any" unit lex(relation);
+        form any_number_quantifying_determiner = lex(order) unit lex(relation);
     }
     construction no_more_quantifying_determiner: Determinative {
-        element NoMoreQuantifyingDeterminer {}
+        element NoMoreQuantifyingDeterminer { direction: lex CostComparisonDirection, }
+        require direction is More;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
-        form no_more_quantifying_determiner = "no" "more";
+        form no_more_quantifying_determiner = "no" lex(direction);
     }
     construction counted_quantifying_determiner: Determinative {
         element CountedQuantifyingDeterminer { count: CountReference, }
@@ -3175,11 +3183,12 @@ constructions! {
         form definite_next_mass_quantity_reference = "the" "next" quantity noun;
     }
     construction that_many: CountReference {
-        element ThatMany {}
+        element ThatMany { demonstrative: lex SingularDemonstrative, }
+        require demonstrative is That;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
-        form that_many = "that" "many";
+        form that_many = lex(demonstrative) "many";
     }
     construction demonstrative_possessive_reference: UnqualifiedReference {
         element DemonstrativePossessiveReference {
@@ -3499,14 +3508,15 @@ constructions! {
     construction at_random_manner: MannerReference {
         element AtRandomManner {}
         derive number = Values::Singular;
-        form at_random_manner = "at" "random";
+        form at_random_manner = licensed("at") "random";
     }
     construction that_much: ScalarReference {
-        element ThatMuch {}
+        element ThatMuch { demonstrative: lex SingularDemonstrative, }
+        require demonstrative is That;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
-        form that_much = "that" "much";
+        form that_much = lex(demonstrative) "much";
     }
     construction positive_object_gap_relative: PositiveObjectGapRelativeClause {
         element PositiveObjectGapRelativeClauseValue {
@@ -3681,36 +3691,62 @@ constructions! {
         form nominal_scalar_measure = nominal;
     }
     construction scalar_or_less: ScalarComparison {
-        element ScalarOrLess { threshold: ScalarThreshold, }
-        form scalar_or_less = threshold "or" "less";
+        element ScalarOrLess {
+            threshold: ScalarThreshold,
+            direction: lex CostComparisonDirection,
+        }
+        require direction is Less;
+        form scalar_or_less = threshold "or" lex(direction);
     }
     construction scalar_or_greater: ScalarComparison {
-        element ScalarOrGreater { threshold: ScalarThreshold, }
-        form scalar_or_greater = threshold "or" "greater";
+        element ScalarOrGreater {
+            threshold: ScalarThreshold,
+            degree: lex ScalarDegree,
+        }
+        require degree is Greater;
+        form scalar_or_greater = threshold "or" lex(degree);
     }
     construction scalar_less_than: ScalarComparison {
-        element ScalarLessThan { threshold: ScalarThreshold, }
-        form scalar_less_than = "less" "than" threshold;
+        element ScalarLessThan {
+            direction: lex CostComparisonDirection,
+            threshold: ScalarThreshold,
+        }
+        require direction is Less;
+        form scalar_less_than = lex(direction) "than" threshold;
     }
     construction scalar_greater_than: ScalarComparison {
-        element ScalarGreaterThan { threshold: ScalarThreshold, }
-        form scalar_greater_than = "greater" "than" threshold;
+        element ScalarGreaterThan {
+            degree: lex ScalarDegree,
+            threshold: ScalarThreshold,
+        }
+        require degree is Greater;
+        form scalar_greater_than = lex(degree) "than" threshold;
     }
     construction scalar_less_than_or_equal_to: ScalarComparison {
-        element ScalarLessThanOrEqualTo { threshold: ScalarThreshold, }
-        form scalar_less_than_or_equal_to = "less" "than" "or" "equal" "to" threshold;
+        element ScalarLessThanOrEqualTo {
+            direction: lex CostComparisonDirection,
+            degree: lex ScalarDegree,
+            threshold: ScalarThreshold,
+        }
+        require direction is Less;
+        require degree is Equal;
+        form scalar_less_than_or_equal_to =
+            lex(direction) "than" "or" lex(degree) "to" threshold;
     }
     construction count_or_more: CountComparison {
-        element CountOrMore {}
-        form count_or_more = "or" "more";
+        element CountOrMore { quantifier: lex ComparativeQuantifier, }
+        require quantifier is More;
+        form count_or_more = "or" lex(quantifier);
     }
     construction count_or_fewer: CountComparison {
-        element CountOrFewer {}
-        form count_or_fewer = "or" "fewer";
+        element CountOrFewer { quantifier: lex ComparativeQuantifier, }
+        require quantifier is Fewer;
+        form count_or_fewer = "or" lex(quantifier);
     }
     construction count_or_both: CountComparison {
-        element CountOrBoth {}
-        form count_or_both = "or" "both";
+        element CountOrBoth { quantifier: lex FloatedQuantifier, }
+        require quantifier is Both;
+        form count_or_both = "or" lex(quantifier);
     }
     construction scalar_qualification: ScalarQualification {
         element ScalarQualificationValue {
@@ -3762,8 +3798,12 @@ constructions! {
         form number_of_scalar_value = "the" measure lex(relation) counted;
     }
     construction twice_scalar_value: ScalarValue {
-        element TwiceScalarValue { value: ScalarValue, }
-        form twice_scalar_value = "twice" value;
+        element TwiceScalarValue {
+            adverb: lex FrequencyAdverb,
+            value: ScalarValue,
+        }
+        require adverb is Twice;
+        form twice_scalar_value = lex(adverb) value;
     }
     construction offset_scalar_value: ScalarValue {
         element OffsetScalarValue {
@@ -3782,8 +3822,12 @@ constructions! {
         form greatest_scalar_value = "the" "greatest" measure lex(relation) domain;
     }
     construction scalar_equality: ScalarEquality {
-        element ScalarEqualityValue { value: ScalarValue, }
-        form scalar_equality = "equal" "to" value;
+        element ScalarEqualityValue {
+            degree: lex ScalarDegree,
+            value: ScalarValue,
+        }
+        require degree is Equal;
+        form scalar_equality = lex(degree) "to" value;
     }
     construction unqualified_postmodified_reference: PostmodifiedReference {
         element UnqualifiedPostmodifiedReference { reference: UnqualifiedReference, }
@@ -4251,7 +4295,8 @@ constructions! {
             complement: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_for_object_frame = verb(head) object "for" complement;
+        form declared_object_for_object_frame =
+            verb(head) object licensed("for") complement;
     }
     construction declared_object_into_object_frame: ObjectIntoObjectFrame {
         element DeclaredObjectIntoObjectFrame {
@@ -4275,7 +4320,7 @@ constructions! {
         derive head.agreement = Values::Bare;
         require relation is Among;
         form chosen_distribution_phrase =
-            "divided" "as" "you" verb(head) lex(relation) recipient;
+            "divided" "as" licensed("you") verb(head) lex(relation) recipient;
     }
     construction even_distribution_phrase: DistributionPhrase {
         element EvenDistributionPhrase {
@@ -4293,12 +4338,13 @@ constructions! {
         }
         derive predicate.agreement = Values::Bare;
         derive agreement = auxiliary.agreement;
-        form modal_passive_subject_gap_relative_clause = "that" auxiliary predicate;
+        form modal_passive_subject_gap_relative_clause =
+            licensed("that") auxiliary predicate;
     }
     construction finite_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
         element FiniteSubjectGapRelativeClauseValue { head: lex IntransitiveVerb, }
         derive agreement = head.agreement;
-        form finite_subject_gap_relative_clause = "that" verb(head);
+        form finite_subject_gap_relative_clause = licensed("that") verb(head);
     }
     construction finite_transitive_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
         element FiniteTransitiveSubjectGapRelativeClause {
@@ -4306,7 +4352,8 @@ constructions! {
             object: Object,
         }
         derive agreement = head.agreement;
-        form finite_transitive_subject_gap_relative_clause = "that" verb(head) object;
+        form finite_transitive_subject_gap_relative_clause =
+            licensed("that") verb(head) object;
     }
     construction modal_subject_gap_relative_clause: ModalSubjectGapRelativeClause {
         element ModalSubjectGapRelativeClauseValue {
@@ -4315,7 +4362,7 @@ constructions! {
         }
         derive agreement = auxiliary.agreement;
         derive head.agreement = Values::Bare;
-        form modal_subject_gap_relative_clause = "that" auxiliary verb(head);
+        form modal_subject_gap_relative_clause = licensed("that") auxiliary verb(head);
     }
     construction copular_subject_gap_relative_clause: CopularSubjectGapRelativeClause {
         element CopularSubjectGapRelativeClauseValue {
@@ -4331,7 +4378,7 @@ constructions! {
             Were => Values::Bare,
         };
         derive agreement = copula.agreement;
-        form copular_subject_gap_relative_clause = "that" lex(copula) complement;
+        form copular_subject_gap_relative_clause = licensed("that") lex(copula) complement;
     }
     construction distributed_measure_predicate: VerbPhrase {
         element DistributedMeasurePredicate {
@@ -4508,7 +4555,7 @@ constructions! {
             object: Object,
         }
         derive agreement = head.agreement;
-        form declared_for_object_predicate = verb(head) "for" object;
+        form declared_for_object_predicate = verb(head) licensed("for") object;
     }
     // A quoted granted ability is a document in its own right: its interior
     // parses with the same grammar as printed rules text (oracle convention,
@@ -4600,8 +4647,12 @@ constructions! {
         form variable = lex(variable);
     }
     construction twice_variable_amount: Amount {
-        element TwiceVariableAmount { variable: lex Variable, }
-        form twice_variable_amount = "twice" lex(variable);
+        element TwiceVariableAmount {
+            adverb: lex FrequencyAdverb,
+            variable: lex Variable,
+        }
+        require adverb is Twice;
+        form twice_variable_amount = lex(adverb) lex(variable);
     }
     construction variable_plus_amount: Amount {
         element VariablePlusAmount {
@@ -4779,37 +4830,30 @@ constructions! {
     // triggered ability [CR#107.15,714.2b]; a combined label means each
     // numeral individually [CR#714.2c].
     abstract sum BlockLabel {
-        AbilityWord: AbilityWordLabel,
+        Term: LabelTerm,
         Chapter: ChapterLabel,
-        FlavorWord: FlavorWordLabel,
     }
-    construction ability_word_label: BlockLabel {
-        element AbilityWordLabel { term: lex AbilityWordTerm, }
-        form ability_word_label = lex(term);
+    abstract sum LabelTerm {
+        AbilityWord: AbilityWordLabelTerm,
+        FlavorWord: FlavorWordLabelTerm,
     }
-    construction flavor_word_label: BlockLabel {
-        element FlavorWordLabel { term: lex FlavorWordTerm, }
-        form flavor_word_label = lex(term);
+    construction ability_word_label_term: AbilityWordLabelTerm {
+        element AbilityWordLabelTermValue { term: lex AbilityWordTerm, }
+        form ability_word_label_term = lex(term);
     }
-    abstract sum ChapterSecondaryLabel {
-        AbilityWord: ChapterSecondaryAbilityWordLabel,
-        FlavorWord: ChapterSecondaryFlavorWordLabel,
+    construction flavor_word_label_term: FlavorWordLabelTerm {
+        element FlavorWordLabelTermValue { term: lex FlavorWordTerm, }
+        form flavor_word_label_term = lex(term);
     }
-    construction chapter_secondary_ability_word_label: ChapterSecondaryLabel {
-        element ChapterSecondaryAbilityWordLabel { term: lex AbilityWordTerm, }
-        form chapter_secondary_ability_word_label = sentence_initial(" — ") lex(term);
-    }
-    construction chapter_secondary_flavor_word_label: ChapterSecondaryLabel {
-        element ChapterSecondaryFlavorWordLabel { term: lex FlavorWordTerm, }
-        form chapter_secondary_flavor_word_label = sentence_initial(" — ") lex(term);
-    }
-    construction chapter_label: BlockLabel {
-        element ChapterLabel {
+    construction chapter_label: ChapterLabel {
+        element ChapterLabelValue {
             numerals: seq lex ChapterNumeral separated by ", ",
-            secondary: opt ChapterSecondaryLabel,
+            secondary: opt LabelTerm,
         }
         require len(numerals) >= 1;
-        form chapter_label = lex(numerals) secondary;
+        form chapter_label_secondary when secondary.is_some() =
+            lex(numerals) sentence_initial(" — ") secondary;
+        form chapter_label_plain otherwise = lex(numerals) secondary;
     }
     construction labelled_ability: LabelledAbility {
         element LabelledAbilityValue {

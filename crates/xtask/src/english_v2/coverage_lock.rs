@@ -1778,7 +1778,7 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         .unwrap();
 
         let visible_collision =
-            CoverageReport::for_collision_metric_test(id('1'), vec![id('a')], 9);
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('a')], 9, 10);
         fs::write(&path, json_v4(&visible_collision, vec![id('a')])).unwrap();
         apply_with_writer(
             &visible_collision,

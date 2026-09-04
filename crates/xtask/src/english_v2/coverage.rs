@@ -25,7 +25,9 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 7;
+const REPORT_SCHEMA_VERSION: u32 = 8;
+const LICENSED_VOCAB_LEXICON_HOMOGRAPHS: usize = 2;
+const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 25;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -682,9 +684,12 @@ pub(super) struct CoverageSummary {
     exception_uses: usize,
     roundtrip_mismatch_units: usize,
     ownership_failure_units: usize,
-    /// Exact fixed-surface/lexicon homographs enumerated during environment
-    /// loading.
-    literal_lexicon_collisions: usize,
+    /// Exact licensed vocabulary/lexicon homographs enumerated during
+    /// environment loading.
+    licensed_vocab_lexicon_homographs: usize,
+    /// Unlicensed form-literal/vocabulary overlaps enumerated during
+    /// environment loading.
+    form_literal_vocab_overlaps: usize,
     licensing_checker_permitted: usize,
     licensing_checker_forbidden: usize,
     nonterminal_nodes: usize,
@@ -733,7 +738,8 @@ summary_getters!(
     exception_uses,
     roundtrip_mismatch_units,
     ownership_failure_units,
-    literal_lexicon_collisions,
+    licensed_vocab_lexicon_homographs,
+    form_literal_vocab_overlaps,
     licensing_checker_permitted,
     licensing_checker_forbidden,
     nonterminal_nodes,
@@ -1008,19 +1014,21 @@ impl CoverageReport {
         source_fingerprint: String,
         rows: Vec<CoverageRow>,
     ) -> Result<Self, CoverageValidationError> {
-        Self::try_new_with_collisions(source_fingerprint, rows, 0)
+        Self::try_new_with_collision_census(source_fingerprint, rows, 0, 0)
     }
 
     #[cfg(test)]
-    fn try_new_with_collisions(
+    fn try_new_with_collision_census(
         source_fingerprint: String,
         rows: Vec<CoverageRow>,
-        literal_lexicon_collisions: usize,
+        licensed_vocab_lexicon_homographs: usize,
+        form_literal_vocab_overlaps: usize,
     ) -> Result<Self, CoverageValidationError> {
         Self::try_new_with_censuses(
             source_fingerprint,
             rows,
-            literal_lexicon_collisions,
+            licensed_vocab_lexicon_homographs,
+            form_literal_vocab_overlaps,
             super::licensing_checkers::LicensingCheckerCensus::default(),
         )
     }
@@ -1028,11 +1036,13 @@ impl CoverageReport {
     fn try_new_with_censuses(
         source_fingerprint: String,
         rows: Vec<CoverageRow>,
-        literal_lexicon_collisions: usize,
+        licensed_vocab_lexicon_homographs: usize,
+        form_literal_vocab_overlaps: usize,
         licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
     ) -> Result<Self, CoverageValidationError> {
         let mut summary = CoverageSummary::from_rows(&rows)?;
-        summary.literal_lexicon_collisions = literal_lexicon_collisions;
+        summary.licensed_vocab_lexicon_homographs = licensed_vocab_lexicon_homographs;
+        summary.form_literal_vocab_overlaps = form_literal_vocab_overlaps;
         summary.licensing_checker_permitted = licensing_checkers.permitted_total();
         summary.licensing_checker_forbidden = licensing_checkers.forbidden_total();
         Ok(Self {
@@ -1229,7 +1239,8 @@ where
     let report = CoverageReport::try_new_with_censuses(
         corpus.source_fingerprint().to_owned(),
         rows,
-        parser.environment().literal_lexicon_collisions(),
+        parser.environment().licensed_vocab_lexicon_homographs(),
+        parser.environment().form_literal_vocab_overlaps(),
         licensing_checkers,
     )?;
     debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
@@ -1242,9 +1253,28 @@ where
     super::corpus::write_corpus_performance("coverage", started.elapsed(), performance)?;
     reject_internal_failures(&report)?;
     let mode = args.lock_mode();
+    if mode == CoverageLockMode::Check {
+        reject_collision_census(&report)?;
+    }
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
         gate(&report, &args.lock, mode, diagnostics)?;
+    }
+    Ok(())
+}
+
+fn reject_collision_census(report: &CoverageReport) -> anyhow::Result<()> {
+    let licensed = report.summary.licensed_vocab_lexicon_homographs;
+    if licensed != LICENSED_VOCAB_LEXICON_HOMOGRAPHS {
+        bail!(
+            "English-v2 licensed vocabulary/lexicon homographs changed: expected {LICENSED_VOCAB_LEXICON_HOMOGRAPHS}, found {licensed}"
+        );
+    }
+    let overlaps = report.summary.form_literal_vocab_overlaps;
+    if overlaps > FORM_LITERAL_VOCAB_OVERLAPS_CEILING {
+        bail!(
+            "English-v2 form-literal/vocabulary overlaps exceed ceiling {FORM_LITERAL_VOCAB_OVERLAPS_CEILING}: found {overlaps}"
+        );
     }
     Ok(())
 }
@@ -1473,10 +1503,12 @@ impl CoverageReport {
     pub(super) fn for_collision_metric_test(
         source_fingerprint: String,
         covered: Vec<String>,
-        literal_lexicon_collisions: usize,
+        licensed_vocab_lexicon_homographs: usize,
+        form_literal_vocab_overlaps: usize,
     ) -> Self {
         let mut report = Self::for_gate_test(source_fingerprint, covered, 0, 0, 0, 0);
-        report.summary.literal_lexicon_collisions = literal_lexicon_collisions;
+        report.summary.licensed_vocab_lexicon_homographs = licensed_vocab_lexicon_homographs;
+        report.summary.form_literal_vocab_overlaps = form_literal_vocab_overlaps;
         report
     }
 
@@ -1673,6 +1705,7 @@ mod tests {
     use super::OwnershipSummarySource;
     use super::SelectedOwnershipSource;
     use super::analysis_row;
+    use super::reject_collision_census;
     use super::render_report;
     use super::run_with_components;
     use crate::english_v2::CorpusArgs;
@@ -1682,6 +1715,30 @@ mod tests {
 
     fn id(digit: char) -> String {
         digit.to_string().repeat(64)
+    }
+
+    #[test]
+    fn collision_census_pins_licensed_homographs_and_caps_unlicensed_overlaps() {
+        let at_ceiling = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 25);
+        reject_collision_census(&at_ceiling).expect("the exact census satisfies both guards");
+
+        let changed_license =
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 1, 25);
+        assert!(
+            reject_collision_census(&changed_license)
+                .unwrap_err()
+                .to_string()
+                .contains("expected 2, found 1")
+        );
+
+        let raised_overlap =
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 26);
+        assert!(
+            reject_collision_census(&raised_overlap)
+                .unwrap_err()
+                .to_string()
+                .contains("ceiling 25: found 26")
+        );
     }
 
     #[derive(Clone)]
@@ -2112,7 +2169,7 @@ mod tests {
         rows[1].selected_mut_for_test().nonterminal_nodes = 25;
         rows[1].selected_mut_for_test().visited_constructions = 25;
         rows[1].selected_mut_for_test().longest_form_literal_bytes = 7;
-        CoverageReport::try_new_with_collisions(id('a'), rows, 1).unwrap()
+        CoverageReport::try_new_with_collision_census(id('a'), rows, 1, 2).unwrap()
     }
 
     #[test]
@@ -2135,7 +2192,8 @@ mod tests {
         assert_eq!(summary.exception_uses(), 0);
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
-        assert_eq!(summary.literal_lexicon_collisions(), 1);
+        assert_eq!(summary.licensed_vocab_lexicon_homographs(), 1);
+        assert_eq!(summary.form_literal_vocab_overlaps(), 2);
         assert_eq!(summary.licensing_checker_permitted(), 0);
         assert_eq!(summary.licensing_checker_forbidden(), 0);
         assert_eq!(summary.nonterminal_nodes(), 42);
@@ -2159,7 +2217,8 @@ mod tests {
                 "exception_uses": 0,
                 "roundtrip_mismatch_units": 1,
                 "ownership_failure_units": 1,
-                "literal_lexicon_collisions": 1,
+                "licensed_vocab_lexicon_homographs": 1,
+                "form_literal_vocab_overlaps": 2,
                 "licensing_checker_permitted": 0,
                 "licensing_checker_forbidden": 0,
                 "nonterminal_nodes": 42,
@@ -2221,7 +2280,8 @@ mod tests {
                 "exception_uses",
                 "roundtrip_mismatch_units",
                 "ownership_failure_units",
-                "literal_lexicon_collisions",
+                "licensed_vocab_lexicon_homographs",
+                "form_literal_vocab_overlaps",
                 "licensing_checker_permitted",
                 "licensing_checker_forbidden",
                 "nonterminal_nodes",
@@ -2631,7 +2691,8 @@ mod tests {
                 .unwrap()
                 > 0
         );
-        assert_eq!(json["summary"]["literal_lexicon_collisions"], 59);
+        assert_eq!(json["summary"]["licensed_vocab_lexicon_homographs"], 2);
+        assert_eq!(json["summary"]["form_literal_vocab_overlaps"], 25);
         assert_eq!(json["summary"]["licensing_checker_permitted"], 26);
         assert_eq!(json["summary"]["licensing_checker_forbidden"], 5);
     }

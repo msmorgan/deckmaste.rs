@@ -522,6 +522,7 @@ pub(crate) struct FormPlan {
     rule_id: String,
     guard: FormGuardPlan,
     atoms: Vec<AtomPlan>,
+    licensed_literal_indexes: Vec<usize>,
     nullable: bool,
 }
 
@@ -3528,6 +3529,10 @@ impl FormPlan {
         &self.atoms
     }
 
+    pub(crate) fn literal_is_licensed(&self, atom_index: usize) -> bool {
+        self.licensed_literal_indexes.contains(&atom_index)
+    }
+
     pub(crate) const fn is_nullable(&self) -> bool {
         self.nullable
     }
@@ -3648,12 +3653,21 @@ fn seal_forms(
         let nullable = atoms
             .iter()
             .all(|atom| form_atom_is_nullable(atom, fields, nullable_types));
+        let licensed_literal_indexes = source
+            .atoms
+            .iter()
+            .enumerate()
+            .filter_map(|(index, atom)| {
+                matches!(atom, FormAtom::LicensedLiteral(_)).then_some(index)
+            })
+            .collect();
         forms.push(FormPlan {
             origin_span: source.name.span(),
             name,
             rule_id,
             guard,
             atoms,
+            licensed_literal_indexes,
             nullable,
         });
     }
@@ -4658,9 +4672,10 @@ impl AtomPlan {
 
     fn from_source(source: &FormAtom, resolved: &AtomContribution) -> syn::Result<Self> {
         match (source, resolved) {
-            (FormAtom::Literal(literal), AtomContribution::Literal) => {
-                Ok(Self::Literal(literal.value()))
-            }
+            (
+                FormAtom::Literal(literal) | FormAtom::LicensedLiteral(literal),
+                AtomContribution::Literal,
+            ) => Ok(Self::Literal(literal.value())),
             (FormAtom::SentenceInitial(literal), AtomContribution::Literal) => {
                 Ok(Self::SentenceInitialLiteral(literal.value()))
             }
@@ -4844,7 +4859,9 @@ fn seal_atoms(form: &Form, resolved: &[AtomContribution]) -> syn::Result<Vec<Ato
 
 fn form_atom_span(atom: &FormAtom) -> Span {
     match atom {
-        FormAtom::Literal(literal) | FormAtom::SentenceInitial(literal) => literal.span(),
+        FormAtom::Literal(literal)
+        | FormAtom::LicensedLiteral(literal)
+        | FormAtom::SentenceInitial(literal) => literal.span(),
         FormAtom::Role(role)
         | FormAtom::Lex(role)
         | FormAtom::Identity(role)

@@ -392,6 +392,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     pub(crate) construction: &'static str,
                     pub(crate) form: &'static str,
                     pub(crate) atom_index: usize,
+                    pub(crate) homograph_license: HomographLicense,
                 }
             },
         ),
@@ -615,6 +616,11 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
                             construction.construction_id(),
                             construction.origin_span(),
                         );
+                        let homograph_license = if form.literal_is_licensed(atom_index) {
+                            quote! { HomographLicense::Licensed }
+                        } else {
+                            quote! { HomographLicense::Unlicensed }
+                        };
                         let form = syn::LitStr::new(form.name(), form.origin_span());
                         Some(quote! {
                             FormLiteralSurface {
@@ -622,6 +628,7 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
                                 construction: #construction,
                                 form: #form,
                                 atom_index: #atom_index,
+                                homograph_license: #homograph_license,
                             }
                         })
                     })
@@ -2993,7 +3000,7 @@ mod tests {
                         adjective: lex AttributiveAdjective,
                         preposition: lex Preposition,
                     }
-                    form phrase = lex(adjective) " " lex(preposition);
+                    form phrase = lex(adjective) licensed(" ") lex(preposition);
                 }
                 root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
             })
@@ -3018,6 +3025,19 @@ mod tests {
         ] {
             assert!(rows.contains(fragment), "missing `{fragment}`: {rows}");
         }
+
+        let form_rows = runtime
+            .iter()
+            .find(|item| {
+                matches!(&item.key, crate::ItemKey::Named { name, .. } if name == "FORM_LITERAL_SURFACES")
+            })
+            .expect("form literal surface rows are emitted")
+            .tokens
+            .to_string();
+        assert!(
+            form_rows.contains("surface : \" \" , construction : \"phrase\" , form : \"phrase\" , atom_index : 1usize , homograph_license : HomographLicense :: Licensed"),
+            "licensed form atom metadata is missing: {form_rows}",
+        );
     }
 
     fn structural_semantic_plan() -> crate::semantic::SemanticPlan {

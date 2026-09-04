@@ -860,6 +860,18 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
         let content;
         parenthesized!(content in input);
         match ident.to_string().as_str() {
+            "licensed" if allow_bound => {
+                let literal = content.parse::<LitStr>().map_err(|_| {
+                    content.error("licensed form atoms require exactly one literal")
+                })?;
+                if !content.is_empty() {
+                    return Err(content.error("licensed form atoms require exactly one literal"));
+                }
+                FormAtom::LicensedLiteral(literal)
+            }
+            "licensed" => {
+                return Err(syn::Error::new(ident.span(), "licensed atoms cannot nest"));
+            }
             "sentence_initial" if allow_bound => {
                 let literal = content.parse::<LitStr>().map_err(|_| {
                     content.error("sentence_initial form atoms require exactly one literal")
@@ -3303,6 +3315,57 @@ mod tests {
             error,
             "sentence_initial target must realize at least one byte",
         );
+    }
+
+    #[test]
+    fn licensed_fixed_surfaces_parse_only_as_unnested_form_atoms() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = licensed("item");
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a licensed fixed surface parses as a form atom");
+
+        let crate::Declaration::Construction(item) = &declarations.declarations[0] else {
+            panic!("first declaration is the construction")
+        };
+        assert!(matches!(
+            item.forms[0].atoms.as_slice(),
+            [crate::FormAtom::LicensedLiteral(_)]
+        ));
+
+        for (malformed, expected) in [
+            (
+                quote::quote! { licensed() },
+                "unexpected end of input, licensed form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { licensed(value) },
+                "licensed form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { licensed(licensed("item")) },
+                "licensed form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { licensed("item", "other") },
+                "licensed form atoms require exactly one literal",
+            ),
+        ] {
+            let source = quote::quote! {
+                construction invalid: Root {
+                    element Invalid { value: Root, }
+                    form invalid = #malformed;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            };
+            let error = crate::parse_declarations(source)
+                .expect_err("an invalid licensed fixed surface rejects")
+                .to_string();
+            assert_eq!(error, expected);
+        }
     }
 
     #[test]

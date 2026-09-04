@@ -281,11 +281,15 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
                         nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
                     }),
-                    comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                        threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                            value: ScalarNumber { magnitude: 2 },
-                        }),
-                    }),
+                    comparison: ScalarComparison::ScalarOrLess(
+                        ScalarOrLess::new(
+                            ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                                value: ScalarNumber { magnitude: 2 },
+                            }),
+                            CostComparisonDirection::Less,
+                        )
+                        .expect("the closed member satisfies the direction requirement"),
+                    ),
                 }),
             },
         )),

@@ -3814,7 +3814,7 @@ fn cost_position_reuses_the_typed_predicate_algebra() {
             ),
             (
                 " instead".to_owned(),
-                "form:instead_predicate/instead_predicate/1".to_owned(),
+                "vocab:DistributionReplacement/Instead".to_owned(),
             ),
             (": ".to_owned(), "form:activated/activated/1".to_owned(),),
             ("Draw".to_owned(), "core-verb:Draw".to_owned(),),

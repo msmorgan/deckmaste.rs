@@ -540,11 +540,15 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     measure: ScalarMeasure::NominalScalarMeasure(NominalScalarMeasure {
                         nominal: singular_nominal(Noun::Lexeme(CommonNoun::Power)),
                     }),
-                    comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                        threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                            value: ScalarNumber { magnitude: 2 },
-                        }),
-                    }),
+                    comparison: ScalarComparison::ScalarOrLess(
+                        ScalarOrLess::new(
+                            ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                                value: ScalarNumber { magnitude: 2 },
+                            }),
+                            CostComparisonDirection::Less,
+                        )
+                        .expect("the closed member satisfies the direction requirement"),
+                    ),
                 }),
             },
         )),
@@ -913,7 +917,7 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
     };
     assert_eq!(span, TextSpan { start: 34, end: 35 });
     assert!(!expectations.is_empty());
-    assert!(expectations.contains(&Expectation::Literal("that")));
+    assert!(expectations.contains(&Expectation::Terminal(TerminalClass::SingularDemonstrative)));
 
     let trace = parser.trace_sentence(denied, &context, TraceLimits::new(usize::MAX));
     assert!(matches!(
