@@ -2056,22 +2056,12 @@ secretlyChooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
                   {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
 secretlyChooses who n = Choose n (Just who) Secretly {ch}
 
-takeDropAppend : {0 elem : Type} -> (n : Nat) -> (xs : List elem) ->
-                 xs = take n xs ++ drop n xs
-takeDropAppend Z xs = Refl
-takeDropAppend (S n) [] = Refl
-takeDropAppend (S n) (x :: xs) = cong (x ::) (takeDropAppend n xs)
-
 public export
 itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
           {auto 0 ok : countReach Bare OneOf (instrDelta prev) = 1} ->
+          {auto 0 ko : KeepsOuter prev} ->
           Noun (instrIntro prev) Object
-itPrior {bs} prev =
-  Own OneOf (instrDelta prev)
-    (drop (length (instrIntro prev) `minus` length bs) (instrIntro prev))
-    {sp = takeDropAppend (length (instrIntro prev) `minus` length bs)
-                         (instrIntro prev)}
-    {ok}
+itPrior {bs} prev = Own OneOf (instrDelta prev) bs {sp = ko} {ok}
 
 public export
 dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->

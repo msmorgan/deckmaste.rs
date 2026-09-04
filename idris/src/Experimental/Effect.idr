@@ -1291,15 +1291,18 @@ mutual
                 (grp : Noun bs k) ->
                 (body : Instruction (elemIntro grp)) ->
                 {auto 0 pl : nounPlur grp = ManyOf} ->
+                {auto 0 ko : KeepsOuter body} ->
                 Instruction bs
     ForEachKindOf : (ax : KindAxis) -> (dom : Maybe (Noun bs Object)) ->
                     (q : QualitySort) ->
                     {auto 0 sc : kindAxisSort ax = Just q} ->
                     {auto 0 cl : So (kindDomainOk ax dom)} ->
                     (body : Instruction (kindValueIntro q dom)) ->
+                    {auto 0 ko : KeepsOuter body} ->
                     Instruction bs
     Repeat : (rep : Repetition bs) -> Instruction bs
-    Repeated : (n : Amount bs) -> (body : Instruction (amtIntro n)) -> Instruction bs
+    Repeated : (n : Amount bs) -> (body : Instruction (amtIntro n)) ->
+               {auto 0 ko : KeepsOuter body} -> Instruction bs
     Sequentially : {0 n : Nat} -> Instructions n bs ->
                    {auto 0 ne : IsSucc n} -> Instruction bs
     Simultaneously : {0 n : Nat} -> SimInstructions n bs ->
@@ -1565,6 +1568,10 @@ mutual
   public export
   instrDelta : {bs : Bindings} -> Instruction bs -> Bindings
   instrDelta e = take (length (instrIntro e) `minus` length bs) (instrIntro e)
+
+  public export
+  KeepsOuter : {bs : Bindings} -> Instruction bs -> Type
+  KeepsOuter {bs} e = instrIntro e = instrDelta e ++ bs
 
   public export
   instrIntro : {bs : Bindings} -> Instruction bs -> Bindings

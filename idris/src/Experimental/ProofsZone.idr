@@ -65,6 +65,60 @@ badThatTokenOfCard : Unspellable (Instruction []) (\ok =>
                SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badThatTokenOfCard (Refl, _) impossible
 
+||| "For each opponent, exile a creature that player controls. Put those cards
+||| onto the battlefield." — the printed shape of Breach the Multiverse's middle
+||| pair. The loop body moves only what it introduced itself, so the enclosing
+||| stack survives and the exiled cards read back after the loop as a plural.
+public export
+okLoopMovesItsOwn : Instruction []
+okLoopMovesItsOwn =
+  Sequentially [ ForEachOf (Macros.each Opponent)
+                   (Macros.exile You (Macros.a (And [Macros.creature,
+                      HasPossessor ControllerAx (Macros.That PlayerW OneOf)])))
+               , Macros.putOntoBattlefield (Macros.It ManyOf) ]
+
+||| "Tap target creature. For each opponent, exile it. Untap it." The loop body
+||| exiles an object bound OUTSIDE the loop, so `ForEachOf`'s introductions can
+||| no longer be told from the mutated stack and the loop would republish the
+||| creature's stale battlefield zone. Refused at `KeepsOuter`; the unlooped
+||| spelling of the same sentence is refused one clause later, at `untap`'s
+||| battlefield gate ([CR#701.26b], `badUnloopedZoneMoveRead`).
+public export
+badLoopedZoneMoveRead : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.tap (Macros.target Macros.creature)
+               , ForEachOf (Macros.each Opponent)
+                           (Macros.exile You (Macros.It OneOf)) {ko = ok}
+               , Macros.untap (Macros.It OneOf) ])
+badLoopedZoneMoveRead Refl impossible
+
+||| "Tap target creature. Exile it. Untap it." — the same sentence without the
+||| loop: exile puts the creature in the exile zone, where it is a new object
+||| and no longer a permanent, so untapping it is refused [CR#400.7,701.26b].
+public export
+badUnloopedZoneMoveRead : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.tap (Macros.target Macros.creature)
+               , Macros.exile You (Macros.It OneOf)
+               , Macros.untap (Macros.It OneOf) {ok} ])
+badUnloopedZoneMoveRead Oh impossible
+
+||| "For each color among permanents on the battlefield, draw a card."
+public export
+okKindLoopKeepsOuter : Instruction []
+okKindLoopKeepsOuter =
+  ForEachKindOf ColorAxis (Just (Macros.allOf Permanent)) Color (Draw You (Lit 1))
+
+||| "Tap target creature. For each color among permanents on the battlefield,
+||| exile it. Untap it." `ForEachKindOf` republishes its enclosing stack the
+||| same way `ForEachOf` does, so a body that moves an object bound outside the
+||| loop is refused at the same obligation [CR#400.7,701.26b].
+public export
+badKindLoopZoneMoveRead : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.tap (Macros.target Macros.creature)
+               , ForEachKindOf ColorAxis (Just (Macros.allOf Permanent)) Color
+                               (Macros.exile You (Macros.It OneOf)) {ko = ok}
+               , Macros.untap (Macros.It OneOf) ])
+badKindLoopZoneMoveRead Refl impossible
+
 ||| "When target creature dies this turn, return that card to the battlefield."
 public export
 okDiesBattlefield : Instruction []
