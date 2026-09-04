@@ -15,4 +15,4 @@ the census separates governed from ungoverned. Split the metric:
 `form_literal_vocab_overlaps` as a decreasing ceiling (70 today; this
 ticket lowers it by 17 + the 16 licensed), replacing the bumpable
 `assert_eq!(…, 72)` and the loosened `assert!(… > 1)` environment pin.
-Zero coverage change; standard constraints apply.
+Also fold the flavor-word landing's 2x2 label constructions ({AbilityWord, FlavorWord} x {bare, em-dash-prefixed}) through a shared `LabelTerm` sum (flavor review M1; -2 constructions). Zero coverage change; standard constraints apply.
