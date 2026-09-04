@@ -34,7 +34,8 @@ the amendment step above is not a STOP.
 
 ## Landing record
 
-STOPPED on change `wxwlzqxs` (2026-09-04). The safe partial replaces the two
+STOPPED on change `wxwlzqxs` (2026-09-04), with a second STOP after the
+coordinator ruling of 2026-09-04. The safe partial replaces the two
 duplicate prenominal lexemes with one `TargetingMarker::Target` vocabulary
 member and the ticket's two thin projections:
 `TargetingMarkerDeterminative` for bare singular nominals and
@@ -43,19 +44,33 @@ count noun remains independent. `AttributiveAdjective::New` is added because
 the required *choose new targets* witness otherwise has no lexical owner. The
 dated rewrite-decision amendment records the authorized lexical ruling.
 
-The required Target Verb could not be landed safely. A transitive core-verb
-row with the full *target/targets/targeted/targeting* paradigm makes *a spell
-that targets* select uniquely and correctly through
-`PositiveObjectGapRelativeClause` with a `TransitivePredicate`. It also
-introduces an earlier typed lexical item at the start of sentences such as
-*Target player draws three cards*. Structural specificity then selects a
-wrong imperative Target Verb analysis over the existing declarative whose
-subject begins with the Targeting Marker. Resolving that regression requires
-one of the ticket-banned mechanisms: narrowing the Target Verb's bare form or
-imperative distribution, adding dominance, adding a selection exception, or
-changing broader noun/adjunct grammar outside this ticket. The experiment was
-removed from the safe tree; the verb acceptance remains unsatisfied and this
-workspace must not be integrated.
+The coordinator ruling authorized a general declared Verb feature whose domain
+is `Allowed`/`Barred`, defaulting to `Allowed`, with only the Target Verb row
+declared `Barred`. The imperative Clause construction reads that feature; no
+word-naming guard, narrowed form, dominance edge, or exception is involved.
+That implementation eliminated the 53 previously observed wrong imperative
+selections while leaving the plain Inflectional Form available after a modal.
+
+The required package gate then exposed a distinct finite-Clause regression in
+the existing positive witness *Two target creatures or planeswalkers gain 2
+life.* Adding the Target Verb creates two candidates. The intended
+`NominalModifiedPluralCoordinationNominalValue` candidate uses the Targeting
+Marker over *creatures or planeswalkers*. A competing
+`ClauseCoordinationOrClauseCoordination` candidate instead reads *Two* as the
+first Subject, the Target Verb as its finite Predicate with *creatures* as its
+Object, and *planeswalkers gain 2 life* as the second Clause. Structural
+specificity selects that competing analysis. The exact existing assertion
+`coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsistent`
+failed with candidate census `2` rather than `1`; changing its expected value
+would flip a correct positive witness to the wrong selected analysis and is
+forbidden by the assurance rule.
+
+The authorized feature can bar only an imperative Clause head and therefore
+cannot eliminate this finite-Clause analysis. Doing so would require new
+authority for a finite-clause or Subject licence, form narrowing, dominance,
+an exception, or a construction/lexeme-naming guard. The implementation
+experiment and its test-output re-spellings were removed. The safe tree still
+lacks the Target Verb acceptance and must not be integrated.
 
 | measure | before | safe partial |
 | --- | ---: | ---: |
@@ -243,11 +258,13 @@ amendment's two claims.
   required *choose new targets* acceptance. It accounts for all 53 reviewed
   add-only coverage identities above.
 - The Target Verb acceptance is not present in the safe partial because the
-  STOP fence fired. A decision is wanted for a general, non-word-specific way
-  to keep sentence-initial Targeting Marker subjects ahead of imperative
-  Target Verb analyses.
+  second STOP fence fired. The coordinator's declared imperative-head licence
+  resolves the sentence-initial imperative collision, but a decision is now
+  wanted for the finite-Clause coordination collision described above.
 - No `checked by` or `require` names a word, lexeme, construction, or card. No
   dominance edge, selection exception, or form narrowing was added. No scratch
   copy or probe tree will remain at handoff.
 
-glossary gap: none.
+glossary gap: Imperative Clause Head Licence — the declared permission for a
+Verb's plain Inflectional Form to head an imperative Clause, independently of
+the Clause's Finiteness.
