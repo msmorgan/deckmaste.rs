@@ -72,9 +72,9 @@ low relative-clause reading. Added selected positives are `exiled` and
   positive-object-gap adjunct); Zedruu the Greathearted (10, specificity, the
   low positive-object-gap adjunct).
 - Performance advisory (8 workers; sibling process count unavailable in the
-  sandbox for reviewer stamping): coverage 87.548 s, 118,895 ns/B, host load
-  5.65/8.10/10.66; roundtrip 85.861 s, 116,660 ns/B, load 5.16/7.48/10.21;
-  ambiguity 94.092 s, 125,256 ns/B, load 4.63/6.93/9.75. Each exceeded the
+  sandbox for reviewer stamping): coverage 87.568 s, 112,631 ns/B, host load
+  6.39/10.56/10.80; roundtrip 85.434 s, 124,717 ns/B, load 11.76/11.57/11.16;
+  ambiguity 96.623 s, 121,605 ns/B, load 8.15/10.96/11.02. Each exceeded the
   16.260 s wall ceiling under host load; this is reported, not a STOP.
 
 ### Winner-change census
