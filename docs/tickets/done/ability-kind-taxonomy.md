@@ -162,10 +162,10 @@ untouched and the build re-run as a regression check. Nothing here makes
   citation-looking string(s)`
 - `cargo xtask cite check` → `checked 18182 citations against cr.txt (eff.
   2026-08-07); 0 stale`
-- `cargo xtask cite bless` → registered exactly one new rule, 605.2 ("A mana
+- `cargo xtask cite bless` → registered exactly one new rule, [CR#605.2] ("A mana
   ability remains a mana ability even if the game state doesn't allow it to
   produce mana"), which is what the line citing it claims; the lock diff is
-  `+ "605.2": …` and nothing else — no prune.
+  `+ "[CR#605.2]": …` and nothing else — no prune.
 - `cargo xtask cite audit --diff < /tmp/akt.diff` → `audited 19 citation
   site(s)`; every rule text read against the line citing it, no correction
   needed.
