@@ -30,6 +30,47 @@ const LICENSED_VOCAB_LEXICON_HOMOGRAPHS: usize = 2;
 const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CoverageLockPolicy {
+    Ratchet,
+    Report,
+}
+
+impl CoverageLockPolicy {
+    const ENVIRONMENT_VARIABLE: &'static str = "DECKMASTE_COVERAGE_LOCK";
+
+    fn from_environment() -> anyhow::Result<Self> {
+        match std::env::var(Self::ENVIRONMENT_VARIABLE) {
+            Ok(value) => Self::parse(&value),
+            Err(std::env::VarError::NotPresent) => Ok(Self::Ratchet),
+            Err(error) => Err(error).with_context(|| {
+                format!(
+                    "reading {} for English-v2 coverage lock mode",
+                    Self::ENVIRONMENT_VARIABLE
+                )
+            }),
+        }
+    }
+
+    fn parse(value: &str) -> anyhow::Result<Self> {
+        match value {
+            "ratchet" => Ok(Self::Ratchet),
+            "report" => Ok(Self::Report),
+            _ => bail!(
+                "invalid {} value {value:?}; expected `ratchet` or `report`",
+                Self::ENVIRONMENT_VARIABLE
+            ),
+        }
+    }
+
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Ratchet => "ratchet",
+            Self::Report => "report",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
     None,
     Check,
@@ -37,7 +78,7 @@ pub(super) enum CoverageLockMode {
 }
 
 impl CoverageArgs {
-    const fn lock_mode(&self) -> CoverageLockMode {
+    const fn lock_action(&self) -> CoverageLockMode {
         if self.check {
             CoverageLockMode::Check
         } else if self.bless {
@@ -1172,6 +1213,18 @@ impl CoverageReport {
         Ok(ids)
     }
 
+    pub(super) fn selected_coverage_for_lock(&self, id: &str) -> Option<(&str, &str)> {
+        self.rows.iter().find_map(|row| {
+            if row.id == id && row.status == CoverageStatus::SelectedCovered {
+                row.selected
+                    .as_ref()
+                    .map(|selected| (row.card_name.as_str(), selected.rendered_text.as_str()))
+            } else {
+                None
+            }
+        })
+    }
+
     #[cfg(test)]
     pub(super) fn rows(&self) -> &[CoverageRow] {
         &self.rows
@@ -1231,11 +1284,18 @@ impl CoverageObserver for NoopObserver {
     fn record(&mut self, _event: String) {}
 }
 
+#[derive(Clone, Copy)]
+struct CoverageRun<'a> {
+    args: &'a CoverageArgs,
+    lock_policy: CoverageLockPolicy,
+}
+
 pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let stderr = std::io::stderr();
     let mut diagnostics = stderr.lock();
+    let lock_policy = CoverageLockPolicy::from_environment()?;
     run_with_components(
-        args,
+        CoverageRun { args, lock_policy },
         output,
         &mut diagnostics,
         &mut NoopObserver,
@@ -1244,11 +1304,12 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
                 .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))
         },
         crate::english_v2::parser_from_builtin_v2,
-        |report, path, mode, diagnostics| {
+        |report, path, mode, lock_policy, diagnostics| {
             crate::english_v2::coverage_lock::apply_with_retirement(
                 report,
                 path,
                 mode,
+                lock_policy,
                 args.retire.as_deref(),
                 diagnostics,
             )?;
@@ -1258,7 +1319,7 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
 }
 
 fn run_with_components<LoadCorpus, LoadParser, Gate>(
-    args: &CoverageArgs,
+    run: CoverageRun<'_>,
     output: &mut dyn Write,
     diagnostics: &mut dyn Write,
     observer: &mut dyn CoverageObserver,
@@ -1269,8 +1330,15 @@ fn run_with_components<LoadCorpus, LoadParser, Gate>(
 where
     LoadCorpus: FnOnce() -> anyhow::Result<Corpus>,
     LoadParser: FnOnce() -> anyhow::Result<Parser>,
-    Gate: FnMut(&CoverageReport, &Path, CoverageLockMode, &mut dyn Write) -> anyhow::Result<()>,
+    Gate: FnMut(
+        &CoverageReport,
+        &Path,
+        CoverageLockMode,
+        CoverageLockPolicy,
+        &mut dyn Write,
+    ) -> anyhow::Result<()>,
 {
+    let args = run.args;
     let started = std::time::Instant::now();
     let workers = args.corpus.workers()?;
     observer.record("load_corpus".to_owned());
@@ -1313,14 +1381,14 @@ where
     )?;
     debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
     observer.record("render".to_owned());
-    render_report(&report, args.json, output)?;
+    render_report(&report, args.json, run.lock_policy, output)?;
     observer.record("flush".to_owned());
     output
         .flush()
         .context("flushing English-v2 coverage report")?;
     super::corpus::write_corpus_performance("coverage", started.elapsed(), performance)?;
     reject_internal_failures(&report)?;
-    let mode = args.lock_mode();
+    let mode = args.lock_action();
     if mode == CoverageLockMode::Check {
         reject_collision_census(
             &report,
@@ -1331,7 +1399,7 @@ where
     }
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
-        gate(&report, &args.lock, mode, diagnostics)?;
+        gate(&report, &args.lock, mode, run.lock_policy, diagnostics)?;
     }
     Ok(())
 }
@@ -1359,6 +1427,7 @@ fn reject_collision_census(
 fn render_report(
     report: &CoverageReport,
     json: bool,
+    lock_policy: CoverageLockPolicy,
     output: &mut dyn Write,
 ) -> anyhow::Result<()> {
     if json {
@@ -1385,7 +1454,8 @@ fn render_report(
     }
     let summary = serde_json::to_string(&report.summary)
         .context("serializing English-v2 coverage summary")?;
-    writeln!(output, "summary {summary}").context("writing English-v2 coverage summary")?;
+    writeln!(output, "summary {summary} lock_mode={}", lock_policy.name())
+        .context("writing English-v2 coverage summary")?;
     Ok(())
 }
 
@@ -1782,11 +1852,13 @@ mod tests {
     use super::CoverageInternalFailureKind;
     use super::CoverageInvalidSpanKind;
     use super::CoverageLockMode;
+    use super::CoverageLockPolicy;
     use super::CoverageObserver;
     use super::CoverageOwnership;
     use super::CoverageOwnershipFailure;
     use super::CoverageReport;
     use super::CoverageRow;
+    use super::CoverageRun;
     use super::CoverageStatus;
     use super::CoverageSummary;
     use super::CoverageValidationError;
@@ -2706,13 +2778,16 @@ mod tests {
         let mut gate_calls = 0;
 
         run_with_components(
-            &args(true, CoverageLockMode::Check),
+            CoverageRun {
+                args: &args(true, CoverageLockMode::Check),
+                lock_policy: CoverageLockPolicy::Ratchet,
+            },
             &mut output,
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
             crate::english_v2::parser_from_builtin_v2,
-            |_, _, _, diagnostics| {
+            |_, _, _, _, diagnostics| {
                 gate_calls += 1;
                 shared.borrow_mut().push("gate".to_owned());
                 writeln!(diagnostics, "gate diagnostic")?;
@@ -2763,13 +2838,16 @@ mod tests {
         let mut observer = Recorder::default();
 
         run_with_components(
-            &args(true, CoverageLockMode::None),
+            CoverageRun {
+                args: &args(true, CoverageLockMode::None),
+                lock_policy: CoverageLockPolicy::Ratchet,
+            },
             &mut output,
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
             crate::english_v2::parser_from_builtin_v2,
-            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+            |_, _, _, _, _| unreachable!("report-only coverage has no gate"),
         )
         .unwrap();
 
@@ -2840,13 +2918,16 @@ mod tests {
         let mut observer = NoopObserver;
 
         run_with_components(
-            &args(true, CoverageLockMode::None),
+            CoverageRun {
+                args: &args(true, CoverageLockMode::None),
+                lock_policy: CoverageLockPolicy::Ratchet,
+            },
             &mut output,
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
             crate::english_v2::parser_from_builtin_v2,
-            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+            |_, _, _, _, _| unreachable!("report-only coverage has no gate"),
         )
         .unwrap();
 
@@ -2882,13 +2963,16 @@ mod tests {
 
         let mut output = Vec::new();
         run_with_components(
-            &args(true, CoverageLockMode::None),
+            CoverageRun {
+                args: &args(true, CoverageLockMode::None),
+                lock_policy: CoverageLockPolicy::Ratchet,
+            },
             &mut output,
             &mut Vec::new(),
             &mut NoopObserver,
             || Ok(corpus),
             crate::english_v2::parser_from_builtin_v2,
-            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+            |_, _, _, _, _| unreachable!("report-only coverage has no gate"),
         )
         .expect("real coverage runner selects the abbreviated face self-reference");
 
@@ -2917,8 +3001,8 @@ mod tests {
         let report = CoverageReport::try_new(id('f'), vec![row]).unwrap();
         let mut first = Vec::new();
         let mut second = Vec::new();
-        render_report(&report, true, &mut first).unwrap();
-        render_report(&report, true, &mut second).unwrap();
+        render_report(&report, true, CoverageLockPolicy::Ratchet, &mut first).unwrap();
+        render_report(&report, true, CoverageLockPolicy::Ratchet, &mut second).unwrap();
         assert_eq!(first, second);
         let decoded: CoverageReport = serde_json::from_slice(&first).unwrap();
         assert_eq!(decoded, report);
@@ -2926,7 +3010,7 @@ mod tests {
         assert!(!first.ends_with(b"\n\n"));
 
         let mut human = Vec::new();
-        render_report(&report, false, &mut human).unwrap();
+        render_report(&report, false, CoverageLockPolicy::Ratchet, &mut human).unwrap();
         let human = String::from_utf8(human).unwrap();
         assert_eq!(human.lines().count(), 3);
         assert!(
@@ -2936,6 +3020,30 @@ mod tests {
         );
         assert!(human.contains("Card\\n\\r\\t"));
         assert!(!human.contains("..."));
+
+        let mut report_summary = Vec::new();
+        render_report(
+            &report,
+            false,
+            CoverageLockPolicy::Report,
+            &mut report_summary,
+        )
+        .unwrap();
+        assert!(
+            String::from_utf8(report_summary)
+                .unwrap()
+                .contains("lock_mode=report")
+        );
+    }
+
+    #[test]
+    fn coverage_lock_policy_rejects_unknown_environment_values() {
+        let error = CoverageLockPolicy::parse("not-a-mode")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("DECKMASTE_COVERAGE_LOCK"), "{error}");
+        assert!(error.contains("ratchet"), "{error}");
+        assert!(error.contains("report"), "{error}");
     }
 
     #[test]
@@ -2957,13 +3065,16 @@ mod tests {
             let mut observer = NoopObserver;
             let mut gate_calls = 0;
             let error = run_with_components(
-                &args(true, CoverageLockMode::Check),
+                CoverageRun {
+                    args: &args(true, CoverageLockMode::Check),
+                    lock_policy: CoverageLockPolicy::Ratchet,
+                },
                 &mut output,
                 &mut diagnostics,
                 &mut observer,
                 || Ok(corpus),
                 crate::english_v2::parser_from_builtin_v2,
-                |_, _, _, _| {
+                |_, _, _, _, _| {
                     gate_calls += 1;
                     anyhow::bail!("gate sentinel")
                 },
@@ -2984,13 +3095,16 @@ mod tests {
         let mut observer = NoopObserver;
         let mut gate_calls = 0;
         run_with_components(
-            &args(true, CoverageLockMode::None),
+            CoverageRun {
+                args: &args(true, CoverageLockMode::None),
+                lock_policy: CoverageLockPolicy::Ratchet,
+            },
             &mut output,
             &mut diagnostics,
             &mut observer,
             || Ok(corpus),
             crate::english_v2::parser_from_builtin_v2,
-            |_, _, _, _| {
+            |_, _, _, _, _| {
                 gate_calls += 1;
                 Ok(())
             },
@@ -3014,13 +3128,16 @@ mod tests {
         let mut observer = Recorder::default();
         let error = with_forced_ownership_inspection_failure_for_test(|| {
             run_with_components(
-                &args(true, CoverageLockMode::Check),
+                CoverageRun {
+                    args: &args(true, CoverageLockMode::Check),
+                    lock_policy: CoverageLockPolicy::Ratchet,
+                },
                 &mut output,
                 &mut diagnostics,
                 &mut observer,
                 || Ok(corpus),
                 crate::english_v2::parser_from_builtin_v2,
-                |_, _, _, _| unreachable!("internal coverage must not invoke the gate"),
+                |_, _, _, _, _| unreachable!("internal coverage must not invoke the gate"),
             )
         })
         .unwrap_err()

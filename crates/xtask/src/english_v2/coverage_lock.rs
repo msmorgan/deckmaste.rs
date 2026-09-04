@@ -10,6 +10,7 @@ use deckmaste_construction_core::macro_def::Onset;
 use tempfile::NamedTempFile;
 
 use super::coverage::CoverageLockMode;
+use super::coverage::CoverageLockPolicy;
 use super::coverage::CoverageReport;
 
 const SCHEMA_VERSION_V3: u32 = 3;
@@ -219,6 +220,13 @@ trait LockWriter {
 
 pub(super) struct FilesystemLockWriter;
 
+#[derive(Clone, Copy)]
+struct CoverageLockRequest<'a> {
+    mode: CoverageLockMode,
+    lock_policy: CoverageLockPolicy,
+    retirement_path: Option<&'a Path>,
+}
+
 impl LockWriter for FilesystemLockWriter {
     fn create(&mut self, parent: &Path) -> anyhow::Result<NamedTempFile> {
         NamedTempFile::new_in(parent).map_err(anyhow::Error::new)
@@ -314,6 +322,7 @@ pub(super) fn apply_with_retirement(
     report: &CoverageReport,
     path: &Path,
     mode: CoverageLockMode,
+    lock_policy: CoverageLockPolicy,
     retirement_path: Option<&Path>,
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
@@ -321,8 +330,11 @@ pub(super) fn apply_with_retirement(
     apply_with_writer_and_retirement(
         report,
         path,
-        mode,
-        retirement_path,
+        CoverageLockRequest {
+            mode,
+            lock_policy,
+            retirement_path,
+        },
         diagnostics,
         &mut FilesystemLockWriter,
         &mut authenticate,
@@ -340,8 +352,11 @@ fn apply_with_writer(
     apply_with_writer_and_retirement(
         report,
         path,
-        mode,
-        None,
+        CoverageLockRequest {
+            mode,
+            lock_policy: CoverageLockPolicy::Ratchet,
+            retirement_path: None,
+        },
         diagnostics,
         writer,
         &mut |_, _| Ok(()),
@@ -359,8 +374,11 @@ fn apply_with_test_retirement(
     apply_with_writer_and_retirement(
         report,
         path,
-        mode,
-        retirement_path,
+        CoverageLockRequest {
+            mode,
+            lock_policy: CoverageLockPolicy::Ratchet,
+            retirement_path,
+        },
         diagnostics,
         &mut FilesystemLockWriter,
         &mut |_, _| Ok(()),
@@ -371,7 +389,9 @@ fn write_v4_coverage_drift(
     report: &CoverageReport,
     baseline: &CoverageLockV4,
     current_normalization: &[NormalizationUnit],
+    lost: &[&String],
     newly_covered: &[&String],
+    lock_policy: CoverageLockPolicy,
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
     if baseline.source_fingerprint != report.source_fingerprint() {
@@ -397,6 +417,49 @@ fn write_v4_coverage_drift(
             diagnostics,
         )?;
     }
+    write_report_delta(
+        report,
+        lost,
+        newly_covered,
+        |identity| {
+            baseline
+                .normalization_units
+                .iter()
+                .find(|unit| unit.id == identity)
+                .map(|unit| unit.card_name.as_str())
+        },
+        lock_policy,
+        diagnostics,
+    )?;
+    Ok(())
+}
+
+fn write_report_delta<'a>(
+    report: &CoverageReport,
+    lost: &[&String],
+    newly_covered: &[&String],
+    lost_card_name: impl Fn(&str) -> Option<&'a str>,
+    lock_policy: CoverageLockPolicy,
+    diagnostics: &mut dyn Write,
+) -> anyhow::Result<()> {
+    if lock_policy == CoverageLockPolicy::Report && !lost.is_empty() {
+        writeln!(
+            diagnostics,
+            "no longer covered {} corpus identit{}",
+            lost.len(),
+            if lost.len() == 1 { "y" } else { "ies" },
+        )
+        .context("writing English-v2 coverage lock diagnostic")?;
+        for identity in lost {
+            let card_name = lost_card_name(identity).unwrap_or("<unknown>");
+            writeln!(
+                diagnostics,
+                "no longer covered\t{identity}\tcard {}",
+                serde_json::to_string(card_name)?
+            )
+            .context("writing English-v2 coverage lock diagnostic")?;
+        }
+    }
     if !newly_covered.is_empty() {
         writeln!(
             diagnostics,
@@ -407,7 +470,19 @@ fn write_v4_coverage_drift(
         .context("writing English-v2 coverage lock diagnostic")?;
     }
     for identity in newly_covered {
-        writeln!(diagnostics, "newly covered\t{identity}")
+        let detail = if lock_policy == CoverageLockPolicy::Report {
+            let (card_name, rendered_text) = report
+                .selected_coverage_for_lock(identity)
+                .context("newly covered identity lacks selected coverage evidence")?;
+            format!(
+                "\tcard {}\tselected_analysis {}",
+                serde_json::to_string(card_name)?,
+                serde_json::to_string(rendered_text)?,
+            )
+        } else {
+            String::new()
+        };
+        writeln!(diagnostics, "newly covered\t{identity}{detail}")
             .context("writing English-v2 coverage lock diagnostic")?;
     }
     Ok(())
@@ -490,10 +565,14 @@ fn migrate_v3(
 fn validate_gate_preconditions(
     report: &CoverageReport,
     mode: CoverageLockMode,
+    lock_policy: CoverageLockPolicy,
     retirement_path: Option<&Path>,
 ) -> anyhow::Result<()> {
     if retirement_path.is_some() && mode != CoverageLockMode::Bless {
         bail!("a coverage retirement manifest is valid only with --bless");
+    }
+    if retirement_path.is_some() && lock_policy == CoverageLockPolicy::Report {
+        bail!("coverage retirement manifests are unavailable in report mode");
     }
     let (selected_uncovered, unresolved, internal, exception_resolved, exception_uses) =
         report.gate_failure_counts();
@@ -525,11 +604,14 @@ fn validate_gate_preconditions(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the lock transition keeps its validation, drift diagnostics, and atomic write ordering auditable together"
+)]
 fn apply_with_writer_and_retirement<Authenticate>(
     report: &CoverageReport,
     path: &Path,
-    mode: CoverageLockMode,
-    retirement_path: Option<&Path>,
+    request: CoverageLockRequest<'_>,
     diagnostics: &mut dyn Write,
     writer: &mut impl LockWriter,
     authenticate: &mut Authenticate,
@@ -537,30 +619,71 @@ fn apply_with_writer_and_retirement<Authenticate>(
 where
     Authenticate: FnMut(&Path, &[String]) -> anyhow::Result<()>,
 {
-    validate_gate_preconditions(report, mode, retirement_path)?;
+    validate_gate_preconditions(
+        report,
+        request.mode,
+        request.lock_policy,
+        request.retirement_path,
+    )?;
     let current = report.selected_covered_ids()?;
     let baseline = if path.exists() { Some(read_lock(path)?) } else { None };
-    match (mode, baseline) {
+    match (request.mode, baseline) {
         (CoverageLockMode::None, _) => Ok(()),
         (CoverageLockMode::Check, None) => bail!(
             "English-v2 coverage lock {} is missing; review the coverage report and rerun with --bless",
             path.display(),
         ),
         (CoverageLockMode::Bless, None) => {
-            if retirement_path.is_some() {
+            if request.retirement_path.is_some() {
                 bail!("a coverage retirement manifest requires an existing schema-4 lock");
             }
             let replacement = CoverageLockV4::new(report, current)?;
             write_v4_with(&replacement, path, writer)
         }
-        (CoverageLockMode::Check, Some(LoadedCoverageLock::V3(_))) => bail!(
-            "English-v2 coverage lock {} uses schema 3 without per-unit normalization inputs; migrate it with coverage --bless",
-            path.display(),
-        ),
-        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V3(baseline))) => {
-            migrate_v3(report, &baseline, current, retirement_path, path, writer)
+        (CoverageLockMode::Check, Some(LoadedCoverageLock::V3(_)))
+            if request.lock_policy == CoverageLockPolicy::Ratchet =>
+        {
+            bail!(
+                "English-v2 coverage lock {} uses schema 3 without per-unit normalization inputs; migrate it with coverage --bless",
+                path.display(),
+            )
         }
-        (mode, Some(LoadedCoverageLock::V4(baseline))) => {
+        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V3(baseline)))
+            if request.lock_policy == CoverageLockPolicy::Ratchet =>
+        {
+            migrate_v3(
+                report,
+                &baseline,
+                current,
+                request.retirement_path,
+                path,
+                writer,
+            )
+        }
+        (CoverageLockMode::Check, Some(LoadedCoverageLock::V3(baseline))) => {
+            let lost = baseline
+                .covered
+                .iter()
+                .filter(|identity| current.binary_search(identity).is_err())
+                .collect::<Vec<_>>();
+            let newly_covered = current
+                .iter()
+                .filter(|identity| baseline.covered.binary_search(identity).is_err())
+                .collect::<Vec<_>>();
+            write_report_delta(
+                report,
+                &lost,
+                &newly_covered,
+                |_| None,
+                request.lock_policy,
+                diagnostics,
+            )
+        }
+        (CoverageLockMode::Bless, Some(LoadedCoverageLock::V3(_))) => {
+            let replacement = CoverageLockV4::new(report, current)?;
+            write_v4_with(&replacement, path, writer)
+        }
+        (_, Some(LoadedCoverageLock::V4(baseline))) => {
             let replacement = CoverageLockV4::new(report, current.clone())?;
             let lost = baseline
                 .covered
@@ -575,11 +698,13 @@ where
                 report,
                 &baseline,
                 &replacement.normalization_units,
+                &lost,
                 &newly_covered,
+                request.lock_policy,
                 diagnostics,
             )?;
-            if !lost.is_empty() {
-                let Some(retirement_path) = retirement_path else {
+            if request.lock_policy == CoverageLockPolicy::Ratchet && !lost.is_empty() {
+                let Some(retirement_path) = request.retirement_path else {
                     bail!(
                         "lost {} previously covered corpus identit{}:\n{}",
                         lost.len(),
@@ -613,13 +738,15 @@ where
                     "WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contradiction requires a STOP, and the landing record must contain a re-coverage or retirement obligation line",
                 )
                 .context("writing English-v2 coverage retirement authority diagnostic")?;
-            } else if let Some(retirement_path) = retirement_path {
+            } else if let Some(retirement_path) = request.retirement_path {
                 bail!(
                     "coverage retirement manifest {} was supplied but no identities are currently lost",
                     retirement_path.display(),
                 );
             }
-            if mode == CoverageLockMode::Check {
+            if request.mode == CoverageLockMode::Check
+                && request.lock_policy == CoverageLockPolicy::Ratchet
+            {
                 if !newly_covered.is_empty() {
                     bail!(
                         "coverage lock has {} newly covered corpus identit{}; review the coverage report and rerun with --bless",
@@ -657,7 +784,10 @@ where
                 }
                 return Ok(());
             }
-            write_v4_with(&replacement, path, writer)
+            if request.mode == CoverageLockMode::Bless {
+                write_v4_with(&replacement, path, writer)?;
+            }
+            Ok(())
         }
     }
 }
@@ -924,6 +1054,7 @@ mod tests {
 
     use deckmaste_construction_core::macro_def::Onset;
 
+    use super::CoverageLockRequest;
     use super::CoverageLockV4;
     use super::FailureStage;
     use super::LoadedCoverageLock;
@@ -935,6 +1066,7 @@ mod tests {
     use super::validate_retirement_authentication;
     use super::write_v4_with;
     use crate::english_v2::coverage::CoverageLockMode;
+    use crate::english_v2::coverage::CoverageLockPolicy;
     use crate::english_v2::coverage::CoverageReport;
 
     fn id(digit: char) -> String {
@@ -1072,6 +1204,7 @@ mod tests {
                 &current,
                 Path::new("coverage.lock"),
                 CoverageLockMode::Bless,
+                CoverageLockPolicy::Ratchet,
                 Some(Path::new("retired.ids")),
                 &mut diagnostics,
             );
@@ -1484,6 +1617,72 @@ mod tests {
     }
 
     #[test]
+    fn report_policy_prints_drop_and_gain_delta_and_blesses_without_retirement() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let baseline_report = report(&id('1'), vec![id('a'), id('b')], 0, 0, 0, 0);
+        let baseline = json_v4(&baseline_report, vec![id('a'), id('b')]);
+        let changed = report(&id('2'), vec![id('b'), id('c')], 0, 0, 0, 0);
+        fs::write(&path, &baseline).unwrap();
+
+        let mut diagnostics = Vec::new();
+        apply_with_writer_and_retirement(
+            &changed,
+            &path,
+            CoverageLockRequest {
+                mode: CoverageLockMode::Check,
+                lock_policy: CoverageLockPolicy::Report,
+                retirement_path: None,
+            },
+            &mut diagnostics,
+            &mut super::FilesystemLockWriter,
+            &mut |_, _| panic!("report mode must not authenticate retirement"),
+        )
+        .unwrap();
+        let diagnostics = String::from_utf8(diagnostics).unwrap();
+        assert!(diagnostics.contains("no longer covered 1 corpus identity"));
+        assert!(diagnostics.contains(&format!("no longer covered\t{}\tcard \"Covered\"", id('a'))));
+        assert!(diagnostics.contains("newly covered 1 corpus identity"));
+        assert!(diagnostics.contains(&format!(
+            "newly covered\t{}\tcard \"Covered\"\tselected_analysis \"\"",
+            id('c')
+        )));
+        assert_eq!(fs::read(&path).unwrap(), baseline);
+
+        let error = apply_with_writer(
+            &changed,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("lost 1 previously covered corpus identity"),
+            "{error}"
+        );
+
+        apply_with_writer_and_retirement(
+            &changed,
+            &path,
+            CoverageLockRequest {
+                mode: CoverageLockMode::Bless,
+                lock_policy: CoverageLockPolicy::Report,
+                retirement_path: None,
+            },
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+            &mut |_, _| panic!("report mode must not authenticate retirement"),
+        )
+        .unwrap();
+        assert_eq!(
+            read_lock(&path).unwrap().covered_for_test(),
+            &[id('b'), id('c')]
+        );
+    }
+
+    #[test]
     fn schema_four_check_rejects_a_deleted_normalization_unit_vector() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("coverage.lock");
@@ -1655,8 +1854,11 @@ WARNING: coverage retirement is a coordinator ruling; a ticket-vs-purpose contra
         let error = apply_with_writer_and_retirement(
             &current,
             &path,
-            CoverageLockMode::Bless,
-            Some(&retirement),
+            CoverageLockRequest {
+                mode: CoverageLockMode::Bless,
+                lock_policy: CoverageLockPolicy::Ratchet,
+                retirement_path: Some(&retirement),
+            },
             &mut Vec::new(),
             &mut super::FilesystemLockWriter,
             &mut authenticate,
