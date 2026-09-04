@@ -88,14 +88,21 @@ the construction reads a declared feature.
 | unique / specificity-resolved selections | 11,515 / 5,256 | 11,515 / 5,256 |
 | exception-resolved / exception uses | 0 / 0 | 0 / 0 |
 
-- Selection census: no selected analysis changed. The acceptance probes retain
-  `This way` as `MannerReferenceThisWay`, `Destroy any of them.` through
+- Selection census: no selected analysis changed. All 36 selected corpus
+  identities whose construction path contains `MannerReferenceThisWay` retain
+  that analysis. The acceptance probes retain `This way` as
+  `MannerReferenceThisWay`, `Destroy any of them.` through
   `DeterminativePartitive`, and `Exile all the cards from your hand.` through
   `AllPredeterminedNominal`; all render byte-exactly. Bare `Destroy any.` and
   `Destroy all.`, plus `That way` and `This card` as manner references, remain
   rejected. Newly covered identities and selected analyses: none.
-- Positive gates on the pre-refresh tree: `cargo fmt --all`; strict all-target
-  Clippy for `deckmaste_construction_core`, `deckmaste_english_v2`, and `xtask`;
+- Kata refresh ran twice as the coordinator line moved during verification;
+  both refreshes were conflict-free and preserved change `tmytlsprotlr`. The
+  second refresh crossed only newly claimed coordinator work. Every gate and
+  corpus figure below was rerun after it.
+- Positive gates on the final post-refresh tree: `cargo fmt --all`; strict
+  all-target Clippy for `deckmaste_construction_core`,
+  `deckmaste_english_v2`, and `xtask`;
   `cargo test -p deckmaste_english_v2 -p xtask` (all suites green, including
   143 English-v2 library tests and 430 xtask library tests); and the required
   `cargo test --workspace` emitter gate (all suites green, including 397
@@ -105,8 +112,8 @@ the construction reads a declared feature.
   --check` and `cargo xtask english_v2 ambiguity --require-resolved` both
   exited zero with the table's census. Existing direct AST render/parse tests
   and the corpus accepted-set round trip keep both byte-exact laws green.
-- Performance advisory: the final pre-refresh coverage run took
-  118,193 ms at 254,187 ns/B with 24 workers and host load 66/46/30. It
+- Performance advisory: the final post-refresh coverage run took
+  228,971 ms at 229,222 ns/B with 24 workers and host load 65/82/72. It
   exceeded the 16,260 ms quiet-host ceiling under
   load; this is advisory, not a STOP. `pgrep -c -x codex` saw 1 process inside
   the sandbox; that is not a host-wide concurrent-executor count.
