@@ -113,3 +113,22 @@ Measured on change `onpzrwsz` with 16,385 covered lock identities.
   for the +48/-0 lock result.
 - The design source was only the v1 taxonomy document named by the ticket;
   no v1 code, type, or feature vocabulary was reused.
+
+
+## Erratum (adjunct-class landing review, 2026-09-03)
+
+HIGH: low attachment was made "checked" by a `head != CoreVerbIdentity::
+Control` blacklist with a source comment naming Seedborn Muse — a
+lexeme-named guard the ADR forbids; still live for every other verb
+("Destroy each creature you sacrifice during your upkeep." swallows
+`during` into the relative); corpus impact zero. Fix routed to
+english-v2-np-postmodifiers: delete the blacklist, declare the adjunct
+licence on the verb's valence row. Also: 4 of the 16 host adapters are
+byte-identical modulo host type (fold -> 385 constructions); the three
+H2-residue strings now select as predicate adjuncts (review's reject list
+unmet, unnamed in the record); contracted-perfect and reduced-passive
+slots widened to unguarded `opt PredicateAdjunct`; two negatives became
+positives undisclosed. The workspace red predates this landing: introduced
+by the locative re-issue's mechanism commit `nnmwmukz`
+(generated `declaration_noun_features` absent from the compiled-consumer
+mock environment).
