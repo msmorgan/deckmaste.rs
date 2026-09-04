@@ -1617,3 +1617,59 @@ hymnToTourach =
                                 (Macros.countedAtRandom (Macros.exactly 2)
                                                         (InZone Macros.handZ))) ]
        Nothing
+
+||| Caught in the Crossfire
+public export
+caughtInTheCrossfire : Card
+caughtInTheCrossfire =
+  Macros.card "Caught in the Crossfire" (Just [Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.spree
+                  [ (Just (Mana [Macros.generic 1]),
+                     DealDamage This (Lit 2)
+                       (Macros.each (And [Macros.creature,
+                                          Or [HasSubtype (creatureType "Assassin"),
+                                              HasSubtype (creatureType "Mercenary"),
+                                              HasSubtype (creatureType "Pirate"),
+                                              HasSubtype (creatureType "Rogue"),
+                                              HasSubtype (creatureType "Warlock")]])))
+                  , (Just (Mana [Macros.generic 1]),
+                     DealDamage This (Lit 2)
+                       (Macros.each (And [Macros.creature,
+                                          Not (Or [HasSubtype (creatureType "Assassin"),
+                                                   HasSubtype (creatureType "Mercenary"),
+                                                   HasSubtype (creatureType "Pirate"),
+                                                   HasSubtype (creatureType "Rogue"),
+                                                   HasSubtype (creatureType "Warlock")])]))) ]) ]
+       Nothing
+
+||| Requisition Raid
+public export
+requisitionRaid : Card
+requisitionRaid =
+  Macros.card "Requisition Raid" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.spree
+                  [ (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.artifact))
+                  , (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.enchantment))
+                  , (Just (Mana [Macros.generic 1]),
+                     PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                       (Macros.each (And [Macros.creature,
+                                          HasPossessor ControllerAx (Macros.target AnyPlayer)]))) ]) ]
+       Nothing
+
+||| Rustler Rampage
+public export
+rustlerRampage : Card
+rustlerRampage =
+  Macros.card "Rustler Rampage" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.spree
+                  [ (Just (Mana [Macros.generic 1]),
+                     SetStatus Untapped
+                       (Macros.allOf (And [Macros.creature,
+                                           HasPossessor ControllerAx (Macros.target AnyPlayer)])))
+                  , (Just (Mana [Macros.generic 1]),
+                     Macros.gains (Macros.target Macros.creature) (Macros.keyword "DoubleStrike")
+                                  (Just Macros.untilEndOfTurn)) ]) ]
+       Nothing

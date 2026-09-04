@@ -89,28 +89,43 @@ badZeroGroup (MaxAtLeastOne, _, _) impossible
 public export
 okModalTwoModes : Instruction []
 okModalTwoModes =
-  Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact),
-                         Macros.destroy (Macros.target Macros.enchantment)]
+  Modal (Macros.upTo 1) [(Nothing, Macros.destroy (Macros.target Macros.artifact)),
+                         (Nothing, Macros.destroy (Macros.target Macros.enchantment))]
 
 ||| "Choose one — Destroy target artifact."
 public export
 badModalOneMode : Unspellable (Instruction []) (\ok =>
-  Modal (Macros.upTo 1) [Macros.destroy (Macros.target Macros.artifact)] {tw = ok})
+  Modal (Macros.upTo 1) [(Nothing, Macros.destroy (Macros.target Macros.artifact))] {tw = ok})
 badModalOneMode Oh impossible
 
 ||| "Choose two — Destroy target artifact; or destroy target enchantment."
 public export
 okModalTwoOfTwo : Instruction []
 okModalTwoOfTwo =
-  Modal (Macros.exactly 2) [Macros.destroy (Macros.target Macros.artifact),
-                            Macros.destroy (Macros.target Macros.enchantment)]
+  Modal (Macros.exactly 2) [(Nothing, Macros.destroy (Macros.target Macros.artifact)),
+                            (Nothing, Macros.destroy (Macros.target Macros.enchantment))]
 
 ||| "Choose three — Destroy target artifact; or destroy target enchantment."
 public export
 badModalOverreach : Unspellable (Instruction []) (\ok =>
-  Modal (Macros.exactly 3) [Macros.destroy (Macros.target Macros.artifact),
-                            Macros.destroy (Macros.target Macros.enchantment)] {mf = ok})
+  Modal (Macros.exactly 3) [(Nothing, Macros.destroy (Macros.target Macros.artifact)),
+                            (Nothing, Macros.destroy (Macros.target Macros.enchantment))] {mf = ok})
 badModalOverreach Oh impossible
+
+||| "Choose one or more — + {1} — destroy target artifact; + {1} — destroy target enchantment." [CR#702.172a]
+public export
+okSpreeBothCosted : Instruction []
+okSpreeBothCosted =
+  Macros.spree [(Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.artifact)),
+                (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.enchantment))]
+
+||| "Choose one or more — destroy target artifact; + {1} — destroy target enchantment." — a
+||| spree mode with no cost [CR#702.172a]
+public export
+badSpreeMissingCost : Unspellable (Instruction []) (\ok =>
+  Macros.spree [(Nothing, Macros.destroy (Macros.target Macros.artifact)),
+                (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.enchantment))] {ac = ok})
+badSpreeMissingCost Oh impossible
 
 ||| "Choose one — Destroy target artifact; or tap it."
 public export

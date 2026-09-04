@@ -1279,7 +1279,7 @@ mutual
                    {auto 0 ne : IsSucc n} -> Instruction bs
     Simultaneously : {0 n : Nat} -> SimInstructions n bs ->
                      {auto 0 ne : IsSucc n} -> Instruction bs
-    Modal : (q : Quantity bs) -> (modes : List (Instruction bs)) ->
+    Modal : (q : Quantity bs) -> (modes : List (Maybe (Cost bs), Instruction bs)) ->
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
@@ -1489,7 +1489,7 @@ mutual
   costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (ForEachKindOf _ _ _ body) = costActionOk body
   costActionOk (Repeated _ body) = costRepeatedOk body
-  costActionOk (Modal _ modes) = costActionsOk modes
+  costActionOk (Modal _ modes) = costModesOk modes
   costActionOk _ = False
 
   public export
@@ -1498,9 +1498,9 @@ mutual
   costActionOkOpt (Just e) = costActionOk e
 
   public export
-  costActionsOk : {0 bs : Bindings} -> List (Instruction bs) -> Bool
-  costActionsOk [] = True
-  costActionsOk (e :: es) = costActionOk e && costActionsOk es
+  costModesOk : {0 bs : Bindings} -> List (Maybe (Cost bs), Instruction bs) -> Bool
+  costModesOk [] = True
+  costModesOk ((_, e) :: es) = costActionOk e && costModesOk es
 
   public export
   CostAction : Instruction bs -> Type
@@ -1520,9 +1520,19 @@ mutual
   NotInstead {bs} e = So (not (isInstead e))
 
   public export
-  modeCount : {0 bs : Bindings} -> List (Instruction bs) -> Nat
+  modeCount : {0 bs : Bindings} -> List (Maybe (Cost bs), Instruction bs) -> Nat
   modeCount [] = Z
   modeCount (_ :: es) = S (modeCount es)
+
+  public export
+  allCosted : {0 bs : Bindings} -> List (Maybe (Cost bs), Instruction bs) -> Bool
+  allCosted [] = True
+  allCosted ((Nothing, _) :: _) = False
+  allCosted ((Just _, _) :: es) = allCosted es
+
+  public export
+  AllCosted : List (Maybe (Cost bs), Instruction bs) -> Type
+  AllCosted {bs} modes = So (allCosted modes)
 
   public export
   data Instructions : Nat -> Bindings -> Type where

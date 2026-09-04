@@ -1178,7 +1178,7 @@ borrowedMalevolence =
   Macros.card "Borrowed Malevolence" (Just [Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
-       , Spell (Modal (Range (Just 1) (Just 2))
+       , Spell (Macros.chooseModes (Range (Just 1) (Just 2))
                   [ Macros.gets (Macros.target Macros.creature)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))
                                 (Just Macros.untilEndOfTurn)

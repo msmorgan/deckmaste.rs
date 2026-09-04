@@ -1097,12 +1097,25 @@ basicLandLine ss = MkTypeLine ss []
 
 
 public export
+noCosts : {0 bs : Bindings} -> List (Instruction bs) -> List (Maybe (Cost bs), Instruction bs)
+noCosts = map (\m => (Nothing, m))
+
+public export
 chooseModes : (q : Quantity bs) -> (modes : List (Instruction bs)) ->
               {auto 0 nz : NonZeroQ q} ->
               {auto 0 wf : WellFormedQ q} ->
-              {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-              {auto 0 mf : ModesFit q (modeCount modes)} -> Instruction bs
-chooseModes q modes = Modal q modes {nz} {wf} {tw} {mf}
+              {auto 0 tw : AtLeastTwo (modeCount (noCosts modes))} ->
+              {auto 0 mf : ModesFit q (modeCount (noCosts modes))} -> Instruction bs
+chooseModes q modes = Modal q (noCosts modes) {nz} {wf} {tw} {mf}
+
+||| Spree ([CR#702.172a]): "choose one or more modes", each carrying its own
+||| additional cost ([CR#700.2h]).
+public export
+spree : {0 bs : Bindings} -> (modes : List (Maybe (Cost bs), Instruction bs)) ->
+        {auto 0 tw : AtLeastTwo (modeCount modes)} ->
+        {auto 0 mf : ModesFit (the (Quantity bs) (Macros.atLeast 1)) (modeCount modes)} ->
+        {auto 0 ac : AllCosted modes} -> Instruction bs
+spree modes = Modal (the (Quantity bs) (Macros.atLeast 1)) modes {tw} {mf}
 
 public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
