@@ -960,3 +960,18 @@ badPrototypeOffCreatureFrame : Unspellable Card (\ok =>
        Nothing (Macros.prototypeAlt [Macros.generic 1, Macros.pip Red] 1 1)
        {pf = ok})
 badPrototypeOffCreatureFrame Oh impossible
+
+||| "When you cast this spell, copy it for each other spell that was cast
+||| before it this turn." Storm counts the spells cast earlier in the turn
+||| [CR#702.40a], not every spell cast during it.
+public export
+stormCountsEarlierThisTurn :
+  Macros.stormExpansion =
+    Macros.triggered When (Casts You Macros.thisSpell Nothing)
+      (Sequentially
+         [ Copy FromStack You Macros.thisSpell
+             (Macros.eventCountInvolving SpellCast (Macros.a AnyPlayer) EarlierThisTurn
+                (Macros.a (And [Macros.spell, OtherThan Macros.thisSpell])))
+             []
+         , Macros.may You (ChooseNewTargets (Pro (Word CopyW) ManyOf Whole)) ])
+stormCountsEarlierThisTurn = Refl

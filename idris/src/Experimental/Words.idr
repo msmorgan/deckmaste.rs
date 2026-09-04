@@ -2093,14 +2093,17 @@ Eq ShiftDir where
 
 
 namespace Lookback
+  ||| `EarlierThisTurn` is the turn so far, up to the counting event
+  ||| [CR#702.40a]; `ThisTurn` is the whole turn.
   public export
-  data Lookback = ThisTurn | ThisCombat | LastTurn | ThisGame | ThisWay
-                | Triggering
+  data Lookback = ThisTurn | EarlierThisTurn | ThisCombat | LastTurn | ThisGame
+                | ThisWay | Triggering
 
   public export
   sameWindow : Maybe Lookback -> Maybe Lookback -> Bool
   sameWindow Nothing Nothing = True
   sameWindow (Just ThisTurn) (Just ThisTurn) = True
+  sameWindow (Just EarlierThisTurn) (Just EarlierThisTurn) = True
   sameWindow (Just ThisCombat) (Just ThisCombat) = True
   sameWindow (Just LastTurn) (Just LastTurn) = True
   sameWindow (Just ThisGame) (Just ThisGame) = True
@@ -2945,12 +2948,6 @@ attachHeadOk Equipped (TypeW Creature) = True
 attachHeadOk Equipped PermanentW = True
 attachHeadOk Fortified (TypeW Land) = True
 attachHeadOk _ _ = False
-
-public export
-attachedCheckOk : AttachWord -> Bool
-attachedCheckOk Enchanted = True
-attachedCheckOk Equipped = True
-attachedCheckOk Fortified = True
 
 public export
 AttachHeadOk : AttachWord -> NounWord -> Type

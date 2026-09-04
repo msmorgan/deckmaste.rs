@@ -99,7 +99,7 @@ keywordFacts =
   , { word := "Infect", paramShapes := [NoParam], regime := Just AtResolution } defaultKeywordFacts
   , { word := "Cascade", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
   , { word := "Prowess", paramShapes := [NoParam], regime := Just AtCasting, bodied := True } defaultKeywordFacts
-  , { word := "SplitSecond", paramShapes := [NoParam], onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
+  , { word := "SplitSecond", paramShapes := [NoParam], functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Phasing", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Decayed", paramShapes := [NoParam], counterEligible := True } defaultKeywordFacts
   , { word := "Exalted", paramShapes := [NoParam], counterEligible := True, bodied := True } defaultKeywordFacts

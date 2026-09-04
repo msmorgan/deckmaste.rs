@@ -279,10 +279,8 @@ mutual
                      {auto 0 sc : designationHolder d = Just k} ->
                      {auto 0 hp : So (designationPossessorFits d holder)} ->
                      Predicate bs k
-    IsAttached : (w : AttachWord) ->
-                 {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
-    AttachedBy : (w : AttachWord) -> (by : Noun bs Object) ->
-                 {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
+    IsAttached : (w : AttachWord) -> Predicate bs Object
+    AttachedBy : (w : AttachWord) -> (by : Noun bs Object) -> Predicate bs Object
     AttachedTo : {k : Kind} -> (host : Noun bs k) ->
                  {auto 0 hk : So (kindLte k (Object \/ Player))} ->
                  Predicate bs Object
@@ -415,6 +413,29 @@ mutual
   headTyAlts (Or ps) = headTyAltsJoin ps
   headTyAlts (Joined l r) = headTyAlts l ++ headTyAlts r
   headTyAlts p = soleAlt (optCT (seedTy p))
+
+  public export
+  attachWordsIn : {0 bs : Bindings} -> {0 k : Kind} ->
+                  Predicate bs k -> List AttachWord
+  attachWordsIn (IsAttached w) = [w]
+  attachWordsIn (AttachedBy w _) = [w]
+  attachWordsIn (And ps) = attachWordsInAll ps
+  attachWordsIn (Joined l r) = attachWordsIn l ++ attachWordsIn r
+  attachWordsIn _ = []
+
+  public export
+  attachWordsInAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                     List (Predicate bs k) -> List AttachWord
+  attachWordsInAll [] = []
+  attachWordsInAll (p :: ps) = attachWordsIn p ++ attachWordsInAll ps
+
+  public export
+  attachTysOk : AttachWord -> List CardType -> Bool
+  attachTysOk w ts = all (\t => attachHeadOk w (TypeW t)) ts
+
+  public export
+  attachWordsOk : List AttachWord -> List (List CardType) -> Bool
+  attachWordsOk ws alts = all (\w => all (attachTysOk w) alts) ws
 
   public export
   headTyAltsJoin : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -821,7 +842,16 @@ mutual
     noStatusClash fs &&
     noColorClash fs &&
     noCardTokenClash fs &&
+    noAttachHeadClash fs &&
     not (anyPermanentHead fs && anyNonPermanentTy fs)
+
+  ||| An Equipment is attached only to a creature [CR#301.5] and a
+  ||| Fortification only to a land [CR#301.6].
+  public export
+  noAttachHeadClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                      List (Predicate bs k) -> Bool
+  noAttachHeadClash fs =
+    attachWordsOk (attachWordsInAll fs) (soleAlt (headTysJoin fs))
 
   public export
   ContradictionFree : List (Predicate bs k) -> Type
@@ -2174,6 +2204,12 @@ mutual
   selfDefinedOk (AsType _ n _) = selfDefinedOk n
   selfDefinedOk _ = False
 
+  ||| The tested noun's head admits the attachment word the predicate uses
+  ||| [CR#301.5,301.6].
+  public export
+  AttachFits : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Predicate bs k -> Type
+  AttachFits n p = So (attachWordsOk (attachWordsIn p) (nounHeadTys n))
+
   public export
   SelfDefined : {bs : Bindings} -> Noun bs Object -> Type
   SelfDefined {bs} n = So (selfDefinedOk n)
@@ -2194,6 +2230,7 @@ mutual
               {auto 0 bl : TestSubject n} ->
               {auto 0 sy : PredSays p} ->
               {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
+              {auto 0 ah : AttachFits n p} ->
               Condition bs
     CompareAmt : (subj : Amount bs) -> (r : Comparator) ->
                  (bound : Amount (amtIntro subj)) ->

@@ -84,7 +84,7 @@ counterSourceScope (DistinctChosenKinds menu) k = all (\c => counterScope c == k
 counterSourceScope BoundKind k = counterHolderKind k
 counterSourceScope ThoseKinds k = counterHolderKind k
 counterSourceScope OwnKinds k = counterHolderKind k
-counterSourceScope (SameAs _) k = counterHolderKind k
+counterSourceScope (SameAs _) k = kindLte k Object
 
 public export
 CounterSourceScope : {bs : Bindings} -> CounterKindSource bs -> Kind -> Type
@@ -98,6 +98,35 @@ optCounterSourceScope (Just s) k = counterSourceScope s k
 public export
 OptCounterSourceScope : {bs : Bindings} -> Maybe (CounterKindSource bs) -> Kind -> Type
 OptCounterSourceScope s k = So (optCounterSourceScope s k)
+
+public export
+unitAmount : {0 bs : Bindings} -> Amount bs -> Bool
+unitAmount (Lit (S Z)) = True
+unitAmount _ = False
+
+||| "the same number and kind of counters": `SameAs` carries the number of
+||| counters as well as their kinds, so the amount slot is the unit placeholder.
+public export
+kindAmountOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
+               Amount bs -> CounterKindSource cs -> Bool
+kindAmountOk a (SameAs _) = unitAmount a
+kindAmountOk _ _ = True
+
+public export
+KindAmountOk : {bs : Bindings} -> {cs : Bindings} ->
+               Amount bs -> CounterKindSource cs -> Type
+KindAmountOk a s = So (kindAmountOk a s)
+
+public export
+optKindAmountOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
+                  Amount bs -> Maybe (CounterKindSource cs) -> Bool
+optKindAmountOk _ Nothing = True
+optKindAmountOk a (Just s) = kindAmountOk a s
+
+public export
+OptKindAmountOk : {bs : Bindings} -> {cs : Bindings} ->
+                  Amount bs -> Maybe (CounterKindSource cs) -> Type
+OptKindAmountOk a s = So (optKindAmountOk a s)
 
 public export
 kindSourceIntro : {bs : Bindings} -> CounterKindSource bs -> Bindings
@@ -855,7 +884,8 @@ mutual
     EntersTransformed : TokenRider bs
     EntersMelded : (into : String) -> TokenRider bs
     WithCounters : (amt : Amount bs) -> (kind : CounterKindSource (amtIntro amt)) ->
-                   (mark : EntryCounterMark) -> TokenRider bs
+                   (mark : EntryCounterMark) ->
+                   {auto 0 am : KindAmountOk amt kind} -> TokenRider bs
     Under : (who : Noun bs Player) ->
             {auto 0 one : CtrlOverrideOk who} -> TokenRider bs
     AsCopyOf : (optional : Bool) -> (src : Noun bs Object) ->
@@ -1185,6 +1215,7 @@ mutual
                   (kind : CounterKindSource (amtIntro amt)) ->
                   (on : Noun (kindSourceIntro kind) k) ->
                   {auto 0 pm : PerMember on} ->
+                  {auto 0 am : KindAmountOk amt kind} ->
                   {auto 0 sc : CounterSourceScope kind k} -> Instruction bs
     Distribute : {k : Kind} -> (v : DividedVerb bs) ->
                  (amt : Amount (divIntro v)) ->
@@ -1201,6 +1232,7 @@ mutual
                    (kind : Maybe (CounterKindSource bs)) ->
                    (src : Noun (amtIntro amt) Object) ->
                    (dst : Noun (nomIntro src) Object) ->
+                   {auto 0 am : OptKindAmountOk amt kind} ->
                    {auto 0 sc : OptCounterSourceScope kind Object} ->
                    {auto 0 cm : CounterMemory src} ->
                    {auto 0 md : MoveDestination dst} ->
@@ -1467,7 +1499,26 @@ mutual
   costActionOk (ForEachKindOf _ _ _ body) = costActionOk body
   costActionOk (Repeated _ body) = costRepeatedOk body
   costActionOk (Modal _ modes) = costModesOk modes
-  costActionOk _ = False
+  costActionOk RestartsGame = False
+  costActionOk (ChoicesRevealed _) = False
+  costActionOk (Vote _ _ _ _) = False
+  costActionOk (ResultsTable _) = False
+  costActionOk (IgnoreOutcomes _) = False
+  costActionOk (ShiftResult _ _) = False
+  costActionOk (ChaosEnsues _) = False
+  costActionOk (StoreResults _) = False
+  costActionOk (Continuously _ _) = False
+  costActionOk (Pay _ _ _) = False
+  costActionOk (Unless _ _ _) = False
+  costActionOk (Repeat _) = False
+  costActionOk (Sequentially _) = False
+  costActionOk (Simultaneously _) = False
+  costActionOk (Delayed _ _ _ _) = False
+  costActionOk (InsteadOf _ _) = False
+  costActionOk (HeldUntil _ _) = False
+  costActionOk (Reflexively _ _) = False
+  costActionOk (ThisWay _ _ _) = False
+  costActionOk (SkipsNext _ _ _) = False
 
   public export
   costActionOkOpt : {0 bs : Bindings} -> Maybe (Instruction bs) -> Bool
@@ -2383,23 +2434,23 @@ mutual
   ClauseStatic : StaticSpec bs -> Type
   ClauseStatic {bs} se = So (clauseStaticOk se)
 
+  ||| How many times a cost turns the source itself over [CR#107.5].
   public export
-  selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
-  selfTapPayment (Mana _) = False
-  selfTapPayment (ScaledCost c _) = selfTapPayment c
-  selfTapPayment TapSymbol = True
-  selfTapPayment UntapSymbol = True
-  selfTapPayment (LoyaltySymbol _) = False
-  selfTapPayment (Do _) = False
-  selfTapPayment (Compound _) = False
-  selfTapPayment (EitherCost l r) = selfTapPayment l || selfTapPayment r
-  selfTapPayment ItsManaCost = False
+  selfTapUses : {0 bs : Bindings} -> Cost bs -> Nat
+  selfTapUses (Mana _) = Z
+  selfTapUses (ScaledCost c _) = selfTapUses c
+  selfTapUses TapSymbol = S Z
+  selfTapUses UntapSymbol = S Z
+  selfTapUses (LoyaltySymbol _) = Z
+  selfTapUses (Do _) = Z
+  selfTapUses (Compound cs) = selfTapCount cs
+  selfTapUses (EitherCost l r) = max (selfTapUses l) (selfTapUses r)
+  selfTapUses ItsManaCost = Z
 
   public export
   selfTapCount : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Nat
   selfTapCount [] = Z
-  selfTapCount (c :: cs) =
-    (if selfTapPayment c then S Z else Z) + selfTapCount cs
+  selfTapCount (c :: cs) = selfTapUses c + selfTapCount cs
 
   public export
   selfTapOnce : {0 bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bool

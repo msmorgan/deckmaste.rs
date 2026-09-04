@@ -38,11 +38,12 @@ badDiscardedCreatureWord : Unspellable Ability (\ok =>
                           (Macros.target Macros.anyTarget)) Nothing Nothing Nothing Nothing)
 badDiscardedCreatureWord Refl impossible
 
+||| "{1}, {T}, {T}: Draw a card." written with the second {T} a nesting level down.
 public export
-nestedCompoundCost : Ability
-nestedCompoundCost =
+nestedCompoundCost : Unspellable Ability (\ok =>
   Activated (Compound [Compound [Mana [Macros.generic 1], TapSymbol], TapSymbol])
-            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing {tp = ok})
+nestedCompoundCost Oh impossible
 
 ||| "{1}, {T}: Draw a card."
 public export

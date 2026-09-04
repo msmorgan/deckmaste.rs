@@ -620,3 +620,16 @@ public export
 badEmptyPartyRoles : Unspellable (Noun [] Object) (\ok =>
   OneEachOf [] (Macros.allOf Macros.creatureYouControl) {rk = ok})
 badEmptyPartyRoles RolesAre impossible
+
+||| "a fortified land"
+public export
+okFortifiedLand : Noun [] Object
+okFortifiedLand = Macros.a (And [Macros.land, IsAttached Fortified])
+
+||| "a fortified creature": a Fortification can't legally be attached to
+||| anything that isn't a land [CR#301.6]; "equipped creature" is the word for
+||| an attachment on a creature [CR#301.5].
+public export
+badFortifiedCreature : Unspellable (Noun [] Object) (\ok =>
+  Macros.a (And [Macros.creature, IsAttached Fortified] {cf = ok}))
+badFortifiedCreature Oh impossible

@@ -158,6 +158,8 @@ public export
 sameLookback : Lookback -> Lookback -> Bool
 sameLookback ThisTurn ThisTurn = True
 sameLookback ThisTurn _ = False
+sameLookback EarlierThisTurn EarlierThisTurn = True
+sameLookback EarlierThisTurn _ = False
 sameLookback ThisCombat ThisCombat = True
 sameLookback ThisCombat _ = False
 sameLookback LastTurn LastTurn = True

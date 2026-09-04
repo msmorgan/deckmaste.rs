@@ -743,6 +743,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "SplitSecond",
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             ..D
@@ -1507,7 +1508,9 @@ const REGIME_AXIS: &str = "regime and functionsOnStack are two columns because t
                            alternative-cast and cast-trigger keywords carry both; prowess, \
                            extort and increment carry regime alone, because each is a triggered \
                            ability of a permanent [CR#702.108a,702.101a,702.191a] and so \
-                           functions on the battlefield [CR#113.6]. A keyword whose ability also \
+                           functions on the battlefield [CR#113.6]; split second carries \
+                           functionsOnStack alone, being a static ability that functions only \
+                           while its spell is on the stack [CR#702.61a]. A keyword whose ability also \
                            functions in the zone a grant subject sits in — flashback \
                            [CR#702.34a] and its graveyard-cast siblings [CR#113.6e] — carries \
                            neither, so `Target instant or sorcery card in your graveyard gains \
@@ -1843,12 +1846,19 @@ mod tests {
             "{ word := \"Convoke\", paramShapes := [NoParam], regime := Just AtCasting, \
              functionsOnStack := True"
         ));
+        assert!(text.contains(
+            "{ word := \"SplitSecond\", paramShapes := [NoParam], functionsOnStack := True"
+        ));
         for row in overlay() {
-            assert!(
-                !row.functions_on_stack || row.regime == Some(Regime::AtCasting),
-                "{}: functionsOnStack without an AtCasting body regime",
-                row.label
-            );
+            if row.functions_on_stack && row.regime != Some(Regime::AtCasting) {
+                assert_eq!(
+                    row.label, "SplitSecond",
+                    "{}: functionsOnStack without an AtCasting body regime; split second is \
+                     the static ability that functions only while its spell is on the stack \
+                     [CR#702.61a]",
+                    row.label
+                );
+            }
         }
     }
 

@@ -519,3 +519,25 @@ counterOnGraveyardCard =
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
               (Macros.target (And [Macros.creature,
                                    InZone (Macros.graveyardOf You)]))
+
+||| "put a counter of each kind that's on this creature on target creature"
+public export
+okSameKindsOnCreature : Instruction []
+okSameKindsOnCreature =
+  PutCounters (Lit 1) (SameAs Macros.thisCreature) (Macros.target Macros.creature)
+
+||| "put a counter of each kind that's on this creature on target player":
+||| a +X/+Y counter modifies an object's power and toughness [CR#122.1a], so
+||| the kinds read off a creature stay on objects.
+public export
+badSameKindsOnPlayer : Unspellable (Instruction []) (\ok =>
+  PutCounters (Lit 1) (SameAs Macros.thisCreature) (Macros.target AnyPlayer) {sc = ok})
+badSameKindsOnPlayer Oh impossible
+
+||| "put seven counters of each kind that's on this creature on target
+||| creature": the same-counters reading carries the number as well as the
+||| kinds, so the amount slot holds no other literal.
+public export
+badSameKindsSevenEach : Unspellable (Instruction []) (\ok =>
+  PutCounters (Lit 7) (SameAs Macros.thisCreature) (Macros.target Macros.creature) {am = ok})
+badSameKindsSevenEach Oh impossible
