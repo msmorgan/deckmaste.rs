@@ -758,3 +758,35 @@ public export
 badTableWithoutRoll : Unspellable (Instruction []) (\ok =>
   ResultsTable [Macros.rollRow (Macros.fromTo 1 9) (Draw You (Lit 1))] {ok})
 badTableWithoutRoll Refl impossible
+
+||| "LEVEL 1-2 [2/3]" beside "LEVEL 3+ [2/4]" on a 2/2 creature
+public export
+okLevelerBands : Card
+okLevelerBands =
+  Macros.leveler "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Creature]) []
+       (Just (2, 2))
+       [ Macros.levelBand (LevelBetween 1 2) 2 3 []
+       , Macros.levelBand (LevelAtLeast 3) 2 4 [] ]
+
+||| "LEVEL 4-2 [2/3]" -- no number of level counters is at least 4 and at most 2 [CR#711.2a]
+public export
+badEmptyLevelRange : Unspellable Card (\ok =>
+  Macros.leveler "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Creature]) []
+       (Just (2, 2)) [ Macros.levelBand (LevelBetween 4 2) 2 3 [] ] {bl = ok})
+badEmptyLevelRange (AndBand {hd = MkLevelBandLaws {rg = Oh}}) impossible
+
+||| "LEVEL 1-4 [2/3]" beside "LEVEL 3+ [2/4]" -- level 3 falls in both, each setting base power and toughness [CR#711.2a,711.2b]
+public export
+badOverlappingLevelBands : Unspellable Card (\ok =>
+  Macros.leveler "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Creature]) []
+       (Just (2, 2))
+       [ Macros.levelBand (LevelBetween 1 4) 2 3 []
+       , Macros.levelBand (LevelAtLeast 3) 2 4 [] ] {dj = ok})
+badOverlappingLevelBands Oh impossible
+
+||| "LEVEL 1+ [2/2]" printed on a sorcery -- no striated text box to level [CR#711.1]
+public export
+badLevelBandOffLevelerFrame : Unspellable Card (\ok =>
+  Macros.leveler "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Sorcery]) [] Nothing
+       [ Macros.levelBand (LevelAtLeast 1) 2 2 [] ] {lv = ok})
+badLevelBandOffLevelerFrame Oh impossible

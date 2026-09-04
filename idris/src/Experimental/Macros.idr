@@ -251,6 +251,26 @@ card name cost supers line text stats =
   SingleFaced (MkFace name cost [] supers line text (printedBox stats)) {fl}
 
 public export
+levelBand : (range : LevelRange) -> (pow : Integer) -> (tou : Integer) ->
+            (text : AbilitySeq []) -> LevelBand
+levelBand range pow tou text =
+  MkLevelBand range (PtBox (PrintedNum pow) (PrintedNum tou)) text
+
+public export
+leveler : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+          (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
+          (stats : Maybe (Integer, Integer)) -> (bands : List LevelBand) ->
+          {auto 0 nf : FaceLaws Front
+                       (MkFace name cost [] supers line text (printedBox stats))} ->
+          {auto 0 lv : So (levelerFrameOk line (printedBox stats) bands)} ->
+          {auto 0 bl : LevelBandsLaws line bands} ->
+          {auto 0 dj : So (bandsDisjoint bands)} ->
+          Card
+leveler name cost supers line text stats bands =
+  Leveler (MkFace name cost [] supers line text (printedBox stats)) bands
+          {nf} {lv} {bl} {dj}
+
+public export
 graveyardZ : ZoneExpr bs
 graveyardZ = ZoneAt Graveyard Bare
 

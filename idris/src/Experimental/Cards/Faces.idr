@@ -669,3 +669,51 @@ garrukRelentless =
                       , Define X (Macros.countOf (And [Macros.creature,
                                                 InZone (Macros.graveyardOf You)])) ]) ]
                Nothing)
+
+||| Brimstone Mage
+public export
+brimstoneMage : Card
+brimstoneMage =
+  Macros.leveler "Brimstone Mage" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
+       [ Macros.activatedOnlyDuring (Mana [Macros.generic 3, Macros.pip Red])
+           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
+           AsSorcery ]
+       (Just (2, 2))
+       [ Macros.levelBand (LevelBetween 1 2) 2 3
+           [ Macros.activated TapSymbol
+               (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
+       , Macros.levelBand (LevelAtLeast 3) 2 4
+           [ Macros.activated TapSymbol
+               (DealDamage Macros.thisCreature (Lit 3) (Macros.target Macros.anyTarget)) ] ]
+
+||| Student of Warfare
+public export
+studentOfWarfare : Card
+studentOfWarfare =
+  Macros.leveler "Student of Warfare" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
+       [ Macros.activatedOnlyDuring (Mana [Macros.pip White])
+           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
+           AsSorcery ]
+       (Just (1, 1))
+       [ Macros.levelBand (LevelBetween 2 6) 3 3 [ Macros.keyword "FirstStrike" ]
+       , Macros.levelBand (LevelAtLeast 7) 4 4 [ Macros.keyword "DoubleStrike" ] ]
+
+||| Kargan Dragonlord
+public export
+karganDragonlord : Card
+karganDragonlord =
+  Macros.leveler "Kargan Dragonlord" (Just [Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Warrior"] [Creature])
+       [ Macros.activatedOnlyDuring (Mana [Macros.pip Red])
+           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
+           AsSorcery ]
+       (Just (2, 2))
+       [ Macros.levelBand (LevelBetween 4 7) 4 4 [ Macros.keyword "Flying" ]
+       , Macros.levelBand (LevelAtLeast 8) 8 8
+           [ Macros.keyword "Flying"
+           , Macros.keyword "Trample"
+           , Macros.activated (Mana [Macros.pip Red])
+               (Macros.gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 0))
+                            (Just Macros.untilEndOfTurn)) ] ]

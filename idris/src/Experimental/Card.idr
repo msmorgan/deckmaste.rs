@@ -334,6 +334,86 @@ public export
 FlipHalf : TypeLine -> Type
 FlipHalf l = So (flipHalfOk l)
 
+||| [CR#711.2a] a closed band, [CR#711.2b] the open last band
+public export
+data LevelRange : Type where
+  LevelBetween : (from : Nat) -> (to : Nat) -> LevelRange
+  LevelAtLeast : (from : Nat) -> LevelRange
+
+public export
+levelRangeOk : LevelRange -> Bool
+levelRangeOk (LevelBetween from to) = from <= to
+levelRangeOk (LevelAtLeast _) = True
+
+public export
+rangeLow : LevelRange -> Nat
+rangeLow (LevelBetween from _) = from
+rangeLow (LevelAtLeast from) = from
+
+public export
+rangeHigh : LevelRange -> Maybe Nat
+rangeHigh (LevelBetween _ to) = Just to
+rangeHigh (LevelAtLeast _) = Nothing
+
+public export
+rangesOverlap : LevelRange -> LevelRange -> Bool
+rangesOverlap a b =
+  case (rangeHigh a, rangeHigh b) of
+    (Nothing, Nothing) => True
+    (Just x, Nothing) => max (rangeLow a) (rangeLow b) <= x
+    (Nothing, Just y) => max (rangeLow a) (rangeLow b) <= y
+    (Just x, Just y) => max (rangeLow a) (rangeLow b) <= min x y
+
+public export
+record LevelBand where
+  constructor MkLevelBand
+  range : LevelRange
+  box : PrintedBox
+  text : AbilitySeq []
+
+public export
+bandDisjointFrom : LevelRange -> List LevelBand -> Bool
+bandDisjointFrom r [] = True
+bandDisjointFrom r (c :: cs) = not (rangesOverlap r c.range) && bandDisjointFrom r cs
+
+public export
+bandsDisjoint : List LevelBand -> Bool
+bandsDisjoint [] = True
+bandsDisjoint (b :: bs) = bandDisjointFrom b.range bs && bandsDisjoint bs
+
+public export
+levelerPtBox : Maybe PrintedBox -> Bool
+levelerPtBox (Just (PtBox _ _)) = True
+levelerPtBox _ = False
+
+public export
+hasBands : List LevelBand -> Bool
+hasBands [] = False
+hasBands (_ :: _) = True
+
+public export
+levelerFrameOk : TypeLine -> Maybe PrintedBox -> List LevelBand -> Bool
+levelerFrameOk l box bands =
+  elem Creature l.tys && levelerPtBox box && hasBands bands
+
+public export
+data LevelBandLaws : (l : TypeLine) -> LevelBand -> Type where
+  MkLevelBandLaws : {0 l : TypeLine} -> {0 b : LevelBand} ->
+                    {auto 0 rg : So (levelRangeOk b.range)} ->
+                    {auto 0 tx : CardText l b.text} ->
+                    {auto 0 ch : CardChapters l b.text} ->
+                    {auto 0 bx : CardBox Front l b.text (Just b.box)} ->
+                    {auto 0 dr : DoorFrame b.text} ->
+                    LevelBandLaws l b
+
+public export
+data LevelBandsLaws : (l : TypeLine) -> List LevelBand -> Type where
+  NoBands : {0 l : TypeLine} -> LevelBandsLaws l []
+  AndBand : {0 l : TypeLine} -> {0 b : LevelBand} -> {0 bs : List LevelBand} ->
+            {auto 0 hd : LevelBandLaws l b} ->
+            {auto 0 tl : LevelBandsLaws l bs} ->
+            LevelBandsLaws l (b :: bs)
+
 public export
 data Card : Type where
   SingleFaced : (face : CardFace) ->
@@ -370,3 +450,9 @@ data Card : Type where
              {auto 0 af : FaceLaws Back alternative} ->
              {auto 0 nh : FlipHalf normal.line} ->
              {auto 0 ah : FlipHalf alternative.line} -> Card
+
+  Leveler : (inner : CardFace) -> (bands : List LevelBand) ->
+            {auto 0 nf : FaceLaws Front inner} ->
+            {auto 0 lv : So (levelerFrameOk inner.line inner.box bands)} ->
+            {auto 0 bl : LevelBandsLaws inner.line bands} ->
+            {auto 0 dj : So (bandsDisjoint bands)} -> Card
