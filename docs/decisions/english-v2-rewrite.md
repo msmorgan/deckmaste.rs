@@ -632,6 +632,7 @@ that prefix instead owns the ASCII space.
 | Boundary bytes | Structural owner | Following `CasePosition` / capitalization |
 | --- | --- | --- |
 | Sentence period (`.`) | `Sentence` | Sets `CasePosition::SentenceInitial`; the next lexical word is capitalized. |
+| Sentence-final quoted block (`.` then `"`) | The nested quoted `Sentence` owns `.`; the `QuotedAbility` closing affix owns `"` | The quoted interior's period also discharges the enclosing sentence terminator; no second period follows the closing quote. |
 | Intersentence ASCII space | `SentenceSequence` | Preserves `CasePosition::SentenceInitial`; the following sentence's first lexical word remains capitalized. |
 | Document LF | `OracleText`'s document-block sequence | Sets `CasePosition::DocumentInitial`; the next document block's first lexical word is capitalized. |
 | Trigger → body comma | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |

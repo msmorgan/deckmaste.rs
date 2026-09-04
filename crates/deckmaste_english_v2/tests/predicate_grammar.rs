@@ -812,7 +812,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
 }
 
 #[test]
-fn quote_boundary_recurses_only_through_an_ordinary_ability() {
+fn quote_boundary_discharges_the_enclosing_sentence_terminator() {
     let parser = parser();
     let context = context();
     let text = r#"All Slivers have "When this permanent enters, draw a card.""#;
@@ -823,8 +823,20 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     let AbilityBody::QuoteTerminatedStatement(statement) = body else {
         panic!("quoted complement witness has the derived quote terminator envelope")
     };
-    let VerbPhrase::QuotedAbilityPredicate(predicate) = statement.predicate() else {
-        panic!("quote terminator envelope is restricted to the shared quoted predicate")
+    let Sentence::Declarative(statement) = &statement.sentence else {
+        panic!("quoted complement witness is a declarative sentence")
+    };
+    let Clause::Finite(statement) = statement.clause.as_ref() else {
+        panic!("quoted complement witness is an ordinary finite clause")
+    };
+    let FiniteClause::PlainFiniteClause(statement) = statement.as_ref() else {
+        panic!("quoted complement witness is an ordinary finite clause")
+    };
+    let Predicate::Atomic(predicate) = statement.predicate() else {
+        panic!("quoted complement witness ends in an atomic predicate")
+    };
+    let VerbPhrase::QuotedAbilityPredicate(predicate) = predicate.as_ref() else {
+        panic!("quoted complement witness ends in the direct quoted predicate")
     };
     assert!(matches!(
         predicate.head.reference(),
@@ -852,6 +864,53 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     assert!(claims.iter().any(|(surface, owner)| {
         surface == "\"" && owner == "form:quoted_ability/quoted_ability/1/affix"
     }));
+
+    let nominal_text = r#"Create a 1/1 red Goblin creature token with "This token can't block.""#;
+    let nominal = assert_selected_with_specificity(&parser, &context, nominal_text, true);
+    let Ability::Plain(Plain {
+        body: AbilityBody::QuoteTerminatedStatement(statement),
+    }) = &nominal
+    else {
+        panic!("sentence-final quoted nominal uses the shared terminator envelope")
+    };
+    assert!(matches!(statement.sentence, Sentence::Imperative(_)));
+
+    let claims = exact_claim_trace(&parser, &context, nominal_text);
+    assert!(claims.iter().any(|(surface, owner)| {
+        surface == "." && owner == "structural:Sentences/sentences/terminator/0"
+    }));
+    assert_eq!(
+        claims.last(),
+        Some(&(
+            "\"".to_owned(),
+            "form:quoted_ability/quoted_ability/1/affix".to_owned(),
+        )),
+        "the quote is the final outer-sentence byte; no second period is claimed",
+    );
+
+    let sequence_text =
+        r#"Create a 1/1 red Goblin creature token. It has "This token can't block.""#;
+    let sequence = assert_selected_with_specificity(&parser, &context, sequence_text, true);
+    let Ability::Plain(Plain {
+        body: AbilityBody::QuoteTerminatedSentences(sequence),
+    }) = &sequence
+    else {
+        panic!("a final quoted sentence extends an ordinary sentence sequence")
+    };
+    assert_eq!(sequence.preceding().len(), 1);
+    assert!(matches!(sequence.sentence, Sentence::Declarative(_)));
+
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        r#"Until end of turn, any number of target creatures you control each get +1/+0 and gain "When this creature dies, draw a card.""#,
+        true,
+    );
+
+    assert!(
+        parser.parse("Destroy target creature", &context).is_err(),
+        "an ordinary sentence still requires its own final period",
+    );
 }
 
 #[test]
