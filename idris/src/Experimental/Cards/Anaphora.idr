@@ -120,7 +120,7 @@ consume =
   Spell (Sequentially
            [ Macros.sacrifice (Macros.target AnyPlayer)
                (Macros.a (And [Macros.creature,
-                               Superlative MaxOf (CharAxis Power)
+                               Superlative MaxOf (StatAxis Power)
                                  (And [Macros.creature, HasPossessor ControllerAx They])]))
            , Macros.gainsLife You (StatOf Power ((Macros.It OneOf))) ])
 
@@ -568,7 +568,7 @@ public export
 companyDescribedSlice : Noun Anaphora.companyContext Object
 companyDescribedSlice =
   Macros.fromAmong (Macros.upTo 2)
-                   (And [Macros.creature, Compare [CharAxis ManaValue] AtMost (Lit 3)])
+                   (And [Macros.creature, Compare [StatAxis ManaValue] AtMost (Lit 3)])
                    ((Macros.It ManyOf))
 
 public export
@@ -690,7 +690,7 @@ openTheVaults =
                        Or [Macros.artifact, Macros.enchantment],
                        InZone (Macros.graveyardOf (PlayerGroup AllPlayers))]))
                   Macros.battlefieldZ
-                  [Under (PossessorsOf OwnerAx ((Macros.It ManyOf)))]
+                  [Under (Macros.ownerOf (Macros.It ManyOf))]
 
 ||| Codecracker Hound
 public export

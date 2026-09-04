@@ -253,7 +253,7 @@ mutual
                 (what : Noun (nomIntro who) Object) ->
                 {auto 0 one : nounPlur what = OneOf} ->
                 {auto 0 nt : Nontarget what} -> GameEvent bs
-    StatBecomes : (n : Noun bs Object) -> (c : Characteristic) ->
+    StatBecomes : (n : Noun bs Object) -> (c : Stat) ->
                   (v : Amount (nomIntro n)) ->
                   {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                   GameEvent bs
@@ -610,8 +610,9 @@ mutual
     AsInstant : Timing bs
     DuringPart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
                  {auto 0 wk : WindowOk p w} -> Timing bs
-    BeforeAttackersDeclared : (w : Maybe (Noun bs Player)) ->
-                              {auto 0 pk : PointWindowOk w} -> Timing bs
+    BeforePart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
+                 {auto 0 bp : So (beforePartOk p)} ->
+                 {auto 0 pk : PointWindowOk w} -> Timing bs
 
   public export
   data UsageLimit = OncePerTurn | OncePerGame | ActionOncePerTurn

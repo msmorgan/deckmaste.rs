@@ -261,7 +261,7 @@ badNotOnBattlefield Oh impossible
 public export
 badQualityContradiction : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
-  (\ok => And [OfChosen Color, Not (OfChosen Color)] {cf = ok})
+  (\ok => And [Macros.ofChosen Color, Not (Macros.ofChosen Color)] {cf = ok})
 badQualityContradiction Oh impossible
 
 ||| "creature that is a noncreature"
@@ -630,14 +630,14 @@ badUntapCapGraveyardSet Oh impossible
 public export
 okMatchesBattlefieldZone : Ability
 okMatchesBattlefieldZone =
-  Triggered When (Macros.lastCounterRemoved (Named "Time") Macros.thisCreature)
+  Triggered When (Macros.lastCounterRemoved (NamedCounter "Time") Macros.thisCreature)
             [] Nothing [] Nothing Nothing
             (Just (Matches Macros.thisCreature Attacking))
             (Draw You (Lit 1))
 
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
-  Triggered When (Macros.lastCounterRemoved (Named "Time") Macros.thisCreature) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+  Triggered When (Macros.lastCounterRemoved (NamedCounter "Time") Macros.thisCreature) [] Nothing [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
                                          {zc = ok})) (Draw You (Lit 1)))
 badExileCheckOnSortedSelf Oh impossible
 
@@ -854,13 +854,12 @@ badUnflipInstruction Oh impossible
 public export
 okDeathLookback : Condition []
 okDeathLookback =
-  Happened Death (Macros.a Macros.creature) ThisTurn Nothing
+  Happened (Macros.a Macros.creature) (MkLookback Death ThisTurn Nothing)
 
 ||| "… if a creature was put this turn, …"
 public export
 badPlacementLookback : Unspellable (Condition []) (\ok =>
-  Happened Placement (Macros.a Macros.creature) ThisTurn Nothing
-           {cw = LeftBare {ok = ok}})
+  Happened (Macros.a Macros.creature) (MkLookback Placement ThisTurn Nothing {cw = LeftBare {ok = ok}}))
 badPlacementLookback Oh impossible
 
 ||| "Counter target activated ability."

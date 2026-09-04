@@ -28,15 +28,15 @@ anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
 anotherDisjunctPhrase = And [Or [Macros.creature, Macros.land], Other]
 
 defeat : Instruction []
-defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare [CharAxis Power] AtMost (Lit 2)]))
+defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare [StatAxis Power] AtMost (Lit 2)]))
 
 terashisVerdict : Instruction []
 terashisVerdict =
-  Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare [CharAxis Power] AtMost (Lit 3)]))
+  Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare [StatAxis Power] AtMost (Lit 3)]))
 
 pillarOfLight : Instruction []
 pillarOfLight =
-  Macros.exile You (Macros.target (And [Macros.creature, Compare [CharAxis Toughness] AtLeast (Lit 4)]))
+  Macros.exile You (Macros.target (And [Macros.creature, Compare [StatAxis Toughness] AtLeast (Lit 4)]))
 
 clavilenoPhrase : Predicate [] Object
 clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype (creatureType "Demon"))]
@@ -139,20 +139,20 @@ topple =
        [ Spell (Macros.exile You
                   (Macros.target
                      (And [Macros.creature,
-                           Superlative MaxOf (CharAxis Power)
+                           Superlative MaxOf (StatAxis Power)
                                        (And [Macros.creature,
                                              InZone Macros.battlefieldZ])]))) ]
        Nothing
 
 corruptedOpponents : Noun [] Player
 corruptedOpponents =
-  Macros.each (And [Opponent, Compare [CounterAxis (Named "Poison")] AtLeast (Lit 3)])
+  Macros.each (And [Opponent, Compare [CounterAxis (NamedCounter "Poison")] AtLeast (Lit 3)])
 
 ||| War Tax
 public export
 warTaxScaledPayment : Cost [letterB X]
 warTaxScaledPayment =
-  ScaledMana GenericUnit
+  Macros.scaledMana GenericUnit
              (TimesOf (LetterVal X) (Macros.countOf (And [Macros.creature, Attacking])))
 
 ||| Croaking Counterpart
@@ -345,7 +345,7 @@ fellTheMighty : Instruction []
 fellTheMighty =
   Macros.destroy
     (Macros.allOf (And [Macros.creature,
-                 Compare [CharAxis Power] Greater
+                 Compare [StatAxis Power] Greater
                          (StatOf Power (Macros.target Macros.creature))]))
 
 public export
@@ -397,7 +397,7 @@ roguesGallery =
   Macros.card "Rogues' Gallery" (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (ForEachKindOf ColorAxis Nothing Color
-                  (Macros.move (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, OfChosen Color,
+                  (Macros.move (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, Macros.ofChosen Color,
                                         InZone (Macros.graveyardOf You)]))
                                Macros.handZ)) ]
        Nothing

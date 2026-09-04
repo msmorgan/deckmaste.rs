@@ -129,8 +129,8 @@ ghalta =
        (Just [Macros.generic 10, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Elder", creatureType "Dinosaur"] [Creature])
        [ Static (AndAlso Nothing [ CostsToCast This (CostLess (LetterVal X) Nothing)
-                         , Define X
-                             (Macros.aggregate SumOf (CharAxis Power)
+                         , DefinesLetter X
+                             (Macros.aggregate SumOf (StatAxis Power)
                                         Macros.creatureYouControl) ])
        , Macros.keyword "Trample" ]
        (Just (12, 12))
@@ -315,7 +315,7 @@ elspethSunsChampion =
                           (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
                           (Macros.destroy (Macros.allOf (And [Macros.creature,
-                                                Compare [CharAxis Power] AtLeast (Lit 4)])))
+                                                Compare [StatAxis Power] AtLeast (Lit 4)])))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 7))
                           (GetsEmblem You
                       [ Static (AndAlso Nothing [ Gets Adds (Macros.allOf Macros.creatureYouControl)
@@ -336,6 +336,20 @@ crystalBall =
        [ Macros.activated (Compound [Mana [Macros.generic 1], TapSymbol])
                           (Macros.scry You (Lit 2)) ]
        Nothing
+
+||| Angus Mackenzie
+public export
+angusMackenzie : Card
+angusMackenzie =
+  Macros.card "Angus Mackenzie"
+       (Just [Macros.pip Green, Macros.pip White, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.activatedOnlyDuring
+           (Compound [Mana [Macros.pip Green, Macros.pip White, Macros.pip Blue],
+                      TapSymbol])
+           (Macros.preventAll CombatOnly Everywhere (Just ThisTurn))
+           (BeforePart CombatDamage Nothing) ]
+       (Just (2, 2))
 
 ||| Vampire Hexmage
 public export
@@ -421,7 +435,7 @@ urzasIncubator =
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
        , Static (CostsToCast (Macros.allOf (And [Macros.creature, Macros.spell,
-                                          OfChosen (SubtypeQ Creature)]))
+                                          Macros.ofChosen (SubtypeQ Creature)]))
                              (CostLess (Lit 2) Nothing)) ]
        Nothing
 
@@ -433,12 +447,12 @@ etchingsOfTheChosen =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
-                                   OfChosen (SubtypeQ Creature)]))
+                                   Macros.ofChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
        , Macros.activated (Compound [Mana [Macros.generic 1],
                               Do (Macros.sacrifice You
                                     (Macros.a (And [Macros.creature,
-                                                    OfChosen (SubtypeQ Creature)])))])
+                                                    Macros.ofChosen (SubtypeQ Creature)])))])
                           (Macros.gains (Macros.target Macros.creatureYouControl)
                                  (Macros.keyword "Indestructible")
                                  (Just Macros.untilEndOfTurn)) ]
@@ -455,8 +469,8 @@ volrathsLaboratory =
            (Macros.create (Lit 1)
               (MkTokenChars (Just (Lit 2 ** Lit 2)) [] []
                             (MkTypeLine [] [Creature]) [] Nothing
-                            [ WithQuality (OfChosen Color)
-                            , WithQuality (OfChosen (SubtypeQ Creature)) ])) ]
+                            [ WithQuality (Macros.ofChosen Color)
+                            , WithQuality (Macros.ofChosen (SubtypeQ Creature)) ])) ]
        Nothing
 
 ||| Ersatz Gnomes
@@ -874,7 +888,7 @@ shuFarmer =
        (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyDuring TapSymbol
                                     (Macros.gainsLife You (Lit 1))
-                                    (BeforeAttackersDeclared (Just You)) ]
+                                    (BeforePart DeclareAttackers (Just You)) ]
        (Just (1, 1))
 
 public export
@@ -1086,6 +1100,22 @@ deathMaskDuplicant =
            , landwalkAbilities, protectionAbilities, TheKeyword "Trample" ] ]
        (Just (5, 5))
 
+||| Darksteel Garrison
+public export
+darksteelGarrison : Card
+darksteelGarrison =
+  Macros.card "Darksteel Garrison" (Just [Macros.generic 2]) []
+       (MkTypeLine [artifactType "Fortification"] [Artifact])
+       [ Static (Gains (AttachHost Fortified (TypeW Land))
+                       (Macros.keyword "Indestructible"))
+       , Macros.triggered Whenever
+           (VerbedEvent Nothing "Tap"
+                        (Just (AttachHost Fortified (TypeW Land))) Nothing True)
+           (Macros.gets (Macros.target Macros.creature)
+                        (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn))
+       , Macros.keywordCosting "Fortify" (Mana [Macros.generic 3]) ]
+       Nothing
+
 ||| Embercleave
 public export
 embercleave : Card
@@ -1137,11 +1167,11 @@ floatingShield =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (DoesntRemove
                    (Gains (AttachHost Enchanted (TypeW Creature))
-                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                          (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
                    Macros.thisAura)
        , Macros.activated (Do (Macros.sacrifice You Macros.thisAura))
            (Macros.gains (Macros.target Macros.creature)
-                         (Macros.keywordQuality "Protection" (OfChosen Color))
+                         (Macros.keywordQuality "Protection" (Macros.ofChosen Color))
                          (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -1204,7 +1234,7 @@ public export
 cavernHoardDragonRider : Ability
 cavernHoardDragonRider =
   Static (AndAlso Nothing [ CostsToCast This (CostLess (LetterVal X) Nothing)
-                  , Define X (AggregateOver MaxOf Opponent
+                  , DefinesLetter X (AggregateOver MaxOf Opponent
                                 (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx They]))) ])
 
 ||| Shadowspear

@@ -12,26 +12,26 @@ import Experimental.Unspellable
 ||| "the chosen number", one number choice standing
 public export
 okChosenNumberOneStanding : Amount [qualityB Number]
-okChosenNumberOneStanding = ChosenNumber
+okChosenNumberOneStanding = Macros.chosenNumber
 
 ||| "... is equal to the chosen number"
 public export
 badChosenNumberTwoStanding :
-  Unspellable (Amount [qualityB Number, qualityB Number]) (\ok => ChosenNumber {ok})
+  Unspellable (Amount [qualityB Number, qualityB Number]) (\ok => Macros.chosenNumber {ok})
 badChosenNumberTwoStanding Refl impossible
 
 ||| "of the chosen color"
 public export
 okChosenColorRead :
   Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
-okChosenColorRead = OfChosen Color
+okChosenColorRead = Macros.ofChosen Color
 
 ||| "of the chosen number"
 public export
 badChosenNumberRead :
   Unspellable
     (Predicate [MkBinding AD (Quality Number) OneOf QualityP] Object)
-    (\ok => OfChosen Number {read = ok})
+    (\ok => Macros.ofChosen Number {read = ok})
 badChosenNumberRead Oh impossible
 
 ||| "Choose target creature. You gain life equal to its power."
@@ -55,12 +55,12 @@ okSingleOwner =
   Sequentially [Choose (Macros.target Macros.creature) Nothing Openly,
                 Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
 
-||| "Choose two target creatures. Their owner loses 1 life."
+||| "Choose two target creatures. Their owners each lose 1 life."
 public export
-badGroupOwner : Unspellable (Instruction []) (\ok =>
+okGroupOwners : Instruction []
+okGroupOwners =
   Sequentially [Choose (Described (TargetDet (Macros.exactly 2)) Macros.creature) Nothing Openly,
-                Macros.losesLife (Macros.ownerOf ((Macros.It ManyOf)) {one = ok}) (Lit 1)])
-badGroupOwner Refl impossible
+                Macros.losesLife (Macros.ownerOf (Macros.It ManyOf)) (Lit 1)]
 
 ||| "Choose target creature."
 public export

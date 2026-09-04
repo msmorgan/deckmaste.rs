@@ -126,15 +126,6 @@ badPileFaceAsAStatus : Unspellable Card (\ok =>
 badPileFaceAsAStatus ObjectHoldsStatus impossible
 
 public export
-lessAsThoughCondition : AsThough []
-lessAsThoughCondition = AsThoughLess Power (Lit 1)
-
-public export
-manaRunReductionFloor : CostShift []
-manaRunReductionFloor =
-  CostShiftRunWithFloor [Macros.pip White] (Lit 1) False
-
-public export
 nestedStaticConditionals : StaticSpec []
 nestedStaticConditionals =
   Conditionally
@@ -147,10 +138,6 @@ nestedTurnPartWindows : StaticSpec []
 nestedTurnPartWindows =
   OnlyDuring Combat Nothing
     (OnlyDuring MainPhase Nothing (KeepsUnspentMana You (UnspentMana Nothing)))
-
-public export
-repeatWithIndependentException : Repetition []
-repeatWithIndependentException = AgainExcept (Macros.exists AnyPlayer)
 
 public export
 voteStartingWithSpecifiedPlayer : Instruction []

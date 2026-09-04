@@ -367,7 +367,7 @@ jointCrossAbilityChoice =
     (MkFace "Joint choice witness" Nothing [Color] []
       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
       [ Static (Gains Macros.thisCreature
-                 (Macros.keywordQuality "Protection" (OfChosen Color)))
+                 (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
       , Static (Macros.entersChoosing Macros.thisCreature Color)
       ]
       (Macros.printedBox (Just (1, 1))))
@@ -667,14 +667,14 @@ distributiveGroupSurvives : Instruction []
 distributiveGroupSurvives =
   Sequentially
     [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
-    , ChangeLife (Macros.That PlayerW ManyOf) (Down (Lit 1))
+    , ChangeLife (Macros.That PlayerW ManyOf) (LifeDown (Lit 1))
     ]
 
 public export
 secondChooserDevotionRead :
   Amount [qualityB Color, qualityB Color]
 secondChooserDevotionRead =
-  Devotion You TheLastChosenColor Nothing
+  Devotion You Macros.theLastChosenColor Nothing
 
 public export
 emblemGrantorRead : Noun [] Object

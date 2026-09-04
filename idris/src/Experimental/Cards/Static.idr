@@ -94,14 +94,14 @@ deathsShadow =
        (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Static (AndAlso Nothing [ Gets Adds Macros.thisCreature
                                 (PtDown (LetterVal X)) (PtDown (LetterVal X))
-                         , Define X (PlayerStatOf LifeTotal You) ]) ]
+                         , DefinesLetter X (PlayerStatOf LifeTotal You) ]) ]
        (Just (13, 13))
 
 spontaneousMutation : Ability
 spontaneousMutation =
   Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
                          (PtDown (LetterVal X)) (PtDown (Lit 0))
-                  , Define X (Macros.countOf (InZone (Macros.graveyardOf You))) ])
+                  , DefinesLetter X (Macros.countOf (InZone (Macros.graveyardOf You))) ])
 
 maro : Card
 maro =
@@ -128,7 +128,7 @@ aettirAndPriwen : Ability
 aettirAndPriwen =
   Static (AndAlso Nothing [ Macros.hasBasePt (AttachHost Equipped (TypeW Creature))
                               (LetterVal X) (LetterVal X)
-                  , Define X (PlayerStatOf LifeTotal You) ])
+                  , DefinesLetter X (PlayerStatOf LifeTotal You) ])
 
 diminish : Card
 diminish =
@@ -355,7 +355,7 @@ rallyTheRanks =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
-                                   OfChosen (SubtypeQ Creature)]))
+                                   Macros.ofChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
@@ -365,7 +365,7 @@ sharedTriumph =
   Macros.card "Shared Triumph" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature, OfChosen (SubtypeQ Creature)]))
+       , Static (Gets Adds (Macros.allOf (And [Macros.creature, Macros.ofChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
@@ -376,7 +376,7 @@ hallOfTriumph =
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact Color)
        , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
-                                   OfChosen Color]))
+                                   Macros.ofChosen Color]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
@@ -387,7 +387,7 @@ engineeredPlague =
        (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature, OfChosen (SubtypeQ Creature)]))
+       , Static (Gets Adds (Macros.allOf (And [Macros.creature, Macros.ofChosen (SubtypeQ Creature)]))
                       (PtDown (Lit 1)) (PtDown (Lit 1))) ]
        Nothing
 
@@ -848,7 +848,7 @@ public export
 nahiriCompleatedEntry : Ability
 nahiriCompleatedEntry =
   Static (Macros.entersWithFewerCounters Macros.thisPlaneswalker (Lit 2)
-                                         (Named "Loyalty"))
+                                         (NamedCounter "Loyalty"))
 
 ||| Nimble Mongoose
 public export
@@ -872,9 +872,9 @@ aspectOfWolf =
   Static (AndAlso Nothing
     [ Gets Adds (AttachHost Enchanted (TypeW Creature))
            (PtUp (LetterVal X)) (PtUp (LetterVal Y))
-    , Define X (Half RoundDown
+    , DefinesLetter X (Half RoundDown
                  (Macros.countOf (And [HasSubtype (landType "Forest"), HasPossessor ControllerAx You])))
-    , Define Y (Half RoundUp
+    , DefinesLetter Y (Half RoundUp
                  (Macros.countOf (And [HasSubtype (landType "Forest"), HasPossessor ControllerAx You]))) ])
 
 ||| Lhurgoyf

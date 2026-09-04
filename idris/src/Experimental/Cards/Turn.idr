@@ -360,7 +360,7 @@ fettergeist =
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-           ((May You (Pay You (ScaledMana GenericUnit (Macros.forEach 1
+           ((May You (Pay You (Macros.scaledMana GenericUnit (Macros.forEach 1
                           (And [Macros.creature, HasPossessor ControllerAx You,
                                 OtherThan Macros.thisCreature]))) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))) ]
        (Just (3, 4))
@@ -421,7 +421,7 @@ centaurOfAttention =
                                            Macros.thisCreature))
        , Static (AndAlso Nothing [ Gets Adds Macros.thisCreature
                                 (PtUp (LetterVal X)) (PtUp (LetterVal X))
-                         , Define X
+                         , DefinesLetter X
                              (GreatestStoredMatch Macros.thisCreature) ]) ]
        (Just (3, 3))
 
@@ -438,9 +438,9 @@ shapeshifter =
               (Macros.choose (Macros.a (Macros.qualityFrom Number
                                           (NumberBetween 0 7)))))
        , Static (AndAlso Nothing
-           [ DefinesPt Macros.thisCreature PowerAlone TheLastChosenNumber
+           [ DefinesPt Macros.thisCreature PowerAlone Macros.theLastChosenNumber
            , DefinesPt Macros.thisCreature ToughnessAlone
-               (Minus (Lit 7) TheLastChosenNumber) ]) ]
+               (Minus (Lit 7) Macros.theLastChosenNumber) ]) ]
        (Just shapeshifterBox)
 
 public export
@@ -515,7 +515,7 @@ beckoningWillOWisp =
            (Macros.triggered At (BeginningOf ThePart Combat (ByPlayer You))
               (Macros.choose (Macros.a Opponent)))
        , Static (Gets Adds (Macros.allOf (And [Macros.creature,
-                                   CombatRel AttackerOf (Macros.the ChosenPlayer)]))
+                                   CombatRel AttackerOf (Macros.the Macros.chosenPlayer)]))
                       (PtUp (Lit 1)) (PtUp (Lit 0))) ]
        (Just (1, 3))
 
@@ -530,7 +530,7 @@ triarchStalker =
            (Macros.triggered At (BeginningOf ThePart Combat (ByPlayer You))
               (Macros.choose (Macros.a Opponent)))
        , Static (Gains (Macros.allOf (And [Macros.creature,
-                                    CombatRel AttackerOf (Macros.the ChosenPlayer)]))
+                                    CombatRel AttackerOf (Macros.the Macros.chosenPlayer)]))
                        (Macros.keyword "Menace")) ]
        (Just (4, 5))
 

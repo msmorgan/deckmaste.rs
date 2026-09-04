@@ -152,7 +152,7 @@ public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (Gets Adds (Macros.allOf (And [Macros.creature,
-                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
+                                   Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
@@ -164,7 +164,7 @@ badTwoChoosersOneSortRead : Unspellable Card (\ok =>
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Gets Adds (Macros.allOf (And [Macros.creature,
-                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
+                                   Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
 badTwoChoosersOneSortRead Refl impossible
@@ -174,7 +174,7 @@ badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Static (Gets Adds (Macros.allOf (And [Macros.creature,
-                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
+                                   Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
 badChosenReadWrongSort Refl impossible
@@ -183,7 +183,7 @@ public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
        [ Static (Gains Macros.thisCreature
-                       (KeywordAbility "Protection" (Just (ParamQuality (OfChosen Color {ok = ok}))) Nothing))
+                       (KeywordAbility "Protection" (Just (ParamQuality (Macros.ofChosen Color {ok = ok}))) Nothing))
        , Static (EntersChoice Macros.thisCreature (QSort Color) Nothing Openly) ]
        (Just (2, 2)))
 badChosenProtectionBeforeChoice Refl impossible
@@ -191,7 +191,7 @@ badChosenProtectionBeforeChoice Refl impossible
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature) {ok = ok})))
+       [ Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature) {ok = ok})))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
@@ -381,7 +381,7 @@ okCompanionCharacteristicRead : AbilityAt []
 okCompanionCharacteristicRead =
   Macros.companion
     (EveryCardIs (And [Permanent, IsCard])
-       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))))
+       (ACharacteristic (Compare [StatAxis ManaValue] AtMost (Lit 2))))
 
 ||| "Companion — Each card on the battlefield in your starting deck ...": a
 ||| zone is a place objects are during a game [CR#400.1] and the starting deck
@@ -391,7 +391,7 @@ public export
 badCompanionZoneScope : Unspellable (AbilityAt []) (\ok =>
   Macros.companion
     (EveryCardIs (InZone Macros.battlefieldZ)
-       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))) {dr = ok}))
+       (ACharacteristic (Compare [StatAxis ManaValue] AtMost (Lit 2))) {dr = ok}))
 badCompanionZoneScope ReadsCharacteristics impossible
 
 ||| "Companion — Each permanent card in your starting deck is tapped.":

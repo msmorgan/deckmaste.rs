@@ -34,40 +34,8 @@ cardTypeIx Battle = 7
 cardTypeIx Kindred = 8
 
 public export
-cardTypeAt : Nat -> Maybe CardType
-cardTypeAt 0 = Just Creature
-cardTypeAt 1 = Just Artifact
-cardTypeAt 2 = Just Land
-cardTypeAt 3 = Just Enchantment
-cardTypeAt 4 = Just Instant
-cardTypeAt 5 = Just Sorcery
-cardTypeAt 6 = Just Planeswalker
-cardTypeAt 7 = Just Battle
-cardTypeAt 8 = Just Kindred
-cardTypeAt _ = Nothing
-
-public export
-cardTypeAtIx : (t : CardType) -> cardTypeAt (cardTypeIx t) = Just t
-cardTypeAtIx Creature = Refl
-cardTypeAtIx Artifact = Refl
-cardTypeAtIx Land = Refl
-cardTypeAtIx Enchantment = Refl
-cardTypeAtIx Instant = Refl
-cardTypeAtIx Sorcery = Refl
-cardTypeAtIx Planeswalker = Refl
-cardTypeAtIx Battle = Refl
-cardTypeAtIx Kindred = Refl
-
-public export
 Eq CardType where
   (==) a b = cardTypeIx a == cardTypeIx b
-
-public export
-natEqSo : (m, n : Nat) -> So (m == n) -> m = n
-natEqSo Z Z Oh = Refl
-natEqSo Z (S _) Oh impossible
-natEqSo (S _) Z Oh impossible
-natEqSo (S j) (S k) ok = cong S (natEqSo j k ok)
 
 public export
 natEqRefl : (n : Nat) -> So (n == n)
@@ -75,28 +43,18 @@ natEqRefl Z = Oh
 natEqRefl (S k) = natEqRefl k
 
 public export
-sameCardTypeEq : (a, b : CardType) -> So (a == b) -> a = b
-sameCardTypeEq a b ok =
-  sameJust (trans (sym (cardTypeAtIx a))
-                  (trans (cong cardTypeAt (natEqSo _ _ ok))
-                         (cardTypeAtIx b)))
-  where
-    sameJust : {0 x, y : CardType} -> Just x = Just y -> x = y
-    sameJust Refl = Refl
+data Stat = Power | Toughness | ManaValue | Loyalty
 
 public export
-data Characteristic = Power | Toughness | ManaValue | Loyalty
+statIx : Stat -> Nat
+statIx Power = 0
+statIx Toughness = 1
+statIx ManaValue = 2
+statIx Loyalty = 3
 
 public export
-characteristicIx : Characteristic -> Nat
-characteristicIx Power = 0
-characteristicIx Toughness = 1
-characteristicIx ManaValue = 2
-characteristicIx Loyalty = 3
-
-public export
-Eq Characteristic where
-  (==) a b = characteristicIx a == characteristicIx b
+Eq Stat where
+  (==) a b = statIx a == statIx b
 
 public export
 data PlayerStat = LifeTotal | StartingLifeTotal
@@ -126,11 +84,21 @@ Eq Comparator where
   (==) a b = comparatorIx a == comparatorIx b
 
 public export
-comparedType : Characteristic -> Maybe CardType
+comparedType : Stat -> Maybe CardType
 comparedType Power = Just Creature
 comparedType Toughness = Just Creature
 comparedType ManaValue = Nothing
 comparedType Loyalty = Just Planeswalker
+
+||| A noncreature permanent has no power or toughness [CR#208.3], so a stat
+||| read is refused when every head-type alternative of the noun lacks the type
+||| the stat belongs to. No known type is permissive, and one alternative that
+||| carries the type suffices — an animated land is a land and a creature.
+public export
+statHeadTysOk : Stat -> List (List CardType) -> Bool
+statHeadTysOk c alts = case comparedType c of
+                         Nothing => True
+                         Just want => all (elem want) alts
 
 
 public export
@@ -150,24 +118,6 @@ qualityIx Number = 2
 qualityIx CardTypeQ = 3
 qualityIx CounterKindQ = 4
 qualityIx (SubtypeQ t) = 5 + cardTypeIx t
-
-public export
-qualityAt : Nat -> Maybe QualitySort
-qualityAt 0 = Just Color
-qualityAt 1 = Just CardName
-qualityAt 2 = Just Number
-qualityAt 3 = Just CardTypeQ
-qualityAt 4 = Just CounterKindQ
-qualityAt (S (S (S (S (S n))))) = map SubtypeQ (cardTypeAt n)
-
-public export
-qualityAtIx : (q : QualitySort) -> qualityAt (qualityIx q) = Just q
-qualityAtIx Color = Refl
-qualityAtIx CardName = Refl
-qualityAtIx Number = Refl
-qualityAtIx CardTypeQ = Refl
-qualityAtIx CounterKindQ = Refl
-qualityAtIx (SubtypeQ t) = cong (map SubtypeQ) (cardTypeAtIx t)
 
 public export
 Eq QualitySort where
@@ -246,31 +196,9 @@ sameQRefl : (q : QualitySort) -> So (q == q)
 sameQRefl q = natEqRefl (qualityIx q)
 
 public export
-sameQEq : (a, b : QualitySort) -> So (a == b) -> a = b
-sameQEq a b ok =
-  sameJust (trans (sym (qualityAtIx a))
-                  (trans (cong qualityAt (natEqSo _ _ ok))
-                         (qualityAtIx b)))
-  where
-    sameJust : {0 x, y : QualitySort} -> Just x = Just y -> x = y
-    sameJust Refl = Refl
-
-public export
 sameLetterRefl : (w : Letter) -> So (w == w)
 sameLetterRefl X = Oh
 sameLetterRefl Y = Oh
-
-public export
-sameKindRefl : (k : Kind) -> So (k == k)
-sameKindRefl Object = Oh
-sameKindRefl Player = Oh
-sameKindRefl (Quality q) = sameQRefl q
-sameKindRefl Outcome = Oh
-sameKindRefl Gap = Oh
-sameKindRefl (LetterK w) = sameLetterRefl w
-sameKindRefl TurnRef = Oh
-sameKindRefl Pile = Oh
-sameKindRefl (a \/ b) = andSo (sameKindRefl a, sameKindRefl b)
 
 public export
 data Joins : Kind -> Kind -> Kind -> Type where
@@ -331,26 +259,6 @@ kindLteJoinR : (a, b : Kind) -> So (kindLte b (a \/ b))
 kindLteJoinR a b = kindLteInR b a b (kindLteRefl b)
 
 public export
-kindLteComm : (a, b : Kind) -> So (kindLte (a \/ b) (b \/ a))
-kindLteComm a b = andSo (kindLteJoinR b a, kindLteJoinL b a)
-
-public export
-kindLteAssocR : (a, b, c : Kind) ->
-                So (kindLte ((a \/ b) \/ c) (a \/ (b \/ c)))
-kindLteAssocR a b c =
-  andSo (andSo (kindLteJoinL a (b \/ c),
-                kindLteInR b a (b \/ c) (kindLteJoinL b c)),
-         kindLteInR c a (b \/ c) (kindLteJoinR b c))
-
-public export
-kindLteAssocL : (a, b, c : Kind) ->
-                So (kindLte (a \/ (b \/ c)) ((a \/ b) \/ c))
-kindLteAssocL a b c =
-  andSo (kindLteInL a (a \/ b) c (kindLteJoinL a b),
-         andSo (kindLteInL b (a \/ b) c (kindLteJoinR a b),
-                kindLteJoinR (a \/ b) c))
-
-public export
 data AggregateOp = SumOf | MinOf | MaxOf
 
 public export
@@ -391,7 +299,7 @@ data KindAxis : Type where
   ColorAxis : KindAxis
   SubtypeAxis : (host : CardType) -> (only : SubtypeScope) ->
                 {auto 0 sc : So (subtypeScopeOk host only)} -> KindAxis
-  ValueAxis : Characteristic -> KindAxis
+  ValueAxis : Stat -> KindAxis
   CounterKindAxis : KindAxis
   ColorPairAxis : KindAxis
 
@@ -1291,6 +1199,25 @@ countChoice s (_ :: bs) = countChoice s bs
 public export
 ChoiceStands : Nat -> Type
 ChoiceStands n = So (isSucc n)
+
+||| Which announced choice a read names: the one standing choice, or the most
+||| recent of several.
+public export
+data ChoiceRef = TheChoice | TheLatestChoice
+
+public export
+choiceRefIx : ChoiceRef -> Nat
+choiceRefIx TheChoice = 0
+choiceRefIx TheLatestChoice = 1
+
+public export
+Eq ChoiceRef where
+  (==) a b = choiceRefIx a == choiceRefIx b
+
+public export
+choiceRefOk : ChoiceRef -> Nat -> Type
+choiceRefOk TheChoice n = n = 1
+choiceRefOk TheLatestChoice n = ChoiceStands n
 
 public export
 data Disclosure = Openly | Secretly
@@ -3064,53 +2991,53 @@ data CounterKind : Type where
   BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
   KeywordCounter : (k : KeywordLabel) ->
                    {auto 0 ok : KeywordCounterEligible k} -> CounterKind
-  Named : (label : String) ->
+  NamedCounter : (label : String) ->
           {auto 0 ok : KnownCounter label} -> CounterKind
 
 public export
 counterScope : CounterKind -> Kind
 counterScope (BoostCounter _ _) = Object
 counterScope (KeywordCounter _) = Object
-counterScope (Named l) = maybe Object counterHolder (counterFactsFor l)
+counterScope (NamedCounter l) = maybe Object counterHolder (counterFactsFor l)
 
 public export
 sameCounterPayload : CounterKind -> CounterKind -> Bool
 sameCounterPayload (BoostCounter ap at) (BoostCounter bp bt) = ap == bp && at == bt
 sameCounterPayload (KeywordCounter a) (KeywordCounter b) = a == b
-sameCounterPayload (Named a) (Named b) = a == b
+sameCounterPayload (NamedCounter a) (NamedCounter b) = a == b
 sameCounterPayload _ _ = True
 
 public export
 counterKindIx : CounterKind -> Nat
 counterKindIx (BoostCounter _ _) = 0
 counterKindIx (KeywordCounter _) = 1
-counterKindIx (Named _) = 2
+counterKindIx (NamedCounter _) = 2
 
 public export
 Eq CounterKind where
   (==) a b = counterKindIx a == counterKindIx b && sameCounterPayload a b
 
 public export
-data ProjAxis = CharAxis Characteristic | PlayerStatAxis PlayerStat
+data ProjAxis = StatAxis Stat | PlayerStatAxis PlayerStat
              | CounterAxis CounterKind | AnyCounterAxis Kind
 
 public export
 projScope : ProjAxis -> Kind
-projScope (CharAxis _) = Object
+projScope (StatAxis _) = Object
 projScope (PlayerStatAxis _) = Player
 projScope (CounterAxis c) = counterScope c
 projScope (AnyCounterAxis k) = k
 
 public export
 projAxisIx : ProjAxis -> Nat
-projAxisIx (CharAxis _) = 0
+projAxisIx (StatAxis _) = 0
 projAxisIx (PlayerStatAxis _) = 1
 projAxisIx (CounterAxis _) = 2
 projAxisIx (AnyCounterAxis _) = 3
 
 public export
 sameProjAxis : ProjAxis -> ProjAxis -> Bool
-sameProjAxis (CharAxis a) (CharAxis b) = a == b
+sameProjAxis (StatAxis a) (StatAxis b) = a == b
 sameProjAxis (PlayerStatAxis a) (PlayerStatAxis b) = a == b
 sameProjAxis (CounterAxis a) (CounterAxis b) = a == b
 sameProjAxis (AnyCounterAxis a) (AnyCounterAxis b) = a == b
@@ -3123,7 +3050,7 @@ Eq ProjAxis where
 
 public export
 axisType : ProjAxis -> Maybe CardType
-axisType (CharAxis c) = comparedType c
+axisType (StatAxis c) = comparedType c
 axisType (PlayerStatAxis _) = Nothing
 axisType (CounterAxis _) = Nothing
 axisType (AnyCounterAxis _) = Nothing
@@ -3456,6 +3383,14 @@ data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               | MainPhase
               | BeginningPhase
               | DeclareAttackers | DeclareBlockers | CombatDamage | Cleanup
+
+||| A "only before [part]" point names a phase or step inside the turn; a turn
+||| is made of its phases [CR#500.1], so there is no point before the turn one
+||| is already taking.
+public export
+beforePartOk : TurnPart -> Bool
+beforePartOk Turn = False
+beforePartOk _ = True
 
 public export
 data RankPeriod : Type where

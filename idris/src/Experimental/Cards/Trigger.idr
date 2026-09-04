@@ -111,14 +111,14 @@ orneryDilophosaur =
   Macros.triggeredIf Whenever
                      (Macros.attacks Macros.thisCreature)
                      (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
-                                   Compare [CharAxis Power] AtLeast (Lit 4)]))
+                                   Compare [StatAxis Power] AtLeast (Lit 4)]))
                      (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
 
 incisorGlider : Ability
 incisorGlider =
   Macros.triggeredIf Whenever
                      (Macros.attacks Macros.thisCreature)
-                     (CompareAmt (CountersOn (Named "Poison") (Macros.a Opponent))
+                     (CompareAmt (CountersOn (NamedCounter "Poison") (Macros.a Opponent))
                                  AtLeast (Lit 3))
                      (Macros.gets (Macros.allOf Macros.creatureYouControl)
                                   (PtUp (Lit 1)) (PtUp (Lit 1))
@@ -198,8 +198,8 @@ carrionGrub =
        (MkTypeLine [creatureType "Insect"] [Creature])
        [ Static (AndAlso Nothing [ Gets Adds Macros.thisCreature
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
-                         , Define X
-                             (Macros.aggregate MaxOf (CharAxis Power)
+                         , DefinesLetter X
+                             (Macros.aggregate MaxOf (StatAxis Power)
                                         (And [Macros.creature,
                                               InZone (Macros.graveyardOf You)])) ])
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
@@ -462,7 +462,7 @@ prismRing =
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact Color)
        , Macros.triggered Whenever
-                          (Casts You (Macros.a (And [Macros.spell, OfChosen Color])) Nothing)
+                          (Casts You (Macros.a (And [Macros.spell, Macros.ofChosen Color])) Nothing)
                           (Macros.gainsLife You (Lit 1)) ]
        Nothing
 
@@ -613,8 +613,8 @@ skullsporeNexusTrigger =
                         (And [Macros.nontoken, Macros.creatureYouControl])))
     (Macros.create (Lit 1)
        (Macros.creatureTokOf
-          (Aggregate SumOf (CharAxis Power) (Macros.That CardW ManyOf))
-          (Aggregate SumOf (CharAxis Power) (Macros.That CardW ManyOf))
+          (Aggregate SumOf (StatAxis Power) (Macros.That CardW ManyOf))
+          (Aggregate SumOf (StatAxis Power) (Macros.That CardW ManyOf))
           [Green] [creatureType "Fungus", creatureType "Dinosaur"]))
 
 ||| Wavebreak Hippocamp
@@ -631,14 +631,14 @@ public export
 midnightClockHeader : GameEvent []
 midnightClockHeader =
   NthOccurrence (Nth 12) Nothing
-    (Macros.counterEvent CounterPut (Named "Hour") OneCounter Macros.thisArtifact)
+    (Macros.counterEvent CounterPut (NamedCounter "Hour") OneCounter Macros.thisArtifact)
 
 ||| Political Triumph
 public export
 politicalTriumphHeader : GameEvent []
 politicalTriumphHeader =
   NthOccurrence (Nth 4) Nothing
-    (Macros.counterEvent CounterPut (Named "Plan") OneCounter Macros.thisEnchantment)
+    (Macros.counterEvent CounterPut (NamedCounter "Plan") OneCounter Macros.thisEnchantment)
 
 ||| Thought Lash
 public export
@@ -758,10 +758,9 @@ faithsReward =
        [ Spell (Macros.move
                   (Macros.allOf (And [Permanent,
                                InZone (Macros.graveyardOf You),
-                               HappenedTo Placement Lookback.ThisTurn
-                                 (Just (FromZones
+                               HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (FromZones
                                           (FromZone [Macros.battlefieldZ])
-                                          Nothing))]))
+                                          Nothing)))]))
                   Macros.battlefieldZ) ]
        Nothing
 
@@ -797,8 +796,7 @@ fblthp =
        [ Macros.triggered When (Enters This Nothing)
            (InsteadOf (Draw You (Lit 1))
               (If (OrCond
-                     [ Happened Entry ((Macros.It OneOf)) Triggering
-                         (Just (FromZones (FromZone [Macros.yourLibrary]) Nothing))
+                     [ Happened ((Macros.It OneOf)) (MkLookback Entry Triggering (Just (FromZones (FromZone [Macros.yourLibrary]) Nothing)))
                      , Matches ((Macros.It OneOf)) (CastFrom Macros.yourLibrary) ])
                   (Draw You (Lit 2))
                   Nothing))

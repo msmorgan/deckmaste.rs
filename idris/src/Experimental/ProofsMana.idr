@@ -101,19 +101,36 @@ badUnlessTapSymbol : Unspellable (Instruction []) (\ok =>
   Unless (CounterSpell (Macros.target Macros.spell)) (Macros.controllerOf ((Macros.It OneOf))) TapSymbol {pb = ok})
 badUnlessTapSymbol Oh impossible
 
+||| "Activate only before the combat damage step."
+public export
+okBeforeCombatDamage : Ability
+okBeforeCombatDamage =
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1))
+            (Just (BeforePart CombatDamage Nothing)) Nothing Nothing Nothing
+
+||| "Activate only before the turn."
+||| A turn is made of its phases [CR#500.1], so a point before the turn one is
+||| already taking is not a window inside it; a step or phase is
+||| (`okBeforeCombatDamage`).
+public export
+badBeforeTheTurn : Unspellable Ability (\ok =>
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1))
+            (Just (BeforePart Turn Nothing {bp = ok})) Nothing Nothing Nothing)
+badBeforeTheTurn Oh impossible
+
 ||| "Activate only before each player's attackers are declared."
 public export
 okDistributiveAttackWindow : Ability
 okDistributiveAttackWindow =
   Activated (Mana [Macros.generic 2]) (Draw You (Lit 1))
-            (Just (BeforeAttackersDeclared (Just (Macros.each AnyPlayer))))
+            (Just (BeforePart DeclareAttackers (Just (Macros.each AnyPlayer))))
             Nothing Nothing Nothing
 
 ||| "Activate only before all players' attackers are declared."
 ||| A turn part has one active player [CR#102.1].
 public export
 badPluralAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (BeforeAttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (BeforePart DeclareAttackers (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
 badPluralAttackWindow Oh impossible
 
 ||| "Ward {2}"
@@ -282,18 +299,18 @@ badBareCumulativeUpkeep Oh impossible
 public export
 okForEachScaledMana : Cost []
 okForEachScaledMana =
-  ScaledMana GenericUnit (Macros.forEach 1 (And [Macros.artifact,
+  Macros.scaledMana GenericUnit (Macros.forEach 1 (And [Macros.artifact,
                                                  HasPossessor ControllerAx You]))
 
 ||| "Counter target spell unless its controller pays {2}."
 public export
 badLiteralScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana GenericUnit (Lit 2) {fe = ok})
+  Macros.scaledMana GenericUnit (Lit 2) {fe = ok})
 badLiteralScaledMana Oh impossible
 
 public export
 badBareCountScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana GenericUnit (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You])) {fe = ok})
+  Macros.scaledMana GenericUnit (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You])) {fe = ok})
 badBareCountScaledMana Oh impossible
 
 ||| "Creature cards in your graveyard have unearth {2}."

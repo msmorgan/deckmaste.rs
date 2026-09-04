@@ -50,7 +50,7 @@ karplusanYeti = Sequentially [DealDamage Macros.thisCreature (StatOf Power Macro
 
 suddenDemise : Instruction []
 suddenDemise = Sequentially [Macros.choose (Macros.a (Macros.quality Color)),
-                             DealDamage This (LetterVal X) (Macros.each (And [Macros.creature, OfChosen Color]))]
+                             DealDamage This (LetterVal X) (Macros.each (And [Macros.creature, Macros.ofChosen Color]))]
 
 caseOfTheGatewayExpress : Instruction []
 caseOfTheGatewayExpress = Sequentially [Macros.choose (Macros.target Macros.creatureYouDontControl),
@@ -67,7 +67,7 @@ flamesOfTheRazeBoar =
                 OnlyIf (DealDamage This (Lit 2)
                                    (Macros.each (And [Macros.creature, Other, HasPossessor ControllerAx (Macros.That PlayerW OneOf)])))
                        (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
-                                     Compare [CharAxis Power] AtLeast (Lit 4)]))
+                                     Compare [StatAxis Power] AtLeast (Lit 4)]))
                        Nothing]
 
 yawgmothDemon : Instruction []
@@ -76,7 +76,7 @@ yawgmothDemon =
 
 arcBlade : Instruction []
 arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
-                         Macros.exileWithCounters This (Lit 3) (Named "Time")]
+                         Macros.exileWithCounters This (Lit 3) (NamedCounter "Time")]
 
 abrade : Instruction []
 abrade = Macros.chooseModes (Macros.exactly 1) [DealDamage This (Lit 3) (Macros.target Macros.creature),
@@ -195,7 +195,7 @@ blackVise =
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosingPlayer Macros.thisArtifact (Just OpponentsOnly))
        , Macros.triggered At
-           (Macros.beginningOfPossessed ThePart Upkeep (Macros.the ChosenPlayer))
+           (Macros.beginningOfPossessed ThePart Upkeep (Macros.the Macros.chosenPlayer))
            (Sequentially
               [ DealDamage Macros.thisArtifact (LetterVal X) Macros.They
               , Define X (Minus (Macros.countOf (InZone (Macros.handOf Macros.They)))
@@ -221,10 +221,10 @@ purgingScythe =
     (Sequentially
        [ DealDamage Macros.thisArtifact (Lit 2)
                     (Macros.the (And [Macros.creature,
-                                    Superlative MinOf (CharAxis Toughness)
+                                    Superlative MinOf (StatAxis Toughness)
                                                 Macros.creature]))
        , If (CompareAmt (Macros.countOf (And [Macros.creature,
-                                       Superlative MinOf (CharAxis Toughness)
+                                       Superlative MinOf (StatAxis Toughness)
                                                    Macros.creature]))
                         AtLeast (Lit 2))
             (Macros.chooses You (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))))
@@ -932,7 +932,7 @@ stuffyDoll =
        , Static (Macros.entersChoosingPlayer Macros.thisCreature Nothing)
        , Macros.triggered Whenever
                           (IsDealtDamage AnyDamage Macros.thisCreature)
-                          (DealDamage ((Macros.It OneOf)) ThatMuch (Macros.the ChosenPlayer))
+                          (DealDamage ((Macros.It OneOf)) ThatMuch (Macros.the Macros.chosenPlayer))
        , Macros.activated TapSymbol
                           (DealDamage Macros.thisCreature (Lit 1)
                                       Macros.thisCreature) ]
@@ -949,9 +949,9 @@ sarkhansUnsealingLine : Ability
 sarkhansUnsealingLine =
   Macros.triggered Whenever
     (Casts You (Macros.a (And [Macros.creature, Macros.spell,
-                               Or [Compare [CharAxis Power] Eq (Lit 4),
-                                   Compare [CharAxis Power] Eq (Lit 5),
-                                   Compare [CharAxis Power] Eq (Lit 6)]])) Nothing)
+                               Or [Compare [StatAxis Power] Eq (Lit 4),
+                                   Compare [StatAxis Power] Eq (Lit 5),
+                                   Compare [StatAxis Power] Eq (Lit 6)]])) Nothing)
     (DealDamage Macros.thisEnchantment (Lit 4) (Macros.target Macros.anyTarget))
 
 ||| Savage Swipe, both sentences
@@ -990,8 +990,7 @@ incinerate =
                   , Continuously
                       (Macros.objectCant "Regenerate"
                          (Macros.a (And [Macros.creature,
-                                         HappenedTo DamageTaken Lookback.ThisWay
-                                                    Nothing])))
+                                         HappenedTo (MkLookback DamageTaken Lookback.ThisWay Nothing)])))
                       (Just ThisTurn) ]) ]
        Nothing
 
@@ -1141,7 +1140,7 @@ heartOfBogardanBody =
     [ Simultaneously
         [ DealDamage This (LetterVal X) Description.targetPlayerOrPlaneswalker
         , DealDamage This (LetterVal X) Anaphora.eachCreatureThatSplitControls ]
-    , Define X (Minus (Macros.times 2 (CountersOn (Named "Age") Macros.thisEnchantment)) (Lit 2)) ]
+    , Define X (Minus (Macros.times 2 (CountersOn (NamedCounter "Age") Macros.thisEnchantment)) (Lit 2)) ]
 
 ||| Angrath, Minotaur Pirate's plus
 public export
@@ -1287,7 +1286,7 @@ heartOfBogardan =
               [ Simultaneously
                   [ DealDamage This (LetterVal X) Description.targetPlayerOrPlaneswalker
                   , DealDamage This (LetterVal X) Anaphora.eachCreatureThatSplitControls ]
-              , Define X (Minus (Macros.times 2 (CountersOn (Named "Age") Macros.thisEnchantment)) (Lit 2)) ]) ]
+              , Define X (Minus (Macros.times 2 (CountersOn (NamedCounter "Age") Macros.thisEnchantment)) (Lit 2)) ]) ]
        Nothing
 
 ||| Burn at the Stake
@@ -1463,7 +1462,7 @@ theFallenUpkeep =
   Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
     (DealDamage This (Lit 1)
        (Macros.each (And [ Joined (HasType Planeswalker) Opponent
-                  , HappenedTo DamageTaken ThisGame (Just (Involving This)) ])))
+                  , HappenedTo (MkLookback DamageTaken ThisGame (Just (Involving This))) ])))
 
 ||| Breeches, Brazen Plunderer's slice
 public export
@@ -1513,8 +1512,7 @@ frostwielder =
        (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
        [ Static (Intercepts
                    (Dies (Macros.a (And [ Macros.creature
-                                        , HappenedTo DamageTaken ThisTurn
-                                            (Just (Involving Macros.thisCreature)) ])))
+                                        , HappenedTo (MkLookback DamageTaken ThisTurn (Just (Involving Macros.thisCreature))) ])))
                    [] Nothing (Macros.exile You ((Macros.It OneOf))) Repeatedly Nothing)
        , Macros.activated TapSymbol
            (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
@@ -1528,7 +1526,7 @@ cracklingDoom =
     [ DealDamage This (Lit 2) (Macros.each Opponent)
     , Macros.sacrifice (Macros.each Opponent)
         (Macros.a (And [Macros.creature,
-                        Superlative MaxOf (CharAxis Power)
+                        Superlative MaxOf (StatAxis Power)
                           (And [Macros.creature,
                                 HasPossessor ControllerAx (Macros.That PlayerW OneOf)])])) ]
 
@@ -1547,7 +1545,7 @@ cavalcadeOfCalamity : Ability
 cavalcadeOfCalamity =
   Macros.triggered Whenever
     (Macros.attacks (Macros.a (And [Macros.creature, HasPossessor ControllerAx You,
-                                    Compare [CharAxis Power] AtMost (Lit 1)])))
+                                    Compare [StatAxis Power] AtMost (Lit 1)])))
     (DealDamage Macros.thisEnchantment (Lit 1)
        (Macros.the (And [Joined AnyPlayer (HasType Planeswalker),
                        CombatRel AttackedBy (Macros.That (TypeW Creature) OneOf)])))
@@ -1681,13 +1679,13 @@ terminationFacilitator =
   Macros.card "Termination Facilitator" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
        [ Macros.activatedOnlyDuring TapSymbol
-           (PutCounters (Lit 1) (PrintedKind (Named "Bounty"))
+           (PutCounters (Lit 1) (PrintedKind (NamedCounter "Bounty"))
                         (Macros.target (Or [Macros.creature, HasType Planeswalker])))
            AsSorcery
        , Macros.triggered Whenever
            (IsDealtDamage AnyDamage
               (Macros.a (And [Or [Macros.creature, HasType Planeswalker],
                               HasPossessor ControllerAx Macros.anOpponent,
-                              HasCounters (Just (Named "Bounty"))])))
+                              HasCounters (Just (NamedCounter "Bounty"))])))
            (Macros.destroy (Macros.It OneOf)) ]
        (Just (1, 3))

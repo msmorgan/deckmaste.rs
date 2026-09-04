@@ -49,12 +49,12 @@ badBothArmsAntecedent Refl impossible
 public export
 okMoveToBattlefield : Instruction []
 okMoveToBattlefield =
-  Move (Macros.target Macros.creature) (ZoneAt Battlefield Bare) []
+  Move (Macros.target Macros.creature) (ZoneAt Battlefield BareScope) []
 
 ||| "Put target creature into your library."
 public export
 badMoveToBareLibrary : Unspellable (Instruction []) (\ok =>
-  Move (Macros.target Macros.creature) (ZoneAt Library Bare) [] {ok})
+  Move (Macros.target Macros.creature) (ZoneAt Library BareScope) [] {ok})
 badMoveToBareLibrary BattlefieldOk impossible
 
 ||| "Look at the top four cards of your library. You choose one of them."
@@ -78,7 +78,7 @@ okMoveToExile = Move (Macros.target Macros.creature) Macros.exileZ []
 ||| "Put target creature onto the stack."
 public export
 badMoveToStack : Unspellable (Instruction []) (\ok =>
-  Move (Macros.target Macros.creature) (ZoneAt Stack Bare) [] {ok})
+  Move (Macros.target Macros.creature) (ZoneAt Stack BareScope) [] {ok})
 badMoveToStack BattlefieldOk impossible
 
 ||| "When this creature enters, if a creature died this turn, draw a card."
@@ -87,20 +87,18 @@ okLookbackObjectDied : Ability
 okLookbackObjectDied =
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing []
             Nothing Nothing
-            (Just (Happened Death (Macros.a Macros.creature) Lookback.ThisTurn
-                            Nothing))
+            (Just (Happened (Macros.a Macros.creature) (MkLookback Death Lookback.ThisTurn Nothing)))
             (Draw You (Lit 1))
 
 ||| "When this creature enters, if you died this turn, draw a card."
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened You (MkLookback Death Lookback.ThisTurn Nothing {sb = ok}))) (Draw You (Lit 1)))
 badLookbackPlayerDied MkLookbackSubject impossible
 
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
-                                          Lookback.ThisTurn Nothing {sb = ok})) (Draw You (Lit 1)))
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Happened (Macros.a Macros.creature) (MkLookback SpellCast Lookback.ThisTurn Nothing {sb = ok}))) (Draw You (Lit 1)))
 badLookbackObjectCast MkLookbackSubject impossible
 
 ||| "target creature that entered this turn"
@@ -108,24 +106,24 @@ public export
 okHappenedToObjectEntry : Noun [] Object
 okHappenedToObjectEntry =
   Macros.target (And [Macros.creature,
-                      HappenedTo Entry Lookback.ThisTurn Nothing])
+                      HappenedTo (MkLookback Entry Lookback.ThisTurn Nothing)])
 
 ||| "target creature who cast a spell this turn"
 public export
 badHappenedToObjectCast : Unspellable (Noun [] Object) (\ok =>
-  Macros.target (And [Macros.creature, HappenedTo SpellCast Lookback.ThisTurn Nothing {sb = ok}]))
+  Macros.target (And [Macros.creature, HappenedTo (MkLookback SpellCast Lookback.ThisTurn Nothing {sb = ok})]))
 badHappenedToObjectCast MkLookbackSubject impossible
 
 ||| "each opponent who died this turn"
 public export
 badHappenedToPlayerDied : Unspellable (Noun [] Player) (\ok =>
-  Macros.each (And [Opponent, HappenedTo Death Lookback.ThisTurn Nothing {sb = ok}]))
+  Macros.each (And [Opponent, HappenedTo (MkLookback Death Lookback.ThisTurn Nothing {sb = ok})]))
 badHappenedToPlayerDied MkLookbackSubject impossible
 
 ||| "each opponent who a state matched this turn"
 public export
 badStateMatchLookback : Unspellable (Noun [] Player) (\ok =>
-  Macros.each (And [Opponent, HappenedTo StateMatch Lookback.ThisTurn Nothing {sb = ok}]))
+  Macros.each (And [Opponent, HappenedTo (MkLookback StateMatch Lookback.ThisTurn Nothing {sb = ok})]))
 badStateMatchLookback MkLookbackSubject impossible
 
 ||| "Choose a creature you control."
@@ -137,7 +135,7 @@ okChooseIndefinite = Choose (Macros.a Macros.creatureYouControl) Nothing Openly
 public export
 badChooseDefinite : Unspellable (Instruction []) (\ok =>
   Choose (Macros.the (And [Macros.creature,
-                         Superlative MinOf (CharAxis Toughness)
+                         Superlative MinOf (StatAxis Toughness)
                                      Macros.creatureYouControl])) Nothing Openly {ch = ok})
 badChooseDefinite BareChoice impossible
 
@@ -207,25 +205,24 @@ badSortedClassOnNumberKeyword KeywordTermInFactsTable impossible
 ||| "{T}: Draw a card. Activate only if you created this turn."
 public export
 badBareTokenCreationLookback : Unspellable (Condition []) (\ok =>
-  Happened TokenCreation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
+  Happened You (MkLookback TokenCreation Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}}))
 badBareTokenCreationLookback Oh impossible
 
 ||| "creature that was dealt damage by this creature this turn"
 public export
 okDamageTakenComplement : Predicate [] Object
 okDamageTakenComplement =
-  HappenedTo DamageTaken Lookback.ThisTurn
-             (Just (Involving Macros.thisCreature))
+  HappenedTo (MkLookback DamageTaken Lookback.ThisTurn (Just (Involving Macros.thisCreature)))
 
 ||| "Destroy target creature that attacked with this creature this turn."
 public export
 badAttackerComplementOnObject : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo AttackDeclaration Lookback.ThisTurn (Just (Involving Macros.thisCreature {cp = ok})))
+  HappenedTo (MkLookback AttackDeclaration Lookback.ThisTurn (Just (Involving Macros.thisCreature {cp = ok}))))
 badAttackerComplementOnObject MkLookbackComplement impossible
 
 public export
 badPlayerCastComplement : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn (Just (Involving Macros.anOpponent {cp = ok})))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (Involving Macros.anOpponent {cp = ok}))))
 badPlayerCastComplement MkLookbackComplement impossible
 
 ||| "target spell cast from your graveyard"
@@ -236,116 +233,102 @@ okCastFromGraveyard = CastFrom (Macros.graveyardOf You)
 ||| "Counter target spell cast from the stack."
 public export
 badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
-  CastFrom (ZoneAt Stack Bare) {pf = ok})
+  CastFrom (ZoneAt Stack BareScope) {pf = ok})
 badCastFromStack Oh impossible
 
 ||| "… that was put somewhere from the battlefield this turn."
 public export
 okPlacementOriginBattlefield : Predicate [] Object
 okPlacementOriginBattlefield =
-  HappenedTo Placement Lookback.ThisTurn
-             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing))
+  HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing)))
 
 ||| "… that died from the battlefield this turn."
 public export
 badDeathOriginZone : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo Death Lookback.ThisTurn
-             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
+  HappenedTo (MkLookback Death Lookback.ThisTurn (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok}))))
 badDeathOriginZone Oh impossible
 
 ||| "if you've cast a spell from the stack this turn"
 public export
 badCastOriginFromStack : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromZone [ZoneAt Stack Bare]) Nothing {ok = ok})))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (FromZones (FromZone [ZoneAt Stack BareScope]) Nothing {ok = ok}))))
 badCastOriginFromStack Oh impossible
 
 ||| "if you've cast a spell from this turn"
 public export
 badEmptyOriginCoordination : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromZone []) Nothing {ok = ok})))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (FromZones (FromZone []) Nothing {ok = ok}))))
 badEmptyOriginCoordination Oh impossible
 
 ||| "if you've cast a creature spell from your hand this turn"
 public export
 okOriginPayloadInvolving : Condition []
 okOriginPayloadInvolving =
-  Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromZone [Macros.handZ])
-                    (Just (Involving (Macros.a Macros.creature)))))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (FromZones (FromZone [Macros.handZ])
+                    (Just (Involving (Macros.a Macros.creature))))))
 
 ||| "if you've cast a spell from your hand from the command zone this turn"
 public export
 badNestedOriginPayload : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromZone [Macros.handZ])
-                    (Just (FromZones (FromZone [Macros.commandZ]) Nothing)) {pl = ok})))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (FromZones (FromZone [Macros.handZ])
+                    (Just (FromZones (FromZone [Macros.commandZ]) Nothing)) {pl = ok}))))
 badNestedOriginPayload Oh impossible
 
 ||| "if you've cast a spell from anywhere other than this turn"
 public export
 badEmptyOriginExclusion : Unspellable (Condition []) (\ok =>
-  Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones (FromAnywhereBut []) Nothing {ok = ok})))
+  Happened You (MkLookback SpellCast Lookback.ThisTurn (Just (FromZones (FromAnywhereBut []) Nothing {ok = ok}))))
 badEmptyOriginExclusion Oh impossible
 
 ||| "… that died from anywhere this turn."
 public export
 badDeathOriginAnywhere : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo Death Lookback.ThisTurn
-             (Just (FromZones FromAnywhere Nothing {ok = ok})))
+  HappenedTo (MkLookback Death Lookback.ThisTurn (Just (FromZones FromAnywhere Nothing {ok = ok}))))
 badDeathOriginAnywhere Oh impossible
 
 ||| "… that was put into a graveyard from the battlefield this turn."
 public export
 okPlacementIntoGraveyard : Predicate [] Object
 okPlacementIntoGraveyard =
-  HappenedTo Placement Lookback.ThisTurn
-             (Just (IntoZone Macros.graveyardZ
+  HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (IntoZone Macros.graveyardZ
                       (Just (FromZones (FromZone [Macros.battlefieldZ])
-                                       Nothing))))
+                                       Nothing)))))
 
 ||| "… that was put into the battlefield this turn."
 public export
 badPlacementIntoBattlefield : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo Placement Lookback.ThisTurn
-             (Just (IntoZone Macros.battlefieldZ Nothing {ok = ok})))
+  HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (IntoZone Macros.battlefieldZ Nothing {ok = ok}))))
 badPlacementIntoBattlefield Oh impossible
 
 ||| "… that was put into your graveyard into exile this turn."
 public export
 badNestedDestination : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo Placement Lookback.ThisTurn
-             (Just (IntoZone (Macros.graveyardOf You)
-                      (Just (IntoZone Macros.exileZ Nothing)) {pl = ok})))
+  HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (IntoZone (Macros.graveyardOf You)
+                      (Just (IntoZone Macros.exileZ Nothing)) {pl = ok}))))
 badNestedDestination Oh impossible
 
 ||| "if you shuffled your library this way"
 public export
 okShuffleLocusAtLibrary : Condition []
 okShuffleLocusAtLibrary =
-  Happened (VerbedAct "Shuffle") You Lookback.ThisWay
-           (Just (AtZone Macros.yourLibrary))
+  Happened You (MkLookback (VerbedAct "Shuffle") Lookback.ThisWay (Just (AtZone Macros.yourLibrary)))
 
 ||| "if a creature died in your graveyard this way"
 public export
 badLocusOnDeath : Unspellable (Condition []) (\ok =>
-  Happened Death (Macros.a Macros.creature) Lookback.ThisWay
-           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+  Happened (Macros.a Macros.creature) (MkLookback Death Lookback.ThisWay (Just (AtZone (Macros.graveyardOf You) {ok = ok}))))
 badLocusOnDeath Oh impossible
 
 ||| "if you searched this way, shuffle"
 public export
 badBareSearchLookback : Unspellable (Condition []) (\ok =>
-  Happened (VerbedAct "Search") You Lookback.ThisWay Nothing {cw = LeftBare {ok}})
+  Happened You (MkLookback (VerbedAct "Search") Lookback.ThisWay Nothing {cw = LeftBare {ok}}))
 badBareSearchLookback Oh impossible
 
 ||| "if you shuffled your graveyard this way"
 public export
 badShuffleLocusAtGraveyard : Unspellable (Condition []) (\ok =>
-  Happened (VerbedAct "Shuffle") You Lookback.ThisWay
-           (Just (AtZone (Macros.graveyardOf You) {ok = ok})))
+  Happened You (MkLookback (VerbedAct "Shuffle") Lookback.ThisWay (Just (AtZone (Macros.graveyardOf You) {ok = ok}))))
 badShuffleLocusAtGraveyard Oh impossible
 
 ||| "target creature spell, once it resolves"
@@ -368,8 +351,7 @@ badResolvedOnBattlefield Oh impossible
 ||| "if it entered from the battlefield"
 public export
 badEntryOriginBattlefield : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo Entry Lookback.ThisTurn
-             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
+  HappenedTo (MkLookback Entry Lookback.ThisTurn (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok}))))
 badEntryOriginBattlefield Oh impossible
 
 ||| "For each opponent, you draw a card."
@@ -386,19 +368,19 @@ badSingletonForEach Refl impossible
 ||| "if you activated a loyalty ability this turn"
 public export
 badBareActivationLookback : Unspellable (Condition []) (\ok =>
-  Happened AbilityActivation You Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}})
+  Happened You (MkLookback AbilityActivation Lookback.ThisTurn Nothing {cw = LeftBare {ok = ok}}))
 badBareActivationLookback Oh impossible
 
 ||| "on top of your library in any order, third from the top"
 public export
 okOneEndArrangedOrdinal : ZoneExpr []
 okOneEndArrangedOrdinal =
-  LibraryAt (OneEnd OnTop) (Just AnyOrder) (Just (Nth 3)) Bare
+  LibraryAt (OneEnd OnTop) (Just AnyOrder) (Just (Nth 3)) BareScope
 
 ||| "Put those cards on the top or bottom of your library in any order."
 public export
 badDisjunctionOrdered : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt (EitherEnd Nothing) (Just AnyOrder) Nothing {af = ok} Bare)
+  LibraryAt (EitherEnd Nothing) (Just AnyOrder) Nothing {af = ok} BareScope)
 badDisjunctionOrdered Oh impossible
 
 ||| "third from the top"
@@ -414,13 +396,13 @@ badZerothFromTop ItIsSucc impossible
 ||| "Shuffle those cards into your library in any order."
 public export
 badShuffledArranged : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt Shuffled (Just AnyOrder) Nothing {af = ok} Bare)
+  LibraryAt Shuffled (Just AnyOrder) Nothing {af = ok} BareScope)
 badShuffledArranged Oh impossible
 
 ||| "Shuffle it into its owner's library third from the top."
 public export
 badShuffledOrdinal : Unspellable (ZoneExpr []) (\ok =>
-  LibraryAt Shuffled Nothing (Just (Nth 3)) {nf = ok} Bare)
+  LibraryAt Shuffled Nothing (Just (Nth 3)) {nf = ok} BareScope)
 badShuffledOrdinal Oh impossible
 
 public export
@@ -551,40 +533,38 @@ badDealtThisWayAbility Oh impossible
 public export
 okDeathTally : Amount []
 okDeathTally =
-  EventTally TallyCount Death (Macros.a Macros.creature) Lookback.ThisTurn
-             Nothing
+  EventTally TallyCount (Macros.a Macros.creature) (MkLookback Death Lookback.ThisTurn Nothing)
 
 ||| "the amount of creatures that died this turn"
 public export
 badDeathSum : Unspellable (Amount []) (\ok =>
-  EventTally TallySum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
-           {qm = ok})
+  EventTally TallySum (Macros.a Macros.creature) (MkLookback Death Lookback.ThisTurn Nothing) {qm = ok})
 badDeathSum Oh impossible
 
 ||| "creature that died this turn"
 public export
 okObjectDeathLookbackSubject : Predicate [] Object
-okObjectDeathLookbackSubject = HappenedTo Death Lookback.ThisTurn Nothing
+okObjectDeathLookbackSubject = HappenedTo (MkLookback Death Lookback.ThisTurn Nothing)
 
 ||| "creature that won a coin flip this turn"
 public export
 badCreatureWonFlip : Unspellable (Predicate [] Object) (\ok =>
-  HappenedTo FlipWin Lookback.ThisTurn Nothing {sb = ok})
+  HappenedTo (MkLookback FlipWin Lookback.ThisTurn Nothing {sb = ok}))
 badCreatureWonFlip MkLookbackSubject impossible
 
 ||| "the amount of dice you rolled this turn"
 public export
 badRollAsMagnitude : Unspellable (Amount []) (\ok =>
-  EventTally TallySum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
+  EventTally TallySum You (MkLookback DiceRoll Lookback.ThisTurn Nothing) {qm = ok})
 badRollAsMagnitude Oh impossible
 
 public export
 youWonAFlipThisTurn : Condition []
-youWonAFlipThisTurn = Happened FlipWin You Lookback.ThisTurn Nothing
+youWonAFlipThisTurn = Happened You (MkLookback FlipWin Lookback.ThisTurn Nothing)
 
 public export
 youRolledADieThisTurn : Condition []
-youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
+youRolledADieThisTurn = Happened You (MkLookback DiceRoll Lookback.ThisTurn Nothing)
 
 ||| "Roll two d20. Ignore the lowest roll."
 public export
@@ -670,7 +650,7 @@ badPayCostlessKeyword Oh impossible
 ||| "if you paid a cost this turn"
 public export
 badBarePaymentLookback : Unspellable (Condition []) (\ok =>
-  Happened CostPayment You Lookback.ThisTurn Nothing {sb = ok})
+  Happened You (MkLookback CostPayment Lookback.ThisTurn Nothing {sb = ok}))
 badBarePaymentLookback MkLookbackSubject impossible
 
 ||| "Destroy the rest."
@@ -688,7 +668,7 @@ badRestAfterTargetChoice Oh impossible
 
 public export
 youPaidLifeThisTurn : Condition []
-youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing
+youPaidLifeThisTurn = Happened You (MkLookback LifePayment Lookback.ThisTurn Nothing)
 
 public export
 afterShuffledLook : Bindings
@@ -710,7 +690,7 @@ okPatientlessScry = VerbedEvent (Just You) "Scry" Nothing Nothing False
 public export
 badScryPatient : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Scry"
-              (Just (Macros.a (InZone (ZoneAt Library Bare)))) Nothing False
+              (Just (Macros.a (InZone (ZoneAt Library BareScope)))) Nothing False
               {pt = ok})
 badScryPatient Oh impossible
 
@@ -736,7 +716,7 @@ okIntransitiveBecomes =
 ||| "Whenever a card is milled into a Phyrexian, …"
 public export
 badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library Bare))))
+  VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library BareScope))))
               (Just (HasSubtype (creatureType "Phyrexian"))) False {bc = ok})
 badBecomesWithoutIntransitive Oh impossible
 
@@ -764,7 +744,7 @@ badDiscardFromBattlefield Oh impossible
 ||| "if you dealt damage to an opponent this turn"
 public export
 badPlayerDamageDealer : Unspellable (Condition []) (\ok =>
-  Happened DamageDealing You Lookback.ThisTurn Nothing {sb = ok})
+  Happened You (MkLookback DamageDealing Lookback.ThisTurn Nothing {sb = ok}))
 badPlayerDamageDealer MkLookbackSubject impossible
 
 public export
@@ -775,13 +755,13 @@ joinedDealerDamageComplement = MkLookbackComplement
 public export
 lastChosenPlayerRead :
   Predicate [choiceB PlayerC, choiceB PlayerC] Player
-lastChosenPlayerRead = TheLastChosenPlayer
+lastChosenPlayerRead = Macros.theLastChosenPlayer
 
 ||| "... a chosen player. ... that player."
 ||| Only a definite description refers to the choice [CR#607.2d].
 public export
 badIndefiniteChosenPlayerRead : Unspellable (Instruction [choiceB PlayerC]) (\ok =>
-  Sequentially [ DealDamage This (Lit 3) (Macros.a ChosenPlayer)
+  Sequentially [ DealDamage This (Lit 3) (Macros.a Macros.chosenPlayer)
                , DealDamage This (Lit 3) (They {ok = ok}) ])
 badIndefiniteChosenPlayerRead Refl impossible
 
@@ -1460,7 +1440,7 @@ public export
 ofChosenReadsOnlyPrefix : (bs : Bindings) -> (q : QualitySort) ->
                           countChoice (QSort q) bs = 1 -> ChosenQualityRead q ->
                           Predicate bs Object
-ofChosenReadsOnlyPrefix bs q ok read = OfChosen q {bs} {ok} {read}
+ofChosenReadsOnlyPrefix bs q ok read = Macros.ofChosen q {bs} {ok} {read}
 
 public export
 ofChosenResolvesInPrefix : (bs : Bindings) -> (q : QualitySort) ->
@@ -1480,7 +1460,7 @@ public export
 ofLastChosenColorReadsOnlyPrefix : (bs : Bindings) ->
                                    ChoiceStands (countChoice (QSort Color) bs) ->
                                    Predicate bs Object
-ofLastChosenColorReadsOnlyPrefix bs ok = OfTheLastChosen Color {bs} {ok}
+ofLastChosenColorReadsOnlyPrefix bs ok = Macros.ofTheLastChosen Color {bs} {ok}
 
 public export
 ofLastChosenColorResolvesInPrefix :
@@ -1642,11 +1622,11 @@ ownSurvivesSecondSingular =
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
                                            (Macros.target Macros.anyTarget)]
 
-||| "Exile target artifact. Draw cards equal to its power."
+||| "Exile target creature. Draw cards equal to its power."
 public export
 okItReadsTheOnlyBareSingular : Instruction []
 okItReadsTheOnlyBareSingular =
-  Sequentially [Macros.exile You (Macros.target Macros.artifact),
+  Sequentially [Macros.exile You (Macros.target Macros.creature),
                 Draw You (StatOf Power (Macros.It OneOf))]
 
 public export
@@ -1699,7 +1679,7 @@ badSharedSubjectTwoInDelta Refl impossible
 
 public export
 badOwnTwoInDelta : Unspellable (Instruction []) (\ok =>
-  Macros.dealsDamageOwnPower (Both (Macros.target Macros.creature) (Macros.target Macros.artifact))
+  Macros.dealsDamageOwnPower (Both (Macros.target Macros.creature) (Macros.target Macros.creature))
                              (Macros.target Macros.anyTarget) {ok})
 badOwnTwoInDelta Refl impossible
 

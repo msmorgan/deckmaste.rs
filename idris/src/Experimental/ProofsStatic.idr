@@ -61,13 +61,13 @@ okSingleStaticXRider : StaticSpec []
 okSingleStaticXRider =
   AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X))
                          (PtUp (Lit 0))
-                  , Define X (Macros.countOf Macros.creatureYouControl) ]
+                  , DefinesLetter X (Macros.countOf Macros.creatureYouControl) ]
 
 public export
 badDoubleStaticRider : Unspellable (StaticSpec []) (\ok =>
   AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
-          , Define X (Macros.countOf Macros.creatureYouControl)
-          , Define X (Macros.countOf Macros.creature) {ok} ])
+          , DefinesLetter X (Macros.countOf Macros.creatureYouControl)
+          , DefinesLetter X (Macros.countOf Macros.creature) {ok} ])
 badDoubleStaticRider Oh impossible
 
 ||| "power and toughness are each equal to the number of creatures you control"

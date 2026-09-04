@@ -126,7 +126,7 @@ hipparion =
   Static (Macros.deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
                   ["Block"] Agent
                   (DeonticCounterpart (Macros.allOf (And [Macros.creature,
-                                                   Compare [CharAxis Power] AtLeast (Lit 3)]))))
+                                                   Compare [StatAxis Power] AtLeast (Lit 3)]))))
 
 frodoBaggins : Ability
 frodoBaggins =
@@ -215,7 +215,7 @@ ensnaringBridge =
   Macros.card "Ensnaring Bridge" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Static (Macros.deontic (Macros.allOf (And [Macros.creature,
-                                      Compare [CharAxis Power] Greater
+                                      Compare [StatAxis Power] Greater
                                               (Macros.countOf (InZone (Macros.handOf You)))]))
                          Forbid ["Attack"] Agent NoDeonticPatient) ]
        Nothing
@@ -702,7 +702,7 @@ propaganda =
   Macros.card "Propaganda" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.deontic (Macros.allOf Macros.creature)
-                   (GatedBy (ScaledMana GenericUnit (Macros.times 2
+                   (GatedBy (Macros.scaledMana GenericUnit (Macros.times 2
                       (Macros.countOf (And [Macros.creature, HasPossessor ControllerAx They,
                                      CombatRel AttackerOf You])))))
                    ["Attack"] Agent (DefendingPlayer You)) ]
@@ -715,7 +715,7 @@ ghostlyPrisonWhole =
   Macros.card "Ghostly Prison" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.deontic (Macros.allOf Macros.creature)
-                   (GatedBy (ScaledMana GenericUnit (Macros.times 2
+                   (GatedBy (Macros.scaledMana GenericUnit (Macros.times 2
                       (Macros.countOf (And [Macros.creature, HasPossessor ControllerAx They,
                                      CombatRel AttackerOf You])))))
                    ["Attack"] Agent (DefendingPlayer You)) ]
@@ -726,7 +726,7 @@ public export
 archangelOfTithesBlockToll : Ability
 archangelOfTithesBlockToll =
   Static (Macros.onlyWhile (Macros.deontic (Macros.allOf Macros.creature)
-                              (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
+                              (GatedBy (Macros.scaledMana GenericUnit (Macros.times 1 GroupSize)))
                               ["Block"] Agent NoDeonticPatient)
             (Matches Macros.thisCreature Attacking))
 
@@ -735,7 +735,7 @@ public export
 archangelOfTithesAttackToll : Ability
 archangelOfTithesAttackToll =
   Static (Macros.onlyWhile (Macros.deontic (Macros.allOf Macros.creature)
-                              (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
+                              (GatedBy (Macros.scaledMana GenericUnit (Macros.times 1 GroupSize)))
                               ["Attack"] Agent
                               (DefendingPlayer (Macros.youOr
                                                   (Macros.allOf (And [HasType Planeswalker,
@@ -752,7 +752,7 @@ archonOfAbsolution =
        [ Macros.keyword "Flying"
        , Macros.keywordQuality "Protection" (ColorIs White)
        , Static (Macros.deontic (Macros.allOf Macros.creature)
-                   (GatedBy (ScaledMana GenericUnit (Macros.times 1 GroupSize)))
+                   (GatedBy (Macros.scaledMana GenericUnit (Macros.times 1 GroupSize)))
                    ["Attack"] Agent
                    (DefendingPlayer (Macros.youOr
                                        (Macros.allOf (And [HasType Planeswalker,
@@ -768,7 +768,7 @@ myrPrototype =
        [ Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
        , Static (Macros.deontic Macros.thisCreature
-                   (GatedBy (ScaledMana GenericUnit (Macros.times 1
+                   (GatedBy (Macros.scaledMana GenericUnit (Macros.times 1
                       (CountersOn Macros.plusOnePlusOne ((Macros.It OneOf))))))
                    ["Attack", "Block"] Agent NoDeonticPatient) ]
        (Just (2, 2))
@@ -799,7 +799,7 @@ awesomePresence =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
-                   (GatedBy (ScaledMana GenericUnit (Macros.times 3
+                   (GatedBy (Macros.scaledMana GenericUnit (Macros.times 3
                       (Macros.countOf (And [Macros.creature, HasPossessor ControllerAx They,
                                      CombatRel BlockerOf ((Macros.It OneOf))])))))
                    ["Block"] Patient NoDeonticPatient) ]

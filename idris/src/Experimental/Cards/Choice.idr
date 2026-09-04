@@ -27,7 +27,7 @@ continueSpell = Sequentially [Macros.choose (Described (TargetDet (Macros.upTo 4
 
 kindredDominance : Instruction []
 kindredDominance = Sequentially [Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature))),
-                                 Macros.destroy (Macros.allOf (And [Macros.creature, Not (OfChosen (SubtypeQ Creature))]))]
+                                 Macros.destroy (Macros.allOf (And [Macros.creature, Not (Macros.ofChosen (SubtypeQ Creature))]))]
 
 phantomBlade : Instruction []
 phantomBlade = Sequentially [Macros.choose (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, HasPossessor ControllerAx You])),
@@ -52,7 +52,7 @@ cheeringFanatic =
                           (Sequentially
                      [ Macros.choose (Macros.a (Macros.quality CardName))
                      , Continuously
-                         (CostsToCast (Macros.allOf (And [Macros.spell, OfChosen CardName]))
+                         (CostsToCast (Macros.allOf (And [Macros.spell, Macros.ofChosen CardName]))
                                       (CostLess (Lit 1) Nothing))
                          (Just ThisTurn) ]) ]
        (Just (2, 2))
@@ -171,11 +171,11 @@ ashnodsBattleGear = Static (Macros.mayDeclineUntap Macros.thisArtifact (Just You
 phyrexianIngesterPump : Ability
 phyrexianIngesterPump =
   Static (AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (LetterVal Y))
-                  , Define X
+                  , DefinesLetter X
                       (StatOf Power
                          (Macros.a (And [Macros.creature,
                                          ExiledWith Macros.thisCreature])))
-                  , Define Y (StatOf Toughness (Macros.That CardW OneOf)) ])
+                  , DefinesLetter Y (StatOf Toughness (Macros.That CardW OneOf)) ])
 
 ||| Phyrexian Ingester
 phyrexianIngester : Card
@@ -246,7 +246,7 @@ runeSnag =
   Macros.card "Rune Snag" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Compound [Mana [Macros.generic 2],
-                                       ScaledMana GenericUnit
+                                       Macros.scaledMana GenericUnit
                                          (Macros.times 2 (Macros.countOf
                                             (And [Named (PrintedName "Rune Snag"),
                                                   InZone Macros.graveyardZ])))])
@@ -290,7 +290,7 @@ distantMelody =
                   [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Draw You (Macros.forEach 1
                                 (And [Permanent, HasPossessor ControllerAx You,
-                                      OfChosen (SubtypeQ Creature)])) ]) ]
+                                      Macros.ofChosen (SubtypeQ Creature)])) ]) ]
        Nothing
 
 public export
@@ -302,7 +302,7 @@ cripplingFear =
        [ Spell (Sequentially
                   [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Macros.gets (Macros.allOf (And [Macros.creature,
-                                             Not (OfChosen (SubtypeQ Creature))]))
+                                             Not (Macros.ofChosen (SubtypeQ Creature))]))
                                 (PtDown (Lit 3)) (PtDown (Lit 3))
                                 (Just Macros.untilEndOfTurn) ]) ]
        Nothing
@@ -329,8 +329,8 @@ psychicPaperChoiceAndReads =
                     , Macros.attachChoosing Macros.thisEquipment
                                             (SubtypeQ Creature) ])
   , Static (AndAlso Nothing
-      [ Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfTheLastChosen CardName))
-      , Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (OfTheLastChosen (SubtypeQ Creature))) ]) ]
+      [ Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (Macros.ofTheLastChosen CardName))
+      , Becomes (AttachHost Equipped (TypeW Creature)) Sets (ChosenQuality (Macros.ofTheLastChosen (SubtypeQ Creature))) ]) ]
 
 public export
 xenograft : Card
@@ -338,7 +338,7 @@ xenograft =
   Macros.card "Xenograft" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
-       , Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature)))) ]
+       , Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature)))) ]
        Nothing
 
 ||| Convincing Mirage
@@ -350,7 +350,7 @@ convincingMirage =
        [ Macros.keywordSubject "Enchant" Macros.land
        , Static (Macros.entersChoosingFrom Macros.thisAura (SubtypeQ Land)
                                            BasicTypesOnly)
-       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (OfChosen (SubtypeQ Land)))) ]
+       , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Land)))) ]
        Nothing
 
 ||| Realmwright
@@ -361,7 +361,7 @@ realmwright =
        (MkTypeLine [creatureType "Vedalken", creatureType "Wizard"] [Creature])
        [ Static (Macros.entersChoosingFrom Macros.thisCreature (SubtypeQ Land)
                                            BasicTypesOnly)
-       , Static (Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (ChosenQuality (OfChosen (SubtypeQ Land)))) ]
+       , Static (Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Land)))) ]
        (Just (1, 1))
 
 public export
@@ -370,10 +370,10 @@ adaptiveAutomaton =
   Macros.card "Adaptive Automaton" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
-       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))
+       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
        , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
                                    OtherThan Macros.thisCreature,
-                                   OfChosen (SubtypeQ Creature)]))
+                                   Macros.ofChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        (Just (2, 2))
 
@@ -396,7 +396,7 @@ arcaneAdaptation =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
-                   (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))) ]
+                   (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))) ]
        Nothing
 
 public export
@@ -407,7 +407,7 @@ conspiracy =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
-                   (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))) ]
+                   (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))) ]
        Nothing
 
 public export
@@ -429,7 +429,7 @@ imagecrafter =
        [ Macros.activated TapSymbol
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        (Just (1, 1))
 
@@ -441,7 +441,7 @@ unnaturalSelection =
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -452,7 +452,7 @@ standardize =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
-              , Continuously (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (OfChosen (SubtypeQ Creature))))
+              , Continuously (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -493,9 +493,9 @@ nyxathid =
                                              (Just OpponentsOnly))
        , Static (Gets Adds Macros.thisCreature
                       (PtDown (Macros.countOf (InZone (Macros.handOf
-                                 (Macros.the ChosenPlayer)))))
+                                 (Macros.the Macros.chosenPlayer)))))
                       (PtDown (Macros.countOf (InZone (Macros.handOf
-                                 (Macros.the ChosenPlayer)))))) ]
+                                 (Macros.the Macros.chosenPlayer)))))) ]
        (Just (7, 7))
 
 ||| Expel the Interlopers
@@ -509,7 +509,7 @@ expelTheInterlopers =
            [ Macros.choose (Macros.a (Macros.qualityFrom Number
                                         (NumberBetween 0 10)))
            , Macros.destroy (Macros.allOf (And [Macros.creature,
-                                         Compare [CharAxis Power] AtLeast ChosenNumber])) ]) ]
+                                         Compare [StatAxis Power] AtLeast Macros.chosenNumber])) ]) ]
        Nothing
 
 public export
@@ -653,7 +653,7 @@ public export
 castSmallCreatureFromTopOnceEachTurn : StaticSpec []
 castSmallCreatureFromTopOnceEachTurn =
   (Macros.mayPlayDeed "Cast" You (Macros.a (And [Macros.spell, Macros.creature,
-                                            Compare [CharAxis Power] AtMost (Lit 2)])) Nothing (PlayRider (Just Macros.onTopZ) (Just OnceEachTurn) Nothing False ItsOwnCost))
+                                            Compare [StatAxis Power] AtMost (Lit 2)])) Nothing (PlayRider (Just Macros.onTopZ) (Just OnceEachTurn) Nothing False ItsOwnCost))
 
 public export
 courserOfKruphix : Card
@@ -787,7 +787,7 @@ ashesOfTheFallen =
   Macros.card "Ashes of the Fallen" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
-       , Static (Becomes (Macros.each (And [Macros.creature, InZone (Macros.graveyardOf You)])) Adds (ChosenQuality (OfChosen (SubtypeQ Creature)))) ]
+       , Static (Becomes (Macros.each (And [Macros.creature, InZone (Macros.graveyardOf You)])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature)))) ]
        Nothing
 
 public export
@@ -972,7 +972,7 @@ override : Card
 override =
   Macros.card "Override" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (ScaledMana GenericUnit (Macros.forEach 1
+       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
                                             (And [Macros.artifact, HasPossessor ControllerAx You]))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
        Nothing
 
@@ -981,7 +981,7 @@ rakshasasDisdain : Card
 rakshasasDisdain =
   Macros.card "Rakshasa's Disdain" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (ScaledMana GenericUnit (Macros.forEach 1
+       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
                                             (InZone (Macros.graveyardOf You)))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
        Nothing
 
@@ -992,7 +992,7 @@ megatherium =
        (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.keyword "Trample"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
-           ((May You (Pay You (ScaledMana GenericUnit (Macros.forEach 1 (InZone (Macros.handOf You)))) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))) ]
+           ((May You (Pay You (Macros.scaledMana GenericUnit (Macros.forEach 1 (InZone (Macros.handOf You)))) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))) ]
        (Just (4, 4))
 
 public export
@@ -1169,7 +1169,7 @@ callerOfTheHunt =
                    False)
        , Static (DefinesPt Macros.thisCreature BothEach
                    (Macros.countOf (And [Macros.creature,
-                                  OfChosen (SubtypeQ Creature)]))) ]
+                                  Macros.ofChosen (SubtypeQ Creature)]))) ]
        (Just (PtBox PrintedStar PrintedStar))
 
 ||| Duneblast
@@ -1232,14 +1232,14 @@ celestialJudgmentPass : Instruction []
 celestialJudgmentPass =
   ForEachKindOf (ValueAxis Power) (Just (Macros.allOf Macros.creature)) Number
     (Macros.choose (Macros.a (And [Macros.creature,
-                                   Compare [CharAxis Power] Eq ChosenNumber])))
+                                   Compare [StatAxis Power] Eq Macros.chosenNumber])))
 
 ||| World Queller
 public export
 worldQuellerChoice : Instruction []
 worldQuellerChoice =
   (May You (Macros.choose (Macros.a (Macros.quality CardTypeQ))) (Just (Macros.sacrifice (Macros.each AnyPlayer)
-                 (Macros.aTheirChoice (And [Permanent, OfChosen CardTypeQ])))) Nothing)
+                 (Macros.aTheirChoice (And [Permanent, Macros.ofChosen CardTypeQ])))) Nothing)
 
 ||| Moonlit Meditation
 public export
@@ -1495,7 +1495,7 @@ trueNameNemesis =
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Merfolk", creatureType "Rogue"] [Creature])
        [ Static (Macros.entersChoosingPlayer Macros.thisCreature Nothing)
-       , Macros.keywordQuality "Protection" ChosenPlayer ]
+       , Macros.keywordQuality "Protection" Macros.chosenPlayer ]
        (Just (3, 1))
 
 public export
@@ -1554,7 +1554,7 @@ emissaryOfGrudgesReveal =
     (Do (Expose Reveal You (ExposedChoice PlayerC)))
     (OnlyIf (ChooseNewTargets
                (Macros.target (Or [Macros.spell, AbilityHead AnyOnStack])))
-            (Matches ((Macros.It OneOf)) (HasPossessor ControllerAx (Macros.the ChosenPlayer)))
+            (Matches ((Macros.It OneOf)) (HasPossessor ControllerAx (Macros.the Macros.chosenPlayer)))
             Nothing)
     OncePerGame
 

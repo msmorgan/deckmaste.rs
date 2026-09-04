@@ -8,7 +8,7 @@ import public Experimental.Events
 mutual
   public export
   data ZoneScope : Bindings -> Zone -> Type where
-    Bare : ZoneScope bs z
+    BareScope : ZoneScope bs z
     PossessedBy : (n : Noun bs Player) -> {auto 0 ps : Possessable z} ->
                   ZoneScope bs z
 
@@ -191,6 +191,24 @@ mutual
     Written : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
               {0 c : EventComplement bs ev ks} -> ComplementWritten (Just c)
 
+  ||| The clause a lookback read shares across its three sorts: which event,
+  ||| how far back, and the written complement with its two gates.
+  public export
+  data LookbackClause : Bindings -> Kind -> Type where
+    MkLookback : {0 bs : Bindings} -> {0 k : Kind} ->
+                 (ev : EventName) -> (w : Lookback) ->
+                 (what : Maybe (EventComplement bs ev k)) ->
+                 {auto 0 cw : ComplementWritten what} ->
+                 {auto 0 sb : LookbackSubject ev k} -> LookbackClause bs k
+
+  public export
+  lbEvent : {0 bs : Bindings} -> {0 k : Kind} -> LookbackClause bs k -> EventName
+  lbEvent (MkLookback ev _ _) = ev
+
+  public export
+  lbWindow : {0 bs : Bindings} -> {0 k : Kind} -> LookbackClause bs k -> Lookback
+  lbWindow (MkLookback _ w _) = w
+
   public export
   complementPlain : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
                     Maybe (EventComplement bs ev ks) -> Bool
@@ -227,22 +245,18 @@ mutual
     HasSubtype : Subtype -> Predicate bs Object
     AnyPlayer : Predicate bs Player
     Opponent : Predicate bs Player
-    ChosenPlayer : {auto 0 ok : countChoice PlayerC bs = 1} ->
+    ChosenPlayer : (ref : ChoiceRef) ->
+                   {auto 0 ok : choiceRefOk ref (countChoice PlayerC bs)} ->
                    Predicate bs Player
-    TheLastChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
-                          Predicate bs Player
     QualityNoun : (q : QualitySort) ->
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
     CounterKindOn : (n : Noun bs Object) ->
                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                     Predicate bs (Quality CounterKindQ)
-    OfChosen : (q : QualitySort) -> {auto 0 ok : countChoice (QSort q) bs = 1} ->
+    OfChosen : (ref : ChoiceRef) -> (q : QualitySort) ->
+               {auto 0 ok : choiceRefOk ref (countChoice (QSort q) bs)} ->
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    OfTheLastChosen : (q : QualitySort) ->
-                      {auto 0 ok : ChoiceStands (countChoice (QSort q) bs)} ->
-                      {auto 0 read : ChosenQualityRead q} ->
-                      Predicate bs Object
     OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
@@ -264,10 +278,7 @@ mutual
                 (m : Noun bs km) ->
                 {auto 0 ok : So (combatRelOk r k km (nounZone m) (nounTys m))} ->
                 Predicate bs k
-    HappenedTo : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
-                 (what : Maybe (EventComplement bs ev k)) ->
-                 {auto 0 cw : ComplementWritten what} ->
-                 {auto 0 sb : LookbackSubject ev k} -> Predicate bs k
+    HappenedTo : {k : Kind} -> (lb : LookbackClause bs k) -> Predicate bs k
     ColorIs : (c : Chroma.Color) -> Predicate bs Object
     IsColorless : Predicate bs Object
     ColorCount : (r : Comparator) -> (n : Nat) ->
@@ -534,7 +545,7 @@ mutual
   seedType Blocked = Just Creature
   seedType (HasDesignation d) = designationSeedType d
   seedType (Compare cs _ _) = axisTypes cs
-  seedType (Superlative _ (CharAxis c) _) = comparedType c
+  seedType (Superlative _ (StatAxis c) _) = comparedType c
   seedType (CompareOver dom _ _ _) = seedType dom
   seedType (HasSubtype s) = subtypeType s
   seedType (And ps) = seedTypeAll ps
@@ -571,8 +582,7 @@ mutual
   hasHead (HasSubtype _) = True
   hasHead AnyPlayer = True
   hasHead Opponent = True
-  hasHead ChosenPlayer = True
-  hasHead TheLastChosenPlayer = True
+  hasHead (ChosenPlayer _) = True
   hasHead (QualityNoun _ _) = True
   hasHead (CounterKindOn _) = True
   hasHead (AbilityHead _) = True
@@ -604,8 +614,7 @@ mutual
 
   public export
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
-  qualityReadOk (OfChosen _) = True
-  qualityReadOk (OfTheLastChosen _) = True
+  qualityReadOk (OfChosen _ _) = True
   qualityReadOk (OfYourChoice _ _) = True
   qualityReadOk (Named _) = True
   qualityReadOk _ = False
@@ -616,8 +625,7 @@ mutual
 
   public export
   qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
-  qualityReadHost (OfChosen (SubtypeQ h)) = Just h
-  qualityReadHost (OfTheLastChosen (SubtypeQ h)) = Just h
+  qualityReadHost (OfChosen _ (SubtypeQ h)) = Just h
   qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
   qualityReadHost _ = Nothing
 
@@ -629,8 +637,7 @@ mutual
 
   public export
   uniquifies : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  uniquifies ChosenPlayer = True
-  uniquifies TheLastChosenPlayer = True
+  uniquifies (ChosenPlayer _) = True
   uniquifies (Superlative _ _ _) = True
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
@@ -697,10 +704,8 @@ mutual
   predEq (HasType _) _ = False
   predEq (HasSubtype a) (HasSubtype b) = a == b
   predEq (HasSubtype _) _ = False
-  predEq ChosenPlayer ChosenPlayer = True
-  predEq ChosenPlayer _ = False
-  predEq TheLastChosenPlayer TheLastChosenPlayer = True
-  predEq TheLastChosenPlayer _ = False
+  predEq (ChosenPlayer a) (ChosenPlayer b) = a == b
+  predEq (ChosenPlayer _) _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
@@ -709,10 +714,8 @@ mutual
   predEq (QualityNoun _ _) _ = False
   predEq (CounterKindOn a) (CounterKindOn b) = nounEqRef a b
   predEq (CounterKindOn _) _ = False
-  predEq (OfChosen a) (OfChosen b) = a == b
-  predEq (OfChosen _) _ = False
-  predEq (OfTheLastChosen a) (OfTheLastChosen b) = a == b
-  predEq (OfTheLastChosen _) _ = False
+  predEq (OfChosen r a) (OfChosen s b) = r == s && a == b
+  predEq (OfChosen _ _) _ = False
   predEq (OfYourChoice a d) (OfYourChoice b e) = a == b && sameDomainOpt d e
   predEq (OfYourChoice _ _) _ = False
   predEq (AbilityHead a) (AbilityHead b) = a == b
@@ -749,9 +752,9 @@ mutual
   predEq (CombatRel {km = Object} r a) (CombatRel {km = Object} s b) =
     r == s && nounEqRef a b
   predEq (CombatRel _ _) _ = False
-  predEq (HappenedTo a v Nothing) (HappenedTo b w Nothing) =
+  predEq (HappenedTo (MkLookback a v Nothing)) (HappenedTo (MkLookback b w Nothing)) =
     sameEventName a b && sameLookback v w
-  predEq (HappenedTo _ _ _) _ = False
+  predEq (HappenedTo _) _ = False
   predEq (ColorIs a) (ColorIs b) = a == b
   predEq (ColorIs _) _ = False
   predEq IsColorless IsColorless = True
@@ -1159,8 +1162,7 @@ mutual
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
-  negatable ChosenPlayer = False
-  negatable TheLastChosenPlayer = False
+  negatable (ChosenPlayer _) = False
   negatable (QualityNoun _ Nothing) = False
   negatable (QualityNoun _ (Just _)) = True
   negatable (CounterKindOn _) = False
@@ -1344,10 +1346,7 @@ mutual
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     PossessorOf : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs k) ->
-                  {auto 0 one : nounPlur n = OneOf} ->
                   {auto 0 ck : So (possessorKind ax k)} -> Noun bs Player
-    PossessorsOf : (ax : PossessorAxis) -> (grp : Noun bs Object) ->
-                   {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Player
     Designated : (d : Designation) -> (whose : Noun bs Player) ->
                  {auto 0 sc : designationScope d = HeldByCard} -> Noun bs Object
     OneEachOf : (roles : List (Predicate bs Object)) -> (pool : Noun bs Object) ->
@@ -1397,19 +1396,18 @@ mutual
   nounEqRef (Own _ _ _) _ = False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (PossessorOf _ _) _ = False
-  nounEqRef (PossessorsOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
   nounEqRef (OneEachOf _ _) _ = False
 
   public export
   data DestOk : ZoneExpr bs -> Type where
-    BattlefieldOk : DestOk (ZoneAt Battlefield Bare)
-    ExileOk : DestOk (ZoneAt Exile Bare)
-    HandOkBare : DestOk (ZoneAt Hand Bare)
-    GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
+    BattlefieldOk : DestOk (ZoneAt Battlefield BareScope)
+    ExileOk : DestOk (ZoneAt Exile BareScope)
+    HandOkBare : DestOk (ZoneAt Hand BareScope)
+    GraveyardOkBare : DestOk (ZoneAt Graveyard BareScope)
     LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
                    {auto 0 nf : PlaceOrdinalFits place offs} ->
-                   DestOk (LibraryAt place arrg offs {af} {nf} Bare)
+                   DestOk (LibraryAt place arrg offs {af} {nf} BareScope)
 
   public export
   orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
@@ -1437,8 +1435,7 @@ mutual
   ||| A definite description re-reads the chosen-player binding [CR#607.2d].
   public export
   choiceRead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  choiceRead ChosenPlayer = True
-  choiceRead TheLastChosenPlayer = True
+  choiceRead (ChosenPlayer _) = True
   choiceRead _ = False
 
   public export
@@ -1495,9 +1492,7 @@ mutual
   nounDelta (Own _ _ _) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (PossessorOf _ n) =
-    MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
-  nounDelta (PossessorsOf _ n) =
-    MkBinding TheD Player ManyOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
+    MkBinding TheD Player (nounPlur n) PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (Designated _ _) = []
   nounDelta (OneEachOf roles pool) =
     MkBinding BareD Object ManyOf
@@ -1557,7 +1552,7 @@ mutual
   predDelta (CastBy n _) = nounDelta n
   predDelta (CombatRel _ m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
-  predDelta (HappenedTo _ _ what) = complementDelta what
+  predDelta (HappenedTo (MkLookback _ _ what)) = complementDelta what
   predDelta (CastFrom z) = zoneDelta z
   predDelta (ColorIs _) = []
   predDelta IsColorless = []
@@ -1598,9 +1593,9 @@ mutual
   public export
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
   zoneDelta (ZoneAt z (PossessedBy n)) = nounDelta n
-  zoneDelta (ZoneAt z Bare) = []
+  zoneDelta (ZoneAt z BareScope) = []
   zoneDelta (LibraryAt pl _ _ (PossessedBy n)) = placeDelta pl ++ nounDelta n
-  zoneDelta (LibraryAt pl _ _ Bare) = placeDelta pl
+  zoneDelta (LibraryAt pl _ _ BareScope) = placeDelta pl
 
   public export
   zonesDistinct : List Zone -> Bool
@@ -1680,19 +1675,18 @@ mutual
   public export
   data ColorTerm : Bindings -> Type where
     LitColor : Chroma.Color -> ColorTerm bs
-    ThatColor : {auto 0 ok : countChoice (QSort Color) bs = 1} ->
+    ThatColor : (ref : ChoiceRef) ->
+                {auto 0 ok : choiceRefOk ref (countChoice (QSort Color) bs)} ->
                 {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
-    TheLastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
-                         {auto 0 rd : ChosenQualityRead Color} ->
-                         ColorTerm bs
 
   public export
   data Amount : Bindings -> Type where
     Lit : Nat -> Amount bs
     PlayerStatOf : (w : PlayerStat) -> (n : Noun bs Player) ->
                    {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    StatOf : (c : Characteristic) -> (n : Noun bs Object) ->
-             {auto 0 one : nounPlur n = OneOf} -> Amount bs
+    StatOf : (c : Stat) -> (n : Noun bs Object) ->
+             {auto 0 one : nounPlur n = OneOf} ->
+             {auto 0 ty : So (statHeadTysOk c (nounHeadTys n))} -> Amount bs
     CountOf : {k : Kind} -> (grp : Noun bs k) ->
               {auto 0 pl : nounPlur grp = ManyOf} ->
               {auto 0 cg : CountableGroup grp} ->
@@ -1709,20 +1703,15 @@ mutual
            {auto 0 nf : PaidFacetNamed f} ->
            {auto 0 sb : PaidSubject n} ->
            {auto 0 one : nounPlur n = OneOf} -> Amount bs
-    EventTally : {k : Kind} -> (op : TallyOp) -> (ev : EventName) ->
-                 (who : Noun bs k) -> (w : Lookback) ->
-                 (what :
-                    Maybe (EventComplement (nomIntro who) ev k)) ->
-                 {auto 0 cw : ComplementWritten what} ->
-                 {auto 0 sb : LookbackSubject ev k} ->
-                 {auto 0 qm : So (tallyOk op ev)} -> Amount bs
+    EventTally : {k : Kind} -> (op : TallyOp) -> (who : Noun bs k) ->
+                 (lb : LookbackClause (nomIntro who) k) ->
+                 {auto 0 qm : So (tallyOk op (lbEvent lb))} -> Amount bs
     TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) ->
               {auto 0 nz : So (amtNonZero per)} -> Amount bs
     ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
-    ChosenNumber : {auto 0 ok : countChoice (QSort Number) bs = 1} ->
+    ChosenNumber : (ref : ChoiceRef) ->
+                   {auto 0 ok : choiceRefOk ref (countChoice (QSort Number) bs)} ->
                    Amount bs
-    TheLastChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
-                          Amount bs
     VotesFor : (l : VoteLabel) -> Amount bs
     TheOutcome : (s : OutcomeSort) -> {auto 0 ok : countOutcomes s bs = 1} ->
                  Amount bs
@@ -1761,13 +1750,13 @@ mutual
   amtDelta (PlayerStatOf _ nom) = nounDelta nom
   amtDelta (CountersOn _ holder) = nounDelta holder
   amtDelta (Paid _ n) = nounDelta n
-  amtDelta (EventTally _ _ who _ what) = nounDelta who ++ complementDelta what
+  amtDelta (EventTally _ who (MkLookback _ _ what)) =
+    nounDelta who ++ complementDelta what
   amtDelta (CountOf grp) = nounDelta grp
   amtDelta (Aggregate _ _ grp) = nounDelta grp
   amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
-  amtDelta ChosenNumber = []
-  amtDelta TheLastChosenNumber = []
+  amtDelta (ChosenNumber _) = []
   amtDelta (VotesFor _) = []
   amtDelta (TheOutcome _) = []
   amtDelta (CoinsShowing _) = []
@@ -1791,13 +1780,13 @@ mutual
   amtIntro (PlayerStatOf w nom) = nomIntro nom
   amtIntro (CountersOn _ holder) = nomIntro holder
   amtIntro (Paid _ n) = nomIntro n
-  amtIntro (EventTally _ _ who _ what) = complementDelta what ++ nomIntro who
+  amtIntro (EventTally _ who (MkLookback _ _ what)) =
+    complementDelta what ++ nomIntro who
   amtIntro (CountOf grp) = nomIntro grp
   amtIntro (Aggregate _ _ grp) = nomIntro grp
   amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
-  amtIntro ChosenNumber = bs
-  amtIntro TheLastChosenNumber = bs
+  amtIntro (ChosenNumber _) = bs
   amtIntro (VotesFor _) = bs
   amtIntro (TheOutcome _) = bs
   amtIntro (CoinsShowing _) = bs
@@ -1827,13 +1816,12 @@ mutual
   amtPlur (PlayerStatOf _ _) = ManyOf
   amtPlur (CountersOn _ _) = ManyOf
   amtPlur (Paid _ _) = ManyOf
-  amtPlur (EventTally _ _ _ _ _) = ManyOf
+  amtPlur (EventTally _ _ _) = ManyOf
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
   amtPlur (TimesOf _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
-  amtPlur ChosenNumber = ManyOf
-  amtPlur TheLastChosenNumber = ManyOf
+  amtPlur (ChosenNumber _) = ManyOf
   amtPlur (VotesFor _) = ManyOf
   amtPlur (TheOutcome _) = ManyOf
   amtPlur (CoinsShowing _) = ManyOf
@@ -1858,14 +1846,14 @@ mutual
 
   public export
   data LifeOp : Bindings -> Type where
-    Up : Amount bs -> LifeOp bs
-    Down : Amount bs -> LifeOp bs
+    LifeUp : Amount bs -> LifeOp bs
+    LifeDown : Amount bs -> LifeOp bs
     Set : Amount bs -> LifeOp bs
 
   public export
   lifeIntro : {bs : Bindings} -> LifeOp bs -> Bindings
-  lifeIntro (Up a) = amtIntro a
-  lifeIntro (Down a) = amtIntro a
+  lifeIntro (LifeUp a) = amtIntro a
+  lifeIntro (LifeDown a) = amtIntro a
   lifeIntro (Set a) = amtIntro a
 
   public export
@@ -1906,13 +1894,12 @@ mutual
   readAmount (PlayerStatOf _ _) = True
   readAmount (CountersOn _ _) = True
   readAmount (Paid _ _) = True
-  readAmount (EventTally _ _ _ _ _) = True
+  readAmount (EventTally _ _ _) = True
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True
   readAmount (TimesOf _ _) = False
   readAmount ThatMuch = False
-  readAmount ChosenNumber = False
-  readAmount TheLastChosenNumber = False
+  readAmount (ChosenNumber _) = False
   readAmount (VotesFor _) = True
   readAmount (TheOutcome s) = outcomeComparable s
   readAmount (CoinsShowing _) = True
@@ -2309,12 +2296,8 @@ mutual
   data Condition : Bindings -> Type where
     Exists : {k : Kind} -> (n : Noun bs k) ->
              {auto 0 ex : ExistentialMention n} -> Condition bs
-    Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
-               (w : Lookback) ->
-               (what :
-                  Maybe (EventComplement (nomIntro who) ev k)) ->
-               {auto 0 cw : ComplementWritten what} ->
-               {auto 0 sb : LookbackSubject ev k} -> Condition bs
+    Happened : {k : Kind} -> (who : Noun bs k) ->
+               (lb : LookbackClause (nomIntro who) k) -> Condition bs
     GameIs : (d : Designation) ->
              {auto 0 sc : designationScope d = HeldByGame} ->
              {auto 0 at : So (designationChecked d)} -> Condition bs
@@ -2413,7 +2396,7 @@ mutual
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
-  condDelta (Happened _ who _ _) = selfSubjDelta who
+  condDelta (Happened who _) = selfSubjDelta who
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
   condDelta (Matches n _) = nounDelta n ++ selfSubjDelta n
@@ -2789,7 +2772,6 @@ mutual
   moveIntro p TheAttackingPlayer z = bs
   moveIntro p (PlayerGroup _) z = bs
   moveIntro p (PossessorOf ax n) z = nomIntro (PossessorOf ax n)
-  moveIntro p (PossessorsOf ax n) z = nomIntro (PossessorsOf ax n)
   moveIntro p (Designated d n) z = bs
 
   public export
@@ -2828,7 +2810,6 @@ mutual
   nounZone (Own pl own _) = zoneOfReach Bare pl own
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (PossessorOf _ n) = Nothing
-  nounZone (PossessorsOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
   nounZone (OneEachOf _ pool) = nounZone pool
 
@@ -2872,7 +2853,6 @@ mutual
   nounTy (Own pl own _) = tyOfReach Bare pl own
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (PossessorOf _ n) = Nothing
-  nounTy (PossessorsOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
   nounTy (OneEachOf _ pool) = nounTy pool
 
@@ -2932,8 +2912,7 @@ mutual
   nounPlur (ItOtherThan _ _) = OneOf
   nounPlur (Own pl _ _) = pl
   nounPlur (AttachHost _ _) = OneOf
-  nounPlur (PossessorOf _ n) = OneOf
-  nounPlur (PossessorsOf _ _) = ManyOf
+  nounPlur (PossessorOf _ n) = nounPlur n
   nounPlur (Designated _ _) = OneOf
   nounPlur (OneEachOf _ _) = ManyOf
 

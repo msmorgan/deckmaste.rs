@@ -33,21 +33,21 @@ badCantInGraveyard Oh impossible
 ||| "noncreature with power 2 or less"
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
-  And [Compare [CharAxis Power] AtMost (Lit 2), Not Macros.creature] {cf = ok})
+  And [Compare [StatAxis Power] AtMost (Lit 2), Not Macros.creature] {cf = ok})
 badNoncreaturePower Oh impossible
 
 ||| "with power 2 or less or with power 2 or less"
 public export
 badRepeatedComparisonDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare [CharAxis Power] AtMost (Lit 2),
-      Compare [CharAxis Power] AtMost (Lit 2)] {dd = ok})
+  Or [Compare [StatAxis Power] AtMost (Lit 2),
+      Compare [StatAxis Power] AtMost (Lit 2)] {dd = ok})
 badRepeatedComparisonDisjunct Oh impossible
 
 ||| "with power 2 or less or mana value 3 or less"
 public export
 badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare [CharAxis Power] AtMost (Lit 2),
-      Compare [CharAxis ManaValue] AtMost (Lit 3)] {pd = ok})
+  Or [Compare [StatAxis Power] AtMost (Lit 2),
+      Compare [StatAxis ManaValue] AtMost (Lit 3)] {pd = ok})
 badMixedCharacteristicDisjunct Oh impossible
 
 ||| "You pay 2 life."
@@ -338,7 +338,7 @@ badTheDamageUnannounced Oh impossible
 ||| "You gain 3 life. The damage can't be prevented."
 public export
 badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
-  Sequentially [ ChangeLife You (Up (Lit 3))
+  Sequentially [ ChangeLife You (LifeUp (Lit 3))
                , Continuously
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
 badTheDamageAfterLifeGain Oh impossible

@@ -106,10 +106,10 @@ chanceEncounter =
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever (FlipsCoin You (Just WinsFlip))
-                          (PutCounters (Lit 1) (PrintedKind (Named "Luck")) Macros.thisEnchantment)
+                          (PutCounters (Lit 1) (PrintedKind (NamedCounter "Luck")) Macros.thisEnchantment)
        , Macros.triggeredIf At
                             (BeginningOf ThePart Upkeep (ByPlayer You))
-                            (CompareAmt (CountersOn (Named "Luck") Macros.thisEnchantment)
+                            (CompareAmt (CountersOn (NamedCounter "Luck") Macros.thisEnchantment)
                                         AtLeast (Lit 10))
                             (Concludes WinGame You) ]
        Nothing
@@ -222,7 +222,7 @@ garrukRelentlessFlip =
   Macros.triggered When
     (StateHolds
        (Matches Macros.thisPlaneswalker
-                (Compare [CounterAxis (Named "Loyalty")] AtMost (Lit 2))))
+                (Compare [CounterAxis (NamedCounter "Loyalty")] AtMost (Lit 2))))
     (Macros.transform Macros.thisPlaneswalker)
 
 ||| Mana Clash
@@ -256,8 +256,7 @@ bushiTenderfoot =
             (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
             [ Macros.triggered When
                 (Dies (Macros.a (And [ Macros.creature
-                                     , HappenedTo DamageTaken ThisTurn
-                                         (Just (Involving Macros.thisCreature)) ])))
+                                     , HappenedTo (MkLookback DamageTaken ThisTurn (Just (Involving Macros.thisCreature))) ])))
                 (SetStatus Flipped Macros.thisCreature) ]
             (Macros.printedBox (Just (1, 1))))
     (Macros.backFace "Kenzo the Hardhearted" [Legendary]
@@ -484,7 +483,7 @@ midnightScavengers =
                    (Macros.returnTo
                       (Macros.target (And [ Macros.creature
                                           , InZone (Macros.graveyardOf You)
-                                          , Compare [CharAxis ManaValue] AtMost (Lit 3) ]))
+                                          , Compare [StatAxis ManaValue] AtMost (Lit 3) ]))
                       Macros.handZ [])) ]
             (Macros.printedBox (Just (3, 3))))
     Faces.chitteringHostOnScavengers
@@ -676,9 +675,7 @@ brimstoneMage : Card
 brimstoneMage =
   Macros.leveler "Brimstone Mage" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
-       [ Macros.activatedOnlyDuring (Mana [Macros.generic 3, Macros.pip Red])
-           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
-           AsSorcery ]
+       [ Macros.levelUp (Mana [Macros.generic 3, Macros.pip Red]) ]
        (Just (2, 2))
        [ Macros.levelBand (LevelBetween 1 2) 2 3
            [ Macros.activated TapSymbol
@@ -693,9 +690,7 @@ studentOfWarfare : Card
 studentOfWarfare =
   Macros.leveler "Student of Warfare" (Just [Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
-       [ Macros.activatedOnlyDuring (Mana [Macros.pip White])
-           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
-           AsSorcery ]
+       [ Macros.levelUp (Mana [Macros.pip White]) ]
        (Just (1, 1))
        [ Macros.levelBand (LevelBetween 2 6) 3 3 [ Macros.keyword "FirstStrike" ]
        , Macros.levelBand (LevelAtLeast 7) 4 4 [ Macros.keyword "DoubleStrike" ] ]
@@ -706,9 +701,7 @@ karganDragonlord : Card
 karganDragonlord =
   Macros.leveler "Kargan Dragonlord" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Warrior"] [Creature])
-       [ Macros.activatedOnlyDuring (Mana [Macros.pip Red])
-           (PutCounters (Lit 1) (PrintedKind (Named "Level")) Macros.thisCreature)
-           AsSorcery ]
+       [ Macros.levelUp (Mana [Macros.pip Red]) ]
        (Just (2, 2))
        [ Macros.levelBand (LevelBetween 4 7) 4 4 [ Macros.keyword "Flying" ]
        , Macros.levelBand (LevelAtLeast 8) 8 8
@@ -730,7 +723,7 @@ arcaneProxy =
               [ Macros.exile You
                   (Macros.target (And [ Macros.instantOrSorcery
                                       , IsCard
-                                      , Compare [CharAxis ManaValue] AtMost
+                                      , Compare [StatAxis ManaValue] AtMost
                                                 (StatOf Power Macros.thisCreature)
                                       , InZone (Macros.graveyardOf You) ]))
               , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []

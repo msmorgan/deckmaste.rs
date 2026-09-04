@@ -24,19 +24,15 @@ data AsThough : Bindings -> Type where
   AsThoughMana : (what : Maybe ColorOrColorless) ->
                  (as : ManaMatch) ->
                  (purpose : Maybe (SpendPurpose bs)) -> AsThough bs
-  AsThoughGreater : {bs : Bindings} -> (ch : Characteristic) ->
+  AsThoughGreater : {bs : Bindings} -> (ch : Stat) ->
                     (amt : Amount bs) ->
                     {auto 0 nd : So (isNil (amtDelta amt))} -> AsThough bs
-  AsThoughLess : {bs : Bindings} -> (ch : Characteristic) ->
-                 (amt : Amount bs) ->
-                 {auto 0 nd : So (isNil (amtDelta amt))} -> AsThough bs
 
 public export
 asThoughSort : {0 bs : Bindings} -> AsThough bs -> PremiseSort
 asThoughSort (AsThoughOf _) = ObjectPremise
 asThoughSort (AsThoughMana _ _ _) = ManaPremise
 asThoughSort (AsThoughGreater _ _) = ValuePremise
-asThoughSort (AsThoughLess _ _) = ValuePremise
 
 
 public export
@@ -304,16 +300,12 @@ mutual
     CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
                    (coloredOnly : Bool) ->
                    {auto 0 wr : ManaRun run} -> CostShift bs
-    CostShiftRunWithFloor : (run : ManaCost) -> (floor : Amount bs) ->
-                            (coloredOnly : Bool) ->
-                            {auto 0 wr : ManaRun run} -> CostShift bs
 
   public export
   costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
   costShiftDelta (CostLess a _) = amtDelta a
   costShiftDelta (CostMore a) = amtDelta a
   costShiftDelta (CostShiftRun _ _ _) = []
-  costShiftDelta (CostShiftRunWithFloor _ floor _) = amtDelta floor
 
   namespace Static
     public export
@@ -340,8 +332,8 @@ mutual
                 {auto 0 cs : CostSubject n} -> StaticSpec bs
       AddedCost : (c : Cost bs) -> (offered : Bool) ->
                   {auto 0 ap : AddedPayment c} -> StaticSpec bs
-      Define : (l : Letter) -> (amt : Amount bs) ->
-               {auto 0 ok : So (anyOpenLetter l bs)} -> StaticSpec bs
+      DefinesLetter : (l : Letter) -> (amt : Amount bs) ->
+                      {auto 0 ok : So (anyOpenLetter l bs)} -> StaticSpec bs
       Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
               {auto 0 ok : GrantSubject ab n} ->
               {auto 0 gr : Grantable ab} -> StaticSpec bs
@@ -741,7 +733,7 @@ mutual
 
   public export
   staticKind : {0 bs : Bindings} -> StaticSpec bs -> StaticKind
-  staticKind (Define _ _) = LetterDefinition
+  staticKind (DefinesLetter _ _) = LetterDefinition
   staticKind (Gets op _ _ _) = ptOpKind op
   staticKind (DefinesPt _ _ _) = PtDefinition
   staticKind (SwitchesPt _) = PtSwitch
@@ -776,7 +768,7 @@ mutual
 
   public export
   staticIntro : {bs : Bindings} -> StaticSpec bs -> Bindings
-  staticIntro (Define l amt) = defineLetter l (amtIntro amt)
+  staticIntro (DefinesLetter l amt) = defineLetter l (amtIntro amt)
   staticIntro (Gets _ n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
   staticIntro (DefinesPt n _ amt) =
     outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
@@ -850,8 +842,8 @@ mutual
                     {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk n
     PerMemberController : {0 bs : Bindings} -> {0 ax : PossessorAxis} ->
                           {0 grp : Noun bs Object} ->
-                          {0 pl : nounPlur grp = ManyOf} ->
-                          CtrlOverrideOk (PossessorsOf ax grp {pl})
+                          {0 ck : So (possessorKind ax Object)} ->
+                          CtrlOverrideOk (PossessorOf ax grp {ck})
 
   public export
   data TokenRider : Bindings -> Type where
@@ -891,8 +883,6 @@ mutual
   public export
   data Cost : Bindings -> Type where
     Mana : (c : ManaCost) -> {auto 0 wr : ManaRun c} -> Cost bs
-    ScaledMana : (unit : ManaUnit) -> (amt : Amount bs) ->
-                 {auto 0 fe : ForEachAmount amt} -> Cost bs
     ScaledCost : (c : Cost bs) -> (amt : Amount bs) ->
                  {auto 0 fe : ForEachAmount amt} -> Cost bs
     TapSymbol : Cost bs
@@ -918,7 +908,6 @@ mutual
   public export
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
   costIntro (Mana c) = if manaHasX c then letterB X :: bs else bs
-  costIntro (ScaledMana _ _) = bs
   costIntro (ScaledCost c _) = costIntro c
   costIntro TapSymbol = bs
   costIntro UntapSymbol = bs
@@ -1023,9 +1012,8 @@ mutual
     MoreTimes : (n : Amount bs) ->
                 Repetition bs
     AnyNumber : Repetition bs
-    Until : (c : Condition bs) -> Repetition bs
+    UntilCond : (c : Condition bs) -> Repetition bs
     AgainExcludingChosen : Repetition bs
-    AgainExcept : (c : Condition bs) -> Repetition bs
 
   public export
   data RollRow : Bindings -> Type where
@@ -1210,13 +1198,6 @@ mutual
                      {auto 0 wf : OptWellFormedQ q} ->
                      {auto 0 sc : OptCounterSourceScope kind k} ->
                      {auto 0 cm : CounterMemory from} -> Instruction bs
-    RemoveCountersAmong : (q : Quantity bs) ->
-                          (kind : Maybe (CounterKindSource bs)) ->
-                          (among : Noun (quantIntro q) Object) ->
-                          {auto 0 wf : WellFormedQ q} ->
-                          {auto 0 sc : OptCounterSourceScope kind Object} ->
-                          {auto 0 cm : CounterMemory among} ->
-                          {auto 0 pb : PartitiveBase among} -> Instruction bs
     MoveCounters : (amt : Amount bs) ->
                    (kind : Maybe (CounterKindSource bs)) ->
                    (src : Noun (amtIntro amt) Object) ->
@@ -1351,7 +1332,6 @@ mutual
   reflexEncloseUse (Create _ _ _ _) = EncReflexive
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive
-  reflexEncloseUse (RemoveCountersAmong _ _ _) = EncReflexive
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
   reflexEncloseUse (DoubleCounters _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive
@@ -1415,7 +1395,6 @@ mutual
   public export
   payableOk : {0 bs : Bindings} -> Cost bs -> Bool
   payableOk (Mana _) = True
-  payableOk (ScaledMana _ _) = True
   payableOk (ScaledCost c _) = payableOk c
   payableOk TapSymbol = False
   payableOk UntapSymbol = False
@@ -1478,7 +1457,6 @@ mutual
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
-  costActionOk (RemoveCountersAmong _ _ among) = costNounOk among
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
   costActionOk (DoubleCounters on) = costNounOk on
   costActionOk (Enact _ _ e) = costActionOk e
@@ -1625,8 +1603,8 @@ mutual
     afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
   instrIntro (ExchangeLife parties) =
     outcomeB LifeGained :: outcomeB LifeLost :: nomIntro parties
-  instrIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
-  instrIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
+  instrIntro (ChangeLife who (LifeUp a)) = outcomeB LifeGained :: lifeIntro (LifeUp a)
+  instrIntro (ChangeLife who (LifeDown a)) = outcomeB LifeLost :: lifeIntro (LifeDown a)
   instrIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
   instrIntro (AddMana who amt _ _) = outcomeB ManaAdded :: amtIntro amt
   instrIntro (Draw who amt) = amtIntro amt
@@ -1657,7 +1635,6 @@ mutual
   instrIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   instrIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   instrIntro (RemoveCounters q kind from) = outcomeB CountersRemoved :: nomIntro from
-  instrIntro (RemoveCountersAmong q kind among) = outcomeB CountersRemoved :: nomIntro among
   instrIntro (MoveCounters amt kind src dst) = nomIntro dst
   instrIntro (DoubleCounters on) = nomIntro on
   instrIntro (Enact Nothing v (Move what to _)) =
@@ -1850,8 +1827,8 @@ mutual
   instrProfile (ExchangeLife parties) =
     sameIntro (nomIntro parties)
               ([outcomeB LifeGained, outcomeB LifeLost])
-  instrProfile (ChangeLife who (Up a)) = sameIntro (lifeIntro (Up a)) [outcomeB LifeGained]
-  instrProfile (ChangeLife who (Down a)) = sameIntro (lifeIntro (Down a)) [outcomeB LifeLost]
+  instrProfile (ChangeLife who (LifeUp a)) = sameIntro (lifeIntro (LifeUp a)) [outcomeB LifeGained]
+  instrProfile (ChangeLife who (LifeDown a)) = sameIntro (lifeIntro (LifeDown a)) [outcomeB LifeLost]
   instrProfile (ChangeLife who (Set a)) = sameIntro (lifeIntro (Set a)) []
   instrProfile (AddMana who amt _ _) = sameIntro (amtIntro amt) [outcomeB ManaAdded]
   instrProfile (Draw who amt) = sameIntro (amtIntro amt) []
@@ -1879,9 +1856,6 @@ mutual
   instrProfile (GetsEmblem who _) = sameIntro (nomIntro who) []
   instrProfile (PutCounters amt kind on) = sameIntro (nomIntro on) []
   instrProfile (RemoveCounters q kind from) = sameIntro (nomIntro from) [outcomeB CountersRemoved]
-  instrProfile (RemoveCountersAmong q kind among) =
-    sameIntro (nomIntro among)
-              ([outcomeB CountersRemoved])
   instrProfile (MoveCounters amt kind src dst) = sameIntro (nomIntro dst) []
   instrProfile (DoubleCounters on) = sameIntro (nomIntro on) []
   instrProfile (Enact Nothing v (Move what to _)) = sameIntro (nomIntro what) []
@@ -1981,7 +1955,7 @@ mutual
 
   public export
   deckAxis : ProjAxis -> Bool
-  deckAxis (CharAxis ManaValue) = True
+  deckAxis (StatAxis ManaValue) = True
   deckAxis _ = False
 
   public export
@@ -2498,7 +2472,6 @@ mutual
   public export
   selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
   selfTapPayment (Mana _) = False
-  selfTapPayment (ScaledMana _ _) = False
   selfTapPayment (ScaledCost c _) = selfTapPayment c
   selfTapPayment TapSymbol = True
   selfTapPayment UntapSymbol = True
@@ -2521,7 +2494,6 @@ mutual
   public export
   costTapOnce : {0 bs : Bindings} -> Cost bs -> Bool
   costTapOnce (Mana _) = True
-  costTapOnce (ScaledMana _ _) = True
   costTapOnce (ScaledCost c _) = costTapOnce c
   costTapOnce TapSymbol = True
   costTapOnce UntapSymbol = True
@@ -2538,14 +2510,13 @@ mutual
   public export
   costPaidByYou : {0 bs : Bindings} -> Cost bs -> Bool
   costPaidByYou (Mana _) = True
-  costPaidByYou (ScaledMana _ _) = True
   costPaidByYou (ScaledCost c _) = costPaidByYou c
   costPaidByYou TapSymbol = True
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
   -- A life payment targets its payer; granting life may target anyone [CR#119.4].
-  costPaidByYou (Do (ChangeLife who (Down _))) = nounIsYou who
-  costPaidByYou (Do (ChangeLife _ (Up _))) = True
+  costPaidByYou (Do (ChangeLife who (LifeDown _))) = nounIsYou who
+  costPaidByYou (Do (ChangeLife _ (LifeUp _))) = True
   costPaidByYou (Do (Enact (Just subj) _ _)) = nounIsYou subj
   costPaidByYou (Do _) = True
   costPaidByYou (Compound cs) = costsPaidByYou cs
@@ -2573,7 +2544,6 @@ mutual
   public export
   costOffBattlefield : {0 bs : Bindings} -> Cost bs -> Bool
   costOffBattlefield (Mana _) = True
-  costOffBattlefield (ScaledMana _ _) = True
   costOffBattlefield (ScaledCost c _) = costOffBattlefield c
   costOffBattlefield TapSymbol = False
   costOffBattlefield UntapSymbol = False

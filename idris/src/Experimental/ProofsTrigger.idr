@@ -74,12 +74,12 @@ badThatCreatureIsSelf (Refl, _) impossible
 public export
 okAnnouncingRemovalAgent : GameEvent []
 okAnnouncingRemovalAgent =
-  CounterEvent CounterTaken (Just (Named "Intervention"))
+  CounterEvent CounterTaken (Just (NamedCounter "Intervention"))
                Macros.thisEnchantment LastCounter (Just You) False
 
 public export
 badAnnouncingRemovalAgent : Unspellable (GameEvent []) (\ok =>
-  CounterEvent CounterTaken (Just (Named "Intervention")) Macros.thisEnchantment LastCounter
+  CounterEvent CounterTaken (Just (NamedCounter "Intervention")) Macros.thisEnchantment LastCounter
                (Just (Macros.target AnyPlayer)) False
                {ag = Present {ok}})
 badAnnouncingRemovalAgent Refl impossible
@@ -188,13 +188,13 @@ badKeywordCostPaymentThatMuch Refl impossible
 public export
 okManyCountersOnPlacement : GameEvent []
 okManyCountersOnPlacement =
-  CounterEvent CounterPut (Just (Named "Time")) Macros.thisEnchantment
+  CounterEvent CounterPut (Just (NamedCounter "Time")) Macros.thisEnchantment
                ManyCounters Nothing False
 
 ||| "when the last time counter is put on this enchantment"
 public export
 badLastCounterOnPlacement : Unspellable (GameEvent []) (\ok =>
-  CounterEvent CounterPut (Just (Named "Time")) Macros.thisEnchantment LastCounter Nothing False
+  CounterEvent CounterPut (Just (NamedCounter "Time")) Macros.thisEnchantment LastCounter Nothing False
                {lb = ok})
 badLastCounterOnPlacement Oh impossible
 

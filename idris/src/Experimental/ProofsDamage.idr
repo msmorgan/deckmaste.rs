@@ -418,13 +418,13 @@ okPreventedThisWayAnnounced =
 public export
 badPreventedThisWayAfterDamage : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.creature)
-               , ChangeLife You (Up (Macros.preventedThisWay {ok})) ])
+               , ChangeLife You (LifeUp (Macros.preventedThisWay {ok})) ])
 badPreventedThisWayAfterDamage Refl impossible
 
 ||| "You gain life equal to the damage prevented this way."
 public export
 badPreventedThisWayUnannounced : Unspellable (Instruction []) (\ok =>
-  ChangeLife You (Up (Macros.preventedThisWay {ok})))
+  ChangeLife You (LifeUp (Macros.preventedThisWay {ok})))
 badPreventedThisWayUnannounced Refl impossible
 
 ||| "… They gain 2 life for each card less than two they drew this way."
@@ -552,21 +552,21 @@ okLastChosenAfterChooser =
                               Openly)
        , Static (DamageRule AnyDamage
                    (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfTheLastChosen Color])))
+                                                Macros.ofTheLastChosen Color])))
                    (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing
 
 ||| "sources of the last chosen color"
 public export
 badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
-  OfTheLastChosen Color {ok = ok})
+  Macros.ofTheLastChosen Color {ok = ok})
 badLastChosenColorNoChooser Oh impossible
 
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly)
+                                                Macros.ofTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
        Nothing)
 badLastChosenBeforeChooser Oh impossible
@@ -576,7 +576,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
-                                                OfTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
+                                                Macros.ofTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing)
 badLastChosenWrongSort Oh impossible
 
@@ -589,7 +589,7 @@ okPlayerAggregate =
 ||| "the total power of target creature"
 public export
 badSingularAggregate : Unspellable (Amount []) (\ok =>
-  Aggregate SumOf (CharAxis Power) (Macros.target Macros.creature)
+  Aggregate SumOf (StatAxis Power) (Macros.target Macros.creature)
               {pl = ok})
 badSingularAggregate Refl impossible
 

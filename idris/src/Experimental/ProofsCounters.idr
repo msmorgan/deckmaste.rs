@@ -13,20 +13,20 @@ import Experimental.Unspellable
 public export
 okChosenCreatureType :
   Predicate [MkBinding AD (Quality (SubtypeQ Creature)) OneOf QualityP] Object
-okChosenCreatureType = OfChosen (SubtypeQ Creature)
+okChosenCreatureType = Macros.ofChosen (SubtypeQ Creature)
 
 ||| "of the chosen creature type"
 public export
 badChosenWrongSort : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
-  (\ok => OfChosen (SubtypeQ Creature) {ok})
+  (\ok => Macros.ofChosen (SubtypeQ Creature) {ok})
 badChosenWrongSort Refl impossible
 
 ||| "a counter of that kind"
 public export
 badChosenCounterKindRead : Unspellable
   (Predicate [MkBinding AD (Quality CounterKindQ) OneOf QualityP] Object)
-  (\read => OfChosen CounterKindQ {read})
+  (\read => Macros.ofChosen CounterKindQ {read})
 badChosenCounterKindRead Oh impossible
 
 ||| "this creature"
@@ -240,7 +240,7 @@ okPutBoostCounterOnCreature =
 ||| "Put a poison counter on target creature."
 public export
 badPutPoisonOnCreature : Unspellable (Instruction []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.target Macros.creature) {sc = ok})
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Poison")) (Macros.target Macros.creature) {sc = ok})
 badPutPoisonOnCreature Oh impossible
 
 ||| "You get a +1/+1 counter."
@@ -253,7 +253,7 @@ badGetsBoostCounter Oh impossible
 public export
 okLosesAllPoisonCounters : Instruction []
 okLosesAllPoisonCounters =
-  LosesCounters (Macros.each Opponent) (Just (PrintedKind (Named "Poison")))
+  LosesCounters (Macros.each Opponent) (Just (PrintedKind (NamedCounter "Poison")))
                 Nothing
 
 ||| "Each opponent loses all +1/+1 counters."
@@ -286,19 +286,19 @@ okLastBoostCounterRemoved =
 ||| "When the last poison counter is removed from this creature, draw a card."
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (Macros.lastCounterRemoved (Named "Poison") Macros.thisCreature {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
+  Triggered When (Macros.lastCounterRemoved (NamedCounter "Poison") Macros.thisCreature {sc = ok}) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badLastPoisonCounterRemoved Refl impossible
 
 ||| "Put a charge counter on this artifact."
 public export
 okChargeCounterOnArtifact : Instruction []
 okChargeCounterOnArtifact =
-  PutCounters (Lit 1) (PrintedKind (Named "Charge")) Macros.thisArtifact
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Charge")) Macros.thisArtifact
 
 ||| "Each player gets a charge counter."
 public export
 badGetsChargeCounter : Unspellable (Instruction []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind (Named "Charge")) You {sc = ok})
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Charge")) You {sc = ok})
 badGetsChargeCounter Oh impossible
 
 ||| "… that many plus one +1/+1 counters are put on it instead"
@@ -344,7 +344,7 @@ okPlusOneCounterDescription =
 ||| "each creature with a poison counter on it"
 public export
 badPoisonCounterDescription : Unspellable (Predicate [] Object) (\ok =>
-  HasCounters (Just (Named "Poison")) {kn = Present {ok}})
+  HasCounters (Just (NamedCounter "Poison")) {kn = Present {ok}})
 badPoisonCounterDescription Refl impossible
 
 ||| "a first strike counter"
@@ -376,7 +376,7 @@ badEmptyCounterMenu IsNonEmpty impossible
 ||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
 public export
 badMixedScopeCounterMenu : Unspellable (Instruction []) (\ok =>
-  PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Named "Poison"])
+  PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, NamedCounter "Poison"])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
 
@@ -384,19 +384,19 @@ badMixedScopeCounterMenu Oh impossible
 public export
 okPoisonCounterLabel : Instruction []
 okPoisonCounterLabel =
-  PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.target Opponent)
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Poison")) (Macros.target Opponent)
 
 ||| "Put a zorp counter on target creature."
 public export
 badUnknownCounterLabel : Unspellable (Instruction []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind (Named "Zorp" {ok}))
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Zorp" {ok}))
               (Macros.target Macros.creature))
 badUnknownCounterLabel CounterInFactsTable impossible
 
 ||| "Put a flying counter on target creature." [CR#122.1b]
 public export
 badKeywordCounterNamedPlainly : Unspellable (Instruction []) (\ok =>
-  PutCounters (Lit 1) (PrintedKind (Named "Flying" {ok}))
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Flying" {ok}))
               (Macros.target Macros.creature))
 badKeywordCounterNamedPlainly CounterInFactsTable impossible
 

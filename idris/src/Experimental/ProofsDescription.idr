@@ -83,7 +83,7 @@ badForestNonland Oh impossible
 public export
 okContradictionFreeAnd : Predicate [] Object
 okContradictionFreeAnd =
-  And [Macros.creature, Compare [CharAxis Power] AtMost (Lit 2)]
+  And [Macros.creature, Compare [StatAxis Power] AtMost (Lit 2)]
 
 ||| "noncreature that is attacking or blocking"
 public export
@@ -221,15 +221,38 @@ badUnlicensedY : Unspellable (Instruction []) (\ok =>
                , Define X (Macros.countOf Macros.creatureYouControl) {ok} ])
 badUnlicensedY Oh impossible
 
+||| "the power of target land creature"
+||| -- an animated land is a land AND a creature, and a creature has power, so
+||| one head-type alternative carrying `Creature` is enough.
+public export
+okAnimatedLandPower : Amount []
+okAnimatedLandPower = StatOf Power (Macros.target (And [Macros.land, Macros.creature]))
+
+||| "the power of target land"
+||| -- a noncreature permanent has no power [CR#208.3]; the animated land is
+||| written as a creature (`okAnimatedLandPower`), not as a bare land.
+public export
+badLandPower : Unspellable (Amount []) (\ok =>
+  StatOf Power (Macros.target Macros.land) {ty = ok})
+badLandPower Oh impossible
+
+||| "the loyalty of target battle"
+||| -- loyalty is printed on planeswalkers [CR#209.1]; a battle has defense
+||| instead [CR#210.1].
+public export
+badBattleLoyalty : Unspellable (Amount []) (\ok =>
+  StatOf Loyalty (Macros.target (HasType Battle)) {ty = ok})
+badBattleLoyalty Oh impossible
+
 ||| "the greatest power among creatures"
 public export
 okPowerAmongObjects : Amount []
-okPowerAmongObjects = Macros.aggregate MaxOf (CharAxis Power) Macros.creature
+okPowerAmongObjects = Macros.aggregate MaxOf (StatAxis Power) Macros.creature
 
 ||| "the greatest power among players"
 public export
 badPowerAmongPlayers : Unspellable (Amount []) (\ok =>
-  Macros.aggregate MaxOf (CharAxis Power) AnyPlayer {sc = ok})
+  Macros.aggregate MaxOf (StatAxis Power) AnyPlayer {sc = ok})
 badPowerAmongPlayers Refl impossible
 
 ||| "the highest life total among creatures you control"
@@ -241,12 +264,12 @@ badLifeTotalAmongObjects Refl impossible
 ||| "the creature with the greatest power"
 public export
 okExtremalSelection : Predicate [] Object
-okExtremalSelection = Superlative MaxOf (CharAxis Power) Macros.creature
+okExtremalSelection = Superlative MaxOf (StatAxis Power) Macros.creature
 
 ||| "the creature with the total power among creatures you control"
 public export
 badSumSelection : Unspellable (Predicate [] Object) (\ok =>
-  Superlative SumOf (CharAxis Power) Macros.creature {ex = ok})
+  Superlative SumOf (StatAxis Power) Macros.creature {ex = ok})
 badSumSelection Oh impossible
 
 ||| "the creature with the least toughness among creatures you control"
@@ -254,7 +277,7 @@ public export
 okDefiniteSuperlative : Noun [] Object
 okDefiniteSuperlative =
   Macros.the (And [Macros.creature,
-                   Superlative MinOf (CharAxis Toughness)
+                   Superlative MinOf (StatAxis Toughness)
                                Macros.creatureYouControl])
 
 ||| "the creature"
@@ -477,12 +500,12 @@ badPlayerTargeter (EitherTargets _ _) impossible
 public export
 okSingleScopeAxisComparison : Predicate [] Object
 okSingleScopeAxisComparison =
-  Compare [CharAxis Power, CharAxis Toughness] AtLeast (Lit 2)
+  Compare [StatAxis Power, StatAxis Toughness] AtLeast (Lit 2)
 
 ||| "a creature with power or life total 3 or greater"
 public export
 badMixedAxisComparison : Unspellable (Predicate [] Object) (\ok =>
-  Compare [CharAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
+  Compare [StatAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
 badMixedAxisComparison (NextAxis _ (LastAxis _)) impossible
 
 ||| "a player with 13 or less life"

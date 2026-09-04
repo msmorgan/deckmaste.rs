@@ -25,16 +25,16 @@ chainbreaker = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macro
 
 kaitoBaneOfNightmares : Instruction []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                                      PutCounters (Lit 2) (PrintedKind (Named "Stun")) ((Macros.It OneOf))]
+                                      PutCounters (Lit 2) (PrintedKind (NamedCounter "Stun")) ((Macros.It OneOf))]
 
 jhoiraOfTheGhitu : Ability
 jhoiraOfTheGhitu =
   Macros.activated (Compound [Mana [Macros.generic 2],
                        Do (Macros.exile You (Macros.a (And [Not Macros.land, InZone (Macros.handOf You)])))])
-                   (PutCounters (Lit 4) (PrintedKind (Named "Time")) (Macros.TheVerbed "Exile" CardW Attributive OneOf))
+                   (PutCounters (Lit 4) (PrintedKind (NamedCounter "Time")) (Macros.TheVerbed "Exile" CardW Attributive OneOf))
 
 alaundoTheSeer : Instruction []
-alaundoTheSeer = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (Named "Time"))) (Macros.each (InZone Macros.exileZ))
+alaundoTheSeer = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (NamedCounter "Time"))) (Macros.each (InZone Macros.exileZ))
 
 daydream : Card
 daydream =
@@ -113,22 +113,22 @@ gideonsAvenger =
                    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
 prologueToPhyresis : Instruction []
-prologueToPhyresis = PutCounters (Lit 1) (PrintedKind (Named "Poison")) (Macros.each Opponent)
+prologueToPhyresis = PutCounters (Lit 1) (PrintedKind (NamedCounter "Poison")) (Macros.each Opponent)
 
 screechingScorchbeast : Ability
 screechingScorchbeast =
   Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
-                   (PutCounters (Lit 2) (PrintedKind (Named "Rad")) (Macros.each AnyPlayer))
+                   (PutCounters (Lit 2) (PrintedKind (NamedCounter "Rad")) (Macros.each AnyPlayer))
 
 merenOfClanNelToth : Ability
 merenOfClanNelToth =
   Macros.triggered Whenever (Dies (Macros.a (Macros.otherCreatureYouControl Macros.thisCreature)))
-                   (PutCounters (Lit 1) (PrintedKind (Named "Experience")) You)
+                   (PutCounters (Lit 1) (PrintedKind (NamedCounter "Experience")) You)
 
 kratosStoicFather : Ability
 kratosStoicFather =
   Macros.triggered At (BeginningOf ThePart EndStep (ByPlayer You))
-                   (PutCounters (CountersOn (Named "Experience") You) (PrintedKind Macros.plusOnePlusOne)
+                   (PutCounters (CountersOn (NamedCounter "Experience") You) (PrintedKind Macros.plusOnePlusOne)
                          (Macros.target Macros.creature))
 
 vashtaNerada : Ability
@@ -173,7 +173,7 @@ stagBeetle =
        [ Static (AndAlso Nothing [ Macros.entersWithCounters Macros.thisCreature
                                                      (LetterVal X)
                                                      Macros.plusOnePlusOne
-                         , Define X
+                         , DefinesLetter X
                              (Macros.countOf (Macros.otherCreature Macros.thisCreature)) ]) ]
        (Just (0, 0))
 
@@ -182,8 +182,8 @@ toweringTitan =
   Static (AndAlso Nothing [ Macros.entersWithCounters Macros.thisCreature
                                               (LetterVal X)
                                               Macros.plusOnePlusOne
-                  , Define X
-                      (Macros.aggregate SumOf (CharAxis Toughness)
+                  , DefinesLetter X
+                      (Macros.aggregate SumOf (StatAxis Toughness)
                          (Macros.otherCreatureYouControl Macros.thisCreature)) ])
 
 coretapper : Card
@@ -191,9 +191,9 @@ coretapper =
   Macros.card "Coretapper" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Myr"] [Artifact, Creature])
        [ Macros.activated TapSymbol
-                          (PutCounters (Lit 1) (PrintedKind (Named "Charge")) (Macros.target Macros.artifact))
+                          (PutCounters (Lit 1) (PrintedKind (NamedCounter "Charge")) (Macros.target Macros.artifact))
        , Macros.activated (Do (Macros.sacrifice You Macros.thisCreature))
-                          (PutCounters (Lit 2) (PrintedKind (Named "Charge")) (Macros.target Macros.artifact)) ]
+                          (PutCounters (Lit 2) (PrintedKind (NamedCounter "Charge")) (Macros.target Macros.artifact)) ]
        (Just (1, 1))
 
 divineIntervention : Card
@@ -201,10 +201,10 @@ divineIntervention =
   Macros.card "Divine Intervention"
        (Just [Macros.generic 6, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 2) (Named "Intervention"))
+       [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 2) (NamedCounter "Intervention"))
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-                          (RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (Named "Intervention"))) Macros.thisEnchantment)
-       , Macros.triggered When (Macros.lastCounterRemovedBy (Named "Intervention") Macros.thisEnchantment You)
+                          (RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (NamedCounter "Intervention"))) Macros.thisEnchantment)
+       , Macros.triggered When (Macros.lastCounterRemovedBy (NamedCounter "Intervention") Macros.thisEnchantment You)
                           GameDrawn ]
        Nothing
 
@@ -213,11 +213,11 @@ celestialConvergence =
   Macros.card "Celestial Convergence"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 7) (Named "Omen"))
+       [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 7) (NamedCounter "Omen"))
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
            (Sequentially
-              [ RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (Named "Omen"))) Macros.thisEnchantment
-              , If (CompareAmt (CountersOn (Named "Omen") Macros.thisEnchantment)
+              [ RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (NamedCounter "Omen"))) Macros.thisEnchantment
+              , If (CompareAmt (CountersOn (NamedCounter "Omen") Macros.thisEnchantment)
                                AtMost (Lit 0))
                           (Concludes WinGame
                       (Macros.the (And [AnyPlayer,
@@ -240,12 +240,12 @@ curseOfVengeance =
        [ Macros.keywordSubject "Enchant" AnyPlayer
        , Macros.triggered Whenever
                           (Casts (AttachHost Enchanted PlayerW) (Macros.a Macros.spell) Nothing)
-                          (PutCounters (Lit 1) (PrintedKind (Named "Spite")) Macros.thisAura)
+                          (PutCounters (Lit 1) (PrintedKind (NamedCounter "Spite")) Macros.thisAura)
        , Macros.triggered When (LosesGame (AttachHost Enchanted PlayerW))
                           (Sequentially
                              [ Macros.gainsLife You (LetterVal X)
                              , Draw You (LetterVal X)
-                             , Define X (CountersOn (Named "Spite") Macros.thisAura) ]) ]
+                             , Define X (CountersOn (NamedCounter "Spite") Macros.thisAura) ]) ]
        Nothing
 
 passagewaySeer : Card
@@ -270,10 +270,10 @@ chainsaw =
                                (Described (TargetDet (Macros.upTo 1)) Macros.creature))
        , Macros.triggered Whenever
                           (Dies (Macros.counted (Macros.atLeast 1) Macros.creature))
-                          (PutCounters (Lit 1) (PrintedKind (Named "Rev")) Macros.thisEquipment)
+                          (PutCounters (Lit 1) (PrintedKind (NamedCounter "Rev")) Macros.thisEquipment)
        , Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
-                         , Define X (CountersOn (Named "Rev") Macros.thisEquipment) ])
+                         , DefinesLetter X (CountersOn (NamedCounter "Rev") Macros.thisEquipment) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -526,7 +526,7 @@ tromell =
               [ Repeated (LetterVal X) Macros.proliferate
               , Define X (Macros.countOf (And [Macros.nontoken, Macros.creature,
                                         HasPossessor ControllerAx You,
-                                        HappenedTo Entry Lookback.ThisTurn Nothing])) ]) ]
+                                        HappenedTo (MkLookback Entry Lookback.ThisTurn Nothing)])) ]) ]
        (Just (2, 3))
 
 ||| Runadi, Behemoth Caller
@@ -539,12 +539,12 @@ runadiBehemothCaller =
 
 ||| Boon of Safety
 boonOfSafetyPut : Instruction []
-boonOfSafetyPut = PutCounters (Lit 1) (PrintedKind (Named "Shield")) (Macros.target Macros.creature)
+boonOfSafetyPut = PutCounters (Lit 1) (PrintedKind (NamedCounter "Shield")) (Macros.target Macros.creature)
 
 ||| Vivien's Talent and Teferi's Talent
 talentLoyaltyPut : Instruction []
 talentLoyaltyPut =
-  PutCounters (Lit 1) (PrintedKind (Named "Loyalty"))
+  PutCounters (Lit 1) (PrintedKind (NamedCounter "Loyalty"))
               (AttachHost Enchanted (TypeW Planeswalker))
 
 ||| Simic Fluxmage
@@ -611,8 +611,8 @@ gallopingLizrog =
        (MkTypeLine [creatureType "Frog", creatureType "Lizard"] [Creature])
        [ Macros.keyword "Trample"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
-           ((May You (RemoveCountersAmong Macros.anyNumber (Just (PrintedKind Macros.plusOnePlusOne))
-                                   (Macros.allOf Macros.creatureYouControl)) (Just (PutCounters (Macros.times 2 Macros.removedThisWay)
+           ((May You (RemoveCounters (Just Macros.anyNumber) (Just (PrintedKind Macros.plusOnePlusOne))
+                                   (Macros.among (Macros.allOf Macros.creatureYouControl))) (Just (PutCounters (Macros.times 2 Macros.removedThisWay)
                            (PrintedKind Macros.plusOnePlusOne)
                            Macros.thisCreature)) Nothing)) ]
        (Just (3, 3))
@@ -622,9 +622,9 @@ public export
 novijenSagesDraw : Ability
 novijenSagesDraw =
   Macros.activated (Compound [Mana [Macros.generic 1],
-                       Do (RemoveCountersAmong (Macros.exactly 2)
+                       Do (RemoveCounters (Just (Macros.exactly 2))
                              (Just (PrintedKind Macros.plusOnePlusOne))
-                             (Macros.allOf Macros.creatureYouControl))])
+                             (Macros.among (Macros.allOf Macros.creatureYouControl)))])
                    ((Draw You (Lit 1)))
 
 ||| Cyclone
@@ -633,9 +633,9 @@ cycloneUpkeepPayment : Ability
 cycloneUpkeepPayment =
   Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
     (Sequentially
-       [ PutCounters (Lit 1) (PrintedKind (Named "Wind")) Macros.thisEnchantment
-       , (May You (Pay You (ScaledMana (RunUnit [Macros.pip Green])
-                                (Macros.times 1 (CountersOn (Named "Wind") Macros.thisEnchantment)))
+       [ PutCounters (Lit 1) (PrintedKind (NamedCounter "Wind")) Macros.thisEnchantment
+       , (May You (Pay You (Macros.scaledMana (RunUnit [Macros.pip Green])
+                                (Macros.times 1 (CountersOn (NamedCounter "Wind") Macros.thisEnchantment)))
                 PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisEnchantment))) ])
 
 public export
@@ -706,13 +706,13 @@ chromaticArmor =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (Macros.entersChoosing Macros.thisAura Color)
-       , Static (Macros.entersWithCounters Macros.thisAura (Lit 1) (Named "Sleight"))
-       , Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source, OfTheLastChosen Color]))) (ToRecipient (AttachHost Enchanted (TypeW Creature))) (Prevent CutAll Nothing) Repeatedly)
+       , Static (Macros.entersWithCounters Macros.thisAura (Lit 1) (NamedCounter "Sleight"))
+       , Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source, Macros.ofTheLastChosen Color]))) (ToRecipient (AttachHost Enchanted (TypeW Creature))) (Prevent CutAll Nothing) Repeatedly)
        , Macros.activated (Mana [Variable])
            (Sequentially
-              [ PutCounters (Lit 1) (PrintedKind (Named "Sleight")) Macros.thisAura
+              [ PutCounters (Lit 1) (PrintedKind (NamedCounter "Sleight")) Macros.thisAura
               , Macros.choose (Macros.a (Macros.quality Color))
-              , Define X (CountersOn (Named "Sleight") Macros.thisAura) ]) ]
+              , Define X (CountersOn (NamedCounter "Sleight") Macros.thisAura) ]) ]
        Nothing
 
 public export
@@ -723,7 +723,7 @@ vault75MiddleSchool =
        (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
            (Macros.exile You (Macros.allOf (And [Macros.creature,
-                                      Compare [CharAxis Power] AtLeast (Lit 4)])))
+                                      Compare [StatAxis Power] AtLeast (Lit 4)])))
        , Macros.triggered When (ChapterMark [ChapterII, ChapterIII])
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                         (Macros.each Macros.creatureYouControl)) ]
@@ -736,7 +736,7 @@ keldonWarcaller =
        (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Warrior"] [Creature])
        [ Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
-           (PutCounters (Lit 1) (PrintedKind (Named "Lore"))
+           (PutCounters (Lit 1) (PrintedKind (NamedCounter "Lore"))
                         (Macros.target (And [HasSubtype (enchantmentType "Saga"), HasPossessor ControllerAx You]))) ]
        (Just (2, 2))
 
@@ -746,9 +746,9 @@ magistratesScepter =
   Macros.card "Magistrate's Scepter" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Macros.activated (Compound [Mana [Macros.generic 4], TapSymbol])
-                          (PutCounters (Lit 1) (PrintedKind (Named "Charge")) Macros.thisArtifact)
+                          (PutCounters (Lit 1) (PrintedKind (NamedCounter "Charge")) Macros.thisArtifact)
        , Macros.activated (Compound [TapSymbol,
-                              Do (RemoveCounters (Just (Macros.exactly 3)) (Just (PrintedKind (Named "Charge"))) Macros.thisArtifact)])
+                              Do (RemoveCounters (Just (Macros.exactly 3)) (Just (PrintedKind (NamedCounter "Charge"))) Macros.thisArtifact)])
                           (ExtraTurn You (Lit 1)) ] Nothing
 
 public export
@@ -770,9 +770,9 @@ metallicMimic =
   Macros.card "Metallic Mimic" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
-       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (OfChosen (SubtypeQ Creature))))
+       , Static (Becomes Macros.thisCreature Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
        , Static (Macros.entersWithAdditionalCounters (Macros.each (And [Macros.creature, HasPossessor ControllerAx You,
-                                                                 OfChosen (SubtypeQ Creature),
+                                                                 Macros.ofChosen (SubtypeQ Creature),
                                                                  OtherThan Macros.thisCreature]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne) ]
@@ -799,7 +799,7 @@ entDraughtBasinAbility =
   Macros.activated (Compound [Mana [Variable], TapSymbol])
                    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                (Macros.target (And [Macros.creatureYouControl,
-                                    Compare [CharAxis Power] Eq (LetterVal X)])))
+                                    Compare [StatAxis Power] Eq (LetterVal X)])))
 
 public export
 matopiGolem : Card
@@ -915,7 +915,7 @@ public export
 coverOfWinterPut : Ability
 coverOfWinterPut =
   Macros.activated (Mana [SnowMana])
-                   (PutCounters (Lit 1) (PrintedKind (Named "Age")) Macros.thisEnchantment)
+                   (PutCounters (Lit 1) (PrintedKind (NamedCounter "Age")) Macros.thisEnchantment)
 
 public export
 urborgScavengers : Card
@@ -989,7 +989,7 @@ viviensTalentTrigger : Ability
 viviensTalentTrigger =
   Macros.triggered Whenever (Enters (Macros.a (And [Macros.nontoken,
                                              Macros.creatureYouControl])) Nothing)
-    (PutCounters (Lit 1) (PrintedKind (Named "Loyalty"))
+    (PutCounters (Lit 1) (PrintedKind (NamedCounter "Loyalty"))
                  (AttachHost Enchanted (TypeW Planeswalker)))
 
 public export
@@ -1004,7 +1004,7 @@ public export
 bioessenceHydraTrigger : Ability
 bioessenceHydraTrigger =
   Macros.triggered Whenever
-    (Macros.counterEvent CounterPut (Named "Loyalty") ManyCounters
+    (Macros.counterEvent CounterPut (NamedCounter "Loyalty") ManyCounters
                              (Macros.allOf (And [HasType Planeswalker, HasPossessor ControllerAx You])))
     (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
@@ -1012,8 +1012,8 @@ bioessenceHydraTrigger =
 public export
 vraskaBetrayalsStingUltimate : Instruction []
 vraskaBetrayalsStingUltimate =
-  If (CompareAmt (CountersOn (Named "Poison") (Macros.target AnyPlayer)) Less (Lit 9))
-     (PutCounters TheDifference (PrintedKind (Named "Poison")) They)
+  If (CompareAmt (CountersOn (NamedCounter "Poison") (Macros.target AnyPlayer)) Less (Lit 9))
+     (PutCounters TheDifference (PrintedKind (NamedCounter "Poison")) They)
      Nothing
 
 ||| Vexing Puzzlebox
@@ -1021,7 +1021,7 @@ public export
 vexingPuzzleboxCounters : Ability
 vexingPuzzleboxCounters =
   Macros.triggered Whenever (RollsDice You ManyDice AnyDie AnyResult)
-                   (PutCounters (TheOutcome RollResult) (PrintedKind (Named "Charge")) Macros.thisArtifact)
+                   (PutCounters (TheOutcome RollResult) (PrintedKind (NamedCounter "Charge")) Macros.thisArtifact)
 
 public export
 spaceFamilyGoblinsonRoll : Ability
@@ -1059,7 +1059,7 @@ public export
 fontOfAgoniesTrigger : Ability
 fontOfAgoniesTrigger =
   Macros.triggered Whenever (PaysLife You)
-    (PutCounters ThatMuch (PrintedKind (Named "Blood")) Macros.thisEnchantment)
+    (PutCounters ThatMuch (PrintedKind (NamedCounter "Blood")) Macros.thisEnchantment)
 
 ||| Heart of Kiran
 public export
@@ -1068,7 +1068,7 @@ heartOfKiranCrewAltCost =
   Static (AltCost (Macros.allOf (And [AbilityHead (KeywordClass "Crew"),
                                AbilityOf This]))
             (Just (Do (RemoveCounters (Just (Macros.exactly 1))
-                                      (Just (PrintedKind (Named "Loyalty")))
+                                      (Just (PrintedKind (NamedCounter "Loyalty")))
                                       (Macros.a (And [HasType Planeswalker,
                                                       HasPossessor ControllerAx You]))))))
 
@@ -1132,13 +1132,10 @@ ichorShade =
        (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [creatureType "Phyrexian", creatureType "Shade"] [Creature])
        [ Macros.triggeredIf At (BeginningOf ThePart EndStep (ByPlayer You))
-           (Happened Placement
-                     (Macros.a (Or [Macros.artifact, Macros.creature]))
-                     Lookback.ThisTurn
-                     (Just (IntoZone Macros.graveyardZ
+           (Happened (Macros.a (Or [Macros.artifact, Macros.creature])) (MkLookback Placement Lookback.ThisTurn (Just (IntoZone Macros.graveyardZ
                               (Just (FromZones
                                        (FromZone [Macros.battlefieldZ])
-                                       Nothing)))))
+                                       Nothing))))))
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                         Macros.thisCreature) ]
        (Just (2, 3))
@@ -1152,12 +1149,10 @@ asmiraHolyAvenger =
        (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered At (BeginningOf ThePart EndStep (ByPlayer (Macros.each AnyPlayer)))
-           (PutCounters (EventTally TallyCount Placement (Macros.a Macros.creature)
-                           Lookback.ThisTurn
-                           (Just (IntoZone (Macros.graveyardOf You)
+           (PutCounters (EventTally TallyCount (Macros.a Macros.creature) (MkLookback Placement Lookback.ThisTurn (Just (IntoZone (Macros.graveyardOf You)
                                     (Just (FromZones
                                              (FromZone [Macros.battlefieldZ])
-                                             Nothing)))))
+                                             Nothing))))))
                         (PrintedKind Macros.plusOnePlusOne)
                         Macros.thisCreature) ]
        (Just (2, 3))
@@ -1245,7 +1240,7 @@ stunningShot =
                   [ PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne)
                                 (Described (TargetDet (Macros.upTo 1)) Macros.creatureYouControl)
                   , Macros.tap (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
-                  , PutCounters (Lit 1) (PrintedKind (Named "Stun"))
+                  , PutCounters (Lit 1) (PrintedKind (NamedCounter "Stun"))
                                 (Macros.itPrior
                                    (Macros.tap (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature,
                                             HasPossessor ControllerAx Macros.anOpponent])))) ]) ]
@@ -1315,10 +1310,10 @@ bloodSpatterAnalysis =
            (Dies (Macros.counted (Macros.atLeast 1) Macros.creature))
            (Sequentially
               [ Macros.mills You (Lit 1) You
-              , PutCounters (Lit 1) (PrintedKind (Named "Bloodstain")) Macros.thisEnchantment
+              , PutCounters (Lit 1) (PrintedKind (NamedCounter "Bloodstain")) Macros.thisEnchantment
               , Reflexively
                   (OnlyIf (Macros.sacrifice You Macros.thisEnchantment)
-                          (CompareAmt (CountersOn (Named "Bloodstain") Macros.thisEnchantment)
+                          (CompareAmt (CountersOn (NamedCounter "Bloodstain") Macros.thisEnchantment)
                                       AtLeast (Lit 5))
                           Nothing)
                   (Macros.move
@@ -1370,7 +1365,7 @@ bloodlinePretender =
        , Macros.triggered Whenever
            (Enters (Macros.a (And [Macros.creature, HasPossessor ControllerAx You,
                                    OtherThan Macros.thisCreature,
-                                   OfChosen (SubtypeQ Creature)]))
+                                   Macros.ofChosen (SubtypeQ Creature)]))
                    Nothing)
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                         Macros.thisCreature) ]
@@ -1447,12 +1442,12 @@ darkDepths : Card
 darkDepths =
   Macros.card "Dark Depths" Nothing [Legendary, Snow]
        (MkTypeLine [] [Land])
-       [ Static (Macros.entersWithCounters Macros.thisLand (Lit 10) (Named "Ice"))
+       [ Static (Macros.entersWithCounters Macros.thisLand (Lit 10) (NamedCounter "Ice"))
        , Macros.activated (Mana [Macros.generic 3])
-           (Macros.removeCounters (Macros.exactly 1) (Just (PrintedKind (Named "Ice"))) Macros.thisLand)
+           (Macros.removeCounters (Macros.exactly 1) (Just (PrintedKind (NamedCounter "Ice"))) Macros.thisLand)
        , Macros.triggered When
            (StateHolds
-              (NotCond (Matches Macros.thisLand (HasCounters (Just (Named "Ice"))))))
+              (NotCond (Matches Macros.thisLand (HasCounters (Just (NamedCounter "Ice"))))))
            ((IfDone (Macros.sacrifice You Macros.thisLand) (Just (Macros.create (Lit 1) Keyword.maritLage)) Nothing)) ]
        Nothing
 
@@ -1463,10 +1458,10 @@ thallid =
   Macros.card "Thallid" (Just [Macros.pip Green]) []
        (MkTypeLine [creatureType "Fungus"] [Creature])
        [ Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-           (PutCounters (Lit 1) (PrintedKind (Named "Spore")) Macros.thisCreature)
+           (PutCounters (Lit 1) (PrintedKind (NamedCounter "Spore")) Macros.thisCreature)
        , Macros.activated
            (Do (RemoveCounters (Just (Macros.exactly 3))
-                  (Just (PrintedKind (Named "Spore"))) Macros.thisCreature))
+                  (Just (PrintedKind (NamedCounter "Spore"))) Macros.thisCreature))
            (Macros.create (Lit 1)
               (Macros.creatureTok 1 1 [Green] [creatureType "Saproling"])) ]
        (Just (1, 1))
@@ -1476,13 +1471,13 @@ public export
 aetherChaserEnergy : Ability
 aetherChaserEnergy =
   Macros.triggered When (Enters Macros.thisCreature Nothing)
-                   (PutCounters (Lit 2) (PrintedKind (Named "Energy")) You)
+                   (PutCounters (Lit 2) (PrintedKind (NamedCounter "Energy")) You)
 
 ||| Blastoderm
 public export
 blastodermEntersFading : StaticSpec []
 blastodermEntersFading =
-  Macros.entersWithCounters Macros.thisCreature (Lit 3) (Named "Fade")
+  Macros.entersWithCounters Macros.thisCreature (Lit 3) (NamedCounter "Fade")
 
 ||| Blastoderm
 public export
@@ -1490,13 +1485,13 @@ blastodermFadeUpkeep : Ability
 blastodermFadeUpkeep =
   Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
     (RemoveCounters (Just (Macros.exactly 1))
-       (Just (PrintedKind (Named "Fade"))) Macros.thisCreature)
+       (Just (PrintedKind (NamedCounter "Fade"))) Macros.thisCreature)
 
 ||| Archfiend of the Dross
 public export
 archfiendOfTheDrossEntersOiled : StaticSpec []
 archfiendOfTheDrossEntersOiled =
-  Macros.entersWithCounters Macros.thisCreature (Lit 4) (Named "Oil")
+  Macros.entersWithCounters Macros.thisCreature (Lit 4) (NamedCounter "Oil")
 
 ||| Archfiend of the Dross
 public export
@@ -1504,7 +1499,7 @@ archfiendOfTheDrossOilUpkeep : Ability
 archfiendOfTheDrossOilUpkeep =
   Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
     (RemoveCounters (Just (Macros.exactly 1))
-       (Just (PrintedKind (Named "Oil"))) Macros.thisCreature)
+       (Just (PrintedKind (NamedCounter "Oil"))) Macros.thisCreature)
 
 neurokTransmuter : Instruction []
 neurokTransmuter = Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Artifact]) (Just Macros.untilEndOfTurn)
@@ -1528,7 +1523,7 @@ finalActCounterMode : Instruction []
 finalActCounterMode = Macros.losesAllCounters (Macros.each Opponent) Nothing
 
 leeches : Instruction []
-leeches = Macros.losesAllCounters (Macros.target AnyPlayer) (Just (PrintedKind (Named "Poison")))
+leeches = Macros.losesAllCounters (Macros.target AnyPlayer) (Just (PrintedKind (NamedCounter "Poison")))
 
 ||| Ascend's own reminder text
 public export

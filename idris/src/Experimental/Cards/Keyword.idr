@@ -85,7 +85,7 @@ bristlepackSentry =
                    (Macros.canDoAsThough Macros.thisCreature "Attack"
                                          (Not (HasKeyword (TheKeyword "Defender"))))
                    (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
-                                 Compare [CharAxis Power] AtLeast (Lit 4)]))) ]
+                                 Compare [StatAxis Power] AtLeast (Lit 4)]))) ]
        (Just (3, 3))
 
 platinumAngel : Card
@@ -206,7 +206,7 @@ eomerOfTheRiddermark =
        , Macros.triggeredIf Whenever
                             (Macros.attacks Macros.thisCreature)
                             (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
-                                          Superlative MaxOf (CharAxis Power)
+                                          Superlative MaxOf (StatAxis Power)
                                             (And [Macros.creature,
                                                   InZone Macros.battlefieldZ])]))
                             (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Human", creatureType "Soldier"])) ]
@@ -272,7 +272,7 @@ drachNyen =
                                  (Macros.keyword "Menace")
                          , Gets Adds (AttachHost Equipped (TypeW Creature))
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
-                         , Define X
+                         , DefinesLetter X
                              (StatOf Power
                                 (Macros.a (ExiledWith Macros.thisEquipment))) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
@@ -555,7 +555,7 @@ voiceOfAll =
        [ Macros.keyword "Flying"
        , Static (Macros.entersChoosing Macros.thisCreature Color)
        , Static (Gains Macros.thisCreature
-                       (Macros.keywordQuality "Protection" (OfChosen Color))) ]
+                       (Macros.keywordQuality "Protection" (Macros.ofChosen Color))) ]
        (Just (2, 2))
 
 public export
@@ -565,7 +565,7 @@ wardSliver =
        (MkTypeLine [creatureType "Sliver"] [Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature Color)
        , Static (Gains (Macros.allOf (HasSubtype (creatureType "Sliver")))
-                       (Macros.keywordQuality "Protection" (OfChosen Color))) ]
+                       (Macros.keywordQuality "Protection" (Macros.ofChosen Color))) ]
        (Just (2, 2))
 
 public export
@@ -578,7 +578,7 @@ sanctuaryBlade =
                                 (PtUp (Lit 2)) (PtUp (Lit 0))
                          , Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keywordQuality "Protection"
-                                    (OfTheLastChosen Color)) ])
+                                    (Macros.ofTheLastChosen Color)) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -878,7 +878,7 @@ vexingSphinx =
        [ Macros.keyword "Flying"
        , Macros.cumulativeUpkeep (Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))))
        , Macros.triggered When (Dies Macros.thisCreature)
-                          (Draw You (CountersOn (Named "Age") ((Macros.It OneOf)))) ]
+                          (Draw You (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))) ]
        (Just (4, 4))
 
 public export
@@ -1211,7 +1211,7 @@ fumikoBushidoX : Ability
 fumikoBushidoX =
   Static (AndAlso Nothing [ Gains Macros.thisCreature
                           (Macros.keywordNumber "Bushido" (LetterVal X))
-                  , Define X (Macros.countOf Attacking) ])
+                  , DefinesLetter X (Macros.countOf Attacking) ])
 
 ||| Rafter Demon
 public export
@@ -1372,8 +1372,7 @@ archfiendsVessel =
        [ Macros.keyword "Lifelink"
        , Macros.triggeredIf When
            (Enters This Nothing)
-           (OrCond [ Happened Entry ((Macros.It OneOf)) Triggering
-                       (Just (FromZones (FromZone [Macros.graveyardOf You]) Nothing))
+           (OrCond [ Happened ((Macros.It OneOf)) (MkLookback Entry Triggering (Just (FromZones (FromZone [Macros.graveyardOf You]) Nothing)))
                    , Matches ((Macros.It OneOf)) (And [Macros.castBy You,
                                       CastFrom (Macros.graveyardOf You)]) ])
            (Reflexively (Macros.exile You ((Macros.It OneOf)))
@@ -1402,7 +1401,7 @@ public export
 veilingOddityLine : Ability
 veilingOddityLine =
   Macros.triggeredWhile When
-    (Macros.lastCounterRemoved (Named "Time") This)
+    (Macros.lastCounterRemoved (NamedCounter "Time") This)
     (WhileTrue (Matches This (InZone Macros.exileZ)))
     (Continuously (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Block"] Patient
                            NoDeonticPatient)
@@ -1702,7 +1701,7 @@ choMannosBlessing =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (DoesntRemove
                    (Gains (AttachHost Enchanted (TypeW Creature))
-                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                          (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
                    Macros.thisAura) ]
        Nothing
 
@@ -1717,7 +1716,7 @@ pentarchWard =
        , Macros.triggered When (Enters Macros.thisAura Nothing) ((Draw You (Lit 1)))
        , Static (DoesntRemove
                    (Gains (AttachHost Enchanted (TypeW Creature))
-                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                          (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
                    Macros.thisAura) ]
        Nothing
 
@@ -1732,7 +1731,7 @@ benevolentBlessing =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (DoesntRemove
                    (Gains (AttachHost Enchanted (TypeW Creature))
-                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                          (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
                    (Macros.allOf (And [ Or [ HasSubtype (enchantmentType "Aura")
                                     , HasSubtype (artifactType "Equipment") ]
                                , HasPossessor ControllerAx You
@@ -1760,8 +1759,8 @@ earthenGoo =
        , Macros.cumulativeUpkeep
            (EitherCost (Mana [Macros.pip Red]) (Mana [Macros.pip Green]))
        , Static (Gets Adds Macros.thisCreature
-                   (PtUp (Macros.times 1 (CountersOn (Named "Age") ((Macros.It OneOf)))))
-                   (PtUp (Macros.times 1 (CountersOn (Named "Age") ((Macros.It OneOf)))))) ]
+                   (PtUp (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))
+                   (PtUp (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))) ]
        (Just (2, 2))
 
 ||| Mutagen Connoisseur
@@ -1968,7 +1967,7 @@ kerugaCompanion : AbilityAt []
 kerugaCompanion =
   Macros.companion
     (EveryCardIs IsCard
-       (AnyTraitOf [ ACharacteristic (Compare [CharAxis ManaValue] AtLeast (Lit 3))
+       (AnyTraitOf [ ACharacteristic (Compare [StatAxis ManaValue] AtLeast (Lit 3))
                    , ACharacteristic Macros.land ]))
 
 ||| Lurrus of the Dream-Den
@@ -1976,7 +1975,7 @@ lurrusCompanion : AbilityAt []
 lurrusCompanion =
   Macros.companion
     (EveryCardIs (And [Permanent, IsCard])
-       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))))
+       (ACharacteristic (Compare [StatAxis ManaValue] AtMost (Lit 2))))
 
 ||| Lutri, the Spellchaser
 lutriCompanion : AbilityAt []
