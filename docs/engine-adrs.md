@@ -97,7 +97,7 @@ The skill's settled entries, implement-or-note:
   the W3 cause triple — engine `Cause.agent` is `None` exactly for
   turn-based/state-based actions.
 - **U3** (vigilance = procedure carve-out, settled-by-policy): implemented
-  at alignment — vigilance is intrinsic; the attack tap checks the keyword
+  at alignment — vigilance is primitive; the attack tap checks the keyword
   in the declare-attackers procedure ([CR#508.1f]), no cause-tagged
   replacement.
 - **U5** (can't-lose/can't-win base semantics): implemented W6 —

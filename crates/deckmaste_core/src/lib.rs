@@ -18,7 +18,6 @@ pub use ability::Ability;
 pub use ability::ActivatedAbility;
 pub use ability::ActivatedManaProfile;
 pub use ability::ChooseSpec;
-pub use ability::ManaAbility;
 pub use ability::ManaModeClass;
 pub use ability::ModalCostRider;
 pub use ability::Mode;

@@ -204,7 +204,7 @@ pub fn abilities(state: &GameState, id: ObjectId) -> Arc<Vec<Ability>> {
 /// Composite keywords (ward, prowess) are spliced INLINE: the engine
 /// executes the abilities a `KeywordAbility::Composite` carries, so the
 /// trigger scan, placement, and resolution all index one flat space.
-/// Intrinsics and other keyword shapes pass through untouched.
+/// Primitives and other keyword shapes pass through untouched.
 #[must_use]
 pub fn abilities_of_source(state: &GameState, source: ObjectSource) -> Vec<Ability> {
     match source {
@@ -388,7 +388,7 @@ pub(crate) fn flatten_composites(ability: &Ability, out: &mut Vec<Ability>) {
 }
 
 /// The member list of a composite keyword, looked up through the remembered
-/// macro invocation; `None` for intrinsics and other keyword shapes.
+/// macro invocation; `None` for primitives and other keyword shapes.
 fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ability>> {
     match keyword {
         deckmaste_core::KeywordAbility::Composite { abilities, .. } => Some(abilities),
@@ -405,28 +405,30 @@ fn composite_members(keyword: &deckmaste_core::KeywordAbility) -> Option<&Vec<Ab
 /// what it produces. Keyword wrappers are looked through.
 #[must_use]
 pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
-    match ability.as_mana()? {
-        deckmaste_core::ManaAbility::Activated {
-            ability: a,
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        } if **a.cost == [CostComponent::Tap] => {
-            match a.effect.body.as_ref() {
-                // The produced-mana effect is a bare `AddMana` in RON; the
-                // agent is irrelevant for tap-for-mana derivation.
-                [
-                    Instruction::Act {
-                        action:
-                            Action::AddMana(
-                                _,
-                                Count::Literal(n),
-                                deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
-                            ),
-                        ..
-                    },
-                ] => Some((*m, *n)),
-                _ => None,
-            }
-        }
+    if !matches!(
+        ability.mana_profile(),
+        Some(deckmaste_core::ActivatedManaProfile::Always)
+    ) {
+        return None;
+    }
+    let a = ability.as_activated()?;
+    if **a.cost != [CostComponent::Tap] {
+        return None;
+    }
+    match a.effect.body.as_ref() {
+        // The produced-mana effect is a bare `AddMana` in RON; the agent is
+        // irrelevant for tap-for-mana derivation.
+        [
+            Instruction::Act {
+                action:
+                    Action::AddMana(
+                        _,
+                        Count::Literal(n),
+                        deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
+                    ),
+                ..
+            },
+        ] => Some((*m, *n)),
         _ => None,
     }
 }

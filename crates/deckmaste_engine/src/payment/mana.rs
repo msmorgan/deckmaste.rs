@@ -1,5 +1,4 @@
 use deckmaste_core::ActivatedManaProfile;
-use deckmaste_core::ManaAbility;
 
 use super::DecisionTranscript;
 use super::LogicalObject;
@@ -81,7 +80,7 @@ impl ManaAction {
 
 impl GameState {
     /// Whether an announcement-time modal selection keeps the current mana
-    /// action inside lowering's precomputed mana-ability profile.
+    /// action inside the ability's derived mana-ability profile.
     pub(crate) fn payment_mana_modes_legal(&self, modes: &[deckmaste_core::Uint]) -> bool {
         if let Some(action) = self.payment.as_ref().and_then(|controller| {
             let action = controller.mana_actions.last()?;
@@ -115,12 +114,9 @@ impl GameState {
         else {
             return true;
         };
-        let Some(ManaAbility::Activated {
-            ability: payload, ..
-        }) = compiled.as_mana()
-        else {
-            unreachable!("the root modal mana context is a mana wrapper")
-        };
+        let payload = compiled
+            .as_activated()
+            .expect("the root modal mana context is an activated ability");
         let controller = self
             .announcing
             .as_ref()
@@ -167,11 +163,8 @@ impl GameState {
             .get(ability_index)?
             .clone();
         matches!(
-            compiled.as_mana(),
-            Some(ManaAbility::Activated {
-                profile: ActivatedManaProfile::ByAnnouncedMode(_),
-                ..
-            })
+            compiled.mana_profile(),
+            Some(ActivatedManaProfile::ByAnnouncedMode(_))
         )
         .then_some((source, ability_index, compiled))
     }
@@ -217,12 +210,12 @@ impl GameState {
                 .iter()
                 .enumerate()
             {
-                let Some(ManaAbility::Activated {
-                    ability: payload, ..
-                }) = compiled.as_mana()
-                else {
+                if !compiled.is_activated_mana_ability() {
                     continue;
-                };
+                }
+                let payload = compiled
+                    .as_activated()
+                    .expect("an activated mana ability has an activated payload");
                 if controller
                     .mana_actions
                     .iter()
@@ -246,13 +239,10 @@ impl GameState {
             .get(ability)
             .cloned()
             .expect("a legal priority action keeps its derived ability index");
-        let ManaAbility::Activated { profile, .. } = compiled
-            .as_mana()
-            .expect("the root mana path receives a lowering-classified mana ability")
-        else {
-            unreachable!("a triggered mana ability is never a priority action")
-        };
-        let id = self.register_root_mana_action(source, ability, profile.clone());
+        let profile = compiled
+            .mana_profile()
+            .expect("the root mana path receives an activated mana ability");
+        let id = self.register_root_mana_action(source, ability, profile);
 
         let mut items = vec![
             WorkItem::BeginActivate {
@@ -280,13 +270,13 @@ impl GameState {
         else {
             return;
         };
-        let Some(ManaAbility::Activated { profile, .. }) = compiled.as_mana() else {
+        let Some(profile) = compiled.mana_profile() else {
             return;
         };
         if !compiled.mana_profile_for_modes(modes) {
             return;
         }
-        let id = self.register_root_mana_action(source, ability_index, profile.clone());
+        let id = self.register_root_mana_action(source, ability_index, profile);
         let queued = self.agenda.iter_mut().find(|item| {
             matches!(
                 item,
@@ -366,16 +356,12 @@ impl GameState {
             .get(ability)
             .cloned()
             .expect("the offered derived ability index remains live");
-        let ManaAbility::Activated { profile, .. } = compiled
-            .as_mana()
-            .expect("the offered ability is lowering-classified mana")
-        else {
-            unreachable!("payment prompts contain only activated mana abilities")
-        };
-        let profile = profile.clone();
+        let profile = compiled
+            .mana_profile()
+            .expect("the offered ability classifies as activated mana");
         let tap_cost = crate::activate::cost_summary(
             crate::activate::as_activated(&compiled)
-                .expect("an activated mana wrapper contains an activated payload")
+                .expect("an activated mana ability has an activated payload")
                 .cost
                 .as_ref(),
         )

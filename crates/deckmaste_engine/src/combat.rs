@@ -34,8 +34,8 @@ pub fn has_keyword(view: &LayeredView, object: ObjectId, kw: &KeywordAbility) ->
 }
 
 /// Whether `object` has a keyword named `name` — the look-through seam for
-/// keywords that live OUTSIDE the intrinsic enum as `Composite` macros
-/// (lifelink's combat hook is the customer). Matches intrinsics and
+/// keywords that live OUTSIDE the primitive enum as `Composite` macros
+/// (lifelink's combat hook is the customer). Matches primitives and
 /// composites alike through [`KeywordAbility::as_str`], the same name bridge
 /// the `Ident`-keyed modification ops use ([CR#613.1f]).
 ///
@@ -398,9 +398,9 @@ mod tests {
 
     /// [CR#613.1f]: a `Composite`-named keyword (granted through a
     /// composite/static that expanded to a keyword) is found by NAME, not
-    /// just by its intrinsic variant. This is the latent miss the old
+    /// just by its primitive variant. This is the latent miss the old
     /// hand-rolled `matches!(Keyword(k) …)` body had: it only recognized
-    /// intrinsic keyword variants.
+    /// primitive keyword variants.
     #[test]
     fn has_keyword_named_matches_composite_keyword() {
         let obj = id(1);

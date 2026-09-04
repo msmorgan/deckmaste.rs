@@ -2570,7 +2570,6 @@ mod tests {
         use deckmaste_core::ColorOrColorless;
         use deckmaste_core::CostComponent;
         use deckmaste_core::Instruction;
-        use deckmaste_core::ManaAbility;
         use deckmaste_core::ManaProduction;
         use deckmaste_core::ManaSpec;
         use deckmaste_core::Property;
@@ -2587,28 +2586,25 @@ mod tests {
         let island = Subtype {
             name: "Island".into(),
             types: vec![Type::Land].into(),
-            confers: vec![Property::Ability(Arc::new(Ability::Mana(
-                ManaAbility::Activated {
-                    ability: Arc::new(deckmaste_core::ActivatedAbility {
-                        ability_word: None,
-                        targets: [].into(),
-                        cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
-                        from: None,
-                        window: None,
-                        condition: None,
-                        limits: vec![].into(),
-                        effect: Instruction::Act(deckmaste_core::Action::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
-                                deckmaste_core::Color::Blue,
-                            ))),
-                        ))
-                        .into(),
-                    }),
-                    profile: deckmaste_core::ActivatedManaProfile::Always,
+            confers: vec![Property::Ability(Arc::new(Ability::Activated(Arc::new(
+                deckmaste_core::ActivatedAbility {
+                    ability_word: None,
+                    targets: [].into(),
+                    cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
+                    from: None,
+                    window: None,
+                    condition: None,
+                    limits: vec![].into(),
+                    effect: Instruction::Act(deckmaste_core::Action::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
+                            deckmaste_core::Color::Blue,
+                        ))),
+                    ))
+                    .into(),
                 },
-            )))]
+            ))))]
             .into(),
         };
         let mut state = game();

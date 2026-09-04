@@ -448,13 +448,12 @@ mod tests {
 
     #[test]
     fn classifies_targetless_activated_mana_ability_while_lowering() {
-        assert_matches!(
-            semantic_mana_activation(semantic_mana_effect()).lower(),
-            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
-                profile: deckmaste_core::ActivatedManaProfile::Always,
-                ..
-            })
+        let lowered = semantic_mana_activation(semantic_mana_effect()).lower();
+        assert_eq!(
+            lowered.mana_profile(),
+            Some(deckmaste_core::ActivatedManaProfile::Always)
         );
+        assert_matches!(lowered, deckmaste_core::Ability::Activated(_));
     }
 
     #[test]
@@ -469,9 +468,10 @@ mod tests {
             .into(),
         );
 
-        assert_matches!(
-            semantic_mana_activation(effect).lower(),
-            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated { .. })
+        assert!(
+            semantic_mana_activation(effect)
+                .lower()
+                .is_activated_mana_ability()
         );
     }
 
@@ -488,9 +488,10 @@ mod tests {
             body: std::sync::Arc::new(minimal_one_shot_effect()),
         });
 
-        assert_matches!(
-            semantic_mana_activation(effect).lower(),
-            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated { .. })
+        assert!(
+            semantic_mana_activation(effect)
+                .lower()
+                .is_activated_mana_ability()
         );
     }
 
@@ -503,9 +504,10 @@ mod tests {
                 body: std::sync::Arc::new(semantic_mana_effect()),
             });
 
-        assert_matches!(
-            semantic_mana_activation(effect).lower(),
-            deckmaste_core::Ability::Activated(_)
+        assert!(
+            !semantic_mana_activation(effect)
+                .lower()
+                .is_activated_mana_ability()
         );
     }
 
@@ -516,9 +518,10 @@ mod tests {
                 targets: vec![minimal_target_spec()].into(),
                 effect: std::sync::Arc::new(semantic_mana_effect()),
             });
-        assert_matches!(
-            semantic_mana_activation(targeted).lower(),
-            deckmaste_core::Ability::Activated(_)
+        assert!(
+            !semantic_mana_activation(targeted)
+                .lower()
+                .is_activated_mana_ability()
         );
 
         let deckmaste_semantics::Ability::Activated(mut loyalty) =
@@ -528,9 +531,10 @@ mod tests {
         };
         std::sync::Arc::make_mut(&mut loyalty).limits =
             vec![deckmaste_semantics::UseLimit::LoyaltyOncePerTurn].into();
-        assert_matches!(
-            deckmaste_semantics::Ability::Activated(loyalty).lower(),
-            deckmaste_core::Ability::Activated(_)
+        assert!(
+            !deckmaste_semantics::Ability::Activated(loyalty)
+                .lower()
+                .is_activated_mana_ability()
         );
     }
 
@@ -555,12 +559,10 @@ mod tests {
             ]
             .into(),
         });
-        let deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
-            profile: deckmaste_core::ActivatedManaProfile::ByAnnouncedMode(classes),
-            ..
-        }) = semantic_mana_activation(modal).lower()
+        let Some(deckmaste_core::ActivatedManaProfile::ByAnnouncedMode(classes)) =
+            semantic_mana_activation(modal).lower().mana_profile()
         else {
-            panic!("a modal producer with a qualifying mode needs a compiled profile");
+            panic!("a modal producer with a qualifying mode needs a derived profile");
         };
         assert_eq!(classes.len(), 2);
         assert!(classes[0].adds_mana && classes[0].targetless);
@@ -595,10 +597,8 @@ mod tests {
             .into(),
         });
         let lowered = semantic_mana_activation(modal).lower();
-        let deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
-            profile: deckmaste_core::ActivatedManaProfile::ByAnnouncedMode(classes),
-            ..
-        }) = &lowered
+        let Some(deckmaste_core::ActivatedManaProfile::ByAnnouncedMode(classes)) =
+            lowered.mana_profile()
         else {
             panic!("runtime barriers do not affect mana-ability classification");
         };
@@ -636,9 +636,10 @@ mod tests {
             let mut triggered = minimal_triggered_ability();
             triggered.event = event.clone();
             triggered.effect = semantic_mana_effect();
-            assert_matches!(
-                deckmaste_semantics::Ability::Triggered(std::sync::Arc::new(triggered)).lower(),
-                deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(_)),
+            assert!(
+                deckmaste_semantics::Ability::Triggered(std::sync::Arc::new(triggered))
+                    .lower()
+                    .is_triggered_mana_ability(),
                 "cause {event:?}"
             );
         }
@@ -667,12 +668,11 @@ mod tests {
         );
         ability.effect = semantic_mana_effect();
 
-        assert_matches!(
-            deckmaste_semantics::Ability::Activated(std::sync::Arc::new(ability)).lower(),
-            deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
-                profile: deckmaste_core::ActivatedManaProfile::Always,
-                ..
-            })
+        assert_eq!(
+            deckmaste_semantics::Ability::Activated(std::sync::Arc::new(ability))
+                .lower()
+                .mana_profile(),
+            Some(deckmaste_core::ActivatedManaProfile::Always)
         );
     }
 }
@@ -939,8 +939,8 @@ impl Lower for deckmaste_semantics::Ability {
                     params, body,
                 )))
             }
-            Self::Activated(f0) => classify_activated(f0.lower()),
-            Self::Triggered(f0) => classify_triggered(f0.lower()),
+            Self::Activated(f0) => deckmaste_core::Ability::Activated(f0.lower()),
+            Self::Triggered(f0) => deckmaste_core::Ability::Triggered(f0.lower()),
             Self::Spell(f0) => deckmaste_core::Ability::Spell(f0.lower()),
             Self::Keyword(f0) => deckmaste_core::Ability::Keyword(f0.lower()),
             Self::Innate(f0) => deckmaste_core::Ability::Innate(f0.lower()),
@@ -969,181 +969,5 @@ fn static_observes_event(effect: &deckmaste_semantics::StaticEffect) -> bool {
         }
         StaticEffect::Expanded(expansion) => static_observes_event(&expansion.value),
         _ => false,
-    }
-}
-
-#[derive(Clone, Copy)]
-struct ManaFacts {
-    adds_mana: bool,
-    targetless: bool,
-}
-
-impl ManaFacts {
-    const NEUTRAL: Self = Self {
-        adds_mana: false,
-        targetless: true,
-    };
-
-    fn merge(self, other: Self) -> Self {
-        Self {
-            adds_mana: self.adds_mana || other.adds_mana,
-            targetless: self.targetless && other.targetless,
-        }
-    }
-
-    fn mode_class(self) -> deckmaste_core::ManaModeClass {
-        deckmaste_core::ManaModeClass {
-            adds_mana: self.adds_mana,
-            targetless: self.targetless,
-        }
-    }
-}
-
-fn classify_activated(
-    ability: std::sync::Arc<deckmaste_core::ActivatedAbility>,
-) -> deckmaste_core::Ability {
-    use deckmaste_core::ActivatedManaProfile;
-    use deckmaste_core::Instruction;
-    use deckmaste_core::ManaAbility;
-    use deckmaste_core::UseLimit;
-
-    let loyalty = ability.limits.contains(&UseLimit::LoyaltyOncePerTurn);
-    if loyalty {
-        return deckmaste_core::Ability::Activated(ability);
-    }
-
-    if let [Instruction::Modal(modal)] = ability.effect.body.as_ref() {
-        let classes: std::sync::Arc<[deckmaste_core::ManaModeClass]> = modal
-            .modes
-            .iter()
-            .map(|mode| {
-                let mut facts = region_mana_facts(&mode.effect);
-                facts.targetless &= mode.targets.is_empty();
-                facts.mode_class()
-            })
-            .collect::<Vec<_>>()
-            .into();
-        if classes
-            .iter()
-            .any(|class| class.adds_mana && class.targetless)
-        {
-            return deckmaste_core::Ability::Mana(ManaAbility::Activated {
-                ability,
-                profile: ActivatedManaProfile::ByAnnouncedMode(classes),
-            });
-        }
-        return deckmaste_core::Ability::Activated(ability);
-    }
-
-    let mut facts = region_mana_facts(&ability.effect);
-    facts.targetless &= ability.targets.is_empty();
-    if facts.adds_mana && facts.targetless {
-        deckmaste_core::Ability::Mana(ManaAbility::Activated {
-            ability,
-            profile: ActivatedManaProfile::Always,
-        })
-    } else {
-        deckmaste_core::Ability::Activated(ability)
-    }
-}
-
-fn classify_triggered(
-    ability: std::sync::Arc<deckmaste_core::TriggeredAbility>,
-) -> deckmaste_core::Ability {
-    let mut facts = region_mana_facts(&ability.effect);
-    facts.targetless &= ability.targets.is_empty();
-    if facts.adds_mana && facts.targetless && triggered_by_mana(&ability.event) {
-        deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(ability))
-    } else {
-        deckmaste_core::Ability::Triggered(ability)
-    }
-}
-
-fn triggered_by_mana(event: &deckmaste_core::EventFilter) -> bool {
-    use deckmaste_core::EventFilter;
-    match event {
-        EventFilter::ManaAbilityActivated { .. }
-        | EventFilter::ManaProduced { .. }
-        | EventFilter::ManaAdded { .. }
-        | EventFilter::TapForMana { .. } => true,
-        EventFilter::AllOf(parts) => parts.iter().any(triggered_by_mana),
-        EventFilter::OneOf(parts) => !parts.is_empty() && parts.iter().all(triggered_by_mana),
-        EventFilter::OneOrMore(inner) => triggered_by_mana(inner),
-        EventFilter::Nth { of, .. } | EventFilter::When(of, _) | EventFilter::Within(of, _) => {
-            triggered_by_mana(of)
-        }
-        _ => false,
-    }
-}
-
-fn effect_mana_facts(effect: &deckmaste_core::Instruction) -> ManaFacts {
-    use deckmaste_core::Instruction;
-    match effect {
-        Instruction::Act { action, .. } => effect_action_facts(action),
-        Instruction::Sequentially(parts) | Instruction::Simultaneously(parts) => {
-            parts.iter().fold(ManaFacts::NEUTRAL, |facts, part| {
-                facts.merge(effect_mana_facts(part))
-            })
-        }
-        // RevealUntil is intentionally inert at runtime; none of these nodes
-        // can establish that the executable ability produces mana.
-        Instruction::Choose(_)
-        | Instruction::ChooseValue(_)
-        | Instruction::Search(_)
-        | Instruction::Let(_)
-        | Instruction::Remember(_)
-        | Instruction::Continuously(_)
-        | Instruction::Until(_, _)
-        | Instruction::Delayed(_)
-        | Instruction::Reflexive(_)
-        | Instruction::RevealUntil(_) => ManaFacts::NEUTRAL,
-        Instruction::SeparatePiles(piles) => piles
-            .then
-            .as_deref()
-            .map_or(ManaFacts::NEUTRAL, effect_mana_facts),
-        Instruction::ChoosePile(pile) => effect_mana_facts(&pile.then),
-        Instruction::May(may) => [
-            Some(may.effect.as_ref()),
-            may.if_did.as_deref(),
-            may.if_not.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .fold(ManaFacts::NEUTRAL, |facts, part| {
-            facts.merge(effect_mana_facts(part))
-        }),
-        Instruction::If(branch) => [Some(branch.then.as_ref()), branch.otherwise.as_deref()]
-            .into_iter()
-            .flatten()
-            .fold(ManaFacts::NEUTRAL, |facts, part| {
-                facts.merge(effect_mana_facts(part))
-            }),
-        Instruction::Each(each) => region_mana_facts(&each.body),
-        Instruction::Distribute(distribute) => region_mana_facts(&distribute.body),
-        Instruction::Modal(modal) => modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
-            facts.merge(region_mana_facts(&mode.effect))
-        }),
-        Instruction::Repeat(_, body) | Instruction::Batch(_, body) => effect_mana_facts(body),
-    }
-}
-
-fn region_mana_facts(region: &deckmaste_core::Region) -> ManaFacts {
-    region
-        .body
-        .iter()
-        .fold(ManaFacts::NEUTRAL, |facts, instruction| {
-            facts.merge(effect_mana_facts(instruction))
-        })
-}
-
-fn effect_action_facts(action: &deckmaste_core::Action) -> ManaFacts {
-    use deckmaste_core::Action;
-    match action {
-        Action::AddMana(_, _, _) => ManaFacts {
-            adds_mana: true,
-            ..ManaFacts::NEUTRAL
-        },
-        Action::Composite { body, .. } => effect_mana_facts(body),
-        _ => ManaFacts::NEUTRAL,
     }
 }

@@ -7,7 +7,6 @@ use deckmaste_card::CardFace;
 use deckmaste_core::Ability;
 use deckmaste_core::Action as CoreAction;
 use deckmaste_core::ActivatedAbility;
-use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
@@ -17,7 +16,6 @@ use deckmaste_core::Count;
 use deckmaste_core::Destination;
 use deckmaste_core::Instruction;
 use deckmaste_core::KeywordAbility;
-use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaRider;
 use deckmaste_core::ManaSpec;
@@ -177,30 +175,27 @@ fn mana_cylix_fixture() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Mana Cylix".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(
-                    vec![
-                        CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
-                        CostComponent::Tap,
-                    ]
-                    .into(),
-                ),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::AnyColor.into(),
-                ))
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(
+                vec![
+                    CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
+                    CostComponent::Tap,
+                ]
                 .into(),
-            }),
-            profile: ActivatedManaProfile::Always,
-        })],
+            ),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::AnyColor.into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }

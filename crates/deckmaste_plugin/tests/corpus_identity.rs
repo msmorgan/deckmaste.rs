@@ -516,12 +516,6 @@ fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_co
         deckmaste_core::Ability::Static(e) => e.body.push_abilities(&mut out),
         deckmaste_core::Ability::Activated(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Triggered(a) => a.effect.push_abilities(&mut out),
-        deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Activated {
-            ability, ..
-        }) => ability.effect.push_abilities(&mut out),
-        deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(ability)) => {
-            ability.effect.push_abilities(&mut out);
-        }
         deckmaste_core::Ability::Spell(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Keyword(k) => k.push_abilities(&mut out),
         deckmaste_core::Ability::Innate(a) => out.push(a),
@@ -575,13 +569,10 @@ fn every_top_level_semantic_ability_appears_in_its_lowered_card() {
 /// it. `None` for an ability shape that carries no region of its own.
 fn ability_region_params(ability: &deckmaste_core::Ability) -> Option<&[deckmaste_core::Param]> {
     use deckmaste_core::Ability;
-    use deckmaste_core::ManaAbility;
     Some(match ability {
         Ability::Static(region) => &region.params,
-        Ability::Activated(a) | Ability::Mana(ManaAbility::Activated { ability: a, .. }) => {
-            &a.effect.params
-        }
-        Ability::Triggered(a) | Ability::Mana(ManaAbility::Triggered(a)) => &a.effect.params,
+        Ability::Activated(a) => &a.effect.params,
+        Ability::Triggered(a) => &a.effect.params,
         Ability::Spell(a) => &a.effect.params,
         Ability::Innate(inner) => return ability_region_params(inner),
         Ability::Keyword(_) => return None,

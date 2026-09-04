@@ -535,11 +535,9 @@ fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
         // the variant does; `core-demacro` deletes both.
         Ability::Innate(inner) => defines_pt(inner, axis),
         Ability::Static(effect) => static_defines_pt(effect, axis),
-        Ability::Activated(_)
-        | Ability::Triggered(_)
-        | Ability::Mana(_)
-        | Ability::Spell(_)
-        | Ability::Keyword(_) => false,
+        Ability::Activated(_) | Ability::Triggered(_) | Ability::Spell(_) | Ability::Keyword(_) => {
+            false
+        }
     }
 }
 

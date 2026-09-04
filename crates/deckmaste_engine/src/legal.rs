@@ -183,10 +183,7 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
         // aligned.
         for (ability, a) in derive::usable_abilities(state, object).iter().enumerate() {
             if let Some(act) = crate::activate::as_activated(a) {
-                let permitted = if matches!(
-                    a.as_mana(),
-                    Some(deckmaste_core::ManaAbility::Activated { .. })
-                ) {
+                let permitted = if a.is_activated_mana_ability() {
                     state.can_activate_mana(&view, player, object, ability, act)
                 } else {
                     state.can_activate(&view, player, object, ability, act)
@@ -1985,10 +1982,7 @@ mod tests {
             ))
             .into(),
         };
-        Ability::Mana(deckmaste_core::ManaAbility::Activated {
-            ability: Arc::new(ability),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })
+        Ability::Activated(Arc::new(ability))
     }
 
     /// An `Innate` static (any conferred rule): PEELED in place — never

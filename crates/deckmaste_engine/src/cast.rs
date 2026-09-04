@@ -3677,9 +3677,7 @@ mod tests {
     /// mana shape `tap_mana_ability` recognizes, at ability index 0.
     fn mana_land(name: &str, color: ColorOrColorless) -> Card {
         use deckmaste_core::ActivatedAbility;
-        use deckmaste_core::ActivatedManaProfile;
         use deckmaste_core::Cost;
-        use deckmaste_core::ManaAbility;
         use deckmaste_core::ManaSpec;
         let ability = Arc::new(ActivatedAbility {
             ability_word: None,
@@ -3700,10 +3698,7 @@ mod tests {
             name: name.into(),
             mana_cost: ManaCost::default(),
             types: vec![Type::Land.def()],
-            abilities: vec![Ability::Mana(ManaAbility::Activated {
-                ability,
-                profile: ActivatedManaProfile::Always,
-            })],
+            abilities: vec![Ability::Activated(ability)],
             ..CardFace::default()
         })
     }

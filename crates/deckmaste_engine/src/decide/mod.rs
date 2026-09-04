@@ -1009,11 +1009,8 @@ impl GameState {
                 );
                 self.reset_passes();
                 if matches!(
-                    a.as_mana(),
-                    Some(deckmaste_core::ManaAbility::Activated {
-                        profile: deckmaste_core::ActivatedManaProfile::Always,
-                        ..
-                    })
+                    a.mana_profile(),
+                    Some(deckmaste_core::ActivatedManaProfile::Always)
                 ) {
                     self.activate_root_mana_ability(*object, *ability);
                 } else {

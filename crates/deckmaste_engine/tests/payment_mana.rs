@@ -17,7 +17,6 @@ use deckmaste_core::DeonticAction;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Instruction;
 use deckmaste_core::LifeOp;
-use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaModeClass;
 use deckmaste_core::ManaSpec;
@@ -87,17 +86,14 @@ fn payment_fixture_with_source_cost(
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    payment_fixture_with_source_ability(Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            source_cost,
-            Instruction::Act(CoreAction::AddMana(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                ManaSpec::Specific(Color::Green.into()).into(),
-            )),
+    payment_fixture_with_source_ability(Ability::Activated(Arc::new(activated_ability(
+        source_cost,
+        Instruction::Act(CoreAction::AddMana(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
         )),
-        profile: ActivatedManaProfile::Always,
-    }))
+    ))))
 }
 
 fn payment_fixture_with_source_ability(
@@ -172,46 +168,40 @@ fn nested_optional_mana_fixture() -> (
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    let optional_source = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
-            Instruction::Sequentially(
-                vec![
-                    Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+    let optional_source = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        Instruction::Sequentially(
+            vec![
+                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                ))),
+                Instruction::May(May {
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
-                    ))),
-                    Instruction::May(May {
-                        who: Reference::Reg(deckmaste_core::RefId(1)),
-                        effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
-                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
-                        )))),
-                        if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )))),
-                        if_not: None,
-                    }),
-                ]
-                .into(),
-            ),
-        )),
-        profile: ActivatedManaProfile::Always,
-    });
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )))),
+                    if_not: None,
+                }),
+            ]
+            .into(),
+        ),
+    )));
     let helper_card = Arc::new(Card::Normal(CardFace {
         name: "Nested optional helper".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let (mut state, payer, parent, optional_source) =
@@ -226,30 +216,27 @@ fn self_spending_optional_mana_fixture() -> (
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    let source_ability = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
-            Instruction::Sequentially(
-                vec![
-                    Instruction::Act(CoreAction::AddMana(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Count::Literal(1),
-                        ManaSpec::Specific(Color::Green.into()).into(),
-                    )),
-                    Instruction::May(May {
-                        who: Reference::Reg(deckmaste_core::RefId(1)),
-                        effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
-                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
-                        )))),
-                        if_did: None,
-                        if_not: None,
-                    }),
-                ]
-                .into(),
-            ),
-        )),
-        profile: ActivatedManaProfile::Always,
-    });
+    let source_ability = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        Instruction::Sequentially(
+            vec![
+                Instruction::Act(CoreAction::AddMana(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+                Instruction::May(May {
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: None,
+                    if_not: None,
+                }),
+            ]
+            .into(),
+        ),
+    )));
     payment_fixture_with_source_ability_and_extras(source_ability, Vec::new())
 }
 
@@ -260,31 +247,28 @@ fn cost_replacement_nested_mana_fixture() -> (
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    let outer = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(
-                vec![CostComponent::do_action(CoreAction::Sacrifice(
+    let outer = Ability::Activated(Arc::new(activated_ability(
+        Cost(
+            vec![CostComponent::do_action(CoreAction::Sacrifice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(deckmaste_core::RefId(0)),
+            ))]
+            .into(),
+        ),
+        Instruction::Sequentially(
+            vec![
+                Instruction::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::Reg(
+                    deckmaste_core::RefId(1),
+                )))),
+                Instruction::Act(CoreAction::AddMana(
                     Reference::Reg(deckmaste_core::RefId(1)),
-                    Reference::Reg(deckmaste_core::RefId(0)),
-                ))]
-                .into(),
-            ),
-            Instruction::Sequentially(
-                vec![
-                    Instruction::Act(CoreAction::Shuffle(Selection::LibraryOf(Reference::Reg(
-                        deckmaste_core::RefId(1),
-                    )))),
-                    Instruction::Act(CoreAction::AddMana(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Count::Literal(1),
-                        ManaSpec::Specific(Color::Green.into()).into(),
-                    )),
-                ]
-                .into(),
-            ),
-        )),
-        profile: ActivatedManaProfile::Always,
-    });
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            ]
+            .into(),
+        ),
+    )));
     let replacement = Arc::new(Card::Normal(CardFace {
         name: "Cost replacement optional".into(),
         types: vec![Type::Enchantment.def()],
@@ -311,17 +295,14 @@ fn cost_replacement_nested_mana_fixture() -> (
     let helper = Arc::new(Card::Normal(CardFace {
         name: "Ownership helper".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let (mut state, payer, parent, outer) =
@@ -337,17 +318,14 @@ fn created_nested_optional_mana_fixture() -> (
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    let token_ability = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
-            Instruction::Act(CoreAction::AddMana(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                ManaSpec::Specific(Color::Green.into()).into(),
-            )),
+    let token_ability = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        Instruction::Act(CoreAction::AddMana(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
         )),
-        profile: ActivatedManaProfile::Always,
-    });
+    )));
     let token = Token {
         name: Some("Nested created helper".into()),
         color_indicator: Arc::from([]),
@@ -358,38 +336,35 @@ fn created_nested_optional_mana_fixture() -> (
         power: None,
         toughness: None,
     };
-    let source_ability = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
-            Instruction::Sequentially(
-                vec![
-                    Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+    let source_ability = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        Instruction::Sequentially(
+            vec![
+                Instruction::Act(CoreAction::Shuffle(deckmaste_core::Selection::LibraryOf(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                ))),
+                Instruction::Act(CoreAction::Create {
+                    agent: Reference::Reg(deckmaste_core::RefId(1)),
+                    count: Count::Literal(1),
+                    token: token.into(),
+                    riders: Arc::from([]),
+                }),
+                Instruction::May(May {
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
-                    ))),
-                    Instruction::Act(CoreAction::Create {
-                        agent: Reference::Reg(deckmaste_core::RefId(1)),
-                        count: Count::Literal(1),
-                        token: token.into(),
-                        riders: Arc::from([]),
-                    }),
-                    Instruction::May(May {
-                        who: Reference::Reg(deckmaste_core::RefId(1)),
-                        effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
-                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
-                        )))),
-                        if_did: Some(Arc::new(Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )))),
-                        if_not: None,
-                    }),
-                ]
-                .into(),
-            ),
-        )),
-        profile: ActivatedManaProfile::Always,
-    });
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )))),
+                    if_not: None,
+                }),
+            ]
+            .into(),
+        ),
+    )));
     payment_fixture_with_source_ability(source_ability)
 }
 
@@ -459,23 +434,26 @@ fn modal_payment_fixture_with_ordinary_mode(
         ]
         .into(),
     });
-    let classes = vec![
-        ManaModeClass {
-            adds_mana: true,
-            targetless: true,
-        },
-        ordinary_class,
-    ];
-    payment_fixture_with_source_ability_and_extras(
-        Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                effect,
-            )),
-            profile: ActivatedManaProfile::ByAnnouncedMode(classes.into()),
-        }),
-        extras,
-    )
+    let ability = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        effect,
+    )));
+    // The mode rows the fixture intends, derived from the ability itself
+    // ([CR#605.1a]) rather than authored onto it.
+    assert_eq!(
+        ability.mana_profile(),
+        Some(ActivatedManaProfile::ByAnnouncedMode(
+            vec![
+                ManaModeClass {
+                    adds_mana: true,
+                    targetless: true,
+                },
+                ordinary_class,
+            ]
+            .into()
+        ))
+    );
+    payment_fixture_with_source_ability_and_extras(ability, extras)
 }
 
 fn blanket_activate_lockout_card() -> Arc<Card> {
@@ -524,41 +502,36 @@ fn triggered_mana_fixture() -> (
     let source = Arc::new(Card::Normal(CardFace {
         name: "Triggering source".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Mana watcher".into(),
-        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
-            TriggeredAbility {
-                ability_word: None,
-                where_x: None,
-                targets: [].into(),
-                from: None,
-                event: EventFilter::TapForMana {
-                    what: Predicate::Any,
-                    by: Predicate::Any,
-                },
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::ProducedByEvent.into(),
-                ))
-                .into(),
+        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            targets: [].into(),
+            from: None,
+            event: EventFilter::TapForMana {
+                what: Predicate::Any,
+                by: Predicate::Any,
             },
-        )))],
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::ProducedByEvent.into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -614,17 +587,14 @@ fn nested_resolution_cast_trigger_fixture() -> (
     let source = Arc::new(Card::Normal(CardFace {
         name: "Nested cast source".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Green.into()).into(),
             )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let cast_spell = Arc::new(Card::Normal(CardFace {
@@ -647,47 +617,45 @@ fn nested_resolution_cast_trigger_fixture() -> (
     );
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Nested cast watcher".into(),
-        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
-            TriggeredAbility {
-                ability_word: None,
-                where_x: None,
-                targets: [].into(),
-                from: None,
-                event: EventFilter::ManaAdded {
-                    what: Predicate::r#type(Type::Land),
-                    by: Predicate::Any,
-                },
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::May(May {
-                            who: Reference::Reg(deckmaste_core::RefId(1)),
-                            effect: Arc::new(Instruction::Act(CoreAction::Cast(
-                                Reference::Reg(deckmaste_core::RefId(1)),
-                                cast_ref,
-                                None,
-                            ))),
-                            if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
-                                Reference::Reg(deckmaste_core::RefId(1)),
-                                LifeOp::Up(Count::Literal(3)),
-                            )))),
-                            if_not: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
-                                Reference::Reg(deckmaste_core::RefId(1)),
-                                LifeOp::Up(Count::Literal(5)),
-                            )))),
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Black.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
-                .into(),
+        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            targets: [].into(),
+            from: None,
+            event: EventFilter::ManaAdded {
+                what: Predicate::r#type(Type::Land),
+                by: Predicate::Any,
             },
-        )))],
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Sequentially(
+                vec![
+                    Instruction::May(May {
+                        who: Reference::Reg(deckmaste_core::RefId(1)),
+                        effect: Arc::new(Instruction::Act(CoreAction::Cast(
+                            Reference::Reg(deckmaste_core::RefId(1)),
+                            cast_ref,
+                            None,
+                        ))),
+                        if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                            Reference::Reg(deckmaste_core::RefId(1)),
+                            LifeOp::Up(Count::Literal(3)),
+                        )))),
+                        if_not: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                            Reference::Reg(deckmaste_core::RefId(1)),
+                            LifeOp::Up(Count::Literal(5)),
+                        )))),
+                    }),
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Black.into()).into(),
+                    )),
+                ]
+                .into(),
+            )
+            .into(),
+        }))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -806,29 +774,24 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
     let source = Arc::new(Card::Normal(CardFace {
         name: "Causal source".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(vec![CostComponent::Tap].into()),
-                source_effect,
-            )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(vec![CostComponent::Tap].into()),
+            source_effect,
+        )))],
         ..CardFace::default()
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Causal watcher".into(),
-        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
-            TriggeredAbility {
-                ability_word: None,
-                where_x: None,
-                targets: [].into(),
-                from: None,
-                event,
-                condition: None,
-                limits,
-                effect: trigger_effect.into(),
-            },
-        )))],
+        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            targets: [].into(),
+            from: None,
+            event,
+            condition: None,
+            limits,
+            effect: trigger_effect.into(),
+        }))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -867,41 +830,44 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
 
 fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::ObjectId) {
     let payer = PlayerId(0);
+    // [CR#605.1a] excludes loyalty abilities from the mana-ability
+    // classification, so this untargeted mana producer still uses the stack
+    // (Chandra, Torch of Defiance's "+1: Add {R}{R}").
+    let mut ordinary = activated_ability(
+        Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
+        Instruction::Act(CoreAction::AddMana(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
+        )),
+    );
+    ordinary.limits = Arc::from([deckmaste_core::UseLimit::LoyaltyOncePerTurn]);
     let source = Arc::new(Card::Normal(CardFace {
-        name: "Ordinary mana-adding ability".into(),
+        name: "Loyalty mana-adding ability".into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::activated(activated_ability(
-            Cost(vec![CostComponent::Mana("{0}".parse::<ManaCost>().unwrap())].into()),
-            Instruction::Act(CoreAction::AddMana(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                ManaSpec::Specific(Color::Green.into()).into(),
-            )),
-        ))],
+        abilities: vec![Ability::activated(ordinary)],
         ..CardFace::default()
     }));
     let watcher = Arc::new(Card::Normal(CardFace {
         name: "Bare ManaAdded watcher".into(),
-        abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
-            TriggeredAbility {
-                ability_word: None,
-                where_x: None,
-                targets: [].into(),
-                from: None,
-                event: EventFilter::ManaAdded {
-                    what: Predicate::r#type(Type::Land),
-                    by: Predicate::Any,
-                },
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::Specific(Color::Black.into()).into(),
-                ))
-                .into(),
+        abilities: vec![Ability::Triggered(Arc::new(TriggeredAbility {
+            ability_word: None,
+            where_x: None,
+            targets: [].into(),
+            from: None,
+            event: EventFilter::ManaAdded {
+                what: Predicate::r#type(Type::Land),
+                by: Predicate::Any,
             },
-        )))],
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::Specific(Color::Black.into()).into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -921,7 +887,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         subtypes: std::collections::HashMap::new(),
         types: std::collections::HashMap::new(),
     });
-    let source = put_in_play(&mut state, payer, "Ordinary mana-adding ability");
+    let source = put_in_play(&mut state, payer, "Loyalty mana-adding ability");
     put_in_play(&mut state, payer, "Bare ManaAdded watcher");
     state.turn.priority = Some(PriorityRound {
         holder: payer,
@@ -2467,17 +2433,14 @@ fn kci_fixture() -> (
     let kci = Arc::new(Card::Normal(CardFace {
         name: "KCI".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(sacrifice.into()),
-                Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(2),
-                    ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
-                )),
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(sacrifice.into()),
+            Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(2),
+                ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
             )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let mut state = GameState::new(GameConfig {
@@ -2529,71 +2492,65 @@ fn resolution_scope_mana_fixture() -> (
     deckmaste_engine::ObjectId,
     deckmaste_engine::ObjectId,
 ) {
-    let outer = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(activated_ability(
-            Cost(vec![CostComponent::Tap].into()),
+    let outer = Ability::Activated(Arc::new(activated_ability(
+        Cost(vec![CostComponent::Tap].into()),
+        Instruction::Sequentially(
+            vec![
+                Instruction::Let(deckmaste_core::Let {
+                    dest: AMOUNT,
+                    expr: deckmaste_core::Expr::Number(Count::Literal(5)),
+                }),
+                Instruction::Act(CoreAction::DealDamage(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Count::Reg(AMOUNT_REF),
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                )),
+                Instruction::May(May {
+                    who: Reference::Reg(deckmaste_core::RefId(1)),
+                    effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
+                        vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
+                    )))),
+                    if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        LifeOp::Up(Count::Reg(AMOUNT_REF)),
+                    )))),
+                    if_not: None,
+                }),
+                Instruction::Act(CoreAction::AddMana(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            ]
+            .into(),
+        ),
+    )));
+    let helper = Arc::new(Card::Normal(CardFace {
+        name: "Resolution scope helper".into(),
+        types: vec![Type::Land.def()],
+        abilities: vec![Ability::Activated(Arc::new(activated_ability(
+            Cost(
+                vec![CostComponent::do_action(CoreAction::ChangeLife(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    LifeOp::Down(Count::Literal(1)),
+                ))]
+                .into(),
+            ),
             Instruction::Sequentially(
                 vec![
                     Instruction::Let(deckmaste_core::Let {
                         dest: AMOUNT,
-                        expr: deckmaste_core::Expr::Number(Count::Literal(5)),
-                    }),
-                    Instruction::Act(CoreAction::DealDamage(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Count::Reg(AMOUNT_REF),
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                    )),
-                    Instruction::May(May {
-                        who: Reference::Reg(deckmaste_core::RefId(1)),
-                        effect: Arc::new(Instruction::Act(CoreAction::Pay(Cost(
-                            vec![CostComponent::Mana("{G}".parse().unwrap())].into(),
-                        )))),
-                        if_did: Some(Arc::new(Instruction::Act(CoreAction::ChangeLife(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            LifeOp::Up(Count::Reg(AMOUNT_REF)),
-                        )))),
-                        if_not: None,
+                        expr: deckmaste_core::Expr::Number(Count::Literal(1)),
                     }),
                     Instruction::Act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
-                        Count::Literal(1),
+                        Count::Reg(AMOUNT_REF),
                         ManaSpec::Specific(Color::Green.into()).into(),
                     )),
                 ]
                 .into(),
             ),
-        )),
-        profile: ActivatedManaProfile::Always,
-    });
-    let helper = Arc::new(Card::Normal(CardFace {
-        name: "Resolution scope helper".into(),
-        types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(activated_ability(
-                Cost(
-                    vec![CostComponent::do_action(CoreAction::ChangeLife(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        LifeOp::Down(Count::Literal(1)),
-                    ))]
-                    .into(),
-                ),
-                Instruction::Sequentially(
-                    vec![
-                        Instruction::Let(deckmaste_core::Let {
-                            dest: AMOUNT,
-                            expr: deckmaste_core::Expr::Number(Count::Literal(1)),
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Reg(AMOUNT_REF),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                ),
-            )),
-            profile: ActivatedManaProfile::Always,
-        })],
+        )))],
         ..CardFace::default()
     }));
     let (mut state, payer, parent, outer) =

@@ -543,14 +543,13 @@ fn validate_card_regions(card: &deckmaste_card::Card) -> anyhow::Result<()> {
 
 fn validate_ability_regions(ability: &deckmaste_core::Ability) -> anyhow::Result<()> {
     use deckmaste_core::Ability;
-    use deckmaste_core::ManaAbility;
     match ability {
-        Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
+        Ability::Activated(ability) => {
             // [CR#601.2b]: the activation cost is part of the announcement, so
             // its instructions define into the region ahead of the body.
             deckmaste_core::validate_announced(&ability.effect, &ability.targets, &ability.cost)?;
         }
-        Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
+        Ability::Triggered(ability) => {
             deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
         }
         Ability::Spell(ability) => {

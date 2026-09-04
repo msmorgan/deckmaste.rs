@@ -11,14 +11,12 @@ use std::sync::Arc;
 use deckmaste_core::Ability;
 use deckmaste_core::Action;
 use deckmaste_core::ActivatedAbility;
-use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::DefId;
 use deckmaste_core::Instruction;
 use deckmaste_core::Kind;
 use deckmaste_core::LifeOp;
-use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
@@ -56,10 +54,7 @@ fn sacrifice_this() -> CostComponent {
 }
 
 fn mana_ability(ability: ActivatedAbility) -> Ability {
-    Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(ability),
-        profile: ActivatedManaProfile::Always,
-    })
+    Ability::Activated(Arc::new(ability))
 }
 
 fn artifact_subtype(name: &str) -> Subtype {

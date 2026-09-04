@@ -34,7 +34,7 @@ use crate::reference::Reference;
 // already boxed (`May.effect`, …).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Instruction {
-    /// A single intrinsic instruction (the `Act` compartment, transparent in
+    /// A single primitive instruction (the `Act` compartment, transparent in
     /// RON).
     Act {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -167,7 +167,7 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    /// Construct a destination-less intrinsic instruction.
+    /// Construct a destination-less primitive instruction.
     ///
     /// This preserves the compact `Instruction::Act(action)` Rust spelling
     /// while the core data model and serialized form use `Act { dest, action

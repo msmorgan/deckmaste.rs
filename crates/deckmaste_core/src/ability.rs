@@ -194,32 +194,24 @@ pub struct Mode {
     pub cost: Cost,
 }
 
-/// One modal branch's lowering-time mana-ability facts. Runtime mode
-/// announcement selects among these precomputed rows; live game state and
-/// external replacement effects never reclassify the ability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+/// One modal branch's mana-ability facts ([CR#605.1a]): whether the branch
+/// could add mana as it resolves, and whether it is targetless. Derived from
+/// the branch's compiled shape, never authored and never read from live game
+/// state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ManaModeClass {
     pub adds_mana: bool,
     pub targetless: bool,
 }
 
-/// How an activated mana ability's lowering-time classification depends on
-/// its announced modes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+/// How an activated mana ability's classification depends on its announced
+/// modes. `Always` qualifies whatever announcement does; `ByAnnouncedMode`
+/// carries one derived row per printed mode ([CR#700.2]), so the announced
+/// selection decides.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ActivatedManaProfile {
     Always,
     ByAnnouncedMode(Arc<[ManaModeClass]>),
-}
-
-/// A mana ability carries the same activated or triggered payload as its
-/// ordinary peer plus lowering's explicit classification judgment.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum ManaAbility {
-    Activated {
-        ability: Arc<ActivatedAbility>,
-        profile: ActivatedManaProfile,
-    },
-    Triggered(Arc<TriggeredAbility>),
 }
 
 /// All four struct-carrying variants (`Static`/`Activated`/`Triggered`/`Spell`)
@@ -240,11 +232,9 @@ pub enum Ability {
     Static(Arc<Region<StaticSpec>>),
     Activated(Arc<ActivatedAbility>),
     Triggered(Arc<TriggeredAbility>),
-    /// A lowering-classified activated or triggered mana ability.
-    Mana(ManaAbility),
     Spell(Arc<SpellAbility>),
     /// A keyword ability ([CR#702]) — always spelled `Keyword(…)` on cards.
-    /// The five intrinsic variants are represented directly; semantic lowering
+    /// The five primitive variants are represented directly; semantic lowering
     /// resolves every other authored keyword to [`KeywordAbility::Composite`].
     Keyword(KeywordAbility),
     /// A conferred ability that is a *rule of the object* rather than a card
@@ -312,40 +302,99 @@ impl Ability {
         Ability::Triggered(Arc::new(ability))
     }
 
-    /// View any activated payload, looking through runtime and provenance
-    /// wrappers.
+    /// View any activated payload, looking through the provenance wrapper.
     #[must_use]
     pub fn as_activated(&self) -> Option<&ActivatedAbility> {
         match self {
-            Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
-                Some(ability)
-            }
+            Ability::Activated(ability) => Some(ability),
             Ability::Innate(inner) => inner.as_activated(),
             _ => None,
         }
     }
 
-    /// View any triggered payload, looking through runtime and provenance
-    /// wrappers.
+    /// View any triggered payload, looking through the provenance wrapper.
     #[must_use]
     pub fn as_triggered(&self) -> Option<&TriggeredAbility> {
         match self {
-            Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
-                Some(ability)
-            }
+            Ability::Triggered(ability) => Some(ability),
             Ability::Innate(inner) => inner.as_triggered(),
             _ => None,
         }
     }
 
-    /// The compiled mana wrapper, if this is one, looking through wrappers.
+    /// This ability's activated mana profile, if it is an activated mana
+    /// ability ([CR#605.1a]): targetless, could add mana to a mana pool as it
+    /// resolves, and not a loyalty ability ([CR#606]). Mana is an ORTHOGONAL
+    /// classification of some activated and triggered abilities ([CR#113.4]),
+    /// not a fifth category beside the four of [CR#113.3], so it is derived
+    /// from the compiled ability rather than carried as a sibling variant.
+    /// [CR#605.2]: derivation reads structure only, so an ability the board
+    /// currently stops from producing mana is still a mana ability.
+    ///
+    /// A single `Modal` body defers the judgment to the announced modes and
+    /// yields one derived row per printed mode. The library-movement clause of
+    /// [CR#605.1a] is deliberately not evaluated (a runtime reversal barrier
+    /// does not reclassify the ability); see the classification tests in
+    /// `deckmaste_lowering`.
     #[must_use]
-    pub fn as_mana(&self) -> Option<&ManaAbility> {
-        match self {
-            Ability::Mana(mana) => Some(mana),
-            Ability::Innate(inner) => inner.as_mana(),
-            _ => None,
+    pub fn mana_profile(&self) -> Option<ActivatedManaProfile> {
+        let ability = match self {
+            Ability::Activated(ability) => ability,
+            Ability::Innate(inner) => return inner.mana_profile(),
+            _ => return None,
+        };
+        if ability.limits.contains(&UseLimit::LoyaltyOncePerTurn) {
+            return None;
         }
+        if let [crate::Instruction::Modal(modal)] = ability.effect.body.as_ref() {
+            let classes: Arc<[ManaModeClass]> = modal
+                .modes
+                .iter()
+                .map(|mode| {
+                    let mut facts = region_mana_facts(&mode.effect);
+                    facts.targetless &= mode.targets.is_empty();
+                    facts.mode_class()
+                })
+                .collect::<Vec<_>>()
+                .into();
+            if classes
+                .iter()
+                .any(|class| class.adds_mana && class.targetless)
+            {
+                return Some(ActivatedManaProfile::ByAnnouncedMode(classes));
+            }
+            return None;
+        }
+        let mut facts = region_mana_facts(&ability.effect);
+        facts.targetless &= ability.targets.is_empty();
+        (facts.adds_mana && facts.targetless).then_some(ActivatedManaProfile::Always)
+    }
+
+    /// Whether this is an activated mana ability ([CR#605.1a]).
+    #[must_use]
+    pub fn is_activated_mana_ability(&self) -> bool {
+        self.mana_profile().is_some()
+    }
+
+    /// Whether this is a triggered mana ability ([CR#605.1b]): targetless,
+    /// triggered by an activated mana ability or by mana being added, and
+    /// could add mana as it resolves.
+    #[must_use]
+    pub fn is_triggered_mana_ability(&self) -> bool {
+        let ability = match self {
+            Ability::Triggered(ability) => ability,
+            Ability::Innate(inner) => return inner.is_triggered_mana_ability(),
+            _ => return false,
+        };
+        let mut facts = region_mana_facts(&ability.effect);
+        facts.targetless &= ability.targets.is_empty();
+        facts.adds_mana && facts.targetless && triggered_by_mana(&ability.event)
+    }
+
+    /// Whether this ability is a mana ability at all ([CR#605.1]).
+    #[must_use]
+    pub fn is_mana_ability(&self) -> bool {
+        self.is_activated_mana_ability() || self.is_triggered_mana_ability()
     }
 
     /// Instantiate an activated mana profile from announcement-time mode
@@ -353,7 +402,7 @@ impl Ability {
     /// qualify.
     #[must_use]
     pub fn mana_profile_for_modes(&self, modes: &[crate::Uint]) -> bool {
-        let Some(ManaAbility::Activated { profile, .. }) = self.as_mana() else {
+        let Some(profile) = self.mana_profile() else {
             return false;
         };
         match profile {
@@ -400,5 +449,124 @@ impl Ability {
     #[must_use]
     pub fn is_innate(&self) -> bool {
         matches!(self, Ability::Innate(_))
+    }
+}
+
+/// The two [CR#605.1a] structural facts, folded over an instruction tree.
+#[derive(Clone, Copy)]
+struct ManaFacts {
+    adds_mana: bool,
+    targetless: bool,
+}
+
+impl ManaFacts {
+    const NEUTRAL: Self = Self {
+        adds_mana: false,
+        targetless: true,
+    };
+
+    fn merge(self, other: Self) -> Self {
+        Self {
+            adds_mana: self.adds_mana || other.adds_mana,
+            targetless: self.targetless && other.targetless,
+        }
+    }
+
+    fn mode_class(self) -> ManaModeClass {
+        ManaModeClass {
+            adds_mana: self.adds_mana,
+            targetless: self.targetless,
+        }
+    }
+}
+
+/// [CR#605.1b]: the trigger condition is the activation or resolution of an
+/// activated mana ability, or mana being added to a mana pool.
+fn triggered_by_mana(event: &crate::EventFilter) -> bool {
+    use crate::EventFilter;
+    match event {
+        EventFilter::ManaAbilityActivated { .. }
+        | EventFilter::ManaProduced { .. }
+        | EventFilter::ManaAdded { .. }
+        | EventFilter::TapForMana { .. } => true,
+        EventFilter::AllOf(parts) => parts.iter().any(triggered_by_mana),
+        EventFilter::OneOf(parts) => !parts.is_empty() && parts.iter().all(triggered_by_mana),
+        EventFilter::OneOrMore(inner) => triggered_by_mana(inner),
+        EventFilter::Nth { of, .. } | EventFilter::When(of, _) | EventFilter::Within(of, _) => {
+            triggered_by_mana(of)
+        }
+        _ => false,
+    }
+}
+
+fn effect_mana_facts(effect: &crate::Instruction) -> ManaFacts {
+    use crate::Instruction;
+    match effect {
+        Instruction::Act { action, .. } => effect_action_facts(action),
+        Instruction::Sequentially(parts) | Instruction::Simultaneously(parts) => {
+            parts.iter().fold(ManaFacts::NEUTRAL, |facts, part| {
+                facts.merge(effect_mana_facts(part))
+            })
+        }
+        // RevealUntil is intentionally inert at runtime; none of these nodes
+        // can establish that the executable ability produces mana.
+        Instruction::Choose(_)
+        | Instruction::ChooseValue(_)
+        | Instruction::Search(_)
+        | Instruction::Let(_)
+        | Instruction::Remember(_)
+        | Instruction::Continuously(_)
+        | Instruction::Until(_, _)
+        | Instruction::Delayed(_)
+        | Instruction::Reflexive(_)
+        | Instruction::RevealUntil(_) => ManaFacts::NEUTRAL,
+        Instruction::SeparatePiles(piles) => piles
+            .then
+            .as_deref()
+            .map_or(ManaFacts::NEUTRAL, effect_mana_facts),
+        Instruction::ChoosePile(pile) => effect_mana_facts(&pile.then),
+        Instruction::May(may) => [
+            Some(may.effect.as_ref()),
+            may.if_did.as_deref(),
+            may.if_not.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .fold(ManaFacts::NEUTRAL, |facts, part| {
+            facts.merge(effect_mana_facts(part))
+        }),
+        Instruction::If(branch) => [Some(branch.then.as_ref()), branch.otherwise.as_deref()]
+            .into_iter()
+            .flatten()
+            .fold(ManaFacts::NEUTRAL, |facts, part| {
+                facts.merge(effect_mana_facts(part))
+            }),
+        Instruction::Each(each) => region_mana_facts(&each.body),
+        Instruction::Distribute(distribute) => region_mana_facts(&distribute.body),
+        Instruction::Modal(modal) => modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
+            facts.merge(region_mana_facts(&mode.effect))
+        }),
+        Instruction::Repeat(_, body) | Instruction::Batch(_, body) => effect_mana_facts(body),
+    }
+}
+
+fn region_mana_facts(region: &Region) -> ManaFacts {
+    region
+        .body
+        .iter()
+        .fold(ManaFacts::NEUTRAL, |facts, instruction| {
+            facts.merge(effect_mana_facts(instruction))
+        })
+}
+
+fn effect_action_facts(action: &crate::Action) -> ManaFacts {
+    use crate::Action;
+    match action {
+        Action::AddMana(_, _, _) => ManaFacts {
+            adds_mana: true,
+            ..ManaFacts::NEUTRAL
+        },
+        Action::Composite { body, .. } => effect_mana_facts(body),
+        _ => ManaFacts::NEUTRAL,
     }
 }

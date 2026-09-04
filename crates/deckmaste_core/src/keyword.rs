@@ -3,12 +3,13 @@
 //! The normative rule for what belongs in this enum (the graduation rule, the
 //! template-param conventions, and the `ParamShape`/`KeywordDecl` prune) is
 //! `docs/keyword-policy.md`.
-//! Per the keyword classification (intrinsic / composite / composite-given —
-//! docs/rules-taxonomy.md §10, pinned to the mtg-rules skill v1.7.0), the
-//! variants are exactly the five implemented true intrinsics: first/double
+//! Per the keyword classification (primitive / composite / composite-given —
+//! docs/keyword-policy.md §1..§2; the descriptive catalog it derives from
+//! spells the class *intrinsic*, a name [CR#305.6] already owns), the
+//! variants are exactly the five implemented true primitives: first/double
 //! strike, deathtouch, and trample own prospective combat-damage machinery
 //! ([CR#510.1]); vigilance owns dedicated declare-attackers text
-//! ([CR#702.20a..702.20b,508.1f]). Every non-intrinsic is a
+//! ([CR#702.20a..702.20b,508.1f]). Every non-primitive is a
 //! `KeywordAbility`-kind plugin macro invoked INSIDE the wrapper — cards
 //! always read `Keyword(Flying)` — expanding to
 //! [`Composite`](KeywordAbility::Composite); see
@@ -148,11 +149,11 @@ pub enum KeywordAbility {
     /// [CR#702.20].
     Vigilance,
     /// A keyword COMPOSED of other abilities ([CR#702]), as opposed to the
-    /// intrinsic variants above that the engine implements natively: its
+    /// primitive variants above that the engine implements natively: its
     /// printed name plus the abilities it stands for, carried in the core
     /// value produced by semantic lowering, so the
     /// `LoseAbility`/`CantHaveAbility`/`Has` name paths
-    /// match it through [`as_str`](Self::as_str) like any intrinsic.
+    /// match it through [`as_str`](Self::as_str) like any primitive.
     /// Produced by keyword macros (`Ward([...])`, `Islandwalk`, …) — RON:
     /// `Keyword(Composite(name: "Ward", abilities: [...]))`. The engine
     /// executes the carried abilities; display of parameterized forms lives
@@ -164,7 +165,7 @@ pub enum KeywordAbility {
 }
 
 impl KeywordAbility {
-    /// Every INTRINSIC variant, for iteration in tests and exhaustive
+    /// Every PRIMITIVE variant, for iteration in tests and exhaustive
     /// mappings. The open-ended `Composite { .. }` form is deliberately
     /// absent.
     pub const ALL: [KeywordAbility; 5] = [
@@ -187,7 +188,7 @@ impl KeywordAbility {
             KeywordAbility::Trample => "Trample",
             KeywordAbility::Vigilance => "Vigilance",
             // `Ident` interns to a 'static str, so composite keywords keep
-            // the same lifetime story as the intrinsics.
+            // the same lifetime story as the primitives.
             KeywordAbility::Composite { name, .. } => name.as_str(),
         }
     }
@@ -202,7 +203,7 @@ impl fmt::Display for KeywordAbility {
 impl FromStr for KeywordAbility {
     type Err = ();
 
-    /// Intrinsics only: a `Composite { .. }` carries its expansion, so it
+    /// Primitives only: a `Composite { .. }` carries its expansion, so it
     /// cannot be constructed from a bare name.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
@@ -240,7 +241,7 @@ mod tests {
         assert_eq!(KeywordAbility::ALL.len(), expected.len());
     }
 
-    /// Each intrinsic variant serializes to its bare identifier in RON.
+    /// Each primitive variant serializes to its bare identifier in RON.
     #[test]
     fn ron_round_trips_each_variant() {
         for kw in KeywordAbility::ALL {
@@ -272,7 +273,7 @@ mod tests {
     }
 
     /// A composite keyword's `as_str`/`Display` is its printed name — the
-    /// same bridge the `Ident`-keyed modification ops use for intrinsics —
+    /// same bridge the `Ident`-keyed modification ops use for primitives —
     /// and a bare name does NOT parse into one (the expansion can't be
     /// conjured).
     #[test]
@@ -283,7 +284,7 @@ mod tests {
     }
 
     /// The composite form round-trips through RON under its own tag,
-    /// leaving the intrinsics' bare-identifier spelling untouched.
+    /// leaving the primitives' bare-identifier spelling untouched.
     #[test]
     fn composite_keyword_round_trips_in_ron() {
         let written = crate::ron::options().to_string(&ward()).unwrap();

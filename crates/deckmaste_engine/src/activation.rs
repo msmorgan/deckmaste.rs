@@ -67,7 +67,7 @@ pub(crate) enum Value {
 /// One executable ability reached by flattening a granted ability value,
 /// together with the values its root region captured when the granting
 /// continuous effect was created. A composite keyword contributes one entry
-/// per executable member; an intrinsic keyword contributes none.
+/// per executable member; a primitive keyword contributes none.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CapturedAbility {
     pub(crate) ability: deckmaste_core::Ability,
@@ -262,18 +262,11 @@ impl crate::state::GameState {
         out: &mut Vec<CapturedAbility>,
     ) {
         use deckmaste_core::Ability;
-        use deckmaste_core::ManaAbility;
 
         let captures = match ability {
             Ability::Static(region) => self.capture_snapshot(region, frame),
             Ability::Activated(activated) => self.capture_snapshot(&activated.effect, frame),
             Ability::Triggered(triggered) => self.capture_snapshot(&triggered.effect, frame),
-            Ability::Mana(ManaAbility::Activated { ability, .. }) => {
-                self.capture_snapshot(&ability.effect, frame)
-            }
-            Ability::Mana(ManaAbility::Triggered(triggered)) => {
-                self.capture_snapshot(&triggered.effect, frame)
-            }
             Ability::Spell(spell) => self.capture_snapshot(&spell.effect, frame),
             Ability::Keyword(deckmaste_core::KeywordAbility::Composite { abilities, .. }) => {
                 for member in abilities {

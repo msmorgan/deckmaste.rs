@@ -1,16 +1,20 @@
-# Keyword intrinsics policy
+# Keyword primitives policy
 
 The normative policy on **which keyword abilities and keyword actions are
-intrinsic engine primitives versus plugin macros**, and the **template-param
+engine primitives versus plugin macros**, and the **template-param
 story for parameterized keywords**. It is the prescriptive companion to
 `docs/rules-taxonomy.md §5,§10`, which derive the descriptive classification
 (pinned to the mtg-rules skill v1.10.0, CR effective 2026-08-07); this file
 states the rules the engine commits to and where the code embodies them.
-Decided by the `core-intrinsic-keywords-policy` ticket.
+Decided by the `core-intrinsic-keywords-policy` ticket. The project term for
+this class is **primitive** (glossary: Primitive Keyword Ability); the
+descriptive catalog this file derives from spells it *intrinsic*. Intrinsic
+Ability is reserved for the CR sense — the mana ability a basic land type
+supplies ([CR#305.6]).
 
 **Part I** governs keyword *abilities* (`[CR#702]` — the `KeywordAbility`
 enum). **Part II** governs keyword *actions* (`[CR#701]` — the `Action` /
-`PlayerAction` verbs). The two share one spine: a keyword is intrinsic only if
+`PlayerAction` verbs). The two share one spine: a keyword is primitive only if
 it is *irreducible*; everything else is a `Composite` macro, name-carried so
 triggers can match it, with soundness measured post-expansion.
 
@@ -20,7 +24,7 @@ triggers can match it, with soundness measured post-expansion.
 
 ## 1. The graduation rule
 
-A keyword is an **intrinsic `KeywordAbility` enum variant** iff it owns
+A keyword is a **primitive `KeywordAbility` enum variant** iff it owns
 *prospective* machinery no composition of statics, triggers, replacements,
 permissions/restrictions, and action-sequences can reproduce — i.e. it needs a
 native engine opcode. Every other keyword is a `Composite` plugin macro invoked
@@ -30,32 +34,32 @@ explicitly (`Keyword(Flying)`).
 The rubric (taxonomy §10):
 
 - **Decompose first** — reduce to the kinds above before declaring anything
-  intrinsic.
+  primitive.
 - **A shared `given`-primitive keeps a keyword composite.** If a hypothetical
-  primitive `P` would let ≥ 2 keywords decompose, `P` is the intrinsic thing,
+  primitive `P` would let ≥ 2 keywords decompose, `P` is the primitive thing,
   not the keywords — they stay composite and reference `P` once it exists.
-- **A sole-dependent primitive collapses into its keyword** as intrinsic.
+- **A sole-dependent primitive collapses into its keyword** as primitive.
 
-Intrinsic-ness is a property of the **keyword**, not the bearing ability: an
-intrinsic can still be parameterized (mutate carries a cost).
+Primitive-ness is a property of the **keyword**, not the bearing ability: a
+primitive can still be parameterized (mutate carries a cost).
 
 ## 2. The three-class map, and enum membership
 
 | Class | Abilities | Actions | Representation | Matched in engine |
 |---|---:|---:|---|---|
-| **Intrinsic** | 9 | 16 | `KeywordAbility` enum variant (abilities); native verb (actions) | by-variant (`has_keyword`) |
+| **Primitive** | 9 | 16 | `KeywordAbility` enum variant (abilities); native verb (actions) | by-variant (`has_keyword`) |
 | **Composite-given(P)** | 14 | 5 | `Composite` macro | by-name (`has_keyword_named`) |
 | **Composite** | 171 | 49 | `Composite` macro | by-name |
 | **Marker** | 1 (reach) | 0 | empty `Composite` macro | by-name |
 
 The columns are the two catalogs, not one population: 195 keyword abilities
 (`data/gen/catalogs/keyword-abilities.txt`) and 70 keyword actions
-(`keyword-actions.txt`). The 16 action intrinsics are `Action` / `PlayerAction`
+(`keyword-actions.txt`). The 16 action primitives are `Action` / `PlayerAction`
 verbs governed by Part II §10 — they never become `KeywordAbility` variants, and
-Part I's "intrinsic set is closed at 9" is a statement about the ability column
+Part I's "primitive set is closed at 9" is a statement about the ability column
 alone.
 
-**The intrinsic set (9 abilities) is closed and exhaustive:** first strike
+**The primitive set (9 abilities) is closed and exhaustive:** first strike
 `[CR#702.7]`, double strike `[CR#702.4]`, deathtouch `[CR#702.2,704.5h]`,
 trample `[CR#702.19]`, vigilance `[CR#702.20a..702.20b,508.1f]` (combat-damage /
 declare-attackers machinery, `[CR#510.1]`), plus banding
@@ -64,7 +68,7 @@ and companion `[CR#702.139a,116.2g]`. No other keyword may ever become a
 variant.
 
 **Enum membership follows implementation, not classification.** The enum
-(`crates/deckmaste_core/src/keyword.rs`) holds only the *implemented* intrinsics
+(`crates/deckmaste_core/src/keyword.rs`) holds only the *implemented* primitives
 — today the five combat variants. Banding, phasing, mutate, and companion are
 **reserved but absent**: each gets a variant when its mechanics land, never as
 an unroutable placeholder. The invariant that `KeywordAbility::ALL`, `as_str`,
@@ -72,7 +76,7 @@ and `FromStr` list the same variants (enforced by the `keyword.rs` tests) keeps
 "implemented" and "in the enum" the same set.
 
 Keyword **names** stay an open, data-driven set (Warp, Firebending, Station are
-never Rust variants). The intrinsic set is the only closed keyword vocabulary.
+never Rust variants). The primitive set is the only closed keyword vocabulary.
 
 ## 3. Composite-given keywords never graduate
 
@@ -91,7 +95,7 @@ lands, their `Composite` bodies gain a real expansion and the combat hook stops
 matching by bare name — but no `KeywordAbility` variant appears.
 
 **Nothing graduates macro → enum.** The only future enum additions are the four
-already-classified true intrinsics, each arriving with its own mechanics.
+already-classified true primitives, each arriving with its own mechanics.
 
 ## 4. Template-param conventions
 
@@ -111,7 +115,7 @@ Parameterized keywords live entirely in the `Composite` macro layer:
 
 **Card soundness is measured post-expansion.** A card is re-emitted *after*
 `Expand::expand_all` — the keyword having desugared to `Composite{name,
-abilities}` (or a bare intrinsic) — and typechecked with `idris2 --check`
+abilities}` (or a bare primitive) — and typechecked with `idris2 --check`
 (`crates/deckmaste_plugin/src/idris_emit.rs`). The Idris model maps a keyword by
 **name** and reasons over its *expanded abilities*; the parameterization shape
 plays no part in the gate. Parameterization is therefore free to be as
@@ -173,12 +177,12 @@ removed with them.
 
 ## 7. Invariants the ability policy commits to
 
-- The intrinsic set is closed at 9 abilities; enum membership equals the
+- The primitive set is closed at 9 abilities; enum membership equals the
   *implemented* subset, kept in sync across `ALL` / `as_str` / `FromStr`.
 - The `Keyword(...)` wrapper is always explicit on a card.
-- Every keyword — intrinsic, composite-given, or composite — carries its printed
+- Every keyword — primitive, composite-given, or composite — carries its printed
   name, so `LoseAbility` / `Has(KeywordRef)` name paths behave uniformly.
-- Keyword names are open and data-driven; the intrinsic set is the only closed
+- Keyword names are open and data-driven; the primitive set is the only closed
   keyword vocabulary (`ParamShape` is retired, not preserved).
 - Card soundness is post-expansion (`idris2 --check` on desugared abilities); no
   pre-expansion shape gate exists or is reintroduced.
@@ -333,7 +337,7 @@ This policy authorizes, but does not itself perform:
    related engine tickets) — as each shared primitive lands, replace the affected
    keywords' bare-name matching with honest `Composite` expansions; no enum
    change (§3).
-4. **The four reserved intrinsics** (banding, phasing, mutate, companion) — each
+4. **The four reserved primitives** (banding, phasing, mutate, companion) — each
    gets its `KeywordAbility` variant when implemented (§2).
 
 **Actions (Part II):**
@@ -344,7 +348,7 @@ This policy authorizes, but does not itself perform:
    interceptors (indestructible, regeneration, madness) to key off the named
    composite; sequence them behind the `Simultaneous` generalization the Fight
    demotion already needs (§13).
-6. **Build the remaining intrinsic verb** — `Transform` `[CR#701.27]` has no
+6. **Build the remaining primitive verb** — `Transform` `[CR#701.27]` has no
    `Action`/`PlayerAction` variant yet (§10). Search `[CR#701.23]` is now
    represented by `Binder::{Search, SearchOne}`; its grammar is present, while
    runtime search/choice consumption remains an engine seam.
@@ -364,7 +368,7 @@ re-checked against §1's rubric; the result is a count refresh, not a
 reclassification.
 
 - **265 checked, 0 reclassified.** No entry changed class between the two pins.
-  The intrinsic (9 / 16), composite-given (19), and marker (1) populations are
+  The primitive (9 / 16), composite-given (19), and marker (1) populations are
   identical; only the composite population grew, 215 → 220.
 - **5 additions since the pin.** Ability composites Storied `[CR#702.195]`,
   Power-up `[CR#702.193]`, Teamwork `[CR#702.194]` (absorbed by §2's count — the

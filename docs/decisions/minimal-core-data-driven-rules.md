@@ -16,7 +16,7 @@ as objects.
 
 ## Consequences
 
-Before adding an intrinsic keyword action, player-only machinery, or a
+Before adding a primitive keyword action, player-only machinery, or a
 type/subtype name match, identify the missing primitive, capability, or registry
 datum. A true primitive requires an engine operation that cannot be expressed
 as a composition of existing ones.

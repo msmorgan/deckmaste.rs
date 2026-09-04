@@ -1086,10 +1086,7 @@ impl GameState {
                 // ([CR#603.3]) and chooses its own modes/targets. Multipliers
                 // ADD.
                 let extra = self.trigger_multiplier_extra(event, this.object);
-                if matches!(
-                    ability.as_mana(),
-                    Some(deckmaste_core::ManaAbility::Triggered(_))
-                ) {
+                if ability.is_triggered_mana_ability() {
                     for _ in 0..=extra {
                         emits.push(WorkItem::ResolveTriggeredMana {
                             source,

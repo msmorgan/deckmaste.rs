@@ -18,7 +18,6 @@ use deckmaste_core::Destination;
 use deckmaste_core::EventFilter;
 use deckmaste_core::Instruction;
 use deckmaste_core::LifeOp;
-use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::May;
@@ -166,24 +165,21 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
     Arc::new(Card::Normal(CardFace {
         name: name.into(),
         types: vec![Type::Land.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost,
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    recipient,
-                    Count::Literal(1),
-                    ManaSpec::Specific(color.into()).into(),
-                ))
-                .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost,
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                recipient,
+                Count::Literal(1),
+                ManaSpec::Specific(color.into()).into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -214,36 +210,33 @@ fn suspending_barred_mana_source() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Suspending barred mana source".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(Arc::from([])),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::Act(CoreAction::Move(
-                            Reference::Reg(deckmaste_core::RefId(0)),
-                            Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-                            Arc::from([]),
-                            Some(Zone::Battlefield),
-                        )),
-                        choose,
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(Arc::from([])),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Sequentially(
+                vec![
+                    Instruction::Act(CoreAction::Move(
+                        Reference::Reg(deckmaste_core::RefId(0)),
+                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                        Arc::from([]),
+                        Some(Zone::Battlefield),
+                    )),
+                    choose,
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
                 .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+            )
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -262,73 +255,29 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Token-creating barred source".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(
-                    vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-                        Arc::from([]),
-                        Some(Zone::Battlefield),
-                    ))]
-                    .into(),
-                ),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::Act(CoreAction::Create {
-                            agent: Reference::Reg(deckmaste_core::RefId(1)),
-                            count: Count::Literal(1),
-                            token: token.into(),
-                            riders: Arc::from([]),
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
-                .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
-        ..CardFace::default()
-    }))
-}
-
-fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
-    // Re-spelled from `Instruction::With`/`Binder::ChooseOne`: the choice is
-    // its own instruction writing register 3 (0 source, 1 controller,
-    // 2 announced X), and the mana add follows it.
-    let token_ability = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(ActivatedAbility {
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
             ability_word: None,
             targets: [].into(),
-            cost: Cost(vec![CostComponent::Tap].into()),
+            cost: Cost(
+                vec![CostComponent::do_action(CoreAction::Move(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                ))]
+                .into(),
+            ),
             from: None,
             window: None,
             condition: None,
             limits: Arc::from([]),
             effect: Instruction::Sequentially(
                 vec![
-                    Instruction::Choose(deckmaste_core::Choose {
-                        dest: deckmaste_core::DefId(3),
-                        by: Reference::Reg(deckmaste_core::RefId(1)),
-                        quantity: Quantity::one(),
-                        filter: Arc::new(deckmaste_core::Region::candidate(Predicate::And(
-                            vec![
-                                Predicate::r#type(Type::Artifact),
-                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                            ]
-                            .into(),
-                        ))),
+                    Instruction::Act(CoreAction::Create {
+                        agent: Reference::Reg(deckmaste_core::RefId(1)),
+                        count: Count::Literal(1),
+                        token: token.into(),
+                        riders: Arc::from([]),
                     }),
                     Instruction::Act(CoreAction::AddMana(
                         Reference::Reg(deckmaste_core::RefId(1)),
@@ -339,9 +288,47 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                 .into(),
             )
             .into(),
-        }),
-        profile: deckmaste_core::ActivatedManaProfile::Always,
-    });
+        }))],
+        ..CardFace::default()
+    }))
+}
+
+fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
+    // Re-spelled from `Instruction::With`/`Binder::ChooseOne`: the choice is
+    // its own instruction writing register 3 (0 source, 1 controller,
+    // 2 announced X), and the mana add follows it.
+    let token_ability = Ability::Activated(Arc::new(ActivatedAbility {
+        ability_word: None,
+        targets: [].into(),
+        cost: Cost(vec![CostComponent::Tap].into()),
+        from: None,
+        window: None,
+        condition: None,
+        limits: Arc::from([]),
+        effect: Instruction::Sequentially(
+            vec![
+                Instruction::Choose(deckmaste_core::Choose {
+                    dest: deckmaste_core::DefId(3),
+                    by: Reference::Reg(deckmaste_core::RefId(1)),
+                    quantity: Quantity::one(),
+                    filter: Arc::new(deckmaste_core::Region::candidate(Predicate::And(
+                        vec![
+                            Predicate::r#type(Type::Artifact),
+                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                        ]
+                        .into(),
+                    ))),
+                }),
+                Instruction::Act(CoreAction::AddMana(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Count::Literal(1),
+                    ManaSpec::Specific(Color::Green.into()).into(),
+                )),
+            ]
+            .into(),
+        )
+        .into(),
+    }));
     let token = Token {
         name: Some("Replay mana token".into()),
         color_indicator: Arc::from([]),
@@ -355,66 +342,60 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Created-source producer".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(
-                    vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-                        Arc::from([]),
-                        Some(Zone::Battlefield),
-                    ))]
-                    .into(),
-                ),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::Act(CoreAction::Create {
-                            agent: Reference::Reg(deckmaste_core::RefId(1)),
-                            count: Count::Literal(1),
-                            token: token.into(),
-                            riders: Arc::from([]),
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(
+                vec![CostComponent::do_action(CoreAction::Move(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                ))]
                 .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+            ),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Sequentially(
+                vec![
+                    Instruction::Act(CoreAction::Create {
+                        agent: Reference::Reg(deckmaste_core::RefId(1)),
+                        count: Count::Literal(1),
+                        token: token.into(),
+                        riders: Arc::from([]),
+                    }),
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
+                .into(),
+            )
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
 
 fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
-    let token_ability = Ability::Mana(ManaAbility::Activated {
-        ability: Arc::new(ActivatedAbility {
-            ability_word: None,
-            targets: [].into(),
-            cost: Cost(vec![CostComponent::Tap].into()),
-            from: None,
-            window: None,
-            condition: None,
-            limits: Arc::from([]),
-            effect: Instruction::Act(CoreAction::AddMana(
-                Reference::Reg(deckmaste_core::RefId(1)),
-                Count::Literal(1),
-                ManaSpec::Specific(Color::Green.into()).into(),
-            ))
-            .into(),
-        }),
-        profile: deckmaste_core::ActivatedManaProfile::Always,
-    });
+    let token_ability = Ability::Activated(Arc::new(ActivatedAbility {
+        ability_word: None,
+        targets: [].into(),
+        cost: Cost(vec![CostComponent::Tap].into()),
+        from: None,
+        window: None,
+        condition: None,
+        limits: Arc::from([]),
+        effect: Instruction::Act(CoreAction::AddMana(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            Count::Literal(1),
+            ManaSpec::Specific(Color::Green.into()).into(),
+        ))
+        .into(),
+    }));
     let token = Token {
         name: Some("Fulfillment-created helper".into()),
         color_indicator: Arc::from([]),
@@ -494,59 +475,56 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Same-record choice source".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(
-                    vec![CostComponent::do_action(CoreAction::Move(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Destination::Library(Anchor::FromBottom(Count::Literal(0))),
-                        Arc::from([]),
-                        Some(Zone::Battlefield),
-                    ))]
-                    .into(),
-                ),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                // Re-spelled from `Instruction::With`/`Binder::ChooseOne`:
-                // the choice is its own instruction writing register 3.
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::Act(CoreAction::Create {
-                            agent: Reference::Reg(deckmaste_core::RefId(1)),
-                            count: Count::Literal(1),
-                            token: token.into(),
-                            riders: Arc::from([]),
-                        }),
-                        Instruction::Choose(deckmaste_core::Choose {
-                            dest: deckmaste_core::DefId(3),
-                            by: Reference::Reg(deckmaste_core::RefId(1)),
-                            quantity: Quantity::one(),
-                            filter: Arc::new(deckmaste_core::Region::candidate(Predicate::And(
-                                vec![
-                                    Predicate::Characteristic(CharacteristicPredicate::Named(
-                                        "Same-record choice token".into(),
-                                    )),
-                                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                                ]
-                                .into(),
-                            ))),
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(
+                vec![CostComponent::do_action(CoreAction::Move(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Destination::Library(Anchor::FromBottom(Count::Literal(0))),
+                    Arc::from([]),
+                    Some(Zone::Battlefield),
+                ))]
                 .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+            ),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            // Re-spelled from `Instruction::With`/`Binder::ChooseOne`:
+            // the choice is its own instruction writing register 3.
+            effect: Instruction::Sequentially(
+                vec![
+                    Instruction::Act(CoreAction::Create {
+                        agent: Reference::Reg(deckmaste_core::RefId(1)),
+                        count: Count::Literal(1),
+                        token: token.into(),
+                        riders: Arc::from([]),
+                    }),
+                    Instruction::Choose(deckmaste_core::Choose {
+                        dest: deckmaste_core::DefId(3),
+                        by: Reference::Reg(deckmaste_core::RefId(1)),
+                        quantity: Quantity::one(),
+                        filter: Arc::new(deckmaste_core::Region::candidate(Predicate::And(
+                            vec![
+                                Predicate::Characteristic(CharacteristicPredicate::Named(
+                                    "Same-record choice token".into(),
+                                )),
+                                Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                            ]
+                            .into(),
+                        ))),
+                    }),
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
+                .into(),
+            )
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -565,54 +543,51 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Transient token source".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(vec![CostComponent::Tap].into()),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                // Re-spelled from `Instruction::With`/`Binder::TheRef`: the
-                // pinned read is a `Let` writing register 3, and the reveal
-                // reads that register instead of `That(Token)`.
-                effect: Instruction::Sequentially(
-                    vec![
-                        Instruction::Act(CoreAction::Create {
-                            agent: Reference::Reg(deckmaste_core::RefId(1)),
-                            count: Count::Literal(1),
-                            token: token.into(),
-                            riders: Arc::from([]),
-                        }),
-                        Instruction::Let(deckmaste_core::Let {
-                            dest: deckmaste_core::DefId(3),
-                            expr: deckmaste_core::Expr::Object(Reference::Single(Arc::new(
-                                deckmaste_core::Selection::SelectAll(Arc::new(
-                                    deckmaste_core::Region::candidate(Predicate::Characteristic(
-                                        CharacteristicPredicate::Named(
-                                            "Observed transient token".into(),
-                                        ),
-                                    )),
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            // Re-spelled from `Instruction::With`/`Binder::TheRef`: the
+            // pinned read is a `Let` writing register 3, and the reveal
+            // reads that register instead of `That(Token)`.
+            effect: Instruction::Sequentially(
+                vec![
+                    Instruction::Act(CoreAction::Create {
+                        agent: Reference::Reg(deckmaste_core::RefId(1)),
+                        count: Count::Literal(1),
+                        token: token.into(),
+                        riders: Arc::from([]),
+                    }),
+                    Instruction::Let(deckmaste_core::Let {
+                        dest: deckmaste_core::DefId(3),
+                        expr: deckmaste_core::Expr::Object(Reference::Single(Arc::new(
+                            deckmaste_core::Selection::SelectAll(Arc::new(
+                                deckmaste_core::Region::candidate(Predicate::Characteristic(
+                                    CharacteristicPredicate::Named(
+                                        "Observed transient token".into(),
+                                    ),
                                 )),
-                            ))),
-                        }),
-                        Instruction::Act(CoreAction::Reveal {
-                            what: Reference::Reg(deckmaste_core::RefId(3)),
-                            to: None,
-                        }),
-                        Instruction::Act(CoreAction::AddMana(
-                            Reference::Reg(deckmaste_core::RefId(1)),
-                            Count::Literal(1),
-                            ManaSpec::Specific(Color::Green.into()).into(),
-                        )),
-                    ]
-                    .into(),
-                )
+                            )),
+                        ))),
+                    }),
+                    Instruction::Act(CoreAction::Reveal {
+                        what: Reference::Reg(deckmaste_core::RefId(3)),
+                        to: None,
+                    }),
+                    Instruction::Act(CoreAction::AddMana(
+                        Reference::Reg(deckmaste_core::RefId(1)),
+                        Count::Literal(1),
+                        ManaSpec::Specific(Color::Green.into()).into(),
+                    )),
+                ]
                 .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+            )
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -646,24 +621,21 @@ fn krark_clan_ironworks() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Krark-Clan Ironworks".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(sacrifice_artifact.into()),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(2),
-                    ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
-                ))
-                .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(sacrifice_artifact.into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(2),
+                ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -736,19 +708,16 @@ fn mox_amber_fixture() -> Arc<Card> {
         mana_cost: "{0}".parse().unwrap(),
         supertypes: vec![Supertype::Legendary],
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(vec![CostComponent::Tap].into()),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: effect.into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: effect.into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -803,30 +772,27 @@ fn mana_cylix_fixture() -> Arc<Card> {
     Arc::new(Card::Normal(CardFace {
         name: "Mana Cylix".into(),
         types: vec![Type::Artifact.def()],
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(
-                    vec![
-                        CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
-                        CostComponent::Tap,
-                    ]
-                    .into(),
-                ),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    Count::Literal(1),
-                    ManaSpec::AnyColor.into(),
-                ))
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(
+                vec![
+                    CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
+                    CostComponent::Tap,
+                ]
                 .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+            ),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Count::Literal(1),
+                ManaSpec::AnyColor.into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }
@@ -862,24 +828,21 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
         types: vec![Type::Creature.def()],
         power: Some(StatValue::Number(2)),
         toughness: Some(StatValue::Number(5)),
-        abilities: vec![Ability::Mana(ManaAbility::Activated {
-            ability: Arc::new(ActivatedAbility {
-                ability_word: None,
-                targets: [].into(),
-                cost: Cost(vec![CostComponent::Tap].into()),
-                from: None,
-                window: None,
-                condition: None,
-                limits: Arc::from([]),
-                effect: Instruction::Act(CoreAction::AddMana(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    greatest_power,
-                    ManaSpec::Specific(Color::Green.into()).into(),
-                ))
-                .into(),
-            }),
-            profile: deckmaste_core::ActivatedManaProfile::Always,
-        })],
+        abilities: vec![Ability::Activated(Arc::new(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            cost: Cost(vec![CostComponent::Tap].into()),
+            from: None,
+            window: None,
+            condition: None,
+            limits: Arc::from([]),
+            effect: Instruction::Act(CoreAction::AddMana(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                greatest_power,
+                ManaSpec::Specific(Color::Green.into()).into(),
+            ))
+            .into(),
+        }))],
         ..CardFace::default()
     }))
 }

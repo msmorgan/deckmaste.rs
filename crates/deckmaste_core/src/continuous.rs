@@ -162,7 +162,7 @@ pub enum Modification {
     /// shares the numeric op vocabulary.
     BaseDefense(NumericOp),
     /// The [CR#305.7] bundle: replace land types ∧ lose printed abilities ∧
-    /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
+    /// gain the basic-land mana ability (Blood Moon). One primitive, not
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Arc<[Ident]>),
     /// A bundle of ops contributed by one semantic authoring form — the analog
