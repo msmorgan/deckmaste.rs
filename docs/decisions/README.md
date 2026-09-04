@@ -57,3 +57,6 @@ requires explicit review rather than an opportunistic refactor.
 - [Core is explicit regions](core-explicit-regions.md) — Every core binding
   is a declared param or numbered def; references are register reads;
   lowering resolves once.
+- [The workbench is RON-shaped](workbench-ron-shaped-and-label-rulings.md) —
+  Every workbench construction is re-emittable RON; labels stay open over
+  tables derived from the stubs.
