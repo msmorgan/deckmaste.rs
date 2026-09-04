@@ -287,7 +287,14 @@ negative witness, the re-measurement and the remaining blockers are recorded in
 - Assurance for the combined landing is counted in the endpoint ticket's
   record, not here.
 
-Not integrated. Two blocking decisions are listed under "Decision wanted"
-there: the two-identity retirement, and three verb-frame additions
-(`Cycle`, `Explore`, `Scry`) taken to keep the narrowing from dropping 50
-identities instead of 2.
+Both blockers were ruled on by the coordinator (2026-09-04). The retirement is
+approved and the three verb frames are kept, each verified against an attested
+printed-Oracle complement shape.
+
+retirement/re-coverage obligation: Infectious Curse (5fbcf36b2e6006fefc9c94d13b8c7d165c436d22f6207f5e83dc03956232681c), Absorbing Man and Titania (72b69a69a8a4add9165cd6a8f5b062801ad06247f3c48e126189904cdbac155d)
+
+Both obligations are routed to their owning planned tickets, each naming the
+card, the sentence and the analysis that must select:
+`docs/tickets/planned/english-v2-target-verb-subject-selection.md` (Infectious
+Curse) and `docs/tickets/planned/english-v2-relative-clause.md` (Absorbing Man
+and Titania).

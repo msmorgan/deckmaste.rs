@@ -67,7 +67,11 @@ All three stop parsing, exactly as on the parent tip:
 ### Numbers
 
 Measured on `qmssqson-` (parent) against the working copy above `txwltrmx`;
-lock `covered` count of the measured result tree 16,825.
+lock `covered` count of the measured result tree 16,825. Parent lock SHA-256
+`d7b889de6b5c1b79163ea5b3dfe9e18efde5bde1480aadcef4aa8f04b659148e` (49,474
+lines); result lock SHA-256
+`768840a5f72cfbd36d2864c3a9e2ad4a215bea671c41441a94e3d91a8be27553` (49,475
+lines: +3 added, -2 retired).
 
 - Selected/covered 16,824 → 16,825; parse failures 15,817 → 15,816;
   unresolved ties 0 → 0; internal failures 0 → 0; exception uses 0 → 0;
@@ -77,7 +81,8 @@ lock `covered` count of the measured result tree 16,825.
   (`c03db827…`). Each takes a properly headed duration phrase (`this turn`,
   `until end of turn`) low inside an object-gap relative — the recorded
   attachment-misselection class, correct constituency.
-- Lost 2, both previously covered only by the duration rescue:
+- Retired 2, both previously covered only by the duration rescue. The
+  obligation line lives in the claimed ticket's `## Landing record`:
   `retirement/re-coverage obligation: 5fbcf36b2e6006fefc9c94d13b8c7d165c436d22f6207f5e83dc03956232681c (Infectious Curse), 72b69a69a8a4add9165cd6a8f5b062801ad06247f3c48e126189904cdbac155d (Absorbing Man and Titania)`
 - Selection census: unique 11,527 → 13,328; specificity-resolved 5,297 →
   3,497; exception-resolved 0 → 0. 1,809 units move specificity → unique as
@@ -108,35 +113,92 @@ lock `covered` count of the measured result tree 16,825.
 ### Deviations and additions
 
 Three verb-frame additions, none in either ticket's letter, each required to
-stop the narrowing from dropping coverage. Bare-nominal duration absorption
-was standing in for a missing transitive frame:
+stop the narrowing from dropping coverage. Bare-nominal duration absorption was
+standing in for a missing verb frame in 48 corpus units. The coordinator ruled
+(2026-09-04) that a frame belongs to this landing if and only if it records an
+attested printed-Oracle complement shape; each was verified against the corpus
+and against the units it covers, and each covered unit's selected analysis was
+read.
 
-- `Cycle` (core verb) was declared `Predicate([])` only, so every
-  `When you cycle this card` parsed only by absorbing `this card` as a
-  duration. Adding `Predicate([ObjectNounPhrase])` restores 46 identities.
-- `Explore` (keyword-action stub) `Intransitive` →
-  `Custom([[], [ObjectNounPhrase]])`, for `explores a land card`.
-- `Scry` (keyword-action stub) `Custom([[], [Amount]])` →
-  `Custom([[], [Amount], [ObjectNounPhrase]])`, for
-  `scry a number of cards`.
+- **`Cycle`** (core verb) `Predicate([])` -> `Predicate([]), Predicate([ObjectNounPhrase])`.
+  Attested witness: `When you cycle this card, put a flying counter on target
+  creature you control.` (Avian Oddity). The object-nominal complement is the
+  dominant printed shape - `cycle this card` 90, `cycle any card` 36, `cycle a
+  card` 23, `cycles a card` 8, `cycle another card` 4, `cycle them` 26. The
+  probe claims bytes 8..14 as `core-verb:Cycle` and ` this card` as a
+  determined object nominal, not an adjunct.
+  Retains 46 identities, every one a cycling card: Astral Slide, Avian Oddity,
+  Choking Tethers, Complicate, Death Pulse, Decree of Annihilation, Decree of
+  Justice, Decree of Pain, Decree of Savagery, Deem Worthy, Dismantling Wave,
+  Drannith Healer, Drannith Stinger, Fleeting Aven, Flourishing Fox, Fractured
+  Sanity, Gempalm Incinerator, Gempalm Polluter, Gempalm Strider, Howler's
+  Heavy, Invigorating Boon, Krosan Tusker, Lightning Rift, Magmakin
+  Artillerist, Prickly Marmoset, Primal Boost, Quakefoot Cyclops, Renewed
+  Faith, Resounding Roar, Resounding Scream, Resounding Silence, Resounding
+  Thunder, Resounding Wave, Sanctuary Smasher, Shefet Monitor, Slice and Dice,
+  Snare Tactician, Solar Blast, Splendor Mare, Stabilizer, Stir the Sands,
+  Stoic Champion, Sunfire Balm, Titanoth Rex, Vizier of Tumbling Sands, Void
+  Beckoner. All share one analysis shape: `cycle`/`cycles` with a determined
+  card nominal as its object, in a trigger prefix (`When you cycle this
+  card, ...`, `Whenever a player cycles a card, ...`) or, for Stabilizer, a
+  finite clause (`Players can't cycle cards.`).
 
-Without them the narrowing loses 50 identities instead of 2. All three are
-transitive in printed Oracle text.
+- **`Explore`** (keyword-action stub) `Intransitive` ->
+  `Custom([[], [ObjectNounPhrase]])`. The coordinator's premise was that the
+  keyword action is intransitive and a transitive frame admits English that
+  does not exist. The keyword action is indeed intransitive almost everywhere,
+  but the transitive complement is attested in printed Oracle text, on one
+  card, twice: Nicanzil, Current Conductor -
+  `Whenever a creature you control explores a land card, you may put a land
+  card from your hand onto the battlefield tapped.` and
+  `Whenever a creature you control explores a nonland card, put a +1/+1
+  counter on Nicanzil.` A corpus sweep of every `explores <NP>` surface returns
+  exactly those two; everything else is intransitive
+  (`target creature you control explores`, `it explores`, `explores again`).
+  The complement is a real object nominal, not an absorbed adjunct: the probe
+  claims ` a land card` as an indefinite article plus `lexeme:type/Land` plus
+  `lexeme:CommonNoun/Card`, immediately after
+  `lexeme:keyword_action/Explore/third_person_singular`. The intransitive frame
+  is retained beside it.
+  Retains 1 identity: Nicanzil, Current Conductor.
 
-### Decision wanted (blocking, not integrated)
+- **`Scry`** (keyword-action stub) `Custom([[], [Amount]])` ->
+  `Custom([[], [Amount], [ObjectNounPhrase]])`. The coordinator's instruction
+  was to correct the complement kind to a measure complement, or to find that
+  the existing measure frame already suffices. Neither applies: the measure
+  frame `[Amount]` already exists and already spells `Scry 2` / `scry X`, and
+  the unit this addition covers has a noun-phrase complement, not a numeral -
+  Eligeth, Crossroads Augur,
+  `If you would scry a number of cards, draw that many cards instead.` The
+  probe claims ` a number of cards` as an indefinite article,
+  `CommonNoun/Number`, `Preposition/Of` and `CommonNoun/Card` plural - a
+  relational noun phrase that no `Amount` reading covers. `scry a number of
+  cards` is the only non-numeral scry complement in the corpus. The addition is
+  therefore an object frame beside the measure frame, not instead of it.
+  Retains 1 identity: Eligeth, Crossroads Augur.
 
-1. **The two retirements.** `Infectious Curse` needs `target` as a
-   relative-clause verb (`Spells you cast that target enchanted player`), which
-   is a homograph decision against the closed-class-single-owner ruling, since
-   `target` is a TargetingMarker vocabulary member. `Absorbing Man and Titania`
-   needs an object-gap relative over an auxiliary (`all damage that creature
-   sources you control would deal`). Neither is reachable from this ticket.
-   Both were covered only by a wrong analysis, so retiring them removes a
-   defect rather than losing a reading — but a retirement is a coordinator
-   ruling, so the lock is left at the parent tip content, unblessed.
-2. **The three verb-frame additions.** They are outside both tickets' letter
-   and were taken to avoid a 50-identity drop. If they are not wanted here,
-   the narrowing has to land with them as a separate ticket first.
+Without all three the narrowing loses 50 identities instead of 2.
+
+### Rulings taken
+
+Both blockers were put to the coordinator and ruled on (2026-09-04).
+
+1. **Retirement approved.** `Infectious Curse` and `Absorbing Man and
+   Titania` were covered only by a wrong analysis, which CLAUDE.md classes as a
+   defect, so retiring them is the correct ratchet direction. The lock is
+   blessed with `--bless --retire`; the obligation line naming both identities
+   is in the claimed ticket's `## Landing record`, and each obligation is
+   routed to its owning planned ticket with the card, the sentence and the
+   analysis that must select: `english-v2-target-verb-subject-selection`
+   (Infectious Curse - a subject-gap relative whose head is the Target Verb)
+   and `english-v2-relative-clause` (Absorbing Man and Titania - an object-gap
+   relative whose body carries an auxiliary).
+2. **Frames kept, conditionally, and the condition is met** - see Deviations
+   and additions above. Two of the coordinator's premises needed correcting
+   against the corpus: `Explore`'s transitive complement is attested (twice, on
+   Nicanzil), and `Scry`'s added complement is a noun phrase rather than the
+   numeral a measure frame would take, so the existing measure frame does not
+   cover it.
 
 ### Assurance
 
@@ -166,5 +228,5 @@ this ticket closes: `Connive target player.`, `Scry target player.`,
 stated purpose is rejecting exactly that malformation, so the flip restores
 the contract rather than weakening it.
 
-STOP: 1 taken, unresolved — the retirement and the frame additions above.
+STOP: 1 taken and resolved by coordinator ruling — the retirement and the frame additions above.
 Glossary gap: none.

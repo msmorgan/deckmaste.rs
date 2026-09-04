@@ -31,3 +31,23 @@ Fences: no narrowed form, dominance edge, exception entry, or guard naming
 targets", "can't target you" select; every marker-subject sentence in the
 5,805-identity target audit keeps its analysis; zero ties; standard
 constraints apply.
+
+## Re-coverage obligation (2026-09-04)
+
+`english-v2-adjunct-licence-removal` retired **Infectious Curse**
+(`5fbcf36b2e6006fefc9c94d13b8c7d165c436d22f6207f5e83dc03956232681c`) from the
+coverage lock. The sentence is:
+
+> Spells you cast that target enchanted player cost {1} less to cast.
+
+It had been covered only by a wrong analysis: `fixed_duration_phrase` accepted
+any noun phrase as a temporal endpoint, so `that target enchanted player` was
+absorbed as a duration adjunct on `cast`. Narrowing the endpoint to a declared
+temporal head removed that reading and left the unit with no parse.
+
+The analysis that must select when this ticket lands: `Spells you cast` is a
+noun phrase with an object-gap relative, and `that target enchanted player` is
+a **subject-gap relative clause on `Spells`** whose head is the Target Verb
+with `enchanted player` as its object — the Spell/Ability Subject selection
+this ticket owns. The whole nominal is then the subject of
+`cost {1} less to cast`.
