@@ -6,6 +6,8 @@
 use deckmaste_construction::constructions;
 
 pub mod environment {
+    use std::collections::HashMap;
+
     use deckmaste_construction_core::macro_def::DeclarationIdentity;
     use deckmaste_construction_core::macro_def::GrammarRecipe;
     use deckmaste_construction_core::macro_def::NormalizedDeclaration;
@@ -55,11 +57,27 @@ pub mod environment {
 
     pub(crate) struct ParserEnvironment {
         declarations: Vec<NormalizedDeclaration>,
+        noun_class_overrides:
+            HashMap<DeclarationIdentity, (NounLocativeTemporalLicense, NounRelationality)>,
     }
 
     impl ParserEnvironment {
         pub(crate) fn new(declarations: Vec<NormalizedDeclaration>) -> Self {
-            Self { declarations }
+            Self {
+                declarations,
+                noun_class_overrides: HashMap::new(),
+            }
+        }
+
+        pub(crate) fn with_noun_class_override(
+            mut self,
+            id: DeclarationIdentity,
+            locative_temporal_license: NounLocativeTemporalLicense,
+            relationality: NounRelationality,
+        ) -> Self {
+            self.noun_class_overrides
+                .insert(id, (locative_temporal_license, relationality));
+            self
         }
 
         pub(crate) fn surface<'a>(
@@ -96,14 +114,15 @@ pub mod environment {
                 .declarations
                 .iter()
                 .find(|declaration| declaration.identity() == id)?;
-            let semantics = declaration.noun_class()?;
+            let (locative_temporal_license, relationality) =
+                self.noun_class_overrides.get(id).copied().or_else(|| {
+                    declaration.noun_class().map(|semantics| {
+                        (semantics.locative_temporal_license, semantics.relationality)
+                    })
+                })?;
             let number_invariant = self.surface(id, SurfaceFeature::Singular)
                 == self.surface(id, SurfaceFeature::Plural);
-            Some((
-                semantics.locative_temporal_license,
-                semantics.relationality,
-                number_invariant,
-            ))
+            Some((locative_temporal_license, relationality, number_invariant))
         }
 
         pub(crate) fn declarations(&self) -> &[NormalizedDeclaration] {
@@ -510,7 +529,7 @@ mod declaration_noun_fixture {
         let declarations = deckmaste_construction_core::macro_def::read_sources(vec![
             declaration(
                 "/synthetic/types/Relic.ron",
-                r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic"))"#,
+                r#"Type(name:"Relic",spelling:"relic",grammar:Noun(singular:"relic",plural:"relic"))"#,
             ),
             declaration(
                 "/synthetic/subtypes/creature/Elf.ron",
@@ -546,7 +565,14 @@ mod declaration_noun_fixture {
             ),
         ])
         .expect("synthetic declaration sources normalize");
-        crate::environment::ParserEnvironment::new(declarations)
+        crate::environment::ParserEnvironment::new(declarations).with_noun_class_override(
+            deckmaste_construction_core::macro_def::DeclarationIdentity::new(
+                deckmaste_construction_core::macro_def::DeclarationKind::Type,
+                "Relic",
+            ),
+            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::Unlicensed,
+            deckmaste_construction_core::macro_def::NounRelationality::NonRelational,
+        )
     }
 
     struct Recorder(Vec<String>);
@@ -727,7 +753,26 @@ mod declaration_noun_fixture {
         let public_type = DeclarationNoun::new(&environment, relic.clone())
             .expect("the public declaration noun stores a valid identity");
         assert_eq!(public_type.id(), &relic);
-        assert!(DeclarationNoun::new(&environment, elf.clone()).is_some());
+        let licensed_subtype = DeclarationNoun::new(&environment, elf.clone())
+            .expect("the licensed declaration noun stores a valid identity");
+        assert_eq!(
+            public_type.locative_temporal_license(),
+            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::Unlicensed,
+        );
+        assert_eq!(
+            licensed_subtype.locative_temporal_license(),
+            deckmaste_construction_core::macro_def::NounLocativeTemporalLicense::ObjectAttachmentLicensed,
+        );
+        assert_eq!(
+            public_type.relationality(),
+            deckmaste_construction_core::macro_def::NounRelationality::NonRelational,
+        );
+        assert_eq!(
+            licensed_subtype.relationality(),
+            deckmaste_construction_core::macro_def::NounRelationality::QualifiedRelational,
+        );
+        assert!(public_type.number_invariant());
+        assert!(!licensed_subtype.number_invariant());
 
         let (modifier_terminal, head_terminal) = phrase_rule_terminals();
         let modifier = scan_terminal(&environment, &context, "Relic Elf.", 0, modifier_terminal);
