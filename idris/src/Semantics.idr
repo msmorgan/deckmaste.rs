@@ -1287,9 +1287,9 @@ mutual
       -- engine-baked (not composable data, like Deathtouch). `Nothing` = plain banding; `Just q` = "bands with
       -- other [q]" ([CR#702.22b], the quality-restricted band). Bare — `keyword (Banding mq) = Bare (Banding mq)`.
       Banding : Maybe (Predicate b AnObject) -> KeywordSpec b
-      -- the tag for the `mutate <cost>` macro ([CR#702.140]): an ALTERNATIVE cost (rides `MayCastFor {tag = Just
-      -- Mutate}`, like Dash) whose intrinsic MERGE ([CR#730]) the engine bakes off this tag. Bare here (the cost
-      -- rides the macro); degenerate in `keyword`, like Flashback/Morph.
+      -- the tag for the `mutate <cost>` macro ([CR#702.140]): an ALTERNATIVE cost ([CR#702.140a], rides
+      -- `MayCastFor {tag = Just Mutate}`, like Dash) whose intrinsic MERGE ([CR#730]) the engine bakes off
+      -- this tag. Bare here (the cost rides the macro); degenerate in `keyword`, like Flashback/Morph.
       Mutate : KeywordSpec b
   -- A REFERENCE to a game object/player ([CR#108,109.1]) — a text-internal anaphor.
   namespace Reference

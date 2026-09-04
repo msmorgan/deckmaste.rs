@@ -365,7 +365,9 @@ impl GameState {
                 // a card") compels a find — and even that settles for "as many
                 // as possible" once `choice_bounds` clamps to availability. A
                 // STATED quality ([CR#701.23b]) never compels one, even with a
-                // match sitting right there.
+                // match sitting right there. An UNDEFINED quality
+                // ([CR#701.23c]) needs no separate arm: it can never match a
+                // candidate, so it floors to 0 through this same mechanism.
                 let min = if crate::resolve::search_is_bare_quantity(&search.filter.body) {
                     lo
                 } else {

@@ -25,6 +25,8 @@ compoundHeadOptional : CompoundHead -> Bool
 compoundHeadOptional QualityHead = True
 compoundHeadOptional NumberHead = False
 
+||| `QualityParam` covers "partner with [name]" [CR#702.124j], whose slot is a
+||| card name.
 public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
                        | NumberParam | AbilityParam

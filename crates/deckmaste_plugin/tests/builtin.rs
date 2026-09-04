@@ -421,7 +421,9 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     };
     // The literal-one `Draw(1)` expansion is one draw instruction followed by
     // the explicit pinned amount consumed by later discourse reads. Its
-    // spelling may retain the semantically neutral `Batch(1, ...)` wrapper.
+    // spelling may retain the semantically neutral `Batch(1, ...)` wrapper —
+    // the instruction level a count-referring replacement bites ([CR#121.2a]),
+    // whose elements are the individual card draws ([CR#121.2]).
     // It is not a `Composite`: drawing is [CR#121], not a keyword action
     // ([CR#701]), and [CR#121.5] makes it irreducible, so there is no body.
     let draw = match if_not.as_ref() {

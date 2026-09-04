@@ -924,7 +924,8 @@ fn soulshift_confers_dies_may_return_spirit_from_graveyard() {
     let [Instruction::May(may)] = trig.effect.body.as_ref() else {
         panic!("soulshift's effect is a May; got {:?}", trig.effect);
     };
-    // Target declarations are hoisted onto the triggered ability's region.
+    // Target declarations are hoisted onto the triggered ability's region
+    // ([CR#115.1,601.2c]).
     assert_eq!(trig.targets.len(), 1, "soulshift targets exactly one card");
     let TargetSpec::Target(_, filter) = &trig.targets[0] else {
         panic!("expected a Target spec; got {:?}", trig.targets[0]);

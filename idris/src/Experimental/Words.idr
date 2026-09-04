@@ -593,6 +593,9 @@ record ActFacts where
   actBounded : Bool
   actForMana : Bool
 
+||| Keyword actions ([CR#701]) — one-shot verbs in effect position that confer
+||| nothing, unlike the keyword abilities of `keywordFacts`: mill [CR#701.17],
+||| scry [CR#701.22].
 public export
 actFacts : List ActFacts
 actFacts =
@@ -2340,6 +2343,8 @@ data ManaUnit : Type where
   GenericUnit : ManaUnit
   RunUnit : (run : ManaCost) -> {auto 0 wr : ManaRun run} -> ManaUnit
 
+||| `PutCompanionIntoHand` is the {3} special action [CR#116.2g] a player takes
+||| for the companion they revealed [CR#702.139a].
 public export
 data SpecialAction = TurnFaceUp | PutCompanionIntoHand | Foretell | UnlockDoor
 
