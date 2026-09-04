@@ -867,3 +867,18 @@ badPlacementLookback Oh impossible
 public export
 okCounterAbility : Instruction []
 okCounterAbility = CounterSpell (Macros.target (AbilityHead AnyActivated))
+
+||| "Exile target creature."
+public export
+okObjectMovedToAZone : Instruction []
+okObjectMovedToAZone =
+  Move (Macros.target Macros.creature) Macros.exileZ []
+
+||| "Exile target activated ability." -- an ability on the stack is an object
+||| [CR#113.1c] that ceases to exist when it leaves the stack [CR#608.2n];
+||| it never changes zones.
+public export
+badAbilityMovedToAZone : Unspellable (Instruction []) (\ok =>
+  Move (Macros.target (AbilityHead AnyActivated)) Macros.exileZ []
+       {mk = ObjectMoves {nb = ok}})
+badAbilityMovedToAZone PayloadIsObject impossible

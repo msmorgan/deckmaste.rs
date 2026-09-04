@@ -625,8 +625,8 @@ move what to = Move what to [] {mk} {ok} {arr} {pl}
 
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-          Instruction bs
-destroy n = Enact Nothing "Destroy" (Move n graveyardZ [])
+          {auto 0 mk : Movable n} -> Instruction bs
+destroy n = Enact Nothing "Destroy" (Move n graveyardZ [] {mk})
 
 public export
 exile : {k : Kind} -> (agent : Noun bs Player) -> (n : Noun (agentIntro agent) k) ->
@@ -637,10 +637,10 @@ exile agent n = Enact (Just agent) "Exile" (Move n exileZ [] {mk}) {ke}
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
-                    (kind : CounterKind) -> Instruction bs
+                    (kind : CounterKind) -> {auto 0 mk : Movable n} -> Instruction bs
 exileWithCounters n amt kind =
   Enact Nothing "Exile"
-        (Move n exileZ [WithCounters amt (PrintedKind kind) Fresh])
+        (Move n exileZ [WithCounters amt (PrintedKind kind) Fresh] {mk})
 
 public export
 returnToBattlefieldWithCounters :
@@ -649,51 +649,57 @@ returnToBattlefieldWithCounters :
   {auto 0 one : nounPlur who = OneOf} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 mk : Movable n} ->
   Instruction bs
 returnToBattlefieldWithCounters n who amt kind =
   Move n battlefieldZ [ Under who {one = OneController {one}}
-                      , WithCounters amt (PrintedKind kind) Fresh ] {pl}
+                      , WithCounters amt (PrintedKind kind) Fresh ] {pl} {mk}
 
 public export
 putOntoBattlefield : (n : Noun bs Object) ->
                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                      {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                     {auto 0 mk : Movable n} ->
                      Instruction bs
-putOntoBattlefield n = Move n battlefieldZ [] {pl}
+putOntoBattlefield n = Move n battlefieldZ [] {pl} {mk}
 
 public export
 putOntoBattlefieldTapped : (n : Noun bs Object) ->
                            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                           {auto 0 mk : Movable n} ->
                            Instruction bs
 putOntoBattlefieldTapped n =
-  Move n battlefieldZ [EntersTapped] {pl}
+  Move n battlefieldZ [EntersTapped] {pl} {mk}
 
 public export
 putOntoBattlefieldTappedAttacking :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 mk : Movable n} ->
   Instruction bs
 putOntoBattlefieldTappedAttacking n =
-  Move n battlefieldZ [EntersTapped, EntersAttacking NoDefender] {pl}
+  Move n battlefieldZ [EntersTapped, EntersAttacking NoDefender] {pl} {mk}
 
 public export
 putOntoBattlefieldUnderYourControl :
   (n : Noun bs Object) ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 mk : Movable n} ->
   Instruction bs
 putOntoBattlefieldUnderYourControl n =
-  Move n battlefieldZ [Under You] {pl}
+  Move n battlefieldZ [Under You] {pl} {mk}
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
             {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-            {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [])} ->
+            {auto 0 mk : Movable n} ->
+            {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [] {mk})} ->
             Instruction bs
 sacrifice agent n =
-  Enact (Just agent) "Sacrifice" (Move n graveyardZ []) {ke}
+  Enact (Just agent) "Sacrifice" (Move n graveyardZ [] {mk}) {ke}
 
 public export
 sacrificeIt : (agent : Noun bs Player) ->
@@ -709,10 +715,11 @@ sacrificeIt agent =
 public export
 discard : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
           {auto 0 dk : DiscardOk n} ->
-          {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [])} ->
+          {auto 0 mk : Movable n} ->
+          {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [] {mk})} ->
           Instruction bs
 discard agent n =
-  Enact (Just agent) "Discard" (Move n graveyardZ []) {ke}
+  Enact (Just agent) "Discard" (Move n graveyardZ [] {mk}) {ke}
 
 public export
 tap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
@@ -733,10 +740,11 @@ public export
 meldInto : (n : Noun bs Object) -> (into : String) ->
            {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
            {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+           {auto 0 mk : Movable n} ->
            Instruction bs
 meldInto n into =
   Enact Nothing "Meld"
-        (Move n battlefieldZ [EntersMelded into] {arr} {pl})
+        (Move n battlefieldZ [EntersMelded into] {arr} {pl} {mk})
 
 public export
 returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
@@ -745,8 +753,9 @@ returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
            {auto 0 arr : ArrangementOk (nounPlur n) to} ->
            {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
            {auto 0 rf : RidersFit riders (zoneSort to)} ->
+           {auto 0 mk : Movable n} ->
            Instruction bs
-returnTo n to riders = Enact Nothing "Return" (Move n to riders {ok} {arr} {pl} {rf})
+returnTo n to riders = Enact Nothing "Return" (Move n to riders {ok} {arr} {pl} {rf} {mk})
 
 public export
 returnToBattlefieldTransformed :
@@ -754,17 +763,19 @@ returnToBattlefieldTransformed :
   {auto 0 one : CtrlOverrideOk ctrl} ->
   {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
   {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+  {auto 0 mk : Movable n} ->
   Instruction bs
 returnToBattlefieldTransformed n ctrl =
   Enact Nothing "Return"
-        (Move n battlefieldZ [EntersTransformed, Under ctrl {one}] {arr} {pl})
+        (Move n battlefieldZ [EntersTransformed, Under ctrl {one}] {arr} {pl} {mk})
 
 public export
 returnToBattlefield : (n : Noun bs Object) ->
                       {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
                       {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                      {auto 0 mk : Movable n} ->
                       Instruction bs
-returnToBattlefield n = returnTo n battlefieldZ [] {arr} {pl}
+returnToBattlefield n = returnTo n battlefieldZ [] {arr} {pl} {mk}
 
 public export
 itAsToken : {auto 0 ok : countReach TokenBorn OneOf bs = 1} -> Noun bs Object
@@ -1267,14 +1278,15 @@ nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
 public export
 shuffleInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
               {auto 0 pl : Placeable (nounTy n) Library} ->
+              {auto 0 mk : Movable n} ->
               {auto 0 ke : EnactKeepsOuter (Just agent)
                              (Move n (LibraryAt Shuffled Nothing Nothing Bare)
-                                     [] {pl})} ->
+                                     [] {pl} {mk})} ->
               Instruction bs
 shuffleInto agent n =
   Enact (Just agent) "Shuffle"
     (Move n (LibraryAt Shuffled Nothing Nothing Bare)
-            [] {pl}) {ke}
+            [] {pl} {mk}) {ke}
 
 public export
 topSlice : (amt : Amount bs) -> Noun bs Object
@@ -1370,10 +1382,11 @@ puts : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
-       {auto 0 ke : EnactKeepsOuter (Just agent) (Move n to [] {ok} {arr} {pl})} ->
+       {auto 0 mk : Movable n} ->
+       {auto 0 ke : EnactKeepsOuter (Just agent) (Move n to [] {ok} {arr} {pl} {mk})} ->
        Instruction bs
 puts agent n to =
-  Enact (Just agent) "Put" (Move n to [] {ok} {arr} {pl}) {ke}
+  Enact (Just agent) "Put" (Move n to [] {ok} {arr} {pl} {mk}) {ke}
 
 public export
 shuffle : Instruction bs
@@ -1424,19 +1437,20 @@ preventAllBy {bs} kind src scope d =
 
 public export
 exileUntil : (n : Noun bs Object) ->
+             {auto 0 mk : Movable n} ->
              (ev : GameEvent
                      (preIntro
                        (Enact Nothing "Exile"
                          (Move n (Macros.exileZ {bs = nomIntro n})
                                []
-                               {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh})))) ->
+                               {mk} {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh})))) ->
              Instruction bs
 exileUntil n ev =
   HeldUntil
     (Enact Nothing "Exile"
       (Move n (Macros.exileZ {bs = nomIntro n})
             []
-            {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh}))
+            {mk} {ok = ExileOk} {arr = Oh} {pl = Oh} {rf = Oh}))
             ev {ok = Oh}
 
 public export

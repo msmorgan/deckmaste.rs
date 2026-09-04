@@ -2674,9 +2674,16 @@ mutual
   data StatusHolder : Noun bs k -> Type where
     ObjectHoldsStatus : StatusHolder {k = Object} n
 
+  ||| An ability on the stack is an object [CR#113.1c] that ceases to exist
+  ||| when it leaves the stack [CR#608.2n]; it never changes zones.
+  public export
+  data NotAnAbility : Bool -> Type where
+    PayloadIsObject : NotAnAbility False
+
   public export
   data Movable : Noun bs k -> Type where
-    ObjectMoves : Movable {k = Object} n
+    ObjectMoves : {auto 0 nb : NotAnAbility (nounIsAbility n)} ->
+                  Movable {k = Object} n
     PileMoves : Movable {k = Pile} n
 
   public export
