@@ -25,7 +25,7 @@ use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 6;
+const REPORT_SCHEMA_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -685,6 +685,8 @@ pub(super) struct CoverageSummary {
     /// Exact fixed-surface/lexicon homographs enumerated during environment
     /// loading.
     literal_lexicon_collisions: usize,
+    licensing_checker_permitted: usize,
+    licensing_checker_forbidden: usize,
     nonterminal_nodes: usize,
     visited_constructions: usize,
     traversal_failure_units: usize,
@@ -732,6 +734,8 @@ summary_getters!(
     roundtrip_mismatch_units,
     ownership_failure_units,
     literal_lexicon_collisions,
+    licensing_checker_permitted,
+    licensing_checker_forbidden,
     nonterminal_nodes,
     visited_constructions,
     traversal_failure_units,
@@ -987,6 +991,7 @@ pub(super) struct CoverageReport {
     schema_version: u32,
     source_fingerprint: String,
     rows: Vec<CoverageRow>,
+    licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
     summary: CoverageSummary,
 }
 
@@ -1006,17 +1011,35 @@ impl CoverageReport {
         Self::try_new_with_collisions(source_fingerprint, rows, 0)
     }
 
+    #[cfg(test)]
     fn try_new_with_collisions(
         source_fingerprint: String,
         rows: Vec<CoverageRow>,
         literal_lexicon_collisions: usize,
     ) -> Result<Self, CoverageValidationError> {
+        Self::try_new_with_censuses(
+            source_fingerprint,
+            rows,
+            literal_lexicon_collisions,
+            super::licensing_checkers::LicensingCheckerCensus::default(),
+        )
+    }
+
+    fn try_new_with_censuses(
+        source_fingerprint: String,
+        rows: Vec<CoverageRow>,
+        literal_lexicon_collisions: usize,
+        licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
+    ) -> Result<Self, CoverageValidationError> {
         let mut summary = CoverageSummary::from_rows(&rows)?;
         summary.literal_lexicon_collisions = literal_lexicon_collisions;
+        summary.licensing_checker_permitted = licensing_checkers.permitted_total();
+        summary.licensing_checker_forbidden = licensing_checkers.forbidden_total();
         Ok(Self {
             schema_version: REPORT_SCHEMA_VERSION,
             source_fingerprint,
             rows,
+            licensing_checkers,
             summary,
         })
     }
@@ -1200,10 +1223,13 @@ where
         observer.record(format!("map_row:{}", unit.id()));
     }
     observer.record("validate".to_owned());
-    let report = CoverageReport::try_new_with_collisions(
+    let licensing_checkers =
+        super::licensing_checkers::from_path(&super::production_declaration_path())?;
+    let report = CoverageReport::try_new_with_censuses(
         corpus.source_fingerprint().to_owned(),
         rows,
         parser.environment().literal_lexicon_collisions(),
+        licensing_checkers,
     )?;
     debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
     observer.record("render".to_owned());
@@ -1217,6 +1243,7 @@ where
     let mode = args.lock_mode();
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
+        report.licensing_checkers.enforce_forbidden_policy()?;
         gate(&report, &args.lock, mode, diagnostics)?;
     }
     Ok(())
@@ -1242,6 +1269,12 @@ fn render_report(
     for row in &report.rows {
         let rendered = serde_json::to_string(row).context("serializing English-v2 coverage row")?;
         writeln!(output, "row {rendered}").context("writing English-v2 coverage report row")?;
+    }
+    for checker in report.licensing_checkers.rows() {
+        let rendered = serde_json::to_string(checker)
+            .context("serializing English-v2 licensing checker row")?;
+        writeln!(output, "licensing_checker {rendered}")
+            .context("writing English-v2 licensing checker row")?;
     }
     let summary = serde_json::to_string(&report.summary)
         .context("serializing English-v2 coverage summary")?;
@@ -2103,6 +2136,8 @@ mod tests {
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
         assert_eq!(summary.literal_lexicon_collisions(), 1);
+        assert_eq!(summary.licensing_checker_permitted(), 0);
+        assert_eq!(summary.licensing_checker_forbidden(), 0);
         assert_eq!(summary.nonterminal_nodes(), 42);
         assert_eq!(summary.visited_constructions(), 42);
         assert_eq!(summary.traversal_failure_units(), 0);
@@ -2125,6 +2160,8 @@ mod tests {
                 "roundtrip_mismatch_units": 1,
                 "ownership_failure_units": 1,
                 "literal_lexicon_collisions": 1,
+                "licensing_checker_permitted": 0,
+                "licensing_checker_forbidden": 0,
                 "nonterminal_nodes": 42,
                 "visited_constructions": 42,
                 "traversal_failure_units": 0,
@@ -2185,6 +2222,8 @@ mod tests {
                 "roundtrip_mismatch_units",
                 "ownership_failure_units",
                 "literal_lexicon_collisions",
+                "licensing_checker_permitted",
+                "licensing_checker_forbidden",
                 "nonterminal_nodes",
                 "visited_constructions",
                 "traversal_failure_units",
@@ -2217,9 +2256,15 @@ mod tests {
                 .keys()
                 .map(String::as_str)
                 .collect::<std::collections::BTreeSet<_>>(),
-            ["rows", "schema_version", "source_fingerprint", "summary"]
-                .into_iter()
-                .collect()
+            [
+                "licensing_checkers",
+                "rows",
+                "schema_version",
+                "source_fingerprint",
+                "summary",
+            ]
+            .into_iter()
+            .collect()
         );
     }
 
@@ -2587,6 +2632,8 @@ mod tests {
                 > 0
         );
         assert_eq!(json["summary"]["literal_lexicon_collisions"], 59);
+        assert_eq!(json["summary"]["licensing_checker_permitted"], 29);
+        assert_eq!(json["summary"]["licensing_checker_forbidden"], 2);
     }
 
     #[test]

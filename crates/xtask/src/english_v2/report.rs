@@ -17,6 +17,7 @@ use super::production_declaration_path;
 struct CountedReport {
     schema_version: u32,
     noun_morphology: NounMorphologyCensus,
+    licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
     mapping_layers: Vec<CountedEntry>,
     handwritten_codecs: Vec<CountedEntry>,
     stored_form_tags: Vec<CountedEntry>,
@@ -83,18 +84,25 @@ pub(super) fn run(args: &ReportArgs, output: &mut dyn Write) -> anyhow::Result<(
 
 fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
     let expansion = expansion_from_source(source)?;
+    let licensing_checkers = super::licensing_checkers::from_source(source)?;
     let selection_exceptions = deckmaste_english_v2::parser::selection_exception_inventory()
         .map_err(anyhow::Error::new)
         .context("validating English-v2 selection exception inventory")?;
     let builtin_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
     let builtin_nouns = builtin_noun_morphology(&builtin_root)?;
-    build_report(&expansion, &selection_exceptions, builtin_nouns)
+    build_report(
+        &expansion,
+        &selection_exceptions,
+        builtin_nouns,
+        licensing_checkers,
+    )
 }
 
 fn build_report(
     expansion: &Expansion,
     selection_exceptions: &[SelectionExceptionInfo],
     builtin_nouns: BuiltinNounMorphology,
+    licensing_checkers: super::licensing_checkers::LicensingCheckerCensus,
 ) -> anyhow::Result<CountedReport> {
     let escape_hatches = expansion.escape_hatches();
     let morphology_irregulars = escape_hatches
@@ -114,8 +122,9 @@ fn build_report(
         .chain(builtin_nouns.irregulars)
         .collect();
     let mut report = CountedReport {
-        schema_version: 4,
+        schema_version: 5,
         noun_morphology: builtin_nouns.census,
+        licensing_checkers,
         mapping_layers: plain_entries(escape_hatches.mapping_layers(), None, None),
         handwritten_codecs: plain_entries(
             escape_hatches.handwritten_codecs(),
@@ -348,6 +357,22 @@ fn render_human(report: &CountedReport) -> String {
         report.noun_morphology.unavailable_plural,
     )
     .expect("writing to String cannot fail");
+    writeln!(
+        &mut output,
+        "licensing checkers (permitted={}, forbidden={})",
+        report.licensing_checkers.permitted_total(),
+        report.licensing_checkers.forbidden_total(),
+    )
+    .expect("writing to String cannot fail");
+    for checker in report.licensing_checkers.rows() {
+        writeln!(
+            &mut output,
+            "  - identity={:?} kind={:?}",
+            checker.identity(),
+            checker.kind(),
+        )
+        .expect("writing to String cannot fail");
+    }
     for (category, entries) in categories(report) {
         writeln!(&mut output, "{category} ({})", entries.len())
             .expect("writing to String cannot fail");
@@ -487,13 +512,13 @@ mod tests {
     "#;
 
     #[test]
-    fn schema4_projects_every_sealed_structural_row_in_source_order() {
+    fn schema5_projects_every_sealed_structural_row_in_source_order() {
         let report = build_report_from_source(SCHEMA4_STRUCTURAL_SOURCE)
             .expect("structural report fixture builds");
-        let rendered = render_json(&report).expect("schema 4 serializes");
+        let rendered = render_json(&report).expect("schema 5 serializes");
         let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
 
-        assert_eq!(json["schema_version"], 4);
+        assert_eq!(json["schema_version"], 5);
         assert_eq!(
             json["abstract_products"],
             serde_json::json!(["ZetaHolder", "AlphaHolder", "MuHolder", "BetaHolder"])
@@ -542,7 +567,7 @@ mod tests {
     }
 
     #[test]
-    fn schema4_pins_exact_top_level_key_order_and_has_no_schema3_mode() {
+    fn schema5_pins_exact_top_level_key_order_and_has_no_legacy_mode() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -552,6 +577,7 @@ mod tests {
             [
                 "schema_version",
                 "noun_morphology",
+                "licensing_checkers",
                 "mapping_layers",
                 "handwritten_codecs",
                 "stored_form_tags",
@@ -572,7 +598,8 @@ mod tests {
                 "stored_separator_fields",
             ]
         );
-        assert!(rendered.contains("\"schema_version\": 4"));
+        assert!(rendered.contains("\"schema_version\": 5"));
+        assert!(!rendered.contains("\"schema_version\": 4"));
         assert!(!rendered.contains("\"schema_version\": 3"));
     }
 
@@ -586,13 +613,14 @@ mod tests {
 
     fn report() -> CountedReport {
         CountedReport {
-            schema_version: 4,
+            schema_version: 5,
             noun_morphology: NounMorphologyCensus {
                 total: 0,
                 derived_plural: 0,
                 explicit_plural: 0,
                 unavailable_plural: 0,
             },
+            licensing_checkers: super::super::licensing_checkers::LicensingCheckerCensus::default(),
             mapping_layers: vec![entry("zeta"), entry("alpha")],
             handwritten_codecs: vec![],
             stored_form_tags: vec![],
@@ -704,6 +732,7 @@ mod tests {
             concat!(
                 "English v2 counted escape hatches\n",
                 "noun morphology (total=0, derived +s=0, explicit=0, unavailable=0)\n",
+                "licensing checkers (permitted=0, forbidden=0)\n",
                 "mapping layers (1)\n",
                 "  - identity=\"first\\nsecond\" rationale=\"why\\tstill\" removal_target=\"target\\rnext\"\n",
                 "handwritten codecs (0)\n",
@@ -735,7 +764,7 @@ mod tests {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
 
-        assert_eq!(report.schema_version, 4);
+        assert_eq!(report.schema_version, 5);
         assert_eq!(
             report.noun_morphology,
             NounMorphologyCensus {
@@ -957,6 +986,7 @@ mod tests {
             [
                 "schema_version",
                 "noun_morphology",
+                "licensing_checkers",
                 "mapping_layers",
                 "handwritten_codecs",
                 "stored_form_tags",

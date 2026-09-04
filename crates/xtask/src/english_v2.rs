@@ -8,6 +8,7 @@ mod coverage_lock;
 mod diagnostic;
 mod flavor_words;
 mod inspect;
+mod licensing_checkers;
 mod parse;
 mod probe;
 mod report;
