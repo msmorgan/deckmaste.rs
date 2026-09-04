@@ -32,3 +32,20 @@ targets; they are re-covered when that entry graduates and lands. Coverage 16,77
 decrease (coordinator ruling: a decrease is permitted only for identities
 whose sole surviving reading is wrong); any other loss is a STOP. Report
 winner changes against the parent tip. Standard constraints apply.
+
+## Landing record
+
+STOP — no implementation landed. The required fence cannot currently be
+expressed through the declared valence row: `checked by` arguments are limited
+by the construction DSL parser to existing `role.feature` slots. A generated
+verb-frame accessor is neither a feature nor an admissible callback argument,
+so the fence cannot read the declared optional lexical atom without extending
+that schema. Reinstating the existing preposition-class fence, naming the
+preposition in a guard, or adding a per-construction guard would violate the
+ticket's explicit fences. No coverage retirement, lock mutation, test change,
+or grammar change was retained; the specified coverage and ambiguity gates
+were therefore not run to completion.
+
+- Assurance census: restored 0; re-spelled 0; ignored 0; added 0; removed 0.
+- Deviations and additions: none.
+- glossary gap: none.
