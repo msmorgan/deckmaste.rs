@@ -1661,3 +1661,33 @@ disallow =
                              (Or [AbilityHead AnyActivated,
                                   AbilityHead AnyTriggered])))) ]
        Nothing
+
+||| Fry
+public export
+fry : Card
+fry =
+  Macros.card "Fry" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Static (Macros.objectCant "Counter" This)
+       , Spell (DealDamage This (Lit 5)
+                   (Macros.target (And [Or [Macros.creature, HasType Planeswalker],
+                                        Or [ColorIs White, ColorIs Blue]]))) ]
+       Nothing
+
+||| Termination Facilitator
+public export
+terminationFacilitator : Card
+terminationFacilitator =
+  Macros.card "Termination Facilitator" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
+       [ Macros.activatedOnlyDuring TapSymbol
+           (PutCounters (Lit 1) (PrintedKind (Named "Bounty"))
+                        (Macros.target (Or [Macros.creature, HasType Planeswalker])))
+           AsSorcery
+       , Macros.triggered Whenever
+           (IsDealtDamage AnyDamage
+              (Macros.a (And [Or [Macros.creature, HasType Planeswalker],
+                              HasPossessor ControllerAx Macros.anOpponent,
+                              HasCounters (Just (Named "Bounty"))])))
+           (Macros.destroy (Macros.It OneOf)) ]
+       (Just (1, 3))

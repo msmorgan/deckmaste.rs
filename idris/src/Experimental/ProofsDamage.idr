@@ -202,6 +202,12 @@ badOtherInOr : Unspellable
   (\ok => Or [And [Macros.creature, Other], Macros.land] {cd = ok})
 badOtherInOr Oh impossible
 
+||| "This deals 2 damage to target creature or planeswalker." [CR#120.1]
+public export
+okDamageDisjunctHead : Instruction []
+okDamageDisjunctHead =
+  DealDamage This (Lit 2) (Macros.target (Or [Macros.creature, HasType Planeswalker]))
+
 ||| "This deals 2 damage to target artifact or enchantment."
 public export
 badDamageDisjunctHead : Unspellable (Instruction []) (\ok =>

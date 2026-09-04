@@ -2592,7 +2592,7 @@ mutual
   public export
   damageableKind : (k : Kind) -> HeadTy k -> Bool
   damageableKind Player _ = True
-  damageableKind Object (SoleTy t) = maybe True damageableType t
+  damageableKind Object (SoleTy t) = damageableHeadTysOk (soleAlt (optCT t))
   damageableKind (a \/ b) (JoinTy l r) = damageableKind a l && damageableKind b r
   damageableKind (a \/ b) (SoleTy t) =
     damageableKind a (SoleTy t) && damageableKind b (SoleTy t)
@@ -2604,7 +2604,7 @@ mutual
     JoinTakes : {auto 0 dm : So (damageableKind (ka \/ kb) (nounTys n))} ->
                 DamageRecipient {k = ka \/ kb} n
     ObjectTakes : {auto 0 field : ZoneIs (nounZone n) Battlefield} ->
-                  {auto 0 dm : DamageableTy (nounTy n)} ->
+                  {auto 0 dm : So (damageableHeadTysOk (nounHeadTys n))} ->
                   DamageRecipient {k = Object} n
 
   public export

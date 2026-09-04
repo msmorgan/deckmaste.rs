@@ -1987,9 +1987,10 @@ damageableType Planeswalker = True
 damageableType Battle = True
 damageableType _ = False
 
+||| [] means unknown-therefore-permissive, at both levels.
 public export
-DamageableTy : Maybe CardType -> Type
-DamageableTy ty = So (maybe False damageableType ty)
+damageableHeadTysOk : List (List CardType) -> Bool
+damageableHeadTysOk = all (all damageableType)
 
 public export
 data Phrasal : Kind -> Type where
