@@ -40,8 +40,10 @@ declared marked-role atom with no `checked by` fence.
 
 retirement/re-coverage obligation: Cavalier of Thorns (3a05d72cc35c86f1b6bb8cfb74017af4c6c5b440e9b18475485ad034db4440e6), Animal Magnetism (83b1cc666255a03888d2654849cbdcd552c61d9336ce41cbe163a248c4f887ec), Genesis Ultimatum (cc39ba9efc13bba3022d314e135707a35dbe17b515db2cbd7ca858a97cff00b2)
 
-Measured on change `owowyoryklxryvnwykpxlwtuvtmkqxzk`, after the initial
-refresh onto the parent tip with 16,825 covered identities.
+Measured on change `owowyoryklxryvnwykpxlwtuvtmkqxzk`, after the final
+`kata refresh` onto the parent tip with 16,825 covered identities. That refresh
+incorporated concurrent Saga changes only; the English parent lock and census
+remained byte-identical to the saved parent-tip artifacts.
 
 | gate | refreshed parent | measured tree |
 | --- | ---: | ---: |
@@ -99,10 +101,10 @@ refresh onto the parent tip with 16,825 covered identities.
   covered, 15,819 parse failures, and zero for every failure counter. The
   round-trip summary is 16,822 accepted, 16,822 clean, and zero mismatches. No
   citation-bearing source changed, so no citation lock operation was needed.
-- Performance advisory (`DECKMASTE_XTASK_WORKERS=8`): final coverage took 133 s
-  at 181,769 ns/B under host load 27.30/27.82/22.52; ambiguity took 90 s at
-  127,360 ns/B under load 19.76/21.54/19.16; round trip took 82 s at 115,080
-  ns/B under load 20.67/22.17/19.06. All exceed the 16.26 s quiet-host ceiling
+- Performance advisory (`DECKMASTE_XTASK_WORKERS=8`): final coverage took 84 s
+  at 122,400 ns/B under host load 8.95/11.05/15.60; ambiguity took 97 s at
+  129,751 ns/B under load 15.43/13.13/15.17; round trip took 87 s at 121,374
+  ns/B under load 12.81/12.09/15.20. All exceed the 16.26 s quiet-host ceiling
   under load and are advisory, not STOPs. The sandbox-visible post-gate process
   count was 4; sibling-executor contention is not visible and remains for the
   reviewer to stamp.
