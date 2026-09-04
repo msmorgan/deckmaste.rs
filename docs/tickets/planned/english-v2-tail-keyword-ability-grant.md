@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-clause-level-duration, english-v2-granted-ability-coordination]
 ---
 **Keyword-ability grants are a verb frame, not a bespoke predicate.** `Target
 creature gains flying until end of turn.` fails while `Target creature gets
