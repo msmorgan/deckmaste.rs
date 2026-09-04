@@ -66,19 +66,19 @@ apply.
   resolution modes. Its 1,406 raw path spelling changes are exactly the three
   folded construction-name substitutions; normalizing those substitutions
   gives 0 changed selected analyses.
-- Positive gates: `cargo fmt --all`; strict all-target Clippy for
+- Positive gates (rerun after refresh): `cargo fmt --all`; strict all-target Clippy for
   `deckmaste_english_v2`; and `cargo test -p deckmaste_english_v2 -p xtask`
   passed. Representative artifacts: `test result: ok. 143 passed; 0 failed`,
-  `test result: ok. 49 passed; 0 failed`, and `test result: ok. 441 passed; 0
+  `test result: ok. 49 passed; 0 failed`, and `test result: ok. 444 passed; 0
   failed; 1 ignored` for xtask. `coverage --check` passed with the coverage
   figures above; `ambiguity --require-resolved` passed with 16,824 selected
   and 0 unresolved ties; the accepted-set byte law reported 16,824
   parse-accepted / 16,824 clean / 0 mismatched. `cite check` reported 0 stale
   citations and the noncompliant list was empty.
 - Performance advisory: all corpus commands used 8 workers. Coverage took
-  55.259 s at 115,197 ns/B (host load 16.47/25.72/21.59); resolved ambiguity
-  took 61.683 s at 136,213 ns/B (14.81/21.04/20.43); roundtrip took 74.869 s
-  at 149,127 ns/B (22.22/21.42/20.59). Each exceeds the 16.26-second
+  52.222 s at 111,587 ns/B (host load 18.01/16.90/18.55); resolved ambiguity
+  took 54.534 s at 108,872 ns/B (11.84/15.15/17.70); roundtrip took 53.965 s
+  at 109,502 ns/B (13.90/14.97/17.45). Each exceeds the 16.26-second
   quiet-host ceiling under concurrent load; concurrent-process count is not
   visible from this sandbox and is for reviewer stamping.
 - Assurance counts: restored 0; re-spelled 1 visitor contract against
