@@ -5,7 +5,7 @@ KeywordAction(
         bare: "attach",
         third_person: "attaches",
         frame_set: Custom(
-            frames: [[ObjectNounPhrase, Literal("to"), ObjectNounPhrase]],
+            frames: [[ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]],
         ),
     ),
 )

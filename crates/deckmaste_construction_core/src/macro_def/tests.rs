@@ -458,6 +458,7 @@ fn custom_frame_set_has_exact_finite_atom_shapes() {
                 vec![],
                 vec![
                     CustomTailAtom::Literal("with".to_owned()),
+                    CustomTailAtom::Lex("Preposition".to_owned(), "For".to_owned()),
                     CustomTailAtom::Amount,
                     CustomTailAtom::ObjectNounPhrase,
                     CustomTailAtom::PredicativeComplement,
@@ -469,7 +470,7 @@ fn custom_frame_set_has_exact_finite_atom_shapes() {
         "Intransitive",
         "Transitive",
         "MeasureComplement",
-        "Custom(frames: [[], [Literal(\"with\"), Amount, ObjectNounPhrase, PredicativeComplement]])",
+        "Custom(frames: [[], [Literal(\"with\"), Lex(\"Preposition\", \"For\"), Amount, ObjectNounPhrase, PredicativeComplement]])",
     ]
     .into_iter()
     .enumerate()

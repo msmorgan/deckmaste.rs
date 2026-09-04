@@ -27,7 +27,7 @@ use super::corpus::map_corpus_units;
 
 const REPORT_SCHEMA_VERSION: u32 = 9;
 const LICENSED_VOCAB_LEXICON_HOMOGRAPHS: usize = 2;
-const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 25;
+const FORM_LITERAL_VOCAB_OVERLAPS_CEILING: usize = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -1812,12 +1812,12 @@ mod tests {
             "vocab `Synthetic::First` beside a lexeme".to_owned(),
             "vocab `Synthetic::Second` beside a lexeme".to_owned(),
         ];
-        let at_ceiling = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 25);
+        let at_ceiling = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 5);
         reject_collision_census(&at_ceiling, &owners)
             .expect("the exact census satisfies both guards");
 
         let changed_license =
-            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 1, 25);
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 1, 5);
         let changed_message = reject_collision_census(&changed_license, &owners[..1])
             .unwrap_err()
             .to_string();
@@ -1825,12 +1825,12 @@ mod tests {
         assert!(changed_message.contains("Synthetic::First"));
 
         let raised_overlap =
-            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 26);
+            CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 6);
         assert!(
             reject_collision_census(&raised_overlap, &owners)
                 .unwrap_err()
                 .to_string()
-                .contains("ceiling 25: found 26")
+                .contains("ceiling 5: found 6")
         );
     }
 
@@ -2814,7 +2814,7 @@ mod tests {
                 > 0
         );
         assert_eq!(json["summary"]["licensed_vocab_lexicon_homographs"], 2);
-        assert_eq!(json["summary"]["form_literal_vocab_overlaps"], 25);
+        assert_eq!(json["summary"]["form_literal_vocab_overlaps"], 5);
         assert_eq!(json["summary"]["licensing_checker_permitted"], 25);
         assert_eq!(json["summary"]["licensing_checker_forbidden"], 0);
     }

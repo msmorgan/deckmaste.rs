@@ -517,7 +517,7 @@ constructions! {
             position = Verb;
             tail = [
                 location: ObjectNounPhrase,
-                "for",
+                lex(Preposition::For),
                 sought: ObjectNounPhrase,
             ];
             feature = Agreement;
@@ -528,7 +528,7 @@ constructions! {
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
-                "to",
+                lex(Preposition::To),
                 complement: ObjectNounPhrase,
             ];
             feature = Agreement;
@@ -537,7 +537,7 @@ constructions! {
     codec ForObjectVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["for", object: ObjectNounPhrase];
+            tail = [lex(Preposition::For), object: ObjectNounPhrase];
             feature = Agreement;
         }
     }
@@ -588,7 +588,7 @@ constructions! {
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
-                "into",
+                lex(Preposition::Into),
                 complement: ObjectNounPhrase,
             ];
             feature = Agreement;
@@ -596,13 +596,13 @@ constructions! {
     }
     codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, DistributionReplacement?]; feature = Agreement; } }
     codec ObjectEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality]; feature = Agreement; } }
-    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, "to", recipient: Object]; feature = Agreement; } }
-    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, "to", recipient: Object, ScalarEquality]; feature = Agreement; } }
+    codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, lex(Preposition::To), recipient: Object]; feature = Agreement; } }
+    codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, lex(Preposition::To), recipient: Object, ScalarEquality]; feature = Agreement; } }
     codec ManaPhraseVerb { generate declaration_verb { position = Verb; tail = [ManaPhrase]; feature = Agreement; } }
     codec ObjectFromVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [object: ObjectNounPhrase, "from", source: FrameComplement];
+            tail = [object: ObjectNounPhrase, lex(Preposition::From), source: FrameComplement];
             feature = Agreement;
         }
     }
@@ -611,8 +611,8 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                source: PrepositionalPhrase?,
-                "onto",
+                lex(Preposition::From)?,
+                lex(Preposition::Onto),
                 destination: FrameComplement,
                 PredicativeComplement?,
                 control: PrepositionalPhrase?,
@@ -623,14 +623,14 @@ constructions! {
     codec ObjectFromOnVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, source: PrepositionalPhrase?, "on", destination: FrameComplement];
+            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement];
             feature = Agreement;
         }
     }
     codec ObjectToVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, "to", destination: FrameComplement];
+            tail = [Object, lex(Preposition::To), destination: FrameComplement];
             feature = Agreement;
         }
     }
@@ -639,8 +639,8 @@ constructions! {
             position = Verb;
             tail = [
                 Object,
-                source: PrepositionalPhrase?,
-                "to",
+                lex(Preposition::From)?,
+                lex(Preposition::To),
                 destination: FrameComplement,
                 PredicativeComplement?,
                 control: PrepositionalPhrase?,
@@ -684,7 +684,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [Object, source: PrepositionalPhrase?, "on", destination: FrameComplement, "in", ObjectOrder, "order"];
+            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", ObjectOrder, "order"];
             feature = Agreement;
         }
     }
@@ -715,7 +715,7 @@ constructions! {
     codec EnterWithCountersVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["with", object: ObjectNounPhrase, "on", recipient: FrameComplement];
+            tail = ["with", object: ObjectNounPhrase, lex(Preposition::On), recipient: FrameComplement];
             feature = Agreement;
         }
     }
@@ -736,7 +736,7 @@ constructions! {
     codec LookAtVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["at", Object];
+            tail = [lex(Preposition::At), Object];
             feature = Agreement;
         }
     }
@@ -764,7 +764,7 @@ constructions! {
     codec MovementParticipleHead {
         generate declaration_verb {
             position = Verb;
-            tail = [moved: ObjectNounPhrase, "into", destination: ObjectNounPhrase];
+            tail = [moved: ObjectNounPhrase, lex(Preposition::Into), destination: ObjectNounPhrase];
             feature = Participle;
         }
     }
@@ -787,7 +787,7 @@ constructions! {
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
-                "to",
+                lex(Preposition::To),
                 complement: ObjectNounPhrase,
             ];
             feature = Participle;
@@ -798,7 +798,7 @@ constructions! {
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
-                "on",
+                lex(Preposition::On),
                 complement: ObjectNounPhrase,
             ];
             feature = Participle;
@@ -1773,7 +1773,7 @@ constructions! {
             source: FrameComplement,
         }
         form passive_movement_predicate =
-            verb(head) "into" destination "from" source;
+            verb(head) lex(Preposition::Into) destination lex(Preposition::From) source;
     }
     construction passive_orientation_predicate: PassiveOrientationPredicate {
         element PassiveOrientationPredicateValue {
@@ -1787,14 +1787,16 @@ constructions! {
             head: lex DeclaredTransitiveParticipleHead,
             source: FrameComplement,
         }
-        form declared_transitive_passive_from_predicate = verb(head) "from" source;
+        form declared_transitive_passive_from_predicate =
+            verb(head) lex(Preposition::From) source;
     }
     construction declared_to_object_passive_predicate: DeclaredToObjectPassivePredicate {
         element DeclaredToObjectPassivePredicateValue {
             head: lex DeclaredToObjectParticipleHead,
             complement: FrameComplement,
         }
-        form declared_to_object_passive_predicate = verb(head) "to" complement;
+        form declared_to_object_passive_predicate =
+            verb(head) lex(Preposition::To) complement;
     }
     construction bare_passive_predicate: BarePassivePredicate {
         element BarePassivePredicateValue {
@@ -1874,7 +1876,7 @@ constructions! {
         require order_relation is In;
         derive agreement = head.agreement;
         form ordered_predicate =
-            verb(head) object source "on" destination lex(order_relation) lex(order) "order";
+            verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(order) "order";
     }
     construction irrealis_copular_clause: IrrealisCopularClause {
         element IrrealisCopularClauseValue {
@@ -2126,7 +2128,7 @@ constructions! {
             complement: FrameComplement,
         }
         form contracted_perfect_object_on_clause =
-            lex(subject) verb(head) object "on" complement;
+            lex(subject) verb(head) object lex(Preposition::On) complement;
     }
     construction contracted_perfect_passive_clause: FiniteClause {
         element ContractedPerfectPassiveClause {
@@ -3814,7 +3816,7 @@ constructions! {
             value: ScalarValue,
         }
         require degree is Equal;
-        form scalar_equality = lex(degree) "to" value;
+        form scalar_equality = lex(degree) lex(Preposition::To) value;
     }
     construction unqualified_postmodified_reference: PostmodifiedReference {
         element UnqualifiedPostmodifiedReference { reference: UnqualifiedReference, }
@@ -4326,7 +4328,7 @@ constructions! {
         }
         derive agreement = head.agreement;
         form declared_object_for_object_lexical_verb_phrase =
-            verb(head) object licensed("for") complement;
+            verb(head) object lex(Preposition::For) complement;
     }
     construction declared_object_into_object_lexical_verb_phrase: ObjectIntoObjectLexicalVerbPhrase {
         element DeclaredObjectIntoObjectLexicalVerbPhrase {
@@ -4335,7 +4337,8 @@ constructions! {
             destination: Object,
         }
         derive agreement = head.agreement;
-        form declared_object_into_object_lexical_verb_phrase = verb(head) object "into" destination;
+        form declared_object_into_object_lexical_verb_phrase =
+            verb(head) object lex(Preposition::Into) destination;
     }
     construction object_distribution_recipient: DistributionRecipient {
         element ObjectDistributionRecipient { object: Object, }
@@ -4431,7 +4434,7 @@ constructions! {
         }
         derive agreement = head.agreement;
         form declared_object_equality_to_predicate =
-            verb(head) object equality "to" recipient;
+            verb(head) object equality lex(Preposition::To) recipient;
     }
     construction declared_object_to_equality_predicate: VerbPhrase {
         element DeclaredObjectToEqualityPredicate {
@@ -4442,7 +4445,7 @@ constructions! {
         }
         derive agreement = head.agreement;
         form declared_object_to_equality_predicate =
-            verb(head) object "to" recipient equality;
+            verb(head) object lex(Preposition::To) recipient equality;
     }
     construction declared_object_equality_predicate: VerbPhrase {
         element DeclaredObjectEqualityPredicate {
@@ -4465,7 +4468,8 @@ constructions! {
             source: FrameComplement,
         }
         derive agreement = head.agreement;
-        form declared_object_from_predicate = verb(head) object "from" source;
+        form declared_object_from_predicate =
+            verb(head) object lex(Preposition::From) source;
     }
     construction put_onto: VerbPhrase {
         element PutOnto {
@@ -4479,7 +4483,8 @@ constructions! {
         require source.preposition_complement_kind is SourceComplement;
         require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
-        form put_onto = verb(head) object source "onto" destination result control;
+        form put_onto =
+            verb(head) object source lex(Preposition::Onto) destination result control;
     }
     construction put_onto_source_after: VerbPhrase {
         element PutOntoSourceAfter {
@@ -4493,7 +4498,7 @@ constructions! {
         require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
         form put_onto_source_after =
-            verb(head) object "onto" destination "from" source result control;
+            verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result control;
     }
     construction put_on: VerbPhrase {
         element PutOn {
@@ -4504,7 +4509,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive agreement = head.agreement;
-        form put_on = verb(head) object source "on" destination;
+        form put_on = verb(head) object source lex(Preposition::On) destination;
     }
     construction put_to: VerbPhrase {
         element PutTo {
@@ -4513,7 +4518,7 @@ constructions! {
             destination: FrameComplement,
         }
         derive agreement = head.agreement;
-        form put_to = verb(head) object "to" destination;
+        form put_to = verb(head) object lex(Preposition::To) destination;
     }
     construction return_to: VerbPhrase {
         element ReturnTo {
@@ -4527,7 +4532,8 @@ constructions! {
         require source.preposition_complement_kind is SourceComplement;
         require control.preposition_attachment is SelectedOnly;
         derive agreement = head.agreement;
-        form return_to = verb(head) object source "to" destination result control;
+        form return_to =
+            verb(head) object source lex(Preposition::To) destination result control;
     }
     construction predicative_complement_predicate: VerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
@@ -4542,7 +4548,7 @@ constructions! {
         }
         derive agreement = head.agreement;
         form declared_with_object_on_predicate =
-            verb(head) "with" object "on" recipient;
+            verb(head) "with" object lex(Preposition::On) recipient;
     }
     construction enter_location: VerbPhrase {
         element EnterLocation {
@@ -4568,7 +4574,7 @@ constructions! {
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }
         derive agreement = head.agreement;
-        form look_at = verb(head) "at" object;
+        form look_at = verb(head) lex(Preposition::At) object;
     }
     construction declared_to_object_predicate: VerbPhrase {
         element DeclaredToObjectPredicate {
@@ -4577,7 +4583,8 @@ constructions! {
             complement: Object,
         }
         derive agreement = head.agreement;
-        form declared_to_object_predicate = verb(head) object "to" complement;
+        form declared_to_object_predicate =
+            verb(head) object lex(Preposition::To) complement;
     }
     construction declared_for_object_predicate: VerbPhrase {
         element DeclaredForObjectPredicate {
@@ -4585,7 +4592,7 @@ constructions! {
             object: Object,
         }
         derive agreement = head.agreement;
-        form declared_for_object_predicate = verb(head) licensed("for") object;
+        form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
     }
     // A quoted granted ability is a document in its own right: its interior
     // parses with the same grammar as printed rules text (oracle convention,

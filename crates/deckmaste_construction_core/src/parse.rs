@@ -852,6 +852,10 @@ fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
     Ok(Form { name, guard, atoms })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "form parsing keeps the closed atom syntax inventory in one dispatch"
+)]
 fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<FormAtom> {
     if input.peek(LitStr) {
         return Ok(FormAtom::Literal(input.parse()?));
@@ -973,16 +977,31 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                 }
                 FormAtom::OpenVerb(OpenDeclarationAtom { kind, name })
             }
-            "lex" | "identity" | "noun" => {
+            "lex" => {
+                let path = parse_generated_owned_path(&content)?;
+                if !content.is_empty() {
+                    return Err(content.error("form atoms accept exactly one role"));
+                }
+                if path.leading_colon.is_none() && path.segments.len() == 1 {
+                    let segment = path.segments.first().expect("one path segment");
+                    if matches!(segment.arguments, syn::PathArguments::None) {
+                        FormAtom::Lex(segment.ident.clone())
+                    } else {
+                        FormAtom::FixedLex(path)
+                    }
+                } else {
+                    FormAtom::FixedLex(path)
+                }
+            }
+            "identity" | "noun" => {
                 let role = content.parse()?;
                 if !content.is_empty() {
                     return Err(content.error("form atoms accept exactly one role"));
                 }
-                match ident.to_string().as_str() {
-                    "lex" => FormAtom::Lex(role),
-                    "identity" => FormAtom::Identity(role),
-                    "noun" => FormAtom::Noun(role),
-                    _ => unreachable!(),
+                if ident == "identity" {
+                    FormAtom::Identity(role)
+                } else {
+                    FormAtom::Noun(role)
                 }
             }
             _ => return Err(syn::Error::new(ident.span(), "unknown form atom")),
@@ -1914,18 +1933,34 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                             crate::model::DeclarationVerbTailAtomKindSource::Literal(input.parse()?)
                         } else {
                             let atom = input.call(Ident::parse_any)?;
-                            match atom.to_string().as_str() {
+                            if atom == "lex" {
+                                let lexical;
+                                parenthesized!(lexical in input);
+                                crate::model::DeclarationVerbTailAtomKindSource::Lex(
+                                    lexical.parse()?,
+                                )
+                            } else {
+                                match atom.to_string().as_str() {
                                 "Amount" => {
                                     crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
                                 }
                                 "ObjectNounPhrase" => crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom),
                                 "PredicativeComplement" => crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom),
                                 _ => crate::model::DeclarationVerbTailAtomKindSource::Role(atom),
+                                }
                             }
                         };
                         let optional = input.parse::<Token![?]>().is_ok();
-                        if optional && matches!(kind, crate::model::DeclarationVerbTailAtomKindSource::Literal(_)) {
-                            return Err(syn::Error::new(input.span(), "declaration_verb tail literals cannot be optional"));
+                        if optional
+                            && matches!(
+                                kind,
+                                crate::model::DeclarationVerbTailAtomKindSource::Literal(_)
+                            )
+                        {
+                            return Err(syn::Error::new(
+                                input.span(),
+                                "declaration_verb tail literals cannot be optional",
+                            ));
                         }
                         Ok(crate::model::DeclarationVerbTailAtomSource { label, optional, kind })
                     })?
@@ -4117,7 +4152,7 @@ mod tests {
                         closed = CoreTransitiveVerb;
                         class = Auxiliary;
                         position = Verb;
-                        tail = ["with", Amount, ObjectNounPhrase];
+                        tail = ["with", lex(Preposition::For)?, Amount, ObjectNounPhrase];
                         feature = Agreement;
                     }
                 }
@@ -4144,6 +4179,11 @@ mod tests {
                 },
                 crate::DeclarationVerbTailAtomSource {
                     label: None,
+                    optional: true,
+                    kind: crate::DeclarationVerbTailAtomKindSource::Lex(preposition),
+                },
+                crate::DeclarationVerbTailAtomSource {
+                    label: None,
                     optional: false,
                     kind: crate::DeclarationVerbTailAtomKindSource::Amount(_),
                 },
@@ -4152,7 +4192,7 @@ mod tests {
                     optional: false,
                     kind: crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_),
                 },
-            ] if literal.value() == "with"
+            ] if literal.value() == "with" && quote::quote!(#preposition).to_string() == "Preposition :: For"
         ));
         assert_eq!(source.feature_slots[0].value, "Agreement");
     }

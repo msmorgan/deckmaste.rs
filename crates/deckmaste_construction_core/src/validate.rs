@@ -117,6 +117,10 @@ pub(crate) enum AtomContribution {
         role: String,
         terminal: String,
     },
+    LexFixed {
+        terminal: String,
+        variant: String,
+    },
     Identity {
         role: String,
         terminal: String,
@@ -163,6 +167,7 @@ impl AtomContribution {
     pub(crate) fn terminal(&self) -> Option<&str> {
         match self {
             Self::Lex { terminal, .. }
+            | Self::LexFixed { terminal, .. }
             | Self::Identity { terminal, .. }
             | Self::Noun { terminal, .. }
             | Self::VerbFixed { terminal, .. }
@@ -179,7 +184,9 @@ impl AtomContribution {
             | Self::Identity { role, terminal }
             | Self::Noun { role, terminal }
             | Self::VerbProjected { role, terminal } => !role.is_empty() && !terminal.is_empty(),
-            Self::VerbFixed { terminal, variant } => !terminal.is_empty() && !variant.is_empty(),
+            Self::LexFixed { terminal, variant } | Self::VerbFixed { terminal, variant } => {
+                !terminal.is_empty() && !variant.is_empty()
+            }
             Self::OpenDeclaration { name, .. } => !name.is_empty(),
         }
     }
@@ -187,9 +194,11 @@ impl AtomContribution {
     fn is_supported_by(&self, terminals: &HashMap<&str, &TerminalCapabilities>) -> bool {
         match self {
             Self::Literal | Self::Category { .. } | Self::OpenDeclaration { .. } => true,
-            Self::Lex { terminal, .. } => terminals.get(terminal.as_str()).is_some_and(|info| {
-                info.supports_lex_atom() && info.has_direct_render_build_traversal()
-            }),
+            Self::Lex { terminal, .. } | Self::LexFixed { terminal, .. } => {
+                terminals.get(terminal.as_str()).is_some_and(|info| {
+                    info.supports_lex_atom() && info.has_direct_render_build_traversal()
+                })
+            }
             Self::Identity { terminal, .. } => {
                 terminals.get(terminal.as_str()).is_some_and(|info| {
                     info.supports_identity_atom() && info.has_direct_render_build_traversal()
@@ -213,6 +222,7 @@ impl AtomContribution {
             Self::Literal => "literal".to_owned(),
             Self::Category { role, category } => format!("category({role}: {category})"),
             Self::Lex { role, .. } => format!("lex({role})"),
+            Self::LexFixed { terminal, variant } => format!("lex({terminal}::{variant})"),
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
             Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
@@ -418,6 +428,7 @@ pub(crate) fn validate_declaration_verb_consumers(semantic: &SemanticPlan) -> sy
             crate::semantic::AtomPlan::Literal(_)
             | crate::semantic::AtomPlan::SentenceInitialLiteral(_)
             | crate::semantic::AtomPlan::Category { .. }
+            | crate::semantic::AtomPlan::LexFixed { .. }
             | crate::semantic::AtomPlan::Identity { .. }
             | crate::semantic::AtomPlan::Noun { .. }
             | crate::semantic::AtomPlan::VerbFixed { .. }
@@ -1152,7 +1163,7 @@ fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKin
                 !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
             })
         }
-        FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
+        FormAtom::FixedLex(_) | FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
         FormAtom::Role(_) => false,
         FormAtom::Bound(bound) => form_atom_has_fixed_width(&bound.value, fields),
         FormAtom::Circumfix(circumfix) => {
@@ -3353,6 +3364,9 @@ fn declaration_verb_domain(
                 crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                     format!("Literal({:?})", literal.value())
                 }
+                crate::model::DeclarationVerbTailAtomKindSource::Lex(path) => {
+                    format!("Lex({})", quote::quote!(#path))
+                }
                 crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => "Amount".to_owned(),
                 crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                     "ObjectNounPhrase".to_owned()
@@ -3509,7 +3523,7 @@ fn validate_declaration_verb_source(
         "declaration_verb",
         errors,
     );
-    validate_declaration_verb_tail(source, errors);
+    validate_declaration_verb_tail(raw, source, errors);
 
     if let Some(position) = position
         && position != "Verb"
@@ -3603,7 +3617,12 @@ fn validate_declaration_verb_source(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Verb Frame tail validation keeps the closed atom inventory together"
+)]
 fn validate_declaration_verb_tail(
+    raw: &Declarations,
     source: &crate::model::DeclarationVerbSource,
     errors: &mut Option<syn::Error>,
 ) {
@@ -3679,6 +3698,57 @@ fn validate_declaration_verb_tail(
                     );
                 }
             }
+            crate::model::DeclarationVerbTailAtomKindSource::Lex(path) => {
+                let segments = path.segments.iter().collect::<Vec<_>>();
+                if segments.len() != 2 {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            "declaration_verb tail vocabulary atom must be `Type::Variant`",
+                        ),
+                    );
+                    continue;
+                }
+                let terminal = identifier_key(&segments[0].ident);
+                let variant = identifier_key(&segments[1].ident);
+                let found = raw.declarations.iter().any(|declaration| {
+                    matches!(
+                        declaration,
+                        Declaration::Vocab(vocab)
+                            if identifier_key(&vocab.name) == terminal
+                                && vocab.variants.iter().any(|row| identifier_key(&row.name) == variant)
+                    )
+                });
+                if !found {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            format!("unknown vocabulary atom `{terminal}::{variant}`"),
+                        ),
+                    );
+                }
+                if atom.label.is_some() {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            "declaration_verb tail labels cannot prefix vocabulary atoms",
+                        ),
+                    );
+                }
+                let key = format!("Lex({terminal}::{variant})");
+                if !seen_literals.insert(key.clone()) {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            path,
+                            format!("duplicate declaration_verb tail atom `{key}`"),
+                        ),
+                    );
+                }
+            }
             crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => {
                 nonliteral_occurrences
                     .entry("Amount".to_owned())
@@ -3714,7 +3784,8 @@ fn validate_declaration_verb_tail(
             | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => atom.span(),
-            crate::model::DeclarationVerbTailAtomKindSource::Literal(_) => {
+            crate::model::DeclarationVerbTailAtomKindSource::Literal(_)
+            | crate::model::DeclarationVerbTailAtomKindSource::Lex(_) => {
                 unreachable!("only nonliteral occurrences are grouped")
             }
         };
@@ -6085,6 +6156,7 @@ fn validate_bound_form_atom<'a>(
         FormAtom::Literal(_)
         | FormAtom::LicensedLiteral(_)
         | FormAtom::SentenceInitial(_)
+        | FormAtom::FixedLex(_)
         | FormAtom::Verb(VerbOperand::Fixed(_))
         | FormAtom::OpenVerb(_)
         | FormAtom::Bound(_)
@@ -6294,6 +6366,9 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 match atom {
                     FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
                     FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
+                    FormAtom::FixedLex(path) => {
+                        check_terminal_variant(path, TerminalKind::Vocab, symbols, &mut errors);
+                    }
                     FormAtom::Identity(role) => match fields
                         .get(&identifier_key(role))
                         .map(|kind| field_kind_leaf(kind))
@@ -6492,6 +6567,7 @@ fn validate_feature_guarded_traversal_programs(
                     FormAtom::Literal(_)
                     | FormAtom::LicensedLiteral(_)
                     | FormAtom::SentenceInitial(_) => None,
+                    FormAtom::FixedLex(path) => Some(format!("lex-fixed:{}", path_name(path))),
                     FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
                     FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
                     FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
@@ -6725,6 +6801,10 @@ fn open_declaration_kind(kind: &syn::Ident) -> Option<crate::macro_def::Declarat
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "grammar-use resolution exhaustively seals every form atom shape"
+)]
 fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
     let mut errors = None;
     let mut atoms_by_construction = HashMap::new();
@@ -6779,6 +6859,15 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                     }),
                     _ => None,
                 },
+                FormAtom::FixedLex(path) => {
+                    let segments: Vec<_> = path.segments.iter().collect();
+                    let Some(terminal) = segments.iter().rev().nth(1) else { continue };
+                    let Some(variant) = segments.last() else { continue };
+                    Some(AtomContribution::LexFixed {
+                        terminal: identifier_key(&terminal.ident),
+                        variant: identifier_key(&variant.ident),
+                    })
+                }
                 FormAtom::Identity(role) => match fields
                     .get(&identifier_key(role))
                     .map(|kind| field_kind_leaf(kind))
@@ -7329,6 +7418,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     | FormAtom::Noun(role)
                     | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
                     FormAtom::Verb(VerbOperand::Fixed(_))
+                    | FormAtom::FixedLex(_)
                     | FormAtom::OpenVerb(_)
                     | FormAtom::Literal(_)
                     | FormAtom::LicensedLiteral(_)
@@ -9194,6 +9284,7 @@ fn seal_feature_resolutions(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::FixedLex(_)
                         | FormAtom::Role(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Identity(_)
@@ -9301,6 +9392,7 @@ fn seal_category_render_capabilities(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::FixedLex(_)
                         | FormAtom::Role(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Identity(_)
@@ -9482,6 +9574,7 @@ fn seal_category_render_capabilities(
                         FormAtom::Literal(_)
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
+                        | FormAtom::FixedLex(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Verb(_)
                         | FormAtom::OpenVerb(_)

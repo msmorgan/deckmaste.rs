@@ -1733,6 +1733,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
         | AtomPlan::Bound { .. }
@@ -1893,7 +1894,7 @@ fn emit_position(
         AtomPlan::Lex { role, terminal } => {
             lex_position(plan, construction, role, terminal, &right_boundary)
         }
-        AtomPlan::Identity { terminal, .. } => {
+        AtomPlan::LexFixed { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let owner = owner_template(plan, terminal)?;
             Ok(lexical_terminal_with_boundary(

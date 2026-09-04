@@ -940,6 +940,7 @@ fn emit_construction_walker(
     for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
         let terminal = match atom.value_atom() {
             AtomPlan::Lex { terminal, .. }
+            | AtomPlan::LexFixed { terminal, .. }
             | AtomPlan::Identity { terminal, .. }
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
             AtomPlan::Literal(_)
@@ -1208,7 +1209,8 @@ fn emit_construction_form_walker_calls(
                     quote! { #enter_leaf visitor.#callback(#value); }
                 })
             }
-            AtomPlan::VerbFixed { terminal, path, .. } => {
+            AtomPlan::LexFixed { terminal, path, .. }
+            | AtomPlan::VerbFixed { terminal, path, .. } => {
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let enter_leaf = enter_leaf_call(validated, terminal)?;
                 Some(quote! { #enter_leaf #walker(visitor, #path); })
@@ -1242,6 +1244,7 @@ fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_) => None,
         AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {

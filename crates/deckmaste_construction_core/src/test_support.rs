@@ -350,6 +350,7 @@ pub(crate) fn declaration_verb_tokens(tail: &proc_macro2::TokenStream) -> proc_m
                 feature = Agreement;
             }
         }
+        vocab Preposition { For = "for", }
         construction only: Root {
             element Only {}
             form only = "only";

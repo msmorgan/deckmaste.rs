@@ -1981,6 +1981,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
         | AtomPlan::Bound { .. }
@@ -2098,6 +2099,11 @@ fn lower_atom(
         AtomPlan::Lex { role, terminal } | AtomPlan::Identity { role, terminal } => {
             lower_terminal_role(validated, row, form, role, terminal, false, lowering)?;
         }
+        AtomPlan::LexFixed {
+            terminal, variant, ..
+        } => lowering
+            .patterns
+            .push(fixed_lex_pattern(validated, terminal, variant)?),
         AtomPlan::Noun { role, terminal } => {
             lower_terminal_role(validated, row, form, role, terminal, true, lowering)?;
         }

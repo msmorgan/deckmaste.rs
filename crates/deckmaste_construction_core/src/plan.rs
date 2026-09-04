@@ -1093,7 +1093,7 @@ mod tests {
 
         let search_plan = declaration_verb_plan_for(&quote::quote! {
             location: ObjectNounPhrase,
-            "for",
+            lex(Preposition::For),
             sought: ObjectNounPhrase
         });
         let (_, search) = sole_declaration_verb(&search_plan);
@@ -1101,18 +1101,29 @@ mod tests {
             search.frame_key().atoms(),
             [
                 VerbFrameAtom::ObjectNounPhrase,
-                VerbFrameAtom::Literal("for".to_owned()),
+                VerbFrameAtom::Lex("Preposition".to_owned(), "For".to_owned()),
                 VerbFrameAtom::ObjectNounPhrase,
             ]
         );
         assert!(search.frame_key().matches_frame_set(&VerbFrameSet::Custom {
             frames: vec![vec![
                 CustomTailAtom::ObjectNounPhrase,
-                CustomTailAtom::Literal("for".to_owned()),
+                CustomTailAtom::Lex("Preposition".to_owned(), "For".to_owned()),
                 CustomTailAtom::ObjectNounPhrase,
             ]],
         }));
         assert!(!search.frame_key().matches_frame_set(&transitive));
+
+        let optional_preposition_plan =
+            declaration_verb_plan_for(&quote::quote! { lex(Preposition::For)? });
+        let (_, optional_preposition) = sole_declaration_verb(&optional_preposition_plan);
+        assert_eq!(
+            optional_preposition.frame_key().atoms(),
+            [VerbFrameAtom::OptionalLex(
+                "Preposition".to_owned(),
+                "For".to_owned(),
+            )]
+        );
 
         let empty_plan = declaration_verb_plan_for(&quote::quote! {});
         let (_, empty) = sole_declaration_verb(&empty_plan);

@@ -294,6 +294,7 @@ pub enum FormAtom {
     SentenceInitial(LitStr),
     Role(Ident),
     Lex(Ident),
+    FixedLex(syn::Path),
     Identity(Ident),
     Verb(VerbOperand),
     OpenVerb(OpenDeclarationAtom),
@@ -511,6 +512,7 @@ pub struct DeclarationVerbTailAtomSource {
 #[derive(Debug)]
 pub enum DeclarationVerbTailAtomKindSource {
     Literal(LitStr),
+    Lex(syn::Path),
     Amount(Ident),
     ObjectNounPhrase(Ident),
     PredicativeComplement(Ident),

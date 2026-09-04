@@ -66,7 +66,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Search.ron",
-            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",frame_set:Custom(frames:[[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",frame_set:Custom(frames:[[ObjectNounPhrase],[Lex("Preposition","For"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Reveal.ron",
@@ -74,11 +74,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Shuffle.ron",
-            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",frame_set:Custom(frames:[[],[ObjectNounPhrase],[ObjectNounPhrase,Literal("into"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",frame_set:Custom(frames:[[],[ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","Into"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Attach.ron",
-            r#"KeywordAction(name:"Attach",spelling:"attach",grammar:Verb(bare:"attach",third_person:"attaches",frame_set:Custom(frames:[[ObjectNounPhrase,Literal("to"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Attach",spelling:"attach",grammar:Verb(bare:"attach",third_person:"attaches",frame_set:Custom(frames:[[ObjectNounPhrase,Lex("Preposition","To"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Amass.ron",
@@ -90,11 +90,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Exchange.ron",
-            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Vote.ron",
-            r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",frame_set:Custom(frames:[[],[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",frame_set:Custom(frames:[[],[ObjectNounPhrase],[Lex("Preposition","For"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/keyword_abilities/Flash.ron",
@@ -795,10 +795,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
                 " Equipment".to_owned(),
                 "lexeme:artifact_subtype/Equipment/singular".to_owned(),
             ),
-            (
-                " to".to_owned(),
-                "form:declared_to_object_predicate/declared_to_object_predicate/2".to_owned(),
-            ),
+            (" to".to_owned(), "vocab:Preposition/To".to_owned(),),
             (
                 " target".to_owned(),
                 "vocab:TargetingMarker/Target".to_owned(),

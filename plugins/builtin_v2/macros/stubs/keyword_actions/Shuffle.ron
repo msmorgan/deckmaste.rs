@@ -7,7 +7,7 @@ KeywordAction(
             frames: [
                 [],
                 [ObjectNounPhrase],
-                [ObjectNounPhrase, Literal("into"), ObjectNounPhrase],
+                [ObjectNounPhrase, Lex("Preposition", "Into"), ObjectNounPhrase],
             ],
         ),
     ),

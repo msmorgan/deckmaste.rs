@@ -449,6 +449,7 @@ impl VerbFrameSet {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CustomTailAtom {
     Literal(String),
+    Lex(String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -2167,14 +2168,28 @@ fn validate_frame_set(
             ));
         }
         for atom in frame {
-            if let CustomTailAtom::Literal(literal) = atom
-                && !valid_surface(literal)
-            {
-                return Err(validation_error_at(
-                    path,
-                    position,
-                    ValidationError::InvalidCustomLiteral,
-                ));
+            match atom {
+                CustomTailAtom::Literal(literal) if !valid_surface(literal) => {
+                    return Err(validation_error_at(
+                        path,
+                        position,
+                        ValidationError::InvalidCustomLiteral,
+                    ));
+                }
+                CustomTailAtom::Lex(vocabulary, member)
+                    if vocabulary.is_empty() || member.is_empty() =>
+                {
+                    return Err(validation_error_at(
+                        path,
+                        position,
+                        ValidationError::InvalidCustomLiteral,
+                    ));
+                }
+                CustomTailAtom::Literal(_)
+                | CustomTailAtom::Lex(_, _)
+                | CustomTailAtom::Amount
+                | CustomTailAtom::ObjectNounPhrase
+                | CustomTailAtom::PredicativeComplement => {}
             }
         }
     }

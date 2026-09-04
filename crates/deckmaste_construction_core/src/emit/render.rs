@@ -1890,7 +1890,9 @@ fn render_allocator(
         for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
             let atom = atom.value_atom();
             match atom {
-                AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => {}
+                AtomPlan::Literal(_)
+                | AtomPlan::SentenceInitialLiteral(_)
+                | AtomPlan::LexFixed { .. } => {}
                 AtomPlan::Category { role, .. } => {
                     let field = fields
                         .get(role)
@@ -2765,6 +2767,18 @@ fn render_atom_statement(
                 );
             })
         }
+        AtomPlan::LexFixed {
+            terminal, variant, ..
+        } => {
+            let surface = fixed_surface_atom_text(
+                validated,
+                &crate::semantic::FixedSurfaceAtomPlan::Lex {
+                    terminal: terminal.clone(),
+                    variant: variant.clone(),
+                },
+            )?;
+            Ok(quote! { #method_writer.word(#surface); })
+        }
         AtomPlan::Category { role, .. } => {
             let field = fields
                 .get(role)
@@ -3171,6 +3185,7 @@ fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
         | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::LexFixed { .. }
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_) => None,
         AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
@@ -3220,6 +3235,18 @@ fn render_owner(
             Ok(quote! {
                 LexicalOwner::static_owner(
                     LexicalProvenanceKind::FormLiteral,
+                    #stable_id,
+                )
+            })
+        }
+        AtomPlan::LexFixed {
+            terminal, variant, ..
+        } => {
+            let stable_id =
+                syn::LitStr::new(&format!("vocab:{terminal}/{variant}"), Span::call_site());
+            Ok(quote! {
+                LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Vocab,
                     #stable_id,
                 )
             })
@@ -4262,6 +4289,7 @@ fn implicit_verb_onset(
         | AtomPlan::SentenceInitialLiteral(_)
         | AtomPlan::Category { .. }
         | AtomPlan::Lex { .. }
+        | AtomPlan::LexFixed { .. }
         | AtomPlan::Identity { .. }
         | AtomPlan::Noun { .. }
         | AtomPlan::Bound { .. }

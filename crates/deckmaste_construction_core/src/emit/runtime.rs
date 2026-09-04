@@ -608,6 +608,7 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
                             | AtomPlan::SentenceInitialLiteral(surface) => surface,
                             AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
+                            | AtomPlan::LexFixed { .. }
                             | AtomPlan::Identity { .. }
                             | AtomPlan::Noun { .. }
                             | AtomPlan::VerbFixed { .. }
@@ -671,6 +672,8 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
                 pub(crate) enum VerbFrameAtom {
                     Literal(&'static str),
+                    Lex(&'static str, &'static str),
+                    OptionalLex(&'static str, &'static str),
                     Amount,
                     ObjectNounPhrase,
                     PredicativeComplement,
@@ -741,6 +744,13 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                                                 CustomTailAtom::Literal(source),
                                                 VerbFrameAtom::Literal(planned),
                                             ) => source == planned,
+                                            (
+                                                CustomTailAtom::Lex(source_terminal, source_variant),
+                                                VerbFrameAtom::Lex(planned_terminal, planned_variant),
+                                            ) => {
+                                                source_terminal == planned_terminal
+                                                    && source_variant == planned_variant
+                                            }
                                             (CustomTailAtom::Amount, VerbFrameAtom::Amount)
                                             | (
                                                 CustomTailAtom::ObjectNounPhrase,

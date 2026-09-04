@@ -226,7 +226,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
                     vec![],
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
-                        CustomTailAtom::Literal("for".to_owned()),
+                        CustomTailAtom::Lex("Preposition".to_owned(), "For".to_owned()),
                         CustomTailAtom::ObjectNounPhrase,
                     ],
                 ],
@@ -320,7 +320,7 @@ fn exchange_has_every_attested_representable_tail_shape() {
                     ],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,
-                        CustomTailAtom::Literal("for".to_owned()),
+                        CustomTailAtom::Lex("Preposition".to_owned(), "For".to_owned()),
                         CustomTailAtom::ObjectNounPhrase,
                     ],
                 ],
@@ -344,7 +344,7 @@ fn shuffle_has_every_attested_representable_tail_shape() {
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,
-                        CustomTailAtom::Literal("into".to_owned()),
+                        CustomTailAtom::Lex("Preposition".to_owned(), "Into".to_owned()),
                         CustomTailAtom::ObjectNounPhrase,
                     ],
                 ],

@@ -222,6 +222,8 @@ enum CoreVerbFrame {
 #[derive(Debug, Deserialize)]
 enum CoreVerbTailAtom {
     Literal(String),
+    Lex(String, String),
+    OptionalLex(String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -247,6 +249,8 @@ struct OwnedVerbFrameKey {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum OwnedVerbFrameAtom {
     Literal(String),
+    Lex(String, String),
+    OptionalLex(String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -1273,6 +1277,14 @@ impl OwnedVerbFrameAtom {
             (Self::Literal(owned), VerbFrameAtom::Literal(runtime))
             | (Self::Role(owned), VerbFrameAtom::Role(runtime))
             | (Self::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => owned == runtime,
+            (
+                Self::Lex(owned_terminal, owned_variant),
+                VerbFrameAtom::Lex(runtime_terminal, runtime_variant),
+            )
+            | (
+                Self::OptionalLex(owned_terminal, owned_variant),
+                VerbFrameAtom::OptionalLex(runtime_terminal, runtime_variant),
+            ) => owned_terminal == runtime_terminal && owned_variant == runtime_variant,
             (Self::Amount, VerbFrameAtom::Amount)
             | (Self::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
             | (Self::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
@@ -1297,6 +1309,9 @@ fn normalize_plugin_frame_set(frame_set: &VerbFrameSet) -> Vec<OwnedVerbFrameKey
             .into_iter()
             .map(|atom| match atom {
                 CustomTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
+                CustomTailAtom::Lex(terminal, variant) => {
+                    OwnedVerbFrameAtom::Lex(terminal, variant)
+                }
                 CustomTailAtom::Amount => OwnedVerbFrameAtom::Amount,
                 CustomTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,
                 CustomTailAtom::PredicativeComplement => OwnedVerbFrameAtom::PredicativeComplement,
@@ -1375,6 +1390,10 @@ fn owned_core_verb_frame_atoms(atoms: Vec<CoreVerbTailAtom>) -> Vec<OwnedVerbFra
         .into_iter()
         .map(|atom| match atom {
             CoreVerbTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
+            CoreVerbTailAtom::Lex(terminal, variant) => OwnedVerbFrameAtom::Lex(terminal, variant),
+            CoreVerbTailAtom::OptionalLex(terminal, variant) => {
+                OwnedVerbFrameAtom::OptionalLex(terminal, variant)
+            }
             CoreVerbTailAtom::Amount => OwnedVerbFrameAtom::Amount,
             CoreVerbTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,
             CoreVerbTailAtom::PredicativeComplement => OwnedVerbFrameAtom::PredicativeComplement,
@@ -1879,8 +1898,9 @@ mod tests {
 
     #[test]
     fn special_core_verb_frames_are_exact_and_class_separated() {
+        use VerbFrameAtom::Lex;
         use VerbFrameAtom::Literal;
-        use VerbFrameAtom::OptionalRole;
+        use VerbFrameAtom::OptionalLex;
         use VerbFrameAtom::Role;
 
         let environment = ParserEnvironment::try_from_declarations([])
@@ -1907,8 +1927,8 @@ mod tests {
             &core(CoreVerbIdentity::Put),
             predicate(&[
                 Role("Object"),
-                OptionalRole("PrepositionalPhrase"),
-                Literal("on"),
+                OptionalLex("Preposition", "From"),
+                Lex("Preposition", "On"),
                 Role("FrameComplement"),
                 Literal("in"),
                 Role("ObjectOrder"),

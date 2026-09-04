@@ -235,6 +235,16 @@ pub(crate) fn emit(
                             let literal = syn::LitStr::new(literal, Span::call_site());
                             quote! { VerbFrameAtom::Literal(#literal) }
                         }
+                        crate::semantic::VerbFrameAtom::Lex(terminal, variant) => {
+                            let terminal = syn::LitStr::new(terminal, Span::call_site());
+                            let variant = syn::LitStr::new(variant, Span::call_site());
+                            quote! { VerbFrameAtom::Lex(#terminal, #variant) }
+                        }
+                        crate::semantic::VerbFrameAtom::OptionalLex(terminal, variant) => {
+                            let terminal = syn::LitStr::new(terminal, Span::call_site());
+                            let variant = syn::LitStr::new(variant, Span::call_site());
+                            quote! { VerbFrameAtom::OptionalLex(#terminal, #variant) }
+                        }
                         crate::semantic::VerbFrameAtom::Amount => quote! { VerbFrameAtom::Amount },
                         crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
                             quote! { VerbFrameAtom::ObjectNounPhrase }
