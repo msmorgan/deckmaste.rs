@@ -1309,12 +1309,15 @@ as in zero-determined plural nominals. Both projections consume the same
 Targeting Marker and contribute the same later projection to the Game Model
 Target relation; neither projection is a second lexeme. Rules meaning remains
 downstream: a target is chosen for a spell or ability according to its
-requirements [CR#115.1], and changing targets chooses new legal targets
-[CR#115.7a].
+requirements [CR#115.1]; an effect that changes a target may replace it only
+with another legal target [CR#115.7a], while one that lets a player choose new
+targets may leave any number of them unchanged [CR#115.7d].
 
-The ordinary count noun *target/targets* and the verb paradigm
-*target/targets/targeted/targeting* remain independent lexical homographs. They
-license noun uses such as *choose new targets* and verb uses such as *a spell
-that targets*; they are not projections of the Targeting Marker. The declared
-homograph licence governs the shared surface without any scanner or grammar
-guard naming the marker, a construction, or a card.
+The Target Noun *target/targets* and the Target Verb
+*target/targets/targeted/targeting* remain independent lexical homographs of the
+Targeting Marker, never projections of it. The Target Noun is declared and
+licenses noun uses such as *choose new targets*; the Target Verb, and with it
+verb uses such as *a spell that targets*, is not yet declared and is owned by
+`english-v2-target-verb-subject-selection`. The declared homograph licence
+governs the shared surface without any scanner or grammar guard naming the
+marker, a construction, or a card.

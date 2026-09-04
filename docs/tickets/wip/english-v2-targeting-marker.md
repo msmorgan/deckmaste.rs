@@ -11,10 +11,12 @@ projection under *another*, numerals, *up to N*, and similar determiners.
 
 Replace the duplicate `DeterminativeHead::Target` and
 `AttributiveAdjective::Target` lexemes with that one marker after the nominal
-and closed-class ownership WIP lands. Retain the ordinary count noun
-*target/targets* for phrases such as *choose new targets* and *the target*, and
-retain the verb paradigm *target/targets/targeted/targeting* for clauses such
-as *a spell that targets*. These are legitimate homographs, not projections of
+and closed-class ownership WIP lands. Retain the ordinary Target Noun
+*target/targets* for phrases such as *choose new targets* and *the target*.
+The Target Verb *target/targets/targeted/targeting* for clauses such as *a
+spell that targets* is split to
+[`english-v2-target-verb-subject-selection`](../planned/english-v2-target-verb-subject-selection.md)
+(coordinator, 2026-09-04). Both are legitimate homographs, not projections of
 the prenominal marker.
 
 Update the scanner, grammar, AST, category inventories, diagnostics, and tests.
@@ -24,9 +26,10 @@ retaining the singular determinative projection, quantified modifier
 projection, downstream semantic projection, and noun/verb homographs.
 
 Acceptance covers *target creature*, *target artifacts*, *target tapped
-creature*, *two target creatures*, *another target artifact*, *choose new
-targets*, and *a spell that targets*, while rejecting adjective-like grading or
-predicative use.
+creature*, *two target creatures*, *another target artifact*, and *choose new
+targets*, while rejecting adjective-like grading or predicative use. *A spell
+that targets* is SPLIT to `english-v2-target-verb-subject-selection`
+(coordinator, 2026-09-04) and is not acceptance for this ticket.
 
 Ruling 2026-09-03: the user authorized superseding the rewrite decision's
 target-as-determiner claim (including its 2026-08-27 target-as-noun amendment);
@@ -34,9 +37,14 @@ the amendment step above is not a STOP.
 
 ## Landing record
 
-STOPPED on change `wxwlzqxs` (2026-09-04), with a second STOP after the
-coordinator ruling of 2026-09-04. The safe partial replaces the two
-duplicate prenominal lexemes with one `TargetingMarker::Target` vocabulary
+Two STOPs were taken on the Target Verb, both RESOLVED BY SPLIT (coordinator,
+2026-09-04) to `english-v2-target-verb-subject-selection`; this ticket lands
+the Targeting Marker partial described below. STOP 1 (change `wxwlzqxs`,
+2026-09-04): the Target Verb's imperative reading — resolved by split.
+STOP 2 (change `lzyywvxm`, 2026-09-04, after the coordinator's imperative-head
+licence ruling): the Target Verb's finite reading still outranks the marker
+nominal, a Subject-selection gap the grammar cannot declare yet — resolved by
+split. The landed partial replaces the two duplicate prenominal lexemes with one `TargetingMarker::Target` vocabulary
 member and the ticket's two thin projections:
 `TargetingMarkerDeterminative` for bare singular nominals and
 `TargetingMarkerNominalModifier` beneath another Determinative. The existing
@@ -69,10 +77,12 @@ The authorized feature can bar only an imperative Clause head and therefore
 cannot eliminate this finite-Clause analysis. Doing so would require new
 authority for a finite-clause or Subject licence, form narrowing, dominance,
 an exception, or a construction/lexeme-naming guard. The implementation
-experiment and its test-output re-spellings were removed. The safe tree still
-lacks the Target Verb acceptance and must not be integrated.
+experiment and its test-output re-spellings were removed. The coordinator's
+2026-09-04 ruling split the Target Verb and its *a spell that targets*
+acceptance out to `english-v2-target-verb-subject-selection`; the marker
+partial below is this ticket's landing.
 
-| measure | before | safe partial |
+| measure | before | landed |
 | --- | ---: | ---: |
 | corpus units | 32,641 | 32,641 |
 | selected / covered | 16,771 | 16,824 |
@@ -86,13 +96,18 @@ lacks the Target Verb acceptance and must not be integrated.
 | Construction declarations | 395 | 397 |
 | coverage-lock lines | 49,421 | 49,474 |
 
+Every number in the table and below was measured on change `lzyywvxm`, whose
+coverage lock reports `covered` = 16,824, and re-measured unchanged by the
+landing review on the post-`kata refresh` tree at change `uvtnsnln`, same
+lock, `covered` = 16,824.
+
 The schema-4 lock is add-only `+53/-0`, with source fingerprint
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`,
 normalization digest
 `f3a2fccd079f0bc53c79b4c23e28e0351b3cf69a5324b3893c695638935341c9`,
 and SHA-256
 `d7b889de6b5c1b79163ea5b3dfe9e18efde5bde1480aadcef4aa8f04b659148e`.
-Every safe-partial addition below was inspected: in each selected analysis,
+Every addition below was inspected: in each selected analysis,
 *new* is `AttributiveAdjectiveModifier` and *target/targets* is the ordinary
 `CommonNoun::Target`; the parent already determines any other targeting-sense
 *target* in the same unit. Resolution, candidate count, and selected ordinal
@@ -152,15 +167,16 @@ follow the name.
 - `0e009089cac56da6a1e0a31e236d5d34a0a5a1b68c032bc2b35ae5318b217da4` — Twincast (specificity, 2, 0)
 - `deb968ba7615fa4e37b4ba8fbc3a31950e81d4f46ed39f42108cab201e2ad19c` — Uyo, Silent Prophet (specificity, 2, 0)
 
-The safe-tree parent comparison covers all 16,771 previously covered
+The landed-tree parent comparison covers all 16,771 previously covered
 identities. Among the 5,805 target-bearing identities, 5,238 paths differ only by replacing
 `DeterminativeSingularSimpleDeterminative` or
 `NominalModifierAttributiveAdjectiveModifier` with the corresponding
 Targeting Marker projection, 567 target-bearing paths are otherwise
 byte-identical, and zero selected analyses change beyond that replacement.
 
-The rejected Target Verb experiment changed the following 53 existing
-selected analyses. For every listed identity the before analysis is a
+Evidence carried to `english-v2-target-verb-subject-selection`: the withdrawn
+Target Verb experiment changed the following 53 existing selected analyses.
+None of these changes is present in the landed tree. For every listed identity the before analysis is a
 `SentenceDeclarative/FiniteClausePlainFiniteClause` whose
 `SubjectSubjectNominal` begins with the targeting-sense *target* projection;
 the after analysis is a `SentenceImperative` whose head is the Target Verb and
@@ -222,15 +238,22 @@ before/after statement applies individually to every identity below.
 - `213c171445dcea6a838aa7c95aea8e1b967678f9ab19f8b7c6386457542b914f` — Unscrupulous Agent
 - `fbd886dc0d46c2715aa62fbe2183ab0ef3530a4aa18939a3b7589dceba77964e` — Xira Arien
 
-Performance advisory on the safe tree: `coverage --check` used 24 workers,
-took 30.805421675 seconds at 121,211 ns/B, and reported host load
-35.82/43.00/31.55. `ambiguity --require-resolved` used 24 workers, took
-57.691280063 seconds at 194,643 ns/B, and reported host load
-38.14/42.51/32.16. `roundtrip --require-clean` used 24 workers, took
-97.955149656 seconds at 193,073 ns/B, and reported host load
-63.85/50.53/36.14. The sandbox-visible `pgrep -c -x codex` count was 1, not a
-host contention count. All three exceeded the 16.26-second quiet-host ceiling
-under load; this is advisory, not an additional STOP.
+Performance advisory on the landed tree, as re-measured by the landing review
+on the final refreshed tree (8 workers, the shared-host cap): `coverage
+--check` took 47.864877074 seconds at 93,437 ns/B, host load
+28.40/31.50/38.75; `ambiguity --require-resolved` took 66.293516552 seconds at
+103,801 ns/B, host load 31.58/32.19/38.45; `roundtrip --require-clean` took
+112,036 ms at 104,184 ns/B, host load 35.93/34.97/38.83 (written in
+milliseconds because a three-digit second count reads as a rule number). The
+implementer's own pre-refresh
+run used 24 workers and reported 121,211 / 194,643 / 193,073 ns/B; the
+per-byte figures fall with fewer workers, so neither run is a quiet-host
+measurement. Contention stamp (coordinator-supplied, replacing the
+implementer's sandbox-visible `pgrep -c -x codex` count of 1, which measures
+nothing): 4-5 concurrent codex executors and two reviewers were running on the
+host throughout both sets of measurements. All three gates exceeded the
+16.26-second quiet-host ceiling under load; this is advisory, not an additional
+STOP.
 
 Assurance census: restored 0; re-spelled 20 existing test functions and 5 test
 helpers/fixtures; ignored with blockers 0; added 1 test function; removed 0.
@@ -239,7 +262,27 @@ the *new* modifier, byte-exact rendering, and adjective-like grading and
 predicative rejection with `is_err()` assertions. No positive witness was
 flipped into a negative.
 
-Positive safe-tree artifacts: `cargo fmt --all`; strict all-target Clippy for
+Landing-review gate artifacts on the refreshed tree (change `uvtnsnln`, 8
+workers):
+`cargo fmt --all` clean; `cargo clippy -p deckmaste_english_v2 --all-targets
+-- -D warnings` finished with no warnings; `cargo test -p deckmaste_english_v2
+-p xtask` green (`test result: ok. 27 passed` nominal_grammar, `39 passed`
+parser, `100 passed` predicate_grammar, `18 passed` vertical_slice, `430
+passed; 1 ignored` xtask, every other suite and doc-test ok, 0 failed
+anywhere); `coverage --check` `summary {"total_units":32641,
+"selected_units":16824,"covered_units":16824,"selected_uncovered_units":0,
+"unresolved_ties":0,"internal_failures":0,"roundtrip_mismatch_units":0,
+"ownership_failure_units":0,"licensed_vocab_lexicon_homographs":2,
+"form_literal_vocab_overlaps":25}`; `ambiguity --require-resolved`
+`unresolved_ties=0 internal_failures=0 exception_uses=0`, census
+`unique=11527 specificity_resolved=5297`; `roundtrip --require-clean`
+`parse accepted 16824 / clean 16824 / mismatched 0`; `cite check
+--list-noncompliant` `0 non-compliant citation-looking string(s)`; `cite check`
+`checked 18259 citations against cr.txt (eff. 2026-08-07); 0 stale`; the diff
+cite audit read 9 sites. The `construction` declaration count is 397 against
+the base's 395.
+
+Implementer's pre-refresh artifacts: `cargo fmt --all`; strict all-target Clippy for
 `deckmaste_english_v2`; `cargo test -p deckmaste_english_v2 -p xtask`
 (`test result: ok. 143 passed; 0 failed`, `test result: ok. 430 passed; 0
 failed; 1 ignored`, and every integration/doc suite green); `coverage --check`
@@ -247,8 +290,8 @@ failed; 1 ignored`, and every integration/doc suite green); `coverage --check`
 (zero unresolved ties, exceptions, and internal failures); and `roundtrip
 --require-clean` (16,824 clean, zero mismatches, ambiguities, and internal
 failures) all exited zero. Citation checks report 0 non-compliant strings and
-0 stale citations; the diff audit reads [CR#115.1] and [CR#115.7a] against the
-amendment's two claims.
+0 stale citations; the diff audit reads [CR#115.1], [CR#115.7a] and
+[CR#115.7d] against the amendment's claims.
 
 ### Deviations and additions
 
@@ -257,14 +300,73 @@ amendment's two claims.
 - `AttributiveAdjective::New` is the lexical dependency of the ticket's
   required *choose new targets* acceptance. It accounts for all 53 reviewed
   add-only coverage identities above.
-- The Target Verb acceptance is not present in the safe partial because the
-  second STOP fence fired. The coordinator's declared imperative-head licence
-  resolves the sentence-initial imperative collision, but a decision is now
-  wanted for the finite-Clause coordination collision described above.
+- The Target Verb acceptance is not present, and *a spell that targets* is not
+  acceptance for this ticket: the coordinator split it (2026-09-04) to
+  `english-v2-target-verb-subject-selection` after the second STOP.
 - No `checked by` or `require` names a word, lexeme, construction, or card. No
   dominance edge, selection exception, or form narrowing was added. No scratch
   copy or probe tree will remain at handoff.
 
 glossary gap: Imperative Clause Head Licence — the declared permission for a
 Verb's plain Inflectional Form to head an imperative Clause, independently of
-the Clause's Finiteness.
+the Clause's Finiteness. The gap belongs to the withdrawn Target Verb work and
+travels with `english-v2-target-verb-subject-selection`; no landed construction
+reads such a feature.
+
+### Review corrections
+
+Landing review (Opus reviewer, 2026-09-04). Probes run against the landed tree:
+twelve of the fifty-three newly covered identities inspected with
+`english_v2 inspect` (*new* is `vocab:AttributiveAdjective/New` and
+*target/targets* is `lexeme:CommonNoun/Target/{singular,plural}` in every one,
+never the marker); sixteen target-bearing shapes probed on the default line and
+on this tree with `english_v2 probe` and diffed (only the
+`DeterminativeSingularSimpleDeterminative` /
+`NominalModifierAttributiveAdjectiveModifier` node is replaced by the marker
+projection; *any target*, *the target*, *can't be the target of* keep the count
+noun; *a spell that targets* fails identically on both trees; *a more target
+creature* and *This creature is target.* are rejected on both).
+
+- MEDIUM: the ticket's letter still demanded the *a spell that targets*
+  acceptance the landing does not deliver. Fixed: the acceptance list and the
+  homograph paragraph mark it SPLIT to
+  `english-v2-target-verb-subject-selection` (coordinator, 2026-09-04).
+- MEDIUM: both STOP entries were recorded without a resolution. Fixed: each now
+  reads resolved by split (coordinator, 2026-09-04) to
+  `english-v2-target-verb-subject-selection`, and the "must not be integrated"
+  sentence is replaced by the split ruling.
+- MEDIUM: the record's numbers carried no measurement stamp. Fixed: a stamp
+  line names change `lzyywvxm` (`52369af7`) and its lock `covered` = 16,824.
+- MEDIUM: the performance advisory's contention figure was the meaningless
+  sandbox-visible `pgrep` count. Fixed: the coordinator-supplied stamp of 4-5
+  concurrent codex executors and two reviewers replaces it.
+- LOW: the rewrite-decision amendment named the Target Noun and Target Verb by
+  paraphrase ("count noun", "verb paradigm") instead of the Oracle English
+  glossary terms, and left the Target Verb's undeclared status implicit. Fixed.
+- LOW: the amendment cited [CR#115.7a] beside a *choose new targets* witness
+  that rule does not govern. Fixed: [CR#115.7a] now carries the change-a-target
+  claim and [CR#115.7d] the choose-new-targets claim.
+- LOW: commit descriptions read `english v2:`; the house prefix is
+  `english-v2:`. Both were re-described.
+
+- Conflict resolution during the second `kata refresh`: the sibling landing
+  `english-v2: rename the verb-frame vocabulary across compiler, grammar, and
+  engine` renamed `TransitiveFrameTransitivePredicate` to
+  `TransitiveLexicalVerbPhraseTransitivePredicate` in the same
+  `nominal_grammar.rs` path strings this ticket re-spells, and appended its own
+  amendment to the rewrite decision. Both conflicts were resolved by keeping
+  both sides: every conflicted path string carries the sibling's frame rename
+  and this ticket's marker projection, and the rewrite decision keeps the
+  sibling's Verb Frame amendment followed by this ticket's Targeting Marker
+  amendment. All gates were re-run on the resolved tree.
+- Out-of-scope fix, disclosed: `docs/tickets/done/workbench-turn-parts.md`
+  carried an unbracketed cleanup-step rule number that made `cite check
+  --list-noncompliant` non-empty on the refreshed base. It now reads
+  [CR#514.3a], the exception under which another cleanup step begins, which is
+  exactly what the sentence claims; no claim changed. That file is the
+  fifteenth file in this diff.
+
+Observed on the default line, since fixed there: an earlier refreshed base left
+`crates/deckmaste_lowering/tests/diagnostics.rs` unformatted; the sibling
+landing that arrived with the second refresh formatted it, so `cargo fmt --all`
+is clean on the final tree.

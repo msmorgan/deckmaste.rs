@@ -55,8 +55,8 @@ produce it from a RON node, and a macro only if it names a RON macro
 - No pin added. Every step from `CombatPhase` and `CleanupStep` has a
   well-defined "beginning" per general turn structure, and all four parts
   can recur within one turn (extra combat phases; two combat damage steps
-  on first/double strike [CR#506.1]; a fresh cleanup step whenever
-  514.3a's exception fires), so `PartQuant.EachPart` is meaningful for all
+  on first/double strike [CR#506.1]; a fresh cleanup step whenever the
+  [CR#514.3a] exception fires), so `PartQuant.EachPart` is meaningful for all
   four exactly as it already is for the existing parts — nothing in
   [CR#506,508,509,510,514] singles one of the four out as untriggerable.
   `HeaderPossessor.ByPlayer` is deliberately gateless per
