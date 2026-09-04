@@ -1237,6 +1237,104 @@ remains the conjunction of that class and the complement-taking head's
 declared licence.
 
 
+## Amendment: attachment class is a declared linguistic property (2026-09-04)
+
+This supersedes the 2026-09-02 "preposition classes are corpus-measured"
+amendment above, which is retained as the record of the superseded method. That
+amendment reversed the direction of evidence: it made Oracle distribution the
+authority for a grammatical class and general English merely a prior. The 40
+failures sampled for the 2026-09-04 fallout audit show what that costs — 28 of
+40 are a construction that exists and refuses the values nobody printed.
+
+A Preposition member's `PrepositionAttachment` is a **declared linguistic
+property on its vocabulary row**, justified per member by what the word does in
+English, and **defaulting to adjunct-capable and postmodifier-capable**. A
+member is narrowed below that default only by a stated linguistic fact about the
+word, never by a witness count. Corpus counts are provenance: they belong in the
+landing record beside the row they describe, and they may schedule work, decide
+priority, and expose a defect — they may never decide admissibility.
+
+The source-of-truth test for every such decision, in the coordinator's words:
+
+> "is this grammatical English, or near-grammatical within our approximations?
+> if so it stays."
+
+**Attestation is provenance, never a filter.** Stated once more here as the
+governing principle for every inventory in this grammar — constructions, sum
+arms, category members, preposition rows, noun licences, verb frames, vocabulary
+members, and value lists in a `require`. A declaration admits its full
+linguistic domain regardless of how many cards exercise it; a general
+construction with zero witnesses is kept; a value list must answer "which
+English fact excludes the missing values?" and a count is not an answer. A
+ticket, brief, or landing record that says "add arms only where the census shows
+them" contradicts this ADR and is a STOP.
+
+Two consequences already measured. `With` landed 2026-09-04 with a
+corpus-measured `PostmodifierOnly` class, so a free `with` that a sentence means
+as a verb-level adjunct has no adjunct site and attaches low: thirteen of that
+landing's 230 gains are that shape. Reversing the measurement is
+`english-v2-attachment-class-declared`; the survivors that remain genuinely
+ambiguous are the recorded attachment-misselection class and belong to
+`english-v2-underspecified-adjunct-attachment`. Nothing here changes the second
+half of the 2026-09-02 amendment: admissibility remains the conjunction of the
+preposition's declared class and the complement-taking head's declared licence,
+and no construction, checker, or literal may name a preposition, noun, verb,
+construction, or card.
+
+
+## Amendment: what a landing proves, discloses, and reports (2026-09-04)
+
+The Plan 09 metric set was designed for a corpus-driven incremental coverage
+push and outlived the approach it measured; the fallout audit found roughly half
+of executor spend going into the measurement apparatus, and every regression in
+the 2026-09-02..04 window arriving as a coverage *gain* that passed
+`coverage --check` green. The permanent contract is three tiers, and
+`CLAUDE.md`'s landing-record bullet is its operational form.
+
+**PROVE** (gates; a failure is a defect, not a number to fit):
+
+- **No silent loss.** Every identity that stopped being covered is named and
+  classified — wrong analysis retired / re-coverage owed to `<live ticket>` /
+  regression — and routed. An *unexplained* loss is the defect; a decrease with
+  a complete, classified, routed list is normal. `DECKMASTE_COVERAGE_LOCK=report`
+  is the normal mode.
+- **The structural laws.** Byte-exact roundtrip, lexical ownership (no gap,
+  overlap, synthetic claim, or provenance mismatch), traversal identity
+  (construction and leaf), zero unresolved ties, zero internal failures.
+- **No word-naming.** No construction, checker, or form literal names a word,
+  card, or mechanic: forbidden licensing checkers at zero, plus the environment
+  load errors for an unlicensed literal/vocabulary collision and for a licensed
+  form literal governing nothing.
+
+**DISCLOSE** (obligations of the record; absence is a review finding):
+
+- Every newly covered identity with its selected analysis. A wrong analysis that
+  starts parsing is a STOP, never a coverage gain.
+- The selection census before and after, with the construction pair named if the
+  specificity-resolved share rose.
+- The permitted licensing-checker count.
+- A `Deviations and additions` list, and every STOP with its resolution.
+- Glossary gaps: any term the landing needed that
+  `docs/contexts/oracle-english/CONTEXT.md` does not define.
+
+**REPORT** (provenance; never fitted to, never a gate):
+
+- The lock `covered` count and the construction count.
+- The homograph and form-literal/vocabulary overlap counts, as named inventories
+  rather than bare numbers.
+- Performance: coverage-command wall time against the 16.26 s quiet-host ceiling
+  and the per-byte thread-CPU figure as an integer in ns/B, each stated with the
+  host load and worker count.
+
+The exact pins that made these provenance figures behave as targets —
+`licensed_vocab_lexicon_homographs == 2`, `form_literal_vocab_overlaps <= 5`,
+the builtin noun-morphology census `491 / 165 / 26 / 300`, `roots == 8`, the
+card-name row count `32_548`, and the parenthetical census `17` / `136` — are
+demoted to report-only by `xtask-legacy-pins-to-provenance`. Their real
+invariants (the two-way onset-override closure, the census partition identity,
+and the `environment.rs` load errors) stay as gates.
+
+
 ## Ruling: corpus timing ceiling and acceptance-cost telemetry (2026-09-02)
 
 The gate criterion stays a per-command wall-clock ceiling of 16.26 s,
