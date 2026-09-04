@@ -1254,7 +1254,12 @@ where
     reject_internal_failures(&report)?;
     let mode = args.lock_mode();
     if mode == CoverageLockMode::Check {
-        reject_collision_census(&report)?;
+        reject_collision_census(
+            &report,
+            parser
+                .environment()
+                .licensed_vocab_lexicon_homograph_owners(),
+        )?;
     }
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
@@ -1263,11 +1268,15 @@ where
     Ok(())
 }
 
-fn reject_collision_census(report: &CoverageReport) -> anyhow::Result<()> {
+fn reject_collision_census(
+    report: &CoverageReport,
+    licensed_owners: &[String],
+) -> anyhow::Result<()> {
     let licensed = report.summary.licensed_vocab_lexicon_homographs;
     if licensed != LICENSED_VOCAB_LEXICON_HOMOGRAPHS {
+        let observed = licensed_owners.join("; ");
         bail!(
-            "English-v2 licensed vocabulary/lexicon homographs changed: expected {LICENSED_VOCAB_LEXICON_HOMOGRAPHS}, found {licensed}"
+            "English-v2 licensed vocabulary/lexicon homographs changed: expected {LICENSED_VOCAB_LEXICON_HOMOGRAPHS}, found {licensed} [{observed}]"
         );
     }
     let overlaps = report.summary.form_literal_vocab_overlaps;
@@ -1719,22 +1728,26 @@ mod tests {
 
     #[test]
     fn collision_census_pins_licensed_homographs_and_caps_unlicensed_overlaps() {
+        let owners = [
+            "vocab `Synthetic::First` beside a lexeme".to_owned(),
+            "vocab `Synthetic::Second` beside a lexeme".to_owned(),
+        ];
         let at_ceiling = CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 25);
-        reject_collision_census(&at_ceiling).expect("the exact census satisfies both guards");
+        reject_collision_census(&at_ceiling, &owners)
+            .expect("the exact census satisfies both guards");
 
         let changed_license =
             CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 1, 25);
-        assert!(
-            reject_collision_census(&changed_license)
-                .unwrap_err()
-                .to_string()
-                .contains("expected 2, found 1")
-        );
+        let changed_message = reject_collision_census(&changed_license, &owners[..1])
+            .unwrap_err()
+            .to_string();
+        assert!(changed_message.contains("expected 2, found 1"));
+        assert!(changed_message.contains("Synthetic::First"));
 
         let raised_overlap =
             CoverageReport::for_collision_metric_test(id('1'), vec![id('2')], 2, 26);
         assert!(
-            reject_collision_census(&raised_overlap)
+            reject_collision_census(&raised_overlap, &owners)
                 .unwrap_err()
                 .to_string()
                 .contains("ceiling 25: found 26")

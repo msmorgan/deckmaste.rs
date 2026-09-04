@@ -286,6 +286,9 @@ pub enum FormGuardSource {
 #[derive(Debug)]
 pub enum FormAtom {
     Literal(LitStr),
+    /// A literal whose surface deliberately repeats a vocabulary surface it
+    /// does not own. The licence is emitted as form-surface metadata and
+    /// changes neither parsing nor rendering.
     LicensedLiteral(LitStr),
     SentenceInitial(LitStr),
     Role(Ident),

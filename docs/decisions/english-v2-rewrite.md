@@ -1256,3 +1256,27 @@ one packed candidate; the adjunct node is hoisted to the highest site and
 carries the set of admissible lower sites as a value. Semantics chooses. An
 attachment-only tie is therefore one candidate, not a STOP; any other tie
 remains a STOP. Ticket: `english-v2-underspecified-adjunct-attachment`.
+
+
+## Amendment: closed-class ownership and the licensed form atom (2026-09-04)
+
+One closed-class word has one owner. Where a form literal spells a word a
+vocabulary member already spells, the literal is deleted and the construction
+consumes the member (`role: lex Vocabulary` plus `require role is Member`),
+never a Rust `checked by` naming the word. Where the shared surface belongs to
+two genuinely different words, the form atom declares that with the
+fixed-surface annotation `licensed(surface)`: exactly one unnested literal,
+accepted only in a form (never as a bound or circumfix value), lowered like an
+ordinary literal, and emitted as `homograph_license` metadata on the form
+surface row. It emits no AST field, form tag, or parser branch, and changes no
+rendering. A licence that governs nothing is a load error: an environment
+rejects a licensed form literal whose surface no vocabulary member owns, so
+the licence cannot be used to hide an overlap that does not exist.
+
+The homograph census is therefore two numbers, both gated by
+`english_v2 coverage --check` beside the lock: licensed vocabulary/lexicon
+homographs — the per-member declarations of the 2026-09-02 ruling above —
+pinned exactly, with the admitted rows named in the failure; and unlicensed
+form-literal/vocabulary overlaps as a ceiling that only decreases. The former
+single `literal_lexicon_collisions` count mixed both and could be raised by
+either cause.

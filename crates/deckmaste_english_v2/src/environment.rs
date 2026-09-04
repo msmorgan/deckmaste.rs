@@ -444,6 +444,14 @@ pub enum ParserEnvironmentError {
         lexical_owner: String,
     },
 
+    /// A form literal declares a homograph licence with no vocabulary
+    /// surface to govern.
+    #[error("homograph licence on {literal_owner} governs no vocabulary surface `{surface}`")]
+    UngovernedHomographLicense {
+        surface: String,
+        literal_owner: String,
+    },
+
     /// Two supplied rows claim the same category-safe identity.
     #[error(
         "duplicate declaration {identity}; first supplied from `{first_path}`, duplicate from `{duplicate_path}`"
@@ -501,7 +509,7 @@ struct EnvironmentData {
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
     verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
     initial_verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
-    licensed_vocab_lexicon_homographs: usize,
+    licensed_vocab_lexicon_homographs: Vec<String>,
     form_literal_vocab_overlaps: usize,
 }
 
@@ -1030,7 +1038,14 @@ impl ParserEnvironment {
     /// environment checker.
     #[must_use]
     pub fn licensed_vocab_lexicon_homographs(&self) -> usize {
-        self.data.licensed_vocab_lexicon_homographs
+        self.data.licensed_vocab_lexicon_homographs.len()
+    }
+
+    /// Names each licensed vocabulary/lexicon homograph the environment
+    /// checker admitted, so a changed census reports which rows it saw.
+    #[must_use]
+    pub fn licensed_vocab_lexicon_homograph_owners(&self) -> &[String] {
+        &self.data.licensed_vocab_lexicon_homographs
     }
 
     /// Counts unlicensed form-literal/vocabulary overlaps observed by the
@@ -1064,7 +1079,7 @@ impl ParserEnvironment {
 fn reject_literal_lexicon_collisions(
     records: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
     verb_inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
-) -> Result<(usize, usize), ParserEnvironmentError> {
+) -> Result<(Vec<String>, usize), ParserEnvironmentError> {
     reject_literal_lexicon_collisions_from_surfaces(
         records,
         verb_inventory,
@@ -1080,7 +1095,7 @@ fn reject_literal_lexicon_collisions_from_surfaces(
     form_literal_surfaces: &[FormLiteralSurface],
     vocab_surfaces: &[VocabSurface],
     verb_tail_literal_surfaces: &[VerbTailLiteralSurface],
-) -> Result<(usize, usize), ParserEnvironmentError> {
+) -> Result<(Vec<String>, usize), ParserEnvironmentError> {
     let mut lexical_owners = BTreeMap::<&str, String>::new();
 
     for row in LEXICON_SURFACES {
@@ -1126,7 +1141,7 @@ fn reject_literal_lexicon_collisions_from_surfaces(
     }
 
     let mut collisions = Vec::new();
-    let mut licensed_vocab_lexicon_homographs = 0usize;
+    let mut licensed_vocab_lexicon_homographs = Vec::new();
     let mut form_literal_vocab_overlaps = 0usize;
 
     for row in vocab_surfaces {
@@ -1137,7 +1152,10 @@ fn reject_literal_lexicon_collisions_from_surfaces(
                 lexical_owner: lexical_owner.clone(),
             };
             match row.homograph_license {
-                HomographLicense::Licensed => licensed_vocab_lexicon_homographs += 1,
+                HomographLicense::Licensed => licensed_vocab_lexicon_homographs.push(format!(
+                    "vocab `{}::{}` beside {lexical_owner}",
+                    row.vocabulary, row.member
+                )),
                 HomographLicense::Unlicensed => collisions.push(error),
             }
         }
@@ -1168,10 +1186,23 @@ fn reject_literal_lexicon_collisions_from_surfaces(
             ),
         ) {
             collisions.push(error);
-        } else if vocab_owners.contains_key(row.surface)
-            && row.homograph_license == HomographLicense::Unlicensed
-        {
-            form_literal_vocab_overlaps += 1;
+        } else {
+            match (
+                vocab_owners.contains_key(row.surface),
+                row.homograph_license,
+            ) {
+                (true, HomographLicense::Unlicensed) => form_literal_vocab_overlaps += 1,
+                (false, HomographLicense::Licensed) => {
+                    collisions.push(ParserEnvironmentError::UngovernedHomographLicense {
+                        surface: row.surface.to_owned(),
+                        literal_owner: format!(
+                            "construction `{}` form `{}` atom {}",
+                            row.construction, row.form, row.atom_index
+                        ),
+                    });
+                }
+                (true, HomographLicense::Licensed) | (false, HomographLicense::Unlicensed) => {}
+            }
         }
     }
     for row in verb_tail_literal_surfaces {
@@ -1706,7 +1737,6 @@ mod tests {
         let baseline = ParserEnvironment::try_from_declarations([])
             .expect("licensed homographs and closed-class overlaps load cleanly");
         assert_eq!(baseline.licensed_vocab_lexicon_homographs(), 1);
-        assert_eq!(baseline.form_literal_vocab_overlaps(), 25);
 
         let untap = deckmaste_construction_core::macro_def::read_str(
             "/synthetic/Untap.ron",
@@ -1814,7 +1844,7 @@ mod tests {
                 &preposition,
                 &[],
             ),
-            Ok((0, 1)),
+            Ok((Vec::new(), 1)),
             "the Preposition surface is a visible collision owner without turning a closed-class overlap into a load error",
         );
 
@@ -1830,9 +1860,21 @@ mod tests {
                 &preposition,
                 &[],
             ),
-            Ok((0, 0)),
+            Ok((Vec::new(), 0)),
             "an explicitly licensed form homograph is separate from the overlap ceiling",
         );
+
+        assert!(matches!(
+            reject_literal_lexicon_collisions_from_surfaces(
+                &records,
+                &verb_inventory,
+                &licensed_form,
+                &[],
+                &[],
+            ),
+            Err(ParserEnvironmentError::UngovernedHomographLicense { surface, literal_owner })
+                if surface == "during" && literal_owner.contains("synthetic_during")
+        ));
     }
 
     #[test]
