@@ -66,6 +66,8 @@ plus the `LookReq` collapse of ruling 8. One round, ten independent edits.
 
 Also (copies-are-spells residue): after a one-shot `Copy` there is no spelling that reads the ORIGINAL spell (the copy binding carries `prov = Nothing`, and `TheVerbed "Copy"` is pinned unwritten); no bench card needs it yet — when one does, give the copy a provenance stamp or an `Other`-style exclusion rather than a new `Reach`.
 
+Also (turn-parts residue): `Timing.BeforeAttackersDeclared` is a special case of a generic before-point timing; "only before the combat damage step" (Angus Mackenzie, Berserk, Blood Frenzy) needs `Timing.BeforePart (p : TurnPart)`; fold the special case into it and bench Berserk.
+
 Done when: every constructor and proof named above is gone from the tree and
 `grep` finds no residue; the collapsed families each have a bench witness for
 both former spellings ("the last chosen" and "the chosen", a `Lookback` in
