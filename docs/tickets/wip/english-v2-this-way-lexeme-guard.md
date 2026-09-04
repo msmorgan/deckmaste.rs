@@ -255,3 +255,45 @@ load 28.63/34.03/36.65); ambiguity 46,880 ms at 103,762 ns/B (host load
 19.74/30.54/35.30). Both still exceed the 16,260 ms quiet-host ceiling under a
 host carrying 4–5 concurrent codex executors plus this reviewer; advisory, not
 a STOP.
+
+### Final stamped figures (reviewer, second refresh)
+
+A second `kata refresh` before integration crossed the landed
+`english-v2-targeting-marker` feature (constructions, parser, render, the
+rewrite ADR, and a blessed `english-v2-coverage.lock` addition of 53
+identities). It rebased this stack without conflict. Every figure in the table
+above was measured on the earlier base and remains a true statement of this
+landing's delta; the absolute numbers of the integrated tree are:
+
+| Measure | Base (`yxrtptyk`) | This landing |
+| --- | ---: | ---: |
+| total corpus units | 32,641 | 32,641 |
+| selected / covered | 16,824 / 16,824 | 16,824 / 16,824 |
+| ordinary parse failures | 15,817 | 15,817 |
+| selected-uncovered / ties / internal failures | 0 / 0 / 0 | 0 / 0 / 0 |
+| round-trip / ownership / traversal failures | 0 / 0 / 0 | 0 / 0 / 0 |
+| gaps / overlaps / synthetic claims / provenance mismatches | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| licensed vocab/lexicon homographs / form-literal overlaps | 2 / 25 | 2 / 25 |
+| permitted / forbidden licensing checkers | 26 / 5 | 26 / 0 |
+| constructions | 397 | 397 |
+| unique / specificity-resolved selections | 11,527 / 5,297 | 11,527 / 5,297 |
+| exception-resolved / exception uses | 0 / 0 | 0 / 0 |
+
+Newly covered identities and selected analyses from this landing: none; the
+lock is exactly current and `coverage --check` exits 0 without a bless. The
++53 covered and the construction count of 397 both belong to the crossed
+`english-v2-targeting-marker` landing, not to this one.
+
+Gates on the integrated tree: `cargo fmt --all -- --check` exit 0; strict
+all-target Clippy exit 0 for `deckmaste_construction_core`,
+`deckmaste_english_v2` and `xtask`; `cargo test --workspace` 127 suites green,
+0 failed; `cargo xtask english_v2 coverage --check --workers 8` exit 0;
+`cargo xtask english_v2 ambiguity --require-resolved --workers 8` exit 0 with
+`unresolved_ties=0`.
+
+Final performance advisory: coverage 53,816 ms at 112,236 ns/B (host load
+22.79/26.39/31.30); ambiguity 51,280 ms at 101,352 ns/B (host load
+18.23/24.42/30.34). Both runs were worker-capped, so the gate reports
+`criterion=capped_workers` and raises no quiet-host regression warning.
+Contention stamp: 4–5 concurrent codex executors plus this reviewer on the host
+throughout.
