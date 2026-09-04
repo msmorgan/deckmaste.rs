@@ -33,6 +33,13 @@ badStaleCarrier : Unspellable (Instruction []) (\ok =>
                Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
+||| "Sacrifice a creature: Draw a card."
+public export
+okActivatedCostAndEffect : Ability
+okActivatedCostAndEffect =
+  Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
+
 ||| "Return a creature to its owner's hand: Tap it."
 public export
 badHiddenCost : Unspellable Ability (\ok =>
@@ -47,6 +54,13 @@ badTwoCostMentions : Unspellable Ability (\ok =>
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
             (Macros.exile You ((Macros.It OneOf) {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
+
+||| "Tap target creature you control. Sacrifice it."
+public export
+okSacrificeOnBattlefield : Instruction []
+okSacrificeOnBattlefield =
+  Sequentially [ SetStatus Tapped (Macros.target Macros.creatureYouControl)
+               , Macros.sacrifice You (Macros.It OneOf) ]
 
 ||| "Exile target creature. Sacrifice it."
 public export
@@ -97,6 +111,11 @@ badBareCardRead : Unspellable Ability (\ok =>
             (Sequentially [Macros.exile You (Macros.target Macros.creature),
                            Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (Macros.That CardW OneOf {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
+
+||| "Tap target creature."
+public export
+okTapOnBattlefield : Instruction []
+okTapOnBattlefield = SetStatus Tapped (Macros.target Macros.creature)
 
 ||| "Tap target creature card in your graveyard."
 public export
@@ -303,6 +322,12 @@ badAdditionalTurn : Unspellable (Instruction []) (\ok =>
   AdditionalPart Nothing Turn (Just Combat) (Lit 1) Nothing {ad = ok})
 badAdditionalTurn Oh impossible
 
+||| "Spells with the chosen name can't be cast."
+public export
+okCastSpellClass : StaticSpec [MkBinding AD (Quality CardName) OneOf QualityP]
+okCastSpellClass =
+  Macros.objectCant "Cast" (Macros.allOf (And [Macros.spell, Named ChosenName]))
+
 ||| "Spells with the chosen name can't be activated."
 public export
 badActivatedSpellClass : Unspellable
@@ -370,6 +395,15 @@ public export
 badIfDoneOverScheduledBody : Unspellable (Instruction []) (\ok =>
   IfDone (ExtraTurn You (Lit 1)) (Just (Draw You (Lit 1))) Nothing {en = ok})
 badIfDoneOverScheduledBody Oh impossible
+
+public export
+oneExtraTurn : Bindings
+oneExtraTurn = instrIntro {bs = []} (ExtraTurn You (Lit 1))
+
+||| "Take an extra turn after this one. Skip the draw step of that turn."
+public export
+okThatTurnAfterASingleTurn : Noun ProofsTurn.oneExtraTurn TurnRef
+okThatTurnAfterASingleTurn = Macros.thatTurn {bs = ProofsTurn.oneExtraTurn}
 
 public export
 twoExtraTurns : Bindings

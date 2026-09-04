@@ -20,6 +20,16 @@ badOwnedBattlefield : Unspellable (ZoneExpr []) (\ok =>
   ZoneAt Battlefield (PossessedBy You {ps = ok}))
 badOwnedBattlefield HandIsOwned impossible
 
+||| "Discard a card at random. This deals damage equal to the discarded
+||| card's mana value to any target."
+public export
+okDiscardedCardWord : Ability
+okDiscardedCardWord =
+  Activated (Do (Macros.discard You (Macros.aAtRandom (InZone Macros.handZ))))
+            (DealDamage This
+                          (StatOf ManaValue (Macros.TheVerbed "Discard" CardW Attributive OneOf))
+                          (Macros.target Macros.anyTarget)) Nothing Nothing Nothing Nothing
+
 public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discard You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
@@ -81,6 +91,13 @@ public export
 badSameColorHybrid : Unspellable ManaSymbol (\ok =>
   Macros.hybridPip Blue Blue {ds = ok})
 badSameColorHybrid Oh impossible
+
+||| "Exile a creature you control. If you do, return it to the battlefield."
+public export
+okIfDoneReadsDoneBody : Instruction []
+okIfDoneReadsDoneBody =
+  IfDone (Macros.exile You (Macros.a Macros.creatureYouControl))
+         (Just (Macros.move (Macros.It OneOf) Macros.battlefieldZ)) Nothing
 
 ||| "Sacrifice a creature. If you don't, exile it."
 public export
@@ -267,6 +284,14 @@ public export
 badAddedCostLoyaltySymbol : Unspellable (StaticSpec []) (\ok =>
   AddedCost (LoyaltySymbol (LoyaltyUp 1)) False {ap = ok})
 badAddedCostLoyaltySymbol AddedPaymentWritten impossible
+
+||| "Creatures you control get +1/+1 until end of turn."
+public export
+okContinuousPumpClause : Instruction []
+okContinuousPumpClause =
+  Continuously (Gets Adds (Macros.allOf Macros.creatureYouControl)
+                     (PtUp (Lit 1)) (PtUp (Lit 1)))
+               (Just Macros.untilEndOfTurn)
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost"
 public export

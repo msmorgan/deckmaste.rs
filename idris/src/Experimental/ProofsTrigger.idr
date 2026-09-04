@@ -162,6 +162,15 @@ badMixedAttackDefenderHalves : Unspellable (GameEvent []) (\ok =>
 badMixedAttackDefenderHalves Oh impossible
 
 public export
+afterLifePayment : Bindings
+afterLifePayment = eventAfter (the (GameEvent []) (PaysLife (Macros.a AnyPlayer)))
+
+||| "Whenever a player pays life, that player draws a card."
+public export
+okLifePaymentPayerReadback : Noun ProofsTrigger.afterLifePayment Player
+okLifePaymentPayerReadback = Macros.That PlayerW OneOf
+
+public export
 afterPassivePayment : Bindings
 afterPassivePayment =
   eventAfter (the (GameEvent [])
@@ -172,6 +181,11 @@ public export
 badPassivePayerReadback :
   Unspellable (Noun ProofsTrigger.afterPassivePayment Player) (\ok => Macros.That PlayerW OneOf {ok})
 badPassivePayerReadback Refl impossible
+
+||| "Whenever a player pays life, you gain that much life."
+public export
+okLifePaymentThatMuch : Amount ProofsTrigger.afterLifePayment
+okLifePaymentThatMuch = ThatMuch
 
 public export
 afterKeywordCostPayment : Bindings

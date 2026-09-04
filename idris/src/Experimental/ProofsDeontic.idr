@@ -30,11 +30,23 @@ badCantInGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.cantBlock (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) (Just ThisTurn) {dp = ok})
 badCantInGraveyard Oh impossible
 
+||| "creature with power 2 or less"
+public export
+okCreaturePower : Predicate [] Object
+okCreaturePower = And [Compare [StatAxis Power] AtMost (Lit 2), Macros.creature]
+
 ||| "noncreature with power 2 or less"
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
   And [Compare [StatAxis Power] AtMost (Lit 2), Not Macros.creature] {cf = ok})
 badNoncreaturePower Oh impossible
+
+||| "with power 2 or less or with toughness 2 or less"
+public export
+okDistinctComparisonDisjuncts : Predicate [] Object
+okDistinctComparisonDisjuncts =
+  Or [Compare [StatAxis Power] AtMost (Lit 2),
+      Compare [StatAxis Toughness] AtMost (Lit 2)]
 
 ||| "with power 2 or less or with power 2 or less"
 public export
@@ -60,6 +72,13 @@ public export
 badPayTapSymbol : Unspellable (Instruction []) (\ok =>
   Pay You TapSymbol PaidOnce {pb = ok})
 badPayTapSymbol Oh impossible
+
+||| "Sacrifice a creature: Draw a card."
+public export
+okDeedAsCost : Ability
+okDeedAsCost =
+  Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
 
 ||| "Creatures you control get +1/+1 until end of turn:"
 public export
@@ -132,6 +151,14 @@ public export
 badRepeatAsCost : Unspellable Ability (\ok =>
   Activated (Do (Repeat Again) {ok}) (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badRepeatAsCost Oh impossible
+
+||| "Discard a card, Sacrifice a creature: Draw a card."
+public export
+okCompoundCost : Ability
+okCompoundCost =
+  Activated (Compound [Do (Macros.discard You (Macros.a (InZone Macros.handZ))),
+                       Do (Macros.sacrifice You (Macros.a Macros.creature))])
+            (Draw You (Lit 1)) Nothing Nothing Nothing Nothing
 
 ||| a compound cost of no components
 public export
@@ -273,6 +300,13 @@ badMustAttackLand : Unspellable (Instruction []) (\ok =>
                (Just ThisTurn))
 badMustAttackLand Oh impossible
 
+||| "target creature you control that is your Ring-bearer"
+public export
+okRingBearerOnBattlefield : Predicate [] Object
+okRingBearerOnBattlefield =
+  And [Macros.creature, HasDesignation RingBearer,
+       InZone Macros.battlefieldZ]
+
 ||| "target creature card in your graveyard that is your Ring-bearer"
 public export
 badRingBearerInGraveyard : Unspellable (Predicate [] Object) (\ok =>
@@ -329,12 +363,6 @@ okTheDamageAfterDealing =
                , Continuously
                    (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]
 
-||| "The damage can't be prevented."
-public export
-badTheDamageUnannounced : Unspellable (StaticSpec []) (\ok =>
-  CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly)
-badTheDamageUnannounced Oh impossible
-
 ||| "You gain 3 life. The damage can't be prevented."
 public export
 badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
@@ -342,6 +370,23 @@ badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
                , Continuously
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
 badTheDamageAfterLifeGain Oh impossible
+
+public export
+afterDamageDealt : Bindings
+afterDamageDealt =
+  instrIntro (the (Instruction [])
+    (DealDamage This (Lit 4) (Macros.target Macros.creature)))
+
+||| "This deals 4 damage to target creature. The damage can't be prevented."
+public export
+okTheDamageAnnounced : StaticSpec ProofsDeontic.afterDamageDealt
+okTheDamageAnnounced = CantPrevent AnyDamage ThatDamage NoPreventionOnly
+
+||| "The damage can't be prevented."
+public export
+badTheDamageUnannounced : Unspellable (StaticSpec []) (\ok =>
+  CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly)
+badTheDamageUnannounced Oh impossible
 
 ||| "You may cast spells as though they had flash."
 public export

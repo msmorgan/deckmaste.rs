@@ -176,12 +176,26 @@ badNegatedPlayerHead : Unspellable (Predicate [] Player) (\ok =>
   Not AnyPlayer {ng = ok})
 badNegatedPlayerHead Oh impossible
 
+||| "Tap target creature an opponent controls. That player loses 1 life."
+public export
+okPositiveAntecedent : Instruction []
+okPositiveAntecedent =
+  Sequentially [ SetStatus Tapped (Macros.target (And [Macros.creature,
+                    HasPossessor ControllerAx Macros.anOpponent]))
+               , Macros.losesLife (Macros.That PlayerW OneOf) (Lit 1) ]
+
 ||| "Tap target creature an opponent doesn't control. That player loses 1 life."
 public export
 badNegatedAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature, Not (HasPossessor ControllerAx Macros.anOpponent)])),
                 Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
 badNegatedAntecedent Refl impossible
+
+||| "Destroy target creature on the battlefield."
+public export
+okSingleZoneOnTarget : Instruction []
+okSingleZoneOnTarget =
+  Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.battlefieldZ]))
 
 ||| "Destroy target creature on the battlefield in a graveyard."
 public export
@@ -252,11 +266,22 @@ badForEachZero : Unspellable (Amount []) (\ok =>
   Macros.forEach 0 Macros.creature {nz = ok})
 badForEachZero Oh impossible
 
+||| "creature on the battlefield"
+public export
+okConsistentZoneConjunct : Predicate [] Object
+okConsistentZoneConjunct = And [Macros.creature, InZone Macros.battlefieldZ]
+
 ||| "creature that isn't on the battlefield"
 public export
 badNotOnBattlefield : Unspellable (Predicate [] Object) (\ok =>
   And [Macros.creature, Not (InZone Macros.battlefieldZ)] {zc = ok})
 badNotOnBattlefield Oh impossible
+
+||| "creature of the chosen color"
+public export
+okConsistentQualityConjunct :
+  Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+okConsistentQualityConjunct = And [Macros.creature, Macros.ofChosen Color]
 
 ||| "of the chosen color and not of the chosen color"
 public export
@@ -273,6 +298,11 @@ public export
 badAttackingInHand : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, InZone Macros.handZ] {zc = ok})
 badAttackingInHand Oh impossible
+
+||| "Discard a card."
+public export
+okDiscardACardFromHand : Instruction []
+okDiscardACardFromHand = Macros.discard You (Macros.a (InZone Macros.handZ))
 
 ||| "Discard this creature."
 public export
@@ -651,6 +681,15 @@ badUnlicensedDifference : Unspellable (Instruction []) (\ok =>
   Draw You (TheDifference {ok}))
 badUnlicensedDifference Refl impossible
 
+||| "When this creature enters, if you control fewer than seven creatures,
+||| draw cards equal to the difference."
+public export
+okDifferenceUnderComparisonTrigger : Ability
+okDifferenceUnderComparisonTrigger =
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing
+            (Just (CompareAmt (Macros.countOf Macros.creatureYouControl) Less (Lit 7)))
+            (Draw You TheDifference)
+
 public export
 badNonComparisonDifference : Unspellable Ability (\ok =>
   Triggered When (Enters Macros.thisCreature Nothing) [] Nothing [] Nothing Nothing (Just (Macros.exists Macros.creatureYouControl))
@@ -684,6 +723,15 @@ badCreatureAttackDefender : Unspellable (GameEvent []) (\ok =>
   Attacks (Macros.a Macros.creature)
           (OneDefender (Macros.a Macros.creature) {at = ok}))
 badCreatureAttackDefender Oh impossible
+
+||| "Look at the top four cards of your library. An opponent chooses one of
+||| them."
+public export
+okAgentChoosesSomeOf : Instruction []
+okAgentChoosesSomeOf =
+  Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
+               , Choose Nothing (Just (Macros.a Opponent))
+                        (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly ]
 
 public export
 badAgentChooseTheRest : Unspellable (Instruction []) (\ok =>
@@ -758,6 +806,12 @@ public export
 badRegenerateBareThis : Unspellable (Instruction []) (\ok =>
   Regenerate This {zn = ok})
 badRegenerateBareThis Oh impossible
+
+||| "Creatures can't be regenerated."
+public export
+okRegenerationBanOnBattlefield : StaticSpec []
+okRegenerationBanOnBattlefield =
+  Macros.objectCant "Regenerate" (Macros.allOf Macros.creature)
 
 ||| "Creature cards in your graveyard can't be regenerated."
 public export

@@ -40,6 +40,18 @@ badTransformedArrivalOffField : Unspellable (Instruction []) (\ok =>
        Macros.handZ [EntersTransformed] {rf = ok})
 badTransformedArrivalOffField Oh impossible
 
+||| "Reveal the top five cards of your library. An opponent separates those
+||| cards into two piles. Put those piles into your hand."
+public export
+okPileWordAfterPartition : Card
+okPileWordAfterPartition =
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell Nothing (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+                  , Macros.move (Macros.That PileW ManyOf) Macros.handZ ]) ]
+       Nothing
+
 public export
 badCardWordReadsPiles : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -116,6 +128,19 @@ okStatusOnBattlefieldNoun =
 
 ||| "Separate all creatures into two piles. Turn those piles face down."
 ||| -- only permanents have status [CR#110.5d]; a pile is not one [CR#700.3b].
+||| "An opponent separates all creatures into two piles. Turn each creature
+||| in the pile of your choice face down."
+public export
+okStatusOnPermanentAfterPartition : Card
+okStatusOnPermanentAfterPartition =
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell Nothing (Sequentially
+                  [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
+                  , SetStatus FaceDown
+                      (Macros.allOf (And [Macros.creature,
+                                          InPile (Macros.pileOfChoice You)])) ]) ]
+       Nothing
+
 public export
 badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
@@ -167,6 +192,17 @@ public export
 namedAdditionalPartAnchor : Instruction []
 namedAdditionalPartAnchor =
   AdditionalPart (Just You) Upkeep (Just MainPhase) (Lit 1) Nothing
+
+||| "When you unlock this door, draw a card." -- a door header belongs to a
+||| Room's shared line.
+public export
+okDoorHeaderOnSharedLine : Card
+okDoorHeaderOnSharedLine =
+  SharedLineSplit (MkTypeLine [enchantmentType "Room"] [Enchantment]) [] Nothing
+    (MkSharedHalf "" (Just [Macros.generic 1, Macros.pip Red])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor) (Draw You (Lit 1)) ])
+    (MkSharedHalf "" (Just [Macros.generic 3, Macros.pip Red])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor) (Draw You (Lit 2)) ])
 
 public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>

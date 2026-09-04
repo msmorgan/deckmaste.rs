@@ -97,6 +97,13 @@ badUntapLockGraveyard : Unspellable Ability (\ok =>
                              (Just You) {dp = ok}))
 badUntapLockGraveyard Oh impossible
 
+||| "Target creature you control fights target creature you don't control."
+public export
+okFightControlledCreatures : Instruction []
+okFightControlledCreatures =
+  Fights (Macros.target Macros.creatureYouControl)
+         (Macros.target Macros.creatureYouDontControl)
+
 ||| "Target creature card in your graveyard fights target creature."
 public export
 badFightGraveyard : Unspellable (Instruction []) (\ok =>
@@ -214,6 +221,12 @@ badDamageDisjunctHead : Unspellable (Instruction []) (\ok =>
   DealDamage This (Lit 2) (Macros.target (Or [Macros.artifact, Macros.enchantment])) {rk = ok})
 badDamageDisjunctHead ObjectTakes impossible
 
+||| "attacking or blocking creature on the battlefield"
+public export
+okAttackingOrBlockingOnBattlefield : Predicate [] Object
+okAttackingOrBlockingOnBattlefield =
+  And [Macros.creature, Or [Attacking, Blocking], InZone Macros.battlefieldZ]
+
 ||| "attacking or blocking creature in your graveyard"
 public export
 badAttackingOrBlockingInGraveyard : Unspellable (Predicate [] Object) (\ok =>
@@ -257,6 +270,13 @@ badPluralComplementAnchor : Unspellable (Predicate [] Object) (\ok =>
   OtherThan (Described (TargetDet (Macros.upTo 2)) Macros.creature) {ca = ok})
 badPluralComplementAnchor MkComplementAnchor impossible
 
+||| "each creature other than this creature"
+public export
+okComplementSameHead : Instruction []
+okComplementSameHead =
+  DealDamage This (Lit 1)
+             (Macros.each (And [Macros.creature, OtherThan Macros.thisCreature]))
+
 ||| "each creature other than this land"
 public export
 badComplementCrossHead : Unspellable (Instruction []) (\ok =>
@@ -277,6 +297,11 @@ badOtherAndComplement : Unspellable (Instruction []) (\ok =>
                 DealDamage This (Lit 1)
                            (Macros.each (And [Macros.creature, Other, OtherThan Macros.thisCreature] {oa = ok}))])
 badOtherAndComplement Oh impossible
+
+||| "creature or land"
+public export
+okDisjunctWithoutAComplement : Predicate [] Object
+okDisjunctWithoutAComplement = Or [Macros.creature, Macros.land]
 
 ||| "creature other than this creature, or land"
 public export
@@ -400,6 +425,13 @@ okPreventedFromSourceAnnounced =
                           (Macros.gainsLife You (Lit 3)) Nothing)))
              Repeatedly
 
+||| "Prevent all damage that would be dealt to you this turn. If damage from a
+||| red source is prevented this way, you gain 3 life."
+public export
+okPreventedFromSourceInAClause : Instruction []
+okPreventedFromSourceInAClause =
+  Continuously ProofsDamage.okPreventedFromSourceAnnounced (Just ThisTurn)
+
 ||| "If damage from a red source is prevented this way, you gain 3 life."
 public export
 badPreventedFromSourceUnannounced : Unspellable (Instruction []) (\ok =>
@@ -414,6 +446,13 @@ okPreventedThisWayAnnounced =
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay)))
              Repeatedly
+
+||| "Prevent all damage that would be dealt to you this turn. You gain life
+||| equal to the damage prevented this way."
+public export
+okPreventedThisWayInAClause : Instruction []
+okPreventedThisWayInAClause =
+  Continuously ProofsDamage.okPreventedThisWayAnnounced (Just ThisTurn)
 
 public export
 badPreventedThisWayAfterDamage : Unspellable (Instruction []) (\ok =>
@@ -440,12 +479,6 @@ badShortOfCeilingUnannounced : Unspellable (Instruction []) (\ok =>
   Macros.gainsLife You (Macros.times 2 (Macros.shortOfCeiling {ok})))
 badShortOfCeilingUnannounced Refl impossible
 
-public export
-badShieldSizedByItsOwnPrevention : Unspellable (StaticSpec []) (\ok =>
-  DamageRule AnyDamage Unattributed (ToRecipient You)
-             (Prevent (Shield (Macros.preventedThisWay {ok})) Nothing) Repeatedly)
-badShieldSizedByItsOwnPrevention Refl impossible
-
 ||| "Prevent the next 3 damage that would be dealt to you this turn."
 public export
 okShieldRepeatedly : StaticSpec []
@@ -458,6 +491,12 @@ badShieldNextTimeOnly : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
              (Prevent (Shield (Lit 3)) Nothing) NextTimeOnly {su = ok})
 badShieldNextTimeOnly Oh impossible
+
+public export
+badShieldSizedByItsOwnPrevention : Unspellable (StaticSpec []) (\ok =>
+  DamageRule AnyDamage Unattributed (ToRecipient You)
+             (Prevent (Shield (Macros.preventedThisWay {ok})) Nothing) Repeatedly)
+badShieldSizedByItsOwnPrevention Refl impossible
 
 ||| "This creature deals 3 damage to target creature."
 public export
@@ -481,6 +520,15 @@ badNonsource : Unspellable (Predicate [] Object) (\ok =>
   Not Macros.source {ng = ok})
 badNonsource Oh impossible
 
+||| "If damage would be dealt to you, it's dealt to target creature you
+||| control instead."
+public export
+okRedirectToOne : StaticSpec []
+okRedirectToOne =
+  DamageRule AnyDamage Unattributed (ToRecipient You)
+             (Redirect CutAll (Macros.target Macros.creatureYouControl))
+             Repeatedly
+
 public export
 badRedirectToGroup : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage Unattributed (ToRecipient You)
@@ -497,6 +545,15 @@ okThatMuchAfterLifeLoss =
   Sequentially [ Macros.losesLife (Macros.target Opponent) (Lit 1)
                , Macros.gainsLife You ThatMuch ]
 
+||| "If a source would deal damage to a player or permanent, it deals double
+||| that damage instead."
+public export
+okScaleDoubled : StaticSpec []
+okScaleDoubled =
+  DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
+             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (Scale (Multiplied Doubled)) Repeatedly
+
 ||| "… it deals that much damage plus that much instead."
 public export
 badScaleShiftByThatMuch : Unspellable (StaticSpec []) (\ok =>
@@ -511,6 +568,16 @@ badScaleToArtifact : Unspellable (StaticSpec []) (\ok =>
              (ToRecipient (Macros.target Macros.artifact) {rk = ok})
              (Scale (Multiplied Doubled)) Repeatedly)
 badScaleToArtifact ObjectTakes impossible
+
+||| "Whenever this creature is dealt damage, it deals that much damage to any
+||| target."
+public export
+okThatMuchAfterDamageEvent : Ability
+okThatMuchAfterDamageEvent =
+  Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing []
+            Nothing Nothing Nothing
+            (DealDamage Macros.thisCreature ThatMuch
+                        (Macros.target Macros.anyTarget))
 
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
@@ -536,6 +603,19 @@ okThatCreatureAfterDamage =
                             (StatOf Power (Macros.It OneOf))
                             Macros.thisCreature ]
 
+||| "When this creature dies, it deals 1 damage to target creature. That
+||| creature's controller loses 1 life."
+public export
+okThatCreatureAfterTargetedDamage : Ability
+okThatCreatureAfterTargetedDamage =
+  Triggered When (Dies Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
+            (Sequentially
+               [ DealDamage Macros.thisCreature (Lit 1)
+                            (Macros.target Macros.creature)
+               , Macros.losesLife
+                   (Macros.controllerOf (Macros.That (TypeW Creature) OneOf))
+                   (Lit 1) ])
+
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
@@ -556,12 +636,6 @@ okLastChosenAfterChooser =
                    (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing
 
-||| "sources of the last chosen color"
-public export
-badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
-  Macros.ofTheLastChosen Color {ok = ok})
-badLastChosenColorNoChooser Oh impossible
-
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -579,6 +653,18 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
                                                 Macros.ofTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
        Nothing)
 badLastChosenWrongSort Oh impossible
+
+||| "sources of the last chosen color", a colour choice standing
+public export
+okLastChosenColorRead :
+  Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+okLastChosenColorRead = Macros.ofTheLastChosen Color
+
+||| "sources of the last chosen color"
+public export
+badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
+  Macros.ofTheLastChosen Color {ok = ok})
+badLastChosenColorNoChooser Oh impossible
 
 ||| "the greatest life total among all players"
 public export
@@ -599,6 +685,13 @@ badAggregateWrongSort : Unspellable (Amount []) (\ok =>
   Aggregate MaxOf (PlayerStatAxis LifeTotal) (Macros.allOf Macros.creature)
               {sc = ok})
 badAggregateWrongSort Refl impossible
+
+||| "1-20 | Draw a card."
+public export
+okLiteralRollRow : Instruction []
+okLiteralRollRow =
+  Sequentially [ Macros.rollDice You 1 20
+               , ResultsTable [MkRollRow (Macros.fromTo 1 20) (Draw You (Lit 1))] ]
 
 ||| "up to X | Draw a card."
 public export

@@ -175,6 +175,15 @@ badUnknownKeywordPredicate : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (TheKeyword "Flyign") {kn = ok})
 badUnknownKeywordPredicate KeywordTermInFactsTable impossible
 
+||| "Protection from red" on a creature card
+public export
+okProtectionOnPermanentCard : Card
+okProtectionOnPermanentCard =
+  Macros.card "" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Soldier"] [Creature])
+       [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing]
+       (Just (2, 2))
+
 ||| "Protection from red"
 public export
 badProtectionOnInstant : Unspellable Card (\ok =>
@@ -182,11 +191,26 @@ badProtectionOnInstant : Unspellable Card (\ok =>
        [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing] Nothing {fl = ok})
 badProtectionOnInstant MkCharacteristicsLaws impossible
 
+||| "Protection from red"
+public export
+okProtectionFromAColor : Ability
+okProtectionFromAColor =
+  KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing
+
 ||| "Protection from player"
 public export
 badProtectionFromPlayerRestriction : Unspellable Ability (\ok =>
   KeywordAbility "Protection" (Just (ParamSubject AnyPlayer)) Nothing {pf = ok})
 badProtectionFromPlayerRestriction Oh impossible
+
+||| "Equip {2}" on an Equipment card
+public export
+okEquipOnEquipment : Card
+okEquipOnEquipment =
+  Macros.card "" (Just [Macros.generic 1]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing]
+       Nothing
 
 ||| "Equip {2}"
 public export
@@ -195,6 +219,12 @@ badEquipOnSorcery : Unspellable Card (\ok =>
        [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing]
        Nothing {fl = ok})
 badEquipOnSorcery MkCharacteristicsLaws impossible
+
+||| "each of up to two target creatures"
+public export
+okEachOfATargetGroup : Noun [] Object
+okEachOfATargetGroup =
+  EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)
 
 ||| "each of one or more creatures"
 public export
@@ -219,6 +249,13 @@ badFortifiedCreatureNoun : Unspellable (Noun [] Object) (\ok =>
   AttachHost Fortified (TypeW Creature) {ok})
 badFortifiedCreatureNoun Oh impossible
 
+||| "Target creature gains indestructible."
+public export
+okGainsIndestructible : StaticSpec []
+okGainsIndestructible =
+  Gains (Macros.target Macros.creature)
+        (KeywordAbility "Indestructible" Nothing Nothing)
+
 ||| "Target creature gains flash."
 public export
 badBattlefieldFlash : Unspellable (StaticSpec []) (\ok =>
@@ -230,6 +267,14 @@ public export
 badSpellIndestructible : Unspellable (StaticSpec []) (\ok =>
   Gains (Macros.target Macros.spell) (KeywordAbility "Indestructible" Nothing Nothing) {ok})
 badSpellIndestructible Oh impossible
+
+||| a "Kindred Enchantment — Merfolk" card
+public export
+okKindredWithAnotherType : Card
+okKindredWithAnotherType =
+  Macros.card "" (Just [Macros.generic 2]) []
+       (MkTypeLine [creatureType "Merfolk"] [Kindred, Enchantment])
+       [KeywordAbility "Flying" Nothing Nothing] Nothing
 
 ||| a "Kindred Enchantment — Siege" card
 public export
@@ -246,6 +291,13 @@ badKindredAlone : Unspellable Card (\ok =>
        (MkTypeLine [creatureType "Merfolk"] [Kindred])
        [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
 badKindredAlone (MkCharacteristicsLaws {ln = MkCardLine}) impossible
+
+||| "Enchanted creature can't attack."
+public export
+okEnchantedCreatureCantAttack : Ability
+okEnchantedCreatureCantAttack =
+  Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
+                  Forbid ["Attack"] Agent NoDeonticPatient)
 
 ||| "Enchanted planeswalker can't attack."
 public export
@@ -264,6 +316,16 @@ public export
 badPayLoyalty : Unspellable (Instruction []) (\ok =>
   Pay You (LoyaltySymbol (LoyaltyUp 1)) PaidOnce {pb = ok})
 badPayLoyalty Oh impossible
+
+||| "[+1]: Draw a card." on a planeswalker card
+public export
+okLoyaltyOnPlaneswalker : Card
+okLoyaltyOnPlaneswalker =
+  Macros.cardOf "" (Just [Macros.pip Blue]) [Legendary]
+       (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) (Draw You (Lit 1))
+                  Nothing Nothing Nothing Nothing]
+       (Macros.loyaltyBox 3)
 
 ||| "[+1]: Draw a card."
 public export
@@ -364,6 +426,21 @@ badAltCostLoyaltySymbol : Unspellable (StaticSpec []) (\ok =>
   AltCost This (Just (LoyaltySymbol (LoyaltyUp 1))) {ap = ok})
 badAltCostLoyaltySymbol (Present {ok = Oh}) impossible
 
+||| "Escalate {2}. Choose one or both —"
+public export
+okEscalateWithModes : Card
+okEscalateWithModes =
+  Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
+       [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
+       , Spell Nothing (Macros.chooseModes (Range (Just 1) (Just 2))
+                  [ Macros.gets (Macros.target Macros.creature)
+                                (PtUp (Lit 1)) (PtUp (Lit 1))
+                                (Just Macros.untilEndOfTurn)
+                  , Macros.gets (Macros.target Macros.creature)
+                                (PtDown (Lit 1)) (PtDown (Lit 1))
+                                (Just Macros.untilEndOfTurn) ]) ]
+       Nothing
+
 ||| "Escalate {2}"
 public export
 badEscalateWithoutModes : Unspellable Card (\ok =>
@@ -437,6 +514,12 @@ badPossessedMonarch : Unspellable (Noun [] Object) (\ok =>
   Designated Monarch You {sc = ok})
 badPossessedMonarch Refl impossible
 
+||| "Unearth {B}"
+public export
+okCostedUnearth : Ability
+okCostedUnearth =
+  KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing
+
 ||| "Unearth"
 public export
 badBareUnearth : Unspellable Ability (\ok =>
@@ -449,6 +532,15 @@ badCostedRetrace : Unspellable Ability (\ok =>
   KeywordAbility "Retrace" (Just (ParamCost (Mana [Macros.generic 1]))) Nothing
                  {pf = ok})
 badCostedRetrace Oh impossible
+
+||| "Unearth {B}" on a creature card
+public export
+okUnearthOnPermanentCard : Card
+okUnearthOnPermanentCard =
+  Macros.card "" (Just [Macros.pip Black]) []
+       (MkTypeLine [creatureType "Zombie"] [Creature])
+       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing]
+       (Just (2, 2))
 
 ||| "Unearth {B}"
 public export
@@ -505,13 +597,6 @@ badNoughtSidedDie : Unspellable (Instruction []) (\ok =>
   RollDice You (Lit 1) (SidesOf 0 {nz = ok}))
 badNoughtSidedDie ItIsSucc impossible
 
-||| a planeswalker card printed with no starting loyalty
-public export
-badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
-       [] Nothing {fl = ok})
-badPlaneswalkerNoLoyalty (MkCharacteristicsLaws {bx = MkCardBox}) impossible
-
 ||| a planeswalker card printing its starting loyalty
 public export
 okPlaneswalkerLoyaltyBox : Card
@@ -519,6 +604,13 @@ okPlaneswalkerLoyaltyBox =
   Macros.cardOf "" (Just [Macros.pip Blue]) [Legendary]
        (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
        [] (Macros.loyaltyBox 3)
+
+||| a planeswalker card printed with no starting loyalty
+public export
+badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
+       [] Nothing {fl = ok})
+badPlaneswalkerNoLoyalty (MkCharacteristicsLaws {bx = MkCardBox}) impossible
 
 ||| a planeswalker card printing "3/3" where its loyalty number goes
 public export
@@ -605,6 +697,11 @@ badTransformingBackWithCost : Unspellable Card (\ok =>
                {bf = ok})
 badTransformingBackWithCost MkCharacteristicsLaws impossible
 
+||| "your devotion to black"
+public export
+okSingularDevotion : Amount []
+okSingularDevotion = Devotion You (LitColor Black) Nothing
+
 ||| "your opponents' devotion to black"
 public export
 badPluralDevotion : Unspellable (Amount []) (\ok =>
@@ -651,16 +748,6 @@ badUnlockThisDoor : Unspellable (Instruction []) (\ok =>
   Unlock ThisDoor {nh = ok})
 badUnlockThisDoor Oh impossible
 
-||| "When you unlock this door, this Room deals 1 damage to each opponent."
-public export
-badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Red]) []
-       (MkTypeLine [enchantmentType "Room"] [Enchantment])
-       [ Macros.triggered When (UnlocksDoor You ThisDoor)
-           (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ]
-       Nothing {fl = ok})
-badDoorHeaderOffSharedLine MkCharacteristicsLaws impossible
-
 ||| "unlock a locked door of a Room card in your graveyard"
 public export
 badUnlockDoorOffBattlefield : Unspellable (Instruction []) (\ok =>
@@ -673,6 +760,29 @@ public export
 badDoorOfBareThis : Unspellable (Instruction []) (\ok =>
   Unlock (DoorOf (Just Locked) This {zn = ok}))
 badDoorOfBareThis Oh impossible
+
+||| "When you unlock this door, this Room deals 1 damage to each opponent."
+||| -- a door header belongs to a Room's shared line.
+public export
+okRoomDoorHeaderOnSharedLine : Card
+okRoomDoorHeaderOnSharedLine =
+  SharedLineSplit (MkTypeLine [enchantmentType "Room"] [Enchantment]) [] Nothing
+    (MkSharedHalf "" (Just [Macros.pip Red])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor)
+           (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ])
+    (MkSharedHalf "" (Just [Macros.generic 3, Macros.pip Red])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor)
+           (DealDamage Macros.thisRoom (Lit 2) (Macros.each Opponent)) ])
+
+||| "When you unlock this door, this Room deals 1 damage to each opponent."
+public export
+badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Red]) []
+       (MkTypeLine [enchantmentType "Room"] [Enchantment])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor)
+           (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ]
+       Nothing {fl = ok})
+badDoorHeaderOffSharedLine MkCharacteristicsLaws impossible
 
 public export
 generalManaSymbolMatcher : Predicate [] Object

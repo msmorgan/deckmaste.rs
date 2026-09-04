@@ -130,6 +130,13 @@ badTokenSpellAbility : Unspellable (Instruction []) (\ok =>
                                  [Spell Nothing (Draw You (Lit 1))] Nothing) {wf = ok})
 badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
+||| "Creatures you control have '{T}: Draw a card.'"
+public export
+okQuotedGrantOnPermanent : StaticSpec []
+okQuotedGrantOnPermanent =
+  Gains (Macros.allOf Macros.creatureYouControl)
+        (Activated TapSymbol (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
+
 ||| "Instant and sorcery spells you cast have '{T}: Draw a card.'"
 public export
 badQuotedGrantOnSpell : Unspellable (StaticSpec []) (\ok =>
@@ -147,6 +154,18 @@ public export
 badYourChoiceNumber : Unspellable (Predicate [] Object) (\ok =>
   OfYourChoice Number Nothing {read = ok})
 badYourChoiceNumber Oh impossible
+
+||| "As this enchantment enters, choose a creature type. Creatures of the
+||| chosen type get +1/+1."
+public export
+okReaderAfterChooser : Card
+okReaderAfterChooser =
+  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+       [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
+       , Static (Gets Adds (Macros.allOf (And [Macros.creature,
+                                   Macros.ofChosen (SubtypeQ Creature)]))
+                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+       Nothing
 
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
@@ -290,6 +309,13 @@ badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
                 (Macros.allOf Macros.creatureYouControl))
 badBasicCreatureTypeAxis Oh impossible
 
+||| "Echo {2}{W}"
+public export
+okParameterisedEcho : Ability
+okParameterisedEcho =
+  KeywordAbility "Echo"
+    (Just (ParamCost (Mana [Macros.generic 2, Macros.pip White]))) Nothing
+
 ||| "Echo"
 public export
 badBareEcho : Unspellable Ability (\ok =>
@@ -333,6 +359,12 @@ sharedSubjectSurvivesSecondSingular =
                   , Gains (Macros.ownSubject (Macros.target Macros.creature))
                           (Macros.keyword "Flying") ]
                   (Just Macros.untilEndOfTurn)]
+
+||| "target creature" -- the subject a shared-subject clause re-reads
+public export
+okSharedSubjectDelta :
+  Noun (selfSubjIntro {bs = []} (Macros.target Macros.creature)) Object
+okSharedSubjectDelta = Macros.ownSubject {bs = []} (Macros.target Macros.creature)
 
 public export
 badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>

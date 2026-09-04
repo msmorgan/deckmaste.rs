@@ -40,6 +40,12 @@ badAscribedTarget : Unspellable (Noun [] Object) (\ok =>
   AsType Creature (Macros.target Macros.creature) Nothing {asc = ok})
 badAscribedTarget Oh impossible
 
+||| "creature you control that isn't attacking"
+public export
+okConsistentConjunction : Predicate [] Object
+okConsistentConjunction =
+  And [Macros.creature, HasPossessor ControllerAx You, Not Attacking]
+
 ||| "creature you control that you don't control"
 public export
 okControlSelfNegation : Predicate [] Object
@@ -51,6 +57,18 @@ public export
 badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, Not Macros.creature] {cf = ok})
 badAttackingNoncreature Oh impossible
+
+||| "Whenever this creature blocks a creature or becomes blocked by a
+||| creature, that creature gets -1/-1 until end of turn."
+public export
+okAltHeaderAgreeingReadback : Ability
+okAltHeaderAgreeingReadback =
+  Triggered Whenever (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
+            [BecomesBlocked Macros.thisCreature
+                            (Just (Macros.a Macros.creature))]
+            Nothing [] Nothing Nothing Nothing
+            (Macros.gets (Macros.That (TypeW Creature) OneOf) (PtDown (Lit 1))
+                         (PtDown (Lit 1)) (Just Macros.untilEndOfTurn))
 
 public export
 badAltHeaderMixedReadback : Unspellable Ability (\ok =>
@@ -372,6 +390,15 @@ public export
 badEmptyCounterMenu : Unspellable (StaticSpec []) (\ok =>
   EntersRider Macros.thisCreature (WithCounters (Lit 1) (ChosenKind [] {ne = ok}) Fresh))
 badEmptyCounterMenu IsNonEmpty impossible
+
+||| "Put your choice of a +1/+1 counter or a first strike counter on target
+||| creature."
+public export
+okSameScopeCounterMenu : Instruction []
+okSameScopeCounterMenu =
+  PutCounters (Lit 1)
+              (ChosenKind [Macros.plusOnePlusOne, KeywordCounter "FirstStrike"])
+              (Macros.target Macros.creature)
 
 ||| "Put your choice of a +1/+1 counter or a poison counter on target creature."
 public export

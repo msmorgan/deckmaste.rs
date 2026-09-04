@@ -113,11 +113,24 @@ badDescendingRange : Unspellable (Noun [] Object) (\ok =>
   Described (TargetDet (Range (Just 3) (Just 2))) Macros.creature {ok = (MaxAtLeastOne, ok, ObjectTgt)})
 badDescendingRange Oh impossible
 
+||| "attacking artifact or attacking land"
+public export
+okWholeZoneJoin : Predicate [] Object
+okWholeZoneJoin =
+  Or [And [Macros.artifact, Attacking], And [Macros.land, Attacking]]
+
 ||| "attacking artifact or land"
 public export
 badPartialZoneJoin : Unspellable (Predicate [] Object) (\ok =>
   Or [And [Macros.artifact, Attacking], Macros.land] {pd = ok})
 badPartialZoneJoin Oh impossible
+
+||| "creature you control or artifact you control"
+public export
+okDistinctStructuredDisjuncts : Predicate [] Object
+okDistinctStructuredDisjuncts =
+  Or [ And [Macros.creature, HasPossessor ControllerAx You]
+     , And [Macros.artifact, HasPossessor ControllerAx You] ]
 
 ||| "creature you control or creature you control"
 public export
@@ -414,6 +427,16 @@ badTotalWithoutRoll : Unspellable (Instruction []) (\ok =>
 badTotalWithoutRoll Refl impossible
 
 public export
+afterTopLook : Bindings
+afterTopLook =
+  instrIntro (the (Instruction []) (Macros.lookAt (Macros.topSlice (Lit 1))))
+
+||| "Look at the top card of your library. Put that card into your graveyard."
+public export
+okReadsLookedAtLibraryCard : Noun ProofsDescription.afterTopLook Object
+okReadsLookedAtLibraryCard = Macros.That CardW OneOf
+
+public export
 afterShuffledIntoLook : Bindings
 afterShuffledIntoLook =
   instrIntro (the (Instruction [])
@@ -452,6 +475,12 @@ public export
 badExactlySixColors : Unspellable (Predicate [] Object) (\ok =>
   ColorCount Eq 6 {ok = ok})
 badExactlySixColors Oh impossible
+
+||| "if this creature's kicker cost was paid"
+public export
+okPaidCostOnKeywordWithACost : Amount []
+okPaidCostOnKeywordWithACost =
+  Paid (PaidCostReadback (ByKeyword "Kicker") Nothing) This
 
 ||| "if this creature's flying cost was paid"
 public export

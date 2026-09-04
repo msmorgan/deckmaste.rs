@@ -3,4 +3,6 @@
 # The bench binds no implicit handles (card-authoring-binds-no-implicits,
 # workbench-ron-shaped-and-label-rulings ruling 11); Proofs*.idr are exempt.
 grep -nE '\{[a-zA-Z_]+ *= ' src/Experimental/Cards.idr src/Experimental/Cards/*.idr && { echo "bench binds an implicit handle: use a macro" >&2; exit 1; }
+# Every Unspellable pin keeps its positive twin beside it (VERIFY.md).
+"$(dirname "$0")/check-pin-twins" || exit 1
 exec idris2 --build mtg.ipkg "$@"

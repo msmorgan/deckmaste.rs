@@ -177,12 +177,28 @@ badStaticPlayerCantTargets : Unspellable Ability (\ok =>
   Static (Macros.playerCant "GainLife" (Macros.target AnyPlayer)) {ut = ok})
 badStaticPlayerCantTargets Oh impossible
 
+||| "Target land becomes the basic land type of your choice until end of turn."
+public export
+okChosenBasicTypeOnLand : Instruction []
+okChosenBasicTypeOnLand =
+  Continuously (Becomes (Macros.target Macros.land) Sets
+                        (ChosenQuality (OfYourChoice (SubtypeQ Land)
+                                                     (Just BasicTypesOnly))))
+               (Just Macros.untilEndOfTurn)
+
 public export
 badChosenBasicTypeOnCreature : Unspellable (Instruction []) (\ok =>
   Continuously (Becomes (Macros.target Macros.creature) Sets (ChosenQuality (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
                                   {ok = ok})
                (Just Macros.untilEndOfTurn))
 badChosenBasicTypeOnCreature Oh impossible
+
+||| "Lands you control are Mountains."
+public export
+okLandsAreMountains : StaticSpec []
+okLandsAreMountains =
+  Becomes (Macros.allOf (And [Macros.land, HasPossessor ControllerAx You])) Sets
+          (Bundle (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing) Nothing)
 
 ||| "Creatures are Mountains."
 public export
@@ -223,6 +239,12 @@ losesAllColors =
   Continuously (Becomes (Macros.target Macros.creature) Loses (Colored EveryColor))
                (Just Macros.untilEndOfTurn)
 
+||| "Target creature is white."
+public export
+okAddsAColor : StaticSpec []
+okAddsAColor =
+  Becomes (Macros.target Macros.creature) Adds (Colored (SomeColors [White]))
+
 public export
 badAddsNoColor : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.target Macros.creature) Adds (Colored (SomeColors [])) {ok = ok})
@@ -250,6 +272,17 @@ badStillOnAddition : Unspellable (StaticSpec []) (\ok =>
 badStillOnAddition Oh impossible
 
 public export
+afterChoiceMade : Bindings
+afterChoiceMade =
+  instrIntro (the (Instruction [])
+    (Macros.choose (Macros.counted (Macros.upTo 1) Macros.creature)))
+
+||| "Choose up to one creature. Destroy the rest."
+public export
+okChoiceRestStands : Noun ProofsChoice.afterChoiceMade Object
+okChoiceRestStands = Macros.theRest Object
+
+public export
 afterChoiceRestDisposed : Bindings
 afterChoiceRestDisposed =
   instrIntro (the (Instruction [])
@@ -275,6 +308,20 @@ okDistributedRestOfOwnChoice =
     , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) ]
 
 public export
+afterDistributedChoice : Bindings
+afterDistributedChoice =
+  instrIntro (the (Instruction [])
+    (Macros.chooses (Macros.each AnyPlayer)
+       (Macros.counted (Macros.upTo 1)
+          (And [Macros.creature, HasPossessor ControllerAx Macros.They]))))
+
+||| "Each player chooses up to one creature they control, then sacrifices the
+||| rest."
+public export
+okDistributedRestStands : Noun ProofsChoice.afterDistributedChoice Object
+okDistributedRestStands = Macros.theRest Object
+
+public export
 afterDistributedRestSacrificed : Bindings
 afterDistributedRestSacrificed =
   instrIntro (the (Instruction []) ProofsChoice.okDistributedRestOfOwnChoice)
@@ -293,6 +340,16 @@ badDistributedRestDisposedTwice Oh impossible
 ||| table shares, and a player can't sacrifice a permanent they don't control
 ||| ([CR#701.21a]; `okDistributedRestOfOwnChoice` is the same deed with only
 ||| the chooser's own partitives standing).
+||| "Tap all creatures. Each player chooses up to one creature they control."
+public export
+okSharedGroupWithoutARest : Instruction []
+okSharedGroupWithoutARest =
+  Sequentially
+    [ Macros.tap (Macros.allOf Macros.creature)
+    , Macros.chooses (Macros.each AnyPlayer)
+        (Macros.counted (Macros.upTo 1)
+           (And [Macros.creature, HasPossessor ControllerAx Macros.They])) ]
+
 public export
 badDistributedRestOfSharedGroup : Unspellable (Instruction []) (\ok =>
   Sequentially
@@ -314,6 +371,15 @@ badDistributedRestOfSingularChoice : Unspellable (Instruction []) (\ok =>
     , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) {ke = ok} ])
 badDistributedRestOfSingularChoice EachOnlyAdds impossible
 badDistributedRestOfSingularChoice EachClosesOwnParts impossible
+
+||| "an opponent who controls more lands than you control"
+public export
+okComparisonBoundOutsideTheMember : Predicate [] Player
+okComparisonBoundOutsideTheMember =
+  CompareOver Opponent
+    (Macros.countOf (And [Macros.land, HasPossessor ControllerAx Macros.They]))
+    Greater
+    (Macros.countOf (And [Macros.land, HasPossessor ControllerAx You]))
 
 ||| "an opponent who controls more lands than they control"
 public export

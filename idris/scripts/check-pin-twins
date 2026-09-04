@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Every Unspellable pin carries its positive twin beside it (VERIFY.md).
+
+A twin is the nearest preceding declaration at the same type head, reached by
+walking back over the pins that share it and over the Bindings values that
+stage their contexts. Exit 1 names every pin that has none.
+"""
+
+import glob
+import os
+import re
+import sys
+
+SIG = re.compile(r"^([a-zA-Z][A-Za-z0-9_']*)\s*:(?!:)")
+
+
+def atom(text, i):
+    while i < len(text) and text[i].isspace():
+        i += 1
+    if i >= len(text):
+        return ''
+    if text[i] == '(':
+        depth = 0
+        for j in range(i, len(text)):
+            if text[j] == '(':
+                depth += 1
+            elif text[j] == ')':
+                depth -= 1
+                if depth == 0:
+                    return text[i:j + 1]
+        return text[i:]
+    j = i
+    while j < len(text) and not text[j].isspace():
+        j += 1
+    return text[i:j]
+
+
+def head(ty):
+    ty = ' '.join(ty.split())
+    while ty.startswith('(') and ty.endswith(')'):
+        depth = 0
+        closed_early = False
+        for k, c in enumerate(ty):
+            if c == '(':
+                depth += 1
+            elif c == ')':
+                depth -= 1
+                if depth == 0 and k != len(ty) - 1:
+                    closed_early = True
+                    break
+        if closed_early:
+            break
+        ty = ty[1:-1].strip()
+    return ty.split()[0] if ty else ''
+
+
+def declarations(path):
+    lines = open(path).read().split('\n')
+    out = []
+    for i, line in enumerate(lines):
+        m = SIG.match(line)
+        if not m:
+            continue
+        body = [line]
+        j = i + 1
+        while j < len(lines) and lines[j][:1] in (' ', '\t'):
+            body.append(lines[j])
+            j += 1
+        ty = ' '.join(x.strip() for x in body).split(':', 1)[1].strip()
+        pin = ty.startswith('Unspellable')
+        if pin:
+            ty = atom(ty, len('Unspellable'))
+        out.append((i + 1, m.group(1), pin, head(ty)))
+    return out
+
+
+def main():
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+    failures = []
+    for path in sorted(glob.glob(os.path.join(root, 'src/Experimental/Proofs*.idr'))):
+        twin = None
+        for line, name, pin, ty in declarations(path):
+            if not pin:
+                if ty != 'Bindings':
+                    twin = ty
+                continue
+            if ty != twin:
+                failures.append((os.path.relpath(path, root), line, name, ty))
+    for path, line, name, ty in failures:
+        print(f"{path}:{line}: {name} has no positive twin at {ty}", file=sys.stderr)
+    if failures:
+        print(f"{len(failures)} twinless pin(s): write the positive twin beside the pin",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
