@@ -3202,9 +3202,9 @@ mod tests {
                     "You gain X life, where X is the number of creatures you controls with power 2 or less.",
                     &context,
                 )
-                .selected()
+                .decision()
                 .is_none(),
-            "derived concord_class rejects the invalid selected analysis"
+            "derived concord_class leaves the invalid subject with no reading at all"
         );
 
         assert!(

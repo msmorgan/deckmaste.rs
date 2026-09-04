@@ -1822,13 +1822,15 @@ mod tests {
                 let parser = crate::parser::Parser::new(environment.clone())
                     .expect("canonical environment satisfies the grammar");
                 let analysis = parser.analyze(text, &context);
-                let decision = analysis.decision().expect("two readings require selection");
+                let decision = analysis
+                    .decision()
+                    .expect("the single reading still records a selection decision");
                 assert_eq!(decision.resolution(), SelectionResolution::Unique);
                 assert!(decision.exception_uses().is_empty());
                 assert_eq!(decision.survivors().len(), 1);
                 let selected = decision
                     .selected()
-                    .expect("specificity selects one reading");
+                    .expect("the unique reading is the selected one");
                 let selected_path = decision
                     .candidates()
                     .iter()
