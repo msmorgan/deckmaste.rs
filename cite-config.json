@@ -4,7 +4,7 @@
   "sources": {
     "tracked": true,
     "extensions": ["rs", "md", "ron", "idr"],
-    "exclude": ["crates/xtask/", "CLAUDE.md", ".sdd-progress.md"]
+    "exclude": ["crates/xtask/", "docs/tickets/done/", "CLAUDE.md", ".sdd-progress.md"]
   },
   "coverage": {
     "out_of_scope": {
