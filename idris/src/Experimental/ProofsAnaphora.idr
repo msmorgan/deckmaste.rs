@@ -186,13 +186,13 @@ okKeywordClassWithSort =
 public export
 badClassOfParamlessKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Flying" Nothing)) {kn = ok})
-badClassOfParamlessKeyword Oh impossible
+badClassOfParamlessKeyword KeywordTermInFactsTable impossible
 
 ||| "a creature with renown of any color"
 public export
 badSortedClassOnNumberKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Renown" (Just Color))) {kn = ok})
-badSortedClassOnNumberKeyword Oh impossible
+badSortedClassOnNumberKeyword KeywordTermInFactsTable impossible
 
 ||| "{T}: Draw a card. Activate only if you created this turn."
 public export

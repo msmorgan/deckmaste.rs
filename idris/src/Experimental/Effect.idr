@@ -1973,7 +1973,7 @@ mutual
   public export
   keywordParamFits : {0 bs : Bindings} -> KeywordLabel -> Maybe (KeywordParam bs) -> Bool
   keywordParamFits k p =
-    knownKeyword k && paramShapeFits (keywordParamShape k) (paramShapeOf p)
+    knownKeyword k && paramShapesFit (keywordParamShapes k) (paramShapeOf p)
 
   public export
   KeywordParamFits : KeywordLabel -> Maybe (KeywordParam bs) -> Type

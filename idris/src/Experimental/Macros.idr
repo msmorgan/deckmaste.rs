@@ -1482,7 +1482,7 @@ scry : {bs : Bindings} -> (agent : Noun bs Player) ->
        (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
        {auto req : LookReq agent amt Library} -> Instruction bs
 scry {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
-  Enact (Just agent) "Scry" {kn = Oh}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable}
        (Sequentially
           [ lookAt (topSlice (Lit 1))
           , may You
@@ -1490,7 +1490,7 @@ scry {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
                       {ok = LibraryPosOk {af = Oh} {nf = Oh}}
                       {arr = Oh} {pl = pi}) ])
 scry {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Scry" {kn = Oh}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable}
        (Sequentially
           [ lookAt (topSlice amt)
           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
@@ -1501,7 +1501,7 @@ scry {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
                  (onTopIn AnyOrder {af = Oh})
                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 scry agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
-  Enact (Just agent) "Scry" {kn = Oh}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable}
        (Sequentially
           [ lookAtAgentsTop (Lit 1) {an}
           , may (They {ok = ap})
@@ -1509,7 +1509,7 @@ scry agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
                       {ok = LibraryPosOk {af = Oh} {nf = Oh}}
                       {arr = Oh} {pl = pi}) ])
 scry agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Scry" {kn = Oh}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable}
        (Sequentially
           [ lookAtAgentsTop amt {an}
           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
@@ -1543,7 +1543,7 @@ fateseal : {bs : Bindings} ->
                            (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library)) Library} ->
            Instruction bs
 fateseal amt =
-  Enact (Just anOpponent) "Scry" {kn = Oh}
+  Enact (Just anOpponent) "Scry" {kn = ActInFactsTable}
         (Sequentially
            [ lookAtAgentsTop amt {an}
            , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
@@ -1559,14 +1559,14 @@ surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
           {auto req : LookReq agent amt Graveyard} -> Instruction bs
 surveil {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
-  Enact (Just agent) "Surveil" {kn = Oh}
+  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
        (Sequentially
           [ lookAt (topSlice (Lit 1))
           , may You
                 (move (That CardW OneOf {ok = iw}) graveyardZ
                       {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
 surveil {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Surveil" {kn = Oh}
+  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
        (Sequentially
           [ lookAt (topSlice amt)
           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
@@ -1576,14 +1576,14 @@ surveil {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
                  (onTopIn AnyOrder {af = Oh})
                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 surveil agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
-  Enact (Just agent) "Surveil" {kn = Oh}
+  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
        (Sequentially
           [ lookAtAgentsTop (Lit 1) {an}
           , may (They {ok = ap})
                 (move (That CardW OneOf {ok = iw}) graveyardZ
                       {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
 surveil agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Surveil" {kn = Oh}
+  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
        (Sequentially
           [ lookAtAgentsTop amt {an}
           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
@@ -1610,7 +1610,7 @@ proliferate : {bs : Bindings} ->
                                             (And [Permanent, HasCounters Nothing])))) = 1} ->
               Instruction bs
 proliferate =
-  Enact Nothing "Proliferate" {kn = Oh}
+  Enact Nothing "Proliferate" {kn = ActInFactsTable}
         (Sequentially [ Choose
                           (counted Macros.anyNumber
                             (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))

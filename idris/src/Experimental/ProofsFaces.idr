@@ -155,7 +155,7 @@ okKnownKeywordPredicate = HasKeyword (TheKeyword "Flying")
 public export
 badUnknownKeywordPredicate : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (TheKeyword "Flyign") {kn = ok})
-badUnknownKeywordPredicate Oh impossible
+badUnknownKeywordPredicate KeywordTermInFactsTable impossible
 
 ||| "Protection from red"
 public export

@@ -1078,6 +1078,18 @@ public export
 bygoneColossus : Ability
 bygoneColossus = Macros.keywordCosting "Warp" (Mana [Macros.generic 3])
 
+||| Knight of Grace — "Hexproof from black" [CR#702.11d]
+public export
+knightOfGraceHexproofFromBlack : Ability
+knightOfGraceHexproofFromBlack = Macros.keywordQuality "Hexproof" (ColorIs Black)
+
+||| Eternal Dragon — "Plainscycling {2}" [CR#702.29e]
+public export
+eternalDragonPlainscycling : Ability
+eternalDragonPlainscycling =
+  Macros.keywordQualityCosting "Cycling" (HasSubtype (landType "Plains"))
+                               (Mana [Macros.generic 2])
+
 ||| Nezumi Ronin
 public export
 nezumiRonin : Ability

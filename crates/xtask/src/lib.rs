@@ -18,6 +18,7 @@ pub mod derive_cards;
 pub mod english;
 pub mod english_v2;
 pub mod extract;
+pub mod facts;
 pub mod fidelity;
 pub mod generate;
 pub mod graduate;

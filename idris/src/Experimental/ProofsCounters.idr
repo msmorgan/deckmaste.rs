@@ -391,14 +391,14 @@ public export
 badUnknownCounterLabel : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Zorp" {ok}))
               (Macros.target Macros.creature))
-badUnknownCounterLabel Oh impossible
+badUnknownCounterLabel CounterInFactsTable impossible
 
 ||| "Put a flying counter on target creature." [CR#122.1b]
 public export
 badKeywordCounterNamedPlainly : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind (Named "Flying" {ok}))
               (Macros.target Macros.creature))
-badKeywordCounterNamedPlainly Oh impossible
+badKeywordCounterNamedPlainly CounterInFactsTable impossible
 
 public export
 afterCountersPut : Bindings

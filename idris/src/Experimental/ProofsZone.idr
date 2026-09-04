@@ -213,7 +213,7 @@ okKnownVerbLabel =
 public export
 badUnknownVerbLabel : Unspellable (Instruction []) (\ok =>
   Enact Nothing "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
-badUnknownVerbLabel Oh impossible
+badUnknownVerbLabel ActInFactsTable impossible
 
 ||| "1 life for each creature"
 public export

@@ -6,6 +6,8 @@ modules = Semantics
         , Macros
         , Cards
         , Spec
+        , Experimental.KeywordShapes
+        , Experimental.FactsGen
         , Experimental.Words
         , Experimental.Events
         , Experimental.Phrase

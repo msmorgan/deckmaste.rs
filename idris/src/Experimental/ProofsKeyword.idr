@@ -296,6 +296,17 @@ badBareEcho : Unspellable Ability (\ok =>
   KeywordAbility "Echo" Nothing Nothing {pf = ok})
 badBareEcho Oh impossible
 
+||| "each creature with flying"
+public export
+okKnownKeywordClass : AbilityClass
+okKnownKeywordClass = KeywordClass "Flying"
+
+||| "each creature with flyign" — the refusal names the label and the table
+public export
+badUnknownKeywordClass : Unspellable AbilityClass (\ok =>
+  KeywordClass "Flyign" {kn = ok})
+badUnknownKeywordClass KeywordInFactsTable impossible
+
 ||| "{T}: This deals X damage to any target, where X is 3."
 public export
 okActivatedOpensItsOwnLetter : AbilityAt []
