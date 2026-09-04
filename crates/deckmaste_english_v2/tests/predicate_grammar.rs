@@ -921,6 +921,15 @@ fn quote_boundary_discharges_the_enclosing_sentence_terminator() {
             .is_err(),
         "an ordinary final sentence in a sequence still requires its period",
     );
+    assert!(
+        parser
+            .parse(
+                r#"Target creature gains "When this creature dies, draw a card." instead"#,
+                &context,
+            )
+            .is_err(),
+        "a trailing literal keeps an earlier quoted block from discharging the sentence terminator",
+    );
 }
 
 #[test]

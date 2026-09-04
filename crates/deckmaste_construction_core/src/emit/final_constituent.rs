@@ -231,13 +231,15 @@ fn atom_expression(
 ) -> syn::Result<TokenStream> {
     let AtomPlan::Category { role, .. } = atom else {
         return Ok(match atom {
-            AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => fallback.clone(),
             AtomPlan::Lex { role, .. }
             | AtomPlan::Identity { role, .. }
             | AtomPlan::Noun { role, .. } => {
                 terminal_field_expression(construction.field(role)?, value, fallback)
             }
-            AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => quote! { false },
+            AtomPlan::Literal(_)
+            | AtomPlan::SentenceInitialLiteral(_)
+            | AtomPlan::VerbFixed { .. }
+            | AtomPlan::OpenDeclaration(_) => quote! { false },
             AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
                 unreachable!("value_atom removes wrappers")
             }
@@ -556,6 +558,10 @@ mod tests {
                     element SequenceSentence { endings: EndingSequence, }
                     form sequence = endings;
                 }
+                construction literal_final: LiteralEnded {
+                    element LiteralEndedValue { ending: Ending, }
+                    form literal_final = ending "instead";
+                }
 
                 root Sentence { punctuation = "."; eoi = true; standalone_render = true; }
             })
@@ -602,6 +608,17 @@ mod tests {
         assert!(
             sentence.contains("target == Category :: EndingSequence"),
             "a structural product remains on the derived rightmost spine: {sentence}",
+        );
+    }
+
+    #[test]
+    fn a_trailing_literal_is_an_opaque_rightmost_leaf() {
+        let items = emit(&fixture()).expect("rightmost-leaf fixture emits");
+        let literal_ended = traversal_implementation(&items, "LiteralEnded");
+
+        assert!(
+            literal_ended.contains("Self :: LiteralFinal (value) => { false }"),
+            "a form literal is a leaf rather than a transparent wrapper: {literal_ended}",
         );
     }
 
