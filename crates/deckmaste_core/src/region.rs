@@ -1086,9 +1086,10 @@ fn validate_condition_regions(
             validate_count_regions(left, definitions)?;
             validate_count_regions(right, definitions)
         }
-        C::Exists(predicate) | C::Matches(_, predicate) | C::TurnOf(predicate) => {
-            validate_predicate_regions(predicate, definitions)
-        }
+        C::Exists(predicate)
+        | C::Matches(_, predicate)
+        | C::DealtDamageBy(_, predicate)
+        | C::TurnOf(predicate) => validate_predicate_regions(predicate, definitions),
         C::Crossed { value, thresholds } => {
             validate_count_regions(value, definitions)?;
             for threshold in thresholds.iter() {

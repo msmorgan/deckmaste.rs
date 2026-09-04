@@ -1094,7 +1094,8 @@ fn condition_holds_derived(
         // History and paid-cost gates do not read derived characteristics.
         // Reuse the canonical evaluator with a bare carrier frame so their
         // event/stack semantics do not drift from trigger and resolution use.
-        condition @ (Condition::Happened { .. }
+        condition @ (Condition::DealtDamageBy(..)
+        | Condition::Happened { .. }
         | Condition::PaidCost(_)
         | Condition::CastWith(_)) => state
             .objects

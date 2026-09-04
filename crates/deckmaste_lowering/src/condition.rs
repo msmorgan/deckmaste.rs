@@ -25,7 +25,20 @@ impl Lower for deckmaste_semantics::Condition {
                 deckmaste_core::Condition::Compare(f0.lower(), f1.lower(), f2.lower())
             }
             Self::Exists(f0) => deckmaste_core::Condition::Exists(f0.lower()),
-            Self::Matches(f0, f1) => deckmaste_core::Condition::Matches(f0.lower(), f1.lower()),
+            Self::Matches(deckmaste_semantics::Reference::Source, filter) => {
+                deckmaste_core::Condition::DealtDamageBy(
+                    deckmaste_core::Reference::Reg(
+                        crate::region::source().unwrap_or(deckmaste_core::RefId(0)),
+                    ),
+                    filter.lower(),
+                )
+            }
+            Self::Matches(reference, filter) => {
+                deckmaste_core::Condition::Matches(reference.lower(), filter.lower())
+            }
+            Self::DealtDamageBy(reference, filter) => {
+                deckmaste_core::Condition::DealtDamageBy(reference.lower(), filter.lower())
+            }
             Self::LegallyAttached(f0) => deckmaste_core::Condition::LegallyAttached(f0.lower()),
             Self::Happened { event, within } => deckmaste_core::Condition::Happened {
                 event: event.lower(),
@@ -141,6 +154,36 @@ mod tests {
             deckmaste_core::Condition::Matches(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                 deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
+            )
+        );
+    }
+
+    #[test]
+    fn lowers_condition_dealt_damage_by() {
+        assert_eq!(
+            deckmaste_semantics::Condition::DealtDamageBy(
+                deckmaste_semantics::Reference::This,
+                minimal_predicate(),
+            )
+            .lower(),
+            deckmaste_core::Condition::DealtDamageBy(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
+            )
+        );
+    }
+
+    #[test]
+    fn lowers_legacy_matches_source_as_dealt_damage_by() {
+        assert_eq!(
+            deckmaste_semantics::Condition::Matches(
+                deckmaste_semantics::Reference::Source,
+                minimal_predicate(),
+            )
+            .lower(),
+            deckmaste_core::Condition::DealtDamageBy(
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack),
             )
         );
     }

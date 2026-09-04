@@ -82,7 +82,12 @@ impl Lower for deckmaste_semantics::Reference {
             Self::Coalesce(f0) => deckmaste_core::Reference::Coalesce(f0.lower()),
             Self::OwnerOf(f0) => deckmaste_core::Reference::OwnerOf(f0.lower()),
             Self::AttachHostOf(f0) => deckmaste_core::Reference::AttachHostOf(f0.lower()),
-            Self::Source => deckmaste_core::Reference::Source,
+            Self::Source => {
+                crate::region::refuse(
+                    "damage-source history is only meaningful in a DealtDamageBy condition",
+                );
+                deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+            }
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
             // spelling (spec §12). Prose recovers the semantic term through the
@@ -258,14 +263,6 @@ mod tests {
             deckmaste_semantics::Reference::AttachHostOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Reference::AttachHostOf(_)
-        );
-    }
-
-    #[test]
-    fn lowers_reference_source() {
-        assert_matches!(
-            deckmaste_semantics::Reference::Source.lower(),
-            deckmaste_core::Reference::Source
         );
     }
 

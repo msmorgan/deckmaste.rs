@@ -11,7 +11,7 @@
             Compare(StatOf(This, Toughness), Greater, 0),
             Or([
                 Compare(Damage(This), AtLeast, StatOf(This, Toughness)),
-                Matches(Source, Has(Deathtouch)),
+                DealtDamageBy(This, Has(Deathtouch)),
             ]),
         ]),
         then: Destroy(This),

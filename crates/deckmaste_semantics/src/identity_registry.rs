@@ -322,6 +322,11 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
     },
     IdentityRow {
         kind: "Condition",
+        variant: "DealtDamageBy",
+        signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }, ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
+    },
+    IdentityRow {
+        kind: "Condition",
         variant: "DuringPhase",
         signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
     },
@@ -1514,11 +1519,6 @@ pub const IDENTITY_ROWS: &[IdentityRow] = &[
         kind: "Reference",
         variant: "Single",
         signature: "Positional([ParamType { name: Ident(\"Any\"), default: None, elidable: false, binds: [] }])",
-    },
-    IdentityRow {
-        kind: "Reference",
-        variant: "Source",
-        signature: "Positional([])",
     },
     IdentityRow {
         kind: "Reference",

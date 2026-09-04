@@ -576,6 +576,10 @@ fn emit_sort(s: &Sort) -> R {
     })
 }
 
+#[expect(
+    clippy::match_wildcard_for_single_variants,
+    reason = "the remaining semantic-only variant is intentionally not a reference-emitter case"
+)]
 fn emit_reference(r: &Reference) -> R {
     Ok(match r {
         Reference::This => "This".to_string(),
@@ -602,20 +606,12 @@ fn emit_reference(r: &Reference) -> R {
             ));
         }
         Reference::Linked(_) => return Err(gap("Reference::Linked has no Idris counterpart")),
-        // A set-valued deal-time damage-source binding read only inside
-        // `Is(Source, …)` on an engine SBA rule — never authored on a card, so
-        // no Idris counterpart (the builtin SBA rules are engine data, not
-        // emitted card definitions).
-        Reference::Source => {
-            return Err(gap(
-                "Reference::Source (deal-time damage-source binding) has no Idris counterpart",
-            ));
-        }
         Reference::Expanded(_) => {
             return Err(gap(
                 "unexpanded Reference macro invocation remained after expand_all",
             ));
         }
+        other => return Err(gap(format!("Reference {other:?} has no Idris counterpart"))),
     })
 }
 
@@ -923,6 +919,10 @@ fn emit_condition(c: &Condition) -> R {
         Condition::Matches(r, f) => {
             app("Matches", vec![emit_reference(r)?, emit_filter(f)?].into())
         }
+        Condition::DealtDamageBy(r, f) => app(
+            "DealtDamageBy",
+            vec![emit_reference(r)?, emit_filter(f)?].into(),
+        ),
         Condition::LegallyAttached(r) => app("LegallyAttached", vec![emit_reference(r)?].into()),
         Condition::Happened { .. } => {
             return Err(gap("Condition::Happened (history lookback) not yet mapped"));

@@ -1564,6 +1564,7 @@ mutual
     public export
     data Condition : Ctx -> Type where
       Matches : Reference b k -> Predicate b k -> Condition b   -- does r satisfy the (same-kind) predicate
+      DealtDamageBy : Reference b AnObject -> Predicate b AnObject -> Condition b
       Compare : Count b -> Cmp -> Count b -> Condition b
       TurnOf : Predicate b APlayer -> Condition b   -- it's a (matching) player's turn (`yourTurn = TurnOf (SameAs You)`)
       During : PhaseStep -> Condition b

@@ -170,7 +170,7 @@ fn runnable_reference_is_bound(reference: &Reference) -> bool {
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => runnable_reference_is_bound(reference),
         Reference::Coalesce(references) => references.iter().all(runnable_reference_is_bound),
-        Reference::Reg(_) | Reference::Source => true,
+        Reference::Reg(_) => true,
     }
 }
 

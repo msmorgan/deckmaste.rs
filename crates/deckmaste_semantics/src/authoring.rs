@@ -161,7 +161,13 @@ pub fn embed_safe(kind: &str, variant: &str) -> bool {
 /// [...])`; see `KeywordAbility::Composite`'s doc), never spelled bare by a
 /// card author — the same machinery role `Expanded` plays elsewhere, just
 /// under a different name and so not caught by that filter.
-pub const UNCOVERABLE: &[(&str, &str)] = &[("KeywordAbility", "Composite")];
+///
+/// `(Reference, Source)`: the retained semantic anaphor is accepted only as
+/// the legacy input to lowering's condition-level rewrite. It is not a
+/// reference authors may use independently, so it deliberately has no
+/// identity macro; authored damage-history queries use `DealtDamageBy`.
+pub const UNCOVERABLE: &[(&str, &str)] =
+    &[("KeywordAbility", "Composite"), ("Reference", "Source")];
 
 /// Whether a def is registered for `(kind, variant)` in the compiled
 /// registry ([`IDENTITY_ROWS`] — the trust channel; never derived from RON

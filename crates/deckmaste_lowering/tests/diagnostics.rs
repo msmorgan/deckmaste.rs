@@ -146,3 +146,36 @@ fn a_resolvable_card_lowers_through_the_diagnostic_entry() {
     };
     assert_eq!(face.abilities.len(), 1);
 }
+
+/// A bare `Source` reference is a damage-history query with no register to
+/// read, so it is a per-card refusal rather than a lowering. Successor to the
+/// retired `lowers_reference_source`, which asserted the identity lowering that
+/// [Core is explicit regions] law 4 removed: the outcome changed from "lowers"
+/// to "refuses", and this pins the new one.
+#[test]
+fn a_bare_source_reference_produces_a_diagnostic_naming_the_card() {
+    let card = sem::Card::Normal(face(
+        "Bare Source Test",
+        vec![sem::Ability::Spell(
+            sem::SpellAbility {
+                ability_word: None,
+                effect: sem::OneShotEffect::Act(sem::Action::DealDamage(
+                    sem::Reference::Source,
+                    sem::Count::Literal(1),
+                    sem::Reference::Opponent,
+                )),
+            }
+            .into(),
+        )],
+    ));
+
+    let error = deckmaste_lowering::lower_card(card)
+        .expect_err("a damage-source history read outside a condition cannot be compiled");
+    assert_eq!(&*error.card, "Bare Source Test");
+    assert!(
+        error.message.contains("DealtDamageBy"),
+        "the diagnostic names the condition that DOES admit the query, got {:?}",
+        error.message
+    );
+}
+

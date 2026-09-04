@@ -57,6 +57,9 @@ pub enum Condition {
     /// A referenced object matches a predicate ([CR#603.4], "if it is a …").
     /// Idris `Matches`.
     Matches(Reference, Predicate),
+    /// The referenced object has marked damage from at least one source whose
+    /// deal-time abilities match the predicate ([CR#704.5h]).
+    DealtDamageBy(Reference, Predicate),
     /// The referenced attachment is LEGALLY attached ([CR#701.3b,303.4d]): it
     /// has a host AND that (attachment, host) pair passes the attachment
     /// legality predicate (host-type / protection / `Cant(Attach)`). False when

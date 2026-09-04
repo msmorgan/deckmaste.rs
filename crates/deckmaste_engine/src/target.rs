@@ -698,12 +698,9 @@ fn resolve_frameless_reference(
         Reference::Coalesce(references) => references
             .iter()
             .find_map(|inner| resolve_frameless_reference(state, inner, watcher, activation)),
-        // `Single` demotes a SELECTION, which only `resolve::eval_selection_set`
-        // evaluates and only from a `Frame`; `Source` is the set-valued
-        // deal-time damage binding, meaningful only inside
-        // `Condition::Matches(Source, …)`, which reads it before any matcher
-        // sees it. Neither is a register derivation, so neither resolves here.
-        Reference::Single(_) | Reference::Source => None,
+        // `Single` demotes a SELECTION, which only
+        // `resolve::eval_selection_set` evaluates and only from a `Frame`.
+        Reference::Single(_) => None,
     }
 }
 
@@ -2516,9 +2513,7 @@ mod tests {
     /// reference the matcher genuinely cannot resolve reads "no match" instead
     /// of aborting the process ([Invalid semantic input
     /// fizzles](../../../docs/decisions/invalid-semantic-input-fizzles.md)).
-    /// `Single` needs the selection evaluator's `Frame`; `Source` is the
-    /// set-valued deal-time damage binding, read only inside
-    /// `Matches(Source, …)`.
+    /// `Single` needs the selection evaluator's `Frame`.
     #[test]
     fn unresolvable_ref_in_filter_fizzles_instead_of_asserting() {
         let (state, bear) = game_with_a_bear_on_the_field();
@@ -2529,7 +2524,6 @@ mod tests {
                     Predicate::Any,
                 ))),
             ))),
-            Predicate::Ref(deckmaste_core::Reference::Source),
             Predicate::Ref(deckmaste_core::Reference::AttachHostOf(Arc::new(
                 deckmaste_core::Reference::source_parameter(),
             ))),

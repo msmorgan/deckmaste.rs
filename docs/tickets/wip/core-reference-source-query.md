@@ -73,3 +73,48 @@ Acceptance:
 - `cargo test --workspace` green.
 
 Standard constraints apply. Effort: **S**.
+
+## Landing record
+
+Implemented by a Codex delegate; diff reviewed and gates re-run by the
+orchestrator before commit.
+
+**Shape.** `Condition::DealtDamageBy(Reference, Predicate)` added, subject read
+as a register. The existential over marked-damage records moved onto it.
+`Reference::Source` deleted from core together with its `None`, fizzle and
+boundness arms and the Idris emitter's gap branch. The lethal-damage SBA data is
+re-spelled as `DealtDamageBy(This, Has(Deathtouch))` and the identity macro is
+retired. Semantics keeps its own `Source`; the translation lands in lowering's
+condition arm, and a bare `Source` reaching the reference arm is now a per-card
+refusal naming the condition that does admit the query.
+
+**Deviations and additions.**
+
+- Codex removed the whole test `lowers_reference_source`, not a case inside a
+  surviving test as its report stated. The removal itself is correct — that test
+  asserted the identity lowering of a variant law 4 deletes, so it has no subject
+  to be re-spelled against — but it left the successor outcome untested.
+- The orchestrator therefore ADDED
+  `a_bare_source_reference_produces_a_diagnostic_naming_the_card` in
+  `crates/deckmaste_lowering/tests/diagnostics.rs`. The outcome changed from
+  "lowers to Source" to "refuses", and that new outcome is what the retired test's
+  successor must assert.
+
+**Tests.** added 2 (1 by the implementer, 1 by the orchestrator) · re-spelled 2 ·
+removed 1, justified above · ignored 0.
+
+**Gates**, re-run by the orchestrator on the final tree:
+
+- `cargo test -p deckmaste_core -p deckmaste_lowering -p deckmaste_engine -p deckmaste_plugin`
+  — no failures on any line.
+- `crates/deckmaste_lowering/tests/diagnostics.rs` — 5 passed, 0 failed.
+- `cargo xtask idris-check plugins/canon --differential` — `differential OK: 0
+  disagreements`, unchanged.
+- `cargo xtask cite check` — 0 stale; `--list-noncompliant` — empty. The audit read
+  all seven [CR#704.5h] sites against the rule text; each is a claim about
+  deal-time abilities of damage marks, which is what that rule governs.
+- `grep -rn 'Reference::Source' crates/deckmaste_core crates/deckmaste_engine crates/deckmaste_plugin`
+  — no hits. Semantics keeps it, as law 4 requires.
+- `cargo clippy` over the four crates — 10 warnings, all pre-existing in
+  `crates/deckmaste_lowering/src/card.rs:166-184`, none introduced here.
+

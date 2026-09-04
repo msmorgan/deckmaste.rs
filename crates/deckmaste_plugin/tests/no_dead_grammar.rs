@@ -783,6 +783,12 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             covered real card spells it regardless.",
         ),
         (
+            n("Reference", "Source"),
+            "RETIRED AUTHORING: retained in semantics only so legacy Matches(Source, predicate) \
+            values lower through the condition-level compatibility rewrite; new data spells the \
+            explicit DealtDamageBy condition, and core has no damage-source reference.",
+        ),
+        (
             n("Reference", "OwnerOf"),
             "DEFERRED: no covered real card reads an object's OWNER \
             as distinct from its controller (Otherworldly Journey uses UnderOwnersControl, a \

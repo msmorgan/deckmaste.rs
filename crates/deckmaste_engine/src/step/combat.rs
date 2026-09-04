@@ -98,10 +98,10 @@ impl EventApply for DamageDealt {
             g.player_mut(controller).life +=
                 deckmaste_core::Int::try_from(amount).expect("damage fits in i32");
         }
-        // [CR#702.2c]: deathtouch is no longer a bespoke flag — it rides
-        // the mark's captured deal-time abilities (recorded above), and
-        // the lethal-damage SBA reads it via `Is(Source, Has(Deathtouch))`
-        // ([CR#704.5h]).
+        // [CR#704.5h]: deathtouch is no longer a bespoke flag — it rides the
+        // mark's captured deal-time abilities (recorded above), and the
+        // lethal-damage SBA reads it via
+        // `DealtDamageBy(subject, Has(Deathtouch))`.
         None
     }
 }

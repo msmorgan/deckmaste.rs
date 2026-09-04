@@ -1,0 +1,6 @@
+(
+    name: "DealtDamageBy",
+    kinds: [Condition],
+    params: [Any, Any],
+    body: DealtDamageBy(Param(0), Param(1)),
+)

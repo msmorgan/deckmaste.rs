@@ -476,14 +476,6 @@ impl GameState {
                     Self::unbound_ref(reference, "AttachHostOf on an unattached object")
                 })
             }
-            // [CR#120.3]: a set-valued deal-time binding read only inside
-            // `Is(Source, …)` (which handles it before ever reaching here);
-            // there is no single live object to resolve it to, so a stray use
-            // fizzles (never crashes).
-            Reference::Source => Self::unbound_ref(
-                reference,
-                "Source is only meaningful inside Matches(Source, …)",
-            ),
         }
     }
 

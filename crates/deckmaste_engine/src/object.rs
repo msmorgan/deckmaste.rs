@@ -249,9 +249,9 @@ pub enum Side {
 /// One instance of marked damage on a permanent ([CR#120.3]), tagged with the
 /// source that dealt it and that source's abilities captured *at deal time*.
 /// Provenance is deal-time because damage-source effects — deathtouch most
-/// notably ([CR#702.2c]: "any nonzero amount is lethal") — are decided when the
-/// damage is dealt, not when a later SBA reads the mark: the source may have
-/// lost the ability or left the battlefield in between, and it still counts.
+/// notably ([CR#704.5h]) — are decided when the damage is dealt, not when a
+/// later SBA reads the mark: the source may have lost the ability or left the
+/// battlefield in between, and it still counts.
 /// Replaces the bespoke deal-time `struck_by_deathtouch` bool.
 #[derive(Debug, Clone)]
 pub struct DamageMark {
@@ -261,7 +261,8 @@ pub struct DamageMark {
     /// deathtouch reads `source_abilities`, not identity.
     pub source: Option<ObjectSource>,
     /// The source's derived abilities captured the instant it dealt the damage
-    /// ([CR#702.2c]) — the deal-time snapshot `Is(Source, Has(kw))` reads.
+    /// ([CR#704.5h]) — the deal-time snapshot `DealtDamageBy(subject, Has(kw))`
+    /// reads.
     /// Empty when the source had already left.
     pub source_abilities: Vec<Ability>,
     /// How much damage this instance marked.

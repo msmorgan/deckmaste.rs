@@ -1994,11 +1994,12 @@ mod tests {
         );
     }
 
-    /// [CR#704.5h]: `Is(Source, Has(Deathtouch))` reads the DEAL-TIME abilities
-    /// captured on the object's damage marks — false with no marks, false for a
-    /// plain (non-deathtouch) mark, true once a deathtouch-sourced mark exists.
+    /// [CR#704.5h]: `DealtDamageBy(This, Has(Deathtouch))` reads the DEAL-TIME
+    /// abilities captured on the object's damage marks — false with no marks,
+    /// false for a plain (non-deathtouch) mark, true once a
+    /// deathtouch-sourced mark exists.
     #[test]
-    fn is_source_has_deathtouch_reads_deal_time_marks() {
+    fn dealt_damage_by_deathtouch_reads_deal_time_marks() {
         use deckmaste_core::Ability;
         use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Condition;
@@ -2008,8 +2009,8 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let frame = this_frame(&state, bear);
-        let cond = Condition::Matches(
-            Reference::Source,
+        let cond = Condition::DealtDamageBy(
+            Reference::Reg(deckmaste_core::RefId(0)),
             Predicate::Characteristic(CharacteristicPredicate::Has("Deathtouch".into())),
         );
         assert!(
