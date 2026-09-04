@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v2-type-line-construction]
 ---
 # Declare the type-line order in english_v2
 
