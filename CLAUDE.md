@@ -98,8 +98,14 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 ## Gate scope for compiler changes
 
 - Any diff touching `crates/deckmaste_construction_core/src/emit/` (or the
-  emitter↔environment contract the generated code relies on) gates on
-  `cargo test --workspace` — never an enumerated `-p` list. The generated
+  emitter↔environment contract the generated code relies on), any declaration
+  data under `plugins/builtin_v2/` (keyword-action stubs, catalog rows), or
+  `crates/deckmaste_english_v2/src/core_verbs.ron` gates on
+  `cargo test --workspace` — never an enumerated `-p` list. Declaration data
+  is consumed by the plugin/builtin test crates too: the 2026-09-04
+  with-preposition landing converted a stub's `with` literal to the declared
+  `Preposition::With` member under a `-p english_v2 -p xtask` gate and left
+  `exchange_has_every_attested_representable_tail_shape` red on trunk. The generated
   code is exercised only by downstream consumer crates
   (`deckmaste_construction`'s compiled-consumer fixture among them), so an
   enumerated list cannot reach the break; three landings shipped a red
