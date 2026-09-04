@@ -667,6 +667,13 @@ pub(crate) enum AtomPlan {
         variant: String,
         path: syn::Path,
     },
+    Marked {
+        role: String,
+        category: String,
+        terminal: String,
+        variant: String,
+        path: syn::Path,
+    },
     Identity {
         role: String,
         terminal: String,
@@ -820,6 +827,8 @@ pub(crate) enum VerbFrameAtom {
     Literal(String),
     Lex(String, String),
     OptionalLex(String, String),
+    MarkedRole(String, String, String),
+    OptionalMarkedRole(String, String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -3739,6 +3748,7 @@ fn form_atom_is_nullable(
                 |kind| structural_kind_is_nullable(kind, nullable_types),
             ),
         AtomPlan::Lex { role, .. }
+        | AtomPlan::Marked { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => fields
             .iter()
@@ -4742,6 +4752,24 @@ impl AtomPlan {
                     path: path.clone(),
                 })
             }
+            (
+                FormAtom::Marked(authored),
+                AtomContribution::Marked {
+                    role,
+                    category,
+                    terminal,
+                    variant,
+                },
+            ) => {
+                ensure_atom_name(&authored.role, role, "marked atom role name")?;
+                Ok(Self::Marked {
+                    role: role.clone(),
+                    category: category.clone(),
+                    terminal: terminal.clone(),
+                    variant: variant.clone(),
+                    path: authored.marker.clone(),
+                })
+            }
             (FormAtom::Identity(authored), AtomContribution::Identity { role, terminal }) => {
                 ensure_atom_name(authored, role, "identity atom role name")?;
                 Ok(Self::Identity {
@@ -4847,6 +4875,12 @@ impl AtomPlan {
             Self::LexFixed {
                 terminal, variant, ..
             } => format!("lex({terminal}::{variant})"),
+            Self::Marked {
+                role,
+                terminal,
+                variant,
+                ..
+            } => format!("marked({terminal}::{variant}, {role})"),
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
             Self::VerbFixed {
@@ -4920,6 +4954,7 @@ fn form_atom_span(atom: &FormAtom) -> Span {
         | FormAtom::Noun(role)
         | FormAtom::Verb(VerbOperand::Projected(role)) => role.span(),
         FormAtom::Verb(VerbOperand::Fixed(path)) | FormAtom::FixedLex(path) => path.span(),
+        FormAtom::Marked(marked) => marked.marker.span(),
         FormAtom::OpenVerb(open) => open.name.span(),
         FormAtom::Bound(bound) => bound.affix.span(),
         FormAtom::Circumfix(circumfix) => circumfix.prefix.span(),
@@ -5019,6 +5054,7 @@ fn number_carry_categories(
                     | AtomPlan::Category { .. }
                     | AtomPlan::Lex { .. }
                     | AtomPlan::LexFixed { .. }
+                    | AtomPlan::Marked { .. }
                     | AtomPlan::Identity { .. }
                     | AtomPlan::Noun { .. }
                     | AtomPlan::VerbFixed { .. }
@@ -5191,6 +5227,7 @@ fn validate_onset_provider_capabilities(
                             | AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::LexFixed { .. }
+                            | AtomPlan::Marked { .. }
                             | AtomPlan::Identity { .. }
                             | AtomPlan::Noun { .. }
                             | AtomPlan::Bound { .. }
@@ -6574,6 +6611,17 @@ impl DeclarationVerbPlan {
                             VerbFrameAtom::OptionalLex(terminal, variant)
                         } else {
                             VerbFrameAtom::Lex(terminal, variant)
+                        }
+                    }
+                    crate::model::DeclarationVerbTailAtomKindSource::Marked { marker, role } => {
+                        let segments = marker.segments.iter().collect::<Vec<_>>();
+                        let terminal = identifier_key(&segments[0].ident);
+                        let variant = identifier_key(&segments[1].ident);
+                        let role = identifier_key(role);
+                        if atom.optional {
+                            VerbFrameAtom::OptionalMarkedRole(terminal, variant, role)
+                        } else {
+                            VerbFrameAtom::MarkedRole(terminal, variant, role)
                         }
                     }
                     crate::model::DeclarationVerbTailAtomKindSource::Amount(ident) => {

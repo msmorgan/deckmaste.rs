@@ -609,6 +609,7 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
                             AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::LexFixed { .. }
+                            | AtomPlan::Marked { .. }
                             | AtomPlan::Identity { .. }
                             | AtomPlan::Noun { .. }
                             | AtomPlan::VerbFixed { .. }
@@ -674,6 +675,8 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                     Literal(&'static str),
                     Lex(&'static str, &'static str),
                     OptionalLex(&'static str, &'static str),
+                    MarkedRole(&'static str, &'static str, &'static str),
+                    OptionalMarkedRole(&'static str, &'static str, &'static str),
                     Amount,
                     ObjectNounPhrase,
                     PredicativeComplement,

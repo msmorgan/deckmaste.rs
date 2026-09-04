@@ -121,6 +121,12 @@ pub(crate) enum AtomContribution {
         terminal: String,
         variant: String,
     },
+    Marked {
+        role: String,
+        category: String,
+        terminal: String,
+        variant: String,
+    },
     Identity {
         role: String,
         terminal: String,
@@ -168,6 +174,7 @@ impl AtomContribution {
         match self {
             Self::Lex { terminal, .. }
             | Self::LexFixed { terminal, .. }
+            | Self::Marked { terminal, .. }
             | Self::Identity { terminal, .. }
             | Self::Noun { terminal, .. }
             | Self::VerbFixed { terminal, .. }
@@ -187,6 +194,17 @@ impl AtomContribution {
             Self::LexFixed { terminal, variant } | Self::VerbFixed { terminal, variant } => {
                 !terminal.is_empty() && !variant.is_empty()
             }
+            Self::Marked {
+                role,
+                category,
+                terminal,
+                variant,
+            } => {
+                !role.is_empty()
+                    && !category.is_empty()
+                    && !terminal.is_empty()
+                    && !variant.is_empty()
+            }
             Self::OpenDeclaration { name, .. } => !name.is_empty(),
         }
     }
@@ -199,6 +217,9 @@ impl AtomContribution {
                     info.supports_lex_atom() && info.has_direct_render_build_traversal()
                 })
             }
+            Self::Marked { terminal, .. } => terminals.get(terminal.as_str()).is_some_and(|info| {
+                info.supports_lex_atom() && info.has_direct_render_build_traversal()
+            }),
             Self::Identity { terminal, .. } => {
                 terminals.get(terminal.as_str()).is_some_and(|info| {
                     info.supports_identity_atom() && info.has_direct_render_build_traversal()
@@ -223,6 +244,12 @@ impl AtomContribution {
             Self::Category { role, category } => format!("category({role}: {category})"),
             Self::Lex { role, .. } => format!("lex({role})"),
             Self::LexFixed { terminal, variant } => format!("lex({terminal}::{variant})"),
+            Self::Marked {
+                role,
+                terminal,
+                variant,
+                ..
+            } => format!("marked({terminal}::{variant}, {role})"),
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
             Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
@@ -424,7 +451,8 @@ pub(crate) fn validate_declaration_verb_consumers(semantic: &SemanticPlan) -> sy
         .flat_map(crate::semantic::ConstructionPlan::forms)
         .flat_map(crate::semantic::FormPlan::atoms)
         .filter_map(|atom| match atom.value_atom() {
-            crate::semantic::AtomPlan::Lex { terminal, .. } => Some(terminal.as_str()),
+            crate::semantic::AtomPlan::Lex { terminal, .. }
+            | crate::semantic::AtomPlan::Marked { terminal, .. } => Some(terminal.as_str()),
             crate::semantic::AtomPlan::Literal(_)
             | crate::semantic::AtomPlan::SentenceInitialLiteral(_)
             | crate::semantic::AtomPlan::Category { .. }
@@ -1164,6 +1192,11 @@ fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKin
             })
         }
         FormAtom::FixedLex(_) | FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
+        FormAtom::Marked(marked) => fields
+            .get(&identifier_key(&marked.role))
+            .is_some_and(|kind| {
+                !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
+            }),
         FormAtom::Role(_) => false,
         FormAtom::Bound(bound) => form_atom_has_fixed_width(&bound.value, fields),
         FormAtom::Circumfix(circumfix) => {
@@ -3367,6 +3400,13 @@ fn declaration_verb_domain(
                 crate::model::DeclarationVerbTailAtomKindSource::Lex(path) => {
                     format!("Lex({})", quote::quote!(#path))
                 }
+                crate::model::DeclarationVerbTailAtomKindSource::Marked { marker, role } => {
+                    format!(
+                        "Marked({}, {})",
+                        quote::quote!(#marker),
+                        identifier_key(role)
+                    )
+                }
                 crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => "Amount".to_owned(),
                 crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                     "ObjectNounPhrase".to_owned()
@@ -3752,6 +3792,43 @@ fn validate_declaration_verb_tail(
                     );
                 }
             }
+            crate::model::DeclarationVerbTailAtomKindSource::Marked { marker, role } => {
+                let segments = marker.segments.iter().collect::<Vec<_>>();
+                if segments.len() != 2 {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            marker,
+                            "declaration_verb marked-role atom must use a `Type::Variant` marker",
+                        ),
+                    );
+                    continue;
+                }
+                let terminal = identifier_key(&segments[0].ident);
+                let variant = identifier_key(&segments[1].ident);
+                let marker_found = raw.declarations.iter().any(|declaration| {
+                    matches!(
+                        declaration,
+                        Declaration::Vocab(vocab)
+                            if identifier_key(&vocab.name) == terminal
+                                && vocab.variants.iter().any(|row| identifier_key(&row.name) == variant)
+                    )
+                });
+                if !marker_found {
+                    combine(
+                        errors,
+                        syn::Error::new_spanned(
+                            marker,
+                            format!("unknown vocabulary atom `{terminal}::{variant}`"),
+                        ),
+                    );
+                }
+                let role_key = identifier_key(role);
+                nonliteral_occurrences
+                    .entry(format!("Marked({terminal}::{variant}, {role_key})"))
+                    .or_default()
+                    .push(atom);
+            }
             crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => {
                 nonliteral_occurrences
                     .entry("Amount".to_owned())
@@ -3787,6 +3864,7 @@ fn validate_declaration_verb_tail(
             | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => atom.span(),
+            crate::model::DeclarationVerbTailAtomKindSource::Marked { marker, .. } => marker.span(),
             crate::model::DeclarationVerbTailAtomKindSource::Literal(_)
             | crate::model::DeclarationVerbTailAtomKindSource::Lex(_) => {
                 unreachable!("only nonliteral occurrences are grouped")
@@ -6162,6 +6240,7 @@ fn validate_bound_form_atom<'a>(
         | FormAtom::FixedLex(_)
         | FormAtom::Verb(VerbOperand::Fixed(_))
         | FormAtom::OpenVerb(_)
+        | FormAtom::Marked(_)
         | FormAtom::Bound(_)
         | FormAtom::Circumfix(_) => None,
     };
@@ -6372,6 +6451,15 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     FormAtom::FixedLex(path) => {
                         check_terminal_variant(path, TerminalKind::Vocab, symbols, &mut errors);
                     }
+                    FormAtom::Marked(marked) => {
+                        check_terminal_variant(
+                            &marked.marker,
+                            TerminalKind::Vocab,
+                            symbols,
+                            &mut errors,
+                        );
+                        check_role_kind(&marked.role, &fields, true, &mut errors);
+                    }
                     FormAtom::Identity(role) => match fields
                         .get(&identifier_key(role))
                         .map(|kind| field_kind_leaf(kind))
@@ -6571,6 +6659,11 @@ fn validate_feature_guarded_traversal_programs(
                     | FormAtom::LicensedLiteral(_)
                     | FormAtom::SentenceInitial(_) => None,
                     FormAtom::FixedLex(path) => Some(format!("lex-fixed:{}", path_name(path))),
+                    FormAtom::Marked(marked) => Some(format!(
+                        "marked:{}:{}",
+                        path_name(&marked.marker),
+                        identifier_key(&marked.role)
+                    )),
                     FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
                     FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
                     FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
@@ -6870,6 +6963,23 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                         terminal: identifier_key(&terminal.ident),
                         variant: identifier_key(&variant.ident),
                     })
+                }
+                FormAtom::Marked(marked) => {
+                    let segments: Vec<_> = marked.marker.segments.iter().collect();
+                    let Some(terminal) = segments.iter().rev().nth(1) else { continue };
+                    let Some(variant) = segments.last() else { continue };
+                    match fields
+                        .get(&identifier_key(&marked.role))
+                        .map(|kind| field_kind_leaf(kind))
+                    {
+                        Some(FieldKind::Category(path)) => Some(AtomContribution::Marked {
+                            role: identifier_key(&marked.role),
+                            category: path_name(path),
+                            terminal: identifier_key(&terminal.ident),
+                            variant: identifier_key(&variant.ident),
+                        }),
+                        _ => None,
+                    }
                 }
                 FormAtom::Identity(role) => match fields
                     .get(&identifier_key(role))
@@ -7420,6 +7530,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     | FormAtom::Identity(role)
                     | FormAtom::Noun(role)
                     | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
+                    FormAtom::Marked(marked) => Some(&marked.role),
                     FormAtom::Verb(VerbOperand::Fixed(_))
                     | FormAtom::FixedLex(_)
                     | FormAtom::OpenVerb(_)
@@ -9290,6 +9401,7 @@ fn seal_feature_resolutions(
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
                         | FormAtom::FixedLex(_)
+                        | FormAtom::Marked(_)
                         | FormAtom::Role(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Identity(_)
@@ -9398,6 +9510,7 @@ fn seal_category_render_capabilities(
                         | FormAtom::LicensedLiteral(_)
                         | FormAtom::SentenceInitial(_)
                         | FormAtom::FixedLex(_)
+                        | FormAtom::Marked(_)
                         | FormAtom::Role(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Identity(_)
@@ -9569,6 +9682,23 @@ fn seal_category_render_capabilities(
                             .is_some_and(|field| match field_kind_leaf(&field.kind) {
                                 FieldKind::Category(path) => {
                                     context_required.contains(&path_name(path))
+                                }
+                                FieldKind::Lex(_)
+                                | FieldKind::Identity(_)
+                                | FieldKind::Zeroable { .. }
+                                | FieldKind::Optional(_)
+                                | FieldKind::Sequence { .. } => false,
+                            }),
+                        FormAtom::Marked(marked) => construction
+                            .element
+                            .fields
+                            .iter()
+                            .find(|field| same_identifier(&field.name, &marked.role))
+                            .is_some_and(|field| match field_kind_leaf(&field.kind) {
+                                FieldKind::Category(path) => {
+                                    let category = path_name(path);
+                                    context_required.contains(&category)
+                                        || structural_names.contains(&category)
                                 }
                                 FieldKind::Lex(_)
                                 | FieldKind::Identity(_)

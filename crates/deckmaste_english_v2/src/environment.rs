@@ -222,6 +222,8 @@ enum CoreVerbTailAtom {
     Literal(String),
     Lex(String, String),
     OptionalLex(String, String),
+    MarkedRole(String, String, String),
+    OptionalMarkedRole(String, String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -247,6 +249,8 @@ enum OwnedVerbFrameAtom {
     Literal(String),
     Lex(String, String),
     OptionalLex(String, String),
+    MarkedRole(String, String, String),
+    OptionalMarkedRole(String, String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
@@ -1244,6 +1248,18 @@ impl OwnedVerbFrameAtom {
                 Self::OptionalLex(owned_terminal, owned_variant),
                 VerbFrameAtom::OptionalLex(runtime_terminal, runtime_variant),
             ) => owned_terminal == runtime_terminal && owned_variant == runtime_variant,
+            (
+                Self::MarkedRole(owned_terminal, owned_variant, owned_role),
+                VerbFrameAtom::MarkedRole(runtime_terminal, runtime_variant, runtime_role),
+            )
+            | (
+                Self::OptionalMarkedRole(owned_terminal, owned_variant, owned_role),
+                VerbFrameAtom::OptionalMarkedRole(runtime_terminal, runtime_variant, runtime_role),
+            ) => {
+                owned_terminal == runtime_terminal
+                    && owned_variant == runtime_variant
+                    && owned_role == runtime_role
+            }
             (Self::Amount, VerbFrameAtom::Amount)
             | (Self::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
             | (Self::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
@@ -1347,6 +1363,12 @@ fn owned_core_verb_frame_atoms(atoms: Vec<CoreVerbTailAtom>) -> Vec<OwnedVerbFra
             CoreVerbTailAtom::Lex(terminal, variant) => OwnedVerbFrameAtom::Lex(terminal, variant),
             CoreVerbTailAtom::OptionalLex(terminal, variant) => {
                 OwnedVerbFrameAtom::OptionalLex(terminal, variant)
+            }
+            CoreVerbTailAtom::MarkedRole(terminal, variant, role) => {
+                OwnedVerbFrameAtom::MarkedRole(terminal, variant, role)
+            }
+            CoreVerbTailAtom::OptionalMarkedRole(terminal, variant, role) => {
+                OwnedVerbFrameAtom::OptionalMarkedRole(terminal, variant, role)
             }
             CoreVerbTailAtom::Amount => OwnedVerbFrameAtom::Amount,
             CoreVerbTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,

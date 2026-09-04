@@ -103,6 +103,11 @@ pub(super) enum RuleSymbolPlan {
         form_index: usize,
         atom_index: usize,
     },
+    MarkedMarker {
+        construction_index: usize,
+        form_index: usize,
+        atom_index: usize,
+    },
     BoundAffix {
         construction_index: usize,
         form_index: usize,
@@ -152,6 +157,7 @@ impl RuleSymbolPlan {
     fn test_label(&self) -> String {
         match self {
             Self::Authored { .. } => "authored".to_owned(),
+            Self::MarkedMarker { .. } => "marked-marker".to_owned(),
             Self::BoundAffix { .. } => "bound-affix".to_owned(),
             Self::CircumfixAffix { side, .. } => format!("circumfix-{side:?}"),
             Self::Value(value) => format!("value:{}", value_name(value)),
@@ -542,6 +548,34 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
                 &construction.forms()[*form_index].atoms()[*atom_index],
             )
         }
+        RuleSymbolPlan::MarkedMarker {
+            construction_index,
+            form_index,
+            atom_index,
+        } => {
+            let construction = &plan.constructions()[*construction_index];
+            let AtomPlan::Marked {
+                terminal,
+                variant,
+                path,
+                ..
+            } = &construction.forms()[*form_index].atoms()[*atom_index]
+            else {
+                return Err(internal("marked-marker symbol does not name a marked atom"));
+            };
+            let marker = AtomPlan::LexFixed {
+                terminal: terminal.clone(),
+                variant: variant.clone(),
+                path: path.clone(),
+            };
+            emit_position(
+                plan,
+                construction,
+                construction.forms()[*form_index].name(),
+                *atom_index,
+                &marker,
+            )
+        }
         RuleSymbolPlan::BoundAffix {
             construction_index,
             form_index,
@@ -650,6 +684,27 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
         })
         .collect::<HelperCategoryNames<'_>>();
     for (index, construction) in plan.constructions().iter().enumerate() {
+        let marked_roles = construction
+            .forms()
+            .iter()
+            .enumerate()
+            .flat_map(|(form_index, form)| {
+                form.atoms()
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(atom_index, atom)| match atom {
+                        AtomPlan::Marked { role, .. } => Some((
+                            role.clone(),
+                            RuleSymbolPlan::MarkedMarker {
+                                construction_index: index,
+                                form_index,
+                                atom_index,
+                            },
+                        )),
+                        _ => None,
+                    })
+            })
+            .collect::<HashMap<_, _>>();
         rows.extend(lower_construction_rows(
             index,
             construction,
@@ -663,6 +718,7 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
                 .iter()
                 .enumerate()
                 .filter_map(|(index, field)| field.structural_plan().map(|field| (index, field))),
+            &marked_roles,
             &helper_category_names,
         )?);
     }
@@ -672,6 +728,7 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
             StructuralOwner::Product(index),
             product.name(),
             product.fields().iter().enumerate(),
+            &HashMap::new(),
             &helper_category_names,
         )?);
     }
@@ -733,6 +790,17 @@ fn lower_construction_rows(
             let structural = structural_field_for_atom(construction, atom)?;
             let Some(field) = structural else {
                 for (_, rhs) in &mut variants {
+                    if let AtomPlan::Marked { category, .. } = atom {
+                        rhs.extend([
+                            RuleSymbolPlan::MarkedMarker {
+                                construction_index,
+                                form_index,
+                                atom_index,
+                            },
+                            RuleSymbolPlan::Value(ValueKindPlan::Category(category.clone())),
+                        ]);
+                        continue;
+                    }
                     let authored = RuleSymbolPlan::Authored {
                         construction_index,
                         form_index,
@@ -769,7 +837,20 @@ fn lower_construction_rows(
                 continue;
             };
             let field_variants = owner_field_variants(construction.element_type(), field)?;
-            if matches!(atom, AtomPlan::Circumfix { .. }) {
+            if matches!(atom, AtomPlan::Marked { .. })
+                && !matches!(field.kind(), StructuralFieldKindPlan::Optional(_))
+            {
+                variants = combine_marked_owner_variants(
+                    variants,
+                    field,
+                    &field_variants,
+                    &RuleSymbolPlan::MarkedMarker {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                    },
+                );
+            } else if matches!(atom, AtomPlan::Circumfix { .. }) {
                 for (_, rhs) in &mut variants {
                     rhs.push(RuleSymbolPlan::CircumfixAffix {
                         construction_index,
@@ -842,6 +923,43 @@ fn lower_construction_rows(
         );
     }
     Ok(rows)
+}
+
+fn combine_marked_owner_variants(
+    current: Vec<(Vec<OwnerFieldBuildPlan>, Vec<RuleSymbolPlan>)>,
+    field: &StructuralFieldPlan,
+    field_variants: &[(Option<OwnerFieldBuildState>, Vec<RuleSymbolPlan>)],
+    marker: &RuleSymbolPlan,
+) -> Vec<(Vec<OwnerFieldBuildPlan>, Vec<RuleSymbolPlan>)> {
+    current
+        .into_iter()
+        .flat_map(|(states, rhs)| {
+            let marker = marker.clone();
+            field_variants.iter().map(move |(state, field_rhs)| {
+                let mut states = states.clone();
+                let mut combined = rhs.clone();
+                if !matches!(state, Some(OwnerFieldBuildState::ZeroableAbsent)) {
+                    combined.push(marker.clone());
+                }
+                let rhs_start = combined.len();
+                combined.extend(field_rhs.iter().cloned());
+                if let Some(state) = state {
+                    let helper_category = field_rhs.iter().find_map(|symbol| match symbol {
+                        RuleSymbolPlan::Helper(category) => Some(category.clone()),
+                        _ => None,
+                    });
+                    states.push(OwnerFieldBuildPlan {
+                        role: field.name().to_owned(),
+                        state: *state,
+                        rhs_start,
+                        rhs_end: combined.len(),
+                        helper_category,
+                    });
+                }
+                (states, combined)
+            })
+        })
+        .collect()
 }
 
 fn lower_product_rows(
@@ -1093,6 +1211,7 @@ fn lower_helper_rows<'a>(
     owner_key: StructuralOwner,
     owner: &str,
     fields: impl Iterator<Item = (usize, &'a StructuralFieldPlan)>,
+    marked_roles: &HashMap<String, RuleSymbolPlan>,
     helper_categories: &HelperCategoryNames<'_>,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut rows = Vec::new();
@@ -1124,7 +1243,12 @@ fn lower_helper_rows<'a>(
                         "Present",
                         "optional_present",
                         true,
-                        vec![RuleSymbolPlan::Value(value.clone())],
+                        marked_roles
+                            .get(field.name())
+                            .cloned()
+                            .into_iter()
+                            .chain(std::iter::once(RuleSymbolPlan::Value(value.clone())))
+                            .collect(),
                     ),
                 ] {
                     rows.push(RuleRowPlan {
@@ -1729,6 +1853,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
     match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
+        | AtomPlan::Marked { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
@@ -1894,7 +2019,9 @@ fn emit_position(
         AtomPlan::Lex { role, terminal } => {
             lex_position(plan, construction, role, terminal, &right_boundary)
         }
-        AtomPlan::LexFixed { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
+        AtomPlan::Marked { terminal, .. }
+        | AtomPlan::LexFixed { terminal, .. }
+        | AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let owner = owner_template(plan, terminal)?;
             Ok(lexical_terminal_with_boundary(

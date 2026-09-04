@@ -720,6 +720,18 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         let variant = syn::LitStr::new(variant, Span::call_site());
                         quote! { VerbFrameAtom::OptionalLex(#terminal, #variant) }
                     }
+                    crate::semantic::VerbFrameAtom::MarkedRole(terminal, variant, role) => {
+                        let terminal = syn::LitStr::new(terminal, Span::call_site());
+                        let variant = syn::LitStr::new(variant, Span::call_site());
+                        let role = syn::LitStr::new(role, Span::call_site());
+                        quote! { VerbFrameAtom::MarkedRole(#terminal, #variant, #role) }
+                    }
+                    crate::semantic::VerbFrameAtom::OptionalMarkedRole(terminal, variant, role) => {
+                        let terminal = syn::LitStr::new(terminal, Span::call_site());
+                        let variant = syn::LitStr::new(variant, Span::call_site());
+                        let role = syn::LitStr::new(role, Span::call_site());
+                        quote! { VerbFrameAtom::OptionalMarkedRole(#terminal, #variant, #role) }
+                    }
                     crate::semantic::VerbFrameAtom::Amount => quote! { VerbFrameAtom::Amount },
                     crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
                         quote! { VerbFrameAtom::ObjectNounPhrase }

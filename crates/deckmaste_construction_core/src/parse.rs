@@ -993,6 +993,17 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                     FormAtom::FixedLex(path)
                 }
             }
+            "marked" => {
+                let marker = parse_generated_owned_path(&content)?;
+                content.parse::<Token![,]>()?;
+                let role = content.call(Ident::parse_any)?;
+                if !content.is_empty() {
+                    return Err(content.error(
+                        "marked form atoms accept exactly one marker and one category role",
+                    ));
+                }
+                FormAtom::Marked(crate::model::MarkedAtom { marker, role })
+            }
             "identity" | "noun" => {
                 let role = content.parse()?;
                 if !content.is_empty() {
@@ -1939,6 +1950,21 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                 crate::model::DeclarationVerbTailAtomKindSource::Lex(
                                     lexical.parse()?,
                                 )
+                            } else if atom == "marked" {
+                                let marked_content;
+                                parenthesized!(marked_content in input);
+                                let marker = marked_content.parse()?;
+                                marked_content.parse::<Token![,]>()?;
+                                let role = marked_content.call(Ident::parse_any)?;
+                                if !marked_content.is_empty() {
+                                    return Err(marked_content.error(
+                                        "marked tail atoms accept exactly one marker and one role",
+                                    ));
+                                }
+                                crate::model::DeclarationVerbTailAtomKindSource::Marked {
+                                    marker,
+                                    role,
+                                }
                             } else {
                                 match atom.to_string().as_str() {
                                     "Amount" => {

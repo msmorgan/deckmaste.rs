@@ -229,7 +229,7 @@ fn atom_expression(
     value: &TokenStream,
     fallback: &TokenStream,
 ) -> syn::Result<TokenStream> {
-    let AtomPlan::Category { role, .. } = atom else {
+    let (AtomPlan::Category { role, .. } | AtomPlan::Marked { role, .. }) = atom else {
         return Ok(match atom {
             AtomPlan::Lex { role, .. }
             | AtomPlan::Identity { role, .. }
@@ -247,7 +247,9 @@ fn atom_expression(
             AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
                 unreachable!("value_atom removes wrappers")
             }
-            AtomPlan::Category { .. } => unreachable!("handled above"),
+            AtomPlan::Category { .. } | AtomPlan::Marked { .. } => {
+                unreachable!("handled above")
+            }
         });
     };
     let field = construction.field(role)?;

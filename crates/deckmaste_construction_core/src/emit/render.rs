@@ -1894,7 +1894,7 @@ fn render_allocator(
                 AtomPlan::Literal(_)
                 | AtomPlan::SentenceInitialLiteral(_)
                 | AtomPlan::LexFixed { .. } => {}
-                AtomPlan::Category { role, .. } => {
+                AtomPlan::Category { role, .. } | AtomPlan::Marked { role, .. } => {
                     let field = fields
                         .get(role)
                         .ok_or_else(|| internal("resolved role is absent"))?;
@@ -2423,6 +2423,60 @@ fn render_atoms(
                     &fields,
                 );
             }
+            if let AtomPlan::Marked {
+                role,
+                category,
+                terminal,
+                variant,
+                ..
+            } = atom
+            {
+                let field = fields
+                    .get(role)
+                    .ok_or_else(|| internal("resolved marked role is absent"))?;
+                if let Some(structural) = field.structural_plan() {
+                    return render_marked_atom(
+                        validated,
+                        construction,
+                        role,
+                        terminal,
+                        variant,
+                        structural,
+                        locals,
+                        root_names,
+                    );
+                }
+                let surface = fixed_surface_atom_text(
+                    validated,
+                    &crate::semantic::FixedSurfaceAtomPlan::Lex {
+                        terminal: terminal.clone(),
+                        variant: variant.clone(),
+                    },
+                )?;
+                let owner = render_owner(
+                    validated,
+                    construction,
+                    form.name(),
+                    atom_index,
+                    atom,
+                    locals,
+                )?;
+                let role_statement = render_atom_statement(
+                    validated,
+                    construction,
+                    &AtomPlan::Category {
+                        role: role.clone(),
+                        category: category.clone(),
+                    },
+                    locals,
+                    root_names,
+                    &fields,
+                )?;
+                return Ok(quote! {
+                    writer.claim(|| #owner, |writer| { writer.word(#surface); });
+                    #role_statement
+                });
+            }
             if let Some(role) = render_atom_role(atom)
                 && let Some(field) = fields.get(role)
                 && let Some(structural) = field.structural_plan()
@@ -2780,6 +2834,9 @@ fn render_atom_statement(
             )?;
             Ok(quote! { #method_writer.word(#surface); })
         }
+        AtomPlan::Marked { .. } => Err(internal(
+            "marked atoms must render their marker and role together",
+        )),
         AtomPlan::Category { role, .. } => {
             let field = fields
                 .get(role)
@@ -3110,6 +3167,66 @@ fn render_construction_structural_field(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a marked role needs its declared marker and structural payload context"
+)]
+fn render_marked_atom(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    terminal: &str,
+    variant: &str,
+    field: &crate::semantic::StructuralFieldPlan,
+    locals: &RenderLocals,
+    root_names: &HashSet<String>,
+) -> syn::Result<TokenStream> {
+    let surface = fixed_surface_atom_text(
+        plan,
+        &crate::semantic::FixedSurfaceAtomPlan::Lex {
+            terminal: terminal.to_owned(),
+            variant: variant.to_owned(),
+        },
+    )?;
+    let stable_id = syn::LitStr::new(&format!("vocab:{terminal}/{variant}"), Span::call_site());
+    let marker = quote! {
+        writer.claim(
+            || LexicalOwner::static_owner(LexicalProvenanceKind::Vocab, #stable_id),
+            |writer| { writer.word(#surface); },
+        );
+    };
+    let value = field_value(construction, role, locals)?;
+    let stored = construction.field(role)?;
+    match field.kind() {
+        StructuralFieldKindPlan::Required(kind) => {
+            let render = render_structural_value(plan, kind, value, root_names)?;
+            Ok(quote! { #marker #render })
+        }
+        StructuralFieldKindPlan::Zeroable(kind) => {
+            let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
+            let ty = stored.value_type();
+            Ok(quote! {
+                match #value {
+                    #ty::Zero => {}
+                    #ty::Headed(value) => { #marker #render }
+                }
+            })
+        }
+        StructuralFieldKindPlan::Optional(kind) => {
+            let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
+            let optional = if field.is_recursive() {
+                quote! { #value.as_ref() }
+            } else {
+                value
+            };
+            Ok(quote! { if let Some(value) = #optional { #marker #render } })
+        }
+        StructuralFieldKindPlan::Sequence { .. } => {
+            Err(internal("marked roles cannot be sequences"))
+        }
+    }
+}
+
 fn sequence_role_feature_value(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -3182,6 +3299,7 @@ fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
     match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
+        | AtomPlan::Marked { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
@@ -3241,6 +3359,9 @@ fn render_owner(
             })
         }
         AtomPlan::LexFixed {
+            terminal, variant, ..
+        }
+        | AtomPlan::Marked {
             terminal, variant, ..
         } => {
             let stable_id =
@@ -4294,6 +4415,7 @@ fn implicit_verb_onset(
         | AtomPlan::Category { .. }
         | AtomPlan::Lex { .. }
         | AtomPlan::LexFixed { .. }
+        | AtomPlan::Marked { .. }
         | AtomPlan::Identity { .. }
         | AtomPlan::Noun { .. }
         | AtomPlan::Bound { .. }

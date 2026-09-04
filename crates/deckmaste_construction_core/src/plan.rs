@@ -1125,6 +1125,19 @@ mod tests {
             )]
         );
 
+        let marked_role_plan = declaration_verb_plan_for(&quote::quote! {
+            destination: marked(Preposition::For, ObjectNounPhrase)?
+        });
+        let (_, marked_role) = sole_declaration_verb(&marked_role_plan);
+        assert_eq!(
+            marked_role.frame_key().atoms(),
+            [VerbFrameAtom::OptionalMarkedRole(
+                "Preposition".to_owned(),
+                "For".to_owned(),
+                "ObjectNounPhrase".to_owned(),
+            )]
+        );
+
         let empty_plan = declaration_verb_plan_for(&quote::quote! {});
         let (_, empty) = sole_declaration_verb(&empty_plan);
         assert!(empty.frame_key().matches_frame_set(&intransitive));

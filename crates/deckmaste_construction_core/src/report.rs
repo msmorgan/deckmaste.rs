@@ -392,6 +392,7 @@ fn generated_form_boundaries(plan: &SemanticPlan) -> Vec<String> {
                         | crate::semantic::AtomPlan::Category { .. }
                         | crate::semantic::AtomPlan::Lex { .. }
                         | crate::semantic::AtomPlan::LexFixed { .. }
+                        | crate::semantic::AtomPlan::Marked { .. }
                         | crate::semantic::AtomPlan::Identity { .. }
                         | crate::semantic::AtomPlan::Noun { .. }
                         | crate::semantic::AtomPlan::VerbFixed { .. }

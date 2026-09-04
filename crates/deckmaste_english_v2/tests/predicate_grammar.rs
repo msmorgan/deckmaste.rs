@@ -3397,6 +3397,19 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
 }
 
 #[test]
+fn movement_control_role_rejects_an_undeclared_marker() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Put target creature card onto the battlefield into your graveyard.",
+        "Return target creature card to your hand into your graveyard.",
+    ] {
+        assert!(parser.parse(text, &context).is_err(), "reject {text:?}");
+    }
+}
+
+#[test]
 fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
     let parser = parser();
     let context = context();

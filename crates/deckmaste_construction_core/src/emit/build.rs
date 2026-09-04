@@ -209,6 +209,18 @@ fn emit_arm_from_plan(
             if let AtomPlan::Circumfix { prefix, .. } = atom {
                 push_fixed_form_literal(&mut lowering, prefix);
             }
+            if let AtomPlan::Marked {
+                terminal, variant, ..
+            } = atom
+                && !matches!(
+                    state.state,
+                    super::rules::OwnerFieldBuildState::ZeroableAbsent
+                )
+            {
+                lowering
+                    .patterns
+                    .push(fixed_lex_pattern(plan, terminal, variant)?);
+            }
             match state.state {
                 super::rules::OwnerFieldBuildState::Sequence(_) => {
                     lower_sequence_owner_field(
@@ -636,11 +648,35 @@ fn emit_optional_arm(
         binders.reserve(name);
     }
     let value = lower_value(plan, value, "item", &mut binders)?;
+    let marker = match rule.rhs.as_slice() {
+        [
+            super::rules::RuleSymbolPlan::MarkedMarker {
+                construction_index,
+                form_index,
+                atom_index,
+            },
+            super::rules::RuleSymbolPlan::Value(_),
+        ] => {
+            let AtomPlan::Marked {
+                terminal, variant, ..
+            } = &plan.constructions()[*construction_index].forms()[*form_index].atoms()
+                [*atom_index]
+            else {
+                return Err(internal(
+                    "optional marked-role row does not name a marked atom",
+                ));
+            };
+            Some(fixed_lex_pattern(plan, terminal, variant)?)
+        }
+        [super::rules::RuleSymbolPlan::Value(_)] => None,
+        _ => return Err(internal("optional present row has an invalid RHS")),
+    };
     let pattern = value.pattern;
+    let patterns = marker.into_iter().chain(std::iter::once(pattern));
     let expression = value.expression;
     Ok(quote! {
         RuleId::#rule_id => match children {
-            [#pattern] => Ok(Some(BuildValue::#carrier(Some(#expression)))),
+            [#(#patterns),*] => Ok(Some(BuildValue::#carrier(Some(#expression)))),
             _ => Ok(None),
         },
     })
@@ -1612,6 +1648,7 @@ fn lower_sequence_rhs(
                 patterns.push(fixed_surface_pattern(plan, &surface.atom)?);
             }
             super::rules::RuleSymbolPlan::Authored { .. }
+            | super::rules::RuleSymbolPlan::MarkedMarker { .. }
             | super::rules::RuleSymbolPlan::BoundAffix { .. }
             | super::rules::RuleSymbolPlan::CircumfixAffix { .. } => {
                 return Err(internal(&format!(
@@ -1978,6 +2015,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
     match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
+        | AtomPlan::Marked { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
@@ -2095,6 +2133,18 @@ fn lower_atom(
                 .push(quote! { BuildValue::Leaf(Leaf::Literal(#literal)) });
         }
         AtomPlan::Category { role, category } => {
+            lower_category_role(validated, row, form, role, category, lowering)?;
+        }
+        AtomPlan::Marked {
+            role,
+            category,
+            terminal,
+            variant,
+            ..
+        } => {
+            lowering
+                .patterns
+                .push(fixed_lex_pattern(validated, terminal, variant)?);
             lower_category_role(validated, row, form, role, category, lowering)?;
         }
         AtomPlan::Lex { role, terminal } | AtomPlan::Identity { role, terminal } => {

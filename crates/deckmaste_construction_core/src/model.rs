@@ -297,12 +297,21 @@ pub enum FormAtom {
     /// A fixed vocabulary member written `Vocabulary::Member`. It carries no
     /// role and the vocabulary, not the form, owns the rendered surface.
     FixedLex(syn::Path),
+    /// A vocabulary marker and its following category role, kept as one atom
+    /// so an optional role cannot admit the marker or complement alone.
+    Marked(MarkedAtom),
     Identity(Ident),
     Verb(VerbOperand),
     OpenVerb(OpenDeclarationAtom),
     Noun(Ident),
     Bound(BoundAtom),
     Circumfix(CircumfixAtom),
+}
+
+#[derive(Debug)]
+pub struct MarkedAtom {
+    pub marker: syn::Path,
+    pub role: Ident,
 }
 
 #[derive(Debug)]
@@ -515,6 +524,10 @@ pub struct DeclarationVerbTailAtomSource {
 pub enum DeclarationVerbTailAtomKindSource {
     Literal(LitStr),
     Lex(syn::Path),
+    Marked {
+        marker: syn::Path,
+        role: Ident,
+    },
     Amount(Ident),
     ObjectNounPhrase(Ident),
     PredicativeComplement(Ident),

@@ -1080,7 +1080,7 @@ mod declaration_noun_fixture {
 }
 
 pub mod declaration_verb_fixture {
-    use RulePosition::Lexical as L;
+    use RulePosition::{Lexical as L, Nonterminal as N};
 
     use super::constructions;
 
@@ -1343,6 +1343,11 @@ pub mod declaration_verb_fixture {
         const DUPLICATED: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Amount];
         const EXTRA: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Literal("extra")];
         const LEX_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::Lex("AmountWord", "One")];
+        const OPTIONAL_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::OptionalMarkedRole(
+            "AmountWord",
+            "One",
+            "MeasureComplementPhrase",
+        )];
         const NO_FRAMES: &[&[VerbFrameAtom]] = &[];
         const TRANSITIVE: &[&[VerbFrameAtom]] = &[OBJECT];
         const MEASURE_COMPLEMENT: &[&[VerbFrameAtom]] = &[AMOUNT];
@@ -1351,6 +1356,7 @@ pub mod declaration_verb_fixture {
         const DUPLICATED_ONLY: &[&[VerbFrameAtom]] = &[DUPLICATED];
         const EXTRA_ONLY: &[&[VerbFrameAtom]] = &[EXTRA];
         const LEX_MARKED_ONLY: &[&[VerbFrameAtom]] = &[LEX_MARKED];
+        const OPTIONAL_MARKED_ONLY: &[&[VerbFrameAtom]] = &[OPTIONAL_MARKED];
 
         match (name, frame_set) {
             (
@@ -1395,6 +1401,7 @@ pub mod declaration_verb_fixture {
             {
                 LEX_MARKED_ONLY
             }
+            ("OptionalMarked", VerbFrameSet::Intransitive) => OPTIONAL_MARKED_ONLY,
             _ => NO_FRAMES,
         }
     }
@@ -1441,6 +1448,13 @@ pub mod declaration_verb_fixture {
                 feature = ConcordClass;
             }
         }
+        codec OptionalMarkedVerb {
+            generate declaration_verb {
+                position = Verb;
+                tail = [marked(AmountWord::One, MeasureComplementPhrase)?];
+                feature = ConcordClass;
+            }
+        }
         construction transitive: VerbPhrase {
             element Transitive {
                 head: lex TransitiveVerb,
@@ -1467,6 +1481,14 @@ pub mod declaration_verb_fixture {
             derive head.concord_class = Values::Other;
             form lex_marked = verb(head) lex(AmountWord::One);
         }
+        construction optional_marked: OptionalMarkedPhrase {
+            element OptionalMarked {
+                head: lex OptionalMarkedVerb,
+                complement: opt MeasureComplementPhrase,
+            }
+            derive head.concord_class = Values::Other;
+            form optional_marked = verb(head) marked(AmountWord::One, complement);
+        }
         construction participle: ParticiplePhrase {
             element Participial {
                 head: lex TransitiveParticiple,
@@ -1478,6 +1500,7 @@ pub mod declaration_verb_fixture {
         root MeasureComplementPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root LexMarkedPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root OptionalMarkedPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
@@ -1555,6 +1578,10 @@ pub mod declaration_verb_fixture {
             declaration(
                 "/synthetic/actions/LexMarked.ron",
                 r#"KeywordAction(name:"LexMarked",spelling:"mark",grammar:Verb(bare:"mark",frame_set:Custom(frames:[[Lex("AmountWord","One")]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/OptionalMarked.ron",
+                r#"KeywordAction(name:"OptionalMarked",spelling:"wrap",grammar:Verb(bare:"wrap",frame_set:Intransitive))"#,
             ),
             declaration(
                 "/synthetic/actions/WrongKind.ron",
@@ -1660,6 +1687,9 @@ pub mod declaration_verb_fixture {
                     Some(declaration_id(verb.reference()).name().to_owned())
                 }
                 Leaf::LexMarkedVerb { verb, .. } => {
+                    Some(declaration_id(verb.reference()).name().to_owned())
+                }
+                Leaf::OptionalMarkedVerb { verb, .. } => {
                     Some(declaration_id(verb.reference()).name().to_owned())
                 }
                 _ => None,
@@ -1958,12 +1988,46 @@ pub mod declaration_verb_fixture {
             "a literal tail must not satisfy a vocabulary tail marker",
         );
 
+        let optional_marked = first_terminal(RuleId::OptionalMarkedPhraseOptionalMarked);
+        assert_eq!(
+            scanned_declaration_names(&environment, "Wrap one count one.", optional_marked),
+            ["OptionalMarked"],
+            "an optional marked role enters its exact paired frame",
+        );
+        assert!(
+            DeclarationOptionalMarkedVerb::new(&environment, id(&environment, "OptionalMarked"))
+                .is_some()
+        );
+        assert!(
+            DeclarationLexMarkedVerb::new(&environment, id(&environment, "OptionalMarked"))
+                .is_none()
+        );
+        let present = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::OptionalMarkedComplementOptionalPresent)
+            .expect("the optional marked-role helper has a present row");
+        assert!(
+            matches!(present.rhs, [L(_), N(Category::MeasureComplementPhrase)]),
+            "the generated helper keeps the marker and role in one present branch",
+        );
+        let absent = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::OptionalMarkedComplementOptionalAbsent)
+            .expect("the optional marked-role helper has an absent row");
+        assert!(absent.rhs.is_empty());
+
         for (name, surface) in [
             ("Crossed", "Cross"),
             ("DuplicatedTail", "Double"),
             ("Extra", "Extend"),
         ] {
-            for terminal in [intransitive, measure_complement, transitive, lex_marked] {
+            for terminal in [
+                intransitive,
+                measure_complement,
+                transitive,
+                lex_marked,
+                optional_marked,
+            ] {
                 assert!(
                     scanned_declaration_names(&environment, surface, terminal).is_empty(),
                     "{name} must not enter a construction with a merely similar tail",

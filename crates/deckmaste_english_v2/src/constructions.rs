@@ -615,7 +615,7 @@ constructions! {
                 lex(Preposition::Onto),
                 destination: FrameComplement,
                 PredicativeComplement?,
-                control: PrepositionalPhrase?,
+                control: marked(Preposition::Under, Object)?,
             ];
             feature = ConcordClass;
         }
@@ -643,7 +643,7 @@ constructions! {
                 lex(Preposition::To),
                 destination: FrameComplement,
                 PredicativeComplement?,
-                control: PrepositionalPhrase?,
+                control: marked(Preposition::Under, Object)?,
             ];
             feature = ConcordClass;
         }
@@ -722,14 +722,14 @@ constructions! {
     codec EnterLocationVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [Object, PredicativeComplement?, control: PrepositionalPhrase?];
+            tail = [Object, PredicativeComplement?, control: marked(Preposition::Under, Object)?];
             feature = ConcordClass;
         }
     }
     codec EnterControlVerb {
         generate declaration_verb {
             position = Verb;
-            tail = ["under", control: Object];
+            tail = [control: marked(Preposition::Under, Object)];
             feature = ConcordClass;
         }
     }
@@ -4424,13 +4424,12 @@ constructions! {
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt PrepositionalPhrase,
+            control: opt Object,
         }
         require source.preposition_complement_kind is SourceComplement;
-        require control.preposition_attachment is SelectedOnly;
         derive concord_class = head.concord_class;
         form put_onto =
-            verb(head) object source lex(Preposition::Onto) destination result control;
+            verb(head) object source lex(Preposition::Onto) destination result marked(Preposition::Under, control);
     }
     construction put_onto_source_after: VerbPhrase {
         element PutOntoSourceAfter {
@@ -4439,12 +4438,11 @@ constructions! {
             destination: FrameComplement,
             source: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt PrepositionalPhrase,
+            control: opt Object,
         }
-        require control.preposition_attachment is SelectedOnly;
         derive concord_class = head.concord_class;
         form put_onto_source_after =
-            verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result control;
+            verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result marked(Preposition::Under, control);
     }
     construction put_on: VerbPhrase {
         element PutOn {
@@ -4473,13 +4471,12 @@ constructions! {
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
-            control: opt PrepositionalPhrase,
+            control: opt Object,
         }
         require source.preposition_complement_kind is SourceComplement;
-        require control.preposition_attachment is SelectedOnly;
         derive concord_class = head.concord_class;
         form return_to =
-            verb(head) object source lex(Preposition::To) destination result control;
+            verb(head) object source lex(Preposition::To) destination result marked(Preposition::Under, control);
     }
     construction predicative_complement_predicate: VerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
@@ -4501,21 +4498,18 @@ constructions! {
             head: lex EnterLocationVerb,
             location: Object,
             result: opt PredicativeComplement,
-            control: opt PrepositionalPhrase,
+            control: opt Object,
         }
-        require control.preposition_attachment is SelectedOnly;
         derive concord_class = head.concord_class;
-        form enter_location = verb(head) location result control;
+        form enter_location = verb(head) location result marked(Preposition::Under, control);
     }
     construction enter_control: VerbPhrase {
         element EnterControl {
             head: lex EnterControlVerb,
-            relation: lex Preposition,
             control: Object,
         }
-        require relation is Under;
         derive concord_class = head.concord_class;
-        form enter_control = verb(head) lex(relation) control;
+        form enter_control = verb(head) marked(Preposition::Under, control);
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }

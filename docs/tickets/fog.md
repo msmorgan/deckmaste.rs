@@ -43,6 +43,15 @@ which retires them because their sole surviving reading is wrong: **Cavalier of
 Thorns, Animal Magnetism, Genesis Ultimatum** — `Put X onto the battlefield and
 the rest into your graveyard`, a gapped coordinated destination that is not
 expressible today. They are re-covered when this entry graduates and lands.
+The Cavalier of Thorns sentence is `Put a land card from among them onto the
+battlefield and the rest into your graveyard.`
+(3a05d72cc35c86f1b6bb8cfb74017af4c6c5b440e9b18475485ad034db4440e6).
+The Animal Magnetism sentence is `Put that card onto the battlefield and the
+rest into your graveyard.`
+(83b1cc666255a03888d2654849cbdcd552c61d9336ce41cbe163a248c4f887ec).
+The Genesis Ultimatum sentence is `Put any number of permanent cards from among
+them onto the battlefield and the rest into your hand.`
+(cc39ba9efc13bba3022d314e135707a35dbe17b515db2cbd7ca858a97cff00b2).
 
 Hangs on: `english-v2-relative-clause` (and the general clause machinery under it).
 

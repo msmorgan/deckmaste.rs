@@ -941,6 +941,7 @@ fn emit_construction_walker(
         let terminal = match atom.value_atom() {
             AtomPlan::Lex { terminal, .. }
             | AtomPlan::LexFixed { terminal, .. }
+            | AtomPlan::Marked { terminal, .. }
             | AtomPlan::Identity { terminal, .. }
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
             AtomPlan::Literal(_)
@@ -1120,15 +1121,23 @@ fn emit_construction_form_walker_calls(
             && let Some(structural) = field.structural_plan()
         {
             let value = field_value(construction, role, argument, field_locals)?;
+            let marker = if let AtomPlan::Marked { terminal, path, .. } = atom {
+                let walker = ident(&format!("walk_{}", snake_case(terminal)));
+                let enter_leaf = enter_leaf_call(validated, terminal)?;
+                Some(quote! { #enter_leaf #walker(visitor, #path); })
+            } else {
+                None
+            };
             let call = match structural.kind() {
                 StructuralFieldKindPlan::Required(kind) => {
-                    walk_structural_value(validated, kind, value)?
+                    let visit = walk_structural_value(validated, kind, value)?;
+                    quote! { #marker #visit }
                 }
                 StructuralFieldKindPlan::Zeroable(kind) => {
                     let visit = walk_structural_value(validated, kind, quote! { value })?;
                     let ty = field.value_type();
                     calls.push(quote! {
-                        if let #ty::Headed(value) = #value { #visit }
+                        if let #ty::Headed(value) = #value { #marker #visit }
                     });
                     continue;
                 }
@@ -1139,9 +1148,12 @@ fn emit_construction_form_walker_calls(
                     } else {
                         value
                     };
-                    quote! { if let Some(value) = #optional { #visit } }
+                    quote! { if let Some(value) = #optional { #marker #visit } }
                 }
                 StructuralFieldKindPlan::Sequence { .. } => {
+                    if marker.is_some() {
+                        return Err(internal("marked roles cannot be sequences"));
+                    }
                     let walker = ident(&structural_sequence_walker(
                         construction.element_type(),
                         structural.name(),
@@ -1165,6 +1177,14 @@ fn emit_construction_form_walker_calls(
                 let value = field_value(construction, role, argument, field_locals)?;
                 Some(quote! { visitor.#callback(#value); })
             }
+            AtomPlan::Marked { .. } => Some(marked_role_visit(
+                validated,
+                construction,
+                atom.value_atom(),
+                argument,
+                field_locals,
+                fields,
+            )?),
             AtomPlan::Lex { role, terminal } => {
                 let field = fields
                     .get(role)
@@ -1236,10 +1256,46 @@ fn emit_construction_form_walker_calls(
     Ok(calls)
 }
 
+fn marked_role_visit(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    atom: &AtomPlan,
+    argument: &syn::Ident,
+    field_locals: &HashMap<String, syn::Ident>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<TokenStream> {
+    let AtomPlan::Marked {
+        role,
+        category,
+        terminal,
+        path,
+        ..
+    } = atom
+    else {
+        return Err(internal("marked-role walker received another atom"));
+    };
+    let field = fields
+        .get(role)
+        .ok_or_else(|| internal("walker marked role absent"))?;
+    if field.kind() != ConstructionFieldKind::Category {
+        return Err(internal("walker marked role is not category"));
+    }
+    let walker = ident(&format!("walk_{}", snake_case(terminal)));
+    let enter_leaf = enter_leaf_call(validated, terminal)?;
+    let callback = ident(&format!("visit_{}", snake_case(category)));
+    let value = field_value(construction, role, argument, field_locals)?;
+    Ok(quote! {
+        #enter_leaf
+        #walker(visitor, #path);
+        visitor.#callback(#value);
+    })
+}
+
 fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
     match atom.value_atom() {
         AtomPlan::Category { role, .. }
         | AtomPlan::Lex { role, .. }
+        | AtomPlan::Marked { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
