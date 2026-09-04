@@ -24,3 +24,95 @@ needed.
   attested sequences.
 
 Standard constraints apply.
+
+## Landing record (STOP, 2026-09-04)
+
+STOP taken: the ticket cannot be implemented within its own consumption and
+timing boundaries. The crate has no declaration-only form for Type Line Card
+Type order. Its `constructions!` declaration language can declare a `vocab`,
+but that declaration emits a parser terminal contribution and a renderer; it
+therefore creates the speculative parse/render consumer that the ticket says
+not to build before a Type Line Construction is needed. The crate's Card Type
+words instead enter through the normalized open `Type` declaration inventory.
+The governing builtin-v2 spelling/grammar decision requires that inventory to
+be the single boundary seen by parser, renderer, diagnostics, and Construction
+consumers, so duplicating its members as a closed vocabulary would also create
+a second vocabulary authority.
+
+The other available declaration source, `core_verbs.ron`, is specifically a
+`CoreVerbDeclaration` inventory and cannot express Card Type order. Extending
+the normalized open `Type` declaration schema to carry linearization order
+would require changes outside `crates/deckmaste_english_v2` and to the builtin
+declarations under `plugins/builtin_v2`, contrary to the ticket's consumption
+boundary. A test-only declaration would not be production declaration content
+and would leave Acceptance unsatisfied. No new declaration format, Type Line
+Construction, parser, or renderer was invented to conceal this contradiction.
+
+Decision wanted: either schedule the Type Line Construction that can consume
+the order, or authorize and specify a declaration-only order field at the
+normalized open `Type` boundary with the necessary wider consumption boundary.
+Until then, the measured document remains the only non-speculative form.
+
+Measured on change `rroqzmun` with a schema-4 coverage lock containing 16,771
+covered identities (SHA-256
+`2cf7f9b716e13b27d626c60638d1266ca6cdc083bbcca87cb1435b4b00cd65ca`).
+
+| measure | before | after |
+|---|---:|---:|
+| selected and covered identities | 16,771 | 16,771 |
+| coverage-lock identities | 16,771 | 16,771 (lock byte-unchanged, +/-0) |
+| Construction declarations | 397 | 397 |
+| selection census: unique | 11,515 | 11,515 |
+| selection census: specificity-resolved | 5,256 | 5,256 |
+| unresolved ties | 0 | 0 |
+
+Newly covered identities: none. Coverage also reports zero selected-uncovered
+units, internal failures, round-trip mismatches, ownership failures, traversal
+failures, gaps, overlaps, synthetic claims, or provenance-plan mismatches.
+
+Performance advisory: `coverage --check` completed in 44.200444463 seconds at
+162,271 ns/B with 1 concurrent `codex` process at measurement. This exceeds
+the 16.26-second quiet-host ceiling under load (1-minute load 29.26), so it is
+reported as contention rather than a STOP.
+
+Positive gates:
+
+- `cargo fmt --all`: exit 0 (stable rustfmt reported the repository's existing
+  nightly-only option warnings).
+- `cargo clippy -p deckmaste_english_v2 --all-targets -- -D warnings`:
+  `Finished dev profile`, exit 0.
+- `cargo test -p deckmaste_english_v2`: 413 passed, 0 failed, 0 ignored across
+  unit, integration, and doc tests; every suite reported `test result: ok`.
+- `cargo xtask english_v2 coverage --check`: `summary
+  {"total_units":32641,"selected_units":16771,"covered_units":16771,
+  "selected_uncovered_units":0,"parse_failures":15870,
+  "unresolved_ties":0,"internal_failures":0}`; exit 0 against the current
+  lock.
+- `cargo xtask cite check --list-noncompliant`: `0 non-compliant
+  citation-looking string(s)`.
+- `cargo xtask cite check`: `checked 17921 citations against cr.txt (eff.
+  2026-08-07); 0 stale`.
+- `jj diff --git | cargo xtask cite audit --diff`: `audited 1 citation site(s)
+  - read each rule text against its claim`. The ticket's [CR#300.1] was read:
+  its Card Type list supports the claimed relative order of ranks 9-14.
+
+Lifecycle advisory: `kata refresh` was attempted twice from this feature
+workspace after the safe STOP change was closed. Both attempts returned exit
+69 before rewriting this stack because the sibling working-copy changes
+`sulmlzws` (`english-v2-licensing-checker-count`) and `qtprrqyl`
+(`english-v2-closed-class-single-owner`) are divergent. Those sibling-owned
+changes were left untouched. Since refresh made no transition, the measured
+tree did not become stale and no post-refresh re-measurement applies. This
+feature was not integrated or dropped.
+
+Assurance counts: 0 restored, 0 re-spelled, 0 ignored with blockers, 0 added,
+0 removed.
+
+Deviations and additions: the Landing record is the only change. No
+Construction or test was added or deleted. `constructions.rs` and
+`core_verbs.ron` are untouched. No coverage identity or selected analysis
+changed.
+
+Glossary gap: none. The record uses Oracle English `Construction`,
+`Linearization`, and `Realization`, and Game Model `Type Line` and `Card Type`
+with their owning-context meanings.
