@@ -66,7 +66,7 @@ Standard constraints apply.
 
 ## Landing record
 
-Measured on change `wyrytpll` with 16,771 covered lock identities.
+Measured on change `wwtlulsk` with 16,771 covered lock identities.
 
 - The xtask corpus loader now reads a named RON corpus-patch ledger. Each
   entry carries a reason, card or Card Face names, and exact find/replace
@@ -92,9 +92,10 @@ Measured on change `wyrytpll` with 16,771 covered lock identities.
   `f3a2fccd079f0bc53c79b4c23e28e0351b3cf69a5324b3893c695638935341c9`,
   and SHA-256
   `2cf7f9b716e13b27d626c60638d1266ca6cdc083bbcca87cb1435b4b00cd65ca`.
-- Performance advisory: `coverage --check` reported 28.653360888 seconds and
-  120,749 ns/B across 1,523,802 accepted bytes, above the 16.26-second
-  quiet-host ceiling while host load was 31.94/24.22/18.28; 1 concurrent
+- Performance advisory after the required refresh: `coverage --check`
+  reported 24.013612974 seconds and 117,986 ns/B across 1,523,802 accepted
+  bytes, above the 16.26-second quiet-host ceiling while host load was
+  41.07/40.40/28.52; 1 concurrent
   `codex` process was present at measurement. This contention warning is
   reported and is not a STOP.
 - Positive gate artifacts: `cargo fmt --all` exited 0; strict
