@@ -1350,9 +1350,10 @@ mutual
     ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
                   {auto 0 sp : bs = co ++ rest} ->
                   {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
-    Own : (pl : Plurality) -> (own : Bindings) -> (outer : Bindings) ->
+    Own : (r : Reach) -> (pl : Plurality) -> (own : Bindings) ->
+          (outer : Bindings) ->
           {auto 0 sp : bs = own ++ outer} ->
-          {auto 0 ok : countReach Bare pl own = 1} -> Noun bs Object
+          {auto 0 ok : countReach r pl own = 1} -> Noun bs (reachKind r)
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     PossessorOf : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs k) ->
@@ -1403,7 +1404,7 @@ mutual
   nounEqRef (Pro (Word PlayerW) OneOf) (Pro (Word PlayerW) OneOf) = True
   nounEqRef (Pro _ _) _ = False
   nounEqRef (ItOtherThan _ _) _ = False
-  nounEqRef (Own _ _ _) _ = False
+  nounEqRef (Own _ _ _ _) _ = False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (PossessorOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
@@ -1499,7 +1500,7 @@ mutual
       :: (sliceCountDelta q ++ nounDelta by)
   nounDelta (Pro _ _) = []
   nounDelta (ItOtherThan _ _) = []
-  nounDelta (Own _ _ _) = []
+  nounDelta (Own _ _ _ _) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (PossessorOf _ n) =
     MkBinding TheD Player (nounPlur n) PlayerP :: (selfSubjDelta n ++ nounDelta n)
@@ -1529,9 +1530,18 @@ mutual
       :: nomIntro grp
 
   public export
+  agentDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+  agentDelta (Described EachDet p {ph}) = bindFor TheD OneOf ph p :: predDelta p
+  agentDelta n = nounDelta n
+
+  public export
+  agentPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
+  agentPlur (Described EachDet _) = OneOf
+  agentPlur n = nounPlur n
+
+  public export
   agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  agentIntro (Described EachDet p {ph}) = bindFor TheD OneOf ph p :: predDelta p ++ bs
-  agentIntro n = nomIntro n
+  agentIntro n = agentDelta n ++ bs
 
   public export
   agentCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
@@ -2166,8 +2176,11 @@ mutual
   GroupMention : Noun bs k -> Type
   GroupMention {bs} {k} n = So (groupMention n)
 
+  ||| A positional own-read partitions the group it has just named, a
+  ||| one-card group included [CR#701.22a].
   public export
   partitiveBase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  partitiveBase (Own _ _ _ _) = True
   partitiveBase n = nounDet n == Just AllD || groupMention n
 
   public export
@@ -2521,7 +2534,7 @@ mutual
   remarkTest (Pro (Word AbilityW) OneOf) = Just (reaches (Word AbilityW) OneOf)
   remarkTest (Pro _ _) = Nothing
   remarkTest (ItOtherThan _ _) = Nothing
-  remarkTest (Own _ _ _) = Nothing
+  remarkTest (Own _ _ _ _) = Nothing
   remarkTest _ = Nothing
 
   public export
@@ -2641,8 +2654,8 @@ mutual
   counterMemoryOk (Pro _ _) = True
   counterMemoryOk (ItOtherThan _ rest) =
     not (stampMoves (provOfReach Bare OneOf rest))
-  counterMemoryOk (Own pl own _) =
-    not (stampMoves (provOfReach Bare pl own))
+  counterMemoryOk (Own r pl own _) =
+    not (stampMoves (provOfReach r pl own))
   counterMemoryOk _ = True
 
   public export
@@ -2657,7 +2670,7 @@ mutual
   moveDestOk (Pro TokenBorn _) = False
   moveDestOk (Pro _ _) = True
   moveDestOk (ItOtherThan _ _) = False
-  moveDestOk (Own _ _ _) = False
+  moveDestOk (Own _ _ _ _) = False
   moveDestOk _ = True
 
   public export
@@ -2759,7 +2772,7 @@ mutual
   moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p (Pro r pl) z = setZoneReach r pl p z bs
   moveIntro p (ItOtherThan co rest) z = co ++ setZoneReach Bare OneOf p z rest
-  moveIntro p (Own pl own outer) z = setZoneReach Bare pl p z own ++ outer
+  moveIntro p (Own r pl own outer) z = setZoneReach r pl p z own ++ outer
   moveIntro p This z =
     MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
   moveIntro p (AttachHost _ (TypeW t)) z =
@@ -2813,7 +2826,7 @@ mutual
   nounProv (TheRest k _) = provOfGroup k bs
   nounProv (Pro r pl) = provOfReach r pl bs
   nounProv (ItOtherThan _ rest) = provOfReach Bare OneOf rest
-  nounProv (Own pl own _) = provOfReach Bare pl own
+  nounProv (Own r pl own _) = provOfReach r pl own
   nounProv (EachOf grp) = nounProv grp
   nounProv (NamesAgree _ grp) = nounProv grp
   nounProv (SomeOf _ _ grp) = nounProv grp
@@ -2841,7 +2854,7 @@ mutual
   nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
   nounZone (Pro r pl) = zoneOfReach r pl bs
   nounZone (ItOtherThan _ rest) = zoneOfReach Bare OneOf rest
-  nounZone (Own pl own _) = zoneOfReach Bare pl own
+  nounZone (Own r pl own _) = zoneOfReach r pl own
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (PossessorOf _ n) = Nothing
   nounZone (Designated _ _) = Nothing
@@ -2884,7 +2897,7 @@ mutual
   nounTy (PileOf _ _) = Nothing
   nounTy (Pro r pl) = tyOfReach r pl bs
   nounTy (ItOtherThan _ rest) = tyOfReach Bare OneOf rest
-  nounTy (Own pl own _) = tyOfReach Bare pl own
+  nounTy (Own r pl own _) = tyOfReach r pl own
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (PossessorOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
@@ -2944,7 +2957,7 @@ mutual
   nounPlur (PileOf q _) = slicePlur q
   nounPlur (Pro _ pl) = pl
   nounPlur (ItOtherThan _ _) = OneOf
-  nounPlur (Own pl _ _) = pl
+  nounPlur (Own _ pl _ _) = pl
   nounPlur (AttachHost _ _) = OneOf
   nounPlur (PossessorOf _ n) = nounPlur n
   nounPlur (Designated _ _) = OneOf

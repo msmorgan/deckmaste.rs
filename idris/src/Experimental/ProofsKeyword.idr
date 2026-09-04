@@ -418,3 +418,9 @@ badCompanionSharedColor : Unspellable (AbilityAt []) (\ok =>
   Macros.companion
     (CardsShare (And [Not Macros.land, IsCard]) Color {dc = ok}))
 badCompanionSharedColor ComparesCharacteristic impossible
+
+||| "Each player scries 1.": one scry clause over a distributed player
+||| reference [CR#701.22a,701.22c].
+public export
+okEachPlayerScriesOne : Instruction []
+okEachPlayerScriesOne = Macros.scry (Macros.each AnyPlayer) (Lit 1)

@@ -1941,7 +1941,7 @@ tovolarNightfall = GameBecomes Night
 spinIntoMyth : Instruction []
 spinIntoMyth =
   Sequentially [ Macros.move (Macros.target Macros.creature) Macros.onTopZ
-               , Macros.fateseal (Lit 2) ]
+               , Macros.fateseal Macros.anOpponent (Lit 2) ]
 
 ||| Pure // Simple
 simpleHalf : Instruction []

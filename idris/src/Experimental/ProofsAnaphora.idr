@@ -1173,7 +1173,7 @@ itOtherThanResolvesInPrefix co rest ok =
 public export
 itPriorReadsOnlyPrefix : (made, before : Bindings) ->
                          countReach Bare OneOf made = 1 -> Noun (made ++ before) Object
-itPriorReadsOnlyPrefix made before ok = Own OneOf made before {sp = Refl} {ok}
+itPriorReadsOnlyPrefix made before ok = Own Bare OneOf made before {sp = Refl} {ok}
 
 public export
 itPriorResolvesInPrefix : (made, before : Bindings) ->
@@ -1188,7 +1188,7 @@ itPriorResolvesInPrefix made before ok =
 public export
 ownReadsOnlyPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
                      countReach Bare pl own = 1 -> Noun (own ++ outer) Object
-ownReadsOnlyPrefix pl own outer ok = Own pl own outer {sp = Refl} {ok}
+ownReadsOnlyPrefix pl own outer ok = Own Bare pl own outer {sp = Refl} {ok}
 
 public export
 ownResolvesInPrefix : (pl : Plurality) -> (own, outer : Bindings) ->
@@ -1654,7 +1654,7 @@ public export
 okOwnReadsOneInDelta : Instruction []
 okOwnReadsOneInDelta =
   Macros.sharedSubject (Macros.target Macros.creature)
-    [ Gets Adds (Own OneOf
+    [ Gets Adds (Own Bare OneOf
                      (nounDelta {k = Object}
                                 (Macros.target {bs = []} Macros.creature))
                      [] {sp = Refl})
@@ -1667,7 +1667,7 @@ badSharedSubjectTwoInDelta : Unspellable (Instruction []) (\ok =>
                              (Macros.target
                                {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
                                Macros.artifact))
-    [ Gets Adds (Own OneOf (nounDelta {k = Object}
+    [ Gets Adds (Own Bare OneOf (nounDelta {k = Object}
                     (Both (Macros.target {bs = []} Macros.creature)
                           (Macros.target
                             {bs = nomIntro (Macros.target {bs = []} Macros.creature)}

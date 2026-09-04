@@ -843,7 +843,7 @@ ownSubject : {bs : Bindings} -> (n : Noun bs Object) ->
              {auto 0 ok : countReach Bare (nounPlur n) (selfSubjDelta n ++ nounDelta n) = 1} ->
              Noun (selfSubjIntro n) Object
 ownSubject n =
-  Own (nounPlur n) (selfSubjDelta n ++ nounDelta n) bs
+  Own Bare (nounPlur n) (selfSubjDelta n ++ nounDelta n) bs
       {sp = appendAssociative (selfSubjDelta n) (nounDelta n) bs} {ok}
 
 public export
@@ -1582,214 +1582,245 @@ public export
 lookedTop : (bs : Bindings) -> (amt : Amount bs) -> Bindings
 lookedTop bs amt = nomIntro (topSlice {bs} amt)
 
-public export %inline
-agentLookedTop : (bs : Bindings) -> (0 an : countReach (Word PlayerW) OneOf bs = 1) ->
-                 (amt : Amount bs) -> Bindings
-agentLookedTop bs an amt =
-  nomIntro (LibrarySlice OnTop amt (They {ok = an}) {sp = Oh})
-
-public export %inline
-agentMovedRest : (bs : Bindings) -> (0 mn : countReach Bare ManyOf bs = 1) ->
-                 (z : Zone) -> Bindings
-agentMovedRest bs mn z =
-  moveIntro {bs} Nothing
-    (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-            (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-    (Just z)
-
-public export %inline
-lookAtAgentsTop : {bs : Bindings} -> (amt : Amount bs) ->
-                  {auto 0 an : countReach (Word PlayerW) OneOf bs = 1} -> Instruction bs
-lookAtAgentsTop amt =
-  Expose LookAt (They {ok = an})
-    (ExposedCards (LibrarySlice OnTop amt (They {ok = an}) {sp = Oh}))
-
-public export %inline
-oneCardAmount : Amount bs -> Bool
-oneCardAmount (Lit 1) = True
-oneCardAmount _ = False
-
-||| The agent of an enacted look, re-read after `agentIntro` and again after
-||| the look itself: `You` is deictic and needs no antecedent, anyone else is
-||| read back as `They` off the agent's own delta.
+||| The player an enacted look reads back inside the body. An agent that
+||| introduced nothing of its own is re-read as written; anyone else is read
+||| positionally off its own delta.
 public export
-data LookAgent : {bs : Bindings} -> (agent : Noun bs Player) ->
-                 Amount (Experimental.Phrase.agentIntro agent) -> Type where
-  LookYou : {auto 0 ay : agent = You} -> LookAgent agent amt
-  LookThem : {auto 0 ny : nounIsYou agent = False} ->
-             {auto 0 an : countReach (Word PlayerW) OneOf
-                            (Experimental.Phrase.agentIntro agent) = 1} ->
-             {auto 0 ap : countReach (Word PlayerW) OneOf
-                            (agentLookedTop (Experimental.Phrase.agentIntro agent)
-                                            an amt) = 1} ->
-             LookAgent agent amt
+OwnRefOk : Bindings -> Plurality -> Type
+OwnRefOk [] pl = ()
+OwnRefOk (d :: ds) pl = countReach (Word PlayerW) pl (d :: ds) = 1
 
 public export
-lookAgentTop : {bs : Bindings} -> {agent : Noun bs Player} ->
-               (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-               LookAgent agent amt ->
-               Noun (Experimental.Phrase.agentIntro agent) Object
-lookAgentTop amt (LookYou {ay}) = topSlice amt
-lookAgentTop amt (LookThem {ny} {an} {ap}) =
-  LibrarySlice OnTop amt (They {ok = an}) {sp = Oh}
-
-public export %inline
-lookedAgentTop : {bs : Bindings} -> {agent : Noun bs Player} ->
-                 (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-                 LookAgent agent amt -> Bindings
-lookedAgentTop amt la = nomIntro (lookAgentTop amt la)
+AgentRefOk : {bs : Bindings} -> Noun bs Player -> Type
+AgentRefOk agent =
+  Macros.OwnRefOk (Experimental.Phrase.agentDelta agent)
+                  (Experimental.Phrase.agentPlur agent)
 
 public export
-data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
-               Amount (Experimental.Phrase.agentIntro agent) -> Zone -> Type where
-  OneLookReq :
-    {auto la : LookAgent agent (Lit 1)} ->
-    {auto 0 am : amt = Lit 1} ->
-    {auto 0 iw : countReach (Word CardW) OneOf (lookedAgentTop (Lit 1) la) = 1} ->
-    {auto 0 pi : Placeable
-                    (tyOfReach (Word CardW) OneOf (lookedAgentTop (Lit 1) la)) z} ->
-    LookReq agent amt z
-  ManyLookReq :
-    {auto la : LookAgent agent amt} ->
-    {auto 0 no : So (not (oneCardAmount amt))} ->
-    {auto 0 mn : countReach Bare ManyOf (lookedAgentTop amt la) = 1} ->
-    {auto 0 ps : Placeable (tyOfReach Bare ManyOf (lookedAgentTop amt la)) z} ->
-    {auto 0 tr : So (theRestOk Object
-                      (agentMovedRest (lookedAgentTop amt la) mn z))} ->
-    {auto 0 pr : Placeable
-                    (tyOfGroup Object
-                      (agentMovedRest (lookedAgentTop amt la) mn z)) Library} ->
-    LookReq agent amt z
+agentSelfOrOwn : {bs : Bindings} -> (agent : Noun bs Player) ->
+                 (ds : Bindings) -> (pl : Plurality) ->
+                 (0 ok : Macros.OwnRefOk ds pl) -> Noun (ds ++ bs) Player
+agentSelfOrOwn agent [] pl ok = agent
+agentSelfOrOwn agent (d :: ds) pl ok =
+  Own (Word PlayerW) pl (d :: ds) bs {sp = Refl} {ok}
 
 public export
-scryBody : {bs : Bindings} -> (agent : Noun bs Player) ->
-           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-           (req : LookReq agent amt Library) ->
-           Instruction (Experimental.Phrase.agentIntro agent)
-scryBody agent amt (OneLookReq {la = LookYou {ay}} {am} {iw} {pi}) =
-  Sequentially
-     [ lookAt (topSlice (Lit 1))
-     , may You
-           (move (That CardW OneOf {ok = iw}) onBottomZ
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}}
-                 {arr = Oh} {pl = pi}) ]
-scryBody agent amt (OneLookReq {la = LookThem {ny} {an} {ap}} {am} {iw} {pi}) =
-  Sequentially
-     [ lookAtAgentsTop (Lit 1) {an}
-     , may (They {ok = ap})
-           (move (That CardW OneOf {ok = iw}) onBottomZ
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}}
-                 {arr = Oh} {pl = pi}) ]
-scryBody agent amt (ManyLookReq {la = LookYou {ay}} {no} {mn} {ps} {tr} {pr}) =
-  Sequentially
-     [ lookAt (topSlice amt)
-     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-            (onBottomIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-     , move (theRest Object {ok = tr})
-            (onTopIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
-scryBody agent amt (ManyLookReq {la = LookThem {ny} {an} {ap}} {no} {mn} {ps} {tr} {pr}) =
-  Sequentially
-     [ lookAtAgentsTop amt {an}
-     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-            (onBottomIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-     , move (theRest Object {ok = tr})
-            (onTopIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+agentRef : {bs : Bindings} -> (agent : Noun bs Player) ->
+           (0 ok : Macros.AgentRefOk agent) ->
+           Noun (Experimental.Phrase.agentIntro agent) Player
+agentRef agent ok =
+  Macros.agentSelfOrOwn agent (Experimental.Phrase.agentDelta agent)
+                        (Experimental.Phrase.agentPlur agent) ok
 
+||| "the top N cards of their library", read in the looker's own context.
+public export
+lookedSlice : {ctx : Bindings} -> (who : Noun ctx Player) ->
+              (0 nd : Experimental.Phrase.nounDelta who = []) ->
+              (0 sp : SlicePossessor who) ->
+              (amt : Amount ctx) -> Noun (nomIntro who) Object
+lookedSlice who nd sp amt =
+  replace {p = \ds => Noun (ds ++ ctx) Object} (sym nd)
+          (LibrarySlice OnTop amt who {sp})
+
+public export
+lookedSliceDelta : {ctx : Bindings} -> (who : Noun ctx Player) ->
+                   (0 nd : Experimental.Phrase.nounDelta who = []) ->
+                   (0 sp : SlicePossessor who) ->
+                   (amt : Amount ctx) -> Bindings
+lookedSliceDelta who nd sp amt =
+  Experimental.Phrase.nounDelta (Macros.lookedSlice who nd sp amt)
+
+public export
+lookedSlicePlur : {ctx : Bindings} -> (who : Noun ctx Player) ->
+                  (0 nd : Experimental.Phrase.nounDelta who = []) ->
+                  (0 sp : SlicePossessor who) ->
+                  (amt : Amount ctx) -> Plurality
+lookedSlicePlur who nd sp amt = nounPlur (Macros.lookedSlice who nd sp amt)
+
+||| "any number of them" [CR#701.22a]: the cards just looked at, read
+||| positionally off the look's own delta, one card included.
+public export
+lookedGroup : (own : Bindings) -> (outer : Bindings) -> (pl : Plurality) ->
+              (0 mn : countReach Bare pl own = 1) -> Noun (own ++ outer) Object
+lookedGroup own outer pl mn =
+  SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+         (Own Bare pl own outer {sp = Refl} {ok = mn}) {gm = Oh}
+
+public export
+lookedParted : (own : Bindings) -> (outer : Bindings) -> (pl : Plurality) ->
+               (0 mn : countReach Bare pl own = 1) -> Bindings
+lookedParted own outer pl mn = nomIntro (Macros.lookedGroup own outer pl mn)
+
+public export
+lookedSpilled : (own : Bindings) -> (outer : Bindings) -> (pl : Plurality) ->
+                (0 mn : countReach Bare pl own = 1) ->
+                (to : ZoneExpr (Macros.lookedParted own outer pl mn)) -> Bindings
+lookedSpilled own outer pl mn to =
+  afterMoveTo to
+    (moveIntro Nothing (Macros.lookedGroup own outer pl mn) (Just (zoneSort to)))
+
+||| "look at the top N cards of their library, then put any number of them
+||| <spill> and the rest on top of that library in any order" [CR#701.22a].
+public export
+lookAndSort :
+  {ctx : Bindings} -> (who : Noun ctx Player) ->
+  (0 nd : Experimental.Phrase.nounDelta who = []) ->
+  (0 sp : SlicePossessor who) ->
+  (amt : Amount ctx) ->
+  (0 mn : countReach Bare (Macros.lookedSlicePlur who nd sp amt)
+                          (Macros.lookedSliceDelta who nd sp amt) = 1) ->
+  (spill : ZoneExpr (Macros.lookedParted (Macros.lookedSliceDelta who nd sp amt)
+                                         (nomIntro who)
+                                         (Macros.lookedSlicePlur who nd sp amt) mn)) ->
+  (0 dk : DestOk spill) ->
+  (0 sa : ArrangementOk
+            (nounPlur (Macros.lookedGroup (Macros.lookedSliceDelta who nd sp amt)
+                                          (nomIntro who)
+                                          (Macros.lookedSlicePlur who nd sp amt) mn))
+            spill) ->
+  (0 ps : Placeable (tyOfReach Bare (Macros.lookedSlicePlur who nd sp amt)
+                                    (Macros.lookedSliceDelta who nd sp amt))
+                    (zoneSort spill)) ->
+  (0 tr : So (theRestOk Object
+                (Macros.lookedSpilled (Macros.lookedSliceDelta who nd sp amt)
+                                      (nomIntro who)
+                                      (Macros.lookedSlicePlur who nd sp amt) mn spill))) ->
+  (0 pr : Placeable
+            (tyOfGroup Object
+               (Macros.lookedSpilled (Macros.lookedSliceDelta who nd sp amt)
+                                     (nomIntro who)
+                                     (Macros.lookedSlicePlur who nd sp amt) mn spill))
+            Library) ->
+  Instruction ctx
+lookAndSort who nd sp amt mn spill dk sa ps tr pr =
+  Sequentially
+    [ Expose LookAt who (ExposedCards (Macros.lookedSlice who nd sp amt))
+    , Move (Macros.lookedGroup (Macros.lookedSliceDelta who nd sp amt) (nomIntro who)
+                               (Macros.lookedSlicePlur who nd sp amt) mn)
+           spill [] {mk = ObjectMoves {nb = PayloadIsObject}}
+           {ok = dk} {arr = sa} {pl = ps}
+    , Move (TheRest Object ManyOf {ok = tr}) (onTopIn AnyOrder {af = Oh}) []
+           {mk = ObjectMoves {nb = PayloadIsObject}}
+           {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+
+public export
+agentLookedDelta : {bs : Bindings} -> (agent : Noun bs Player) ->
+                   (0 ar : Macros.AgentRefOk agent) ->
+                   (0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []) ->
+                   (0 sp : SlicePossessor (Macros.agentRef agent ar)) ->
+                   (amt : Amount (Experimental.Phrase.agentIntro agent)) -> Bindings
+agentLookedDelta agent ar nd sp amt =
+  Macros.lookedSliceDelta (Macros.agentRef agent ar) nd sp amt
+
+public export
+agentLookedOuter : {bs : Bindings} -> (agent : Noun bs Player) ->
+                   (0 ar : Macros.AgentRefOk agent) -> Bindings
+agentLookedOuter agent ar = nomIntro (Macros.agentRef agent ar)
+
+public export
+agentLookedPlur : {bs : Bindings} -> (agent : Noun bs Player) ->
+                  (0 ar : Macros.AgentRefOk agent) ->
+                  (0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []) ->
+                  (0 sp : SlicePossessor (Macros.agentRef agent ar)) ->
+                  (amt : Amount (Experimental.Phrase.agentIntro agent)) -> Plurality
+agentLookedPlur agent ar nd sp amt =
+  Macros.lookedSlicePlur (Macros.agentRef agent ar) nd sp amt
+
+||| "scry N" [CR#701.22a]
 public export
 scry : {bs : Bindings} -> (agent : Noun bs Player) ->
        (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-       {auto req : LookReq agent amt Library} ->
-       {auto 0 ke : EnactKeepsOuter (Just agent) (Macros.scryBody agent amt req)} ->
+       {auto 0 ar : Macros.AgentRefOk agent} ->
+       {auto 0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []} ->
+       {auto 0 sp : SlicePossessor (Macros.agentRef agent ar)} ->
+       {auto 0 mn : countReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                    (Macros.agentLookedDelta agent ar nd sp amt) = 1} ->
+       {auto 0 ps : Placeable (tyOfReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                              (Macros.agentLookedDelta agent ar nd sp amt))
+                              Library} ->
+       {auto 0 tr : So (theRestOk Object
+                          (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                                (Macros.agentLookedOuter agent ar)
+                                                (Macros.agentLookedPlur agent ar nd sp amt)
+                                                mn (onBottomIn AnyOrder {af = Oh})))} ->
+       {auto 0 pr : Placeable
+                      (tyOfGroup Object
+                         (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                               (Macros.agentLookedOuter agent ar)
+                                               (Macros.agentLookedPlur agent ar nd sp amt)
+                                               mn (onBottomIn AnyOrder {af = Oh}))) Library} ->
+       {auto 0 ke : EnactKeepsOuter (Just agent)
+                      (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
+                         (onBottomIn AnyOrder {af = Oh})
+                         (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr)} ->
        Instruction bs
 scry agent amt =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable} (scryBody agent amt req) {ke}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable}
+        (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
+           (onBottomIn AnyOrder {af = Oh})
+           (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr) {ke}
 
-||| "fateseal N" [CR#701.29a]
+||| "fateseal N" [CR#701.29a]: the named opponent's library, scried.
 public export
-fateseal : {bs : Bindings} ->
-           (amt : Amount (Experimental.Phrase.agentIntro (anOpponent {bs}))) ->
-           {auto 0 an : countReach (Word PlayerW) OneOf
-                     (Experimental.Phrase.agentIntro (anOpponent {bs})) = 1} ->
-           {auto 0 mn : countReach Bare ManyOf
-                     (agentLookedTop (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) = 1} ->
-           {auto 0 ps : Placeable
-                     (tyOfReach Bare ManyOf
-                       (agentLookedTop
-                         (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt)) Library} ->
+fateseal : {bs : Bindings} -> (agent : Noun bs Player) ->
+           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+           {auto 0 ar : Macros.AgentRefOk agent} ->
+           {auto 0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []} ->
+           {auto 0 sp : SlicePossessor (Macros.agentRef agent ar)} ->
+           {auto 0 mn : countReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                        (Macros.agentLookedDelta agent ar nd sp amt) = 1} ->
+           {auto 0 ps : Placeable (tyOfReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                                  (Macros.agentLookedDelta agent ar nd sp amt))
+                                  Library} ->
            {auto 0 tr : So (theRestOk Object
-                        (agentMovedRest
-                          (agentLookedTop
-                            (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library))} ->
+                              (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                                    (Macros.agentLookedOuter agent ar)
+                                                    (Macros.agentLookedPlur agent ar nd sp amt)
+                                                    mn (onBottomIn AnyOrder {af = Oh})))} ->
            {auto 0 pr : Placeable
-                     (tyOfGroup Object
-                       (agentMovedRest
-                         (agentLookedTop
-                           (Experimental.Phrase.agentIntro (anOpponent {bs})) an amt) mn Library)) Library} ->
+                          (tyOfGroup Object
+                             (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                                   (Macros.agentLookedOuter agent ar)
+                                                   (Macros.agentLookedPlur agent ar nd sp amt)
+                                                   mn (onBottomIn AnyOrder {af = Oh}))) Library} ->
+           {auto 0 ke : EnactKeepsOuter (Just agent)
+                          (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
+                             (onBottomIn AnyOrder {af = Oh})
+                             (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr)} ->
            Instruction bs
-fateseal amt =
-  Enact (Just anOpponent) "Scry" {kn = ActInFactsTable}
-        (Sequentially
-           [ lookAtAgentsTop amt {an}
-           , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                          (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-                  (onBottomIn AnyOrder {af = Oh})
-                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-           , move (theRest Object {ok = tr})
-                  (onTopIn AnyOrder {af = Oh})
-                  {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+fateseal agent amt = Macros.scry agent amt {ar} {nd} {sp} {mn} {ps} {tr} {pr} {ke}
 
-public export
-surveilBody : {bs : Bindings} -> (agent : Noun bs Player) ->
-              (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-              (req : LookReq agent amt Graveyard) ->
-              Instruction (Experimental.Phrase.agentIntro agent)
-surveilBody agent amt (OneLookReq {la = LookYou {ay}} {am} {iw} {pi}) =
-  Sequentially
-     [ lookAt (topSlice (Lit 1))
-     , may You
-           (move (That CardW OneOf {ok = iw}) graveyardZ
-                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ]
-surveilBody agent amt (OneLookReq {la = LookThem {ny} {an} {ap}} {am} {iw} {pi}) =
-  Sequentially
-     [ lookAtAgentsTop (Lit 1) {an}
-     , may (They {ok = ap})
-           (move (That CardW OneOf {ok = iw}) graveyardZ
-                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ]
-surveilBody agent amt (ManyLookReq {la = LookYou {ay}} {no} {mn} {ps} {tr} {pr}) =
-  Sequentially
-     [ lookAt (topSlice amt)
-     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-     , move (theRest Object {ok = tr})
-            (onTopIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
-surveilBody agent amt (ManyLookReq {la = LookThem {ny} {an} {ap}} {no} {mn} {ps} {tr} {pr}) =
-  Sequentially
-     [ lookAtAgentsTop amt {an}
-     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-     , move (theRest Object {ok = tr})
-            (onTopIn AnyOrder {af = Oh})
-            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
-
+||| "surveil N" [CR#701.25a]
 public export
 surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-          {auto req : LookReq agent amt Graveyard} ->
+          {auto 0 ar : Macros.AgentRefOk agent} ->
+          {auto 0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []} ->
+          {auto 0 sp : SlicePossessor (Macros.agentRef agent ar)} ->
+          {auto 0 mn : countReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                       (Macros.agentLookedDelta agent ar nd sp amt) = 1} ->
+          {auto 0 ps : Placeable (tyOfReach Bare (Macros.agentLookedPlur agent ar nd sp amt)
+                                                 (Macros.agentLookedDelta agent ar nd sp amt))
+                                 Graveyard} ->
+          {auto 0 tr : So (theRestOk Object
+                             (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                                   (Macros.agentLookedOuter agent ar)
+                                                   (Macros.agentLookedPlur agent ar nd sp amt)
+                                                   mn Macros.graveyardZ))} ->
+          {auto 0 pr : Placeable
+                         (tyOfGroup Object
+                            (Macros.lookedSpilled (Macros.agentLookedDelta agent ar nd sp amt)
+                                                  (Macros.agentLookedOuter agent ar)
+                                                  (Macros.agentLookedPlur agent ar nd sp amt)
+                                                  mn Macros.graveyardZ)) Library} ->
           {auto 0 ke : EnactKeepsOuter (Just agent)
-                         (Macros.surveilBody agent amt req)} ->
+                         (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
+                            Macros.graveyardZ GraveyardOkBare Oh ps tr pr)} ->
           Instruction bs
 surveil agent amt =
   Enact (Just agent) "Surveil" {kn = ActInFactsTable}
-        (surveilBody agent amt req) {ke}
+        (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
+           graveyardZ GraveyardOkBare Oh ps tr pr) {ke}
 
 public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
@@ -2297,7 +2328,7 @@ itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
           {auto 0 ok : countReach Bare OneOf (instrDelta prev) = 1} ->
           {auto 0 ko : KeepsOuter prev} ->
           Noun (instrIntro prev) Object
-itPrior {bs} prev = Own OneOf (instrDelta prev) bs {sp = ko} {ok}
+itPrior {bs} prev = Own Bare OneOf (instrDelta prev) bs {sp = ko} {ok}
 
 public export
 dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
@@ -2309,7 +2340,7 @@ dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 pm : PerMember to} ->
                       {auto 0 rk : DamageRecipient to} -> Instruction bs
 dealsDamageOwnPower src to =
-  DealDamage src (StatOf Power (Own OneOf (nounDelta src) bs {sp = Refl} {ok}) {ty}) to {pm} {rk}
+  DealDamage src (StatOf Power (Own Bare OneOf (nounDelta src) bs {sp = Refl} {ok}) {ty}) to {pm} {rk}
 
 public export
 additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->
