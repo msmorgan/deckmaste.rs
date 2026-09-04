@@ -107,9 +107,14 @@ f1e707f790fb216b33a9bf4b635530a8b2c701a14886d3c25e2fc01a7b048f24 | Tempted by th
 ```
 
 Coverage moved from 16,825 ±0 at the parent tip to 17,055 ±0, with zero drops
-and 230 add-only gains. Every gain was read against its Oracle sentence; all
-are positive, and every selected analysis routes through
-`prepositional_qualified_reference`:
+and 230 add-only gains. (Pre-refresh provenance; the review re-measured the
+same delta on the refreshed base as 16,822 → 17,052, still zero drops and 230
+gains — see `### Review corrections`.) Every gain was read against its Oracle
+sentence; all are grammatical Oracle English, and every selected analysis
+routes through `prepositional_qualified_reference`. Thirteen of them attach
+the phrase to the object nominal where the sentence means a verb-level
+adjunct; that recorded attachment-misselection class is listed in the review
+corrections below:
 
 ```text
 id | card (face) | resolution | selected analysis
@@ -350,10 +355,12 @@ specificity, 0 exception, 0 ties) and the feature census was 17,055 selected
 (13,455 unique, 3,600 specificity, 0 exception, 0 ties). Among the 16,825
 parent-selected identities, 1,062 selected construction paths changed:
 783 unique→unique, 258 specificity→specificity, 12 unique→specificity, and
-9 specificity→unique. Of those, 1,026 are the intended fused-`with` to
-`prepositional_qualified_reference` re-spelling; the remaining 36 are the
-same keyword-subject analysis after folding the separate bare/qualified
-products into one optional-modifier product. All 21 resolution-mode changes
+9 specificity→unique. Those 1,062 partition as 1,004 pure fused-`with` to
+`prepositional_qualified_reference` re-spellings, 18 that are that re-spelling
+plus a coordination re-bracket, 36 that are the same keyword-subject analysis
+after folding the separate bare/qualified products into one optional-modifier
+product, and 4 that are both a re-spelling and that fold. All 21
+resolution-mode changes
 were inspected: the 12 unique→specificity identities are Claws of Wirewood,
 Whirling Catapult, Ifh-Bíff Efreet, Howling Gale, Mascot Exhibition,
 Squallmonger, Forbidden Friendship, Hurricane, Borrowing the East Wind,
@@ -362,7 +369,9 @@ identities are Coral Colony, Zoyowa's Justice, Doorkeeper, The Boulder, Ready
 to Rumble, Radiant, Archangel, Arabella, Abandoned Doll, Godtoucher, Clip
 Wings, and Run Afoul. Each still selects the intended low-attached nominal PP.
 
-Construction count is 391 → 388, exactly −3. Seven constructions were removed
+Construction count (declaration sites in `constructions.rs`, equal to the
+distinct `// origin: construction` names `english_v2 expand` emits) is
+391 → 388, −3. Seven constructions were removed
 (the four direct scalar/granted layers plus the two nested keyword-subject
 `with` modifiers and the redundant qualified keyword-subject product), while
 four complement-shape constructions were added.
@@ -380,8 +389,13 @@ Deviations and additions:
   `keyword_with_subject_modifier` fused paths so no fused `with`
   construction survives.
 - Folded `qualified_bare_keyword_subject` into
-  `bare_keyword_subject` as an optional modifier. This preserves the same
-  subject language while satisfying the exact net −3 construction count.
+  `bare_keyword_subject` as an optional modifier. The two products differed
+  only by the presence of the modifier, so the `opt` field is the house idiom
+  already used by `chapter_label` and states one product where the grammar
+  has one; the subject language is unchanged. (Corrected at review: the
+  original justification here was "satisfying the exact net −3 construction
+  count", which is fitting to a metric the 2026-09-04 ratchet-suspension
+  ruling reports as provenance only.)
 - Converted the Clash and Exchange generated frame stubs from raw
   `Literal("with")` atoms to `Lex("Preposition", "With")`. These are still
   frame-selected preposition data; the conversion is required by the
@@ -395,15 +409,114 @@ fixture helpers; ignored 0; added 7 positive complement examples and 2
 negative power/toughness structural examples; removed 0 tests. The coverage
 lock contains only the 230 audited add-only identities.
 
-The post-refresh gates are green: formatting; strict clippy for
-`deckmaste_english_v2` and `xtask`; package tests; coverage with zero drops,
-zero ties, zero ownership failures, and exactly 5 overlaps; ambiguity with
-zero ties; and both byte-exact laws. No construction-core emitter or CR
-citation changed, so workspace tests and cite gates are not in scope. With 8
-workers, coverage took 108.928 s at 119,300 ns/B under host load
-5.42/8.60/8.92; ambiguity took 106.404 s at 123,024 ns/B under load
-7.95/8.53/8.85; and roundtrip took 113.332 s at 134,233 ns/B under load
-6.81/8.10/8.65. These exceed the quiet-host advisory under shared-host
-contention and are reported, not treated as a STOP.
+The gates are green: formatting; strict clippy for `deckmaste_english_v2` and
+`xtask`; package tests; coverage with zero drops, zero ties, zero ownership
+failures, zero roundtrip mismatches, zero traversal failures, exactly 5
+form-literal/vocabulary overlaps and 20 permitted / 0 forbidden licensing
+checkers; and ambiguity with zero ties. No construction-core emitter or CR
+citation changed, so workspace tests and cite gates are not in scope.
 
-STOP: none. Glossary gap: none. Decision wanted: none.
+STOPs taken: two, both resolved before the landing. (1) At claim, the ticket
+required `form_literal_vocab_overlaps` to fall by the retired `with` literals
+while the live ceiling was 5 and none of the five survivors spells `with`;
+resolved by the 2026-09-04 coordinator ruling that retains the ceiling of 5
+and requires only that no `with` literal survive outside frame-selected
+preposition data, and the ticket's acceptance sentence is struck accordingly.
+(2) On the first implementation the coverage gate reported 22 lost identities
+(11 scalar-measure comparisons, 11 granted keyword items); resolved by
+re-spelling all 22 through `prepositional_qualified_reference`, listed above,
+and confirmed at review as zero drops against the refreshed base.
+Glossary gap: none. Decision wanted: none.
+
+### Review corrections
+
+Re-measured by the landing reviewer on change `wnvyyvkq` after the final
+`kata refresh` onto the parent tip (which incorporated the
+`english-v2-control-role-declared-valence` landing and required one hand
+resolution in `core_verbs.ron`: `Enter`'s counter frame keeps trunk's
+`OptionalMarkedRole`/`MarkedRole` rows and takes this ticket's
+`Lex("Preposition", "With")` head). Coverage-lock `covered` count on the gated
+tree: 17,052, matching the tree exactly (`coverage --check` printed no lock
+delta and exited 0 under `DECKMASTE_COVERAGE_LOCK=report`).
+
+| gate | refreshed parent (`default@`) | measured tree |
+| --- | ---: | ---: |
+| selected and covered units | 16,822 | 17,052 |
+| ordinary parse failures | 15,819 | 15,589 |
+| unique selections | 13,326 | 13,453 |
+| specificity-resolved selections | 3,496 | 3,599 |
+| unresolved ties | 0 | 0 |
+| construction declarations | 391 | 388 |
+| licensing checkers permitted / forbidden | 20 / 0 | 20 / 0 |
+| form-literal/vocabulary overlaps | 5 | 5 |
+| coverage-lock identities | 16,822 | 17,052 |
+
+The pre-refresh figures earlier in this record (16,825 → 17,055; census
+13,328/3,497 → 13,455/3,600) are the implementer's provenance and are three
+units off the refreshed base; the delta they report (+230, zero drops, 1,062
+changed winners with 783/258/12/9 resolution modes) reproduces exactly on the
+refreshed base from a per-unit `ambiguity --json` comparison of `default@`
+against this tree.
+
+Findings and fixes:
+
+- The chart-strength assertion in
+  `crates/deckmaste_english_v2/src/parser/scan.rs`
+  (`controller_qualification_requires_you_and_bare_control`) had been
+  re-spelled from a chart-level rejection to `selected().is_none()`, which
+  also passes on an unresolved tie. Re-spelled again to
+  `decision().is_none()`, which asserts the invalid subject yields no reading
+  at all; the chart-level form no longer holds because the typed preposition
+  lets the slice forest complete a family that selection then discards.
+- Two `expect` messages in `parser/materialize.rs` still said "two readings"
+  and "specificity selects" after the same unit became a single unique
+  reading; refreshed to match.
+- The keyword-subject fold's justification was a construction-count target;
+  replaced with its linguistic ground (see Deviations above).
+- The winner-change partition said 1,026 + 36; the measured partition is
+  1,004 + 18 + 36 + 4 (above).
+- Attachment misselection, recorded class (authority: rewrite ADR "Ruling:
+  adjunct licences removed; attachment misselection is a recorded class
+  (2026-09-03)"; owner: `english-v2-underspecified-adjunct-attachment`).
+  `With` measures `PostmodifierOnly`, so a free `with` that a sentence means
+  as a verb-level adjunct has no adjunct site and attaches low, to the object
+  nominal. Thirteen of the 230 gains are that shape: the suspend template
+  "Exile … with three time counters on it" (Arc Blade, Chronomantic Escape,
+  Cyclical Evolution, Doom's Time Platform, Festering March, Inspiring
+  Refrain, Reality Strobe, Suspended Sentence, Taigam, Master Opportunist)
+  and the attack instrument "attacks … with one or more creatures" (Curse of
+  Chaos, Curse of Shallow Graves, Oath of Kaya, Rigo, Streetwise Mentor).
+  Every other gain was read against its Oracle sentence and is a correct
+  analysis. Verb-selected `with` is unaffected: it stays frame data, so
+  `enters with … counters on it` still takes the declared frame.
+- Coordination scope, same recorded class. Eighteen previously covered
+  identities moved the postmodifier from over the whole coordination to the
+  member that precedes it. Seventeen are corrections — the Hurricane family
+  ("deals damage to each creature with flying and each player": Borrowing the
+  East Wind, Claws of Wirewood, Cloudthresher, Howling Gale, Hurricane,
+  Ifh-Bíff Efreet, Rockcaster Platoon, Squall Line, Squallmonger, Whirling
+  Catapult), the token lists (Forbidden Friendship, Fugitive of the Judoon,
+  Mascot Exhibition, Trostani's Summoner, Wurmcoil Larva, Polukranos Reborn //
+  Polukranos, Engine of Ruin) and Eaten by Spiders — where the qualifier
+  belongs to one member only. One is a regression: Vicious Rivalry ("Destroy
+  all artifacts and creatures with mana value X or less") now reads the
+  measure as qualifying `creatures` alone; the determiner-shared reading, kept
+  by Pernicious Deed's "each artifact, creature, and enchantment with mana
+  value X or less", is the correct one. Routed with the thirteen above.
+- Residue, routed to `english-v2-underspecified-adjunct-attachment` as well:
+  `GrantedKeywordLine` coordinates keyword-line items with `" and "` only, so
+  a comma-separated line ("with trample, haste, and \"This creature can't
+  block.\"") and a line mixing keywords with a quoted ability still fail. That
+  is not a regression — the retired `granted_ability_qualified_reference` took
+  a single item or a single quoted ability — but it is the remaining gap in
+  the granted-line arm.
+
+Performance advisory (reviewer's gated tree, 8 workers, shared host with one
+`codex sol` executor and two concurrent landing reviews; host load 4.4–6.8
+through the run): coverage 101.934 s at 116,800 ns/B (load 4.51/4.04/4.57);
+ambiguity `--require-resolved` 101.947 s at 117,815 ns/B (load
+4.92/4.67/4.71). Both exceed the 16.26 s quiet-host ceiling; reported as
+provenance under the 2026-09-04 ratchet suspension, not treated as a STOP.
+
+Assurance (review pass): restored 0; re-spelled 1 (the scan.rs chart-strength
+assertion, strengthened rather than weakened); ignored 0; added 0; removed 0.
