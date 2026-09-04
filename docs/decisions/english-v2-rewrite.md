@@ -1233,3 +1233,26 @@ role; "Destroy target creature card from your graveyard" (Destroy declares
 no `from`) attaches it to the noun. Absence of an optional role still
 satisfies its predicate. Frame-role wrapper constructions that exist only
 to spell a preposition (`SourcePhrase`, `ControlPhrase`) are dissolved.
+
+## Ruling: adjunct licences removed; attachment misselection is a recorded class (2026-09-03)
+
+Verb valence rows carry no adjunct licence. A temporal, manner, or locative
+adjunct attaches to any verb clause, matrix or embedded; the derived
+low-attachment rule selects among survivors. The whitelist licence
+(`AdjunctLicensed` / `NonprepositionalAdjunctLicensed`) rejected attested
+sentences on every unlicensed verb and encoded no English fact; it is deleted
+(`english-v2-adjunct-licence-removal`).
+
+Consequence, recorded as a known class: right-peripheral adjunct attachment
+is not grammar-decidable. Low attachment is a selection, not a fact. Seedborn
+Muse — `Untap all permanents you control during each other player's untap
+step` — selects `during…` under `control`; the card means it under `untap`.
+Every consumer that reads an adjunct's attachment must treat it as
+provisional until the resolution below lands.
+
+Resolution (design, not yet scheduled): underspecified attachment. Candidates
+that differ only in a right-peripheral adjunct's attachment site collapse into
+one packed candidate; the adjunct node is hoisted to the highest site and
+carries the set of admissible lower sites as a value. Semantics chooses. An
+attachment-only tie is therefore one candidate, not a STOP; any other tie
+remains a STOP. Ticket: `english-v2-underspecified-adjunct-attachment`.
