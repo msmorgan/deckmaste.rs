@@ -138,6 +138,13 @@ zero newly covered and zero drops; `ambiguity --require-resolved` exit 0;
 `roundtrip` 16,825 clean, 0 mismatched. No citation changed, so the cite gates
 were not exercised.
 
+A second `kata refresh` (trunk had advanced with `workbench-card-face-record`,
+an Idris-side change) applied cleanly with no conflicts. The whole gate set was
+re-run on it: fmt and clippy exit 0, `cargo test --workspace` 6,114 passed / 0
+failed / 6 ignored, `coverage --check` exit 0, `ambiguity --require-resolved`
+exit 0 with unique 13,328 and specificity-resolved 3,497, `roundtrip` 16,825
+clean / 0 mismatched. Every figure is unchanged.
+
 Post-refresh performance advisory (8 workers; 1 concurrent codex executor plus
 this review on the host): coverage 82.389 s, 109,164 ns/B, load
 9.65/11.81/9.74; ambiguity 88.588 s, 121,898 ns/B, load 8.95/11.19/9.72;
