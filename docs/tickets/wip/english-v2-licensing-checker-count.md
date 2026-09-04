@@ -229,3 +229,34 @@ production census test now asserts the gate accepts the grandfathered five
 instead of rejecting the three, which is the ruling, not a weakening: the
 sibling test `forbidden_policy_rejects_any_added_identity` still proves a
 sixth identity fails.
+
+### Post-refresh remeasurement
+
+`kata refresh` rewrote the stack (no conflicts; the coverage report schema is
+still 7 because `english-v2-visitor-leaf-traversal-property` had not integrated
+— it does its schema reconciliation, not this landing). Remeasured on change
+`ttvnxssp`, the tree that integrates, with 16,771 covered lock identities:
+
+- Coverage 16,771 selected and covered, selected-uncovered 0, parse failures
+  15,870, every failure counter 0; the coverage lock is not in the change's
+  file list and is byte-unchanged.
+- Selection census unique 11,515, specificity-resolved 5,256, exception-resolved
+  0, unresolved ties 0.
+- Construction declarations 397; literal/lexicon collisions 59.
+- Licensing checkers: 26 permitted (19 declared-licence-feature readers,
+  7 structural predicates), 5 forbidden and all five grandfathered, so the gate
+  passes.
+- Positive gates: `cargo fmt --all --check` exit 0; `cargo clippy -p xtask
+  --all-targets -- -D warnings` finished; `cargo test -p xtask` `test result:
+  ok. 429 passed; 0 failed; 1 ignored` plus 12-, 1- and 1-test results;
+  `cargo xtask english_v2 coverage --check` exit 0; `cargo xtask english_v2
+  ambiguity --require-resolved` exit 0. No CR citation changed, so the cite
+  gates were not run.
+- Performance advisory: the quietest coverage measurement was 20.016577600 s at
+  95,267 ns/B; the post-refresh one ran 90.312059222 s at 188,181 ns/B with
+  `host_load_1m` at 62.02, and ambiguity 59.893367166 s at 177,713 ns/B. The
+  16.26 s quiet-host ceiling was never met on this host. Contention stamp:
+  5-6 concurrent codex executors throughout, with host load between 17 and 62 —
+  the sandboxed `pgrep -c -x codex` readings of 1 and 2 in the earlier records
+  are not the host's count. `english_v2 report`, which builds the same census
+  plus the whole counted report, takes 1.087 s, so the census is not the cost.
