@@ -8,6 +8,11 @@ Characteristics`](../../contexts/game-model/CONTEXT.md). `CardFace` must denote 
 the CR calls a face; `Characteristics` is the shared value used wherever a
 face or rules-defined alternative supplies characteristics.
 
+Scope (ruling 2026-09-04): the Idris workbench, core, engine, and lowering's
+core-facing output only; `deckmaste_semantics` and `idris/src/Semantics.idr`
+are deletion-bound and untouched; their side converges at cutover when the RON
+re-emit path points at `Experimental`.
+
 Represent these forms distinctly rather than treating all of them as
 two-faced cards:
 
@@ -21,9 +26,17 @@ two-faced cards:
   characteristics, not an Adventure face ([CR#715.2]).
 
 Choose the smallest sum and product shapes that preserve those distinctions in
-semantic, core, and Idris models and in authored RON. Migrate extraction,
-lowering, card lookup, generated fixtures, and all layout consumers.
+`deckmaste_core` and the Idris workbench (`idris/src/Experimental/`) and in the
+core-facing RON. Migrate lowering's core-facing output, card lookup, generated
+fixtures, and all layout consumers.
 
-Acceptance includes one double-faced, split, flip, and Adventure witness; each
-witness exposes exactly the faces and alternative Characteristics its CR form
-permits. Do not preserve the old model through compatibility aliases.
+Overlaps the workbench card-shape tickets: `workbench-levelers` and
+`workbench-prototype` add inner-face wrappers beside
+`SingleFaced`/`Transforming`/`Adventurer`, and `workbench-supplements-out`
+trims the workbench card-type set; whichever runs second reconciles the names.
+
+Acceptance includes one double-faced, split, flip, and Adventure witness in
+`deckmaste_core` and the workbench, with `cd idris && ./scripts/build` green at
+its module count; each witness exposes exactly the faces and alternative
+Characteristics its CR form permits. Do not preserve the old model through
+compatibility aliases.
