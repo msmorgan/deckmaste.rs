@@ -51,5 +51,6 @@ its selected analysis; performance advisory), with the construction count
 showing the bespoke construction deleted rather than kept beside the frame, and
 both byte-exact laws green with total ownership. Standard constraints apply.
 
-2026-09-04: inherits re-coverage owed for `Target creature gains trample until
-end of turn.` from `english-v2-clause-level-duration`.
+2026-09-04: inherits the coverage owed for `Target creature gains trample until
+end of turn.` from `english-v2-clause-level-duration`; re-measured on that
+landing's tree, the witness is still a parse failure and never regressed.

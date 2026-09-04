@@ -54,6 +54,10 @@ This is distinct from a Game Model Predicate.
 **Verb Phrase**:
 A phrase headed by a verb.
 
+**Bare Predicate**:
+The Predicate shape available where no finite tense is expressed, such as the
+complement of a modal auxiliary or of a causative verb.
+
 **Lexical Verb Phrase**:
 An instantiated lexical verb together with the complements it selects, before
 higher auxiliary and clause structure is added.
@@ -102,6 +106,10 @@ _Avoid_: Numerative
 **Adjunct**:
 An optional dependent that modifies a phrase without being selected as its
 Complement.
+
+**Duration Phrase**:
+An Adjunct that bounds how long the effect of its Clause lasts, such as *until
+end of turn*.
 
 **Modifier**:
 A dependent that attributes or restricts the interpretation of its head.

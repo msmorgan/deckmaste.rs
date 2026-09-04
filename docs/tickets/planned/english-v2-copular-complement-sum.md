@@ -46,5 +46,6 @@ Clause, Scalar. Record any gap.
 Baseline, measured on change `oulzkkoqmvuv` — re-measure at claim. Standard
 constraints apply.
 
-2026-09-04: inherits re-coverage owed for `Target land becomes a 3/3 creature
-until end of turn.` from `english-v2-clause-level-duration`.
+2026-09-04: inherits the coverage owed for `Target land becomes a 3/3 creature
+until end of turn.` from `english-v2-clause-level-duration`; re-measured on that
+landing's tree, the witness is still a parse failure and never regressed.
