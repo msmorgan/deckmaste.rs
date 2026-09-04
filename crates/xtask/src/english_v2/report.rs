@@ -16,6 +16,8 @@ use super::production_declaration_path;
 #[derive(Debug, Serialize)]
 struct CountedReport {
     schema_version: u32,
+    /// Top-level `construction` declarations; the canonical figure for landing
+    /// records, emitted only by this command.
     construction_count: usize,
     card_name_catalog_rows: usize,
     parenthetical_inventory: super::corpus::ParentheticalInventory,
@@ -930,7 +932,10 @@ mod tests {
         );
         assert!(report.terminal_bindings.is_empty());
         assert!(report.checked_constructor_bindings.is_empty());
-        assert!(report.roots.iter().all(|entry| !entry.identity.is_empty()));
+        assert!(
+            !report.roots.is_empty() && report.roots.iter().all(|entry| !entry.identity.is_empty()),
+            "the root inventory is reported, not pinned, but it is never empty",
+        );
         for entries in [
             &report.abstract_products,
             &report.abstract_sums,

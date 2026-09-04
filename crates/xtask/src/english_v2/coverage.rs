@@ -1417,11 +1417,20 @@ where
     let declaration_source = fs::read_to_string(super::production_declaration_path())
         .context("reading English-v2 declaration provenance for coverage")?;
     let declaration_provenance = super::declaration_provenance(&declaration_source)?;
+    let counted_overlaps = parser.environment().form_literal_vocab_overlaps();
+    let named_overlaps = declaration_provenance
+        .form_literal_vocab_overlap_surfaces
+        .len();
+    if named_overlaps != counted_overlaps {
+        bail!(
+            "English-v2 form-literal/vocabulary overlap inventory disagrees with the environment census: {named_overlaps} named, {counted_overlaps} counted"
+        );
+    }
     let report = CoverageReport::try_new_with_censuses(
         corpus.source_fingerprint().to_owned(),
         rows,
         parser.environment().licensed_vocab_lexicon_homographs(),
-        parser.environment().form_literal_vocab_overlaps(),
+        counted_overlaps,
         parser
             .environment()
             .licensed_vocab_lexicon_homograph_owners()

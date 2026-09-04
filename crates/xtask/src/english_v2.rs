@@ -579,7 +579,12 @@ fn expansion_from_source(source: &str) -> anyhow::Result<Expansion> {
 /// change either inventory while the environment keeps enforcing ownership.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct DeclarationProvenance {
+    /// Top-level `construction` declarations in the declaration source; the
+    /// grammar nests none, so this is also every `construction` keyword in it.
     pub(super) construction_count: usize,
+    /// Unlicensed form literals whose surface a vocabulary member also owns —
+    /// the rows behind the environment's `form_literal_vocab_overlaps` census,
+    /// which `coverage` checks this inventory against.
     pub(super) form_literal_vocab_overlap_surfaces: Vec<String>,
 }
 
