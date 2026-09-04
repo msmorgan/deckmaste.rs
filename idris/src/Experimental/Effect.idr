@@ -1232,7 +1232,8 @@ mutual
                    {auto 0 sc : OptCounterSourceScope kind Player} -> Instruction bs
     Enact : (subj : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
             (e : Instruction (agentCtx subj)) ->
-            {auto 0 kn : KnownAct v} -> Instruction bs
+            {auto 0 kn : KnownAct v} ->
+            {auto 0 ke : EnactKeepsOuter subj e} -> Instruction bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> Instruction bs
@@ -1552,8 +1553,25 @@ mutual
   instrDelta e = take (length (instrIntro e) `minus` length bs) (instrIntro e)
 
   public export
+  KeepsOuterOf : (outer : Bindings) -> (out : Bindings) -> Type
+  KeepsOuterOf outer out =
+    out = take (length out `minus` length outer) out ++ outer
+
+  public export
   KeepsOuter : {bs : Bindings} -> Instruction bs -> Type
-  KeepsOuter {bs} e = instrIntro e = instrDelta e ++ bs
+  KeepsOuter {bs} e = KeepsOuterOf bs (instrIntro e)
+
+  public export
+  KeepsOuterEach : Plurality -> (outer : Bindings) -> (out : Bindings) -> Type
+  KeepsOuterEach OneOf outer out = ()
+  KeepsOuterEach ManyOf outer out = KeepsOuterOf outer out
+
+  public export
+  EnactKeepsOuter : {bs : Bindings} -> (subj : Maybe (Noun bs Player)) ->
+                    Instruction (agentCtx subj) -> Type
+  EnactKeepsOuter Nothing e = ()
+  EnactKeepsOuter (Just s) e =
+    KeepsOuterEach (nounPlur s) (agentIntro s) (instrIntro e)
 
   public export
   instrIntro : {bs : Bindings} -> Instruction bs -> Bindings

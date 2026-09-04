@@ -572,8 +572,9 @@ destroy n = Enact Nothing "Destroy" (Move n graveyardZ [])
 
 public export
 exile : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
+        {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.exileZ [])} ->
         Instruction bs
-exile agent n = Enact (Just agent) "Exile" (Move n exileZ [])
+exile agent n = Enact (Just agent) "Exile" (Move n exileZ []) {ke}
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
@@ -629,22 +630,30 @@ putOntoBattlefieldUnderYourControl n =
 
 public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Instruction bs
+            {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
+            {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [])} ->
+            Instruction bs
 sacrifice agent n =
-  Enact (Just agent) "Sacrifice" (Move n graveyardZ [])
+  Enact (Just agent) "Sacrifice" (Move n graveyardZ []) {ke}
 
 public export
 sacrificeIt : (agent : Noun bs Player) ->
               {auto 0 ok : countReach (AtSlot PermanentSlot) OneOf (agentIntro agent) = 1} ->
               {auto 0 zn : ZoneIs (zoneOfReach (AtSlot PermanentSlot) OneOf (agentIntro agent)) Battlefield} ->
+              {auto 0 ke : EnactKeepsOuter (Just agent)
+                             (Move (Pro (AtSlot PermanentSlot) OneOf {ok})
+                                   Macros.graveyardZ [])} ->
               Instruction bs
-sacrificeIt agent = sacrifice agent (Pro (AtSlot PermanentSlot) OneOf {ok}) {ok = zn}
+sacrificeIt agent =
+  sacrifice agent (Pro (AtSlot PermanentSlot) OneOf {ok}) {ok = zn} {ke}
 
 public export
 discard : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-          {auto 0 dk : DiscardOk n} -> Instruction bs
+          {auto 0 dk : DiscardOk n} ->
+          {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.graveyardZ [])} ->
+          Instruction bs
 discard agent n =
-  Enact (Just agent) "Discard" (Move n graveyardZ [])
+  Enact (Just agent) "Discard" (Move n graveyardZ []) {ke}
 
 public export
 tap : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
@@ -1198,11 +1207,15 @@ nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
 
 public export
 shuffleInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
-              {auto 0 pl : Placeable (nounTy n) Library} -> Instruction bs
+              {auto 0 pl : Placeable (nounTy n) Library} ->
+              {auto 0 ke : EnactKeepsOuter (Just agent)
+                             (Move n (LibraryAt Shuffled Nothing Nothing Bare)
+                                     [] {pl})} ->
+              Instruction bs
 shuffleInto agent n =
   Enact (Just agent) "Shuffle"
     (Move n (LibraryAt Shuffled Nothing Nothing Bare)
-            [] {pl})
+            [] {pl}) {ke}
 
 public export
 topSlice : (amt : Amount bs) -> Noun bs Object
@@ -1298,9 +1311,10 @@ puts : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
+       {auto 0 ke : EnactKeepsOuter (Just agent) (Move n to [] {ok} {arr} {pl})} ->
        Instruction bs
 puts agent n to =
-  Enact (Just agent) "Put" (Move n to [] {ok} {arr} {pl})
+  Enact (Just agent) "Put" (Move n to [] {ok} {arr} {pl}) {ke}
 
 public export
 shuffle : Instruction bs
@@ -1414,11 +1428,14 @@ public export
 mills : (agent : Noun bs Player) -> (amt : Amount (agentIntro agent)) ->
         (whose : Noun (agentIntro agent) Player) ->
         {auto 0 sp : SlicePossessor whose} ->
+        {auto 0 ke : EnactKeepsOuter (Just agent)
+                       (Move (LibrarySlice OnTop amt whose {sp})
+                             Macros.graveyardZ [])} ->
         Instruction bs
 mills agent amt whose =
   Enact (Just agent) "Mill"
        (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ
-             [])
+             []) {ke}
 
 public export
 lookedTop : (bs : Bindings) -> (amt : Amount bs) -> Bindings
@@ -1511,47 +1528,53 @@ data LookReq : {bs : Bindings} -> (agent : Noun bs Player) ->
     LookReq agent amt z
 
 public export
+scryBody : {bs : Bindings} -> (agent : Noun bs Player) ->
+           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+           (req : LookReq agent amt Library) ->
+           Instruction (Experimental.Phrase.agentIntro agent)
+scryBody agent amt (YourOneLookReq {ay} {am} {iw} {pi}) =
+  Sequentially
+     [ lookAt (topSlice (Lit 1))
+     , may You
+           (move (That CardW OneOf {ok = iw}) onBottomZ
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}}
+                 {arr = Oh} {pl = pi}) ]
+scryBody agent amt (YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}) =
+  Sequentially
+     [ lookAt (topSlice amt)
+     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+            (onBottomIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+     , move (theRest {ok = tr})
+            (onTopIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+scryBody agent amt (TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}) =
+  Sequentially
+     [ lookAtAgentsTop (Lit 1) {an}
+     , may (They {ok = ap})
+           (move (That CardW OneOf {ok = iw}) onBottomZ
+                 {ok = LibraryPosOk {af = Oh} {nf = Oh}}
+                 {arr = Oh} {pl = pi}) ]
+scryBody agent amt (TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}) =
+  Sequentially
+     [ lookAtAgentsTop amt {an}
+     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+            (onBottomIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
+     , move (theRest {ok = tr})
+            (onTopIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+
+public export
 scry : {bs : Bindings} -> (agent : Noun bs Player) ->
        (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-       {auto req : LookReq agent amt Library} -> Instruction bs
-scry {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAt (topSlice (Lit 1))
-          , may You
-                (move (That CardW OneOf {ok = iw}) onBottomZ
-                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
-                      {arr = Oh} {pl = pi}) ])
-scry {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAt (topSlice amt)
-          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-                 (onBottomIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-          , move (theRest {ok = tr})
-                 (onTopIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-scry agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAtAgentsTop (Lit 1) {an}
-          , may (They {ok = ap})
-                (move (That CardW OneOf {ok = iw}) onBottomZ
-                      {ok = LibraryPosOk {af = Oh} {nf = Oh}}
-                      {arr = Oh} {pl = pi}) ])
-scry agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAtAgentsTop amt {an}
-          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-                 (onBottomIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
-          , move (theRest {ok = tr})
-                 (onTopIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+       {auto req : LookReq agent amt Library} ->
+       {auto 0 ke : EnactKeepsOuter (Just agent) (Macros.scryBody agent amt req)} ->
+       Instruction bs
+scry agent amt =
+  Enact (Just agent) "Scry" {kn = ActInFactsTable} (scryBody agent amt req) {ke}
 
 ||| "fateseal N" [CR#701.29a]
 public export
@@ -1588,43 +1611,51 @@ fateseal amt =
                   {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
+surveilBody : {bs : Bindings} -> (agent : Noun bs Player) ->
+              (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
+              (req : LookReq agent amt Graveyard) ->
+              Instruction (Experimental.Phrase.agentIntro agent)
+surveilBody agent amt (YourOneLookReq {ay} {am} {iw} {pi}) =
+  Sequentially
+     [ lookAt (topSlice (Lit 1))
+     , may You
+           (move (That CardW OneOf {ok = iw}) graveyardZ
+                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ]
+surveilBody agent amt (YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}) =
+  Sequentially
+     [ lookAt (topSlice amt)
+     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+     , move (theRest {ok = tr})
+            (onTopIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+surveilBody agent amt (TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}) =
+  Sequentially
+     [ lookAtAgentsTop (Lit 1) {an}
+     , may (They {ok = ap})
+           (move (That CardW OneOf {ok = iw}) graveyardZ
+                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ]
+surveilBody agent amt (TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}) =
+  Sequentially
+     [ lookAtAgentsTop amt {an}
+     , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
+                    (Pro Bare ManyOf {ok = mn}) {gm = Oh})
+            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+     , move (theRest {ok = tr})
+            (onTopIn AnyOrder {af = Oh})
+            {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ]
+
+public export
 surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
           (amt : Amount (Experimental.Phrase.agentIntro agent)) ->
-          {auto req : LookReq agent amt Graveyard} -> Instruction bs
-surveil {bs} agent amt {req = YourOneLookReq {ay} {am} {iw} {pi}} =
+          {auto req : LookReq agent amt Graveyard} ->
+          {auto 0 ke : EnactKeepsOuter (Just agent)
+                         (Macros.surveilBody agent amt req)} ->
+          Instruction bs
+surveil agent amt =
   Enact (Just agent) "Surveil" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAt (topSlice (Lit 1))
-          , may You
-                (move (That CardW OneOf {ok = iw}) graveyardZ
-                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
-surveil {bs} agent amt {req = YourManyLookReq {ay} {no} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAt (topSlice amt)
-          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-                 graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-          , move (theRest {ok = tr})
-                 (onTopIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
-surveil agent amt {req = TheirOneLookReq {ny} {am} {an} {ap} {iw} {pi}} =
-  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAtAgentsTop (Lit 1) {an}
-          , may (They {ok = ap})
-                (move (That CardW OneOf {ok = iw}) graveyardZ
-                      {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
-surveil agent amt {req = TheirManyLookReq {ny} {no} {an} {mn} {ps} {tr} {pr}} =
-  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
-       (Sequentially
-          [ lookAtAgentsTop amt {an}
-          , move (SomeOf (CountedSlice Macros.anyNumber {wf = Oh}) Nothing
-                         (Pro Bare ManyOf {ok = mn}) {gm = Oh})
-                 graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
-          , move (theRest {ok = tr})
-                 (onTopIn AnyOrder {af = Oh})
-                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+        (surveilBody agent amt req) {ke}
 
 public export
 playerSearchesTheirLibraryFor : (who : Noun bs Player) ->

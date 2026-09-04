@@ -119,6 +119,31 @@ badKindLoopZoneMoveRead : Unspellable (Instruction []) (\ok =>
                , Macros.untap (Macros.It OneOf) ])
 badKindLoopZoneMoveRead Refl impossible
 
+||| "Each opponent exiles a creature they control. Put those cards onto the
+||| battlefield." The distributive twin of `okLoopMovesItsOwn`: the deed moves
+||| only what the agent phrase introduced, so the enclosing stack survives and
+||| the exiled cards read back after the deed as a plural.
+public export
+okDistributedMovesItsOwn : Instruction []
+okDistributedMovesItsOwn =
+  Sequentially [ Macros.exile (Macros.each Opponent)
+                   (Macros.a (And [Macros.creature,
+                      HasPossessor ControllerAx (Macros.That PlayerW OneOf)]))
+               , Macros.putOntoBattlefield (Macros.It ManyOf) ]
+
+||| "Tap target creature. Each opponent exiles it. Untap it." The distributive
+||| deed exiles an object bound OUTSIDE the agent phrase, so `distributedDelta`
+||| would republish the pre-deed stack — the creature's stale battlefield zone —
+||| over the exile. Refused at `Enact`'s distribution obligation; the singular
+||| spelling of the same sentence is refused one clause later, at `untap`'s
+||| battlefield gate ([CR#400.7,701.26b], `badUnloopedZoneMoveRead`).
+public export
+badDistributedZoneMoveRead : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.tap (Macros.target Macros.creature)
+               , Macros.exile (Macros.each Opponent) (Macros.It OneOf) {ke = ok}
+               , Macros.untap (Macros.It OneOf) ])
+badDistributedZoneMoveRead Refl impossible
+
 ||| "When target creature dies this turn, return that card to the battlefield."
 public export
 okDiesBattlefield : Instruction []
