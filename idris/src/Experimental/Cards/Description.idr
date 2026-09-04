@@ -8,7 +8,8 @@ import Experimental.Macros
 
 glyphOfDestruction : Instruction []
 glyphOfDestruction =
-  Macros.gets (Macros.target (And [Blocking, Macros.creature, HasPossessor ControllerAx You])) (PtUp (Lit 10)) (PtUp (Lit 0)) (Just Macros.untilEndOfCombat)
+  Macros.gets (Macros.target (And [Blocking, HasSubtype (creatureType "Wall"),
+                                   HasPossessor ControllerAx You])) (PtUp (Lit 10)) (PtUp (Lit 0)) (Just Macros.untilEndOfCombat)
 
 rawNonattacking : Predicate [] Object
 rawNonattacking = And [Macros.creature, Not Attacking, Not Blocking]
@@ -37,9 +38,6 @@ terashisVerdict =
 pillarOfLight : Instruction []
 pillarOfLight =
   Macros.exile You (Macros.target (And [Macros.creature, Compare [StatAxis Toughness] AtLeast (Lit 4)]))
-
-clavilenoPhrase : Predicate [] Object
-clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype (creatureType "Demon"))]
 
 unholyAnnex : Instruction []
 unholyAnnex =
@@ -168,16 +166,7 @@ croakingCounterpartCopy =
                               False])
     []
 
-||| Sorrow's Path
-public export
-sorrowsPathCouldBlock : Predicate [] Object
-sorrowsPathCouldBlock = CombatRel CouldBlock (Macros.allOf (And [Macros.creature, Attacking]))
 
-||| General Jarkeld's
-public export
-generalJarkeldCouldBeBlocked : Predicate [] Object
-generalJarkeldCouldBeBlocked =
-  CombatRel CouldBeBlockedBy (Macros.allOf (And [Macros.creature, Blocking]))
 
 ||| Blessed Reversal
 public export
@@ -223,19 +212,6 @@ witchsVengeance =
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
 
-public export
-storiedEnduringStory : Instruction []
-storiedEnduringStory =
-  If (AndCond
-        [ CompareAmt (Macros.countOf (And [Permanent,
-                                    Or [Macros.artifact,
-                                        HasSubtype (enchantmentType "Saga"),
-                                        HasSupertype Legendary],
-                                    HasPossessor ControllerAx You]))
-                     AtLeast (Lit 3)
-        , NotCond (Matches You (HasDesignation EnduringStory)) ])
-     Macros.getsEnduringStory
-     Nothing
 
 public export
 phyrexianRebirth : Card
@@ -459,7 +435,7 @@ twoOrMorePlayersHaveLost =
 public export
 commanderCreaturesYouOwn : Predicate [] Object
 commanderCreaturesYouOwn =
-  And [Macros.creature, HasDesignation CommanderD, HasPossessor OwnerAx You]
+  And [Macros.creature, HasDesignation CommanderD Nothing, HasPossessor OwnerAx You]
 
 ||| Idol of Endurance
 public export
@@ -598,32 +574,9 @@ public export
 permanentCardIsPlaceless : phraseZone Description.permanentCardPhrase = Nothing
 permanentCardIsPlaceless = Refl
 
-||| The party the game computes: a maximum assignment of distinct roles to
-||| distinct members, each member filling at most one role [CR#700.8a,700.8b].
-||| A member is written as the list of role indices it could fill.
-public export
-partyCount : List Nat -> List (List Nat) -> Nat
-partyCount used [] = 0
-partyCount used (roles :: ms) =
-  foldl max (partyCount used ms)
-        (map (\r => S (partyCount (r :: used) ms))
-             (filter (\r => not (elem r used)) roles))
 
-||| A lone Cleric Rogue is a party of one, not two [CR#700.8b].
-public export
-loneClericRogueIsPartyOfOne : partyCount [] [[0, 1]] = 1
-loneClericRogueIsPartyOfOne = Refl
 
-||| The party is maximal, not greedy: a Cleric beside a Cleric Rogue is two,
-||| though taking the Cleric Rogue for Cleric first would leave one [CR#700.8b].
-public export
-clericBesideClericRogueIsTwo : partyCount [] [[0], [0, 1]] = 2
-clericBesideClericRogueIsTwo = Refl
 
-||| One creature of each role is a full party [CR#700.8c].
-public export
-oneOfEachRoleIsFullParty : partyCount [] [[0], [1], [2], [3]] = 4
-oneOfEachRoleIsFullParty = Refl
 
 ||| Archpriest of Iona
 public export

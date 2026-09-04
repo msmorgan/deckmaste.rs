@@ -40,13 +40,13 @@ badGainsSpellAbility Oh impossible
 public export
 okCostSubjectOnStack : StaticSpec []
 okCostSubjectOnStack =
-  CostsToCast (Macros.allOf (And [Macros.creature, Macros.spell]))
+  Costs (Macros.allOf (And [Macros.creature, Macros.spell]))
               (CostLess (Lit 1) Nothing)
 
 ||| "Creatures you control cost {1} less to cast."
 public export
 badCostSubjectOnBattlefield : Unspellable (StaticSpec []) (\ok =>
-  CostsToCast (Macros.allOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
+  Costs (Macros.allOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 ||| "Creatures you control have flying."

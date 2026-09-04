@@ -323,7 +323,7 @@ mutual
       SwitchesPt : (n : Noun bs Object) ->
                    {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
                    StaticSpec bs
-      CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
+      Costs : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
                     {auto 0 cs : CostSubject n} ->
                     StaticSpec bs
       AltCost : {k : Kind} -> (n : Noun bs k) ->
@@ -737,7 +737,7 @@ mutual
   staticKind (Gets op _ _ _) = ptOpKind op
   staticKind (DefinesPt _ _ _) = PtDefinition
   staticKind (SwitchesPt _) = PtSwitch
-  staticKind (CostsToCast _ _) = CostModification
+  staticKind (Costs _ _) = CostModification
   staticKind (AltCost _ _) = CostModification
   staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
@@ -773,7 +773,7 @@ mutual
   staticIntro (DefinesPt n _ amt) =
     outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
   staticIntro (SwitchesPt n) = selfSubjIntro n
-  staticIntro (CostsToCast n sh) = costShiftDelta sh ++ selfSubjIntro n
+  staticIntro (Costs n sh) = costShiftDelta sh ++ selfSubjIntro n
   staticIntro (AltCost n _) = selfSubjIntro n
   staticIntro (AddedCost _ _) = bs
   staticIntro (Gains n ab) = abLetterDelta ab ++ selfSubjIntro n

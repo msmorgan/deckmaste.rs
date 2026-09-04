@@ -511,3 +511,72 @@ badDistributedChoiceReadSingular : Unspellable (Instruction []) (\ok =>
     [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
     , Macros.exile You ((Macros.It OneOf) {ok}) ])
 badDistributedChoiceReadSingular Refl impossible
+
+||| "Look at the top card of your library. You may put that card into your
+||| graveyard." No printed card on the bench.
+lookAtTopThenBin : Instruction []
+lookAtTopThenBin =
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 1)), Macros.may You (Macros.move (Macros.That CardW OneOf) Macros.graveyardZ)]
+
+||| "Until end of turn, you may play lands and cast spells from your
+||| graveyard." No printed card on the bench.
+public export
+playAndCastFromGraveyardThisTurn : Instruction []
+playAndCastFromGraveyardThisTurn =
+  Continuously
+    (AndAlso Nothing [ (Macros.mayPlayDeed "Play" You (Macros.allOf Macros.land) Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost))
+             , (Macros.mayPlayDeed "Cast" You (Macros.allOf Macros.spell) Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False ItsOwnCost)) ])
+    (Just Macros.untilEndOfTurn)
+
+||| "Each player may play an additional land on each of their turns."
+||| No printed card on the bench.
+public export
+eachPlayerPlaysAdditionalLand : StaticSpec []
+eachPlayerPlaysAdditionalLand =
+  Macros.mayPlayAdditionalLands (Macros.each AnyPlayer) (Macros.exactly 1)
+
+||| "Mill three cards. You may put an artifact card from among the cards
+||| milled this way into your hand." No printed card on the bench.
+public export
+millThenPutFromAmongMilled : Instruction []
+millThenPutFromAmongMilled =
+  Sequentially [ Macros.mills You (Lit 3) You
+               , Macros.may You
+                   (Macros.move (Macros.fromAmong (Macros.exactly 1) Macros.artifact
+                                   (Macros.TheVerbed "Mill" CardW ThisWay ManyOf))
+                                Macros.handZ) ]
+
+||| "Each player may shuffle their hand and graveyard into their library."
+||| No printed card on the bench.
+public export
+eachPlayerMayShuffleTheirHandAndGraveyard : Instruction []
+eachPlayerMayShuffleTheirHandAndGraveyard =
+  Macros.may (Macros.each AnyPlayer)
+    (Macros.shuffleInto They
+       (Both (Macros.allOf (InZone (Macros.handOf They)))
+               (Macros.allOf (InZone (Macros.graveyardOf They)))))
+
+||| "Each player may discard their hand and draw seven cards."
+||| No printed card on the bench.
+public export
+eachPlayerMayDiscardTheirHandAndDrawSeven : Instruction []
+eachPlayerMayDiscardTheirHandAndDrawSeven =
+  Macros.may (Macros.each AnyPlayer)
+    (Sequentially [ Macros.discard They (Macros.allOf (InZone (Macros.handOf They)))
+                  , Draw They (Lit 7) ])
+
+||| "Each player may …" — the offer subject and the two counts its
+||| context publishes. No printed card on the bench.
+public export
+eachPlayerOffered : Noun [] Player
+eachPlayerOffered = Macros.each AnyPlayer
+
+public export
+eachPlayerOfferBindsOneMember :
+  countOnes Player (mayCtx ProofsChoice.eachPlayerOffered) = 1
+eachPlayerOfferBindsOneMember = Refl
+
+public export
+eachPlayerOfferDropsTheGroup :
+  countManys Player (mayCtx ProofsChoice.eachPlayerOffered) = 0
+eachPlayerOfferDropsTheGroup = Refl

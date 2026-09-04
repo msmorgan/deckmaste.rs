@@ -131,7 +131,7 @@ hipparion =
 frodoBaggins : Ability
 frodoBaggins =
   Static (Macros.onlyWhile (Macros.deontic Macros.thisCreature Require ["Block"] Patient NoDeonticPatient)
-                          (Matches Macros.thisCreature (HasDesignation RingBearer)))
+                          (Matches Macros.thisCreature (HasDesignation RingBearer (Just You))))
 
 bloodshedFever : Card
 bloodshedFever =
@@ -180,10 +180,14 @@ gaeasRevenge =
 public export
 nowhereToRunWardLine : StaticSpec []
 nowhereToRunWardLine =
-  Macros.deontic
-    (Macros.allOf (And [ AbilityHead (KeywordClass "Ward")
-                , AbilityOf (Macros.allOf Macros.creatureYourOpponentsControl) ]))
-    Forbid ["Trigger"] Agent NoDeonticPatient
+  AndAlso Nothing
+    [ Macros.canBeTargetedAsThough (Macros.allOf Macros.creatureYourOpponentsControl)
+        (Macros.allOf (Or [Macros.spell, AbilityHead AnyOnStack]))
+        (Not (HasKeyword (TheKeyword "Hexproof")))
+    , Macros.deontic
+        (Macros.allOf (And [ AbilityHead (KeywordClass "Ward")
+                    , AbilityOf (Macros.That (TypeW Creature) ManyOf) ]))
+        Forbid ["Trigger"] Agent NoDeonticPatient ]
 
 ||| Mornsong Aria
 public export
@@ -306,11 +310,15 @@ pinpointAvalanche =
 public export
 whippoorwillImmunity : Instruction []
 whippoorwillImmunity =
-  Continuously
-    (CantPrevent AnyDamage
-                 (DamageDescribed Unattributed (ToRecipient (Macros.a Macros.creature)))
-                 NoRedirectEither)
-    (Just ThisTurn)
+  Sequentially
+    [ Continuously (Macros.objectCant "Regenerate" (Macros.target Macros.creature))
+                   (Just ThisTurn)
+    , Continuously
+        (CantPrevent AnyDamage
+                     (DamageDescribed Unattributed
+                        (ToRecipient (Macros.That (TypeW Creature) OneOf)))
+                     NoRedirectEither)
+        (Just ThisTurn) ]
 
 public export
 callInAProfessional : Card
@@ -341,7 +349,7 @@ councilOfTheAbsolute =
                                                                  Macros.land]))))
        , Static (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
                    (Macros.allOf (And [Macros.spell, Named ChosenName])))
-       , Static (CostsToCast (Macros.allOf (And [Macros.spell, Named ChosenName,
+       , Static (Costs (Macros.allOf (And [Macros.spell, Named ChosenName,
                                           Macros.castBy You]))
                              (CostLess (Lit 2) Nothing)) ]
        (Just (2, 4))
@@ -596,12 +604,6 @@ blazingArchonCant : Ability
 blazingArchonCant =
   Static (Macros.deontic (Macros.allOf Macros.creature) Forbid ["Attack"] Agent (DefendingPlayer You))
 
-public export
-goadedAttacksOther : Instruction []
-goadedAttacksOther =
-  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
-                        (DefendingPlayer (Macros.a (Macros.otherPlayer))))
-               (Just Macros.untilYourNextTurn)
 
 ||| Glaring Spotlight
 public export
@@ -616,12 +618,13 @@ glaringSpotlight =
                    (Not (HasKeyword (TheKeyword "Hexproof"))))
        , Macros.activated
            (Compound [Mana [Macros.generic 3], Do (Macros.sacrifice You Macros.thisArtifact)])
-           (Macros.sharedSubject (Macros.allOf Macros.creatureYouControl)
-              [ Gains (Macros.ownSubject (Macros.allOf Macros.creatureYouControl))
-                      (Macros.keyword "Hexproof")
-              , Deontic (Macros.ownSubject (Macros.allOf Macros.creatureYouControl)) Forbid ["Block"]
-                        Patient Nothing NoDeonticPatient Nothing NoDeonticRider ]
-              (Just Macros.untilEndOfTurn)) ]
+           (Sequentially
+              [ Macros.gains (Macros.allOf Macros.creatureYouControl)
+                             (Macros.keyword "Hexproof") (Just Macros.untilEndOfTurn)
+              , Continuously
+                  (Macros.deontic (Macros.allOf Macros.creatureYouControl) Forbid ["Block"]
+                                  Patient NoDeonticPatient)
+                  (Just ThisTurn) ]) ]
        Nothing
 
 ||| Canoptek Wraith
@@ -816,7 +819,7 @@ oppressiveRays =
        , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
                    (GatedBy (Mana [Macros.generic 3]))
                    ["Attack", "Block"] Agent NoDeonticPatient)
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead AnyActivated
                                , AbilityOf (AttachHost Enchanted (TypeW Creature)) ]))
                    (CostMore (Lit 3))) ]
@@ -826,11 +829,13 @@ oppressiveRays =
 public export
 distortionStrikeLine : Instruction []
 distortionStrikeLine =
-  Macros.sharedSubject (Macros.target Macros.creature)
-    [ Gets Adds (Macros.ownSubject (Macros.target Macros.creature)) (PtUp (Lit 1)) (PtUp (Lit 0))
-    , Deontic (Macros.ownSubject (Macros.target Macros.creature)) Forbid ["Block"] Patient Nothing
-              NoDeonticPatient Nothing NoDeonticRider ]
-    (Just Macros.untilEndOfTurn)
+  Sequentially
+    [ Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 0))
+                  (Just Macros.untilEndOfTurn)
+    , Continuously
+        (Macros.deontic (Macros.That (TypeW Creature) OneOf) Forbid ["Block"]
+                        Patient NoDeonticPatient)
+        (Just ThisTurn) ]
 
 ||| Retro-Mutation
 public export
@@ -927,6 +932,3 @@ conquerorsFlailProhibition =
                       (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents) (Macros.allOf Macros.spell)))
     (Matches This (AttachedTo (Macros.a Macros.creature)))
 
-public export
-whileScrying : Concurrent []
-whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing)

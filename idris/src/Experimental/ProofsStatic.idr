@@ -247,3 +247,9 @@ badSkipDuringUnboundNextTurn : Unspellable (Instruction []) (\ok =>
   Macros.throughout (Skips You Combat)
                     (DuringNextTurnOf (Macros.That PlayerW OneOf {ok})))
 badSkipDuringUnboundNextTurn Refl impossible
+
+||| "Your opponents can't gain life." A rules-meaningful sentence with no
+||| printed card on the bench.
+public export
+opponentsCantGainLife : StaticSpec []
+opponentsCantGainLife = Macros.playerCant "GainLife" (PlayerGroup YourOpponents)

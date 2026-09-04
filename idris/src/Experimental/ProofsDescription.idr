@@ -342,12 +342,12 @@ badAscribeForeignSubtype Oh impossible
 ||| "target creature that's goaded"
 public export
 okObjectDesignation : Predicate [] Object
-okObjectDesignation = HasDesignation Goaded
+okObjectDesignation = HasDesignation Goaded Nothing
 
 ||| "target creature that is the monarch"
 public export
 badObjectMonarch : Unspellable (Predicate [] Object) (\ok =>
-  HasDesignation Monarch {sc = ok})
+  HasDesignation Monarch Nothing {sc = ok})
 badObjectMonarch Refl impossible
 
 ||| "one of the top two cards of your library"

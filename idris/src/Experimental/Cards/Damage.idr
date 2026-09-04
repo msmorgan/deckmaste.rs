@@ -93,8 +93,6 @@ brashTaunter = Fights Macros.thisCreature (Macros.target (Macros.otherCreature M
 ulvenwaldTracker : Instruction []
 ulvenwaldTracker = Fights (Macros.target Macros.creatureYouControl) (Macros.target (And [Macros.creature, Other]))
 
-fallOfTheTitans : Instruction []
-fallOfTheTitans = DealDamage This (LetterVal X) (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.anyTarget))
 
 botBashingTime : Instruction []
 botBashingTime =
@@ -191,7 +189,7 @@ sizzlingBarrage =
 
 goadedAttackTrigger : Ability
 goadedAttackTrigger =
-  Macros.triggered Whenever (Macros.attacks (Macros.a (And [Macros.creature, HasDesignation Goaded])))
+  Macros.triggered Whenever (Macros.attacks (Macros.a (And [Macros.creature, HasDesignation Goaded Nothing])))
                    (DealDamage ((Macros.It OneOf)) (Lit 1) (Macros.controllerOf ((Macros.It OneOf))))
 
 extraArms : Card
@@ -223,7 +221,7 @@ blackVise =
        , Macros.triggered At
            (Macros.beginningOfPossessed ThePart Upkeep (Macros.the Macros.chosenPlayer))
            (Sequentially
-              [ DealDamage Macros.thisArtifact (LetterVal X) Macros.They
+              [ DealDamage Macros.thisArtifact (LetterVal X) (Macros.That PlayerW OneOf)
               , Define X (Minus (Macros.countOf (InZone (Macros.handOf Macros.They)))
                           (Lit 4)) ]) ]
        Nothing
@@ -1158,15 +1156,6 @@ chandrasFury =
     [ DealDamage This (Lit 4) Description.targetPlayerOrPlaneswalker
     , DealDamage This (Lit 1) Anaphora.eachCreatureThatSplitControls ]
 
-||| Heart of Bogardan
-public export
-heartOfBogardanBody : Instruction []
-heartOfBogardanBody =
-  Sequentially
-    [ Simultaneously
-        [ DealDamage This (LetterVal X) Description.targetPlayerOrPlaneswalker
-        , DealDamage This (LetterVal X) Anaphora.eachCreatureThatSplitControls ]
-    , Define X (Minus (Macros.times 2 (CountersOn (NamedCounter "Age") Macros.thisEnchantment)) (Lit 2)) ]
 
 ||| Angrath, Minotaur Pirate's plus
 public export
@@ -1229,7 +1218,8 @@ blightning : Instruction []
 blightning =
   Sequentially
     [ DealDamage This (Lit 3) Description.targetPlayerOrPlaneswalker
-    , Repeated (Lit 2) ((Macros.discard Macros.splitOverPlaneswalker (Macros.a (InZone Macros.handZ)))) ]
+    , Macros.discard Macros.splitOverPlaneswalker
+        (Macros.counted (Macros.exactly 2) (InZone Macros.handZ)) ]
 
 ||| Rakdos's Return
 public export
@@ -1237,7 +1227,8 @@ rakdossReturn : Instruction []
 rakdossReturn =
   Sequentially
     [ DealDamage This (LetterVal X) Description.targetOpponentOrPlaneswalker
-    , Repeated (LetterVal X) ((Macros.discard Macros.splitOverPlaneswalker (Macros.a (InZone Macros.handZ)))) ]
+    , Macros.discard Macros.splitOverPlaneswalker
+        (Macros.counted (ExactlyOf (LetterVal X)) (InZone Macros.handZ)) ]
 
 ||| Nicol Bolas, Planeswalker's ultimate
 public export
@@ -1245,9 +1236,10 @@ nicolBolasUltimate : Instruction []
 nicolBolasUltimate =
   Sequentially
     [ DealDamage This (Lit 7) Description.targetPlayerOrPlaneswalker
-    , Repeated (Lit 7) ((Macros.discard Macros.splitOverPlaneswalker (Macros.a (InZone Macros.handZ))))
-    , Repeated (Lit 7) (Macros.sacrifice Macros.splitOverPlaneswalker
-                                         (Macros.a Permanent)) ]
+    , Macros.discard Macros.splitOverPlaneswalker
+        (Macros.counted (Macros.exactly 7) (InZone Macros.handZ))
+    , Macros.sacrifice Macros.splitOverPlaneswalker
+        (Macros.counted (Macros.exactly 7) Permanent) ]
 
 ||| Pulse of the Forge
 public export
@@ -1341,7 +1333,7 @@ explosiveSingularity =
                                   (Macros.counted Macros.anyNumber
                                      (And [Macros.creature, HasPossessor ControllerAx You,
                                            Macros.untapped])))) True)
-       , Static (CostsToCast This (CostLess (Macros.times 1 GroupSize) Nothing))
+       , Static (Costs This (CostLess (Macros.times 1 GroupSize) Nothing))
        , Spell Nothing (DealDamage This (Lit 10) (Macros.target Macros.anyTarget)) ]
        Nothing
 
@@ -1481,14 +1473,6 @@ fumingEffigy =
               (Macros.graveyardOf You))
            (DealDamage This (Lit 1) (Macros.each Opponent)) ]
        (Just (4, 3))
-
-public export
-theFallenUpkeep : Ability
-theFallenUpkeep =
-  Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-    (DealDamage This (Lit 1)
-       (Macros.each (And [ Joined (HasType Planeswalker) Opponent
-                  , HappenedTo (MkLookback DamageTaken ThisGame (Just (Involving This))) ])))
 
 ||| Breeches, Brazen Plunderer's slice
 public export

@@ -59,9 +59,6 @@ public export
 hithlainRopeSacrificeLock : StaticSpec []
 hithlainRopeSacrificeLock = Macros.objectCant "Sacrifice" This
 
-public export
-opponentsCantGainLife : StaticSpec []
-opponentsCantGainLife = Macros.playerCant "GainLife" (PlayerGroup YourOpponents)
 
 ||| Lich's Mastery
 lichsMasteryGate : Ability
@@ -201,9 +198,6 @@ masterChefGrantedAbility =
   Static (Macros.entersWithAdditionalCounters Macros.thisCreature (Lit 1)
                                               Macros.plusOnePlusOne)
 
-grantedEntryCounterShape : StaticSpec []
-grantedEntryCounterShape =
-  Gains (Macros.allOf Macros.creatureYouControl) masterChefGrantedAbility
 
 anointedProcession : Card
 anointedProcession =
@@ -247,25 +241,7 @@ humility =
                          , Macros.hasBasePt ((Macros.It ManyOf)) (Lit 1) (Lit 1) ]) ]
        Nothing
 
-||| Sorrow's Path
-public export
-sorrowsPathReassign : Instruction []
-sorrowsPathReassign =
-  Sequentially
-    [ RemoveFromCombat (Macros.target (And [Macros.creature, Blocking]))
-    , BecomesBlocking (Macros.That (TypeW Creature) OneOf)
-                      (Macros.a (And [Macros.creature, Attacking])) ]
-
-||| General Jarkeld's
-public export
-generalJarkeldReassign : Instruction []
-generalJarkeldReassign =
-  Sequentially
-    [ StopsBlocking Macros.thisCreature
-                    (Macros.target (And [Macros.creature, Attacking]))
-    , BecomesBlocking Macros.thisCreature
-                      (Macros.a (And [Macros.creature, Attacking])) ]
-
+||| Tahngarth, First Mate
 public export
 tahngarthAttacksThatJoin : Instruction (instrIntro Choice.tahngarthChoosesDefender)
 tahngarthAttacksThatJoin =
@@ -910,7 +886,7 @@ deflectingSwatCommanderAltCost : Ability
 deflectingSwatCommanderAltCost =
   Static (Macros.onlyWhile
             (AltCost This Nothing)
-            (Macros.exists (And [HasDesignation CommanderD, HasPossessor ControllerAx You])))
+            (Macros.exists (And [HasDesignation CommanderD Nothing, HasPossessor ControllerAx You])))
 
 ||| Fist of Suns
 public export
@@ -1047,7 +1023,7 @@ turbulentFen =
 public export
 bastionProtectorPump : Ability
 bastionProtectorPump =
-  Static (Gets Adds (Macros.allOf (And [Macros.creature, HasDesignation CommanderD,
+  Static (Gets Adds (Macros.allOf (And [Macros.creature, HasDesignation CommanderD Nothing,
                             HasPossessor ControllerAx You]))
                (PtUp (Lit 2)) (PtUp (Lit 2)))
 

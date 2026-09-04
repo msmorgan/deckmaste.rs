@@ -173,7 +173,10 @@ truthOrConsequencesVote =
   Macros.abilityWord "secret council"
     (Spell Nothing (Sequentially
        [ Macros.vote (Macros.each AnyPlayer) Secretly (ByLabel ["truth", "consequences"])
-       , Draw You (VotesFor "truth") ]))
+       , Draw You (VotesFor "truth")
+       , Macros.choose (Macros.aAtRandom Opponent)
+       , DealDamage This (Macros.times 3 (VotesFor "consequences"))
+                    (Macros.That PlayerW OneOf) ]))
 
 ||| Death or Glory
 public export
@@ -232,7 +235,7 @@ lilianaOfTheVeil =
                           ((Macros.discard (Macros.each AnyPlayer) (Macros.a (InZone Macros.handZ))))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
                           (Macros.sacrifice (Macros.target AnyPlayer)
-                                            (Macros.aTheirChoice Macros.creature))
+                                            (Macros.a Macros.creature))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 6))
            (Sequentially
               [ SeparateIntoPiles You

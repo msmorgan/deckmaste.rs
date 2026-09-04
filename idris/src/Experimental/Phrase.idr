@@ -275,8 +275,10 @@ mutual
                  {auto 0 ok : So (colorBoundOk r n)} -> Predicate bs Object
     HasSupertype : (s : Supertype) -> Predicate bs Object
     Named : (src : NameSource bs) -> Predicate bs Object
-    HasDesignation : (d : Designation) ->
-                     {auto 0 sc : designationHolder d = Just k} -> Predicate bs k
+    HasDesignation : (d : Designation) -> (holder : Maybe (Noun bs Player)) ->
+                     {auto 0 sc : designationHolder d = Just k} ->
+                     {auto 0 hp : So (designationPossessorFits d holder)} ->
+                     Predicate bs k
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     AttachedBy : (w : AttachWord) -> (by : Noun bs Object) ->
@@ -437,7 +439,7 @@ mutual
   seedZone (CombatRel AttackedBy _) = Nothing
   seedZone (CombatRel _ _) = Just Battlefield
   seedZone Blocked = Just Battlefield
-  seedZone (HasDesignation d) = designationSeedZone d
+  seedZone (HasDesignation d _) = designationSeedZone d
   seedZone (IsAttached _) = Just Battlefield
   seedZone (AttachedBy _ _) = Just Battlefield
   seedZone (AttachedTo _) = Just Battlefield
@@ -533,7 +535,7 @@ mutual
   seedType (CombatRel AttackedBy _) = Nothing
   seedType (CombatRel _ _) = Just Creature
   seedType Blocked = Just Creature
-  seedType (HasDesignation d) = designationSeedType d
+  seedType (HasDesignation d _) = designationSeedType d
   seedType (Compare cs _ _) = axisTypes cs
   seedType (Superlative _ (StatAxis c) _) = comparedType c
   seedType (CompareOver dom _ _ _) = seedType dom
@@ -577,7 +579,7 @@ mutual
   hasHead (CounterKindOn _) = True
   hasHead (AbilityHead _) = True
   hasHead IsSource = True
-  hasHead (HasDesignation d) = heldByItsCard d
+  hasHead (HasDesignation d _) = heldByItsCard d
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
@@ -1283,6 +1285,12 @@ mutual
   detDelta d ph p = bindFor (detOf d) (detPlur d) ph p :: predDelta p
 
   public export
+  designationPossessorFits : {0 bs : Bindings} -> Designation ->
+                             Maybe (Noun bs Player) -> Bool
+  designationPossessorFits _ Nothing = True
+  designationPossessorFits d (Just _) = designationPossessorOk d
+
+  public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
   nounDelta (AsType t n _) = nounDelta n
@@ -1396,7 +1404,8 @@ mutual
   predDelta (ColorCount _ _) = []
   predDelta (HasSupertype _) = []
   predDelta (Named src) = nameSrcDelta src
-  predDelta (HasDesignation _) = []
+  predDelta (HasDesignation _ Nothing) = []
+  predDelta (HasDesignation _ (Just h)) = nounDelta h
   predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
   predDelta (AttachedBy _ by) = nounDelta by

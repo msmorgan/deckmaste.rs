@@ -49,7 +49,7 @@ staticOnSpellCardOk : {0 bs : Bindings} -> StaticSpec bs -> Bool
 staticOnSpellCardOk (Deontic _ Forbid deeds Patient _ _ _ _) =
   all (\deed => deedZoneOf deed Patient == Just Stack) deeds
 staticOnSpellCardOk (AltCost This _) = True
-staticOnSpellCardOk (CostsToCast This _) = True
+staticOnSpellCardOk (Costs This _) = True
 staticOnSpellCardOk (AddedCost _ _) = True
 staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally se _ _) = staticOnSpellCardOk se

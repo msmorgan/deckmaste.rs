@@ -128,7 +128,7 @@ ghalta =
   Macros.card "Ghalta, Primal Hunger"
        (Just [Macros.generic 10, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Elder", creatureType "Dinosaur"] [Creature])
-       [ Static (AndAlso Nothing [ CostsToCast This (CostLess (LetterVal X) Nothing)
+       [ Static (AndAlso Nothing [ Costs This (CostLess (LetterVal X) Nothing)
                          , DefinesLetter X
                              (Macros.aggregate SumOf (StatAxis Power)
                                         Macros.creatureYouControl) ])
@@ -137,14 +137,14 @@ ghalta =
 
 ancientStoneIdol : Ability
 ancientStoneIdol =
-  Static (CostsToCast This
+  Static (Costs This
             (CostLess (Macros.forEach 1 (And [Macros.creature, Attacking])) Nothing))
 
 thornOfAmethyst : Card
 thornOfAmethyst =
   Macros.card "Thorn of Amethyst" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast (Macros.allOf (And [Not Macros.creature, Macros.spell]))
+       [ Static (Costs (Macros.allOf (And [Not Macros.creature, Macros.spell]))
                              (CostMore (Lit 1))) ]
        Nothing
 
@@ -152,7 +152,7 @@ ferozsBan : Card
 ferozsBan =
   Macros.card "Feroz's Ban" (Just [Macros.generic 6]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.creature, Macros.spell]))
+       [ Static (Costs (Macros.allOf (And [Macros.creature, Macros.spell]))
                              (CostMore (Lit 2))) ]
        Nothing
 
@@ -160,7 +160,7 @@ urzasFilter : Card
 urzasFilter =
   Macros.card "Urza's Filter" (Just [Macros.generic 4]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.multicolored, Macros.spell]))
+       [ Static (Costs (Macros.allOf (And [Macros.multicolored, Macros.spell]))
                              (CostLess (Lit 2) Nothing)) ]
        Nothing
 
@@ -168,7 +168,7 @@ emeraldMedallion : Card
 emeraldMedallion =
   Macros.card "Emerald Medallion" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast (Macros.allOf (And [ColorIs Green, Macros.spell, Macros.castBy You]))
+       [ Static (Costs (Macros.allOf (And [ColorIs Green, Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 1) Nothing)) ]
        Nothing
 
@@ -180,7 +180,7 @@ highspireBellRinger =
        (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Djinn", creatureType "Monk"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.the (And [Macros.spell,
                                    Macros.nthCastBy (Nth 2) You (RankEach Turn)]))
                    (CostLess (Lit 1) Nothing)) ]
@@ -190,7 +190,7 @@ foundryInspector : Card
 foundryInspector =
   Macros.card "Foundry Inspector" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.artifact, Macros.spell, Macros.castBy You]))
+       [ Static (Costs (Macros.allOf (And [Macros.artifact, Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 1) Nothing)) ]
        (Just (3, 2))
 
@@ -199,7 +199,7 @@ daruWarchief =
   Macros.card "Daru Warchief"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
-       [ Static (CostsToCast (Macros.allOf (And [HasSubtype (creatureType "Soldier"), Macros.spell, Macros.castBy You]))
+       [ Static (Costs (Macros.allOf (And [HasSubtype (creatureType "Soldier"), Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 1) Nothing))
        , Static (Gets Adds (Macros.allOf (And [HasSubtype (creatureType "Soldier"), Macros.creature, HasPossessor ControllerAx You]))
                       (PtUp (Lit 1)) (PtUp (Lit 2))) ]
@@ -210,11 +210,11 @@ grandArbiter =
   Macros.card "Grand Arbiter Augustin IV"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) [Legendary]
        (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
-       [ Static (CostsToCast (Macros.allOf (And [ColorIs White, Macros.spell, Macros.castBy You]))
+       [ Static (Costs (Macros.allOf (And [ColorIs White, Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 1) Nothing))
-       , Static (CostsToCast (Macros.allOf (And [ColorIs Blue, Macros.spell, Macros.castBy You]))
+       , Static (Costs (Macros.allOf (And [ColorIs Blue, Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 1) Nothing))
-       , Static (CostsToCast (Macros.allOf (And [Macros.spell,
+       , Static (Costs (Macros.allOf (And [Macros.spell,
                                           Macros.castBy (PlayerGroup YourOpponents)]))
                              (CostMore (Lit 1))) ]
        (Just (2, 3))
@@ -224,7 +224,7 @@ goblinElectromancer =
   Macros.card "Goblin Electromancer"
        (Just [Macros.pip Blue, Macros.pip Red]) []
        (MkTypeLine [creatureType "Goblin", creatureType "Wizard"] [Creature])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell,
+       [ Static (Costs (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell,
                                           Macros.castBy You]))
                              (CostLess (Lit 1) Nothing)) ]
        (Just (2, 2))
@@ -233,7 +233,7 @@ arcaneMelee : Card
 arcaneMelee =
   Macros.card "Arcane Melee" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell]))
+       [ Static (Costs (Macros.allOf (And [Macros.instantOrSorcery, Macros.spell]))
                              (CostLess (Lit 2) Nothing)) ]
        Nothing
 
@@ -241,7 +241,7 @@ manaMatrix : Card
 manaMatrix =
   Macros.card "Mana Matrix" (Just [Macros.generic 6]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast (Macros.allOf (And [Or [Macros.instant, Macros.enchantment],
+       [ Static (Costs (Macros.allOf (And [Or [Macros.instant, Macros.enchantment],
                                           Macros.spell, Macros.castBy You]))
                              (CostLess (Lit 2) Nothing)) ]
        Nothing
@@ -251,7 +251,7 @@ auraOfSilence =
   Macros.card "Aura of Silence"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CostsToCast (Macros.allOf (And [Or [Macros.artifact, Macros.enchantment],
+       [ Static (Costs (Macros.allOf (And [Or [Macros.artifact, Macros.enchantment],
                                           Macros.spell,
                                           Macros.castBy (PlayerGroup YourOpponents)]))
                              (CostMore (Lit 2)))
@@ -267,7 +267,7 @@ chillerpillar =
        [ Macros.activated (Mana [Macros.generic 4, SnowMana, SnowMana])
                           (Macros.monstrosity (Lit 2))
        , Static (Macros.onlyWhile (Gains Macros.thisCreature (Macros.keyword "Flying"))
-                                 (Matches Macros.thisCreature (HasDesignation Monstrous))) ]
+                                 (Matches Macros.thisCreature (HasDesignation Monstrous Nothing))) ]
        (Just (3, 3))
 
 nullhideFerox : Ability
@@ -292,7 +292,7 @@ saheelisEmblem =
   GetsEmblem You
     [ Static (Gets Adds (Macros.allOf (And [Macros.artifact, Macros.creature, HasPossessor ControllerAx You]))
                    (PtUp (Lit 1)) (PtUp (Lit 1)))
-    , Static (CostsToCast (Macros.allOf (And [Macros.artifact, Macros.spell, Macros.castBy You]))
+    , Static (Costs (Macros.allOf (And [Macros.artifact, Macros.spell, Macros.castBy You]))
                           (CostLess (Lit 1) Nothing)) ]
 
 jaceBeleren : Card
@@ -397,7 +397,7 @@ aggressiveMining =
   Macros.card "Aggressive Mining"
        (Just [Macros.generic 3, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.playerCant "Play" You)
+       [ Static (Macros.cantDoTo "Play" You (Macros.allOf Macros.land))
        , Macros.activatedOnlyOnce (Do (Macros.sacrifice You (Macros.a Macros.land)))
                                   (Draw You (Lit 2))
                                   OncePerTurn ]
@@ -434,7 +434,7 @@ urzasIncubator =
   Macros.card "Urza's Incubator" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
-       , Static (CostsToCast (Macros.allOf (And [Macros.creature, Macros.spell,
+       , Static (Costs (Macros.allOf (And [Macros.creature, Macros.spell,
                                           Macros.ofChosen (SubtypeQ Creature)]))
                              (CostLess (Lit 2) Nothing)) ]
        Nothing
@@ -591,7 +591,7 @@ fluctuator : Card
 fluctuator =
   Macros.card "Fluctuator" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
-       [ Static (CostsToCast
+       [ Static (Costs
                    (Macros.allOf (And [AbilityHead (KeywordClass "Cycling"),
                                 ActivatedBy You]))
                    (CostLess (Lit 2) Nothing)) ]
@@ -601,7 +601,7 @@ fluctuator =
 public export
 boomScholarExhaustDiscount : Ability
 boomScholarExhaustDiscount =
-  Static (CostsToCast
+  Static (Costs
             (Macros.allOf (And [ AbilityHead (KeywordClass "Exhaust")
                         , AbilityOf (Macros.allOf (And [Permanent,
                                                  OtherThan Macros.thisCreature,
@@ -612,7 +612,7 @@ boomScholarExhaustDiscount =
 public export
 hulkPowerUpDiscount : Ability
 hulkPowerUpDiscount =
-  Static (CostsToCast
+  Static (Costs
             (Macros.allOf (And [ AbilityHead (KeywordClass "PowerUp")
                         , AbilityOf (Macros.allOf (And [Macros.creature,
                                                  OtherThan Macros.thisCreature,
@@ -627,7 +627,7 @@ kopalaWardenOfWaves =
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue])
        [Legendary]
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
-       [ Static (CostsToCast
+       [ Static (Costs
                    (Macros.allOf (And [ Macros.spell
                                , Macros.castBy (PlayerGroup YourOpponents)
                                , Targets (Macros.a (And [Macros.creature,
@@ -635,7 +635,7 @@ kopalaWardenOfWaves =
                                                          HasPossessor ControllerAx You]))
                                          SomeTarget ]))
                    (CostMore (Lit 2)))
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead AnyActivated
                                , ActivatedBy (PlayerGroup YourOpponents)
                                , Targets (Macros.a (And [Macros.creature,
@@ -653,11 +653,11 @@ titheTaker =
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Static (OnlyDuring Turn (Just You)
                    (AndAlso Nothing
-                      [ CostsToCast
+                      [ Costs
                           (Macros.allOf (And [Macros.spell,
                                        Macros.castBy (PlayerGroup YourOpponents)]))
                           (CostMore (Lit 1))
-                      , CostsToCast
+                      , Costs
                           (Macros.allOf (And [ AbilityHead AnyActivated
                                       , ActivatedBy (PlayerGroup YourOpponents)
                                       , Not IsManaAbility ]))
@@ -684,7 +684,7 @@ trainingGrounds : Card
 trainingGrounds =
   Macros.card "Training Grounds" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CostsToCast
+       [ Static (Costs
                    (Macros.allOf (And [ AbilityHead AnyActivated
                                , AbilityOf (Macros.allOf Macros.creatureYouControl) ]))
                    (CostLess (Lit 2) (Just (Lit 1)))) ]
@@ -697,7 +697,7 @@ powerArtifact =
   Macros.card "Power Artifact" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.artifact
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead AnyActivated
                                , AbilityOf (AttachHost Enchanted (TypeW Artifact)) ]))
                    (CostLess (Lit 2) (Just (Lit 1)))) ]
@@ -707,7 +707,7 @@ powerArtifact =
 public export
 ferventChampionEquipDiscount : Ability
 ferventChampionEquipDiscount =
-  Static (CostsToCast
+  Static (Costs
             (Macros.allOf (And [ AbilityHead (KeywordClass "Equip")
                         , ActivatedBy You
                         , Targets Macros.thisCreature SomeTarget ]))
@@ -718,7 +718,7 @@ suppressionField : Card
 suppressionField =
   Macros.card "Suppression Field" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CostsToCast
+       [ Static (Costs
                    (Macros.allOf (And [AbilityHead AnyActivated, Not IsManaAbility]))
                    (CostMore (Lit 2))) ]
        Nothing
@@ -728,9 +728,9 @@ gloom : Card
 gloom =
   Macros.card "Gloom" (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.spell, ColorIs White]))
+       [ Static (Costs (Macros.allOf (And [Macros.spell, ColorIs White]))
                              (CostMore (Lit 3)))
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead AnyActivated
                                , AbilityOf (Macros.allOf (And [Macros.enchantment,
                                                         ColorIs White])) ]))
@@ -742,10 +742,10 @@ bureauHeadmaster : Card
 bureauHeadmaster =
   Macros.card "Bureau Headmaster" (Just [Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
-       [ Static (CostsToCast
+       [ Static (Costs
                    (Macros.allOf (And [Macros.spell, HasSubtype (artifactType "Equipment"), Macros.castBy You]))
                    (CostLess (Lit 1) Nothing))
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [AbilityHead (KeywordClass "Equip"), ActivatedBy You]))
                    (CostLess (Lit 1) Nothing)) ]
        (Just (2, 2))
@@ -753,7 +753,7 @@ bureauHeadmaster =
 public export
 oppressiveRaysLine : StaticSpec []
 oppressiveRaysLine =
-  CostsToCast
+  Costs
     (Macros.allOf (And [ AbilityHead AnyActivated
                 , AbilityOf (AttachHost Enchanted (TypeW Creature)) ]))
     (CostMore (Lit 3))
@@ -764,7 +764,7 @@ eidolonOfObstruction =
   Macros.card "Eidolon of Obstruction" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [creatureType "Spirit"] [Enchantment, Creature])
        [ Macros.keyword "FirstStrike"
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead LoyaltyClass
                                , AbilityOf (Macros.allOf (And [HasType Planeswalker,
                                                         HasPossessor ControllerAx (PlayerGroup YourOpponents)])) ]))
@@ -862,7 +862,7 @@ patricianGeist =
        , Static (Gets Adds (Macros.allOf (And [HasSubtype (creatureType "Spirit"), HasPossessor ControllerAx You,
                                    OtherThan Macros.thisCreature]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [Macros.spell, Macros.castBy You,
                                 CastFrom (Macros.graveyardOf You)]))
                    (CostLess (Lit 1) Nothing)) ]
@@ -1050,7 +1050,7 @@ sugarCoat =
 public export
 docAurlockCost : StaticSpec []
 docAurlockCost =
-  CostsToCast (Macros.allOf (And [Macros.spell, Macros.castBy You,
+  Costs (Macros.allOf (And [Macros.spell, Macros.castBy You,
                            Or [ CastFrom (Macros.graveyardOf You)
                               , CastFrom Macros.exileZ ]]))
               (CostLess (Lit 2) Nothing)
@@ -1123,18 +1123,19 @@ embercleave =
        (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) [Legendary]
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.keyword "Flash"
-       , Static (CostsToCast This
+       , Static (Costs This
                    (CostLess (Macros.forEach 1
                                 (And [Macros.creature, Attacking, HasPossessor ControllerAx You]))
                              Nothing))
        , Macros.triggered When (Enters Macros.thisEquipment Nothing)
            (AttachTo ((Macros.It OneOf)) (Macros.target Macros.creatureYouControl))
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
-                                (PtUp (Lit 1)) (PtUp (Lit 1))
-                         , Gains (AttachHost Equipped (TypeW Creature))
-                                 (Macros.keyword "DoubleStrike")
-                         , Gains (AttachHost Equipped (TypeW Creature))
-                                 (Macros.keyword "Trample") ])
+       , Static (AndAlso (Just (AttachHost Equipped (TypeW Creature)))
+                   [ Gets Adds (Macros.ownSubject (AttachHost Equipped (TypeW Creature)))
+                          (PtUp (Lit 1)) (PtUp (Lit 1))
+                   , Gains (Macros.ownSubject (AttachHost Equipped (TypeW Creature)))
+                           (Macros.keyword "DoubleStrike")
+                   , Gains (Macros.ownSubject (AttachHost Equipped (TypeW Creature)))
+                           (Macros.keyword "Trample") ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -1183,7 +1184,7 @@ ghostfireBlade =
        [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
                       (PtUp (Lit 2)) (PtUp (Lit 2)))
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3])
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [ AbilityHead (KeywordClass "Equip")
                                , AbilityOf This
                                , Targets (Macros.a (And [Macros.creature, IsColorless]))
@@ -1197,7 +1198,7 @@ academyJourneymage : Card
 academyJourneymage =
   Macros.card "Academy Journeymage" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
-       [ Static (Macros.onlyIfSo (CostsToCast This (CostLess (Lit 1) Nothing))
+       [ Static (Macros.onlyIfSo (Costs This (CostLess (Lit 1) Nothing))
                    (Macros.exists (And [HasSubtype (creatureType "Wizard"), HasPossessor ControllerAx You])))
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Macros.move (Macros.target (And [Macros.creature,
@@ -1211,7 +1212,7 @@ alabasterLeech : Card
 alabasterLeech =
   Macros.card "Alabaster Leech" (Just [Macros.pip White]) []
        (MkTypeLine [creatureType "Leech"] [Creature])
-       [ Static (CostsToCast (Macros.allOf (And [Macros.spell, ColorIs White, Macros.castBy You]))
+       [ Static (Costs (Macros.allOf (And [Macros.spell, ColorIs White, Macros.castBy You]))
                              (CostShiftRun [Macros.pip White] True False)) ]
        (Just (1, 3))
 
@@ -1222,7 +1223,7 @@ edgewalker =
   Macros.card "Edgewalker"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Black]) []
        (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
-       [ Static (CostsToCast (Macros.allOf (And [HasSubtype (creatureType "Cleric"),
+       [ Static (Costs (Macros.allOf (And [HasSubtype (creatureType "Cleric"),
                                           Macros.spell, Macros.castBy You]))
                              (CostShiftRun [Macros.pip White, Macros.pip Black]
                                            False True)) ]
@@ -1232,7 +1233,7 @@ edgewalker =
 public export
 cavernHoardDragonRider : Ability
 cavernHoardDragonRider =
-  Static (AndAlso Nothing [ CostsToCast This (CostLess (LetterVal X) Nothing)
+  Static (AndAlso Nothing [ Costs This (CostLess (LetterVal X) Nothing)
                   , DefinesLetter X (AggregateOver MaxOf Opponent
                                 (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx They]))) ])
 
@@ -1316,10 +1317,10 @@ leoninBola =
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
 
-||| Alluring Suitor
+||| Alluring Suitor // Deadly Dancer
 public export
-alluringSuitorPump : Ability
-alluringSuitorPump =
+deadlyDancerPump : Ability
+deadlyDancerPump =
   Macros.activated (Mana [Macros.pip Red, Macros.pip Red])
     (Macros.gets
        (EachOf
@@ -1337,7 +1338,7 @@ uneshCriosphinxSovereign =
        (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue]) [Legendary]
        (MkTypeLine [creatureType "Sphinx"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (CostsToCast
+       , Static (Costs
                    (Macros.allOf (And [HasSubtype (creatureType "Sphinx"),
                                 Macros.spell, Macros.castBy You]))
                    (CostLess (Lit 2) Nothing))

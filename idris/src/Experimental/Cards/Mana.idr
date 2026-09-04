@@ -102,11 +102,8 @@ deadeyeBrawler =
        , Macros.keyword "Ascend"
        , Macros.triggeredIf Whenever
                             (Macros.dealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
-                            (Matches You (HasDesignation CitysBlessing))
-                            (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                            (Matches You (HasDesignation CitysBlessing Nothing))
+                            (Draw You (Lit 1)) ]
        (Just (2, 4))
 
 femerefEnchantress : Card
@@ -118,10 +115,7 @@ femerefEnchantress =
                           (Macros.putIntoFrom (Macros.a Macros.enchantment)
                                        Macros.graveyardZ
                                        (FromZone [Macros.battlefieldZ]))
-                          (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                          (Draw You (Lit 1)) ]
        (Just (1, 2))
 
 tocasiasWelcome : Card
@@ -134,10 +128,7 @@ tocasiasWelcome =
                                                         (And [Macros.creature, HasPossessor ControllerAx You,
                                                               Compare [StatAxis ManaValue] AtMost (Lit 3)])) Nothing)
                                   OncePerTurn
-                                  (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                                  (Draw You (Lit 1)) ]
        Nothing
 
 duskLegionDuelist : Card
@@ -150,10 +141,7 @@ duskLegionDuelist =
                                   (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                                            Macros.thisCreature)
                                   OncePerTurn
-                                  (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                                  (Draw You (Lit 1)) ]
        (Just (2, 2))
 
 mishrasFactory : Card
@@ -230,10 +218,7 @@ saheeliFiligreeMaster =
                       [ Macros.scry You (Lit 1)
                       , (May You (SetStatus Tapped
                              (Macros.a (And [Macros.artifact, Macros.untapped,
-                                             HasPossessor ControllerAx You]))) (Just (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ])) Nothing) ])
+                                             HasPossessor ControllerAx You]))) (Just (Draw You (Lit 1))) Nothing) ])
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
                           (Sequentially
                       [ Macros.create (Lit 2)
@@ -246,7 +231,7 @@ saheeliFiligreeMaster =
                       [ Static (Gets Adds (Macros.allOf (And [Macros.artifact, Macros.creature,
                                                   HasPossessor ControllerAx You]))
                                      (PtUp (Lit 1)) (PtUp (Lit 1)))
-                      , Static (CostsToCast (Macros.allOf (And [Macros.artifact, Macros.spell,
+                      , Static (Costs (Macros.allOf (And [Macros.artifact, Macros.spell,
                                                          Macros.castBy You]))
                                             (CostLess (Lit 1) Nothing)) ]) ]
        (Macros.loyaltyBox 3)
@@ -347,7 +332,8 @@ qarsiDeceiverMorphSpend : Ability
 qarsiDeceiverMorphSpend =
   Macros.activated TapSymbol
                    (AddMana You (Lit 1) (Runs [[Colorless]])
-                     [SpendOnly [ ToPay (OfSpecialAction TurnFaceUp)
+                     [SpendOnly [ ToCast (And [Macros.creature, Macros.faceDown])
+                                , ToPay (OfSpecialAction TurnFaceUp)
                                 , ToPay (OfKeyword "Morph") ]])
 
 ||| Mercadian Bazaar
@@ -405,7 +391,7 @@ elementalResonance =
 ||| Steelswarm Operator
 steelswarmOperatorMana : Instruction []
 steelswarmOperatorMana =
-  AddMana You (Lit 2) (Runs [[OfColor Blue, OfColor Blue]])
+  AddMana You (Lit 1) (Runs [[OfColor Blue, OfColor Blue]])
           [SpendOnly [ToActivate (Just (And [Macros.source, Macros.artifact]))]]
 
 public export
@@ -531,10 +517,7 @@ sageOfFables =
        , Macros.activated (Compound [Mana [Macros.generic 2],
                               Do (RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne))
                                    (Macros.a (And [Macros.creature, HasPossessor ControllerAx You])))])
-                          (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                          (Draw You (Lit 1)) ]
        (Just (2, 2))
 
 ||| Gaddock Teeg
@@ -800,10 +783,7 @@ secretsOfTheDead =
        [ Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       CastFrom (Macros.graveyardOf You)])) Nothing)
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        Nothing
 
 public export
@@ -814,7 +794,7 @@ coalStoker =
        [ Macros.triggeredIf When
                             (Enters Macros.thisCreature Nothing)
                             (Matches ((Macros.It OneOf)) (CastFrom (Macros.handOf You)))
-                            (AddMana You (Lit 3) (Runs [[OfColor Red, OfColor Red, OfColor Red]]) []) ]
+                            (AddMana You (Lit 1) (Runs [[OfColor Red, OfColor Red, OfColor Red]]) []) ]
        (Just (3, 3))
 
 public export
@@ -827,10 +807,7 @@ vegaTheWatcher =
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       Not (CastFrom (Macros.handOf You))])) Nothing)
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        (Just (2, 2))
 
 public export
@@ -859,7 +836,7 @@ causticBroncoLoss =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 1))
                , Macros.move (Macros.That CardW OneOf) Macros.handZ
                , OnlyIf (Macros.losesLife You (StatOf ManaValue ((Macros.It OneOf))))
-                        (NotCond (Matches Macros.thisCreature (HasDesignation Saddled)))
+                        (NotCond (Matches Macros.thisCreature (HasDesignation Saddled Nothing)))
                         (Just (Macros.losesLife (Macros.each Opponent) ThatMuch)) ]
 
 ||| Dark Fortress
@@ -917,10 +894,7 @@ investigatorsJournal =
                           (Draw You (Lit 1))
        , Macros.activated (Compound [Mana [Macros.generic 2],
                               Do (Macros.sacrifice You Macros.thisArtifact)])
-                          (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+                          (Draw You (Lit 1)) ]
        Nothing
 
 ||| Engineered Explosives (its sunburst [CR#702.44a] written out)
@@ -932,10 +906,10 @@ engineeredExplosives =
        [ Static (Macros.entersWithCounters Macros.thisArtifact
                    (Macros.colorsSpentToCast Macros.thisArtifact)
                    (NamedCounter "Charge"))
-       , Macros.activated (Compound [Mana [Macros.generic 1],
+       , Macros.activated (Compound [Mana [Macros.generic 2],
                               Do (Macros.sacrifice You Macros.thisArtifact)])
                           (Macros.destroy (Macros.each
-                             (And [Permanent,
+                             (And [Permanent, Not Macros.land,
                                    Compare [StatAxis ManaValue] Eq
                                      (CountersOn (NamedCounter "Charge")
                                                  Macros.thisArtifact)]))) ]
@@ -984,10 +958,7 @@ latchkeyFaerie =
            (Mana [Macros.generic 2, Macros.pip Blue])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
            (Macros.costWasPaid (ByKeyword "Prowl") Nothing Macros.thisCreature)
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        (Just (3, 1))
 
 ||| Bloom Tender
@@ -1020,10 +991,7 @@ militaryIntelligence =
        [ Macros.triggered Whenever
            (AttacksWith You NoDefender
                         (Macros.counted (Macros.atLeast 2) Macros.creature))
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        Nothing
 
 ||| Jem Lightfoote, Sky Explorer
@@ -1039,10 +1007,7 @@ jemLightfooteSkyExplorer =
            (NotCond (Macros.happenedFrom SpellCast You Lookback.ThisTurn
                        (Macros.a Macros.spell)
                        (FromZone [Macros.handOf You])))
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        (Just (3, 3))
 
 ||| Gnarlback Rhino
@@ -1056,10 +1021,7 @@ gnarlbackRhino =
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
                                       Targets Macros.thisCreature SomeTarget])) Nothing)
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        (Just (4, 4))
 
 ||| Prismari Pianist
@@ -1131,12 +1093,6 @@ deliveryMoogle =
                    Macros.shuffle Nothing ]) ]
        (Just (3, 2))
 
-testMox1 : Card
-testMox1 =
-  Macros.card "Mox Diamond" (Just []) [] (MkTypeLine [] [Artifact])
-       [ Macros.activated TapSymbol
-                          (AddMana You (Lit 1) (AnyColor SameColor) []) ]
-       Nothing
 
 ||| Heart of Yavimaya
 public export
@@ -1180,10 +1136,7 @@ upTheBeanstalk =
            [ Macros.joinedHead Whenever
                (Casts You (Macros.a (And [Macros.spell,
                                           Compare [StatAxis ManaValue] AtLeast (Lit 5)])) Nothing) ]
-           (Sequentially
-              [ Macros.searchLibraryOrGraveyard
-                  (And [Macros.artifact,
-                        Compare [StatAxis ManaValue] AtMost (Lit 2)]) ]) ]
+           (Draw You (Lit 1)) ]
        Nothing
 
 ||| Sheltered Valley

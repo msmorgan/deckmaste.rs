@@ -2852,6 +2852,13 @@ designationHolder d = case designationScope d of
   HeldByCard => Just Object
   HeldByGame => Nothing
 
+||| A possessive on a designation ("your Ring-bearer", "your commander") is
+||| meaningful only where an object holds the designation for a player; a
+||| player-held or game-wide designation has no possessor [CR#701.54e].
+public export
+designationPossessorOk : Designation -> Bool
+designationPossessorOk d = designationHolder d == Just Object
+
 public export
 heldByItsCard : Designation -> Bool
 heldByItsCard d = case designationScope d of

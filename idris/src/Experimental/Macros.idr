@@ -2586,7 +2586,7 @@ public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
               Instruction bs
 monstrosity amt =
-  If (NotCond (Matches This (HasDesignation Monstrous)))
+  If (NotCond (Matches This (HasDesignation Monstrous Nothing)))
      (Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) Nothing ])
@@ -2613,7 +2613,7 @@ renownExpansion : (n : Nat) -> AbilityAt []
 renownExpansion n =
   triggeredIf When
     (dealsCombatDamage thisCreature (a AnyPlayer))
-    (NotCond (Matches thisCreature (HasDesignation Renowned)))
+    (NotCond (Matches thisCreature (HasDesignation Renowned Nothing)))
     (Sequentially [ PutCounters (Lit n) (PrintedKind plusOnePlusOne) thisCreature
                   , GainsDesignation thisCreature Renowned
                                      (InExpansionOf RenownW) Nothing ])

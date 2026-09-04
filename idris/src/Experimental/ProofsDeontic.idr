@@ -300,17 +300,31 @@ badMustAttackLand : Unspellable (Instruction []) (\ok =>
                (Just ThisTurn))
 badMustAttackLand Oh impossible
 
+||| "your Ring-bearer": a creature holds the Ring-bearer designation for a
+||| player, so the possessive is written [CR#701.54e].
+public export
+okRingBearerHolder : Predicate [] Object
+okRingBearerHolder = HasDesignation RingBearer (Just You)
+
+||| "your monarch": the monarch IS a player, so the designation has no
+||| possessor — refused at the holder slot, not at the designation
+||| [CR#725.1].
+public export
+badMonarchHolder : Unspellable (Predicate [] Player) (\ok =>
+  HasDesignation Monarch (Just You) {hp = ok})
+badMonarchHolder Oh impossible
+
 ||| "target creature you control that is your Ring-bearer"
 public export
 okRingBearerOnBattlefield : Predicate [] Object
 okRingBearerOnBattlefield =
-  And [Macros.creature, HasDesignation RingBearer,
+  And [Macros.creature, HasDesignation RingBearer (Just You),
        InZone Macros.battlefieldZ]
 
 ||| "target creature card in your graveyard that is your Ring-bearer"
 public export
 badRingBearerInGraveyard : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, HasDesignation RingBearer,
+  And [Macros.creature, HasDesignation RingBearer (Just You),
        InZone (Macros.graveyardOf You)] {zc = ok})
 badRingBearerInGraveyard Oh impossible
 
@@ -447,3 +461,17 @@ enchantedPlayerDamageReadsBackAsThey : Ability
 enchantedPlayerDamageReadsBackAsThey =
   Macros.triggered Whenever (IsDealtDamage AnyDamage (AttachHost Enchanted PlayerW))
                    (Macros.losesLife They (Half RoundUp (PlayerStatOf LifeTotal They)))
+
+||| "Target creature attacks a player other than you during its
+||| controller's next turn if able." No printed card on the bench.
+public export
+goadedAttacksOther : Instruction []
+goadedAttacksOther =
+  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Attack"] Agent
+                        (DefendingPlayer (Macros.a (Macros.otherPlayer))))
+               (Just Macros.untilYourNextTurn)
+
+||| "as you scry" — a concurrent window with no printed card on the bench.
+public export
+whileScrying : Concurrent []
+whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing)

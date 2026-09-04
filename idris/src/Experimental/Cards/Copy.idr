@@ -223,7 +223,7 @@ bonusRound =
                                                Macros.spell])) Nothing)
                         [] (Just Macros.untilEndOfTurn)
                         (Sequentially
-                           [ Copy FromStack (Macros.That PlayerW OneOf) (Macros.That SpellW OneOf) (Lit 1) []
+                           [ Copy FromStack (Macros.That PlayerW OneOf) (Macros.It OneOf) (Lit 1) []
                            , Macros.may (Macros.That PlayerW OneOf)
                                (ChooseNewTargets (Macros.That CopyW OneOf)) ])) ]
        Nothing
@@ -253,4 +253,7 @@ pyromancersGogglesMana =
     (AddMana You (Lit 1) (Runs [[OfColor Red]])
       [ OnSpent TriggersThen False
                 (Macros.a (And [ColorIs Red, Macros.instantOrSorcery, Macros.spell]))
-                (Copy FromStack You (Macros.That SpellW OneOf) (Lit 1) []) ])
+                (Sequentially
+                   [ Copy FromStack You (Macros.That SpellW OneOf) (Lit 1) []
+                   , Macros.may You
+                       (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ])

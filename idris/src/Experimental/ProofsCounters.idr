@@ -510,3 +510,12 @@ badAnaphoricTokenAfterNonToken : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , Create You (Lit 2) (TokenAsThose {ok}) [] ])
 badAnaphoricTokenAfterNonToken Refl impossible
+
+||| "Put a +1/+1 counter on target creature card in your graveyard."
+||| No printed card on the bench.
+public export
+counterOnGraveyardCard : Instruction []
+counterOnGraveyardCard =
+  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+              (Macros.target (And [Macros.creature,
+                                   InZone (Macros.graveyardOf You)]))

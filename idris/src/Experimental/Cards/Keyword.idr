@@ -45,9 +45,15 @@ yotianSoldier =
        [Macros.keyword "Vigilance"] (Just (1, 4))
 
 ||| Pym Particles
-pymParticlesVigilanceGrant : Instruction []
-pymParticlesVigilanceGrant =
-  Macros.gains (Macros.target Macros.creature) (Macros.keyword "Vigilance") (Just Macros.untilEndOfTurn)
+pymParticlesGrant : Instruction []
+pymParticlesGrant =
+  Sequentially
+    [ Macros.gains (Macros.target Macros.creature) (Macros.keyword "Vigilance")
+                   (Just Macros.untilEndOfTurn)
+    , Continuously
+        (Macros.deontic (Macros.That (TypeW Creature) OneOf) Forbid ["Block"]
+                        Patient NoDeonticPatient)
+        (Just ThisTurn) ]
 
 bladebrand : Instruction []
 bladebrand =
@@ -244,8 +250,8 @@ consulsLieutenant =
        , Macros.renown 1
        , Macros.triggeredIf Whenever
                             (Macros.attacks Macros.thisCreature)
-                            (Matches Macros.thisCreature
-                                     (HasDesignation Renowned))
+                            (Matches (Macros.It OneOf)
+                                     (HasDesignation Renowned Nothing))
                             (Macros.gets (Macros.allOf (And [Macros.creature, Attacking,
                                                       HasPossessor ControllerAx You,
                                                       OtherThan Macros.thisCreature]))
@@ -260,7 +266,7 @@ secretsOfTheGoldenCity =
        (MkTypeLine [] [Sorcery])
        [ Macros.keyword "Ascend"
        , Spell Nothing (InsteadOf (Draw You (Lit 2))
-                          (If (Matches You (HasDesignation CitysBlessing))
+                          (If (Matches You (HasDesignation CitysBlessing Nothing))
                               (Draw You (Lit 3))
                               Nothing)) ]
        Nothing
@@ -272,7 +278,7 @@ bombur =
        (MkTypeLine [creatureType "Dwarf", creatureType "Bard"] [Creature])
        [ Macros.keyword "Storied"
        , Static (Macros.onlyUnless (Macros.doesntUntap Macros.thisCreature (Just You))
-                                 (Matches You (HasDesignation EnduringStory))) ]
+                                 (Matches You (HasDesignation EnduringStory Nothing))) ]
        (Just (5, 3))
 
 drachNyen : Card
@@ -1125,11 +1131,11 @@ monoxaRollTrigger =
       [ Macros.gains Macros.thisCreature (Macros.keyword "FirstStrike")
                      (Just Macros.untilEndOfTurn)
       , Macros.ifThen (CompareAmt (TheOutcome RollResult) AtLeast (Lit 4))
-                      (Macros.gains Macros.thisCreature
+                      (Macros.gains (Macros.It OneOf)
                                     (Macros.keyword "Menace")
                                     (Just Macros.untilEndOfTurn))
       , Macros.ifThen (CompareAmt (TheOutcome RollResult) AtLeast (Lit 5))
-                      (Macros.gains Macros.thisCreature
+                      (Macros.gains (Macros.It OneOf)
                                     (Macros.keyword "Lifelink")
                                     (Just Macros.untilEndOfTurn)) ])
 
@@ -1247,7 +1253,7 @@ tourachDiscardTrigger : Ability
 tourachDiscardTrigger =
   Macros.triggered Whenever
     (VerbedEvent (Just Macros.anOpponent) "Discard"
-                 (Just (Macros.a (InZone Macros.handZ))) Nothing)
+                 (Just (Macros.a IsCard)) Nothing)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
 ||| Shimmering Glasskite
@@ -1289,8 +1295,8 @@ soulOfEmancipation =
   Macros.triggered When (Enters Macros.thisCreature Nothing)
     (Sequentially
        [ Macros.destroy (Described (TargetDet (Macros.upTo 3)) (And [Permanent, Not Macros.land, OtherThan This]))
-       , ForEachOf (Macros.TheVerbed "Destroy" PermanentW ThisWay ManyOf)
-                   (Create (Macros.controllerOf (Macros.ItVerbed "Destroy" OneOf)) (Lit 1)
+       , ForEachOf (Macros.That PermanentW ManyOf)
+                   (Create (Macros.controllerOf (Macros.That PermanentW OneOf)) (Lit 1)
                            (TokenWritten
                               (MkToken (Just (Lit 3 ** Lit 3)) [White]
                                        (MkTypeLine [creatureType "Angel"] [Creature])
@@ -1385,7 +1391,7 @@ archfiendsVessel =
        (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
        [ Macros.keyword "Lifelink"
        , Macros.triggeredIf When
-           (Enters This Nothing)
+           (Enters Macros.thisCreature Nothing)
            (OrCond [ Happened ((Macros.It OneOf)) (MkLookback Entry Triggering (Just (FromZones (FromZone [Macros.graveyardOf You]) Nothing)))
                    , Matches ((Macros.It OneOf)) (And [Macros.castBy You,
                                       CastFrom (Macros.graveyardOf You)]) ])
@@ -1433,11 +1439,18 @@ wizenedSnitches =
 
 ||| Darkblade Agent
 public export
-darkbladeAgentDeathtouch : Ability
-darkbladeAgentDeathtouch =
-  Static (Conditionally (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
-                        (Macros.happened (VerbedAct "Surveil") You ThisTurn)
-                        AsLongAs)
+darkbladeAgentGrants : Ability
+darkbladeAgentGrants =
+  Static (Conditionally
+            (AndAlso Nothing
+               [ Gains Macros.thisCreature (Macros.keyword "Deathtouch")
+               , Gains Macros.thisCreature
+                   (Macros.triggered Whenever
+                      (Macros.dealsCombatDamage Macros.thisCreature
+                                                (Macros.a AnyPlayer))
+                      (Draw You (Lit 1))) ])
+            (Macros.happened (VerbedAct "Surveil") You ThisTurn)
+            AsLongAs)
 
 ||| Frenzied Gorespawn
 public export
@@ -1639,7 +1652,7 @@ public export
 commandersPlateEquip : List Ability
 commandersPlateEquip =
   [ Macros.keywordQualityCosting "Equip"
-      (HasDesignation CommanderD) (Mana [Macros.generic 3])
+      (HasDesignation CommanderD Nothing) (Mana [Macros.generic 3])
   , Macros.keywordCosting "Equip" (Mana [Macros.generic 5]) ]
 
 ||| Luxior, Giada's Gift's equip lines
@@ -1944,8 +1957,8 @@ spinIntoMyth =
                , Macros.fateseal Macros.anOpponent (Lit 2) ]
 
 ||| Pure // Simple
-simpleHalf : Instruction []
-simpleHalf = Macros.destroy (Macros.target (And [Permanent, Macros.multicolored]))
+pureHalf : Instruction []
+pureHalf = Macros.destroy (Macros.target (And [Permanent, Macros.multicolored]))
 
 ||| Korlash
 public export
@@ -2017,3 +2030,4 @@ zirdaCompanion : AbilityAt []
 zirdaCompanion =
   Macros.companion
     (EveryCardIs (And [Permanent, IsCard]) (HasAbilityOf AnyActivated))
+

@@ -7,7 +7,13 @@ import Experimental.Macros
 
 
 cyberConversion : Instruction []
-cyberConversion = SetStatus FaceDown (Macros.target Macros.creature)
+cyberConversion =
+  Sequentially
+    [ SetStatus FaceDown (Macros.target Macros.creature)
+    , Macros.becomesAs ((Macros.It OneOf))
+        (MkToken (Just (Lit 2 ** Lit 2)) []
+                 (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature]) [] Nothing)
+        Nothing ]
 
 breakOpen : Instruction []
 breakOpen = SetStatus FaceUp (Macros.target (And [Macros.creature, Macros.faceDown,
@@ -156,11 +162,6 @@ rakdosShowstopperFlips =
                              , HasSubtype (creatureType "Devil")
                              , HasSubtype (creatureType "Imp") ]) ]))))
     , Macros.destroy (Macros.each (And [Macros.creature, CoinCameUp Tails])) ]
-
-||| Warp Vortex
-public export
-warpVortexFlips : Instruction []
-warpVortexFlips = (FlipCoins You (FlipPer (Macros.each Opponent)))
 
 merfolkSecretkeeper : Card
 merfolkSecretkeeper =
@@ -318,7 +319,8 @@ kitsuneMystic =
                       (Macros.target
                          (And [ HasSubtype (enchantmentType "Aura")
                               , AttachedTo (Macros.a Macros.creature) ]))
-                      (Macros.a (And [Macros.creature, OtherThan This]))) ]
+                      (Macros.a (And [Macros.creature,
+                                      OtherThan (Macros.That (TypeW Creature) OneOf)]))) ]
                (Macros.printedBox (Just (4, 5))))
 
 ||| Vesuvan Shapeshifter
@@ -467,9 +469,6 @@ chitteringHostOnGrafRats =
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
 
-public export
-meldBackFacesAgree : Faces.chitteringHostOnScavengers = Faces.chitteringHostOnGrafRats
-meldBackFacesAgree = Refl
 
 ||| Midnight Scavengers // Chittering Host
 public export
@@ -492,7 +491,10 @@ public export
 meldThemInto : Instruction []
 meldThemInto =
   Sequentially
-    [ Macros.exile You (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
+    [ Macros.exile You
+        (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
+                            Or [Named (PrintedName "Graf Rats"),
+                                Named (PrintedName "Midnight Scavengers")]]))
     , Macros.meldInto (Macros.ItVerbed "Exile" ManyOf) "Chittering Host" ]
 
 ||| Profit // Loss

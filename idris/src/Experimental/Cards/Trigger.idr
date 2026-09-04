@@ -319,8 +319,9 @@ stalwartSuccessorHeader =
 ||| Hollowmurk Siege
 hollowmurkSiegeSultai : Ability
 hollowmurkSiegeSultai =
-  Macros.triggered Whenever
+  Macros.triggeredOnlyOnce Whenever
     (Macros.bareCounterEvent CounterPut OneCounter (Macros.a Macros.creatureYouControl))
+    OncePerTurn
     (Draw You (Lit 1))
 
 ||| Clone
@@ -549,7 +550,7 @@ dreadSlaver : Card
 dreadSlaver =
   Macros.card "Dread Slaver" (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [creatureType "Zombie", creatureType "Horror"] [Creature])
-       [ Macros.triggered When (Dies (Macros.a (And [Macros.creature,
+       [ Macros.triggered Whenever (Dies (Macros.a (And [Macros.creature,
                                               Macros.happenedToInvolving DamageTaken
                                                                          Lookback.ThisTurn
                                                                          Macros.thisCreature])))
@@ -586,8 +587,12 @@ public export
 faridehResultRead : Ability
 faridehResultRead =
   Macros.triggered Whenever (RollsDice You ManyDice AnyDie AnyResult)
-                   (Macros.ifThen (AnyResultIs AtLeast (Lit 10))
-                                  (Draw You (Lit 1)))
+    (Sequentially
+       [ Macros.gains Macros.thisCreature (Macros.keyword "Flying")
+                      (Just Macros.untilEndOfTurn)
+       , Macros.gains Macros.thisCreature (Macros.keyword "Menace")
+                      (Just Macros.untilEndOfTurn)
+       , Macros.ifThen (AnyResultIs AtLeast (Lit 10)) (Draw You (Lit 1)) ])
 
 ||| Jaws of Defeat
 public export
@@ -717,7 +722,7 @@ reciprocate =
                                                       You]))) ]
        Nothing
 
-||| Tahngarth
+||| Tahngarth, First Mate
 public export
 tahngarthHeader : GameEvent []
 tahngarthHeader =
@@ -873,9 +878,12 @@ public export
 agencyOutfitterSearch : Instruction []
 agencyOutfitterSearch =
   Sequentially
-    [ Macros.searchZonesOf You
-        (Or [ Named (PrintedName "Magnifying Glass")
-            , Named (PrintedName "Thinking Cap") ])
+    [ Macros.may You
+        (Sequentially
+           [ Macros.searchZonesOf You
+               (Or [ Named (PrintedName "Magnifying Glass")
+                   , Named (PrintedName "Thinking Cap") ])
+           , Macros.putOntoBattlefield Macros.foundCard ])
     , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
                             Macros.yourLibrary)
          Macros.shuffle Nothing ]
@@ -953,15 +961,17 @@ gatherSpecimens =
 
 ||| Don't Blink's replacement, without its written agent
 public export
-dontBlinkReplacement : StaticSpec []
+dontBlinkReplacement : Instruction []
 dontBlinkReplacement =
-  Intercepts (Enters (Macros.counted (Macros.atLeast 1) Macros.creature)
+  Continuously
+   (Intercepts (Enters (Macros.counted (Macros.atLeast 1) Macros.creature)
                      (Just (FromZone [Macros.exileZ])))
              [ Enters (Macros.counted (Macros.atLeast 1)
                          (And [Macros.creature, CastFrom Macros.exileZ]))
                       Nothing ] Nothing
              (Macros.shuffleInto You ((Macros.It ManyOf)))
-             Repeatedly Nothing
+             Repeatedly Nothing)
+   (Just Macros.untilEndOfTurn)
 
 ||| Seasoned Warrenguard
 public export
@@ -1001,7 +1011,7 @@ autarchMammothLine =
     [ Macros.joinedHeadWhile Whenever
         (Macros.attacks Macros.thisCreature)
         (WhileTrue
-           (Matches Macros.thisCreature (HasDesignation Saddled))) ]
+           (Matches Macros.thisCreature (HasDesignation Saddled Nothing))) ]
     (Macros.create (Lit 1)
        (Macros.creatureTok 3 3 [Green] [creatureType "Elephant"]))
 

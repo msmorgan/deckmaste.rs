@@ -50,10 +50,11 @@ tippyToe =
 
 brazenCannonade : Ability
 brazenCannonade =
-  Macros.triggeredIf At
+  Macros.abilityWord "raid"
+   (Macros.triggeredIf At
                      (BeginningOf EachPart PostcombatMain (ByPlayer You))
                      (Macros.happened AttackDeclaration You Lookback.ThisTurn)
-                     (Macros.exile You (Macros.topSlice (Lit 1)))
+                     (Macros.exile You (Macros.topSlice (Lit 1))))
 
 fourKnocks : Ability
 fourKnocks =
@@ -151,13 +152,6 @@ saheelisCopy =
                    []
                , Macros.gainsHaste (Macros.That TokenW OneOf) Nothing
                , Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.exile You ((Macros.It OneOf))) ]
-
-||| Sanctuary Blade
-public export
-beckoningWillOWispChooser : Ability
-beckoningWillOWispChooser =
-  Macros.triggered At (BeginningOf ThePart Combat (ByPlayer You))
-                   (Macros.choose (Macros.a Opponent))
 
 public export
 timeWalk : Card
@@ -615,7 +609,8 @@ berserk =
                   [ Gains (Macros.ownSubject (Macros.target Macros.creature))
                           (Macros.keyword "Trample")
                   , Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
-                         (PtUp (StatOf Power (Macros.It OneOf))) (PtUp (Lit 0)) ]
+                         (PtUp (LetterVal X)) (PtUp (Lit 0))
+                  , DefinesLetter X (StatOf Power (Macros.It OneOf)) ]
                   (Just Macros.untilEndOfTurn)
               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
                   (OnlyIf (Macros.destroy (Macros.That (TypeW Creature) OneOf))
