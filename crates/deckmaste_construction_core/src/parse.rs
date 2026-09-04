@@ -1941,12 +1941,18 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                 )
                             } else {
                                 match atom.to_string().as_str() {
-                                "Amount" => {
-                                    crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
-                                }
-                                "ObjectNounPhrase" => crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom),
-                                "PredicativeComplement" => crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom),
-                                _ => crate::model::DeclarationVerbTailAtomKindSource::Role(atom),
+                                    "Amount" => {
+                                        crate::model::DeclarationVerbTailAtomKindSource::Amount(
+                                            atom,
+                                        )
+                                    }
+                                    "ObjectNounPhrase" => {
+                                        crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
+                                    }
+                                    "PredicativeComplement" => {
+                                        crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
+                                    }
+                                    _ => crate::model::DeclarationVerbTailAtomKindSource::Role(atom),
                                 }
                             }
                         };

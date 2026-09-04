@@ -294,6 +294,8 @@ pub enum FormAtom {
     SentenceInitial(LitStr),
     Role(Ident),
     Lex(Ident),
+    /// A fixed vocabulary member written `Vocabulary::Member`. It carries no
+    /// role and the vocabulary, not the form, owns the rendered surface.
     FixedLex(syn::Path),
     Identity(Ident),
     Verb(VerbOperand),

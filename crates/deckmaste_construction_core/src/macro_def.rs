@@ -449,6 +449,8 @@ impl VerbFrameSet {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CustomTailAtom {
     Literal(String),
+    /// A fixed vocabulary member, as `(vocabulary, member)`, that the frame
+    /// selects instead of spelling the marker as a literal.
     Lex(String, String),
     Amount,
     ObjectNounPhrase,

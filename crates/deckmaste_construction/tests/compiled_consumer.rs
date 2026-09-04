@@ -1342,6 +1342,7 @@ pub mod declaration_verb_fixture {
         const CROSSED: &[VerbFrameAtom] = &[VerbFrameAtom::ObjectNounPhrase, VerbFrameAtom::Amount];
         const DUPLICATED: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Amount];
         const EXTRA: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Literal("extra")];
+        const LEX_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::Lex("AmountWord", "One")];
         const NO_FRAMES: &[&[VerbFrameAtom]] = &[];
         const TRANSITIVE: &[&[VerbFrameAtom]] = &[OBJECT];
         const MEASURE_COMPLEMENT: &[&[VerbFrameAtom]] = &[AMOUNT];
@@ -1349,6 +1350,7 @@ pub mod declaration_verb_fixture {
         const CROSSED_ONLY: &[&[VerbFrameAtom]] = &[CROSSED];
         const DUPLICATED_ONLY: &[&[VerbFrameAtom]] = &[DUPLICATED];
         const EXTRA_ONLY: &[&[VerbFrameAtom]] = &[EXTRA];
+        const LEX_MARKED_ONLY: &[&[VerbFrameAtom]] = &[LEX_MARKED];
 
         match (name, frame_set) {
             (
@@ -1383,6 +1385,15 @@ pub mod declaration_verb_fixture {
                     ]] =>
             {
                 EXTRA_ONLY
+            }
+            ("LexMarked", VerbFrameSet::Custom { frames })
+                if frames.as_slice()
+                    == [vec![CustomTailAtom::Lex(
+                        "AmountWord".to_owned(),
+                        "One".to_owned(),
+                    )]] =>
+            {
+                LEX_MARKED_ONLY
             }
             _ => NO_FRAMES,
         }
@@ -1423,6 +1434,13 @@ pub mod declaration_verb_fixture {
                 feature = Participle;
             }
         }
+        codec LexMarkedVerb {
+            generate declaration_verb {
+                position = Verb;
+                tail = [lex(AmountWord::One)];
+                feature = Agreement;
+            }
+        }
         construction transitive: VerbPhrase {
             element Transitive {
                 head: lex TransitiveVerb,
@@ -1444,6 +1462,11 @@ pub mod declaration_verb_fixture {
             derive head.agreement = Values::Bare;
             form intransitive = verb(head);
         }
+        construction lex_marked: LexMarkedPhrase {
+            element LexMarked { head: lex LexMarkedVerb, }
+            derive head.agreement = Values::Bare;
+            form lex_marked = verb(head) lex(AmountWord::One);
+        }
         construction participle: ParticiplePhrase {
             element Participial {
                 head: lex TransitiveParticiple,
@@ -1454,6 +1477,7 @@ pub mod declaration_verb_fixture {
         root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root MeasureComplementPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root LexMarkedPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
@@ -1567,6 +1591,10 @@ pub mod declaration_verb_fixture {
                 r#"KeywordAction(name:"Extra",spelling:"extend",grammar:Verb(bare:"extend",frame_set:Custom(frames:[[Amount,Literal("extra")]])))"#,
             ),
             declaration(
+                "/synthetic/actions/LexMarked.ron",
+                r#"KeywordAction(name:"LexMarked",spelling:"mark",grammar:Verb(bare:"mark",frame_set:Custom(frames:[[Lex("AmountWord","One")]])))"#,
+            ),
+            declaration(
                 "/synthetic/actions/WrongKind.ron",
                 r#"KeywordAbility(name:"WrongKind",spelling:"mimic",grammar:Verb(bare:"mimic",frame_set:Transitive))"#,
             ),
@@ -1667,6 +1695,9 @@ pub mod declaration_verb_fixture {
                     Some(declaration_id(verb.reference()).name().to_owned())
                 }
                 Leaf::IntransitiveVerb { verb, .. } => {
+                    Some(declaration_id(verb.reference()).name().to_owned())
+                }
+                Leaf::LexMarkedVerb { verb, .. } => {
                     Some(declaration_id(verb.reference()).name().to_owned())
                 }
                 _ => None,
@@ -1948,12 +1979,29 @@ pub mod declaration_verb_fixture {
         );
         assert!(DeclarationTransitiveVerb::new(&environment, id(&environment, "Shape")).is_none());
 
+        let lex_marked = first_terminal(RuleId::LexMarkedPhraseLexMarked);
+        assert_eq!(
+            scanned_declaration_names(&environment, "Mark one.", lex_marked),
+            ["LexMarked"],
+            "a declared vocabulary tail marker enters its exact frame",
+        );
+        assert!(
+            DeclarationLexMarkedVerb::new(&environment, id(&environment, "LexMarked")).is_some()
+        );
+        assert!(
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "LexMarked")).is_none()
+        );
+        assert!(
+            DeclarationLexMarkedVerb::new(&environment, id(&environment, "Extra")).is_none(),
+            "a literal tail must not satisfy a vocabulary tail marker",
+        );
+
         for (name, surface) in [
             ("Crossed", "Cross"),
             ("DuplicatedTail", "Double"),
             ("Extra", "Extend"),
         ] {
-            for terminal in [intransitive, measure_complement, transitive] {
+            for terminal in [intransitive, measure_complement, transitive, lex_marked] {
                 assert!(
                     scanned_declaration_names(&environment, surface, terminal).is_empty(),
                     "{name} must not enter a construction with a merely similar tail",
