@@ -266,7 +266,7 @@ contrabandLivestock =
                   (TokenWritten (Macros.creatureTok 0 1 [White] [creatureType "Goat"])) [])]]
 
 ||| Hypnotic Specter
-hypnoticSpecterDiscard : Instruction [MkBinding TheD Player OneOf PlayerP]
+hypnoticSpecterDiscard : Instruction [MkBinding TheD Player OneOf (PlayerP False)]
 hypnoticSpecterDiscard = (Macros.discard They (Macros.aAtRandom (InZone Macros.handZ)))
 
 ||| Wyll, Blade of Frontiers

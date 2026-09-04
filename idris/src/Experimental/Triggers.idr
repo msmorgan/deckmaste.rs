@@ -230,7 +230,7 @@ mutual
     StatusEvent : {c : StatusCat} -> (n : Noun bs Object) ->
                   (v : StatusVal c) ->
                   {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                  {auto 0 at : StatusEventVal v} -> GameEvent bs
+                  {auto 0 at : StatusMarkable v} -> GameEvent bs
     DayNightShift : GameEvent bs
     StateHolds : (c : Condition bs) -> GameEvent bs
     PutInto : (n : Noun bs Object) -> (to : ZoneExpr bs) ->
@@ -588,11 +588,11 @@ mutual
 
   public export
   PartTriggerable : {bs : Bindings} -> TurnPart -> HeaderPossessor bs -> Type
-  PartTriggerable {bs} p h = So (partTriggerOk p && headerPossessorOk h)
+  PartTriggerable {bs} p h = So (properTurnPart p && headerPossessorOk h)
 
   public export
   AddedPart : TurnPart -> Type
-  AddedPart p = So (partAddable p)
+  AddedPart p = So (properTurnPart p)
 
   public export
   AddedPartWritten : Maybe TurnPart -> Type
@@ -632,7 +632,7 @@ mutual
     DuringPart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
                  {auto 0 wk : WindowOk p w} -> Timing bs
     BeforePart : (p : TurnPart) -> (w : Maybe (Noun bs Player)) ->
-                 {auto 0 bp : So (beforePartOk p)} ->
+                 {auto 0 bp : So (properTurnPart p)} ->
                  {auto 0 pk : PointWindowOk w} -> Timing bs
 
   public export
@@ -723,7 +723,7 @@ mutual
 
   public export
   headerStatusOk : {0 bs : Bindings} -> GameEvent bs -> Bool
-  headerStatusOk (StatusEvent _ v) = statusHeaderOk v
+  headerStatusOk (StatusEvent _ v) = statusMarkable v
   headerStatusOk _ = True
 
   public export

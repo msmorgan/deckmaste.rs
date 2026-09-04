@@ -32,21 +32,21 @@ mutual
   PlaceArrangementFits pl ord = So (placeArrangementOk pl ord)
 
   public export
-  placeOrdinalOk : {0 bs : Bindings} -> LibPlace bs -> Maybe LibOrdinal -> Bool
+  placeOrdinalOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Ordinal -> Bool
   placeOrdinalOk Shuffled (Just _) = False
   placeOrdinalOk Shuffled Nothing = True
   placeOrdinalOk (OneEnd _) _ = True
   placeOrdinalOk (EitherEnd _) _ = True
 
   public export
-  PlaceOrdinalFits : {0 bs : Bindings} -> LibPlace bs -> Maybe LibOrdinal -> Type
+  PlaceOrdinalFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Ordinal -> Type
   PlaceOrdinalFits pl off = So (placeOrdinalOk pl off)
 
   public export
   data ZoneExpr : Bindings -> Type where
     ZoneAt : (z : Zone) -> ZoneScope bs z -> ZoneExpr bs
     LibraryAt : (place : LibPlace bs) -> (ord : Maybe Arrangement) ->
-                (off : Maybe LibOrdinal) ->
+                (off : Maybe Ordinal) ->
                 {auto 0 af : PlaceArrangementFits place ord} ->
                 {auto 0 nf : PlaceOrdinalFits place off} ->
                 ZoneScope bs Library -> ZoneExpr bs
@@ -62,7 +62,7 @@ mutual
   zoneArrangement (LibraryAt _ ord _ _) = ord
 
   public export
-  zoneOrdinal : ZoneExpr bs -> Maybe LibOrdinal
+  zoneOrdinal : ZoneExpr bs -> Maybe Ordinal
   zoneOrdinal (ZoneAt _ _) = Nothing
   zoneOrdinal (LibraryAt _ _ off _) = off
 
@@ -249,7 +249,7 @@ mutual
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
+    HasKeyword : (k : KeywordTerm) -> {auto 0 kn : So (knownKeywordTerm k)} ->
                  Predicate bs Object
     HasPossessor : {k : Kind} -> (ax : PossessorAxis) -> (n : Noun bs Player) ->
                    {auto 0 ps : SoleHolder n} ->
@@ -1046,7 +1046,7 @@ mutual
   public export
   joinHalfPayload : {k : Kind} -> Phrasal k -> HeadTy k -> Payload k
   joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
-  joinHalfPayload PhPlayer _ = PlayerP
+  joinHalfPayload PhPlayer _ = PlayerP False
   joinHalfPayload {k = Quality q} PhQuality _ = QualityP
   joinHalfPayload (PhJoin l r) (JoinTy a b) =
     JoinP (joinHalfPayload l a) (joinHalfPayload r b)
@@ -1064,7 +1064,7 @@ mutual
                               Nothing
                               (if seedsToken p then Just TokenOrigin else Nothing)
                               Nothing)
-  bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
+  bindFor det plur PhPlayer p = MkBinding det Player plur (PlayerP False)
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
   bindFor det plur ph@(PhJoin l r) p =
     MkBinding det k plur (joinHalfPayload ph (seedTys p))
@@ -1196,6 +1196,13 @@ mutual
   Ascribable : {0 bs : Bindings} -> Noun bs Object -> Type
   Ascribable n = So (ascribable n)
 
+  ||| The reach a pronoun is written with, if the noun is one.
+  public export
+  proRef : {0 bs : Bindings} -> {0 k : Kind} ->
+           Noun bs k -> Maybe (Reach, Plurality, Window)
+  proRef (Pro r pl w) = Just (r, pl, w)
+  proRef _ = Nothing
+
   public export
   nounEqRef : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Noun bs k -> Bool
   nounEqRef This This = True
@@ -1222,10 +1229,9 @@ mutual
   nounEqRef (NamesAgree _ _) _ = False
   nounEqRef (TheRest _ _) _ = False
   nounEqRef (PileOf _ _) _ = False
-  nounEqRef (Pro Bare OneOf Whole) (Pro Bare OneOf Whole) = True
-  nounEqRef (Pro (Word AbilityW) OneOf Whole) (Pro (Word AbilityW) OneOf Whole) = True
-  nounEqRef (Pro (Word PlayerW) OneOf Whole) (Pro (Word PlayerW) OneOf Whole) = True
-  nounEqRef (Pro _ _ _) _ = False
+  nounEqRef (Pro r pl w) m = case proRef m of
+                               Just (r', pl', w') => r == r' && pl == pl' && w == w'
+                               Nothing => False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (PossessorOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
@@ -1237,8 +1243,8 @@ mutual
     ExileOk : DestOk (ZoneAt Exile BareScope)
     HandOkBare : DestOk (ZoneAt Hand BareScope)
     GraveyardOkBare : DestOk (ZoneAt Graveyard BareScope)
-    LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
-                   {auto 0 nf : PlaceOrdinalFits place offs} ->
+    LibraryPosOk : {0 af : PlaceArrangementFits place arrg} ->
+                   {0 nf : PlaceOrdinalFits place offs} ->
                    DestOk (LibraryAt place arrg offs {af} {nf} BareScope)
 
   public export
@@ -1328,7 +1334,7 @@ mutual
   nounDelta (Pro _ _ _) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (PossessorOf _ n) =
-    MkBinding TheD Player (nounPlur n) PlayerP :: (selfSubjDelta n ++ nounDelta n)
+    MkBinding TheD Player (nounPlur n) (PlayerP False) :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (Designated _ _) = []
   nounDelta (OneEachOf roles pool) =
     MkBinding BareD Object ManyOf
@@ -1340,7 +1346,7 @@ mutual
                 Maybe Stamp -> Payload k
   elemPayload PhObject True _ _ _ = AbilityP Nothing
   elemPayload PhObject False ty zn pv = ObjectP ty zn pv Nothing (Just 1)
-  elemPayload PhPlayer _ _ _ _ = PlayerP
+  elemPayload PhPlayer _ _ _ _ = PlayerP False
   elemPayload {k = Quality q} PhQuality _ _ _ _ = QualityP
   elemPayload (PhJoin l r) ab ty zn pv =
     JoinP (elemPayload l ab ty zn pv) (elemPayload r ab ty zn pv)
@@ -1487,7 +1493,7 @@ mutual
   public export
   chosenBind : Determiner -> Plurality -> {k : Kind} ->
                Phrasal k -> Predicate bs k -> Binding
-  chosenBind det plur PhPlayer p = MkBinding det Player plur ChosenPlayerP
+  chosenBind det plur PhPlayer p = MkBinding det Player plur (PlayerP True)
   chosenBind det plur ph p = bindFor det plur ph p
 
   public export
@@ -1975,26 +1981,20 @@ mutual
   agentChoosable n = choosable n
 
   public export
-  data ChoiceClause : {0 bs : Bindings} -> {0 k : Kind} ->
-                      (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Type where
-    BareChoice : {0 n : Noun bs k} ->
-                 {auto 0 ok : So (choosable n)} -> ChoiceClause Nothing n
-    AgentChoice : {0 by : Noun bs Player} -> {0 n : Noun (agentIntro by) k} ->
-                  {auto 0 ok : So (agentChoosable n)} ->
-                  ChoiceClause (Just by) n
+  choiceClauseOk : {0 bs : Bindings} -> {0 k : Kind} ->
+                   (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bool
+  choiceClauseOk Nothing n = choosable n
+  choiceClauseOk (Just _) n = agentChoosable n
 
   ||| "Starting with you" fixes the turn order in which the players who choose
   ||| make their choices, so it says nothing unless several players choose
   ||| [CR#101.4].
   public export
-  data ChoiceOrder : {0 bs : Bindings} -> Maybe (Noun bs Player) ->
-                     Maybe (Noun bs Player) -> Type where
-    Unordered : {0 bs : Bindings} -> {0 by : Maybe (Noun bs Player)} ->
-                ChoiceOrder Nothing by
-    RoundStartsWith : {0 bs : Bindings} -> {0 first : Noun bs Player} ->
-                      {0 by : Noun bs Player} ->
-                      {auto 0 pl : nounPlur by = ManyOf} ->
-                      ChoiceOrder (Just first) (Just by)
+  choiceOrderOk : {bs : Bindings} -> Maybe (Noun bs Player) ->
+                  Maybe (Noun bs Player) -> Bool
+  choiceOrderOk Nothing _ = True
+  choiceOrderOk (Just _) Nothing = False
+  choiceOrderOk (Just _) (Just by) = not (isOne (nounPlur by))
 
   public export
   data Ballot : Bindings -> Type where
@@ -2317,7 +2317,7 @@ mutual
   public export
   attackableKind : (k : Kind) -> HeadTy k -> Bool
   attackableKind Player _ = True
-  attackableKind Object (SoleTy t) = deedAltOk "Attack" Patient (optCT t)
+  attackableKind Object (SoleTy t) = featureAltOk Attacking Patient (optCT t)
   attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
   attackableKind (a \/ b) (SoleTy t) =
     attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
@@ -2359,7 +2359,7 @@ mutual
     [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
   selfSubjDelta (AttachHost _ PermanentW) =
     [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)]
-  selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf PlayerP]
+  selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf (PlayerP False)]
   selfSubjDelta _ = []
 
   public export
@@ -2369,11 +2369,9 @@ mutual
   public export
   remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
                Maybe (Binding -> Bool)
-  remarkTest (Pro Bare pl Whole) = Just (reaches Bare pl)
-  remarkTest (Pro (AtSlot sl) pl Whole) = Just (reaches (AtSlot sl) pl)
-  remarkTest (Pro (Stamped v) pl Whole) = Just (reaches (Stamped v) pl)
-  remarkTest (Pro TokenBorn pl Whole) = Just (reaches TokenBorn pl)
   remarkTest (Pro (Word AbilityW) OneOf Whole) = Just (reaches (Word AbilityW) OneOf)
+  remarkTest (Pro r pl Whole) =
+    if reachTracksObject r then Just (reaches r pl) else Nothing
   remarkTest (Pro _ _ _) = Nothing
   remarkTest _ = Nothing
 
@@ -2402,10 +2400,10 @@ mutual
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
                  Bool -> Bool
-  playSourceOk zn Nothing False = complementLocates zn
+  playSourceOk zn Nothing False = maybe True placementDestOk zn
   playSourceOk zn (Just z) False =
     playableFrom (Just (zoneSort z)) &&
-    (not (complementLocates zn) || zoneFits zn (Just (zoneSort z)))
+    (not (maybe True placementDestOk zn) || zoneFits zn (Just (zoneSort z)))
   playSourceOk _ Nothing True = True
   playSourceOk _ (Just z) True = playableFrom (Just (zoneSort z))
 
@@ -2484,14 +2482,8 @@ mutual
   public export
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk (Pro (Verbed _ _ _) _ _) = False
-  counterMemoryOk (Pro Bare pl w) = not (stampMoves (provOfReach Bare pl (view w bs)))
-  counterMemoryOk (Pro (AtSlot sl) pl w) =
-    not (stampMoves (provOfReach (AtSlot sl) pl (view w bs)))
-  counterMemoryOk (Pro (Stamped v) pl w) =
-    not (stampMoves (provOfReach (Stamped v) pl (view w bs)))
-  counterMemoryOk (Pro TokenBorn pl w) =
-    not (stampMoves (provOfReach TokenBorn pl (view w bs)))
-  counterMemoryOk (Pro _ _ _) = True
+  counterMemoryOk (Pro r pl w) =
+    not (reachTracksObject r) || not (stampMoves (provOfReach r pl (view w bs)))
   counterMemoryOk _ = True
 
   public export
@@ -2500,11 +2492,7 @@ mutual
 
   public export
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  moveDestOk (Pro Bare _ _) = False
-  moveDestOk (Pro (AtSlot _) _ _) = False
-  moveDestOk (Pro (Stamped _) _ _) = False
-  moveDestOk (Pro TokenBorn _ _) = False
-  moveDestOk (Pro _ _ Whole) = True
+  moveDestOk (Pro r _ Whole) = not (reachTracksObject r)
   moveDestOk (Pro _ _ _) = False
   moveDestOk _ = True
 
@@ -2562,9 +2550,7 @@ mutual
     MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
   setZone p z (MkBinding det Pile plur (PileP _ sz fc)) =
     MkBinding det Pile plur (PileP z sz fc)
-  setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
-  setZone p z (MkBinding det Player plur ChosenPlayerP) =
-    MkBinding det Player plur ChosenPlayerP
+  setZone p z b@(MkBinding _ Player _ (PlayerP _)) = b
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
   setZone p z (MkBinding det Outcome plur (OutcomeP s)) =
@@ -2618,7 +2604,7 @@ mutual
               (ObjectP Nothing z (mkStamp p (Just Battlefield)
                                            (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
-  moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf PlayerP :: bs
+  moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf (PlayerP False) :: bs
   moveIntro p (AttachHost _ w) z = bs
   moveIntro p (AsType t This _) z =
     MkBinding SelfD Object OneOf
@@ -2748,6 +2734,11 @@ mutual
   deedNounOk v r n = case nounHeadTys n of
     [] => isNothing (nounDet n) && deedBareOk v r
     ts => deedHeadTysOk v r ts
+
+  public export
+  featureNounOk : {bs : Bindings} -> {k : Kind} ->
+                  DeedFeature -> Role -> Noun bs k -> Bool
+  featureNounOk f r n = maybe False (\v => deedNounOk v r n) (featureLabel f)
 
   public export
   nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k

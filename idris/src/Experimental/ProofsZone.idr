@@ -771,7 +771,7 @@ badAgentChooseTheRest : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
                , Choose Nothing (Just (Macros.a Opponent)) (Macros.theRest Object) Openly {ch = ok} ])
-badAgentChooseTheRest AgentChoice impossible
+badAgentChooseTheRest Oh impossible
 
 ||| "… two cards with the same name in your hand …"
 public export

@@ -327,12 +327,12 @@ fellTheMighty =
 public export
 targetPlayerOrPlaneswalker : Noun bs (Object \/ Player)
 targetPlayerOrPlaneswalker =
-  Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker))
+  Macros.target (Joined (HasType Planeswalker) AnyPlayer)
 
 public export
 targetOpponentOrPlaneswalker : Noun bs (Object \/ Player)
 targetOpponentOrPlaneswalker =
-  Macros.target (Macros.kindJoin Opponent (HasType Planeswalker))
+  Macros.target (Joined (HasType Planeswalker) Opponent)
 
 ||| Baleful Mastery's paid read
 public export

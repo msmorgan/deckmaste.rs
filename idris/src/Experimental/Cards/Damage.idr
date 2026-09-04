@@ -611,7 +611,7 @@ lavaAxe =
   Macros.card "Lava Axe" (Just [Macros.generic 4, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (DealDamage This (Lit 5)
-                           (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))) ]
+                           (Macros.target (Joined (HasType Planeswalker) AnyPlayer))) ]
        Nothing
 
 public export
@@ -620,7 +620,7 @@ searingFlesh =
   Macros.card "Searing Flesh" (Just [Macros.generic 6, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (DealDamage This (Lit 7)
-                           (Macros.target (Macros.kindJoin Opponent (HasType Planeswalker)))) ]
+                           (Macros.target (Joined (HasType Planeswalker) Opponent))) ]
        Nothing
 
 public export
@@ -628,14 +628,14 @@ onakkeJavelineerBolt : Ability
 onakkeJavelineerBolt =
   Macros.activated TapSymbol
                    (DealDamage Macros.thisCreature (Lit 2)
-                        (Macros.target (Macros.kindJoin AnyPlayer (HasType Battle))))
+                        (Macros.target (Joined (HasType Battle) AnyPlayer)))
 
 ||| Firesong and Sunspeaker
 public export
 firesongJoinEcho : Instruction []
 firesongJoinEcho =
   Sequentially [ DealDamage This (Lit 3)
-                   (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
+                   (Macros.target (Joined Macros.creature AnyPlayer))
                , DealDamage This (Lit 1) (Macros.thatJoin) ]
 
 ||| Forcefield
@@ -705,7 +705,7 @@ furnaceOfRath =
               Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.a Macros.source)) (ToRecipient
-                           (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Scale (Multiplied Doubled)) Repeatedly) ]
+                           (Macros.a (Joined Permanent AnyPlayer))) (Scale (Multiplied Doubled)) Repeatedly) ]
        Nothing
 
 public export
@@ -716,7 +716,7 @@ gratuitousViolence =
               Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.a Macros.creatureYouControl)) (ToRecipient
-                           (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Scale (Multiplied Doubled)) Repeatedly) ]
+                           (Macros.a (Joined Permanent AnyPlayer))) (Scale (Multiplied Doubled)) Repeatedly) ]
        Nothing
 
 public export
@@ -727,7 +727,7 @@ fieryEmancipation =
               Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.a (And [Macros.source, HasPossessor ControllerAx You]))) (ToRecipient
-                           (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Scale (Multiplied Tripled)) Repeatedly) ]
+                           (Macros.a (Joined Permanent AnyPlayer))) (Scale (Multiplied Tripled)) Repeatedly) ]
        Nothing
 
 public export
@@ -737,7 +737,7 @@ sulfuricVapors =
        (Just [Macros.generic 3, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.a (And [Macros.spell, ColorIs Red]))) (ToRecipient
-                           (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Scale (Shifted ShiftUp (Lit 1))) Repeatedly) ]
+                           (Macros.a (Joined Permanent AnyPlayer))) (Scale (Shifted ShiftUp (Lit 1))) Repeatedly) ]
        Nothing
 
 public export
@@ -758,7 +758,7 @@ ghostsOfTheInnocent =
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.a Macros.source)) (ToRecipient
-                           (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Scale (Halved RoundDown)) Repeatedly) ]
+                           (Macros.a (Joined Permanent AnyPlayer))) (Scale (Halved RoundDown)) Repeatedly) ]
        (Just (4, 5))
 
 public export
@@ -779,7 +779,7 @@ platedPegasus =
        [ Macros.keyword "Flash"
        , Macros.keyword "Flying"
        , Static (DamageRule AnyDamage (DealtBy (Macros.a Macros.spell)) (ToRecipient
-                                 (Macros.a (Macros.kindJoin AnyPlayer Permanent))) (Prevent (CutSome (Lit 1)) Nothing) Repeatedly) ]
+                                 (Macros.a (Joined Permanent AnyPlayer))) (Prevent (CutSome (Lit 1)) Nothing) Repeatedly) ]
        (Just (1, 2))
 
 public export
@@ -812,7 +812,7 @@ moggManiac =
        [ Macros.triggered Whenever
                           (IsDealtDamage AnyDamage Macros.thisCreature)
                           (DealDamage ((Macros.It OneOf)) ThatMuch
-                               (Macros.target (Macros.kindJoin Opponent (HasType Planeswalker)))) ]
+                               (Macros.target (Joined (HasType Planeswalker) Opponent))) ]
        (Just (1, 1))
 
 public export

@@ -20,14 +20,14 @@ identicalModesAllowed =
 public export
 okChoosePlayerOrPlaneswalker : Instruction []
 okChoosePlayerOrPlaneswalker =
-  Choose Nothing Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
+  Choose Nothing Nothing (Macros.a (Joined (HasType Planeswalker) AnyPlayer))
          Openly
 
 ||| "Choose you."
 public export
 badChooseYou : Unspellable (Instruction []) (\ok =>
   Choose Nothing Nothing You Openly {ch = ok})
-badChooseYou BareChoice impossible
+badChooseYou Oh impossible
 
 public export
 badConditionalArmAntecedent : Unspellable (Instruction []) (\ok =>
@@ -68,7 +68,7 @@ okAgentChoiceOfSome =
 public export
 badChooseSomeOf : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing Nothing (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Openly {ch = ok}])
-badChooseSomeOf BareChoice impossible
+badChooseSomeOf Oh impossible
 
 ||| "Exile target creature."
 public export
@@ -137,14 +137,14 @@ badChooseDefinite : Unspellable (Instruction []) (\ok =>
   Choose Nothing Nothing (Macros.the (And [Macros.creature,
                          Superlative MinOf (StatAxis Toughness)
                                      Macros.creatureYouControl])) Openly {ch = ok})
-badChooseDefinite BareChoice impossible
+badChooseDefinite Oh impossible
 
 ||| "This deals 1 damage to that permanent or player."
 public export
 okUnionAnaphorAfterJoin : Instruction []
 okUnionAnaphorAfterJoin =
   Sequentially [ DealDamage This (Lit 3)
-                   (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
+                   (Macros.target (Joined Macros.creature AnyPlayer))
                , DealDamage This (Lit 1) (Macros.That JoinW OneOf) ]
 
 ||| "This deals 3 damage to that permanent or player."
@@ -201,13 +201,13 @@ okKeywordClassWithSort =
 public export
 badClassOfParamlessKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Flying" Nothing)) {kn = ok})
-badClassOfParamlessKeyword KeywordTermInFactsTable impossible
+badClassOfParamlessKeyword Oh impossible
 
 ||| "a creature with renown of any color"
 public export
 badSortedClassOnNumberKeyword : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (AnyKeywordIn (MkKeywordFamily "Renown" (Just Color))) {kn = ok})
-badSortedClassOnNumberKeyword KeywordTermInFactsTable impossible
+badSortedClassOnNumberKeyword Oh impossible
 
 ||| "{T}: Draw a card. Activate only if you created a creature this turn."
 public export
@@ -432,12 +432,12 @@ badDisjunctionOrdered Oh impossible
 
 ||| "third from the top"
 public export
-okThirdFromTop : LibOrdinal
+okThirdFromTop : Ordinal
 okThirdFromTop = Nth 3
 
 ||| "zeroth from the top"
 public export
-badZerothFromTop : Unspellable LibOrdinal (\ok => Nth 0 {nz = ok})
+badZerothFromTop : Unspellable Ordinal (\ok => Nth 0 {nz = ok})
 badZerothFromTop ItIsSucc impossible
 
 ||| "Shuffle those cards into your library."
@@ -538,7 +538,7 @@ public export
 joinedCreatureTy :
   tyOfReach (Word JoinW) OneOf (instrIntro {bs = []}
     (DealDamage This (Lit 3)
-       (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))))
+       (Macros.target (Joined Macros.creature AnyPlayer))))
   = Just Creature
 joinedCreatureTy = Refl
 
@@ -1851,8 +1851,7 @@ markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og _)) =
 markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 markTyKeepsOnes j ty (MkBinding det Pile plur (PileP zn sz fc)) = Refl
-markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
-markTyKeepsOnes j ty (MkBinding det Player plur ChosenPlayerP) = Refl
+markTyKeepsOnes j ty (MkBinding det Player plur (PlayerP _)) = Refl
 markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
 markTyKeepsOnes j ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsOnes j ty (MkBinding det Gap plur GapP) = Refl
@@ -1867,8 +1866,7 @@ markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Pile plur (PileP zn sz fc)) = Refl
-markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
-markTyKeepsAt sl ty (MkBinding det Player plur ChosenPlayerP) = Refl
+markTyKeepsAt sl ty (MkBinding det Player plur (PlayerP _)) = Refl
 markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl
 markTyKeepsAt sl ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsAt sl ty (MkBinding det Gap plur GapP) = Refl

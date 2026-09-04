@@ -127,11 +127,6 @@ anyTarget = Joined (Or [HasType Creature, HasType Planeswalker, HasType Battle])
                    AnyPlayer
 
 public export
-kindJoin : (who : Predicate bs Player) -> (what : Predicate bs Object) ->
-           Predicate bs (Object \/ Player)
-kindJoin who what = Joined what who
-
-public export
 youAnd : (n : Noun bs Object) -> Noun bs (Player \/ Object)
 youAnd n = Both You n
 
@@ -1323,7 +1318,7 @@ onBottomIn : (a : Arrangement) ->
 onBottomIn a = LibraryAt (OneEnd OnBottom) (Just a) Nothing {af} {nf = Oh} BareScope
 
 public export
-nthFromTop : (n : LibOrdinal) -> ZoneExpr bs
+nthFromTop : (n : Ordinal) -> ZoneExpr bs
 nthFromTop n = LibraryAt (OneEnd OnTop) Nothing (Just n) BareScope
 
 public export
@@ -1336,7 +1331,7 @@ choiceOfTopOrBottom : (chooser : Noun bs Player) ->
 choiceOfTopOrBottom chooser = LibraryAt (EitherEnd (Just chooser) {ag}) Nothing Nothing BareScope
 
 public export
-nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
+nthFromTopOrBottomZ : (n : Ordinal) -> ZoneExpr bs
 nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) BareScope
 
 public export
@@ -1525,7 +1520,7 @@ exileUntil n ev =
 public export
 phasesOutUntil : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                 {auto 0 at : StatusEffectVal PhasedOut} ->
+                 {auto 0 at : StatusMarkable PhasedOut} ->
                  (ev : GameEvent (annIntro (SetStatus PhasedOut n {ok = zn} {at}))) ->
                  Instruction bs
 phasesOutUntil n ev = HeldUntil (SetStatus PhasedOut n {ok = zn} {at}) ev {ok = Oh}
@@ -1831,15 +1826,15 @@ proliferate : {bs : Bindings} ->
               {auto 0 mj : countReach (Word JoinW) ManyOf
                               (chosenIntro {bs}
                                 (counted Macros.anyNumber
-                                  (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
-                                            (And [Permanent, HasCounters Nothing])))) = 1} ->
+                                  (Joined (And [Permanent, HasCounters Nothing])
+                                          (Compare {k = Player} [AnyCounterAxis Player] AtLeast (Lit 1))))) = 1} ->
               Instruction bs
 proliferate =
   Enact Nothing "Proliferate" {kn = ActInFactsTable}
         (Sequentially [ Choose Nothing Nothing
                           (counted Macros.anyNumber
-                            (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
-                                      (And [Permanent, HasCounters Nothing])))
+                            (Joined (And [Permanent, HasCounters Nothing])
+                                    (Compare {k = Player} [AnyCounterAxis Player] AtLeast (Lit 1))))
                           Openly
                       , PutCounters (Lit 1) OwnKinds (EachOf (Pro (Word JoinW) ManyOf Whole {ok = mj})) ])
 
@@ -2268,7 +2263,7 @@ exchangeControlOfThis t other =
 
 public export
 choose : {k : Kind} -> (n : Noun bs k) ->
-         {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
+         {auto 0 ch : So (choiceClauseOk (the (Maybe (Noun bs Player)) Nothing) n)} ->
          Instruction bs
 choose n = Choose Nothing Nothing n Openly {ch}
 
@@ -2310,13 +2305,13 @@ amass sub n =
 public export
 chooses : {k : Kind} -> (who : Noun bs Player) ->
           (n : Noun (Experimental.Phrase.agentIntro who) k) ->
-          {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
+          {auto 0 ch : So (choiceClauseOk (Just who) n)} -> Instruction bs
 chooses who n = Choose Nothing (Just who) n Openly {ch}
 
 public export
 secretlyChooses : {k : Kind} -> (who : Noun bs Player) ->
                   (n : Noun (Experimental.Phrase.agentIntro who) k) ->
-                  {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
+                  {auto 0 ch : So (choiceClauseOk (Just who) n)} -> Instruction bs
 secretlyChooses who n = Choose Nothing (Just who) n Secretly {ch}
 
 public export
@@ -2794,11 +2789,6 @@ partySizeOf who = CountOf (partyOf who {sh})
 public export
 partySize : {bs : Bindings} -> Amount bs
 partySize = partySizeOf You
-
-||| "a creature in your party" [CR#700.8].
-public export
-creatureInYourParty : {bs : Bindings} -> Noun bs Object
-creatureInYourParty = someOf (exactly 1) party
 
 ||| "[a player] has a full party": four creatures in that party [CR#700.8c].
 public export

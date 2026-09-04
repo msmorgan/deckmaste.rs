@@ -173,7 +173,7 @@ okKnownKeywordPredicate = HasKeyword (TheKeyword "Flying")
 public export
 badUnknownKeywordPredicate : Unspellable (Predicate [] Object) (\ok =>
   HasKeyword (TheKeyword "Flyign") {kn = ok})
-badUnknownKeywordPredicate KeywordTermInFactsTable impossible
+badUnknownKeywordPredicate Oh impossible
 
 ||| "Protection from red" on a creature card
 public export
@@ -789,7 +789,7 @@ generalManaSymbolMatcher : Predicate [] Object
 generalManaSymbolMatcher = ManaCostHas (Simple (Specific (OfColor Red)))
 
 public export
-playerItRead : Noun [MkBinding AD Player OneOf PlayerP] Player
+playerItRead : Noun [MkBinding AD Player OneOf (PlayerP False)] Player
 playerItRead = They
 
 public export

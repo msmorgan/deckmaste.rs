@@ -334,24 +334,11 @@ data LookbackComplement : EventName -> Kind -> Kind -> Type where
                          LookbackComplement ev ks kc
 
 
-public export
-partTriggerOk : TurnPart -> Bool
-partTriggerOk Turn = False
-partTriggerOk _ = True
-
-public export
-partAddable : TurnPart -> Bool
-partAddable Turn = False
-partAddable _ = True
-
 
 public export
 data DamageKind = AnyDamage | CombatOnly | NoncombatOnly
 
 
-
-public export
-data Role = Agent | Patient
 
 public export
 counterRole : Role -> Role
@@ -387,16 +374,20 @@ deedHeadTysOk v r [] = deedBareOk v r
 deedHeadTysOk v r alts = all (deedAltOk v r) alts
 
 public export
+featureAltOk : DeedFeature -> Role -> List CardType -> Bool
+featureAltOk f r ts = maybe False (\v => deedAltOk v r ts) (featureLabel f)
+
+public export
 deedZoneOf : VerbLabel -> Role -> Maybe Zone
 deedZoneOf v r = roleZone (deedRoleOf v r)
 
 public export
 deedDefendsOk : VerbLabel -> Bool
-deedDefendsOk v = maybe False actDefends (actFactsFor v)
+deedDefendsOk v = deedFeatureOf v == Just Attacking
 
 public export
 deedTargetedOk : VerbLabel -> Bool
-deedTargetedOk v = maybe False actTargeted (actFactsFor v)
+deedTargetedOk v = deedFeatureOf v == Just Targeting
 
 public export
 deedPremiseSort : VerbLabel -> Maybe PremiseSort
@@ -443,8 +434,7 @@ deedsZone (d :: ds) r =
 ||| role refuses one, and these two refuse anything else.
 public export
 deedAbilityRole : VerbLabel -> Role -> Bool
-deedAbilityRole v Agent = v == "Trigger"
-deedAbilityRole v Patient = v == "Activate"
+deedAbilityRole v r = maybe False (== r) (actFactsFor v >>= actAbilityRole)
 
 public export
 deedAbilityOk : VerbLabel -> Role -> Bool -> Bool
@@ -509,17 +499,6 @@ playableFrom (Just Stack) = False
 public export
 PlayableFrom : Maybe Zone -> Type
 PlayableFrom z = So (playableFrom z)
-
-public export
-complementLocates : Maybe Zone -> Bool
-complementLocates Nothing = True
-complementLocates (Just Battlefield) = False
-complementLocates (Just Stack) = False
-complementLocates (Just Graveyard) = True
-complementLocates (Just Exile) = True
-complementLocates (Just Hand) = True
-complementLocates (Just Library) = True
-complementLocates (Just Command) = True
 
 public export
 placementDestOk : Zone -> Bool

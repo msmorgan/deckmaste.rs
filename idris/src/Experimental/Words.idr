@@ -372,6 +372,10 @@ isOne OneOf = True
 isOne ManyOf = False
 
 public export
+Eq Plurality where
+  (==) a b = isOne a == isOne b
+
+public export
 outputPlur : (agent : Plurality) -> (perAgent : Plurality) -> Plurality
 outputPlur OneOf OneOf = OneOf
 outputPlur OneOf ManyOf = ManyOf
@@ -457,10 +461,6 @@ data Ordinal : Type where   -- the N of "Nth" [CR#401.7]
   Nth : (n : Nat) -> {auto 0 nz : IsSucc n} -> Ordinal
 
 public export
-LibOrdinal : Type
-LibOrdinal = Ordinal
-
-public export
 VerbLabel : Type
 VerbLabel = String
 
@@ -476,6 +476,35 @@ premiseSortIx ValuePremise = 2
 public export
 Eq PremiseSort where
   (==) a b = premiseSortIx a == premiseSortIx b
+
+public export
+data Role = Agent | Patient
+
+public export
+roleIx : Role -> Nat
+roleIx Agent = 0
+roleIx Patient = 1
+
+public export
+Eq Role where
+  (==) a b = roleIx a == roleIx b
+
+||| The deeds a core constructor must name structurally, declared so a guard
+||| reads a feature rather than a verb's spelling.
+public export
+data DeedFeature = Attacking | Blocking | Targeting | ControlGrant | LibrarySearch
+
+public export
+deedFeatureIx : DeedFeature -> Nat
+deedFeatureIx Attacking = 0
+deedFeatureIx Blocking = 1
+deedFeatureIx Targeting = 2
+deedFeatureIx ControlGrant = 3
+deedFeatureIx LibrarySearch = 4
+
+public export
+Eq DeedFeature where
+  (==) a b = deedFeatureIx a == deedFeatureIx b
 
 public export
 record DeedRole where
@@ -500,12 +529,18 @@ record ActFacts where
   actIntransitive : Bool
   agentRole : DeedRole
   patientRole : DeedRole
-  actDefends : Bool
-  actTargeted : Bool
+  actFeature : Maybe DeedFeature
+  actAbilityRole : Maybe Role
   actCounterfactual : Maybe PremiseSort
   actRides : Bool
   actPlays : Bool
   actBounded : Bool
+
+||| A verb that declares nothing beyond being an act.
+public export
+plainAct : VerbLabel -> ActFacts
+plainAct v = MkActFacts v Nothing Nothing False [] False noRole noRole
+                        Nothing Nothing Nothing False False False
 
 ||| Keyword actions ([CR#701]) — one-shot verbs in effect position that confer
 ||| nothing, unlike the keyword abilities of `keywordFacts`: mill [CR#701.17],
@@ -513,294 +548,218 @@ record ActFacts where
 public export
 actFacts : List ActFacts
 actFacts =
-  [ MkActFacts "Destroy"     (Just "destroyed") (Just Graveyard) False [] False
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Sacrifice"   (Just "sacrificed") (Just Graveyard) False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False True
-  , MkActFacts "Exile"       (Just "exiled") (Just Exile) False [] False
-      noRole (MkDeedRole [Object] [] False Nothing)
-      False False Nothing False False False
-  , MkActFacts "Discard"     (Just "discarded") (Just Graveyard) False [] False
-      noRole (MkDeedRole [Object] [] False (Just Hand))
-      False False Nothing False False False
-  , MkActFacts "Mill"        (Just "milled") (Just Graveyard) False [] False
-      noRole (MkDeedRole [Object] [] False (Just Library))
-      False False Nothing False False False
-  , MkActFacts "Scry"        Nothing Nothing True [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Surveil"     Nothing Nothing True [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Tap"         (Just "tapped") Nothing False [] False
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Untap"       (Just "untapped") Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing False False True
-  , MkActFacts "Return"      Nothing Nothing False [] False
-      noRole (MkDeedRole [Object] [] False Nothing)
-      False False Nothing False False False
-  , MkActFacts "GainControl" Nothing Nothing False [] False
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Put"         Nothing Nothing False [] False
-      noRole (MkDeedRole [Object] [] False Nothing)
-      False False Nothing False False False
-  , MkActFacts "Search"      Nothing Nothing False
-      [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "Shuffle"     Nothing Nothing False [Library] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Proliferate" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "The Ring Tempts You" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Transform"   Nothing Nothing False [] True
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Convert"     Nothing Nothing False [] True
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Meld"        Nothing (Just Battlefield) False [] False
-      noRole (MkDeedRole [Object] [] False Nothing)
-      False False Nothing False False False
-  , MkActFacts "Unlock"      Nothing Nothing False [] False
-      noRole (MkDeedRole [] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Fully Unlock" Nothing Nothing False [] False
-      noRole (MkDeedRole [Object] [] False (Just Battlefield))
-      False False Nothing False False False
-  , MkActFacts "Attack"      Nothing Nothing False [] False
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False (Just ObjectPremise) False False True
-  , MkActFacts "Block"       Nothing Nothing False [] False
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False (Just ObjectPremise) False False True
-  , MkActFacts "Target"      Nothing Nothing False [] False
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True Nothing)
-      False True (Just ObjectPremise) False False True
-  , MkActFacts "Cast"        Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False (Just ObjectPremise) True True True
-  , MkActFacts "Play"        Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True Nothing)
-      False False (Just ObjectPremise) True True True
-  , MkActFacts "Counter"     Nothing Nothing False [] False
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing True False False
-  , MkActFacts "Copy"        Nothing Nothing False [] False
-      (MkDeedRole [] [] True (Just Stack))
-      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
-                   Planeswalker, Battle, Kindred] True (Just Stack))
-      False False Nothing False False True
-  , MkActFacts "Activate"    Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [] True (Just Stack))
-      False False Nothing False False True
-  , MkActFacts "Regenerate"  Nothing Nothing False [] False
-      (MkDeedRole [] [] True Nothing)
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False Nothing True False True
-  , MkActFacts "GainLife"    Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "Draw"        Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing)
-      (MkDeedRole [Object] [] True (Just Library))
-      False False Nothing False False True
-  , MkActFacts "Trigger"     Nothing Nothing False [] False
-      (MkDeedRole [Object] [] True (Just Stack)) noRole
-      False False Nothing False False True
-  , MkActFacts "LoseGame"    Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False False
-  , MkActFacts "WinGame"     Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False False
-  , MkActFacts "Spend"       Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False (Just ManaPremise) False False True
-  , MkActFacts "Crew"        Nothing Nothing False [] False
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Artifact] True (Just Battlefield))
-      False False (Just ValuePremise) False False True
-  , MkActFacts "Saddle"      Nothing Nothing False [] False
-      (MkDeedRole [Object] [Creature] True (Just Battlefield))
-      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
-                            Planeswalker, Battle] True (Just Battlefield))
-      False False (Just ValuePremise) False False True
-  , MkActFacts "Vote"        Nothing Nothing False [] False
-      (MkDeedRole [Player] [] True Nothing) noRole
-      False False Nothing False False True
-  , MkActFacts "Venture Into The Dungeon" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Abandon" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Adapt" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Airbend" Nothing (Just Exile) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Amass" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Assemble" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Attach" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Behold" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Blight" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Bolster" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Clash" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Cloak" Nothing (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Collect Evidence" Nothing (Just Exile) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Connive" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Create" Nothing (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Detain" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Discover" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Double" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Earthbend" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Endure" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Exchange" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Exert" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Explore" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Face A Villainous Choice" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Fateseal" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Fight" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Forage" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Goad" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Harness" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Heal" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Incubate" Nothing (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Investigate" Nothing (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Learn" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Manifest" Nothing (Just Battlefield) False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Manifest Dread" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Monstrosity" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Open An Attraction" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Planeswalk" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Populate" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Recruit" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Reveal" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Roll To Visit Your Attractions" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Set In Motion" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Support" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Suspect" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Time Travel" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Triple" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
-  , MkActFacts "Phase In" Nothing Nothing False [] True
-      (MkDeedRole [Object] [] True (Just Battlefield)) noRole
-      False False Nothing False False False
-  , MkActFacts "Waterbend" Nothing Nothing False [] False
-      noRole noRole
-      False False Nothing False False False
+  [ { participle := Just "destroyed"
+    , actDest := Just Graveyard
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    } (plainAct "Destroy")
+  , { participle := Just "sacrificed"
+    , actDest := Just Graveyard
+    , agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Planeswalker,
+                     Battle] True (Just Battlefield)
+    , actBounded := True
+    } (plainAct "Sacrifice")
+  , { participle := Just "exiled"
+    , actDest := Just Exile
+    , patientRole := MkDeedRole [Object] [] False Nothing
+    } (plainAct "Exile")
+  , { participle := Just "discarded"
+    , actDest := Just Graveyard
+    , patientRole := MkDeedRole [Object] [] False (Just Hand)
+    } (plainAct "Discard")
+  , { participle := Just "milled"
+    , actDest := Just Graveyard
+    , patientRole := MkDeedRole [Object] [] False (Just Library)
+    } (plainAct "Mill")
+  , { actStepwise := True
+    } (plainAct "Scry")
+  , { actStepwise := True
+    } (plainAct "Surveil")
+  , { participle := Just "tapped"
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    } (plainAct "Tap")
+  , { participle := Just "untapped"
+    , agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Planeswalker,
+                     Battle] True (Just Battlefield)
+    , actBounded := True
+    } (plainAct "Untap")
+  , { patientRole := MkDeedRole [Object] [] False Nothing
+    } (plainAct "Return")
+  , { patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    , actFeature := Just ControlGrant
+    } (plainAct "GainControl")
+  , { patientRole := MkDeedRole [Object] [] False Nothing
+    } (plainAct "Put")
+  , { actLoci := [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command]
+    , agentRole := MkDeedRole [Player] [] True Nothing
+    , actFeature := Just LibrarySearch
+    , actBounded := True
+    } (plainAct "Search")
+  , { actLoci := [Library]
+    } (plainAct "Shuffle")
+  , plainAct "Proliferate"
+  , plainAct "The Ring Tempts You"
+  , { actIntransitive := True
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    } (plainAct "Transform")
+  , { actIntransitive := True
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    } (plainAct "Convert")
+  , { actDest := Just Battlefield
+    , patientRole := MkDeedRole [Object] [] False Nothing
+    } (plainAct "Meld")
+  , { patientRole := MkDeedRole [] [] False (Just Battlefield)
+    } (plainAct "Unlock")
+  , { patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+    } (plainAct "Fully Unlock")
+  , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
+    , patientRole := MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield)
+    , actFeature := Just Attacking
+    , actCounterfactual := Just ObjectPremise
+    , actBounded := True
+    } (plainAct "Attack")
+  , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
+    , patientRole := MkDeedRole [Object] [Creature] False (Just Battlefield)
+    , actFeature := Just Blocking
+    , actCounterfactual := Just ObjectPremise
+    , actBounded := True
+    } (plainAct "Block")
+  , { agentRole := MkDeedRole [] [] True (Just Stack)
+    , patientRole := MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment,
+                     Instant, Sorcery, Planeswalker, Battle, Kindred] True Nothing
+    , actFeature := Just Targeting
+    , actCounterfactual := Just ObjectPremise
+    , actBounded := True
+    } (plainAct "Target")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                     Planeswalker, Battle, Kindred] True (Just Stack)
+    , actCounterfactual := Just ObjectPremise
+    , actRides := True
+    , actPlays := True
+    , actBounded := True
+    } (plainAct "Cast")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Instant,
+                     Sorcery, Planeswalker, Battle, Kindred] True Nothing
+    , actCounterfactual := Just ObjectPremise
+    , actRides := True
+    , actPlays := True
+    , actBounded := True
+    } (plainAct "Play")
+  , { agentRole := MkDeedRole [] [] True (Just Stack)
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                     Planeswalker, Battle, Kindred] True (Just Stack)
+    , actRides := True
+    } (plainAct "Counter")
+  , { agentRole := MkDeedRole [] [] True (Just Stack)
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                     Planeswalker, Battle, Kindred] True (Just Stack)
+    , actBounded := True
+    } (plainAct "Copy")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] True (Just Stack)
+    , actAbilityRole := Just Patient
+    , actBounded := True
+    } (plainAct "Activate")
+  , { agentRole := MkDeedRole [] [] True Nothing
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Planeswalker,
+                     Battle] True (Just Battlefield)
+    , actRides := True
+    , actBounded := True
+    } (plainAct "Regenerate")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , actBounded := True
+    } (plainAct "GainLife")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] True (Just Library)
+    , actBounded := True
+    } (plainAct "Draw")
+  , { agentRole := MkDeedRole [Object] [] True (Just Stack)
+    , actAbilityRole := Just Agent
+    , actBounded := True
+    } (plainAct "Trigger")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "LoseGame")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "WinGame")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , actCounterfactual := Just ManaPremise
+    , actBounded := True
+    } (plainAct "Spend")
+  , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
+    , patientRole := MkDeedRole [Object] [Artifact] True (Just Battlefield)
+    , actCounterfactual := Just ValuePremise
+    , actBounded := True
+    } (plainAct "Crew")
+  , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
+    , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Planeswalker,
+                     Battle] True (Just Battlefield)
+    , actCounterfactual := Just ValuePremise
+    , actBounded := True
+    } (plainAct "Saddle")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , actBounded := True
+    } (plainAct "Vote")
+  , plainAct "Venture Into The Dungeon"
+  , plainAct "Abandon"
+  , plainAct "Adapt"
+  , { actDest := Just Exile
+    } (plainAct "Airbend")
+  , plainAct "Amass"
+  , plainAct "Assemble"
+  , plainAct "Attach"
+  , plainAct "Behold"
+  , plainAct "Blight"
+  , plainAct "Bolster"
+  , plainAct "Clash"
+  , { actDest := Just Battlefield
+    } (plainAct "Cloak")
+  , { actDest := Just Exile
+    } (plainAct "Collect Evidence")
+  , plainAct "Connive"
+  , { actDest := Just Battlefield
+    } (plainAct "Create")
+  , plainAct "Detain"
+  , plainAct "Discover"
+  , plainAct "Double"
+  , plainAct "Earthbend"
+  , plainAct "Endure"
+  , plainAct "Exchange"
+  , plainAct "Exert"
+  , plainAct "Explore"
+  , plainAct "Face A Villainous Choice"
+  , plainAct "Fateseal"
+  , plainAct "Fight"
+  , plainAct "Forage"
+  , plainAct "Goad"
+  , plainAct "Harness"
+  , plainAct "Heal"
+  , { actDest := Just Battlefield
+    } (plainAct "Incubate")
+  , { actDest := Just Battlefield
+    } (plainAct "Investigate")
+  , plainAct "Learn"
+  , { actDest := Just Battlefield
+    } (plainAct "Manifest")
+  , plainAct "Manifest Dread"
+  , plainAct "Monstrosity"
+  , plainAct "Open An Attraction"
+  , plainAct "Planeswalk"
+  , plainAct "Populate"
+  , plainAct "Recruit"
+  , plainAct "Reveal"
+  , plainAct "Roll To Visit Your Attractions"
+  , plainAct "Set In Motion"
+  , plainAct "Support"
+  , plainAct "Suspect"
+  , plainAct "Time Travel"
+  , plainAct "Triple"
+  , { actIntransitive := True
+    , agentRole := MkDeedRole [Object] [] True (Just Battlefield)
+    } (plainAct "Phase In")
+  , plainAct "Waterbend"
   ]
 
 public export
@@ -825,6 +784,19 @@ actFactsFor v = factsIn v actFacts
 public export
 knownAct : VerbLabel -> Bool
 knownAct v = isJust (actFactsFor v)
+
+public export
+deedFeatureOf : VerbLabel -> Maybe DeedFeature
+deedFeatureOf v = actFactsFor v >>= actFeature
+
+public export
+labelWith : DeedFeature -> List ActFacts -> Maybe VerbLabel
+labelWith f [] = Nothing
+labelWith f (a :: as) = if actFeature a == Just f then Just (label a) else labelWith f as
+
+public export
+featureLabel : DeedFeature -> Maybe VerbLabel
+featureLabel f = labelWith f actFacts
 
 public export
 data KnownAct : VerbLabel -> Type where
@@ -930,8 +902,7 @@ data Payload : Kind -> Type where
   ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
             (prov : Maybe Stamp) -> (orig : Maybe Origin) ->
             (size : Maybe Nat) -> Payload Object
-  PlayerP : Payload Player
-  ChosenPlayerP : Payload Player
+  PlayerP : (chosen : Bool) -> Payload Player
   QualityP : Payload (Quality q)
   OutcomeP : (sort : OutcomeSort) -> Payload Outcome
   GapP : Payload Gap
@@ -959,8 +930,7 @@ Bindings = List Binding
 public export
 payloadZone : Payload k -> Maybe Zone
 payloadZone (ObjectP _ zn _ _ _) = zn
-payloadZone PlayerP = Nothing
-payloadZone ChosenPlayerP = Nothing
+payloadZone (PlayerP _) = Nothing
 payloadZone QualityP = Nothing
 payloadZone (OutcomeP _) = Nothing
 payloadZone GapP = Nothing
@@ -979,8 +949,7 @@ joinSeed (Just t) (Just u) = if t == u then Just t else Nothing
 public export
 payloadTy : Payload k -> Maybe CardType
 payloadTy (ObjectP ty _ _ _ _) = ty
-payloadTy PlayerP = Nothing
-payloadTy ChosenPlayerP = Nothing
+payloadTy (PlayerP _) = Nothing
 payloadTy QualityP = Nothing
 payloadTy (OutcomeP _) = Nothing
 payloadTy GapP = Nothing
@@ -1001,8 +970,7 @@ bindingTy (MkBinding _ _ _ pl) = payloadTy pl
 public export
 payloadSize : Payload k -> Maybe Nat
 payloadSize (ObjectP _ _ _ _ sz) = sz
-payloadSize PlayerP = Nothing
-payloadSize ChosenPlayerP = Nothing
+payloadSize (PlayerP _) = Nothing
 payloadSize QualityP = Nothing
 payloadSize (OutcomeP _) = Nothing
 payloadSize GapP = Nothing
@@ -1103,12 +1071,12 @@ Eq ChoiceSort where
 public export
 choiceB : ChoiceSort -> Binding
 choiceB (QSort q) = qualityB q
-choiceB PlayerC = MkBinding AD Player OneOf ChosenPlayerP
+choiceB PlayerC = MkBinding AD Player OneOf (PlayerP True)
 
 public export
 choiceBinds : ChoiceSort -> (k : Kind) -> Payload k -> Bool
 choiceBinds (QSort q) k _ = kindLte (Quality q) k
-choiceBinds PlayerC _ ChosenPlayerP = True
+choiceBinds PlayerC _ (PlayerP ch) = ch
 choiceBinds PlayerC _ _ = False
 
 public export
@@ -1492,10 +1460,8 @@ samePayload (ObjectP ty zn pv og _) (ObjectP ty' zn' pv' og' _) =
   sameMaybeBy (==) ty ty' && sameMaybeBy (==) zn zn' &&
   sameMaybeBy sameStamp pv pv' && sameMaybeBy sameOrigin og og'
 samePayload (ObjectP _ _ _ _ _) _ = False
-samePayload PlayerP PlayerP = True
-samePayload ChosenPlayerP ChosenPlayerP = True
-samePayload ChosenPlayerP _ = False
-samePayload PlayerP _ = False
+samePayload (PlayerP a) (PlayerP b) = a == b
+samePayload (PlayerP _) _ = False
 samePayload QualityP QualityP = True
 samePayload QualityP _ = False
 samePayload (OutcomeP s) (OutcomeP s') = s == s'
@@ -1540,14 +1506,16 @@ unionPayload (ObjectP t1 z1 v1 o1 s1) (ObjectP t2 z2 v2 o2 s2) =
                           (agreedField (==) s1 s2))
 unionPayload (AbilityP o1) (AbilityP o2) =
   Just (Object ** AbilityP (agreedField sameOrigin o1 o2))
-unionPayload PlayerP PlayerP = Just (Player ** PlayerP)
-unionPayload ChosenPlayerP ChosenPlayerP = Just (Player ** ChosenPlayerP)
+unionPayload (PlayerP a) (PlayerP b) =
+  if a == b then Just (Player ** PlayerP a) else Nothing
 unionPayload (ObjectP _ _ _ o1 _) (AbilityP o2) =
   Just (Object ** ObjectP Nothing (Just Stack) Nothing (agreedField sameOrigin o1 o2) Nothing)
 unionPayload (AbilityP o1) (ObjectP _ _ _ o2 _) =
   Just (Object ** ObjectP Nothing (Just Stack) Nothing (agreedField sameOrigin o1 o2) Nothing)
-unionPayload p@(ObjectP _ _ _ _ _) PlayerP = Just (Object \/ Player ** JoinP p PlayerP)
-unionPayload PlayerP q@(ObjectP _ _ _ _ _) = Just (Object \/ Player ** JoinP q PlayerP)
+unionPayload p@(ObjectP _ _ _ _ _) (PlayerP False) =
+  Just (Object \/ Player ** JoinP p (PlayerP False))
+unionPayload (PlayerP False) q@(ObjectP _ _ _ _ _) =
+  Just (Object \/ Player ** JoinP q (PlayerP False))
 unionPayload _ _ = Nothing
 
 public export
@@ -1602,8 +1570,7 @@ public export
 pubB : Binding -> Bool
 pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _ _)) = publicZone z
 pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _ _)) = True
-pubB (MkBinding _ _ _ PlayerP) = True
-pubB (MkBinding _ _ _ ChosenPlayerP) = True
+pubB (MkBinding _ _ _ (PlayerP _)) = True
 pubB (MkBinding _ _ _ QualityP) = True
 pubB (MkBinding _ _ _ (OutcomeP _)) = True
 pubB (MkBinding _ _ _ GapP) = True
@@ -1652,8 +1619,7 @@ stampWasField (Just (MkStamp _ wasF _)) = wasF
 public export
 payloadProv : Payload k -> Maybe Stamp
 payloadProv (ObjectP _ _ pv _ _) = pv
-payloadProv PlayerP = Nothing
-payloadProv ChosenPlayerP = Nothing
+payloadProv (PlayerP _) = Nothing
 payloadProv QualityP = Nothing
 payloadProv (OutcomeP _) = Nothing
 payloadProv GapP = Nothing
@@ -1666,8 +1632,7 @@ payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
 public export
 payloadOrig : Payload k -> Maybe Origin
 payloadOrig (ObjectP _ _ _ og _) = og
-payloadOrig PlayerP = Nothing
-payloadOrig ChosenPlayerP = Nothing
+payloadOrig (PlayerP _) = Nothing
 payloadOrig QualityP = Nothing
 payloadOrig (OutcomeP _) = Nothing
 payloadOrig GapP = Nothing
@@ -1692,7 +1657,42 @@ data NounWord = TypeW CardType | CardW | SpellW | PlayerW
                 PileW
 
 public export
+nounWordIx : NounWord -> Nat
+nounWordIx (TypeW _) = 0
+nounWordIx CardW = 1
+nounWordIx SpellW = 2
+nounWordIx PlayerW = 3
+nounWordIx PermanentW = 4
+nounWordIx TokenW = 5
+nounWordIx CopyW = 6
+nounWordIx JoinW = 7
+nounWordIx StackW = 8
+nounWordIx AbilityW = 9
+nounWordIx AbilityCopyW = 10
+nounWordIx (TypedCardW _) = 11
+nounWordIx PileW = 12
+
+public export
+sameNounWord : NounWord -> NounWord -> Bool
+sameNounWord (TypeW a) (TypeW b) = a == b
+sameNounWord (TypedCardW a) (TypedCardW b) = a == b
+sameNounWord _ _ = True
+
+public export
+Eq NounWord where
+  (==) a b = nounWordIx a == nounWordIx b && sameNounWord a b
+
+public export
 data VerbedMarking = Attributive | ThisWay
+
+public export
+markingIx : VerbedMarking -> Nat
+markingIx Attributive = 0
+markingIx ThisWay = 1
+
+public export
+Eq VerbedMarking where
+  (==) a b = markingIx a == markingIx b
 
 
 public export
@@ -1732,10 +1732,56 @@ public export
 data SlotCarrier = PermanentSlot | CardSlot | SpellSlot
 
 public export
+slotCarrierIx : SlotCarrier -> Nat
+slotCarrierIx PermanentSlot = 0
+slotCarrierIx CardSlot = 1
+slotCarrierIx SpellSlot = 2
+
+public export
+Eq SlotCarrier where
+  (==) a b = slotCarrierIx a == slotCarrierIx b
+
+public export
 data Reach = Bare | AtSlot SlotCarrier | Stamped VerbLabel | TokenBorn
            | Word NounWord | UnionHalf NounWord
            | Verbed VerbLabel NounWord VerbedMarking
            | ThatTurn
+
+public export
+reachIx : Reach -> Nat
+reachIx Bare = 0
+reachIx (AtSlot _) = 1
+reachIx (Stamped _) = 2
+reachIx TokenBorn = 3
+reachIx (Word _) = 4
+reachIx (UnionHalf _) = 5
+reachIx (Verbed _ _ _) = 6
+reachIx ThatTurn = 7
+
+public export
+sameReach : Reach -> Reach -> Bool
+sameReach (AtSlot a) (AtSlot b) = a == b
+sameReach (Stamped a) (Stamped b) = a == b
+sameReach (Word a) (Word b) = a == b
+sameReach (UnionHalf a) (UnionHalf b) = a == b
+sameReach (Verbed v w m) (Verbed v' w' m') = v == v' && w == w' && m == m'
+sameReach _ _ = True
+
+public export
+Eq Reach where
+  (==) a b = reachIx a == reachIx b && sameReach a b
+
+||| The reaches that resolve to an object binding a move can re-stamp.
+public export
+reachTracksObject : Reach -> Bool
+reachTracksObject Bare = True
+reachTracksObject (AtSlot _) = True
+reachTracksObject (Stamped _) = True
+reachTracksObject TokenBorn = True
+reachTracksObject (Word _) = False
+reachTracksObject (UnionHalf _) = False
+reachTracksObject (Verbed _ _ _) = False
+reachTracksObject ThatTurn = False
 
 public export
 slotZoneOk : SlotCarrier -> Maybe Zone -> Bool
@@ -1753,15 +1799,13 @@ halfReaches : NounWord -> Payload k -> Bool
 halfReaches w (JoinP l r) = halfReaches w l || halfReaches w r
 halfReaches (TypeW t) (ObjectP ty _ _ _ _) = tyIs t ty
 halfReaches PermanentW (ObjectP ty _ _ _ _) = isNothing ty
-halfReaches PlayerW PlayerP = True
-halfReaches PlayerW ChosenPlayerP = True
+halfReaches PlayerW (PlayerP _) = True
 halfReaches _ _ = False
 
 public export
 joinedPayload : Payload k -> Bool
 joinedPayload (ObjectP _ _ _ _ _) = False
-joinedPayload PlayerP = False
-joinedPayload ChosenPlayerP = False
+joinedPayload (PlayerP _) = False
 joinedPayload QualityP = False
 joinedPayload (OutcomeP _) = False
 joinedPayload GapP = False
@@ -1779,8 +1823,7 @@ wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
 wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = onStackZone zn
-wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
-wordReaches PlayerW (MkBinding _ _ _ ChosenPlayerP) = True
+wordReaches PlayerW (MkBinding _ _ _ (PlayerP _)) = True
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _ _)) =
   onFieldZone zn || stampWasField pv
@@ -1839,6 +1882,10 @@ stampedBy : VerbLabel -> Stamp -> Bool
 stampedBy v (MkStamp v' _ _) = v == v'
 
 public export
+stampFeature : Stamp -> Maybe DeedFeature
+stampFeature (MkStamp v _ _) = deedFeatureOf v
+
+public export
 verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
 verbedWordOk (TypeW t) (MkStamp _ wasF _) ty zn = wasF && tyIs t ty
 verbedWordOk CardW st ty zn = isCardZone zn
@@ -1867,7 +1914,7 @@ markFirst q ty (b :: bs) =
 public export
 survivesShuffle : Binding -> Bool
 survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _ _)) =
-  stampedBy "Search" st
+  stampFeature st == Just LibrarySearch
 survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) Nothing _ _)) = False
 survivesShuffle _ = True
 
@@ -1931,6 +1978,22 @@ faceOfReach r pl (b :: bs) =
 ||| The stretch of the binding stack a read resolves in.
 public export
 data Window = Whole | Top Nat | Below Nat
+
+public export
+windowIx : Window -> Nat
+windowIx Whole = 0
+windowIx (Top _) = 1
+windowIx (Below _) = 2
+
+public export
+sameWindow : Window -> Window -> Bool
+sameWindow (Top a) (Top b) = a == b
+sameWindow (Below a) (Below b) = a == b
+sameWindow _ _ = True
+
+public export
+Eq Window where
+  (==) a b = windowIx a == windowIx b && sameWindow a b
 
 public export
 view : Window -> Bindings -> Bindings
@@ -2104,7 +2167,7 @@ copyPayloadIn PhObject True _ _ = AbilityP (Just CopyOrigin)
 copyPayloadIn PhObject False ty z = ObjectP ty z Nothing (Just CopyOrigin) Nothing
 copyPayloadIn (PhJoin l r) ab ty z =
   JoinP (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
-copyPayloadIn PhPlayer _ _ _ = PlayerP
+copyPayloadIn PhPlayer _ _ _ = PlayerP False
 copyPayloadIn {k = Quality q} PhQuality _ _ _ = QualityP
 
 public export
@@ -2218,12 +2281,6 @@ public export
 knownKeywordTerm : KeywordTerm -> Bool
 knownKeywordTerm (TheKeyword k) = knownKeyword k
 knownKeywordTerm (AnyKeywordIn c) = keywordFamilyOk c
-
-public export
-data KnownKeywordTerm : KeywordTerm -> Type where
-  KeywordTermInFactsTable : {0 t : KeywordTerm} ->
-                            {auto 0 ok : knownKeywordTerm t = True} ->
-                            KnownKeywordTerm t
 
 public export
 keywordTermBare : KeywordTerm -> Bool
@@ -2818,10 +2875,6 @@ designationChecked : Designation -> Bool
 designationChecked d = designationEffectful (designationFacts d)
 
 public export
-designationGiven : Designation -> Bool
-designationGiven = designationChecked
-
-public export
 data ConferringWord = MonstrosityW | SaddleW | AscendW | StoriedW | RenownW
 
 public export
@@ -2834,7 +2887,7 @@ conferredDesignation RenownW = Renowned
 
 public export
 data GivingWarrant : Designation -> Type where
-  Instructed : {auto 0 at : So (designationGiven d)} -> GivingWarrant d
+  Instructed : {auto 0 at : So (designationChecked d)} -> GivingWarrant d
   InExpansionOf : (w : ConferringWord) -> GivingWarrant (conferredDesignation w)
 
 public export
@@ -3040,17 +3093,12 @@ knownCounter : String -> Bool
 knownCounter l = isJust (counterFactsFor l)
 
 public export
-data KnownCounter : String -> Type where
-  CounterInFactsTable : {0 l : String} -> {auto 0 ok : knownCounter l = True} ->
-                        KnownCounter l
-
-public export
 data CounterKind : Type where
   BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
   KeywordCounter : (k : KeywordLabel) ->
                    {auto 0 ok : KeywordCounterEligible k} -> CounterKind
   NamedCounter : (label : String) ->
-          {auto 0 ok : KnownCounter label} -> CounterKind
+          {auto 0 ok : So (knownCounter label)} -> CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -3311,39 +3359,19 @@ StatusWord : StatusVal c -> Type
 StatusWord v = So (statusWordOk v)
 
 public export
-statusEventOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusEventOk Tapped = True
-statusEventOk Untapped = True
-statusEventOk Flipped = True
-statusEventOk Unflipped = False
-statusEventOk FaceUp = True
-statusEventOk FaceDown = True
-statusEventOk PhasedIn = True
-statusEventOk PhasedOut = True
+statusMarkable : {0 c : StatusCat} -> StatusVal c -> Bool
+statusMarkable Tapped = True
+statusMarkable Untapped = True
+statusMarkable Flipped = True
+statusMarkable Unflipped = False
+statusMarkable FaceUp = True
+statusMarkable FaceDown = True
+statusMarkable PhasedIn = True
+statusMarkable PhasedOut = True
 
 public export
-StatusEventVal : StatusVal c -> Type
-StatusEventVal v = So (statusEventOk v)
-
-public export
-statusHeaderOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusHeaderOk FaceDown = True
-statusHeaderOk v = statusEventOk v
-
-public export
-statusEffectOk : {0 c : StatusCat} -> StatusVal c -> Bool
-statusEffectOk Tapped = True
-statusEffectOk Untapped = True
-statusEffectOk Flipped = True
-statusEffectOk Unflipped = False
-statusEffectOk FaceUp = True
-statusEffectOk FaceDown = True
-statusEffectOk PhasedIn = True
-statusEffectOk PhasedOut = True
-
-public export
-StatusEffectVal : StatusVal c -> Type
-StatusEffectVal v = So (statusEffectOk v)
+StatusMarkable : StatusVal c -> Type
+StatusMarkable v = So (statusMarkable v)
 
 public export
 colorsDistinct : List Color -> Bool
@@ -3442,13 +3470,12 @@ data TurnPart = Turn | Upkeep | EndStep | Combat | UntapStep | EndOfCombat
               | BeginningPhase
               | DeclareAttackers | DeclareBlockers | CombatDamage | Cleanup
 
-||| A "only before [part]" point names a phase or step inside the turn; a turn
-||| is made of its phases [CR#500.1], so there is no point before the turn one
-||| is already taking.
+||| A phase or step inside the turn: a turn is made of its phases [CR#500.1],
+||| so the turn is never one of its own parts.
 public export
-beforePartOk : TurnPart -> Bool
-beforePartOk Turn = False
-beforePartOk _ = True
+properTurnPart : TurnPart -> Bool
+properTurnPart Turn = False
+properTurnPart _ = True
 
 public export
 data RankPeriod : Type where

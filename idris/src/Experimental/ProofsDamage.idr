@@ -376,7 +376,7 @@ public export
 okPreventDealtToPermanent : StaticSpec []
 okPreventDealtToPermanent =
   DamageRule AnyDamage Unattributed
-             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (ToRecipient (Macros.a (Joined Permanent AnyPlayer)))
              (Prevent CutAll Nothing) Repeatedly
 
 ||| "Prevent all damage that would be dealt to this this turn."
@@ -551,14 +551,14 @@ public export
 okScaleDoubled : StaticSpec []
 okScaleDoubled =
   DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
-             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (ToRecipient (Macros.a (Joined Permanent AnyPlayer)))
              (Scale (Multiplied Doubled)) Repeatedly
 
 ||| "… it deals that much damage plus that much instead."
 public export
 badScaleShiftByThatMuch : Unspellable (StaticSpec []) (\ok =>
   DamageRule AnyDamage (DealtBy (Macros.a Macros.source))
-             (ToRecipient (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
+             (ToRecipient (Macros.a (Joined Permanent AnyPlayer)))
              (Scale (Shifted ShiftUp (ThatMuch {ok}))) Repeatedly)
 badScaleShiftByThatMuch Refl impossible
 
@@ -705,7 +705,7 @@ public export
 badCreatureHalfRead : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ DealDamage This (Lit 3)
-        (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
+        (Macros.target (Joined (HasType Planeswalker) AnyPlayer))
     , (Macros.discard
         (EitherOf (Pro (UnionHalf PlayerW) OneOf Whole)
                   (Macros.controllerOf (Macros.That (TypeW Creature) OneOf {ok = ok})))

@@ -220,7 +220,7 @@ okSpendPurpose =
 public export
 badPurposelessSpend : Unspellable (Instruction []) (\ok =>
   AddMana You (Lit 1) (Runs [[Colorless]]) [SpendOnly [] {ne = ok}])
-badPurposelessSpend MkSpendPurposes impossible
+badPurposelessSpend IsNonEmpty impossible
 
 ||| "… Counter target spell with the chosen name."
 public export

@@ -270,7 +270,7 @@ runeSnag =
 public export
 tahngarthChoosesDefender : Instruction []
 tahngarthChoosesDefender =
-  Choose Nothing Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Openly
+  Choose Nothing Nothing (Macros.a (Joined (HasType Planeswalker) AnyPlayer)) Openly
 
 public export
 reefShaman : Card

@@ -439,7 +439,7 @@ mutual
 
   public export
   gatePayer : Binding
-  gatePayer = MkBinding TheD Player OneOf PlayerP
+  gatePayer = MkBinding TheD Player OneOf (PlayerP False)
 
   public export
   data Compulsion : Bindings -> Type where
@@ -535,7 +535,8 @@ mutual
   public export
   counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
                        (n : Noun bs k) -> Noun (nomIntro n) ka -> Bool
-  counterpartNotSelf n (Pro Bare OneOf Whole) = countReach Bare OneOf (nounDelta n) == 0
+  counterpartNotSelf n (Pro r pl Whole) =
+    not (reachTracksObject r) || countReach r pl (nounDelta n) == 0
   counterpartNotSelf n _ = True
 
   public export
@@ -786,7 +787,7 @@ mutual
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n _) = selfSubjIntro n
   staticIntro (LosesAbilities n _) = selfSubjIntro n
-  staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what
+  staticIntro (GainsControl who what) = stampIntro (featureLabel ControlGrant) what
   staticIntro (Intercepts ev alts window repl use limit) = interceptCtx alts ev
   staticIntro (DamageRule kind src scope op use) = damageOpIntro op
   staticIntro (CantPrevent kind what ban) = unpreventableIntro what
@@ -849,7 +850,7 @@ mutual
   public export
   data TokenRider : Bindings -> Type where
     EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
-               {auto 0 at : StatusEffectVal v} -> TokenRider bs
+               {auto 0 at : StatusMarkable v} -> TokenRider bs
     EntersAttacking : (whom : AttackDefender bs) -> TokenRider bs
     EntersTransformed : TokenRider bs
     EntersMelded : (into : String) -> TokenRider bs
@@ -961,18 +962,13 @@ mutual
   public export
   data ManaRider : Bindings -> Type where
     SpendOnly : (ps : List (SpendPurpose bs)) ->
-                {auto 0 ne : SpendPurposes ps} -> ManaRider bs
+                {auto 0 ne : NonEmpty ps} -> ManaRider bs
     SpendNotOn : (ps : List (SpendPurpose bs)) ->
-                 {auto 0 ne : SpendPurposes ps} -> ManaRider bs
+                 {auto 0 ne : NonEmpty ps} -> ManaRider bs
     OnSpent : (mode : SpentMode) -> (only : Bool) ->
               (what : Noun bs Object) ->
               (says : Instruction (nomIntro what)) ->
               {auto 0 zn : ZoneIs (nounZone what) Stack} -> ManaRider bs
-
-  public export
-  data SpendPurposes : {0 bs : Bindings} -> List (SpendPurpose bs) -> Type where
-    MkSpendPurposes : {0 p : SpendPurpose bs} -> {0 ps : List (SpendPurpose bs)} ->
-                      SpendPurposes (p :: ps)
 
   public export
   copyBundleSays : {0 bs : Bindings} -> TokenChars bs -> Bool
@@ -1036,16 +1032,16 @@ mutual
                  {auto 0 rk : DamageRecipient to} -> Instruction bs
     Fights : (a : Noun bs Object) ->
              {auto 0 za : ZoneIs (nounZone a) Battlefield} ->
-             {auto 0 ta : So (deedNounOk "Attack" Agent a)} ->
+             {auto 0 ta : So (featureNounOk Attacking Agent a)} ->
              {auto 0 pa : nounPlur a = OneOf} ->
              (b : Noun (nomIntro a) Object) ->
              {auto 0 zb : ZoneIs (nounZone b) Battlefield} ->
-             {auto 0 tb : So (deedNounOk "Attack" Agent b)} ->
+             {auto 0 tb : So (featureNounOk Attacking Agent b)} ->
              {auto 0 pb : nounPlur b = OneOf} -> Instruction bs
     SetStatus : {k : Kind} -> {c : StatusCat} -> (v : StatusVal c) ->
                 (n : Noun bs k) -> {auto 0 sh : StatusHolder n} ->
                 {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-                {auto 0 at : StatusEffectVal v} -> Instruction bs
+                {auto 0 at : StatusMarkable v} -> Instruction bs
     TurnOver : (what : Noun bs Object) ->
                {auto 0 ok : ZoneIs (nounZone what) Battlefield} -> Instruction bs
     RemoveFromCombat : (n : Noun bs Object) ->
@@ -1058,21 +1054,21 @@ mutual
                {auto 0 zw : ZoneIs (nounZone what) Battlefield} -> Instruction bs
     BecomesBlocking : (n : Noun bs Object) ->
                       {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                      {auto 0 dn : So (deedNounOk "Block" Agent n)} ->
+                      {auto 0 dn : So (featureNounOk Blocking Agent n)} ->
                       (what : Noun (nomIntro n) Object) ->
                       {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
-                      {auto 0 dw : So (deedNounOk "Block" Patient what)} ->
+                      {auto 0 dw : So (featureNounOk Blocking Patient what)} ->
                       Instruction bs
     StopsBlocking : (n : Noun bs Object) ->
                     {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                    {auto 0 dn : So (deedNounOk "Block" Agent n)} ->
+                    {auto 0 dn : So (featureNounOk Blocking Agent n)} ->
                     (what : Noun (nomIntro n) Object) ->
                     {auto 0 zw : ZoneIs (nounZone what) Battlefield} ->
-                    {auto 0 dw : So (deedNounOk "Block" Patient what)} ->
+                    {auto 0 dw : So (featureNounOk Blocking Patient what)} ->
                     Instruction bs
     BecomesAttacking : (n : Noun bs Object) ->
                        {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
-                       {auto 0 dn : So (deedNounOk "Attack" Agent n)} ->
+                       {auto 0 dn : So (featureNounOk Attacking Agent n)} ->
                        (whom : AttackDefender (nomIntro n)) -> Instruction bs
     Regenerate : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
@@ -1092,7 +1088,7 @@ mutual
              {auto 0 nh : DoorNamesHost door} -> Instruction bs
     GameBecomes : (d : Designation) ->
                   {auto 0 sc : designationScope d = HeldByGame} ->
-                  {auto 0 at : So (designationGiven d)} -> Instruction bs
+                  {auto 0 at : So (designationChecked d)} -> Instruction bs
     Concludes : (v : OutcomeVerb) -> (who : Noun bs Player) -> Instruction bs
     GameDrawn : Instruction bs
     RestartsGame : Instruction bs
@@ -1104,8 +1100,8 @@ mutual
     Choose : {k : Kind} -> (first : Maybe (Noun bs Player)) ->
              (by : Maybe (Noun bs Player)) ->
              (n : Noun (agentCtx by) k) -> (disc : Disclosure) ->
-             {auto 0 od : ChoiceOrder first by} ->
-             {auto 0 ch : ChoiceClause by n} -> Instruction bs
+             {auto 0 od : So (choiceOrderOk first by)} ->
+             {auto 0 ch : So (choiceClauseOk by n)} -> Instruction bs
     ChoicesRevealed : (s : HiddenSort) -> Instruction bs
     Vote : (first : Maybe (Noun bs Player)) ->
            (voters : Noun (agentIntro first) Player) ->
@@ -1701,8 +1697,8 @@ mutual
   instrProfile : {bs : Bindings} -> Instruction bs -> InstrProfile bs
   instrProfile (DealDamage src amt to) = sameIntro (nomIntro to) [outcomeB DamageDealt]
   instrProfile (ControllerSacrifices n) =
-    MkInstrProfile (MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n)
-                 (MkBinding TheD Player OneOf PlayerP
+    MkInstrProfile (MkBinding TheD Player OneOf (PlayerP False) :: selfSubjIntro n)
+                 (MkBinding TheD Player OneOf (PlayerP False)
                     :: moveIntro (Just "Sacrifice") n (Just Graveyard))
                  Nothing
                  ([])
@@ -2003,7 +1999,7 @@ mutual
     LostWritten : (ab : AbilityAt bs) ->
                   {auto 0 hd : So (grantableAb ab)} -> AbilityLost bs
     LostTerm : (t : KeywordTerm) ->
-               {auto 0 kn : KnownKeywordTerm t} -> AbilityLost bs
+               {auto 0 kn : So (knownKeywordTerm t)} -> AbilityLost bs
 
   public export
   data AbilityAt : Bindings -> Type where

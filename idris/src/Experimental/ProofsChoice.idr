@@ -475,8 +475,8 @@ okChoiceStartingWithYou =
 public export
 badOrderedSingularChooser : Unspellable (Instruction []) (\ok =>
   Choose (Just You) (Just (Macros.target AnyPlayer)) (Macros.a Macros.creature)
-         Openly {od = RoundStartsWith {pl = ok}})
-badOrderedSingularChooser Refl impossible
+         Openly {od = ok})
+badOrderedSingularChooser Oh impossible
 
 ||| "Choose a creature. If you chose a creature this way, draw a card."
 public export
