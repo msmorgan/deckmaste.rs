@@ -222,3 +222,36 @@ carried 4–5 concurrent codex executors plus this reviewer throughout. The
 implementer's own `pgrep -c -x codex` count of 1 is a sandbox artifact and
 means nothing; the figure to compare against a future quiet-host run is the
 per-byte thread-CPU number, not the wall clock.
+
+### Post-refresh re-verification (reviewer)
+
+`kata refresh` before integration rewrote the stack over newly landed
+coordinator work that renamed the transitive frame variant
+(`TransitiveFrame` → `LexicalVerbPhrase::TransitiveLexicalVerbPhrase`),
+producing one two-sided conflict in
+`crates/deckmaste_english_v2/tests/parser.rs`: the default line renamed the
+bound frame, this landing renamed the destructured nominal object. Both edits
+were kept (`Object::ObjectNominal(object)` bound from
+`transitive_lexical_verb_phrase.as_ref()`); nothing was dropped. Every gate was
+rerun on the resulting tree:
+
+- `cargo fmt --all -- --check` — exit 0, no diff.
+- Strict all-target Clippy for `deckmaste_construction_core`,
+  `deckmaste_english_v2` and `xtask` — clean.
+- `cargo test --workspace` — 127 suites green, 0 failed (397 construction-core,
+  143 English-v2 library, 426 migration, 435 xtask library tests).
+- `cargo xtask english_v2 coverage --check --workers 8` — exit 0, summary
+  byte-for-byte the same as the table above (`selected_units=16771
+  covered_units=16771 selected_uncovered_units=0 unresolved_ties=0
+  roundtrip_mismatch_units=0 ownership_failure_units=0
+  licensing_checker_permitted=26 licensing_checker_forbidden=0
+  licensed_vocab_lexicon_homographs=2 form_literal_vocab_overlaps=25`).
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8` — exit 0,
+  `total=32641 selected=16771 unique=11515 specificity_resolved=5256
+  unresolved_ties=0`.
+
+Post-refresh performance advisory: coverage 58,698 ms at 101,172 ns/B (host
+load 28.63/34.03/36.65); ambiguity 46,880 ms at 103,762 ns/B (host load
+19.74/30.54/35.30). Both still exceed the 16,260 ms quiet-host ceiling under a
+host carrying 4–5 concurrent codex executors plus this reviewer; advisory, not
+a STOP.
