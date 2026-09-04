@@ -29,11 +29,13 @@ pub enum Property {
     /// boost. Positional single-object `Modify` twin ([`Reference`] +
     /// [`Modification`]); plurality, if ever needed, distributes with `Each`.
     Continuous(Reference, Modification),
-    /// A subtype-derived state-based action, checked in the engine's
-    /// [CR#704.3] sweep — no stack, no response window. The Saga sacrifice
-    /// ([CR#714.4]) and the Aura attachment check ([CR#704.5m]) are the
-    /// canonical instances. Parses today; the engine executes it in
-    /// stage 3.
+    /// A conferred state-based action ([CR#704]), checked in the engine's
+    /// [CR#704.3] sweep — no stack, no response window. THE home for a type's,
+    /// subtype's or counter's [CR#704] rule: an SBA is a game action, never an
+    /// ability ([CR#704.1,704.1a]), so this flavor confers no ability at all
+    /// (see [`Property::conferred_ability`]). The Aura attachment check
+    /// ([CR#704.5m]), the Saga sacrifice ([CR#714.4]) and the -1/-1
+    /// annihilation ([CR#704.5q]) are the canonical instances.
     StateBased {
         condition: Arc<Condition>,
         effect: Arc<OneShotEffect>,

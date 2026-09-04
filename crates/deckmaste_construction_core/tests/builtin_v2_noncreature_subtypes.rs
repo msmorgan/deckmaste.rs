@@ -354,7 +354,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
         (
             SubtypeCategory::Enchantment,
             "Aura",
-            "Subtype(name:\"Aura\",types:[Enchantment],confers:[Ability(Innate(Static(Sba(when:Not(LegallyAttached(This)),then:Move(This,Graveyard)))) )])",
+            "Subtype(name:\"Aura\",types:[Enchantment],confers:[StateBased(condition:Not(LegallyAttached(This)),effect:Move(This,Graveyard))])",
         ),
         (
             SubtypeCategory::Enchantment,

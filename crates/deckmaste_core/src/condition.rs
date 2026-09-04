@@ -55,8 +55,9 @@ pub enum Condition {
     /// legality predicate (host-type / protection / `Cant(Attach)`). False when
     /// the object is unattached, attached to an illegal host, or self-attached
     /// — the exact "or is not attached / attached to an illegal object" trigger
-    /// of the Aura graveyard SBA ([CR#704.5m]), whose static is
-    /// `Sba(Not(LegallyAttached(Ref(This))), Move(Ref(This), Graveyard))`. The
+    /// of the Aura graveyard SBA ([CR#704.5m]), which the Aura subtype confers
+    /// as `StateBased(Not(LegallyAttached(Ref(This))), Move(Ref(This),
+    /// Graveyard))`. The
     /// engine evaluates it through the one `attachment_legal` predicate (the
     /// same one the [CR#701.3b] attach no-op uses), never by subtype.
     LegallyAttached(Reference),

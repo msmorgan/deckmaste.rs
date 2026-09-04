@@ -157,12 +157,16 @@ pub fn sweep(state: &GameState) -> Vec<GameEvent> {
 /// both keyed on conferred data + the `attached_to` relation only; NEVER on
 /// the Aura/Equipment/Fortification subtype:
 ///
-/// 1. **Firing `Sba { when, then }` statics.** The Aura graveyard rule
-///    ([CR#704.5m]) is `Sba(Not(LegallyAttached(Ref(This))), Move(Ref(This),
-///    Graveyard))`, conferred `Innate` by the Aura subtype. For each
-///    battlefield object, for each `Sba` it carries (peeling `Innate`),
-///    evaluate `when` with `This` = the object; if true, run `then`'s events.
-///    Objects a firing `Sba` removes this sweep are tracked so pass 2 doesn't
+/// 1. **Firing state-checked SBA rows.** Two sources, both `{when, then}`:
+///    the type/subtype-conferred `Property::StateBased` flavor — the Aura
+///    graveyard rule ([CR#704.5m]) is `StateBased(Not(LegallyAttached(
+///    Ref(This))), Move(Ref(This), Graveyard))`, an ability-free conferral
+///    because a [CR#704] game action is not an ability ([CR#704.1,704.1a])
+///    — and the `StaticEffect::Sba` statics an OBJECT carries (peeling
+///    `Innate`), which still spell card-level state-checked statics such as
+///    ascend ([CR#702.131b]). For each battlefield object, evaluate `when`
+///    with `This` = the object; if true, run `then`'s events. Objects a
+///    firing row removes this sweep are tracked so pass 2 doesn't
 ///    double-handle them.
 /// 2. **Generic illegal-attachment cleanup.** Any object attached to an illegal
 ///    host (per `attachment_legal`) that no firing `Sba` removed → becomes
@@ -173,12 +177,29 @@ fn attachment_sbas(state: &GameState, view: &crate::layer::LayeredView) -> Vec<G
     let mut removed_by_sba: std::collections::BTreeSet<ObjectId> =
         std::collections::BTreeSet::new();
 
-    // (1) Firing `Sba` statics.
+    // (1) Firing state-checked SBA rows.
     for &id in &state.zones.battlefield {
         // A `This`-anchored frame: `condition_holds`/`action_items` resolve
         // `Ref(This)` to this object via the frame source ([CR#603.10a]).
         let frame = crate::stack::Frame::bare(id, state.objects.obj(id).controller);
         let mut rows: Vec<(deckmaste_core::Condition, deckmaste_core::OneShotEffect)> = Vec::new();
+        // Type/subtype-conferred SBAs ([CR#704.5m]) — the ability-free
+        // `Property::StateBased` flavor, read off the DERIVED types/subtypes so
+        // a layer-4 grant contributes exactly like a printed one. It confers no
+        // ability ([`Property::conferred_ability`] is `None` for it), so the
+        // static walk below never sees it; same read as
+        // `counter_state_based_sbas` does for a counter's.
+        let derived = view.get(id);
+        for prop in derived
+            .card_types
+            .iter()
+            .flat_map(|t| t.confers.iter())
+            .chain(derived.subtypes.iter().flat_map(|s| s.confers.iter()))
+        {
+            if let deckmaste_core::Property::StateBased { condition, effect } = prop {
+                rows.push(((**condition).clone(), (**effect).clone()));
+            }
+        }
         crate::legal::for_each_static(state, view, id, |e| {
             if let deckmaste_core::StaticEffect::Sba { when, then } = e {
                 rows.push((when.as_ref().clone(), (**then).clone()));
@@ -1190,6 +1211,90 @@ mod tests {
             actions.iter().any(|e| matches!(e,
                 GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
             "unattached Aura is moved to the graveyard ([CR#704.5m]); got {actions:?}"
+        );
+    }
+
+    /// The Aura SUBTYPE's own declaration, conferring its [CR#704.5m] rule the
+    /// ability-free way: `Property::StateBased { condition, effect }`. A
+    /// [CR#704] state-based action is not an ability ([CR#704.1,704.1a]), so it
+    /// is not `Property::Ability(Static(Sba(..)))`.
+    fn aura_subtype() -> deckmaste_core::Subtype {
+        deckmaste_core::Subtype {
+            name: "Aura".into(),
+            types: [Type::Enchantment].into(),
+            confers: [deckmaste_core::Property::StateBased {
+                condition: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                )))),
+                effect: Arc::new(OneShotEffect::Act(deckmaste_core::Action::move_to(
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                    Zone::Graveyard,
+                ))),
+            }]
+            .into(),
+        }
+    }
+
+    fn on_field_with_subtypes(
+        state: &mut GameState,
+        name: &str,
+        types: Vec<Type>,
+        subtypes: Vec<deckmaste_core::Subtype>,
+    ) -> crate::object::ObjectId {
+        let card = Card::Normal(CardFace {
+            name: name.into(),
+            types: types.into_iter().map(Type::def).collect(),
+            subtypes,
+            ..CardFace::default()
+        });
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        id
+    }
+
+    /// [CR#704.5m] through the ability-free conferral: an Aura whose graveyard
+    /// rule arrives as the subtype's `Property::StateBased` (no ability at all)
+    /// still fires in the sweep. Same asserted outcome as
+    /// `sba_attach_unattached_aura_goes_to_graveyard`, new spelling.
+    #[test]
+    fn state_based_conferral_moves_unattached_aura_to_graveyard() {
+        let mut state = game();
+        let aura = on_field_with_subtypes(
+            &mut state,
+            "Test Aura",
+            vec![Type::Enchantment],
+            vec![aura_subtype()],
+        );
+        let actions = sba::sweep(&state);
+        assert!(
+            actions.iter().any(|e| matches!(e,
+                GameEvent::ZoneChange(ZoneChange { snapshot: None, object, to: Zone::Graveyard, .. }) if *object == aura)),
+            "a `Property::StateBased` Aura conferral fires the [CR#704.5m] move; got {actions:?}"
+        );
+    }
+
+    /// The taxonomic point ([CR#704.1a,604.1]): the `StateBased` conferral
+    /// grants the Aura NO ability — it is invisible to the derived ability
+    /// list — yet the SBA still fires (asserted above).
+    #[test]
+    fn state_based_conferral_grants_no_ability() {
+        let mut state = game();
+        let aura = on_field_with_subtypes(
+            &mut state,
+            "Test Aura",
+            vec![Type::Enchantment],
+            vec![aura_subtype()],
+        );
+        let view = state.layers();
+        assert!(
+            view.get(aura).abilities.is_empty(),
+            "a state-based conferral is not an ability; got {:?}",
+            view.get(aura).abilities
         );
     }
 

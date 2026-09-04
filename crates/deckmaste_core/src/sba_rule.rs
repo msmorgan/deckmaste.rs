@@ -11,9 +11,10 @@ use crate::Region;
 /// matching `scope`, with `This` bound to that object, if `when` holds the
 /// engine performs `then`*. `scope` is the binding domain for `This` (a
 /// `Predicate` over object class — `Type(Creature)`, etc.), checked before
-/// `when`. This is the same `when`/`then` shape conferred statics use (see
-/// [`crate::StaticEffect::Sba`]), lifted to a global, scoped rule so the rule
-/// set is swappable (variant Magic) without touching the engine.
+/// `when`. This is the same `condition`/`effect` shape a type or subtype's own
+/// [CR#704] rule uses (see [`crate::Property::StateBased`]), lifted to a
+/// global, scoped rule so the rule set is swappable (variant Magic) without
+/// touching the engine.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SbaRule {
     pub region: Region<SbaBody>,

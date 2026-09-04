@@ -361,16 +361,22 @@ pub enum StaticEffect {
     },
     /// A scoped counterfactual premise ([CR#609.4]) — see [`AsThough`].
     AsThough(AsThough),
-    /// A state-based action expressed as data ([CR#704]): whenever `when`
-    /// holds (evaluated with `This` = the carrying object), perform `then` as
-    /// part of the SBA sweep. The Aura must-be-attached rule ([CR#704.5m]) is
-    /// `Sba { when: Not(LegallyAttached(Ref(This))), then: Move(Ref(This),
-    /// Graveyard) }`; the universal SBA-as-data primitive generalizes (a Saga's
-    /// [CR#714.4] sacrifice is `Sba(lore≥final, Sacrifice(Ref(This)))`). The
-    /// SBA sweep reads these statics generically — it never branches on the
-    /// Aura/Equipment/Fortification subtype. `then` is boxed (an
-    /// `OneShotEffect` dominates `StaticEffect`'s size; `Box` only for the
-    /// size cycle, per the "Box only for cycles" rule).
+    /// A state-checked static ([CR#604.1]): whenever `when` holds (evaluated
+    /// with `This` = the carrying object), perform `then` as part of the SBA
+    /// sweep. Ascend on a permanent is the type case — [CR#702.131b] calls it
+    /// a static ability, and its "any time you control ten or more permanents"
+    /// gate is exactly this shape.
+    ///
+    /// NOT the home for a rules-defined state-based action ([CR#704.1] — an
+    /// SBA is a game action, not an ability of any kind). A type or subtype's
+    /// [CR#704] rule is conferred ability-free as
+    /// [`Property::StateBased`](crate::Property::StateBased) (the Aura
+    /// must-be-attached rule, [CR#704.5m]); a global one is an
+    /// [`SbaRule`](crate::SbaRule). The sweep reads all three generically — it
+    /// never branches on the Aura/Equipment/Fortification subtype.
+    ///
+    /// `then` is boxed (an `OneShotEffect` dominates `StaticEffect`'s size;
+    /// `Box` only for the size cycle, per the "Box only for cycles" rule).
     Sba {
         when: Arc<Condition>,
         then: Arc<crate::OneShotEffect>,
