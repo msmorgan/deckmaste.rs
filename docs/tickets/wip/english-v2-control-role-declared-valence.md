@@ -46,6 +46,10 @@ ticket's explicit fences. No coverage retirement, lock mutation, test change,
 or grammar change was retained; the specified coverage and ambiguity gates
 were therefore not run to completion.
 
+`kata refresh` subsequently rewrote this stopped record onto the current
+default line. Because the blocker leaves no candidate implementation to gate,
+the measurements remain intentionally absent rather than stale.
+
 - Assurance census: restored 0; re-spelled 0; ignored 0; added 0; removed 0.
 - Deviations and additions: none.
 - glossary gap: none.
