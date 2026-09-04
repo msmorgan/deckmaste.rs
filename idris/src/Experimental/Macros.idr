@@ -1840,7 +1840,7 @@ proliferate : {bs : Bindings} ->
               Instruction bs
 proliferate =
   Enact Nothing "Proliferate" {kn = ActInFactsTable}
-        (Sequentially [ Choose Nothing
+        (Sequentially [ Choose Nothing Nothing
                           (counted Macros.anyNumber
                             (kindJoin (Compare [AnyCounterAxis Player] AtLeast (Lit 1))
                                       (And [Permanent, HasCounters Nothing])))
@@ -2274,7 +2274,7 @@ public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : ChoiceClause (the (Maybe (Noun bs Player)) Nothing) n} ->
          Instruction bs
-choose n = Choose Nothing n Openly {ch}
+choose n = Choose Nothing Nothing n Openly {ch}
 
 public export
 armyYouControl : {bs : Bindings} -> Predicate bs Object
@@ -2315,13 +2315,13 @@ public export
 chooses : {k : Kind} -> (who : Noun bs Player) ->
           (n : Noun (Experimental.Phrase.agentIntro who) k) ->
           {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
-chooses who n = Choose (Just who) n Openly {ch}
+chooses who n = Choose Nothing (Just who) n Openly {ch}
 
 public export
 secretlyChooses : {k : Kind} -> (who : Noun bs Player) ->
                   (n : Noun (Experimental.Phrase.agentIntro who) k) ->
                   {auto 0 ch : ChoiceClause (Just who) n} -> Instruction bs
-secretlyChooses who n = Choose (Just who) n Secretly {ch}
+secretlyChooses who n = Choose Nothing (Just who) n Secretly {ch}
 
 public export
 itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
@@ -2341,6 +2341,25 @@ dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 rk : DamageRecipient to} -> Instruction bs
 dealsDamageOwnPower src to =
   DealDamage src (StatOf Power (Own Bare OneOf (nounDelta src) bs {sp = Refl} {ok}) {ty}) to {pm} {rk}
+
+public export
+comparesOwnStat : {bs : Bindings} -> {k : Kind} -> (c : Stat) ->
+                  (dom : Predicate bs k) -> {auto ph : Phrasal k} ->
+                  (r : Comparator) -> (bound : Amount bs) ->
+                  {auto 0 ok : countReach Bare OneOf
+                                 [Experimental.Phrase.bindFor TheD OneOf ph dom] = 1} ->
+                  {auto 0 ty : So (statHeadTysOk c
+                                    (nounHeadTys
+                                      (Own Bare OneOf
+                                        [Experimental.Phrase.bindFor TheD OneOf ph dom]
+                                        (Experimental.Phrase.predDelta dom ++ bs)
+                                        {sp = Refl} {ok})))} ->
+                  Predicate bs k
+comparesOwnStat c dom r bound =
+  CompareOver dom
+    (StatOf c (Own Bare OneOf [bindFor TheD OneOf ph dom]
+                  (predDelta dom ++ bs) {sp = Refl} {ok}) {ty})
+    r bound
 
 public export
 additionalPart : (part : TurnPart) -> (anchor : Maybe TurnPart) ->

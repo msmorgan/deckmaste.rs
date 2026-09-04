@@ -796,6 +796,9 @@ actFacts =
   , MkActFacts "Triple" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False
+  , MkActFacts "Phase In" Nothing Nothing False [] True
+      (MkDeedRole [Object] [] True (Just Battlefield)) noRole
+      False False Nothing False False False False
   , MkActFacts "Waterbend" Nothing Nothing False [] False
       noRole noRole
       False False Nothing False False False False

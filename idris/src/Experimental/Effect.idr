@@ -1100,8 +1100,10 @@ mutual
                         (piles : Nat) -> (faces : List PileFace) ->
                         {auto 0 ff : FacesFit faces piles} ->
                         {auto 0 pl : nounPlur grp = ManyOf} -> Instruction bs
-    Choose : {k : Kind} -> (by : Maybe (Noun bs Player)) ->
+    Choose : {k : Kind} -> (first : Maybe (Noun bs Player)) ->
+             (by : Maybe (Noun bs Player)) ->
              (n : Noun (agentCtx by) k) -> (disc : Disclosure) ->
+             {auto 0 od : ChoiceOrder first by} ->
              {auto 0 ch : ChoiceClause by n} -> Instruction bs
     ChoicesRevealed : (s : HiddenSort) -> Instruction bs
     Vote : (first : Maybe (Noun bs Player)) ->
@@ -1335,7 +1337,7 @@ mutual
   reflexEncloseUse (Expose _ _ _) = EncReflexive
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive
-  reflexEncloseUse (Choose _ _ _) = EncReflexive
+  reflexEncloseUse (Choose _ _ _ _) = EncReflexive
   reflexEncloseUse (Vote _ _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
@@ -1437,7 +1439,7 @@ mutual
   costActionOk (Copy _ _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (CopyTargets copy _) = costNounOk copy
-  costActionOk (Choose _ n _) = costNounOk n
+  costActionOk (Choose _ _ n _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
@@ -1602,7 +1604,7 @@ mutual
       :: amtIntro times
   instrIntro (ChooseNewTargets what) = nomIntro what
   instrIntro (CopyTargets copy whom) = nomIntro whom
-  instrIntro (Choose by n _) = chooseIntro by n
+  instrIntro (Choose _ by n _) = chooseIntro by n
   instrIntro (ChoicesRevealed _) = bs
   instrIntro (Vote _ _ _ _) = bs
   instrIntro (Move what to _) =
@@ -1827,7 +1829,7 @@ mutual
                                          (copyLandsIn src (nounZone what)))])
   instrProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
-  instrProfile (Choose by n _) = sameIntro (chooseAnn by n) []
+  instrProfile (Choose _ by n _) = sameIntro (chooseAnn by n) []
   instrProfile (ChoicesRevealed _) = sameIntro bs []
   instrProfile (Vote _ _ _ _) = sameIntro bs []
   instrProfile (Move what to _) = sameIntro (nomIntro what) []
@@ -2384,8 +2386,8 @@ mutual
 
   public export
   instrChoiceDelta : {0 bs : Bindings} -> Instruction bs -> List Binding
-  instrChoiceDelta (Choose {k} _ (Described (ADet _) _) _) = choiceDeltaAt k
-  instrChoiceDelta (Choose _ _ _) = []
+  instrChoiceDelta (Choose {k} _ _ (Described (ADet _) _) _) = choiceDeltaAt k
+  instrChoiceDelta (Choose _ _ _ _) = []
   instrChoiceDelta (Sequentially es) = instrsChoiceDelta es
   instrChoiceDelta (May _ body _ _) = instrChoiceDelta body
   instrChoiceDelta (IfDone body _ _) = instrChoiceDelta body

@@ -211,7 +211,7 @@ badBarePluralDamageRecipient Oh impossible
 ||| "Choose any number of target creatures. Put a +1/+1 counter on them."
 public export
 badThemCounterRecipient : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing (Described (TargetDet Macros.anyNumber) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet Macros.anyNumber) Macros.creature) Openly,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It ManyOf)) {pm = ok}])
 badThemCounterRecipient Oh impossible
 

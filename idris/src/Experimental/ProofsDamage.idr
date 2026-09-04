@@ -66,15 +66,15 @@ badTheyIt (Refl, _) impossible
 public export
 okThem : Instruction []
 okThem =
-  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature)
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature)
                        Openly,
                 SetStatus Tapped (Macros.It ManyOf)]
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
 badThemAmbig : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
-               Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+               Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
                SetStatus Tapped ((Macros.It ManyOf) {ok})])
 badThemAmbig Refl impossible
 

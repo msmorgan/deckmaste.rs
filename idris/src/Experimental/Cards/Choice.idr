@@ -257,7 +257,7 @@ runeSnag =
 public export
 tahngarthChoosesDefender : Instruction []
 tahngarthChoosesDefender =
-  Choose Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Openly
+  Choose Nothing Nothing (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Openly
 
 public export
 reefShaman : Card
@@ -847,7 +847,7 @@ public export
 forgottenLoreRepeat : Instruction []
 forgottenLoreRepeat =
   Sequentially
-    [ Choose (Just (Macros.target Opponent))
+    [ Choose Nothing (Just (Macros.target Opponent))
              (Macros.a (InZone (Macros.graveyardOf You))) Openly
     , (May You (Pay You (Mana [Macros.pip Green]) PaidOnce) (Just (Repeat AgainExcludingChosen)) Nothing) ]
 
@@ -1711,3 +1711,45 @@ stickTogether =
            (And [Macros.creature, HasSubtype (creatureType "Wizard"),
                  HasPossessor ControllerAx Macros.They]))
     , Macros.sacrifice (Macros.each AnyPlayer) (Macros.theRest Object) ]
+
+||| Disciple of Caelus Nin: "starting with you" fixes the order the players
+||| choose in [CR#101.4].
+public export
+discipleOfCaelusNin : Card
+discipleOfCaelusNin =
+  Macros.card "Disciple of Caelus Nin"
+       (Just [Macros.generic 4, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Choose (Just You) (Just (Macros.each AnyPlayer))
+                  (Macros.counted (Macros.upTo 5)
+                     (And [Permanent, HasPossessor ControllerAx Macros.They]))
+                  Openly
+              , SetStatus PhasedOut
+                  (Macros.allOf (And [Permanent, OtherThan Macros.thisCreature,
+                                      NotChosen])) ])
+       , Static (Deontic (Macros.allOf Permanent) Forbid ["Phase In"] Agent Nothing
+                         NoDeonticPatient Nothing NoDeonticRider) ]
+       (Just (3, 4))
+
+||| Sculpted Sunburst: "if you chose a creature this way" reads the standing
+||| choices back, the same manner "not chosen ... this way" excludes [CR#101.4].
+public export
+sculptedSunburst : Card
+sculptedSunburst =
+  Macros.card "Sculpted Sunburst"
+       (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell Nothing (Sequentially
+                  [ Macros.choose (Macros.a Macros.creatureYouControl)
+                  , Macros.chooses (Macros.each Opponent)
+                      (Macros.a (Macros.comparesOwnStat Power
+                                   (And [Macros.creature,
+                                         HasPossessor ControllerAx Macros.They])
+                                   AtMost (StatOf Power (Macros.It OneOf))))
+                  , If (ChoseThisWay You Macros.creature)
+                       (Macros.exile You
+                          (Macros.each (And [Macros.creature, NotChosen])))
+                       Nothing ]) ]
+       Nothing

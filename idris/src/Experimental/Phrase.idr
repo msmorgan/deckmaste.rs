@@ -2159,6 +2159,19 @@ mutual
                   {auto 0 ok : So (agentChoosable n)} ->
                   ChoiceClause (Just by) n
 
+  ||| "Starting with you" fixes the turn order in which the players who choose
+  ||| make their choices, so it says nothing unless several players choose
+  ||| [CR#101.4].
+  public export
+  data ChoiceOrder : {0 bs : Bindings} -> Maybe (Noun bs Player) ->
+                     Maybe (Noun bs Player) -> Type where
+    Unordered : {0 bs : Bindings} -> {0 by : Maybe (Noun bs Player)} ->
+                ChoiceOrder Nothing by
+    RoundStartsWith : {0 bs : Bindings} -> {0 first : Noun bs Player} ->
+                      {0 by : Noun bs Player} ->
+                      {auto 0 pl : nounPlur by = ManyOf} ->
+                      ChoiceOrder (Just first) (Just by)
+
   public export
   data Ballot : Bindings -> Type where
     ByLabel : (opts : List VoteLabel) ->
@@ -2367,6 +2380,8 @@ mutual
                    {auto 0 rk : So (kindLte k (Object \/ Player))} ->
                    {auto 0 nz : So (not (zoneIsB (seedZone p) Stack))} ->
                    Condition bs
+    ChoseThisWay : {k : Kind} -> (who : Noun bs Player) -> (p : Predicate bs k) ->
+                   {auto 0 cs : ChoiceInScope k bs} -> Condition bs
     PreventedFromSource : (p : Predicate bs Object) ->
                           {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                           Condition bs
@@ -2452,6 +2467,7 @@ mutual
   condDelta (CompareAmt subj _ bound) =
     gapB :: (amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
+  condDelta (ChoseThisWay who _) = selfSubjDelta who
   condDelta (PreventedFromSource _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []

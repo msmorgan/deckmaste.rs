@@ -38,13 +38,13 @@ badChosenNumberRead Oh impossible
 public export
 okSinglePower : Instruction []
 okSinglePower =
-  Sequentially [Choose Nothing (Macros.target Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly,
                 Macros.gainsLife You (StatOf Power (Macros.It OneOf))]
 
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
                 Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
 badGroupPower Refl impossible
 
@@ -52,37 +52,37 @@ badGroupPower Refl impossible
 public export
 okSingleOwner : Instruction []
 okSingleOwner =
-  Sequentially [Choose Nothing (Macros.target Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly,
                 Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
 
 ||| "Choose two target creatures. Their owners each lose 1 life."
 public export
 okGroupOwners : Instruction []
 okGroupOwners =
-  Sequentially [Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
                 Macros.losesLife (Macros.ownerOf (Macros.It ManyOf)) (Lit 1)]
 
 ||| "Choose target creature."
 public export
 okTargetCreature : Instruction []
-okTargetCreature = Choose Nothing (Macros.target Macros.creature) Openly
+okTargetCreature = Choose Nothing Nothing (Macros.target Macros.creature) Openly
 
 ||| "Choose target color."
 public export
 badTargetColor : Unspellable (Instruction []) (\ok =>
-  Choose Nothing (Macros.target (QualityNoun Color Nothing) {tk = ok}) Openly)
+  Choose Nothing Nothing (Macros.target (QualityNoun Color Nothing) {tk = ok}) Openly)
 badTargetColor ObjectTgt impossible
 
 ||| "Choose two target creatures."
 public export
 okTwoGroup : Instruction []
 okTwoGroup =
-  Choose Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly
+  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly
 
 ||| "Choose zero target creatures."
 public export
 badZeroGroup : Unspellable (Instruction []) (\ok =>
-  Choose Nothing (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Openly)
+  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Openly)
 badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 ||| "Choose up to one — Destroy target artifact; or destroy target enchantment."
@@ -393,6 +393,40 @@ badUnchooseredTheyControl : Unspellable (Instruction []) (\ok =>
   Macros.choose (Macros.a (And [Macros.creature,
                                 HasPossessor ControllerAx (Macros.They {ok})])))
 badUnchooseredTheyControl Refl impossible
+
+||| "Starting with you, each player chooses a creature they control."
+||| [CR#101.4]
+public export
+okChoiceStartingWithYou : Instruction []
+okChoiceStartingWithYou =
+  Choose (Just You) (Just (Macros.each AnyPlayer))
+    (Macros.a (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
+    Openly
+
+||| "Starting with you, target player chooses a creature." — one player makes
+||| the choice, so there is no order for "starting with" to fix [CR#101.4]
+||| (`okChoiceStartingWithYou` is the same order over a distributive chooser).
+public export
+badOrderedSingularChooser : Unspellable (Instruction []) (\ok =>
+  Choose (Just You) (Just (Macros.target AnyPlayer)) (Macros.a Macros.creature)
+         Openly {od = RoundStartsWith {pl = ok}})
+badOrderedSingularChooser Refl impossible
+
+||| "Choose a creature. If you chose a creature this way, draw a card."
+public export
+okChoseThisWayAfterChoice : Instruction []
+okChoseThisWayAfterChoice =
+  Sequentially
+    [ Macros.chooses You (Macros.a Macros.creature)
+    , If (ChoseThisWay You Macros.creature) (Draw You (Lit 1)) Nothing ]
+
+||| "If you chose a creature this way, draw a card." — nothing was chosen, so
+||| "this way" reads back no choice (`okChoseThisWayAfterChoice` is the same
+||| read with one standing).
+public export
+badChoseThisWayWithoutAChoice : Unspellable (Instruction []) (\ok =>
+  If (ChoseThisWay You Macros.creature {cs = ok}) (Draw You (Lit 1)) Nothing)
+badChoseThisWayWithoutAChoice ChoicesStand impossible
 
 ||| "Each player chooses a creature. Exile them."
 public export
