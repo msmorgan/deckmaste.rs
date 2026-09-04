@@ -429,6 +429,29 @@ badSimultaneousReadsRetag : Unspellable (Instruction []) (\ok =>
                   Macros.destroy (Macros.That CardW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, Oh) impossible
 
+||| "Deal 2 damage to target creature. Then tap it."
+public export
+okTapAfterSimultaneousDamage : Instruction []
+okTapAfterSimultaneousDamage =
+  Sequentially [ Simultaneously [DealDamage This (Lit 2) (Macros.target Macros.creature)]
+               , Macros.tap (Macros.It OneOf) ]
+
+||| "Exile target creature. Then tap it." A simultaneous move announces the
+||| object in the exile zone [CR#701.13a] and only untapped permanents can be
+||| tapped [CR#701.26a]; `okTapAfterSimultaneousDamage` spells the admitted read.
+public export
+badTapAfterSimultaneousExile : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Simultaneously [Macros.exile You (Macros.target Macros.creature)]
+               , Macros.tap ((Macros.It OneOf)) {ok} ])
+badTapAfterSimultaneousExile Oh impossible
+
+||| The same sentence with the exile as its own clause.
+public export
+badTapAfterSequentialExile : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.exile You (Macros.target Macros.creature)
+               , Macros.tap ((Macros.It OneOf)) {ok} ])
+badTapAfterSequentialExile Oh impossible
+
 ||| "Gain control of target creature."
 public export
 okGainControlBattlefield : Instruction []
@@ -469,6 +492,13 @@ badSliceTypeRead Refl impossible
 public export
 okSearchZoneFreeDescription : Instruction []
 okSearchZoneFreeDescription = Macros.searchLibraryFor (Macros.exactly 1) Macros.creature
+
+||| "If you would search your library for a creature card, instead search your
+||| library for a creature card and reveal that card." [CR#614.1a]
+public export
+okInsteadOfSearchRevealsIt : Instruction []
+okInsteadOfSearchRevealsIt =
+  InsteadOf (Macros.searchLibraryFor (Macros.exactly 1) Macros.creature) Macros.revealsIt
 
 ||| "Search your library for a creature card in a graveyard."
 public export
@@ -539,12 +569,15 @@ okSingularCardRetag =
                , Move (Macros.That CardW OneOf) Macros.handZ []
                ]
 
+||| "Exile target creature until this creature leaves the battlefield. Put
+||| that card into its owner's hand." The held clause announces the exiled
+||| object where it now is [CR#701.13a], so the card read resolves.
 public export
-badHeldUntilExileRetag : Unspellable (Instruction []) (\ok =>
+okHeldUntilExileRetag : Instruction []
+okHeldUntilExileRetag =
   Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Macros.leavesBattlefield Macros.thisCreature)
-               , Move (Macros.That CardW OneOf {ok}) Macros.handZ []
-               ])
-badHeldUntilExileRetag Refl impossible
+               , Move (Macros.That CardW OneOf) Macros.handZ []
+               ]
 
 ||| "Put target creature onto the battlefield tapped."
 public export

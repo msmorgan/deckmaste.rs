@@ -1508,7 +1508,7 @@ public export
 exileUntil : (n : Noun bs Object) ->
              {auto 0 mk : Movable n} ->
              (ev : GameEvent
-                     (preIntro
+                     (annIntro
                        (Enact Nothing "Exile"
                          (Move n (Macros.exileZ {bs = nomIntro n})
                                []

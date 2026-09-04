@@ -110,6 +110,7 @@ record InstrProfile (bs : Bindings) where
   constructor MkInstrProfile
   pre : Bindings
   announced : Bindings
+  rider : Maybe Bindings
   deed : List Binding
 
 mutual
@@ -1564,114 +1565,69 @@ mutual
     KeepsOuterEach (nounPlur s) (agentIntro s) (instrIntro e)
 
   public export
+  profileIntro : InstrProfile bs -> Bindings
+  profileIntro p = deed p ++ announced p
+
+  public export
   instrIntro : {bs : Bindings} -> Instruction bs -> Bindings
-  instrIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
-  instrIntro (ControllerSacrifices n) =
-    MkBinding TheD Player OneOf PlayerP
-      :: moveIntro (Just "Sacrifice") n (Just Graveyard)
-  instrIntro (Fights a b) = nomIntro b
-  instrIntro (TurnOver n) = nomIntro n
-  instrIntro (SetStatus _ n) = nomIntro n
-  instrIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
-  instrIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
-  instrIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
-  instrIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
-  instrIntro (LosesCounters who _ amt) = optAmtIntro amt
-  instrIntro (RemoveFromCombat n) = nomIntro n
-  instrIntro (AttachTo _ host) = nomIntro host
-  instrIntro (Unattach what) = nomIntro what
-  instrIntro (BecomesBlocking _ what) = nomIntro what
-  instrIntro (StopsBlocking _ what) = nomIntro what
-  instrIntro (BecomesAttacking n NoDefender) = nomIntro n
-  instrIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
-  instrIntro (Regenerate n) = nomIntro n
-  instrIntro (CantBe e _ _) = instrIntro e
-  instrIntro (GainsDesignation n _ _ _) = nomIntro n
-  instrIntro (Unlock door) = doorIntro door
-  instrIntro (GameBecomes _) = bs
-  instrIntro (Concludes _ who) = nomIntro who
-  instrIntro GameDrawn = bs
-  instrIntro RestartsGame = bs
-  instrIntro (SeparateIntoPiles who grp piles faces) =
-    MkBinding TheD Pile ManyOf
-              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
-      :: groupSpent Object (nomIntro grp)
-  instrIntro (CounterSpell what) = nomIntro what
-  instrIntro (Copy {k} {ph} src agent what times exc) =
-    MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
-              (copyPayloadIn ph (nounIsAbility what) (nounTy what)
-                             (copyLandsIn src (nounZone what)))
-      :: amtIntro times
-  instrIntro (ChooseNewTargets what) = nomIntro what
-  instrIntro (CopyTargets copy whom) = nomIntro whom
-  instrIntro (Choose _ by n _) = chooseIntro by n
-  instrIntro (ChoicesRevealed _) = bs
-  instrIntro (Vote _ _ _ _) = bs
-  instrIntro (Move what to _) =
-    afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
-  instrIntro (ExchangeLife parties) =
-    outcomeB LifeGained :: outcomeB LifeLost :: nomIntro parties
-  instrIntro (ChangeLife who (LifeUp a)) = outcomeB LifeGained :: lifeIntro (LifeUp a)
-  instrIntro (ChangeLife who (LifeDown a)) = outcomeB LifeLost :: lifeIntro (LifeDown a)
-  instrIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
-  instrIntro (AddMana who amt _ _) = outcomeB ManaAdded :: amtIntro amt
-  instrIntro (Draw who amt) = amtIntro amt
-  instrIntro (Expose v who what) = exposedIntro what
-  instrIntro (Search who sc q p) =
-    MkBinding AD Object (quantPlur q)
-              (ObjectP (seedTy p) (searchZone sc)
-                       (mkStamp (Just "Search") Nothing False) Nothing Nothing)
-      :: (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
-  instrIntro (Shuffle whose) = afterShuffle (nomIntro whose)
-  instrIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count
-  instrIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
-  instrIntro (ResultsTable rows) = bs
-  instrIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
-  instrIntro (ShiftResult _ amt) = amtIntro amt
-  instrIntro (RollPlanarDie who count) = outcomeB PlanarRolled :: amtIntro count
-  instrIntro (ChaosEnsues Nothing) = bs
-  instrIntro (ChaosEnsues (Just what)) = nomIntro what
-  instrIntro (StoreResults on) = nomIntro on
-  instrIntro (RerollStored _ _ whose) = nomIntro whose
-  instrIntro (Continuously se _) = staticIntro se
-  instrIntro (Create agent count spec riders) =
-    MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-              (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)
-      :: (specDelta spec ++ amtIntro count)
-  instrIntro (GetsEmblem who _) = nomIntro who
-  instrIntro (PutCounters amt kind on) = nomIntro on
-  instrIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
-  instrIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
-  instrIntro (RemoveCounters q kind from) = outcomeB CountersRemoved :: nomIntro from
-  instrIntro (MoveCounters amt kind src dst) = nomIntro dst
-  instrIntro (DoubleCounters on) = nomIntro on
-  instrIntro (Enact Nothing v (Move what to _)) =
-    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
-  instrIntro (Enact Nothing v (SetStatus _ n)) = stampIntro (Just v) n
-  instrIntro (Enact Nothing _ e) = instrIntro e
-  instrIntro (Enact (Just s) v e) = doesInstrIntro (nounPlur s) s v e
-  instrIntro (Pay who c PaidOnce) = costIntro c
-  instrIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
-  instrIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
-  instrIntro (May d body did notd) = mayIntro body did notd
-  instrIntro (IfDone body did notd) = mayIntro body did notd
-  instrIntro (OnlyIf e c oth) = annIntro e
-  instrIntro (If c e oth) = bs
-  instrIntro (Unless e who c) = bs
-  instrIntro (Define l amt) = defineLetter l (amtIntro amt)
-  instrIntro (ForEachOf grp body) = pluralizeDelta (instrDelta body) ++ bs
-  instrIntro (ForEachKindOf _ _ _ _) = bs
-  instrIntro (Repeat _) = bs
-  instrIntro (Repeated n body) =
-    outcomeB RepeatCount :: (pluralizeDelta (instrDelta body) ++ amtIntro n)
-  instrIntro (Sequentially es) = instrsIntro es
-  instrIntro (Simultaneously es) = simIntro es
-  instrIntro (Modal q modes) = quantDelta q ++ bs
-  instrIntro (Delayed ev _ _ e) = bs               -- a future clause mentions nothing NOW
-  instrIntro (Reflexively body trig) = instrIntro body
-  instrIntro (ThisWay body ev trig) = instrIntro body
-  instrIntro (InsteadOf replaced repl) = annIntro replaced
-  instrIntro (HeldUntil e ev) = annIntro e
+  instrIntro e = profileIntro (instrProfile e)
+
+  public export
+  preIntro : {bs : Bindings} -> Instruction bs -> Bindings
+  preIntro e = pre (instrProfile e)
+
+  public export
+  annIntro : {bs : Bindings} -> Instruction bs -> Bindings
+  annIntro e = announced (instrProfile e)
+
+  public export
+  profileRider : InstrProfile bs -> Bindings
+  profileRider p = fromMaybe (pre p) (rider p)
+
+  public export
+  riderIntro : {bs : Bindings} -> Instruction bs -> Bindings
+  riderIntro e = profileRider (instrProfile e)
+
+  ||| The last clause of a sequence publishes its deed with what it announced.
+  public export
+  lastProfile : InstrProfile as -> InstrProfile bs
+  lastProfile p = MkInstrProfile (pre p) (profileIntro p) (rider p) []
+
+  public export
+  seqProfile : {bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> InstrProfile bs
+  seqProfile [] = MkInstrProfile bs bs Nothing []
+  seqProfile (e :: []) = lastProfile (instrProfile e)
+  seqProfile (e :: es) = reProfile (seqProfile es)
+
+  ||| A simultaneous batch announces every clause's deed at once; its trailing
+  ||| condition reads the last clause's own pre-stack.
+  public export
+  simCons : List Binding -> InstrProfile as -> InstrProfile bs
+  simCons d p = MkInstrProfile (pre p) (d ++ announced p) Nothing []
+
+  ||| An offer announces what its body announced; its deed stays a deed, so a
+  ||| simultaneous clause cannot read a thing that may not have happened.
+  public export
+  offerProfile : InstrProfile as -> InstrProfile bs
+  offerProfile p = MkInstrProfile (profileIntro p) (announced p) Nothing (deed p)
+
+  public export
+  mayProfile : {as : Bindings} -> (body : Instruction as) ->
+               Maybe (Instruction (instrIntro body)) -> Maybe (Instruction as) ->
+               InstrProfile bs
+  mayProfile body Nothing _ = offerProfile (instrProfile body)
+  mayProfile body (Just did) Nothing = offerProfile (instrProfile did)
+  mayProfile body (Just did) (Just _) = offerProfile (instrProfile body)
+
+  public export
+  simLast : InstrProfile as -> InstrProfile bs
+  simLast p = MkInstrProfile (pre p) (profileIntro p) Nothing []
+
+  public export
+  simProfile : {bs : Bindings} -> {0 n : Nat} -> SimInstructions n bs -> InstrProfile bs
+  simProfile [] = MkInstrProfile bs bs Nothing []
+  simProfile (e :: []) = simLast (instrProfile e)
+  simProfile (e :: es) = simCons (deedDelta e) (simProfile es)
 
   public export
   distributedDelta : {bs : Bindings} -> (s : Noun bs Player) -> Bindings -> List Binding
@@ -1679,77 +1635,40 @@ mutual
     pluralizeDelta (take (length out `minus` length (agentIntro s)) out)
 
   public export
-  doesInstrIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
-                 (v : VerbLabel) -> Instruction (agentIntro s) -> Bindings
-  doesInstrIntro ManyOf s v (Move (TheRest _ _) to _) =
-    afterMoveTo to (partsClosed (nomIntro s))
-  doesInstrIntro ManyOf s v (Move what to _) =
-    afterMoveTo to (distributedDelta s (moveIntro (Just v) what (Just (zoneSort to)))
-                      ++ nomIntro s)
-  doesInstrIntro ManyOf s v (SetStatus _ n) =
-    distributedDelta s (stampIntro (Just v) n) ++ nomIntro s
-  doesInstrIntro ManyOf s v e = deedDelta e ++ nomIntro s
-  doesInstrIntro OneOf s v (Move what to _) =
-    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
-  doesInstrIntro OneOf s v (SetStatus _ n) = stampIntro (Just v) n
-  doesInstrIntro OneOf s v e = instrIntro e
+  doesProfile : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
+                (v : VerbLabel) -> Instruction (agentIntro s) -> InstrProfile bs
+  doesProfile ManyOf s v (Move what@(TheRest _ _) to _) =
+    MkInstrProfile (distributedDelta s (nomIntro what) ++ nomIntro s)
+                 (afterMoveTo to (partsClosed (nomIntro s)))
+                 (Just (distributedDelta s (stampIntro (Just v) what) ++ nomIntro s))
+                 ([])
+  doesProfile ManyOf s v (Move what to _) =
+    MkInstrProfile (distributedDelta s (nomIntro what) ++ nomIntro s)
+                 (afterMoveTo to (distributedDelta s (moveIntro (Just v) what (Just (zoneSort to)))
+                                    ++ nomIntro s))
+                 (Just (distributedDelta s (stampIntro (Just v) what) ++ nomIntro s))
+                 ([])
+  doesProfile ManyOf s v (SetStatus _ n) =
+    MkInstrProfile (nomIntro s)
+                 (distributedDelta s (stampIntro (Just v) n) ++ nomIntro s)
+                 Nothing
+                 ([])
+  doesProfile ManyOf s v e =
+    MkInstrProfile (nomIntro s) (nomIntro s) Nothing (deedDelta e)
+  doesProfile OneOf s v (Move what to _) =
+    MkInstrProfile (nomIntro what)
+                 (afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to))))
+                 (Just (stampIntro (Just v) what))
+                 ([])
+  doesProfile OneOf s v (SetStatus st n) =
+    MkInstrProfile (nomIntro n) (stampIntro (Just v) n) Nothing ([])
+  doesProfile OneOf s v e = reProfile (instrProfile e)
 
+  ||| A profile's fields never mention its index, so the agent's own profile is
+  ||| the enacting clause's.
   public export
-  preIntro : {bs : Bindings} -> Instruction bs -> Bindings
-  preIntro e = pre (instrProfile e)
-
-  public export
-  doesPreIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
-                 (v : VerbLabel) -> Instruction (agentIntro s) -> Bindings
-  doesPreIntro ManyOf s v (Move what to _) =
-    distributedDelta s (nomIntro what) ++ nomIntro s
-  doesPreIntro ManyOf s v e = nomIntro s
-  doesPreIntro OneOf s v (Move what to _) = nomIntro what
-  doesPreIntro OneOf s v e = preIntro e
-
-  public export
-  riderIntro : {bs : Bindings} -> Instruction bs -> Bindings
-  riderIntro (Enact Nothing v (Move what to _)) = stampIntro (Just v) what
-  riderIntro (Enact Nothing _ e) = riderIntro e
-  riderIntro (Enact (Just s) v e) = doesRiderIntro (nounPlur s) s v e
-  riderIntro (CantBe e _ _) = riderIntro e
-  riderIntro (Reflexively body _) = riderIntro body
-  riderIntro (ThisWay body _ _) = riderIntro body
-  riderIntro (Sequentially es) = riderIntros es
-  riderIntro e = preIntro e
-
-  public export
-  riderIntros : {bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> Bindings
-  riderIntros [] = bs
-  riderIntros (e :: []) = riderIntro e
-  riderIntros (e :: es) = riderIntros es
-
-  public export
-  doesRiderIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
-                   (v : VerbLabel) -> Instruction (agentIntro s) -> Bindings
-  doesRiderIntro ManyOf s v (Move what to _) =
-    distributedDelta s (stampIntro (Just v) what) ++ nomIntro s
-  doesRiderIntro ManyOf s v e = nomIntro s
-  doesRiderIntro OneOf s v (Move what to _) = stampIntro (Just v) what
-  doesRiderIntro OneOf s v e = riderIntro e
-
-  public export
-  annIntro : {bs : Bindings} -> Instruction bs -> Bindings
-  annIntro e = announced (instrProfile e)
-
-  public export
-  doesAnnIntro : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
-                 (v : VerbLabel) -> Instruction (agentIntro s) -> Bindings
-  doesAnnIntro ManyOf s v (Move what to _) =
-    distributedDelta s (nomIntro what) ++ nomIntro s
-  doesAnnIntro ManyOf s v e = deedDelta e ++ nomIntro s
-  doesAnnIntro OneOf s v (Move what to _) = nomIntro what
-  doesAnnIntro OneOf s v e = annIntro e
-
-  public export
-  annSims : {bs : Bindings} -> {0 n : Nat} -> SimInstructions n bs -> Bindings
-  annSims [] = bs
-  annSims (e :: es) = annSims es
+  reProfile : InstrProfile as -> InstrProfile bs
+  reProfile p = MkInstrProfile (pre p) (announced p) (rider p) (deed p)
 
   public export
   replacedCtx : {bs : Bindings} -> Instruction bs -> Bindings
@@ -1776,14 +1695,17 @@ mutual
 
   public export
   sameIntro : Bindings -> List Binding -> InstrProfile bs
-  sameIntro b d = MkInstrProfile b b d
+  sameIntro b d = MkInstrProfile b b Nothing d
 
   public export
   instrProfile : {bs : Bindings} -> Instruction bs -> InstrProfile bs
   instrProfile (DealDamage src amt to) = sameIntro (nomIntro to) [outcomeB DamageDealt]
   instrProfile (ControllerSacrifices n) =
-    sameIntro (MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n)
-              ([])
+    MkInstrProfile (MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n)
+                 (MkBinding TheD Player OneOf PlayerP
+                    :: moveIntro (Just "Sacrifice") n (Just Graveyard))
+                 Nothing
+                 ([])
   instrProfile (Distribute (DividedDamage _) amt among) =
     sameIntro (nomIntro among)
               ([outcomeB DamageDealt])
@@ -1796,6 +1718,7 @@ mutual
   instrProfile (ExtraTurn w count) =
     MkInstrProfile (amtDelta count ++ nomIntro w)
                  (turnRefB :: (amtDelta count ++ nomIntro w))
+                 Nothing
                  ([])
   instrProfile (AdditionalPart who _ _ count _) = sameIntro (amtDelta count ++ agentIntro who) []
   instrProfile (LosesCounters who _ amt) = sameIntro (optAmtIntro amt) []
@@ -1807,7 +1730,7 @@ mutual
   instrProfile (BecomesAttacking n NoDefender) = sameIntro (nomIntro n) []
   instrProfile (BecomesAttacking _ (OneDefender whom)) = sameIntro (nomIntro whom) []
   instrProfile (Regenerate n) = sameIntro (nomIntro n) []
-  instrProfile (CantBe e _ _) = MkInstrProfile (preIntro e) (annIntro e) (deedDelta e)
+  instrProfile (CantBe e _ _) = instrProfile e
   instrProfile (GainsDesignation n _ _ _) = sameIntro (nomIntro n) []
   instrProfile (Unlock door) = sameIntro (doorIntro door) []
   instrProfile (GameBecomes _) = sameIntro bs []
@@ -1816,9 +1739,8 @@ mutual
   instrProfile RestartsGame = sameIntro bs []
   instrProfile (SeparateIntoPiles who grp piles faces) =
     MkInstrProfile (nomIntro grp)
-                 (MkBinding TheD Pile ManyOf
-                            (PileP (nounZone grp) (Just piles) (pileMentionFace faces))
-                    :: groupSpent Object (nomIntro grp))
+                 (groupSpent Object (nomIntro grp))
+                 Nothing
                  ([MkBinding TheD Pile ManyOf
                              (PileP (nounZone grp) (Just piles) (pileMentionFace faces))])
   instrProfile (CounterSpell what) = sameIntro (nomIntro what) []
@@ -1829,10 +1751,14 @@ mutual
                                          (copyLandsIn src (nounZone what)))])
   instrProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
-  instrProfile (Choose _ by n _) = sameIntro (chooseAnn by n) []
+  instrProfile (Choose _ by n _) = sameIntro (chooseIntro by n) []
   instrProfile (ChoicesRevealed _) = sameIntro bs []
   instrProfile (Vote _ _ _ _) = sameIntro bs []
-  instrProfile (Move what to _) = sameIntro (nomIntro what) []
+  instrProfile (Move what to _) =
+    MkInstrProfile (nomIntro what)
+                 (afterMoveTo to (moveIntro Nothing what (Just (zoneSort to))))
+                 Nothing
+                 ([])
   instrProfile (ExchangeLife parties) =
     sameIntro (nomIntro parties)
               ([outcomeB LifeGained, outcomeB LifeLost])
@@ -1845,8 +1771,10 @@ mutual
   instrProfile (Search who sc q p) =
     sameIntro (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
               ([MkBinding AD Object (quantPlur q)
-                          (ObjectP (seedTy p) (searchZone sc) Nothing Nothing Nothing)])
-  instrProfile (Shuffle whose) = sameIntro (nomIntro whose) []
+                          (ObjectP (seedTy p) (searchZone sc)
+                                   (mkStamp (Just "Search") Nothing False) Nothing Nothing)])
+  instrProfile (Shuffle whose) =
+    MkInstrProfile (nomIntro whose) (afterShuffle (nomIntro whose)) Nothing ([])
   instrProfile (FlipCoins who count) = sameIntro (flipScopeIntro count) [outcomeB CoinFlipped]
   instrProfile (RollDice who count _) = sameIntro (amtIntro count) [outcomeB RollResult]
   instrProfile (ResultsTable rows) = sameIntro bs []
@@ -1867,47 +1795,45 @@ mutual
   instrProfile (RemoveCounters q kind from) = sameIntro (nomIntro from) [outcomeB CountersRemoved]
   instrProfile (MoveCounters amt kind src dst) = sameIntro (nomIntro dst) []
   instrProfile (DoubleCounters on) = sameIntro (nomIntro on) []
-  instrProfile (Enact Nothing v (Move what to _)) = sameIntro (nomIntro what) []
-  instrProfile (Enact Nothing _ e) = MkInstrProfile (preIntro e) (annIntro e) (deedDelta e)
-  instrProfile (Enact (Just s) v e@(Move what to _)) =
-    MkInstrProfile (doesPreIntro (nounPlur s) s v e)
-                 (doesAnnIntro (nounPlur s) s v e)
+  instrProfile (Enact Nothing v (Move what to _)) =
+    MkInstrProfile (nomIntro what)
+                 (afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to))))
+                 (Just (stampIntro (Just v) what))
                  ([])
-  instrProfile (Enact (Just s) v e) =
-    MkInstrProfile (doesPreIntro (nounPlur s) s v e)
-                 (doesAnnIntro (nounPlur s) s v e)
-                 (deedDelta e)
-  instrProfile (Pay who c _) = sameIntro (nomIntro who) []
-  instrProfile (May d body did notd) = MkInstrProfile (mayIntro body did notd) (annIntro body) []
-  instrProfile (IfDone body did notd) = MkInstrProfile (mayIntro body did notd) (annIntro body) []
+  instrProfile (Enact Nothing v (SetStatus _ n)) =
+    MkInstrProfile (nomIntro n) (stampIntro (Just v) n) Nothing ([])
+  instrProfile (Enact Nothing _ e) = instrProfile e
+  instrProfile (Enact (Just s) v e) = doesProfile (nounPlur s) s v e
+  instrProfile (Pay who c PaidOnce) =
+    MkInstrProfile (nomIntro who) (costIntro c) Nothing ([])
+  instrProfile (Pay who c AnyNumberOfTimes) =
+    MkInstrProfile (nomIntro who) (costIntro c) Nothing ([outcomeB RepeatCount])
+  instrProfile (Pay who c (UpToTimes _)) =
+    MkInstrProfile (nomIntro who) (costIntro c) Nothing ([outcomeB RepeatCount])
+  instrProfile (May d body did notd) = mayProfile body did notd
+  instrProfile (IfDone body did notd) = mayProfile body did notd
   instrProfile (OnlyIf e c oth) = sameIntro (annIntro e) []
   instrProfile (If c e oth) = sameIntro bs []
-  instrProfile (Unless e who c) = sameIntro (annIntro e) []
+  instrProfile (Unless e who c) =
+    MkInstrProfile (annIntro e) bs Nothing ([])
   instrProfile (Define l amt) = sameIntro (defineLetter l (amtIntro amt)) []
-  instrProfile (ForEachOf _ _) = sameIntro bs []
+  instrProfile (ForEachOf grp body) =
+    MkInstrProfile bs (pluralizeDelta (instrDelta body) ++ bs) Nothing ([])
   instrProfile (ForEachKindOf _ _ _ _) = sameIntro bs []
   instrProfile (Repeat _) = sameIntro bs []
-  instrProfile (Repeated n _) = sameIntro (amtIntro n) []
-  instrProfile (Sequentially es) = MkInstrProfile (preIntros es) bs []
-  instrProfile (Simultaneously es) = MkInstrProfile (simPres es) (annSims es) []
+  instrProfile (Repeated n body) =
+    MkInstrProfile (amtIntro n)
+                 (pluralizeDelta (instrDelta body) ++ amtIntro n)
+                 Nothing
+                 ([outcomeB RepeatCount])
+  instrProfile (Sequentially es) = seqProfile es
+  instrProfile (Simultaneously es) = simProfile es
   instrProfile (Modal q modes) = sameIntro (quantDelta q ++ bs) []
   instrProfile (Delayed ev _ _ e) = sameIntro bs []
-  instrProfile (Reflexively body trig) =
-    MkInstrProfile (preIntro body)
-                 (annIntro body)
-                 (deedDelta body)
-  instrProfile (ThisWay body ev trig) =
-    MkInstrProfile (preIntro body)
-                 (annIntro body)
-                 (deedDelta body)
+  instrProfile (Reflexively body trig) = instrProfile body
+  instrProfile (ThisWay body ev trig) = instrProfile body
   instrProfile (InsteadOf replaced repl) = sameIntro (annIntro replaced) []
   instrProfile (HeldUntil e ev) = sameIntro (annIntro e) []
-
-  public export
-  preIntros : {bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> Bindings
-  preIntros [] = bs
-  preIntros (e :: []) = preIntro e
-  preIntros (e :: es) = preIntros es
 
   public export
   mayCtx : {bs : Bindings} -> Noun bs Player -> Bindings
@@ -1920,14 +1846,6 @@ mutual
   ifDoneArmed _ _ _ = True
 
   public export
-  mayIntro : {bs : Bindings} -> (body : Instruction bs) ->
-             Maybe (Instruction (instrIntro body)) -> Maybe (Instruction bs) -> Bindings
-  mayIntro body Nothing Nothing = instrIntro body
-  mayIntro body (Just did) Nothing = instrIntro did
-  mayIntro body Nothing (Just notd) = instrIntro body
-  mayIntro body (Just did) (Just notd) = instrIntro body
-
-  public export
   reflexCtx : {bs : Bindings} -> Instruction bs -> Bindings
   reflexCtx body = settleTargets (instrIntro body)
 
@@ -1935,11 +1853,6 @@ mutual
   thisWayCtx : {bs : Bindings} -> (body : Instruction bs) ->
                GameEvent (instrIntro body) -> Bindings
   thisWayCtx body ev = settleTargets (eventAfter ev)
-
-  public export
-  instrsIntro : {bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> Bindings
-  instrsIntro [] = bs
-  instrsIntro (e :: es) = instrsIntro es
 
   public export
   costRepeatedOk : {0 bs : Bindings} -> Instruction bs -> Bool
@@ -1950,17 +1863,6 @@ mutual
   costStepsOk : {0 bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> Bool
   costStepsOk [] = True
   costStepsOk (e :: es) = costActionOk e && costStepsOk es
-
-  public export
-  simIntro : {bs : Bindings} -> {0 n : Nat} -> SimInstructions n bs -> Bindings
-  simIntro [] = bs
-  simIntro (e :: es) = deedDelta e ++ simIntro es
-
-  public export
-  simPres : {bs : Bindings} -> {0 n : Nat} -> SimInstructions n bs -> Bindings
-  simPres [] = bs
-  simPres (e :: []) = preIntro e
-  simPres (e :: es) = simPres es
 
   public export
   deckAxis : ProjAxis -> Bool
