@@ -1559,7 +1559,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
             "Destroy target creatures or planeswalkers.",
             1,
             SelectionResolution::Unique,
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/NominalModifiedPluralCoordinationNominalValue/NominalModifierTargetingMarkerNominalModifier/NominalCoordinationOrNominalCoordination/CoordinationMemberBarePluralCoordinationMember/HeadNounPluralHead/CoordinationMemberBarePluralCoordinationMember/HeadNounPluralHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/NominalModifiedPluralCoordinationNominalValue/NominalModifierTargetingMarkerNominalModifier/NominalCoordinationOrNominalCoordination/CoordinationMemberBareCoordinationMember/HeadNounPluralHead/CoordinationMemberBareCoordinationMember/HeadNounPluralHead",
             1,
             &[
                 (
@@ -2532,11 +2532,11 @@ fn coordination_ast_scope_ownership_and_ambiguity_are_exact() {
                 "DeterminativeTargetingMarkerDeterminative",
                 "NominalSingularCoordinationNominalValue",
                 "NominalCoordinationOrNominalCoordination",
-                "CoordinationMemberBareSingularCoordinationMember",
+                "CoordinationMemberBareCoordinationMember",
                 "HeadNounSingularHead",
-                "CoordinationMemberBareSingularCoordinationMember",
+                "CoordinationMemberBareCoordinationMember",
                 "HeadNounSingularHead",
-                "CoordinationMemberBareSingularCoordinationMember",
+                "CoordinationMemberBareCoordinationMember",
                 "HeadNounSingularHead",
             ][..],
             &[
@@ -2776,12 +2776,8 @@ fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsi
                 .expect("the Singular nominal accepts a Singular Head"),
         )
     };
-    let coordination_member = |name| {
-        CoordinationMember::BareSingularCoordinationMember(
-            BareSingularCoordinationMember::new(head(name))
-                .expect("the Singular member accepts a Singular Head"),
-        )
-    };
+    let coordination_member =
+        |head| CoordinationMember::BareCoordinationMember(BareCoordinationMember { head });
     let plural_head = |name| {
         Head::NounPluralHead(
             NounPluralHead::new(Noun::Declaration(
@@ -2794,19 +2790,25 @@ fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsi
             .expect("Type declarations are count nouns"),
         )
     };
-    let plural_coordination_member = |name| {
-        CoordinationMember::BarePluralCoordinationMember(
-            BarePluralCoordinationMember::new(plural_head(name))
-                .expect("the Plural member accepts a Plural Head"),
-        )
-    };
-
-    assert!(AndNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
-    assert!(OrNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
-    assert!(AndOrNominalCoordination::new(vec![coordination_member("Artifact")]).is_none());
-    assert!(AndNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none());
-    assert!(OrNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none());
-    assert!(AndOrNominalCoordination::new(vec![plural_coordination_member("Artifact")]).is_none());
+    assert!(AndNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
+    assert!(OrNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
+    assert!(AndOrNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
+    assert!(
+        AndNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+    );
+    assert!(
+        OrNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+    );
+    assert!(
+        AndOrNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+    );
+    assert!(
+        AndNominalCoordination::new(vec![
+            coordination_member(head("Artifact")),
+            coordination_member(plural_head("Artifact")),
+        ])
+        .is_none()
+    );
     let determined = DeterminedNominal::new(
         Determiner::Headed(Determinative::TargetingMarkerDeterminative(
             TargetingMarkerDeterminative {

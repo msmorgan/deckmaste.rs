@@ -75,20 +75,8 @@ mod coordination_feature_recipes {
         })
     }
 
-    fn singular_member(noun: CommonNoun) -> CoordinationMember {
-        CoordinationMember::BareSingularCoordinationMember(BareSingularCoordinationMember {
-            head: Head::NounSingularHead(NounSingularHead {
-                noun: Noun::Lexeme(noun),
-            }),
-        })
-    }
-
-    fn plural_member(noun: CommonNoun) -> CoordinationMember {
-        CoordinationMember::BarePluralCoordinationMember(BarePluralCoordinationMember {
-            head: Head::NounPluralHead(NounPluralHead {
-                noun: Noun::Lexeme(noun),
-            }),
-        })
+    fn member(head: Head) -> CoordinationMember {
+        CoordinationMember::BareCoordinationMember(BareCoordinationMember { head })
     }
 
     fn singular_nominal(noun: CommonNoun) -> Nominal {
@@ -126,8 +114,12 @@ mod coordination_feature_recipes {
             Nominal::SingularCoordinationNominalValue(SingularCoordinationNominalValue {
                 coordination: NominalCoordination::OrNominalCoordination(
                     OrNominalCoordination::new(vec![
-                        singular_member(CommonNoun::Player),
-                        singular_member(CommonNoun::Opponent),
+                        member(Head::NounSingularHead(NounSingularHead {
+                            noun: Noun::Lexeme(CommonNoun::Player),
+                        })),
+                        member(Head::NounSingularHead(NounSingularHead {
+                            noun: Noun::Lexeme(CommonNoun::Opponent),
+                        })),
                     ])
                     .expect("binary singular coordination satisfies minimum arity"),
                 ),
@@ -138,8 +130,12 @@ mod coordination_feature_recipes {
             Nominal::PluralCoordinationNominalValue(PluralCoordinationNominalValue {
                 coordination: NominalCoordination::OrNominalCoordination(
                     OrNominalCoordination::new(vec![
-                        plural_member(CommonNoun::Player),
-                        plural_member(CommonNoun::Opponent),
+                        member(Head::NounPluralHead(NounPluralHead {
+                            noun: Noun::Lexeme(CommonNoun::Player),
+                        })),
+                        member(Head::NounPluralHead(NounPluralHead {
+                            noun: Noun::Lexeme(CommonNoun::Opponent),
+                        })),
                     ])
                     .expect("binary plural coordination satisfies minimum arity"),
                 ),

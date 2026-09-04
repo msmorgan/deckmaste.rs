@@ -951,8 +951,6 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             .map(|rejection| (rejection.rule_name_v1(), rejection.start(), rejection.end(),))
             .collect::<Vec<_>>(),
         [
-            ("CoordinationMemberBarePluralCoordinationMember", 18, 25),
-            ("CoordinationMemberBarePluralCoordinationMember", 18, 25),
             ("DeterminativePluralSimpleDeterminative", 17, 18),
             ("FixedDurationPhraseFixedDurationPhrase", 10, 15),
             ("FixedDurationPhraseFixedDurationPhrase", 10, 15),

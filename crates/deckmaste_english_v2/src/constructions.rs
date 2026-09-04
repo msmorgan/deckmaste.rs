@@ -2760,75 +2760,37 @@ constructions! {
         derive locative_temporal_license = head.locative_temporal_license;
         form premodified_participial_singular_reference = first rest adjective head;
     }
-    construction bare_singular_coordination_member: CoordinationMember {
-        element BareSingularCoordinationMember { head: Head, }
-        derive head.number = Values::Singular;
+    construction bare_coordination_member: CoordinationMember {
+        element BareCoordinationMember { head: Head, }
         derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
-        form bare_singular_coordination_member = head;
+        form bare_coordination_member = head;
     }
-    construction bare_plural_coordination_member: CoordinationMember {
-        element BarePluralCoordinationMember { head: Head, }
-        derive head.number = Values::Plural;
-        derive concord_class = head.concord_class;
-        derive number = head.number;
-        derive onset = head.onset;
-        derive possessive_ending = head.possessive_ending;
-        form bare_plural_coordination_member = head;
-    }
-    construction modified_singular_coordination_member: CoordinationMember {
-        element ModifiedSingularCoordinationMember {
+    construction modified_coordination_member: CoordinationMember {
+        element ModifiedCoordinationMember {
             modifier: CoordinatedNominalModifier,
             head: Head,
         }
-        derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = modifier.onset;
         derive possessive_ending = head.possessive_ending;
-        form modified_singular_coordination_member = modifier head;
+        form modified_coordination_member = modifier head;
     }
-    construction modified_plural_coordination_member: CoordinationMember {
-        element ModifiedPluralCoordinationMember {
-            modifier: CoordinatedNominalModifier,
-            head: Head,
-        }
-        derive head.number = Values::Plural;
-        derive concord_class = head.concord_class;
-        derive number = head.number;
-        derive onset = modifier.onset;
-        derive possessive_ending = head.possessive_ending;
-        form modified_plural_coordination_member = modifier head;
-    }
-    construction negative_modified_singular_coordination_member: CoordinationMember {
-        element NegativeModifiedSingularCoordinationMember {
+    construction negative_modified_coordination_member: CoordinationMember {
+        element NegativeModifiedCoordinationMember {
             leading: opt CoordinatedNominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: Head,
         }
         require len(modifiers) >= 2;
-        derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
         derive number = head.number;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
-        form negative_modified_singular_coordination_member = leading modifiers head;
-    }
-    construction negative_modified_plural_coordination_member: CoordinationMember {
-        element NegativeModifiedPluralCoordinationMember {
-            leading: opt CoordinatedNominalModifier,
-            modifiers: seq NegativeNominalModifier separated by ", ",
-            head: Head,
-        }
-        require len(modifiers) >= 2;
-        derive head.number = Values::Plural;
-        derive concord_class = head.concord_class;
-        derive number = head.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = head.possessive_ending;
-        form negative_modified_plural_coordination_member = leading modifiers head;
+        form negative_modified_coordination_member = leading modifiers head;
     }
     construction and_nominal_coordination: NominalCoordination {
         element AndNominalCoordination {
