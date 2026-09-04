@@ -762,7 +762,7 @@ constructions! {
     codec GetPowerToughnessVerb {
         generate declaration_verb {
             position = Verb;
-            tail = [PowerToughnessAdjustment, DurationPhrase?];
+            tail = [PowerToughnessAdjustment];
             feature = ConcordClass;
         }
     }
@@ -1042,6 +1042,7 @@ constructions! {
     abstract sum LexicalVerbPhrase {
         IntransitiveLexicalVerbPhrase,
         TransitiveLexicalVerbPhrase,
+        GetPowerToughnessLexicalVerbPhrase,
         MeasureComplementLexicalVerbPhrase,
         ObjectAmountLexicalVerbPhrase,
         WithObjectLexicalVerbPhrase,
@@ -1954,7 +1955,7 @@ constructions! {
     }
     construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element StackedPredicateAdjunctPredicate {
-            predicate: TransitiveLexicalVerbPhrase,
+            predicate: LexicalVerbPhrase,
             leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
             trailing: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
@@ -1971,7 +1972,7 @@ constructions! {
     }
     construction instead_predicate: InsteadPredicate {
         element InsteadPredicateValue {
-            predicate: VerbPhrase,
+            predicate: Predicate,
             replacement: lex DistributionReplacement,
         }
         require replacement is Instead;
@@ -4573,14 +4574,13 @@ constructions! {
         require len(preceding) >= 1;
         form quote_terminated_sentences = preceding sentence_initial(" ") sentence;
     }
-    construction get_power_toughness: VerbPhrase {
+    construction get_power_toughness: GetPowerToughnessLexicalVerbPhrase {
         element GetPowerToughness {
             head: lex GetPowerToughnessVerb,
             adjustment: PowerToughnessAdjustment,
-            duration: opt DurationPhrase,
         }
         derive concord_class = head.concord_class;
-        form get_power_toughness = verb(head) adjustment duration;
+        form get_power_toughness = verb(head) adjustment;
     }
     construction have_object_control: VerbPhrase {
         element HaveObjectControl {

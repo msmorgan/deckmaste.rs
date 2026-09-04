@@ -1,6 +1,9 @@
 ---
 needs: [english-v2-clause-level-duration, english-v2-granted-ability-coordination]
 ---
+2026-09-04: inherits re-coverage owed for `Target creature gains trample until
+end of turn.` from `english-v2-clause-level-duration`.
+
 **Keyword-ability grants are a verb frame, not a bespoke predicate.** `Target
 creature gains flying until end of turn.` fails while `Target creature gets
 +1/+1 until end of turn.` selects. Sizing from the 2026-09-03 failure census

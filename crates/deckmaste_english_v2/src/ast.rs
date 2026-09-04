@@ -260,6 +260,7 @@ pub use crate::constructions::GenitiveDeterminerPluralReference;
 pub use crate::constructions::GenitiveDeterminerReference;
 pub use crate::constructions::GenitiveScalarValue;
 pub use crate::constructions::GetPowerToughness;
+pub use crate::constructions::GetPowerToughnessLexicalVerbPhrase;
 pub use crate::constructions::GetPowerToughnessVerb;
 pub use crate::constructions::GrantedKeywordLine;
 pub use crate::constructions::GrantedKeywordLineValue;

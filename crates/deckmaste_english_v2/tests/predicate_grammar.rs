@@ -277,7 +277,7 @@ fn imperative_transitive(
     transitive_lexical_verb_phrase(&imperative_atomic(parser, context, text)).clone()
 }
 
-fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -> VerbPhrase {
+fn declarative_predicate(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Predicate {
     let Sentence::Declarative(declarative) = parser
         .parse_sentence(text, context)
         .unwrap_or_else(|error| panic!("declarative product must parse {text:?}: {error:?}"))
@@ -290,10 +290,38 @@ fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -
     let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
         panic!("one finite predicate has a plain finite clause: {text:?}")
     };
-    let Predicate::Atomic(predicate) = clause.predicate() else {
+    clause.predicate().clone()
+}
+
+fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -> VerbPhrase {
+    let Predicate::Atomic(predicate) = declarative_predicate(parser, context, text) else {
         panic!("one finite predicate has an atomic envelope: {text:?}")
     };
-    *predicate.clone()
+    *predicate
+}
+
+fn declarative_get_power_toughness_with_duration(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+) -> (GetPowerToughnessVerb, PowerToughnessAdjustment) {
+    let Predicate::Adjunct(adjunct_predicate) = declarative_predicate(parser, context, text) else {
+        panic!("duration has the shared predicate-adjunct envelope: {text:?}")
+    };
+    let PredicateAdjunctPredicate::PredicateAdjunctPredicate(value) = adjunct_predicate.as_ref()
+    else {
+        panic!("duration has the general predicate-adjunct construction: {text:?}")
+    };
+    assert!(matches!(
+        value.adjunct.as_ref(),
+        PredicateAdjunct::Duration(_)
+    ));
+    let LexicalVerbPhrase::GetPowerToughnessLexicalVerbPhrase(predicate) = value.predicate.as_ref()
+    else {
+        panic!("power/toughness adjustment remains a lexical verb phrase: {text:?}")
+    };
+    let GetPowerToughnessLexicalVerbPhrase::GetPowerToughness(predicate) = predicate;
+    (predicate.head.clone(), predicate.adjustment.clone())
 }
 
 fn exact_claim_trace(
@@ -1088,14 +1116,14 @@ fn power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
     let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["get-power-toughness"], "{text:?}");
+    let (head, _) = declarative_get_power_toughness_with_duration(
+        &parser,
+        &context,
+        "Target creature gets +3/+1 until end of turn.",
+    );
     assert!(matches!(
-        declarative_atomic(
-            &parser,
-            &context,
-            "Target creature gets +3/+1 until end of turn."
-        ),
-        VerbPhrase::GetPowerToughness(GetPowerToughness { head, .. })
-            if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Get))
+        head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Get)
     ));
     let text = "This creature has base power and toughness 4/4.";
     assert_selected(&parser, &context, text);
@@ -1148,19 +1176,12 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
     let context = context();
     let text = "Target creature gets -1/-1 until end of turn.";
     let ability = assert_selected(&parser, &context, text);
-    let VerbPhrase::GetPowerToughness(GetPowerToughness {
-        head,
-        adjustment: PowerToughnessAdjustment::PowerToughnessAdjustment(adjustment),
-        duration,
-    }) = declarative_atomic(&parser, &context, text)
-    else {
-        panic!("negative adjustment stays in the ordinary typed gets frame")
-    };
+    let (head, adjustment) = declarative_get_power_toughness_with_duration(&parser, &context, text);
+    let PowerToughnessAdjustment::PowerToughnessAdjustment(adjustment) = adjustment;
     assert!(matches!(
         head.reference(),
         VerbInventoryRef::Core(CoreVerbIdentity::Get)
     ));
-    assert!(matches!(duration.as_ref(), Some(DurationPhrase::Until(_))));
     assert_eq!(
         adjustment.magnitudes(),
         [

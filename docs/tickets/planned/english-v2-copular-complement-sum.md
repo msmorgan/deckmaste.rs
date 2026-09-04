@@ -1,6 +1,9 @@
 ---
 needs: []
 ---
+2026-09-04: inherits re-coverage owed for `Target land becomes a 3/3 creature
+until end of turn.` from `english-v2-clause-level-duration`.
+
 # One copular complement: the whole PredicativeComplement sum, plus scalar equality
 
 **R4 — Group R.**

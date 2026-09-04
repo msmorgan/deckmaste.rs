@@ -1095,6 +1095,7 @@ enum NonterminalKind {
     LexicalVerbPhrase,
     IntransitiveLexicalVerbPhrase,
     TransitiveLexicalVerbPhrase,
+    GetPowerToughnessLexicalVerbPhrase,
     MeasureComplementLexicalVerbPhrase,
     PossessiveOwner,
     Possessive,
@@ -1829,6 +1830,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::TransitiveLexicalVerbPhrase => {
             NonterminalKind::TransitiveLexicalVerbPhrase
+        }
+        NonterminalCategory::GetPowerToughnessLexicalVerbPhrase => {
+            NonterminalKind::GetPowerToughnessLexicalVerbPhrase
         }
         NonterminalCategory::MeasureComplementLexicalVerbPhrase => {
             NonterminalKind::MeasureComplementLexicalVerbPhrase

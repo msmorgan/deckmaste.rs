@@ -76,7 +76,7 @@
         Predicate([Role("KeywordAbility")]),
     ]),
     (identity: Get, bare: "get", third_person: "gets", frames: [
-        Predicate([Role("PowerToughnessAdjustment"), OptionalRole("DurationPhrase")]),
+        Predicate([Role("PowerToughnessAdjustment")]),
     ]),
     (identity: Have, bare: "have", third_person: "has", frames: [
         Predicate([Role("QuotedAbility")]),
