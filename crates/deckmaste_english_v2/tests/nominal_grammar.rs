@@ -1074,101 +1074,120 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
     let parser = parser();
     let context = context("Context Card");
 
-    for (text, candidate_count, resolution) in [
+    for (text, candidate_count, resolution, expected_selected) in [
         (
             "A creature card you control in exile with mana value 2 or less gains 2 life.",
             2,
             SelectionResolution::Specificity,
+            1,
         ),
         (
             "Target creature you control gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Each creature you control gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "All creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Two creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "X target creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Another creature you control gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "The creature you control gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Up to one target creature you control gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Up to two target creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Any number of target creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "One or more target creatures you control gain 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "A creature with mana value 2 or less from your graveyard gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "A card in exile you own gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "A creature you control you own gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "A card in exile in your graveyard gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "A creature with power 2 or less with toughness 2 or less gains 2 life.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
         (
             "Creatures with flying you control get +1/+0.",
             1,
             SelectionResolution::Unique,
+            0,
         ),
     ] {
         let analysis = parser.analyze(text, &context);
@@ -1176,9 +1195,6 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
             .selected()
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
-        let expected_selected = usize::from(
-            text == "A creature card you control in exile with mana value 2 or less gains 2 life.",
-        );
         assert_eq!(decision.candidates().len(), candidate_count, "{text:?}");
         assert_eq!(decision.resolution(), resolution, "{text:?}: {decision:?}");
         assert_eq!(decision.selected(), Some(expected_selected), "{text:?}");

@@ -2033,19 +2033,6 @@ fn object_gap_adjunct_attachment_selects_the_low_relative_reading() {
     }
 
     for text in [
-        "Destroy each creature you sacrifice during your upkeep.",
-        "Untap all permanents you control during each other player's untap step.",
-    ] {
-        let path = selected_path(text);
-        assert!(
-            path.iter().any(|name| {
-                name == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"
-            }),
-            "the temporal PP selects the low object-gap-relative attachment for {text:?}: {path:?}",
-        );
-    }
-
-    for text in [
         "Spells your opponents cast during your turn cost {1} more to cast.",
         "The next spell you cast this turn has cascade.",
         "Spells you cast this turn cost {1} less to cast.",

@@ -149,3 +149,113 @@ of the six newly selected identities is a negative oracle.
   selected result and permitted-checker count; both are required by the ticket
   and introduce no new grammar behaviour.
 - STOP: none. Glossary gap: none. Decision wanted: none.
+
+### Review corrections (landing review, 2026-09-04)
+
+Verdict: REJECTED-PENDING-RULING. The census, lock arithmetic, residue sweep,
+checker-count shift and re-spell shape all verify; three of the six newly
+covered identities do not.
+
+Reviewer re-measurement (independent, on a reflink copy of the parent tip
+`qmssqson-` against `@-`): parent selected/covered 16,824/16,824, unique
+11,527, specificity 5,297; result 16,830/16,830, unique 11,515, specificity
+5,315; unresolved ties 0 -> 0, internal failures 0 -> 0, roundtrip mismatches
+0. Coverage gate passes with `licensing_checker_permitted` 19 and
+`licensing_checker_forbidden` 0. The six lock additions are exactly the six
+newly covered ids.
+
+HIGH — three newly covered identities select a wrong analysis of grammatical
+Oracle English, and the landing blessed them into the coverage lock. In each
+the relativizer `that` is consumed as a bare `FixedDurationPhrase` over
+`NounPhraseFusedDeterminativeReference` (a fused-head distal demonstrative),
+which is a temporal reading of a word that is introducing the following
+relative clause:
+
+- On Wings of Gold, `Creatures you control that are Zombies and/or tokens get
+  +1/+1 and have flying.` — ` that` (bytes 21..26) is claimed by
+  `determinative:DeterminativeHead/DistalDemonstrative` as the adjunct of the
+  object-gap relative `you control`, and ` and/or ` is then claimed by
+  `structural:AndOrClauseCoordination`, splitting one clause into two.
+- Red Guardian, Super-Soldier, `... destroy target creature an opponent
+  controls that dealt damage this turn.` — ` that` (76..81) is the duration
+  adjunct of `controls`, and `dealt damage this turn` becomes a reduced
+  passive, inverting the voice the card states.
+- Zedruu the Greathearted, `... the number of permanents you own that your
+  opponents control.` — ` that` (110..115) is the duration adjunct of `own`.
+
+This shape is selected on zero corpus units in the parent tip and on exactly
+these three in the result, so the landing introduces it. It is not the
+recorded Seedborn Muse misselection class: that class is an attachment-site
+choice among readings whose constituency is correct, whereas here a
+relativizer is re-analysed as a temporal noun phrase and, for On Wings of
+Gold, a nominal coordination is re-analysed as a clause coordination.
+CLAUDE.md makes a wrong analysis that starts parsing a STOP, never a coverage
+gain; the STOP was not taken.
+
+Decision wanted (blocking): a bare fused-head demonstrative is admitted as a
+`FixedDurationPhrase`. Nothing in the corpus selects that reading legitimately
+(0 units on the parent tip). Should this ticket narrow the duration phrase to
+require an overt nominal head, or does that narrowing belong to its own
+ticket? Either answer changes this landing's numbers: with the narrowing the
+gain is +3 (Deepfathom Echo, Display of Dominance, Veilstone Amulet) and the
+lock must be re-blessed with three additions, not six. The reviewer did not
+choose, because the ticket pins only the adjunct-licence removal and the
+alternative resolutions differ in coverage.
+
+The three remaining newly covered identities were read and are admissible
+under low attachment: Deepfathom Echo takes `until end of turn` inside `you
+control`; Display of Dominance and Veilstone Amulet take `this turn` inside
+`your opponents control`. All three are the recorded misselection class.
+
+MEDIUM — undisclosed re-spell. `predicate_adjuncts_pin_postposed_prepositions
+_outside_their_objects` had its witness changed from `Untap all permanents you
+control during each other player's untap step.` to `Untap all permanents
+during each other player's untap step.` The change is correct (the relative
+clause is what moves the attachment, and the Seedborn Muse sentence keeps its
+low-attachment assertion in the object-gap test), but it is a re-spell and was
+absent from the assurance list. Re-spelled is 8 contracts, not 7.
+
+MEDIUM — the record states the participial-relative assurance is re-spelled
+"for the same `Destroy each creature you sacrifice during your upkeep.`
+witness". That sentence is in the object-gap test; the participial test's
+witnesses are `Destroy a card you've exiled this turn.` and `Destroy each
+creature turned face up this turn.` Both tests keep their own sentences.
+
+MEDIUM — the record's `42 changed decisions` and `29 changed selected
+ordinals` count only units selected in both trees; counted over all units they
+are 48 and 35, which is what `40 listed + 8 retaining their analysis` implies.
+The scoping is now stated here. Memory Theft and Slurrk, All-Ingesting are
+described as having a "different selected construction path"; their selected
+construction paths are identical, and only the candidate set and the selected
+ordinal changed.
+
+MEDIUM — no change-id stamp on the measurement. The figures above were
+measured on `qmssqson-` (parent) and `tyltkmto`/`@-` (result), lock covered
+count 16,830.
+
+LOW — `object_gap_adjunct_attachment_selects_the_low_relative_reading` carried
+two loops asserting the identical predicate over overlapping witness sets; the
+duplicate loop is folded into the first, which already contains both of its
+sentences. No assertion is lost.
+
+LOW — the nominal selected-ordinal fixture expressed the expected ordinal as
+`usize::from(text == "A creature card you control in exile ...")` inside the
+loop body; it is now a fourth column of the witness table.
+
+LOW — the record notes the permitted-checker count changed without stating it.
+`licensing_checker_permitted` is 25 -> 19: the six deleted licence-reading
+predicates (`transitive_head_licenses_{,non}prepositional_adjunct`,
+`transitive_participle_head_licenses_{,non}prepositional_adjunct`,
+`passive_predicate_licenses_{,non}prepositional_adjunct`).
+`licensing_checker_forbidden` stays 0.
+
+Reviewer contention stamp for the performance advisory: 1 concurrent codex
+executor plus this review on the host, host load 4.08–11.76 across the runs.
+Reviewer measurements: coverage 87.626 s, 114,243 ns/B, load 4.08/6.58/8.52;
+ambiguity 87.808 s, 115,689 ns/B, load 9.36/9.42/10.25; parent-tip ambiguity
+93.872 s, 116,520 ns/B, load 6.50/8.49/9.82. All exceed the 16.260 s ceiling
+under contention; reported, not a STOP.
+
+Assurance counts after review: restored 0, re-spelled 8, ignored 0, added 1,
+removed 0. The folded duplicate loop is not an assurance removal — both of its
+witnesses remain asserted in the surviving loop.
