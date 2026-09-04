@@ -156,7 +156,12 @@ where
 /// ([CR#120.3,702.2c]). The mark stores abilities, not an object, so only the
 /// combinators and `Has(name)` can be answered — every other atom would need
 /// the live source, which the deal-time reading deliberately does not consult.
-fn source_abilities_match(filter: &Predicate, abilities: &[deckmaste_core::Ability]) -> bool {
+/// Shared by both core spellings of the relation: the `WasDealtDamageBy` state
+/// predicate below and `Condition::DealtDamageBy`'s evaluator.
+pub(crate) fn source_abilities_match(
+    filter: &Predicate,
+    abilities: &[deckmaste_core::Ability],
+) -> bool {
     use deckmaste_core::CharacteristicPredicate;
     if let Some(result) = walk_combinators(filter, |f| source_abilities_match(f, abilities)) {
         return result;

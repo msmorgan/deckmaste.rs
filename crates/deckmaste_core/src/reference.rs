@@ -158,6 +158,12 @@ impl Reference {
     /// [`Kind`](crate::Kind) holds, and a demoted selection its members'
     /// domain. `Entity` means "either" — the constructor constrains nothing.
     #[must_use]
+    #[allow(
+        clippy::match_same_arms,
+        reason = "an Aura host is Entity-wide by [CR#303.4b]; a register is \
+                  Entity only because the reference cannot see its declared \
+                  kind — merging the arms would erase that distinction"
+    )]
     pub fn referent_domain(&self) -> crate::Domain {
         match self {
             // [CR#109.5,108.3,102.2]: a controller, an owner, and an opponent

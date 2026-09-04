@@ -93,10 +93,9 @@ impl GameState {
             Condition::DealtDamageBy(reference, filter) => {
                 let subject = self.eval_reference(reference, frame);
                 self.objects.get(subject).is_some_and(|object| {
-                    object
-                        .damage
-                        .iter()
-                        .any(|mark| source_abilities_match(filter, &mark.source_abilities))
+                    object.damage.iter().any(|mark| {
+                        crate::target::source_abilities_match(filter, &mark.source_abilities)
+                    })
                 })
             }
 

@@ -99,9 +99,11 @@ damage TOTAL, not the marks). The lethal-damage SBA's deathtouch clause
 
 `deckmaste_semantics::Reference::Source` and
 `plugins/builtin/macros/identity/Source.ron` are untouched (scope ruling):
-lowering rewrites `Matches(Source, F)` whole into the named predicate, and
+lowering rewrites `Matches(Source, F)` whole into the named relation, and
 refuses a `Source` in any other position, naming [CR#120.1]. No RON data file
-changed.
+changed. (Both sentences are superseded by "Merged onto the landed rounds"
+below: default had meanwhile deleted `Source.ron` and named the relation
+`Condition::DealtDamageBy`, which the whole-condition rewrite now targets.)
 
 ### The `Sort` split
 
@@ -148,6 +150,28 @@ It is now domain-tagged, and it has a real consumer:
 - **`deckmaste_semantics`** keeps `Reference::Source` and the flat `Sort`;
   they converge at cutover when the RON re-emit path points at
   `Experimental` (scope ruling 2026-09-04).
+
+### Merged onto the landed rounds
+
+Rebasing onto default (`ability-kind-taxonomy`, `type-def-permanent-type-flag`,
+`effect-instruction-taxonomy`, `idris-sba-not-a-static-ability`, the
+`core-entity-object-classes` follow-up) collided on the `Source` move alone,
+because `core-reference-source-query` had meanwhile deleted
+`Reference::Source` from core too and named the relation
+`Condition::DealtDamageBy(subject, F)` — a semantics variant, an authored
+`DealtDamageBy(This, Has(Deathtouch))` in `plugins/builtin/rules/sba/
+lethal-damage.ron`, an identity-registry entry and an Idris emitter. Both
+deletions stand and both spellings survive: the authored/production path keeps
+default's `Condition::DealtDamageBy` (so the legacy `Matches(Source, F)` and
+the explicit spelling lower to one core shape), while this round's
+`StatePredicate::WasDealtDamageBy` keeps carrying the same query into `Exists`,
+filters and target constraints where a `Condition` cannot reach. The one
+matcher, `source_abilities_match`, moved to `target.rs` as this round wrote it
+and is now `pub(crate)`, shared by both evaluators instead of duplicated. The
+lowering refusal for a bare `Source` names both [CR#120.1] and the
+`DealtDamageBy` condition, satisfying both rounds' refusal tests, and the SBA
+deathtouch test keeps default's name while asserting both spellings against the
+same marks.
 
 ## Landing record
 
