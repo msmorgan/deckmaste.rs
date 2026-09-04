@@ -84,7 +84,7 @@ pub(super) fn run(args: &ReportArgs, output: &mut dyn Write) -> anyhow::Result<(
 
 fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
     let expansion = expansion_from_source(source)?;
-    let licensing_checkers = super::licensing_checkers::from_source(source)?;
+    let licensing_checkers = super::licensing_checkers::from_expansion(source, &expansion)?;
     let selection_exceptions = deckmaste_english_v2::parser::selection_exception_inventory()
         .map_err(anyhow::Error::new)
         .context("validating English-v2 selection exception inventory")?;

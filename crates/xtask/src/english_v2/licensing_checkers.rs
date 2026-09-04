@@ -7,13 +7,22 @@ use anyhow::Context as _;
 use anyhow::bail;
 use deckmaste_construction_core::Declaration;
 use deckmaste_construction_core::Declarations;
+use deckmaste_construction_core::Expansion;
 use deckmaste_construction_core::Field;
 use deckmaste_construction_core::GeneratedCodecRecipe;
 use serde::Deserialize;
 use serde::Serialize;
 use syn::visit::Visit as _;
 
-const GRANDFATHERED_FORBIDDEN: [&str; 2] = ["noun_is_way", "singular_demonstrative_is_this"];
+/// The word-naming `checked by` guards `english-v2-this-way-lexeme-guard`
+/// retires. The gate accepts exactly these and rejects a sixth.
+const GRANDFATHERED_FORBIDDEN: [&str; 5] = [
+    "determinative_is_independent_fused",
+    "determinative_is_plural_all",
+    "nominal_object_is_not_fused_all",
+    "noun_is_way",
+    "singular_demonstrative_is_this",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -50,17 +59,19 @@ impl LicensingCheckerCensus {
     }
 
     pub(super) fn enforce_forbidden_policy(&self) -> anyhow::Result<()> {
-        let forbidden = self
+        let grandfathered = BTreeSet::from(GRANDFATHERED_FORBIDDEN);
+        let unlicensed = self
             .rows
             .iter()
             .filter(|row| row.kind == LicensingCheckerKind::ForbiddenLexicalIdentity)
             .map(|row| row.identity.as_str())
+            .filter(|identity| !grandfathered.contains(identity))
             .collect::<Vec<_>>();
-        if forbidden.is_empty() || forbidden == GRANDFATHERED_FORBIDDEN {
+        if unlicensed.is_empty() {
             return Ok(());
         }
         bail!(
-            "English-v2 licensing checker gate rejected forbidden lexical-identity checkers: {forbidden:?}; only the temporary grandfathered pair {GRANDFATHERED_FORBIDDEN:?} is permitted until its retirement ticket lands",
+            "English-v2 licensing checker gate rejected forbidden lexical-identity checkers: {unlicensed:?}; only the temporary grandfathered set {GRANDFATHERED_FORBIDDEN:?} is permitted until its retirement ticket lands",
         )
     }
 }
@@ -84,7 +95,30 @@ pub(super) fn from_source(source: &str) -> anyhow::Result<LicensingCheckerCensus
     let invocation = deckmaste_construction_core::invocation_from_source(source)
         .map_err(anyhow::Error::new)
         .context("extracting English-v2 construction declaration")?;
-    let declarations = deckmaste_construction_core::parse_declarations(invocation.tokens)
+    let expansion = deckmaste_construction_core::generate(invocation.tokens.clone())
+        .map_err(anyhow::Error::new)
+        .context("generating English-v2 construction declaration")?;
+    from_parts(source, invocation.tokens, &expansion)
+}
+
+/// The census for a caller that already generated the expansion, so `report`
+/// does not expand the declaration a second time.
+pub(super) fn from_expansion(
+    source: &str,
+    expansion: &Expansion,
+) -> anyhow::Result<LicensingCheckerCensus> {
+    let invocation = deckmaste_construction_core::invocation_from_source(source)
+        .map_err(anyhow::Error::new)
+        .context("extracting English-v2 construction declaration")?;
+    from_parts(source, invocation.tokens, expansion)
+}
+
+fn from_parts(
+    source: &str,
+    tokens: proc_macro2::TokenStream,
+    expansion: &Expansion,
+) -> anyhow::Result<LicensingCheckerCensus> {
+    let declarations = deckmaste_construction_core::parse_declarations(tokens)
         .map_err(anyhow::Error::new)
         .context("parsing English-v2 construction declaration")?;
     let lexical_members = lexical_members(&declarations);
@@ -92,13 +126,6 @@ pub(super) fn from_source(source: &str) -> anyhow::Result<LicensingCheckerCensus
     let syntax = syn::parse_file(source).context("parsing English-v2 Rust source")?;
     let mut bodies = function_bodies(&syntax)?;
 
-    let expansion = deckmaste_construction_core::generate(
-        deckmaste_construction_core::invocation_from_source(source)
-            .map_err(anyhow::Error::new)?
-            .tokens,
-    )
-    .map_err(anyhow::Error::new)
-    .context("generating English-v2 construction declaration")?;
     for item in expansion.items() {
         let Ok(syn::Item::Fn(function)) = syn::parse2::<syn::Item>(item.tokens.clone()) else {
             continue;
@@ -401,6 +428,8 @@ impl BodyClassifier<'_> {
 }
 
 fn is_declared_feature_identifier(identifier: &str) -> bool {
+    // Hand-copied from deckmaste_construction_core's sealed `Feature`;
+    // `construction-core-feature-key-inventory` publishes the list to consume.
     const FEATURE_NAMES: [&str; 21] = [
         "agreement",
         "bare_locative_complement",
@@ -461,8 +490,6 @@ mod tests {
     const PRODUCTION_SOURCE: &str =
         include_str!("../../../deckmaste_english_v2/src/constructions.rs");
 
-    // The grammar carries three word-naming checkers beyond the pair the ticket
-    // grandfathered; the landing record records the STOP that reports them.
     #[test]
     fn production_census_names_every_word_naming_checker() {
         let census = from_source(PRODUCTION_SOURCE).expect("production census builds");
@@ -487,10 +514,9 @@ mod tests {
             census.permitted_total() + census.forbidden_total(),
             census.rows().len()
         );
-        let error = census
+        census
             .enforce_forbidden_policy()
-            .expect_err("checkers beyond the grandfathered pair must fail the gate");
-        assert!(error.to_string().contains("determinative_is_plural_all"));
+            .expect("the grandfathered five remain accepted until retirement");
     }
 
     #[test]

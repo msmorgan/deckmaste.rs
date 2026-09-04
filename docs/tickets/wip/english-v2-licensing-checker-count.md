@@ -14,7 +14,7 @@ each `checked by` function with its kind, split into the permitted classes
 `rightmost_leaf_is`) and the forbidden one (compares against a lexeme,
 construction, verb, noun, preposition, or card constructor). The forbidden
 class must be zero once `english-v2-this-way-lexeme-guard` lands; until then
-the census names the grandfathered pair. The permitted total is recorded in
+the census names the grandfathered five. The permitted total is recorded in
 every landing record's numbers so a rise is a review question, not a gate
 failure.
 
@@ -192,3 +192,40 @@ Ruling needed, three parts:
   coverage report schema 7. It integrates first, so this workspace owes the
   reconciliation to a single monotonic number (8) and the merge of both field
   sets at its re-landing.
+
+### Ruling (coordinator, 2026-09-04)
+
+The STOP above is answered. A closed-class determinative lemma is a lexeme, so
+CLAUDE.md's guard rule applies to it: `DeterminativeHeadLemma::Any` and `::All`
+comparisons are in the forbidden class, the corrected census of
+31 = 19 + 7 + 5 is right, and the "only two" premise in this ticket and in
+`english-v2-this-way-lexeme-guard` was a counting error rather than a ruling.
+
+Applied here:
+
+- `GRANDFATHERED_FORBIDDEN` names all five —
+  `determinative_is_independent_fused`, `determinative_is_plural_all`,
+  `nominal_object_is_not_fused_all`, `noun_is_way`,
+  `singular_demonstrative_is_this` — so the gate is green at exactly five and
+  rejects a sixth. It compares as a set rather than by incidental sort order,
+  which also closes review finding L2.
+- The three additional guards are routed to
+  `docs/tickets/planned/english-v2-this-way-lexeme-guard.md` by a dated
+  paragraph: that ticket's letter is to retire word-naming `checked by` guards,
+  so it now owes all five and takes the grandfathered count to zero at its
+  landing. `any` also has an owner in `english-v2-closed-class-single-owner`,
+  which is in flight and was not edited.
+- The ticket's letter now says "grandfathered five".
+- Review finding M3 (the hand-copied `FEATURE_NAMES`) is out of this ticket's
+  scope. Minted `docs/tickets/planned/construction-core-feature-key-inventory.md`;
+  the list stays hand-copied here behind a one-line comment naming that ticket.
+- Review finding L1 is fixed: the census parsed the declaration invocation
+  twice and `report` expanded the declaration a second time. `from_source` now
+  generates once and `report` hands its own expansion to
+  `licensing_checkers::from_expansion`.
+
+Assurance for the ruling round: added 0 tests; re-spelled 0; removed 0. The
+production census test now asserts the gate accepts the grandfathered five
+instead of rejecting the three, which is the ruling, not a weakening: the
+sibling test `forbidden_policy_rejects_any_added_identity` still proves a
+sixth identity fails.

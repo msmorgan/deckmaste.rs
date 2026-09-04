@@ -26,3 +26,23 @@ Fence: any `checked by` whose body compares against a lexeme constructor.
 Acceptance: `singular_demonstrative_is_this` and `noun_is_way` gone, every
 "this way" identity still covered with the same analysis, byte-exact laws
 green. Standard constraints apply.
+
+**2026-09-04 — this ticket owes five guards, not two.** The licensing-checker
+census landed by `english-v2-licensing-checker-count` classifies checker bodies
+rather than names and reports five `checked by` guards that compare against a
+lexical identity. The claim above that "these two are the only ones that name a
+word" was a counting error: the census's first classifier collected only `vocab`
+and `lexeme` members and read only a checker's own body, so it missed the
+closed-class lemmas a `codec` declaration owns and any comparison delegated to a
+helper. The three further guards, all naming a `DeterminativeHeadLemma`:
+
+- `determinative_is_independent_fused` — `DeterminativeHeadLemma::Any`, the word `any`
+- `determinative_is_plural_all` — `DeterminativeHeadLemma::All` via `determinative_is_all`, the word `all`
+- `nominal_object_is_not_fused_all` — the same helper and the same word
+
+The gate's `GRANDFATHERED_FORBIDDEN` set now names all five and rejects a sixth;
+this ticket's landing takes the grandfathered count to zero, so the acceptance
+above extends to the three. `any` also has an owner in
+`english-v2-closed-class-single-owner` (in flight) — coordinate rather than
+duplicate. The pinned shape is unchanged: the fact lives on the declaration, and
+the construction reads a declared feature.
