@@ -67,6 +67,29 @@ macro only if it names a RON macro
   `Cards/Choice.idr`: `stickTogether`.
 - Pins (`ProofsDescription.idr`): `badRepeatedPartyRole`,
   `badEmptyPartyRoles`, with the shared twin `okPartyOfFourRoles`.
+- **Merge with `workbench-distributive-mutation-hole`.** Took (a), the guard is
+  right: `moveIntro (TheRest _)` is `groupSpent bs`, a spend of bindings the
+  agent phrase never introduced, while `doesInstrIntro ManyOf` republishes
+  `nomIntro s` over it — so the spend would be dropped and "the rest" would
+  stay spellable exactly where `ProofsChoice.badChoiceRestDisposedTwice`
+  refuses it undistributed. `stickTogether` is re-spelled as one
+  `ForEachOf (Macros.each AnyPlayer)` scope holding the four `Choose (UpTo 1)`
+  roles and `Macros.sacrifice Macros.They Macros.theRest`, since only there do
+  the same bindings that are spent get introduced by the body (wrapping the
+  sacrifice alone is refused at `ForEachOf`'s own `KeepsOuter`, probed); the
+  choices gained `HasPossessor ControllerAx Macros.They`, which closes the
+  chooser-scope gap noted below — [CR#700.8d] reads "each player chooses up to
+  one creature they control of that type". The cost is that the printed
+  "Each player …" shape is now read as the loop "For each player, …": a
+  distributive deed cannot host a group spend at all, and no predicate spells
+  "that weren't chosen this way", so the alternative would have dropped the
+  exception clause and made the witness read a different card.
+- Merge extras: `caughtInTheCrossfire`'s two hand-written five-type
+  disjunctions now go through `Macros.outlaw` (a drop-in — the macro is that
+  exact `Or`). Gates re-run on the merged tree: clean `./scripts/build` 46/46,
+  0 Error/0 Warning, `1m20.767s` real; `cite check --list-noncompliant` 0;
+  `cite check` 14200 citations, 0 stale; `cite audit --diff` 29 sites, no
+  cite added or changed.
 
 ## Landing record
 
