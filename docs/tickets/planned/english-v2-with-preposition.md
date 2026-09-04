@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-np-postmodifiers, english-v2-closed-class-single-owner]
+needs: [english-v2-np-postmodifiers, english-v2-closed-class-single-owner, english-v2-adjunct-licence-removal]
 ---
 **Add `with` to `vocab Preposition` and retire the three fused
 `with`-postmodifiers.** The inventory has fourteen members (`after` … `under`)
@@ -25,7 +25,7 @@ Fences: declaring `With` adjunct-capable by intuition; keeping a fused
 `with` construction "for now" beside the PP; a `checked by` guard naming `with`.
 Verb-selected `with` (`WithObjectVerb`, `ObjectWithObjectVerb`,
 `EnterWithCountersVerb`) is frame data and stays out of scope; it belongs to
-`english-v2-frame-preposition-valence`.
+`english-v2-frame-selected-prepositions`.
 
 Acceptance: `form_literal_vocab_overlaps` down by the retired `with` literals,
 the three fused constructions deleted with their coverage re-spelled through

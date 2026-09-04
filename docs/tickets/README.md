@@ -176,3 +176,10 @@ and nothing reads the file mechanically. Its rows were once synthesised into
 graph nodes claimable by name; that machinery is gone, and no ticket's `needs:`
 ever pointed at one. A mechanic worth working gets a real ticket file like
 anything else.
+
+`fog.md` sits beside `census.md` on the same terms — tracked, but read by nobody and
+named by no `needs:`. It holds work that is in scope yet not sharp enough to
+pin: one entry per family, carrying the substance (shape, identities, probes,
+the decision it waits on). An entry graduates to a real ticket only when it can
+carry a `Pinned shape:`, and is deleted from `fog.md` when it does. Demoting a
+ticket means moving its substance there, not discarding it.

@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-stage-5-grammar-buildout-13-10, english-v2-quoted-block-sentence-terminator, english-v2-compiler-onset-and-nested-document, english-v2-flavor-word-open-class, english-v2-frame-key-reduction, english-v2-card-type-feature]
+needs: [english-v2-stage-5-grammar-buildout-13-10, english-v2-quoted-block-sentence-terminator, english-v2-compiler-onset-and-nested-document, english-v2-flavor-word-open-class, english-v2-frame-key-reduction]
 ---
 Long-tail closure to 100% of the normalized corpus. Scope: every remaining
 document shape and sentence family the frontier surfaces, run as the pure

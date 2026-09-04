@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-subordinate-clause, english-v2-predicative-complement]
+needs: [english-v2-subordinate-clause]
 ---
 **Lower the cost-family categories to ordinary linguistic constituents.** The
 rewrite decision's Plan 09 amendment (`docs/decisions/english-v2-rewrite.md`,
@@ -10,8 +10,9 @@ printed notation. It does not admit `ActivationCostComponent`,
 `AdditionalCostBody`, `ControlledCostAction`, `CostComparisonPredicate`,
 `CastingRestriction`, or `RestrictionTurn`, which name game meaning and are
 the largest unticketed block of the ~24 game-semantic categories still in the
-grammar. The predicative and distribution/counter blocks have their own
-tickets; this one owns the cost family.
+grammar. The distribution/counter block has its own ticket and the predicative
+block is the `Predicative complement as one copular frame (A7)` entry in
+`../fog.md`; this one owns the cost family.
 
 Pinned direction, one category at a time, each with its own landing record
 entry: an activation cost is a coordination of cost constituents where the

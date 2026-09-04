@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-card-type-feature]
+needs: [english-v2-closed-class-single-owner]
 ---
 Adjective lexeme tier (vocab-surface ruling 2026-09-02; homograph-feature
 ledger). Adjectives are content words with no legal home but a vocab:
@@ -11,7 +11,10 @@ identity carries an adjective face (keyword-derived participles like
 `equipped`/`enchanted` already ride grammar contributions), grammatical
 distinctions (attributive/predicative, gradable, participial) as declared
 features consumed by constructions; morphology strictly regular with
-per-word attested overrides. The homograph licence moves with the members.
+per-word attested overrides. The homograph licence moves with the members. The card-type modifier feature
+this ticket previously waited on is no longer a ticket — it is the `Card type as
+a derived feature on nominal modifiers (A8b)` entry in `../fog.md`, and nothing
+here depends on it landing first.
 Delete the adjective vocabs once every member has a home; the collision
 tripwire then covers adjectives without exemption classes. Hard blocker this ticket owns: three
 form literals (`additional`, `next`, `other`) collide with adjective vocab
