@@ -46,10 +46,14 @@ Measured on change `sulmlzws` with 16,771 covered lock identities.
 - Newly covered identities and selected analyses: none. This change adds
   census and gate visibility without changing the grammar, parser selection,
   corpus, or coverage lock.
+- The required post-commit `kata refresh` rewrote the feature stack. Every
+  number and gate artifact below was remeasured on that refreshed stack and
+  the coverage, construction, lock, checker, and selection censuses remained
+  unchanged.
 - Positive gates: `cargo fmt --all --check` exited 0; strict all-target xtask
   Clippy finished successfully; `cargo test -p xtask` emitted `test result:
   ok. 425 passed; 0 failed; 1 ignored`, followed by positive 12-test, 1-test,
-  1-test, and doc-test results; `cargo xtask cite check` checked 17,920
+  1-test, and doc-test results; `cargo xtask cite check` checked 17,954
   citations with 0 stale; `cargo xtask english_v2 coverage --check --json`
   emitted 16,771 selected, 16,771 covered, 0 selected-uncovered, 0 unresolved
   ties, 0 internal failures, 0 round-trip mismatches, 0 ownership failures,
@@ -57,13 +61,11 @@ Measured on change `sulmlzws` with 16,771 covered lock identities.
   forbidden licensing checkers; `cargo xtask english_v2 ambiguity
   --require-resolved --json` emitted 11,515 unique and 5,256
   specificity-resolved selections with 0 unresolved ties.
-- Performance advisory: the refreshed baseline coverage measurement took
-  21.824057542 s at 106,047 ns/B with 1 concurrent `codex` process measured by
-  `pgrep -c -x codex`. The landing coverage measurement took 22.274855175 s
-  at 102,421 ns/B, again with 1 concurrent `codex` process. Both exceeded the
-  16.26 s quiet-host ceiling under reported host contention; this is advisory,
-  not a STOP. The landing ambiguity measurement likewise reported contention
-  at 31.872177587 s.
+- Performance advisory: the final refreshed coverage measurement took
+  19.741798832 s at 106,034 ns/B with 1 concurrent `codex` process measured by
+  `pgrep -c -x codex`. It exceeded the 16.26 s quiet-host ceiling under
+  reported host contention; this is advisory, not a STOP. The final refreshed
+  ambiguity measurement likewise reported contention at 25.311431199 s.
 
 ### Deviations and additions
 
