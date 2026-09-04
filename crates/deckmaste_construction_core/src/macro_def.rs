@@ -403,7 +403,41 @@ pub enum VerbValence {
     Intransitive,
     Transitive,
     Numerative,
-    Custom { shapes: Vec<Vec<CustomTailAtom>> },
+    Custom {
+        shapes: Vec<Vec<CustomTailAtom>>,
+    },
+    /// The wrapped valence admits a post-head predicate adjunct.
+    AdjunctLicensed(Box<VerbValence>),
+    /// The wrapped valence admits only a nonprepositional post-head adjunct.
+    NonprepositionalAdjunctLicensed(Box<VerbValence>),
+}
+
+impl VerbValence {
+    /// Returns the grammatical frame independently of its adjunct licence.
+    #[must_use]
+    pub fn frame(&self) -> &Self {
+        match self {
+            Self::AdjunctLicensed(frame) | Self::NonprepositionalAdjunctLicensed(frame) => {
+                frame.frame()
+            }
+            frame => frame,
+        }
+    }
+
+    /// Returns whether this valence admits a post-head predicate adjunct.
+    #[must_use]
+    pub fn prepositional_adjunct_licensed(&self) -> bool {
+        matches!(self, Self::AdjunctLicensed(_))
+    }
+
+    /// Returns whether this valence admits a nonprepositional predicate adjunct.
+    #[must_use]
+    pub fn nonprepositional_adjunct_licensed(&self) -> bool {
+        matches!(
+            self,
+            Self::AdjunctLicensed(_) | Self::NonprepositionalAdjunctLicensed(_)
+        )
+    }
 }
 
 /// The complete serialized atom vocabulary for a custom verb tail.
@@ -2105,7 +2139,7 @@ fn validate_valence(
     position: SourcePosition,
     valence: &VerbValence,
 ) -> Result<(), ReadError> {
-    let VerbValence::Custom { shapes } = valence else {
+    let VerbValence::Custom { shapes } = valence.frame() else {
         return Ok(());
     };
     if shapes.is_empty() {

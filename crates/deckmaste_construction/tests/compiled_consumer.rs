@@ -1476,6 +1476,44 @@ pub mod declaration_verb_fixture {
             };
             fixture_frames_for(id.name(), valence).contains(&frame.atoms())
         }
+
+        fn verb_frame_prepositional_adjunct_licensed(
+            &self,
+            reference: &crate::environment::VerbInventoryRef,
+            frame: VerbFrameKey,
+        ) -> bool {
+            let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
+                return false;
+            };
+            self.grammar_recipe(id).is_some_and(|recipe| {
+                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                    recipe
+                else {
+                    return false;
+                };
+                fixture_frames_for(id.name(), valence).contains(&frame.atoms())
+                    && valence.prepositional_adjunct_licensed()
+            })
+        }
+
+        fn verb_frame_nonprepositional_adjunct_licensed(
+            &self,
+            reference: &crate::environment::VerbInventoryRef,
+            frame: VerbFrameKey,
+        ) -> bool {
+            let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
+                return false;
+            };
+            self.grammar_recipe(id).is_some_and(|recipe| {
+                let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { valence } =
+                    recipe
+                else {
+                    return false;
+                };
+                fixture_frames_for(id.name(), valence).contains(&frame.atoms())
+                    && valence.nonprepositional_adjunct_licensed()
+            })
+        }
     }
 
     fn declaration_id(

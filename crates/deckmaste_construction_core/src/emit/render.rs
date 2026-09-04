@@ -5499,9 +5499,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SourceComplement => quote! { PrepositionComplementKind::SourceComplement },
         FeatureValue::InComplement => quote! { PrepositionComplementKind::InComplement },
         FeatureValue::OnComplement => quote! { PrepositionComplementKind::OnComplement },
-        FeatureValue::AtComplement => quote! { PrepositionComplementKind::AtComplement },
-        FeatureValue::DuringComplement => {
-            quote! { PrepositionComplementKind::DuringComplement }
+        FeatureValue::TemporalComplement => {
+            quote! { PrepositionComplementKind::TemporalComplement }
         }
         FeatureValue::Unlicensed => quote! { LocativeTemporalLicense::Unlicensed },
         FeatureValue::OfLicensed => quote! { LocativeTemporalLicense::OfLicensed },
@@ -5544,6 +5543,7 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::QualifiedRelational => quote! { Relationality::QualifiedRelational },
         FeatureValue::DeterminedRelational => quote! { Relationality::DeterminedRelational },
         FeatureValue::Relational => quote! { Relationality::Relational },
+        FeatureValue::SaturatedRelational => quote! { Relationality::SaturatedRelational },
     }
 }
 

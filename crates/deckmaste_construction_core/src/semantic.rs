@@ -847,7 +847,7 @@ impl VerbFrameKey {
         if self.class != VerbFrameClass::Predicate {
             return false;
         }
-        match valence {
+        match valence.frame() {
             VerbValence::Intransitive => self.atoms.is_empty(),
             VerbValence::Transitive => self.atoms == [VerbFrameAtom::ObjectNounPhrase],
             VerbValence::Numerative => self.atoms == [VerbFrameAtom::Amount],
@@ -875,6 +875,9 @@ impl VerbFrameKey {
                         }
                     })
             }),
+            VerbValence::AdjunctLicensed(_) | VerbValence::NonprepositionalAdjunctLicensed(_) => {
+                unreachable!("frame() removes licence wrappers")
+            }
         }
     }
 }

@@ -471,17 +471,9 @@ fn determined_nominal(det: Determinative, nominal: Nominal) -> UnqualifiedRefere
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::UnqualifiedNumericStage(
-            UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                    UnqualifiedLocativeStage {
-                        reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage {
-                                reference: Box::new(reference),
-                            },
-                        )),
-                    },
-                )),
+        reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+            UnqualifiedPostmodifiedReference {
+                reference: Box::new(reference),
             },
         )),
     })
@@ -491,17 +483,12 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     let NounPhrase::QualifiedNounPhrase(qualified) = noun_phrase else {
         panic!("expected an unqualified noun phrase: {noun_phrase:?}")
     };
-    let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
-        panic!("expected an unqualified numeric stage: {noun_phrase:?}")
-    };
-    let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
-        panic!("expected an unqualified locative stage: {noun_phrase:?}")
-    };
-    let ControllerStage::UnqualifiedControllerStage(controller) = locative.reference.as_ref()
+    let PostmodifiedReference::UnqualifiedPostmodifiedReference(reference) =
+        qualified.reference.as_ref()
     else {
-        panic!("expected an unqualified controller stage: {noun_phrase:?}")
+        panic!("expected an unmodified reference: {noun_phrase:?}")
     };
-    &controller.reference
+    &reference.reference
 }
 
 fn indefinite(noun: Noun) -> NounPhrase {
@@ -520,29 +507,33 @@ fn target_noun(noun: Noun) -> NounPhrase {
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::ScalarQualifiedReference(
+        reference: Box::new(PostmodifiedReference::ScalarQualifiedReference(
             ScalarQualifiedReference {
-                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                    UnqualifiedLocativeStage {
-                        reference: Box::new(ControllerStage::RelativeQualifiedReference(
-                            RelativeQualifiedReference {
-                                reference: Box::new(UnqualifiedReference::DeterminedNominal(
-                                    DeterminedNominal::new(
-                                        Determiner::Zero,
-                                        plural_nominal_value(creatures()),
-                                    )
-                                    .expect("zero-headed plural is valid for a determined nominal"),
-                                )),
-                                clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
-                                    PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
-                                        PositiveObjectGapRelativeClauseValue {
-                                            subject: subject_you(),
-                                            head: core_transitive_head(CoreVerbIdentity::Control),
-                                        },
-                                    ),
-                                ))),
-                            },
-                        )),
+                reference: Box::new(PostmodifiedReference::RelativeQualifiedReference(
+                    RelativeQualifiedReference {
+                        reference: Box::new(
+                            PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                                UnqualifiedPostmodifiedReference {
+                                    reference: Box::new(UnqualifiedReference::DeterminedNominal(
+                                        DeterminedNominal::new(
+                                            Determiner::Zero,
+                                            plural_nominal_value(creatures()),
+                                        )
+                                        .expect(
+                                            "zero-headed plural is valid for a determined nominal",
+                                        ),
+                                    )),
+                                },
+                            ),
+                        ),
+                        clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
+                            PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
+                                PositiveObjectGapRelativeClauseValue {
+                                    subject: subject_you(),
+                                    head: core_transitive_head(CoreVerbIdentity::Control),
+                                },
+                            ),
+                        ))),
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
@@ -566,27 +557,21 @@ fn number_of(counted: Object) -> NounPhrase {
         singular_nominal_value(Noun::Lexeme(CommonNoun::Number)),
     );
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::UnqualifiedNumericStage(
-            UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::PrepositionalQualifiedReference(
-                    PrepositionalQualifiedReference::new(
-                        Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage {
-                                reference: Box::new(number),
-                            },
-                        )),
-                        Box::new(PrepositionalPhrase::PrepositionalPhrase(
-                            PrepositionalPhraseValue {
-                                preposition: Preposition::Of,
-                                complement: Box::new(PrepositionalComplement::Object(Box::new(
-                                    counted,
-                                ))),
-                            },
-                        )),
-                    )
-                    .expect("`of` is a licensed nominal postmodifier"),
+        reference: Box::new(PostmodifiedReference::RelationalQualifiedReference(
+            RelationalQualifiedReference::new(
+                Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                    UnqualifiedPostmodifiedReference {
+                        reference: Box::new(number),
+                    },
                 )),
-            },
+                Box::new(PrepositionalPhrase::PrepositionalPhrase(
+                    PrepositionalPhraseValue {
+                        preposition: Preposition::Of,
+                        complement: Box::new(PrepositionalComplement::Object(Box::new(counted))),
+                    },
+                )),
+            )
+            .expect("`of` is a licensed nominal postmodifier"),
         )),
     })
 }
@@ -1428,9 +1413,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "TransitiveFrameTransitivePredicate".to_owned(),
             "ObjectObjectNominal".to_owned(),
             "NounPhraseQualifiedNounPhrase".to_owned(),
-            "NumericStageUnqualifiedNumericStage".to_owned(),
-            "LocativeStageUnqualifiedLocativeStage".to_owned(),
-            "ControllerStageUnqualifiedControllerStage".to_owned(),
+            "PostmodifiedReferenceUnqualifiedPostmodifiedReference".to_owned(),
             "UnqualifiedReferenceDeterminedNominal".to_owned(),
             "DeterminativeSingularSimpleDeterminative".to_owned(),
             "NominalSingularNominalValue".to_owned(),
@@ -1749,10 +1732,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 15);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 15));
-            assert_eq!(candidate.specificity().total(), 17);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 17));
+            assert_eq!(candidate.construction_path().total(), 13);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 13));
+            assert_eq!(candidate.specificity().total(), 15);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 15));
         }
 
         if limit == usize::MAX {
@@ -1773,9 +1756,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "TransitiveFrameTransitivePredicate",
                     "ObjectObjectNominal",
                     "NounPhraseQualifiedNounPhrase",
-                    "NumericStageUnqualifiedNumericStage",
-                    "LocativeStageUnqualifiedLocativeStage",
-                    "ControllerStageUnqualifiedControllerStage",
+                    "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                     "UnqualifiedReferenceDeterminedNominal",
                     "DeterminativeSingularSimpleDeterminative",
                     "NominalSingularNominalValue",
@@ -1783,7 +1764,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "SingularHeadNounSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 17);
+            assert_eq!(candidate.specificity().total(), 15);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());

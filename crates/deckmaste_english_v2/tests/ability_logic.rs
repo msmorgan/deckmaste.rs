@@ -355,7 +355,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
         ),
         (
             "Whenever a player other than this creature's owner deals 1 damage to you, you gain 1 life.",
-            "ControllerStageOtherThanQualifiedReference",
+            "PostmodifiedReferenceOtherThanQualifiedReference",
             &[
                 "OtherThanQualifiedReference",
                 "DeterminedNominal",
@@ -535,7 +535,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         "NominalModifierSupertypeModifier",
         "NominalModifierNounModifier",
         "PrepositionalPhrasePrepositionalPhrase",
-        "ControllerStageRelativeQualifiedReference",
+        "PostmodifiedReferenceRelativeQualifiedReference",
         "PositiveObjectGapRelativeClausePositiveObjectGapRelative",
         "UnqualifiedReferenceDeterminedNominal",
     ] {
@@ -2321,17 +2321,9 @@ fn gain_life(amount: Amount) -> VerbPhrase {
     );
     let object = Object::ObjectNominal(NominalObject {
         value: Box::new(NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(NumericStage::UnqualifiedNumericStage(
-                UnqualifiedNumericStage {
-                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                        UnqualifiedLocativeStage {
-                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage {
-                                    reference: Box::new(reference),
-                                },
-                            )),
-                        },
-                    )),
+            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                UnqualifiedPostmodifiedReference {
+                    reference: Box::new(reference),
                 },
             )),
         })),
@@ -2377,17 +2369,12 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     let NounPhrase::QualifiedNounPhrase(qualified) = noun_phrase else {
         panic!("coordination subject uses the exact unqualified staging")
     };
-    let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
-        panic!("coordination subject uses the exact unqualified numeric stage")
-    };
-    let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
-        panic!("coordination subject uses the exact unqualified locative stage")
-    };
-    let ControllerStage::UnqualifiedControllerStage(controller) = locative.reference.as_ref()
+    let PostmodifiedReference::UnqualifiedPostmodifiedReference(reference) =
+        qualified.reference.as_ref()
     else {
-        panic!("coordination subject uses the exact unqualified controller stage")
+        panic!("coordination subject uses the exact unmodified reference")
     };
-    &controller.reference
+    &reference.reference
 }
 
 fn gain_life_magnitude(predicate: &VerbPhrase) -> Option<u32> {
@@ -3002,17 +2989,9 @@ fn connive_condition_clause() -> Box<Clause> {
 fn player_subject() -> Subject {
     Subject::SubjectNominal(NominalSubject {
         value: NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(NumericStage::UnqualifiedNumericStage(
-                UnqualifiedNumericStage {
-                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                        UnqualifiedLocativeStage {
-                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage {
-                                    reference: Box::new(indefinite_player_reference()),
-                                },
-                            )),
-                        },
-                    )),
+            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                UnqualifiedPostmodifiedReference {
+                    reference: Box::new(indefinite_player_reference()),
                 },
             )),
         }),
@@ -4493,19 +4472,9 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
         .expect("every nonempty context licenses its exact full spelling");
     Subject::SubjectNominal(NominalSubject {
         value: NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(NumericStage::UnqualifiedNumericStage(
-                UnqualifiedNumericStage {
-                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                        UnqualifiedLocativeStage {
-                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage {
-                                    reference: Box::new(UnqualifiedReference::SelfReference(
-                                        reference,
-                                    )),
-                                },
-                            )),
-                        },
-                    )),
+            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                UnqualifiedPostmodifiedReference {
+                    reference: Box::new(UnqualifiedReference::SelfReference(reference)),
                 },
             )),
         }),

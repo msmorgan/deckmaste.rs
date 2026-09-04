@@ -1775,7 +1775,7 @@ mod tests {
             (
                 "You gain X life, where X is the number of creatures you control with power 2 or less.",
                 "Context Card",
-                4,
+                6,
             ),
             (
                 "Zacama deals 3 damage to target creature.",
@@ -1814,17 +1814,20 @@ mod tests {
                     .find(|candidate| candidate.ordinal() == selected)
                     .expect("the selected ordinal names a candidate")
                     .construction_path();
-                let selected_numeric_stages = selected_path
+                let selected_postmodifiers = selected_path
                     .iter()
-                    .filter(|name| name.starts_with("NumericStage"))
+                    .filter(|name| name.starts_with("PostmodifiedReference"))
                     .map(String::as_str)
                     .collect::<Vec<_>>();
                 assert_eq!(
-                    selected_numeric_stages,
+                    selected_postmodifiers,
                     [
-                        "NumericStageUnqualifiedNumericStage",
-                        "NumericStageUnqualifiedNumericStage",
-                        "NumericStageScalarQualifiedReference",
+                        "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
+                        "PostmodifiedReferenceRelationalQualifiedReference",
+                        "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
+                        "PostmodifiedReferenceScalarQualifiedReference",
+                        "PostmodifiedReferenceRelativeQualifiedReference",
+                        "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                     ],
                     "specificity attaches the scalar phrase to creatures, not number",
                 );
@@ -1909,9 +1912,7 @@ mod tests {
                 Construction::TransitiveFrameTransitivePredicate,
                 Construction::ObjectObjectNominal,
                 Construction::NounPhraseQualifiedNounPhrase,
-                Construction::NumericStageUnqualifiedNumericStage,
-                Construction::LocativeStageUnqualifiedLocativeStage,
-                Construction::ControllerStageUnqualifiedControllerStage,
+                Construction::PostmodifiedReferenceUnqualifiedPostmodifiedReference,
                 Construction::UnqualifiedReferenceDeterminedNominal,
                 Construction::DeterminativeSingularSimpleDeterminative,
                 Construction::NominalSingularNominalValue,
@@ -1929,9 +1930,7 @@ mod tests {
                 RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
-                RulePosition::Nonterminal(Category::NumericStage),
-                RulePosition::Nonterminal(Category::LocativeStage),
-                RulePosition::Nonterminal(Category::ControllerStage),
+                RulePosition::Nonterminal(Category::PostmodifiedReference),
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),

@@ -3,6 +3,6 @@ KeywordAction(
     spelling: "discard",
     grammar: Verb(
         bare: "discard",
-        valence: Transitive,
+        valence: NonprepositionalAdjunctLicensed(Transitive),
     ),
 )

@@ -26,7 +26,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Sacrifice.ron",
-            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",valence:Transitive))"#,
+            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",valence:NonprepositionalAdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Connive.ron",
@@ -42,7 +42,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Discard.ron",
-            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",valence:Transitive))"#,
+            r#"KeywordAction(name:"Discard",spelling:"discard",grammar:Verb(bare:"discard",valence:NonprepositionalAdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Create.ron",
@@ -62,7 +62,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Cast.ron",
-            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
+            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:AdjunctLicensed(Transitive)))"#,
         ),
         (
             "/synthetic/actions/Search.ron",
@@ -103,6 +103,10 @@ fn environment() -> ParserEnvironment {
         (
             "/synthetic/keyword_abilities/Hexproof.ron",
             r#"KeywordAbility(name:"Hexproof",spelling:"hexproof",grammar:FixedKeyword(surface:"hexproof"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Cascade.ron",
+            r#"KeywordAbility(name:"Cascade",spelling:"cascade",grammar:FixedKeyword(surface:"cascade"))"#,
         ),
         (
             "/synthetic/keyword_abilities/Equip.ron",
@@ -1916,12 +1920,111 @@ fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
     let Predicate::Adjunct(predicate) = clause.predicate() else {
         panic!("for each must attach outside the cost-comparison predicate")
     };
-    let PredicateAdjunctPredicate::CostComparisonPrepositionalPredicateAdjunct(value) =
+    let PredicateAdjunctPredicate::PrepositionalPredicateAdjunctPredicate(value) =
         predicate.as_ref()
     else {
         panic!("for each must use the general prepositional attachment")
     };
-    let _ = value;
+    assert!(matches!(
+        value.predicate.as_ref(),
+        PrepositionalPredicateAdjunctHost::CostComparison(_)
+    ));
+}
+
+#[test]
+fn object_gap_adjunct_attachment_follows_the_declared_valence_row() {
+    let parser = parser();
+    let context = context();
+
+    let selected_path = |text: &str| {
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .unwrap_or_else(|| panic!("{text:?} must retain a selection decision: {analysis:?}"));
+        let ordinal = decision
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {decision:?}"));
+        decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("the selected ordinal names a retained candidate")
+            .construction_path()
+            .to_vec()
+    };
+
+    for text in [
+        "Destroy each creature you sacrifice in your graveyard.",
+        "Exile each card you exile in your graveyard.",
+        "Destroy each creature you sacrifice during your upkeep.",
+        "Untap all permanents you control during each other player's untap step.",
+    ] {
+        let path = selected_path(text);
+        assert!(
+            path.iter().all(|name| {
+                name != "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithAdjunct"
+            }),
+            "an unlicensed object-gap row cannot consume the adjunct for {text:?}: {path:?}",
+        );
+    }
+
+    for text in [
+        "Destroy each creature you sacrifice during your upkeep.",
+        "Untap all permanents you control during each other player's untap step.",
+    ] {
+        let path = selected_path(text);
+        assert!(
+            path.iter().any(|name| {
+                name == "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate"
+            }),
+            "the temporal PP stays on the outer predicate for {text:?}: {path:?}",
+        );
+    }
+
+    for text in [
+        "Spells your opponents cast during your turn cost {1} more to cast.",
+        "The next spell you cast this turn has cascade.",
+        "Spells you cast this turn cost {1} less to cast.",
+    ] {
+        let path = selected_path(text);
+        assert!(
+            path.iter().any(|name| name
+                == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithAdjunct"
+                || name
+                    == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"),
+            "the licensed Cast row consumes the relative-clause adjunct for {text:?}: {path:?}",
+        );
+    }
+}
+
+#[test]
+fn transitive_subject_gap_relatives_take_objects_before_later_postmodifiers() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Destroy a creature that has a card from your graveyard.",
+        "Return target creature that controls a creature from your graveyard to your hand.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .unwrap_or_else(|| panic!("{text:?} must retain a decision: {analysis:?}"));
+        let ordinal = decision
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {decision:?}"));
+        let path = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("the selected ordinal names a candidate")
+            .construction_path();
+        assert!(
+            path.iter().any(|name| name
+                == "FiniteSubjectGapRelativeClauseFiniteTransitiveSubjectGapRelativeClause"),
+            "the subject-gap relative must consume its declared object for {text:?}: {path:?}",
+        );
+    }
 }
 
 #[test]
@@ -2224,17 +2327,12 @@ fn determinative_partitives_take_ordinary_reference_phrase_complements() {
         let NounPhrase::QualifiedNounPhrase(qualified) = nominal.value.as_ref() else {
             panic!("partitive probe enters the ordinary qualification stages: {text:?}")
         };
-        let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
-            panic!("partitive probe has no numeric qualifier: {text:?}")
-        };
-        let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
-            panic!("partitive probe has no locative qualifier: {text:?}")
-        };
-        let ControllerStage::UnqualifiedControllerStage(controller) = locative.reference.as_ref()
+        let PostmodifiedReference::UnqualifiedPostmodifiedReference(reference) =
+            qualified.reference.as_ref()
         else {
-            panic!("partitive probe has no controller qualifier: {text:?}")
+            panic!("partitive probe has no postmodifier: {text:?}")
         };
-        let UnqualifiedReference::DeterminativePartitive(partitive) = controller.reference.as_ref()
+        let UnqualifiedReference::DeterminativePartitive(partitive) = reference.reference.as_ref()
         else {
             panic!("partitive probe keeps its fused-head construction: {text:?}")
         };
@@ -2316,6 +2414,46 @@ fn contracted_perfect_object_gap_relatives_use_participles() {
 
     assert_selected(&parser, &context, "Exile a card you've drawn.");
     assert!(parser.parse("Exile a card you've draw.", &context).is_err(),);
+}
+
+#[test]
+fn unlicensed_participial_relatives_leave_adjuncts_on_the_outer_predicate() {
+    let parser = parser();
+    let context = context();
+
+    for (text, forbidden_inner) in [
+        (
+            "Destroy a card you've exiled this turn.",
+            "ContractedPerfectAdjunctObjectGapRelativeClauseContractedPerfectAdjunctObjectGapRelativeClauseValue",
+        ),
+        (
+            "Destroy each creature turned face up this turn.",
+            "PostmodifiedReferenceReducedPassiveAdjunctQualifiedReference",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .unwrap_or_else(|| panic!("{text:?} must retain a decision: {analysis:?}"));
+        let ordinal = decision
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {decision:?}"));
+        let path = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("the selected ordinal names a candidate")
+            .construction_path();
+        assert!(
+            path.iter().all(|name| name != forbidden_inner),
+            "an unlicensed participial row cannot consume the adjunct for {text:?}: {path:?}",
+        );
+        assert!(
+            path.iter()
+                .any(|name| { name == "PredicateAdjunctPredicatePredicateAdjunctPredicate" }),
+            "the adjunct remains available on the outer predicate for {text:?}: {path:?}",
+        );
+    }
 }
 
 #[test]
@@ -2824,6 +2962,12 @@ fn during_phrases_attach_to_predicates_with_ordinary_nominal_complements() {
     assert_selected_with_specificity(&parser, &context, "During your turn, draw a card.", true);
     assert_selected(&parser, &context, "You gain 1 life during your turn.");
     assert!(parser.parse("During your, draw a card.", &context).is_err());
+    assert!(
+        parser
+            .parse("Draw a card after your library.", &context)
+            .is_err(),
+        "after cannot take an ordinary library object complement",
+    );
 }
 
 #[test]
@@ -3675,7 +3819,7 @@ fn object_internal_discarded_this_way_remains_a_downstream_semantic_decision() {
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "ControllerStageReducedPassiveQualifiedReference")
+            .any(|item| item == "PostmodifiedReferenceReducedPassiveQualifiedReference")
     );
     assert!(
         selected
@@ -4196,7 +4340,8 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
         decision.candidates()[selected]
             .construction_path()
             .iter()
-            .any(|construction| construction == "LocativeStagePrepositionalQualifiedReference"),
+            .any(|construction| construction
+                == "PostmodifiedReferencePrepositionalQualifiedReference"),
         "the licensed PP must attach inside the object noun phrase"
     );
     assert!(

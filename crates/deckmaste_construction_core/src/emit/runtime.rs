@@ -175,8 +175,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     SourceComplement,
                     InComplement,
                     OnComplement,
-                    AtComplement,
-                    DuringComplement,
+                    TemporalComplement,
                 }
             },
         ),
@@ -253,6 +252,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     QualifiedRelational,
                     DeterminedRelational,
                     Relational,
+                    SaturatedRelational,
                 }
             },
         ),
@@ -712,7 +712,7 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                         if self.class != VerbFrameClass::Predicate {
                             return false;
                         }
-                        match valence {
+                        match valence.frame() {
                             VerbValence::Intransitive => self.atoms.is_empty(),
                             VerbValence::Transitive => {
                                 self.atoms == [VerbFrameAtom::ObjectNounPhrase]
@@ -741,6 +741,10 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                                         },
                                     )
                             }),
+                            VerbValence::AdjunctLicensed(_)
+                            | VerbValence::NonprepositionalAdjunctLicensed(_) => {
+                                unreachable!("frame() removes licence wrappers")
+                            }
                         }
                     }
                 }

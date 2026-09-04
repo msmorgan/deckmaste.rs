@@ -39,7 +39,7 @@ constructions! {
         After = "after" {
             feature PrepositionAttachment = AdjunctCapable;
             feature BareLocativeComplement = No;
-            feature PrepositionComplementKind = UnrestrictedComplement;
+            feature PrepositionComplementKind = TemporalComplement;
         },
         Among = "among" {
             feature PrepositionAttachment = PostmodifierOnly;
@@ -49,17 +49,17 @@ constructions! {
         At = "at" {
             feature PrepositionAttachment = AdjunctCapable;
             feature BareLocativeComplement = No;
-            feature PrepositionComplementKind = AtComplement;
+            feature PrepositionComplementKind = TemporalComplement;
         },
         Before = "before" {
             feature PrepositionAttachment = AdjunctCapable;
             feature BareLocativeComplement = No;
-            feature PrepositionComplementKind = UnrestrictedComplement;
+            feature PrepositionComplementKind = TemporalComplement;
         },
         During = "during" {
             feature PrepositionAttachment = AdjunctCapable;
             feature BareLocativeComplement = No;
-            feature PrepositionComplementKind = DuringComplement;
+            feature PrepositionComplementKind = TemporalComplement;
         },
         For = "for" {
             feature PrepositionAttachment = AdjunctCapable;
@@ -1076,6 +1076,12 @@ constructions! {
         Frequency: FrequencyPredicateAdjunct,
         Manner: MannerPredicateAdjunct,
     }
+    abstract sum PrepositionalPredicateAdjunctHost {
+        Verb: VerbPhrase,
+        CostComparison: CostComparisonPredicate,
+        ActionRestriction: ActionRestrictionPredicate,
+        Alternative: AlternativePredicate,
+    }
     abstract sum ScalarDegreePhrase {
         Single: SingleScalarDegreePhrase,
         Or: OrScalarDegreePhrase,
@@ -1099,6 +1105,7 @@ constructions! {
         Positive: PositiveObjectGapRelativeClause,
         Auxiliary: AuxiliaryObjectGapRelativeClause,
         ContractedPerfect: ContractedPerfectObjectGapRelativeClause,
+        ContractedPerfectAdjunct: ContractedPerfectAdjunctObjectGapRelativeClause,
         BareNegative: BareNegativeObjectGapRelativeClause,
         ThirdPersonNegative: ThirdPersonNegativeObjectGapRelativeClause,
     }
@@ -1923,35 +1930,11 @@ constructions! {
     }
     construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PrepositionalPredicateAdjunctPredicateValue {
-            predicate: VerbPhrase,
+            predicate: PrepositionalPredicateAdjunctHost,
             adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive agreement = predicate.agreement;
         form prepositional_predicate_adjunct_predicate = predicate adjunct;
-    }
-    construction cost_comparison_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
-        element CostComparisonPrepositionalPredicateAdjunct {
-            predicate: CostComparisonPredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
-        }
-        derive agreement = predicate.agreement;
-        form cost_comparison_prepositional_predicate_adjunct = predicate adjunct;
-    }
-    construction action_restriction_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
-        element ActionRestrictionPrepositionalPredicateAdjunct {
-            predicate: ActionRestrictionPredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
-        }
-        derive agreement = predicate.agreement;
-        form action_restriction_prepositional_predicate_adjunct = predicate adjunct;
-    }
-    construction alternative_prepositional_predicate_adjunct: PredicateAdjunctPredicate {
-        element AlternativePrepositionalPredicateAdjunct {
-            predicate: AlternativePredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
-        }
-        derive agreement = predicate.agreement;
-        form alternative_prepositional_predicate_adjunct = predicate adjunct;
     }
     construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element StackedPredicateAdjunctPredicate {
@@ -3414,7 +3397,7 @@ constructions! {
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
-            members: seq ControllerStage separated by position {
+            members: seq PostmodifiedReference separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -3429,7 +3412,7 @@ constructions! {
     }
     construction full_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullOrNounPhraseCoordination {
-            members: seq ControllerStage separated by position {
+            members: seq PostmodifiedReference separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -3444,7 +3427,7 @@ constructions! {
     }
     construction full_and_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndOrNounPhraseCoordination {
-            members: seq ControllerStage separated by position {
+            members: seq PostmodifiedReference separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -3471,7 +3454,7 @@ constructions! {
     }
     construction locative_and_noun_phrase_coordination: LocativeNounPhraseCoordination {
         element LocativeAndNounPhraseCoordination {
-            members: seq LocativeStage separated by position {
+            members: seq PostmodifiedReference separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -3535,13 +3518,20 @@ constructions! {
     construction positive_object_gap_relative_with_adjunct: PositiveObjectGapRelativeClause {
         element PositiveObjectGapRelativeWithAdjunct {
             subject: Subject,
-            // `control` leaves the shared adjunct for the containing predicate,
-            // pinning Seedborn Muse's temporal PP above the relative clause.
-            head: lex TransitiveVerb checked by object_gap_relative_head_licenses_adjunct(),
-            adjunct: PredicateAdjunct,
+            head: lex TransitiveVerb checked by transitive_head_licenses_nonprepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive head.agreement = subject.agreement;
         form positive_object_gap_relative_with_adjunct = subject verb(head) adjunct;
+    }
+    construction positive_object_gap_relative_with_prepositional_adjunct: PositiveObjectGapRelativeClause {
+        element PositiveObjectGapRelativeWithPrepositionalAdjunct {
+            subject: Subject,
+            head: lex TransitiveVerb checked by transitive_head_licenses_prepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive head.agreement = subject.agreement;
+        form positive_object_gap_relative_with_prepositional_adjunct = subject verb(head) adjunct;
     }
     construction auxiliary_object_gap_relative: AuxiliaryObjectGapRelativeClause {
         element AuxiliaryObjectGapRelativeClauseValue {
@@ -3557,9 +3547,24 @@ constructions! {
         element ContractedPerfectObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
             head: lex DeclaredTransitiveParticipleHead,
-            adjunct: opt PredicateAdjunct,
         }
-        form contracted_perfect_object_gap_relative = lex(subject) verb(head) adjunct;
+        form contracted_perfect_object_gap_relative = lex(subject) verb(head);
+    }
+    construction contracted_perfect_object_gap_relative_with_adjunct: ContractedPerfectAdjunctObjectGapRelativeClause {
+        element ContractedPerfectAdjunctObjectGapRelativeClauseValue {
+            subject: lex ContractedPerfectSubject,
+            head: lex DeclaredTransitiveParticipleHead checked by transitive_participle_head_licenses_nonprepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+        }
+        form contracted_perfect_object_gap_relative_with_adjunct = lex(subject) verb(head) adjunct;
+    }
+    construction contracted_perfect_object_gap_relative_with_prepositional_adjunct: ContractedPerfectAdjunctObjectGapRelativeClause {
+        element ContractedPerfectPrepositionalAdjunctObjectGapRelativeClauseValue {
+            subject: lex ContractedPerfectSubject,
+            head: lex DeclaredTransitiveParticipleHead checked by transitive_participle_head_licenses_prepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        form contracted_perfect_object_gap_relative_with_prepositional_adjunct = lex(subject) verb(head) adjunct;
     }
     construction bare_negative_object_gap_relative: BareNegativeObjectGapRelativeClause {
         element BareNegativeObjectGapRelativeClauseValue {
@@ -3793,19 +3798,19 @@ constructions! {
         element ScalarEqualityValue { value: ScalarValue, }
         form scalar_equality = "equal" "to" value;
     }
-    construction unqualified_controller_stage: ControllerStage {
-        element UnqualifiedControllerStage { reference: UnqualifiedReference, }
+    construction unqualified_postmodified_reference: PostmodifiedReference {
+        element UnqualifiedPostmodifiedReference { reference: UnqualifiedReference, }
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
         derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
-        form unqualified_controller_stage = reference;
+        form unqualified_postmodified_reference = reference;
     }
-    construction relative_qualified_reference: ControllerStage {
+    construction relative_qualified_reference: PostmodifiedReference {
         element RelativeQualifiedReference {
-            reference: UnqualifiedReference,
+            reference: PostmodifiedReference,
             clause: ObjectGapRelativeClause,
         }
         derive agreement = reference.agreement;
@@ -3816,9 +3821,9 @@ constructions! {
         derive locative_temporal_license = reference.locative_temporal_license;
         form relative_qualified_reference = reference clause;
     }
-    construction subject_relative_qualified_reference: ControllerStage {
+    construction subject_relative_qualified_reference: PostmodifiedReference {
         element SubjectRelativeQualifiedReference {
-            reference: UnqualifiedReference,
+            reference: PostmodifiedReference,
             clause: SubjectGapRelativeClause,
         }
         derive agreement = reference.agreement;
@@ -3830,9 +3835,9 @@ constructions! {
         derive locative_temporal_license = reference.locative_temporal_license;
         form subject_relative_qualified_reference = reference clause;
     }
-    construction contracted_copular_relative_reference: ControllerStage {
+    construction contracted_copular_relative_reference: PostmodifiedReference {
         element ContractedCopularRelativeReference {
-            reference: UnqualifiedReference,
+            reference: PostmodifiedReference,
             nominal: SingularNominal,
             relation: lex Preposition,
             complement: Object,
@@ -3848,11 +3853,10 @@ constructions! {
         form contracted_copular_relative_reference =
             reference "that's" "a" nominal lex(relation) complement;
     }
-    construction reduced_passive_qualified_reference: ControllerStage {
+    construction reduced_passive_qualified_reference: PostmodifiedReference {
         element ReducedPassiveQualifiedReference {
-            reference: UnqualifiedReference,
+            reference: PostmodifiedReference,
             clause: PassivePredicate,
-            adjunct: opt PredicateAdjunct,
         }
         derive agreement = reference.agreement;
         derive number = reference.number;
@@ -3860,11 +3864,39 @@ constructions! {
         derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
-        form reduced_passive_qualified_reference = reference clause adjunct;
+        form reduced_passive_qualified_reference = reference clause;
     }
-    construction other_than_qualified_reference: ControllerStage {
+    construction reduced_passive_adjunct_qualified_reference: PostmodifiedReference {
+        element ReducedPassiveAdjunctQualifiedReference {
+            reference: PostmodifiedReference,
+            clause: PassivePredicate checked by passive_predicate_licenses_nonprepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
+        form reduced_passive_adjunct_qualified_reference = reference clause adjunct;
+    }
+    construction reduced_passive_prepositional_adjunct_qualified_reference: PostmodifiedReference {
+        element ReducedPassivePrepositionalAdjunctQualifiedReference {
+            reference: PostmodifiedReference,
+            clause: PassivePredicate checked by passive_predicate_licenses_prepositional_adjunct(),
+            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        derive possessive_ending = reference.possessive_ending;
+        derive relationality = reference.relationality;
+        derive locative_temporal_license = reference.locative_temporal_license;
+        form reduced_passive_prepositional_adjunct_qualified_reference = reference clause adjunct;
+    }
+    construction other_than_qualified_reference: PostmodifiedReference {
         element OtherThanQualifiedReference {
-            reference: UnqualifiedReference,
+            reference: PostmodifiedReference,
             excluded: UnqualifiedReference,
         }
         derive agreement = reference.agreement;
@@ -3875,21 +3907,12 @@ constructions! {
         derive locative_temporal_license = reference.locative_temporal_license;
         form other_than_qualified_reference = reference "other" "than" excluded;
     }
-    construction unqualified_locative_stage: LocativeStage {
-        element UnqualifiedLocativeStage { reference: ControllerStage, }
-        derive agreement = reference.agreement;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        derive relationality = reference.relationality;
-        derive locative_temporal_license = reference.locative_temporal_license;
-        form unqualified_locative_stage = reference;
-    }
     // Low attachment: a prepositional phrase postmodifies the nearest
     // nominal that licenses it, per the derived-attachment ruling.
-    construction prepositional_qualified_reference: LocativeStage {
+    construction prepositional_qualified_reference: PostmodifiedReference {
         element PrepositionalQualifiedReference {
-            reference: ControllerStage,
-            modifier: PrepositionalPhrase checked by nominal_preposition_is_licensed(
+            reference: PostmodifiedReference,
+            modifier: PrepositionalPhrase checked by nominal_nonrelational_preposition_is_licensed(
                 reference.relationality,
                 reference.locative_temporal_license,
                 modifier.preposition_attachment,
@@ -3905,27 +3928,44 @@ constructions! {
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         form prepositional_qualified_reference = reference modifier;
     }
-    construction unqualified_numeric_stage: NumericStage {
-        element UnqualifiedNumericStage { reference: LocativeStage, }
+    construction relational_qualified_reference: PostmodifiedReference {
+        element RelationalQualifiedReference {
+            reference: PostmodifiedReference,
+            modifier: PrepositionalPhrase checked by nominal_relational_preposition_is_licensed(
+                reference.relationality,
+                reference.locative_temporal_license,
+                modifier.preposition_attachment,
+                modifier.preposition_complement_kind,
+                modifier.relationality,
+                modifier.locative_temporal_license
+            ),
+        }
+        require modifier.preposition_attachment in [
+            AdjunctCapable,
+            PostmodifierOnly
+        ];
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
-        derive relationality = reference.relationality;
+        derive possessive_ending = reference.possessive_ending;
+        derive relationality = Values::SaturatedRelational;
         derive locative_temporal_license = reference.locative_temporal_license;
-        form unqualified_numeric_stage = reference;
+        form relational_qualified_reference = reference modifier;
     }
-    construction scalar_qualified_reference: NumericStage {
+    construction scalar_qualified_reference: PostmodifiedReference {
         element ScalarQualifiedReference {
-            reference: LocativeStage,
+            reference: PostmodifiedReference,
             scalar: ScalarQualification,
         }
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         form scalar_qualified_reference = reference scalar;
@@ -3937,50 +3977,27 @@ constructions! {
         Keyword: KeywordLineItem,
         Quoted: QuotedAbility,
     }
-    construction granted_ability_qualified_reference: NumericStage {
+    construction granted_ability_qualified_reference: PostmodifiedReference {
         element GrantedAbilityQualifiedReference {
-            reference: LocativeStage,
+            reference: PostmodifiedReference,
             granted: GrantedAbility,
         }
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
+        derive possessive_ending = reference.possessive_ending;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         form granted_ability_qualified_reference = reference "with" granted;
     }
     construction qualified_noun_phrase: NounPhrase {
-        element QualifiedNounPhrase { reference: NumericStage, }
+        element QualifiedNounPhrase { reference: PostmodifiedReference, }
         derive agreement = reference.agreement;
         derive number = reference.number;
         derive onset = reference.onset;
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         form qualified_noun_phrase = reference;
-    }
-    construction postscalar_prepositional_qualified_noun_phrase: NounPhrase {
-        element PostscalarPrepositionalQualifiedNounPhrase {
-            reference: LocativeStage,
-            scalar: ScalarQualification,
-            modifier: PrepositionalPhrase checked by nominal_preposition_is_licensed(
-                reference.relationality,
-                reference.locative_temporal_license,
-                modifier.preposition_attachment,
-                modifier.preposition_complement_kind,
-                modifier.relationality,
-                modifier.locative_temporal_license
-            ),
-        }
-        require modifier.preposition_attachment in [
-            AdjunctCapable,
-            PostmodifierOnly
-        ];
-        derive agreement = reference.agreement;
-        derive number = reference.number;
-        derive onset = reference.onset;
-        derive relationality = reference.relationality;
-        derive locative_temporal_license = reference.locative_temporal_license;
-        form postscalar_prepositional_qualified_noun_phrase = reference scalar modifier;
     }
     construction comparative_quantified_reference: NounPhrase {
         element ComparativeQuantifiedReference {
@@ -4295,6 +4312,14 @@ constructions! {
         element FiniteSubjectGapRelativeClauseValue { head: lex IntransitiveVerb, }
         derive agreement = head.agreement;
         form finite_subject_gap_relative_clause = "that" verb(head);
+    }
+    construction finite_transitive_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
+        element FiniteTransitiveSubjectGapRelativeClause {
+            head: lex TransitiveVerb,
+            object: Object,
+        }
+        derive agreement = head.agreement;
+        form finite_transitive_subject_gap_relative_clause = "that" verb(head) object;
     }
     construction modal_subject_gap_relative_clause: ModalSubjectGapRelativeClause {
         element ModalSubjectGapRelativeClauseValue {
@@ -4881,7 +4906,7 @@ fn preposition_complement_is_licensed(
             | LocativeTemporalLicense::InLicensed
             | LocativeTemporalLicense::ObjectAttachmentLicensed => !edge,
         },
-        PrepositionComplementKind::AtComplement | PrepositionComplementKind::DuringComplement => {
+        PrepositionComplementKind::TemporalComplement => {
             !edge
                 && matches!(
                     license,
@@ -4890,6 +4915,48 @@ fn preposition_complement_is_licensed(
                 )
         }
     }
+}
+
+fn nominal_nonrelational_preposition_is_licensed(
+    modifier: &PrepositionalPhrase,
+    relationality: Relationality,
+    license: LocativeTemporalLicense,
+    attachment: PrepositionAttachment,
+    kind: PrepositionComplementKind,
+    complement_relationality: Relationality,
+    complement_license: LocativeTemporalLicense,
+) -> bool {
+    kind != PrepositionComplementKind::RelationalComplement
+        && nominal_preposition_is_licensed(
+            modifier,
+            relationality,
+            license,
+            attachment,
+            kind,
+            complement_relationality,
+            complement_license,
+        )
+}
+
+fn nominal_relational_preposition_is_licensed(
+    modifier: &PrepositionalPhrase,
+    relationality: Relationality,
+    license: LocativeTemporalLicense,
+    attachment: PrepositionAttachment,
+    kind: PrepositionComplementKind,
+    complement_relationality: Relationality,
+    complement_license: LocativeTemporalLicense,
+) -> bool {
+    kind == PrepositionComplementKind::RelationalComplement
+        && nominal_preposition_is_licensed(
+            modifier,
+            relationality,
+            license,
+            attachment,
+            kind,
+            complement_relationality,
+            complement_license,
+        )
 }
 
 fn nominal_preposition_is_licensed(
@@ -4930,8 +4997,11 @@ fn nominal_preposition_is_licensed(
     // classes are themselves qualified heads, so their object-attachment
     // licence distinguishes "creature of their choice" from the rejected
     // "card of a Goblin".
-    let qualified_complement = (complement_relationality == Relationality::Relational
-        && complement_license != LocativeTemporalLicense::ObjectAttachmentLicensed)
+    let qualified_complement = (matches!(
+        complement_relationality,
+        Relationality::Relational | Relationality::SaturatedRelational
+    ) && complement_license
+        != LocativeTemporalLicense::ObjectAttachmentLicensed)
         || matches!(
             complement_license,
             LocativeTemporalLicense::OfAndOnLicensed | LocativeTemporalLicense::OfInAndOnLicensed
@@ -4948,6 +5018,7 @@ fn nominal_preposition_is_licensed(
             ),
             Relationality::QualifiedRelational => qualified_complement,
             Relationality::DeterminedRelational | Relationality::Relational => true,
+            Relationality::SaturatedRelational => false,
         },
         PrepositionComplementKind::SelectionComplement => true,
         PrepositionComplementKind::SourceComplement => {
@@ -4960,9 +5031,7 @@ fn nominal_preposition_is_licensed(
         }
         PrepositionComplementKind::InComplement => accepts_interior,
         PrepositionComplementKind::OnComplement => accepts_surface,
-        PrepositionComplementKind::AtComplement | PrepositionComplementKind::DuringComplement => {
-            accepts_temporal
-        }
+        PrepositionComplementKind::TemporalComplement => accepts_temporal,
         PrepositionComplementKind::UnrestrictedComplement => false,
     }
 }
@@ -4972,12 +5041,13 @@ fn predicate_preposition_is_licensed(
     kind: PrepositionComplementKind,
     complement_license: LocativeTemporalLicense,
 ) -> bool {
-    kind != PrepositionComplementKind::OnComplement
-        || matches!(
-            complement_license,
-            LocativeTemporalLicense::TemporalLicensed
-                | LocativeTemporalLicense::OfAndTemporalLicensed
-        )
+    !matches!(
+        kind,
+        PrepositionComplementKind::OnComplement | PrepositionComplementKind::TemporalComplement
+    ) || matches!(
+        complement_license,
+        LocativeTemporalLicense::TemporalLicensed | LocativeTemporalLicense::OfAndTemporalLicensed
+    )
 }
 
 fn predicate_adjunct_is_prepositional(adjunct: &PredicateAdjunct) -> bool {
@@ -4992,9 +5062,76 @@ fn predicate_adjunct_is_duration(adjunct: &PredicateAdjunct) -> bool {
     matches!(adjunct, PredicateAdjunct::Duration(_))
 }
 
-fn object_gap_relative_head_licenses_adjunct(head: &TransitiveVerb) -> bool {
-    head.reference
-        != crate::environment::VerbInventoryRef::Core(crate::environment::CoreVerbIdentity::Control)
+fn transitive_head_licenses_prepositional_adjunct(head: &TransitiveVerb) -> bool {
+    head.prepositional_adjunct_licensed()
+}
+
+fn transitive_head_licenses_nonprepositional_adjunct(head: &TransitiveVerb) -> bool {
+    head.nonprepositional_adjunct_licensed()
+}
+
+fn transitive_participle_head_licenses_prepositional_adjunct(
+    head: &DeclaredTransitiveParticipleHead,
+) -> bool {
+    head.prepositional_adjunct_licensed()
+}
+
+fn transitive_participle_head_licenses_nonprepositional_adjunct(
+    head: &DeclaredTransitiveParticipleHead,
+) -> bool {
+    head.nonprepositional_adjunct_licensed()
+}
+
+fn passive_predicate_adjunct_licenses(predicate: &PassivePredicate) -> (bool, bool) {
+    match predicate {
+        PassivePredicate::Object(value) => {
+            let DeclaredObjectPassivePredicate::DeclaredObjectPassivePredicate(value) =
+                value.as_ref();
+            (
+                value.head.prepositional_adjunct_licensed(),
+                value.head.nonprepositional_adjunct_licensed(),
+            )
+        }
+        PassivePredicate::Movement(value) => {
+            let PassiveMovementPredicate::PassiveMovementPredicate(value) = value.as_ref();
+            (
+                value.head.prepositional_adjunct_licensed(),
+                value.head.nonprepositional_adjunct_licensed(),
+            )
+        }
+        PassivePredicate::Orientation(value) => {
+            let PassiveOrientationPredicate::PassiveOrientationPredicate(value) = value;
+            (
+                value.head.prepositional_adjunct_licensed(),
+                value.head.nonprepositional_adjunct_licensed(),
+            )
+        }
+        PassivePredicate::DeclaredTransitiveFrom(value) => {
+            let DeclaredTransitivePassiveFromPredicate::DeclaredTransitivePassiveFromPredicate(
+                value,
+            ) = value.as_ref();
+            (
+                value.head.prepositional_adjunct_licensed(),
+                value.head.nonprepositional_adjunct_licensed(),
+            )
+        }
+        PassivePredicate::DeclaredToObject(value) => {
+            let DeclaredToObjectPassivePredicate::DeclaredToObjectPassivePredicate(value) =
+                value.as_ref();
+            (
+                value.head.prepositional_adjunct_licensed(),
+                value.head.nonprepositional_adjunct_licensed(),
+            )
+        }
+    }
+}
+
+fn passive_predicate_licenses_prepositional_adjunct(predicate: &PassivePredicate) -> bool {
+    passive_predicate_adjunct_licenses(predicate).0
+}
+
+fn passive_predicate_licenses_nonprepositional_adjunct(predicate: &PassivePredicate) -> bool {
+    passive_predicate_adjunct_licenses(predicate).1
 }
 
 fn bare_preposition_complement_is_licensed(
@@ -5015,8 +5152,7 @@ fn bare_preposition_complement_is_licensed(
         PrepositionComplementKind::RelationalComplement
         | PrepositionComplementKind::SelectionComplement
         | PrepositionComplementKind::OnComplement
-        | PrepositionComplementKind::AtComplement
-        | PrepositionComplementKind::DuringComplement => false,
+        | PrepositionComplementKind::TemporalComplement => false,
     }
 }
 
@@ -5119,18 +5255,7 @@ fn object_is_mass_nominal(value: &Object) -> bool {
     let NounPhrase::QualifiedNounPhrase(qualified) = object.value.as_ref() else {
         return false;
     };
-    let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
-        return false;
-    };
-    let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
-        return false;
-    };
-    let ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage { reference }) =
-        locative.reference.as_ref()
-    else {
-        return false;
-    };
-    match reference.as_ref() {
+    match postmodified_base(qualified.reference.as_ref()) {
         UnqualifiedReference::DeterminedNominal(determined) => {
             nominal_form_for_nominal(&determined.nominal) == NominalForm::MassNoun
         }
@@ -5141,15 +5266,52 @@ fn object_is_mass_nominal(value: &Object) -> bool {
     }
 }
 
+fn postmodified_base(reference: &PostmodifiedReference) -> &UnqualifiedReference {
+    match reference {
+        PostmodifiedReference::UnqualifiedPostmodifiedReference(value) => &value.reference,
+        PostmodifiedReference::RelativeQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::SubjectRelativeQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::ContractedCopularRelativeReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::ReducedPassiveQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::ReducedPassiveAdjunctQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::OtherThanQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::PrepositionalQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::RelationalQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::ScalarQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+        PostmodifiedReference::GrantedAbilityQualifiedReference(value) => {
+            postmodified_base(&value.reference)
+        }
+    }
+}
+
 fn full_coordination_is_independent(coordination: &FullNounPhraseCoordination) -> bool {
-    fn independently_realized(reference: &ControllerStage) -> bool {
-        let ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage { reference }) =
-            reference
-        else {
+    fn independently_realized(reference: &PostmodifiedReference) -> bool {
+        let PostmodifiedReference::UnqualifiedPostmodifiedReference(reference) = reference else {
             return true;
         };
         !matches!(
-            reference.as_ref(),
+            reference.reference.as_ref(),
             UnqualifiedReference::DeterminedNominal(determined)
                 if matches!(determined.det(), Determiner::Zero)
         )
@@ -5169,12 +5331,44 @@ fn full_coordination_is_independent(coordination: &FullNounPhraseCoordination) -
 }
 
 fn locative_coordination_has_modifier(coordination: &LocativeNounPhraseCoordination) -> bool {
+    fn has_prepositional_modifier(reference: &PostmodifiedReference) -> bool {
+        match reference {
+            PostmodifiedReference::PrepositionalQualifiedReference(_)
+            | PostmodifiedReference::RelationalQualifiedReference(_) => true,
+            PostmodifiedReference::UnqualifiedPostmodifiedReference(_) => false,
+            PostmodifiedReference::RelativeQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::SubjectRelativeQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::ContractedCopularRelativeReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::ReducedPassiveQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::ReducedPassiveAdjunctQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::OtherThanQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::ScalarQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+            PostmodifiedReference::GrantedAbilityQualifiedReference(value) => {
+                has_prepositional_modifier(&value.reference)
+            }
+        }
+    }
+
     match coordination {
         LocativeNounPhraseCoordination::LocativeAndNounPhraseCoordination(coordination) => {
-            coordination
-                .members
-                .iter()
-                .any(|member| matches!(member, LocativeStage::PrepositionalQualifiedReference(_)))
+            coordination.members.iter().any(has_prepositional_modifier)
         }
     }
 }

@@ -2818,7 +2818,7 @@ mod tests {
                     agreement: Agreement::ThirdPersonSingular,
                     onset: Onset::Consonant,
                 },
-                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, agreement: ThirdPersonSingular, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, agreement: ThirdPersonSingular, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),

@@ -911,6 +911,7 @@ enum NonterminalKind {
     PurposePredicateAdjunct,
     DurationPredicateAdjunct,
     PrepositionalPredicateAdjunct,
+    PrepositionalPredicateAdjunctHost,
     FrequencyPredicateAdjunct,
     MannerPredicateAdjunct,
     PreposedPredicateAdjunct,
@@ -1094,9 +1095,7 @@ enum NonterminalKind {
     ScalarComparison,
     CountComparison,
     ScalarQualification,
-    ControllerStage,
-    LocativeStage,
-    NumericStage,
+    PostmodifiedReference,
     VerbPhrase,
     BaseVerbFrame,
     IntransitiveFrame,
@@ -1117,6 +1116,7 @@ enum NonterminalKind {
     AuxiliaryPredicate,
     BareNegativeObjectGapRelativeClause,
     ContractedPerfectObjectGapRelativeClause,
+    ContractedPerfectAdjunctObjectGapRelativeClause,
     DeclaredToObjectPassivePredicate,
     DurationPhrase,
     FiniteCopularPredicate,
@@ -1591,6 +1591,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PrepositionalPredicateAdjunct => {
             NonterminalKind::PrepositionalPredicateAdjunct
         }
+        NonterminalCategory::PrepositionalPredicateAdjunctHost => {
+            NonterminalKind::PrepositionalPredicateAdjunctHost
+        }
         NonterminalCategory::FrequencyPredicateAdjunct => {
             NonterminalKind::FrequencyPredicateAdjunct
         }
@@ -1834,12 +1837,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ScalarComparison => NonterminalKind::ScalarComparison,
         NonterminalCategory::CountComparison => NonterminalKind::CountComparison,
         NonterminalCategory::ScalarQualification => NonterminalKind::ScalarQualification,
-        NonterminalCategory::ControllerStage => NonterminalKind::ControllerStage,
-        NonterminalCategory::LocativeStage => NonterminalKind::LocativeStage,
+        NonterminalCategory::PostmodifiedReference => NonterminalKind::PostmodifiedReference,
         NonterminalCategory::LocativeNounPhraseCoordination => {
             NonterminalKind::LocativeNounPhraseCoordination
         }
-        NonterminalCategory::NumericStage => NonterminalKind::NumericStage,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::BaseVerbFrame => NonterminalKind::BaseVerbFrame,
         NonterminalCategory::IntransitiveFrame => NonterminalKind::IntransitiveFrame,
@@ -1865,6 +1866,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::ContractedPerfectObjectGapRelativeClause => {
             NonterminalKind::ContractedPerfectObjectGapRelativeClause
+        }
+        NonterminalCategory::ContractedPerfectAdjunctObjectGapRelativeClause => {
+            NonterminalKind::ContractedPerfectAdjunctObjectGapRelativeClause
         }
         NonterminalCategory::DeclaredToObjectPassivePredicate => {
             NonterminalKind::DeclaredToObjectPassivePredicate

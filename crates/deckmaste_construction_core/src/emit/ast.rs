@@ -1053,11 +1053,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::OnComplement => {
             quote! { PrepositionComplementKind::OnComplement }
         }
-        crate::feature::FeatureValue::AtComplement => {
-            quote! { PrepositionComplementKind::AtComplement }
-        }
-        crate::feature::FeatureValue::DuringComplement => {
-            quote! { PrepositionComplementKind::DuringComplement }
+        crate::feature::FeatureValue::TemporalComplement => {
+            quote! { PrepositionComplementKind::TemporalComplement }
         }
         crate::feature::FeatureValue::Unlicensed => {
             quote! { LocativeTemporalLicense::Unlicensed }
@@ -1140,6 +1137,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
             quote! { Relationality::DeterminedRelational }
         }
         crate::feature::FeatureValue::Relational => quote! { Relationality::Relational },
+        crate::feature::FeatureValue::SaturatedRelational => {
+            quote! { Relationality::SaturatedRelational }
+        }
     }
 }
 

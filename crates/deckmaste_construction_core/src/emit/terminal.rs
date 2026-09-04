@@ -252,6 +252,8 @@ pub(crate) fn emit(
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
                             reference: crate::environment::VerbInventoryRef,
+                            prepositional_adjunct_licensed: bool,
+                            nonprepositional_adjunct_licensed: bool,
                         }
                     },
                     vec![origin.clone()],
@@ -274,17 +276,33 @@ pub(crate) fn emit(
                                 if !environment.verb_frame_licenses(&reference, frame) {
                                     return None;
                                 }
+                                let prepositional_adjunct_licensed = environment
+                                    .verb_frame_prepositional_adjunct_licensed(&reference, frame);
+                                let nonprepositional_adjunct_licensed = environment
+                                    .verb_frame_nonprepositional_adjunct_licensed(&reference, frame);
                                 [
                                     ::deckmaste_construction_core::macro_def::SurfaceFeature::Bare,
                                     ::deckmaste_construction_core::macro_def::SurfaceFeature::ThirdPersonSingular,
                                 ]
                                 .into_iter()
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
-                                .then_some(Self { reference })
+                                .then_some(Self {
+                                    reference,
+                                    prepositional_adjunct_licensed,
+                                    nonprepositional_adjunct_licensed,
+                                })
                             }
 
                             pub fn reference(&self) -> &crate::environment::VerbInventoryRef {
                                 &self.reference
+                            }
+
+                            pub(crate) fn prepositional_adjunct_licensed(&self) -> bool {
+                                self.prepositional_adjunct_licensed
+                            }
+
+                            pub(crate) fn nonprepositional_adjunct_licensed(&self) -> bool {
+                                self.nonprepositional_adjunct_licensed
                             }
 
                         }
@@ -849,11 +867,8 @@ fn emit_vocab_preposition_complement_kind_helper(
                 crate::feature::FeatureValue::OnComplement => {
                     quote! { PrepositionComplementKind::OnComplement }
                 }
-                crate::feature::FeatureValue::AtComplement => {
-                    quote! { PrepositionComplementKind::AtComplement }
-                }
-                crate::feature::FeatureValue::DuringComplement => {
-                    quote! { PrepositionComplementKind::DuringComplement }
+                crate::feature::FeatureValue::TemporalComplement => {
+                    quote! { PrepositionComplementKind::TemporalComplement }
                 }
                 _ => unreachable!("sealed locative-temporal complement has its closed domain"),
             };

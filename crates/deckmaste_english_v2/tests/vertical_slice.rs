@@ -203,17 +203,9 @@ fn plural_head(noun: Noun) -> PluralHead {
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::UnqualifiedNumericStage(
-            UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                    UnqualifiedLocativeStage {
-                        reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage {
-                                reference: Box::new(reference),
-                            },
-                        )),
-                    },
-                )),
+        reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+            UnqualifiedPostmodifiedReference {
+                reference: Box::new(reference),
             },
         )),
     })
@@ -252,37 +244,37 @@ fn determined_plural(determiner: Determiner, noun: Noun) -> NounPhrase {
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::ScalarQualifiedReference(
+        reference: Box::new(PostmodifiedReference::ScalarQualifiedReference(
             ScalarQualifiedReference {
-                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                    UnqualifiedLocativeStage {
-                        reference: Box::new(ControllerStage::RelativeQualifiedReference(
-                            RelativeQualifiedReference {
-                                reference: Box::new(UnqualifiedReference::DeterminedNominal(
-                                    DeterminedNominal::new(
-                                        Determiner::Zero,
-                                        Nominal::PluralNominalValue(PluralNominalValue {
-                                            nominal: plural_nominal(creatures()),
-                                        }),
+                reference: Box::new(PostmodifiedReference::RelativeQualifiedReference(
+                    RelativeQualifiedReference {
+                        reference: Box::new(
+                            PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                                UnqualifiedPostmodifiedReference {
+                                    reference: Box::new(UnqualifiedReference::DeterminedNominal(
+                                        DeterminedNominal::new(
+                                            Determiner::Zero,
+                                            Nominal::PluralNominalValue(PluralNominalValue {
+                                                nominal: plural_nominal(creatures()),
+                                            }),
+                                        )
+                                        .expect("a zero determiner agrees with a plural nominal"),
+                                    )),
+                                },
+                            ),
+                        ),
+                        clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
+                            PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
+                                PositiveObjectGapRelativeClauseValue {
+                                    subject: subject_you(),
+                                    head: DeclarationTransitiveVerb::new(
+                                        &environment(),
+                                        VerbInventoryRef::Core(CoreVerbIdentity::Control),
                                     )
-                                    .expect("a zero determiner agrees with a plural nominal"),
-                                )),
-                                clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
-                                    PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
-                                        PositiveObjectGapRelativeClauseValue {
-                                            subject: subject_you(),
-                                            head: DeclarationTransitiveVerb::new(
-                                                &environment(),
-                                                VerbInventoryRef::Core(CoreVerbIdentity::Control),
-                                            )
-                                            .expect(
-                                                "the core inventory declares transitive Control",
-                                            ),
-                                        },
-                                    ),
-                                ))),
-                            },
-                        )),
+                                    .expect("the core inventory declares transitive Control"),
+                                },
+                            ),
+                        ))),
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
@@ -315,27 +307,21 @@ fn number_of(counted: Object) -> NounPhrase {
         .expect("the agrees with the singular number nominal"),
     );
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: Box::new(NumericStage::UnqualifiedNumericStage(
-            UnqualifiedNumericStage {
-                reference: Box::new(LocativeStage::PrepositionalQualifiedReference(
-                    PrepositionalQualifiedReference::new(
-                        Box::new(ControllerStage::UnqualifiedControllerStage(
-                            UnqualifiedControllerStage {
-                                reference: Box::new(number),
-                            },
-                        )),
-                        Box::new(PrepositionalPhrase::PrepositionalPhrase(
-                            PrepositionalPhraseValue {
-                                preposition: Preposition::Of,
-                                complement: Box::new(PrepositionalComplement::Object(Box::new(
-                                    counted,
-                                ))),
-                            },
-                        )),
-                    )
-                    .expect("`of` is a licensed nominal postmodifier"),
+        reference: Box::new(PostmodifiedReference::PrepositionalQualifiedReference(
+            PrepositionalQualifiedReference::new(
+                Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                    UnqualifiedPostmodifiedReference {
+                        reference: Box::new(number),
+                    },
                 )),
-            },
+                Box::new(PrepositionalPhrase::PrepositionalPhrase(
+                    PrepositionalPhraseValue {
+                        preposition: Preposition::Of,
+                        complement: Box::new(PrepositionalComplement::Object(Box::new(counted))),
+                    },
+                )),
+            )
+            .expect("`of` is a licensed nominal postmodifier"),
         )),
     })
 }

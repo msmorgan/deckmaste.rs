@@ -69,8 +69,7 @@ pub(crate) enum FeatureValue {
     SourceComplement,
     InComplement,
     OnComplement,
-    AtComplement,
-    DuringComplement,
+    TemporalComplement,
     Unlicensed,
     OfLicensed,
     OfAndOnLicensed,
@@ -98,6 +97,7 @@ pub(crate) enum FeatureValue {
     QualifiedRelational,
     DeterminedRelational,
     Relational,
+    SaturatedRelational,
     AdjunctCapable,
     PostmodifierOnly,
     SelectedOnly,
@@ -165,8 +165,7 @@ impl Feature {
                 FeatureValue::SourceComplement,
                 FeatureValue::InComplement,
                 FeatureValue::OnComplement,
-                FeatureValue::AtComplement,
-                FeatureValue::DuringComplement,
+                FeatureValue::TemporalComplement,
             ],
             Self::LocativeTemporalLicense => &[
                 FeatureValue::Unlicensed,
@@ -205,6 +204,7 @@ impl Feature {
                 FeatureValue::QualifiedRelational,
                 FeatureValue::DeterminedRelational,
                 FeatureValue::Relational,
+                FeatureValue::SaturatedRelational,
             ],
             Self::PrepositionAttachment => &[
                 FeatureValue::AdjunctCapable,
@@ -296,8 +296,7 @@ impl FeatureValue {
             Self::SourceComplement => "SourceComplement",
             Self::InComplement => "InComplement",
             Self::OnComplement => "OnComplement",
-            Self::AtComplement => "AtComplement",
-            Self::DuringComplement => "DuringComplement",
+            Self::TemporalComplement => "TemporalComplement",
             Self::OfLicensed => "OfLicensed",
             Self::OfAndOnLicensed => "OfAndOnLicensed",
             Self::OfInAndOnLicensed => "OfInAndOnLicensed",
@@ -323,6 +322,7 @@ impl FeatureValue {
             Self::QualifiedRelational => "QualifiedRelational",
             Self::DeterminedRelational => "DeterminedRelational",
             Self::Relational => "Relational",
+            Self::SaturatedRelational => "SaturatedRelational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
             Self::SelectedOnly => "SelectedOnly",
@@ -519,8 +519,7 @@ impl FeatureValue {
             Self::SourceComplement => "SourceComplement",
             Self::InComplement => "InComplement",
             Self::OnComplement => "OnComplement",
-            Self::AtComplement => "AtComplement",
-            Self::DuringComplement => "DuringComplement",
+            Self::TemporalComplement => "TemporalComplement",
             Self::OfLicensed => "OfLicensed",
             Self::OfAndOnLicensed => "OfAndOnLicensed",
             Self::OfInAndOnLicensed => "OfInAndOnLicensed",
@@ -546,6 +545,7 @@ impl FeatureValue {
             Self::QualifiedRelational => "QualifiedRelational",
             Self::DeterminedRelational => "DeterminedRelational",
             Self::Relational => "Relational",
+            Self::SaturatedRelational => "SaturatedRelational",
             Self::AdjunctCapable => "AdjunctCapable",
             Self::PostmodifierOnly => "PostmodifierOnly",
             Self::SelectedOnly => "SelectedOnly",
@@ -623,9 +623,8 @@ pub(crate) fn lower_constant(
         }
         (model::Feature::PrepositionComplementKind, "InComplement") => FeatureValue::InComplement,
         (model::Feature::PrepositionComplementKind, "OnComplement") => FeatureValue::OnComplement,
-        (model::Feature::PrepositionComplementKind, "AtComplement") => FeatureValue::AtComplement,
-        (model::Feature::PrepositionComplementKind, "DuringComplement") => {
-            FeatureValue::DuringComplement
+        (model::Feature::PrepositionComplementKind, "TemporalComplement") => {
+            FeatureValue::TemporalComplement
         }
         (model::Feature::LocativeTemporalLicense, "Unlicensed") => FeatureValue::Unlicensed,
         (model::Feature::LocativeTemporalLicense, "OfLicensed") => FeatureValue::OfLicensed,
@@ -672,6 +671,7 @@ pub(crate) fn lower_constant(
             FeatureValue::DeterminedRelational
         }
         (model::Feature::Relationality, "Relational") => FeatureValue::Relational,
+        (model::Feature::Relationality, "SaturatedRelational") => FeatureValue::SaturatedRelational,
         (model::Feature::PrepositionAttachment, "AdjunctCapable") => FeatureValue::AdjunctCapable,
         (model::Feature::PrepositionAttachment, "PostmodifierOnly") => {
             FeatureValue::PostmodifierOnly

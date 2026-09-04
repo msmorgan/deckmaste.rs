@@ -7,17 +7,9 @@ mod coordination_feature_recipes {
 
     fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
         NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(NumericStage::UnqualifiedNumericStage(
-                UnqualifiedNumericStage {
-                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                        UnqualifiedLocativeStage {
-                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage {
-                                    reference: Box::new(reference),
-                                },
-                            )),
-                        },
-                    )),
+            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                UnqualifiedPostmodifiedReference {
+                    reference: Box::new(reference),
                 },
             )),
         })
@@ -97,22 +89,26 @@ mod coordination_feature_recipes {
             CoordinatedNounPhrase {
                 coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
                     FullAndNounPhraseCoordination::new(Box::new(vec![
-                        ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-                            reference: Box::new(determined(
-                                determinative(Number::Singular),
-                                Nominal::SingularNominalValue(SingularNominalValue {
-                                    nominal: singular_nominal(CommonNoun::Player),
-                                }),
-                            )),
-                        }),
-                        ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-                            reference: Box::new(determined(
-                                determinative(Number::Singular),
-                                Nominal::SingularNominalValue(SingularNominalValue {
-                                    nominal: singular_nominal(CommonNoun::Opponent),
-                                }),
-                            )),
-                        }),
+                        PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                            UnqualifiedPostmodifiedReference {
+                                reference: Box::new(determined(
+                                    determinative(Number::Singular),
+                                    Nominal::SingularNominalValue(SingularNominalValue {
+                                        nominal: singular_nominal(CommonNoun::Player),
+                                    }),
+                                )),
+                            },
+                        ),
+                        PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                            UnqualifiedPostmodifiedReference {
+                                reference: Box::new(determined(
+                                    determinative(Number::Singular),
+                                    Nominal::SingularNominalValue(SingularNominalValue {
+                                        nominal: singular_nominal(CommonNoun::Opponent),
+                                    }),
+                                )),
+                            },
+                        ),
                     ]))
                     .expect("binary full-NP coordination satisfies minimum arity"),
                 ),
@@ -137,17 +133,9 @@ mod reference_onset_recipes {
 
     fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
         NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(NumericStage::UnqualifiedNumericStage(
-                UnqualifiedNumericStage {
-                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
-                        UnqualifiedLocativeStage {
-                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
-                                UnqualifiedControllerStage {
-                                    reference: Box::new(reference),
-                                },
-                            )),
-                        },
-                    )),
+            reference: Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                UnqualifiedPostmodifiedReference {
+                    reference: Box::new(reference),
                 },
             )),
         })
@@ -254,17 +242,13 @@ mod preposition_license_recipes {
                 possessor: PossessiveDeterminerPronoun::Your,
                 nominal,
             });
-        let controller = ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-            reference: Box::new(reference),
-        });
-        let locative = LocativeStage::UnqualifiedLocativeStage(UnqualifiedLocativeStage {
-            reference: Box::new(controller),
-        });
-        let numeric = NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-            reference: Box::new(locative),
-        });
+        let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
+            UnqualifiedPostmodifiedReference {
+                reference: Box::new(reference),
+            },
+        );
         let phrase = NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(numeric),
+            reference: Box::new(postmodified),
         });
         PrepositionalComplement::Object(Box::new(Object::ObjectNominal(NominalObject {
             value: Box::new(phrase),
@@ -299,17 +283,13 @@ mod preposition_license_recipes {
                 possessor: PossessiveDeterminerPronoun::Your,
                 nominal,
             });
-        let controller = ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-            reference: Box::new(reference),
-        });
-        let locative = LocativeStage::UnqualifiedLocativeStage(UnqualifiedLocativeStage {
-            reference: Box::new(controller),
-        });
-        let numeric = NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-            reference: Box::new(locative),
-        });
+        let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
+            UnqualifiedPostmodifiedReference {
+                reference: Box::new(reference),
+            },
+        );
         let phrase = NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: Box::new(numeric),
+            reference: Box::new(postmodified),
         });
         assert_eq!(
             locative_temporal_license_for_noun_phrase(&phrase),
