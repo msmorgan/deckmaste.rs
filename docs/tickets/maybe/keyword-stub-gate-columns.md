@@ -20,3 +20,8 @@ generator derives every `keywordFacts` field. The user decides; the chosen
 option is recorded in `docs/decisions/workbench-ron-shaped-and-label-rulings.md`.
 
 Size: ruling (S to record; M to implement (b)).
+
+Ruling 2026-09-04: deferred. The gate columns stay in xtask's overlay; the
+expectation is that a keyword's facts derive from its macro definition once
+the semantics-v2 keyword macros are written, so no stub-schema field is
+added before then.

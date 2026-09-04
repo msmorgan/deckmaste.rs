@@ -27,3 +27,8 @@ against the new name, never deleted.
 Size: S–M. Done when: no `Sba` reachable from `Ability::Static` in
 `deckmaste_core`; Ascend and the test Sagas lower and pass; workspace tests
 green; workbench build at its module count. Standard constraints apply.
+
+Ruling 2026-09-04: option (a) — rename `StaticEffect::Sba { when, then }`
+to the conditional-static spelling mirroring the workbench's
+`Conditionally c se`; lowering maps v1's `Sba` onto it until cutover;
+rules-defined SBAs stay on `Property::StateBased`. Ready to run.

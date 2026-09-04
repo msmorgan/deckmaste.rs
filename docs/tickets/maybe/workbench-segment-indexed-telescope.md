@@ -18,3 +18,7 @@ typecheck soundly. Size: L. Done when: no length arithmetic recovers a delta
 anywhere in `Effect.idr`; `badLoopedZoneMoveRead`'s subject typechecks as a
 positive witness where the CR allows it; build at its module count.
 Standard constraints apply.
+
+Ruling 2026-09-04: parked. Trigger to reopen: a printed, vintage-legal card
+refused by `Effect.KeepsOuter`/`EnactKeepsOuter` where the CR allows the
+sentence. Until then the guard's refusals have all been genuine.
