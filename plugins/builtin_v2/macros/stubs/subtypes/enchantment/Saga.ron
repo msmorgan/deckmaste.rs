@@ -1,9 +1,12 @@
-// Saga ([CR#714]) — two conferrals of different kinds. [CR#714.3a]: a Saga
+// Saga ([CR#714]) — three conferrals of different kinds. [CR#714.3a]: a Saga
 // "has the intrinsic ability 'This Saga enters with a lore counter on it'",
 // which "creates a replacement effect" ([CR#614.1c]) — a REAL ability, so it
 // occupies the ordinary Ability hierarchy. [CR#714.3c]: the precombat main
 // phase lore counter is a turn-based action that "doesn't use the stack", so
-// it is the ability-free `TurnBased` flavor.
+// it is the ability-free `TurnBased` flavor. [CR#714.4]: the final-chapter
+// sacrifice is a state-based action that "doesn't use the stack", so it is
+// the ability-free `StateBased` flavor; its final chapter number is read off
+// the card's own chapter abilities ([CR#714.2d]).
 Subtype(
     category: Enchantment,
     name: "Saga",
@@ -21,6 +24,17 @@ Subtype(
             TurnBased(
                 at: PrecombatMain,
                 effect: PutCounters(This, LoreCounter, 1),
+            ),
+            StateBased(
+                condition: And([
+                    Compare(GreatestWatchedThreshold(This), AtLeast, 1),
+                    Compare(
+                        CounterCount(This, LoreCounter),
+                        AtLeast,
+                        GreatestWatchedThreshold(This),
+                    ),
+                ]),
+                effect: Sacrifice(You, This),
             ),
         ],
     ),

@@ -18,12 +18,60 @@ impl Lower for deckmaste_semantics::CardFace {
             supertypes: self.supertypes.lower(),
             types: self.types.lower(),
             subtypes: self.subtypes.lower(),
-            abilities: self.abilities.lower(),
+            abilities: {
+                let abilities = self.abilities.lower();
+                refuse_rules_defined_sba(&abilities);
+                abilities
+            },
             power: self.power.lower(),
             toughness: self.toughness.lower(),
             loyalty: self.loyalty.lower(),
             defense: self.defense.lower(),
         }
+    }
+}
+
+/// [CR#704.1]: a rules-defined state-based action is a game action, not an
+/// ability of any kind — [CR#704.1a] routes a state-WATCHING ability to the
+/// triggered bucket instead. A card-level state-checked static ([CR#604.1])
+/// whose instruction removes its own object from the battlefield is therefore
+/// a [CR#704.5]-shaped state-based action wearing a static ability; its home
+/// is a `Property::StateBased` conferral on the type or subtype whose rule it
+/// is, or an `SbaRule` ([CR#714.4] the Saga sacrifice, [CR#704.5m] the Aura
+/// graveyard rule). Ascend ([CR#702.131b]) is a genuine static and passes: it
+/// grants a designation and removes nothing.
+fn refuse_rules_defined_sba(abilities: &[deckmaste_core::Ability]) {
+    for ability in abilities {
+        let deckmaste_core::Ability::Static(region) = ability else {
+            continue;
+        };
+        let deckmaste_core::StaticSpec::ConditionallyDo { then, .. } = &region.body else {
+            continue;
+        };
+        if removes_source(then) {
+            crate::region::refuse(
+                "a state-checked static that removes its own object restates a rules-defined \
+                 state-based action ([CR#704.1,704.1a]); confer it on the type or subtype as \
+                 `Property::StateBased`, or author it as an `SbaRule`",
+            );
+        }
+    }
+}
+
+/// Whether an instruction removes the region's own source object: the
+/// [CR#704.5] removal family — sacrifice ([CR#701.21a]), a zone change
+/// ([CR#400.7]), or ceasing to exist ([CR#704.5d]).
+fn removes_source(instruction: &deckmaste_core::Instruction) -> bool {
+    use deckmaste_core::Action;
+
+    let this = deckmaste_core::Reference::source_parameter();
+    match instruction {
+        deckmaste_core::Instruction::Act {
+            action: Action::Sacrifice(_, what) | Action::Move(what, ..) | Action::Cease(what),
+            ..
+        } => what == &this,
+        deckmaste_core::Instruction::Sequentially(body) => body.iter().any(removes_source),
+        _ => false,
     }
 }
 
@@ -100,6 +148,55 @@ mod tests {
     use crate::Lower;
     use crate::assert_lowers;
     use crate::minimal::*;
+
+    /// A card-level state-checked static that removes its own object restates
+    /// a rules-defined state-based action ([CR#704.1,704.1a,714.4]), so the
+    /// card does not compile.
+    #[test]
+    fn a_self_removing_state_checked_static_is_refused() {
+        let face = deckmaste_semantics::CardFace {
+            abilities: vec![deckmaste_semantics::Ability::Static(std::sync::Arc::new(
+                deckmaste_semantics::StaticEffect::Sba {
+                    when: std::sync::Arc::new(minimal_condition()),
+                    then: std::sync::Arc::new(deckmaste_semantics::OneShotEffect::Act(
+                        deckmaste_semantics::Action::Sacrifice(
+                            deckmaste_semantics::Reference::You,
+                            deckmaste_semantics::Reference::This,
+                        ),
+                    )),
+                },
+            ))],
+            ..minimal_card_face()
+        };
+        let refusal = crate::lower_card(deckmaste_semantics::Card::Normal(face))
+            .expect_err("a rules-defined SBA spelled as a card static is refused");
+        assert!(
+            refusal.message.contains("state-based action"),
+            "{}",
+            refusal.message
+        );
+    }
+
+    /// Ascend ([CR#702.131b]) is a genuine static ability: its instruction
+    /// grants a designation and removes nothing, so the same shape compiles.
+    #[test]
+    fn a_state_checked_static_that_removes_nothing_compiles() {
+        let face = deckmaste_semantics::CardFace {
+            abilities: vec![deckmaste_semantics::Ability::Static(std::sync::Arc::new(
+                deckmaste_semantics::StaticEffect::Sba {
+                    when: std::sync::Arc::new(minimal_condition()),
+                    then: std::sync::Arc::new(deckmaste_semantics::OneShotEffect::Act(
+                        deckmaste_semantics::Action::GetDesignation(
+                            deckmaste_semantics::Reference::You,
+                            "CitysBlessing".into(),
+                        ),
+                    )),
+                },
+            ))],
+            ..minimal_card_face()
+        };
+        assert!(crate::lower_card(deckmaste_semantics::Card::Normal(face)).is_ok());
+    }
 
     #[test]
     fn lowers_card_face() {

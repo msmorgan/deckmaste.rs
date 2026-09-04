@@ -277,7 +277,9 @@ fn runnable_count_is_bound(count: &crate::Count) -> bool {
         | Count::Damage(reference)
         | Count::ManaAvailable(reference)
         | Count::ManaAvailableKind(reference, _) => runnable_reference_is_bound(reference),
-        Count::CounterCount(reference, _) => runnable_reference_is_bound(reference),
+        Count::CounterCount(reference, _) | Count::GreatestWatchedThreshold(reference) => {
+            runnable_reference_is_bound(reference)
+        }
         Count::Min(left, right)
         | Count::Max(left, right)
         | Count::Plus(left, right)

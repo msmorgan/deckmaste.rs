@@ -1288,6 +1288,23 @@ fn eval_stat_of(
     value.max(0)
 }
 
+/// The thresholds `abilities` watch a crossing of — the [`Condition::Crossed`]
+/// intervening-if of each triggered ability ([CR#714.2b]). [CR#714.2d]'s final
+/// chapter number is the greatest of them.
+pub(crate) fn watched_thresholds(abilities: &[Ability]) -> impl Iterator<Item = &Count> {
+    abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Triggered(t) => t.condition.as_ref(),
+            _ => None,
+        })
+        .filter_map(|c| match c {
+            deckmaste_core::Condition::Crossed { thresholds, .. } => Some(thresholds),
+            _ => None,
+        })
+        .flat_map(|thresholds| thresholds.iter())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one arm per Count kind — the value language's full surface, mirroring \
@@ -1412,6 +1429,19 @@ fn eval_count(
                 .and_then(|id| state.objects.get(id))
                 .and_then(|o| o.counters.get(kind.as_str()).copied())
                 .map_or(0, |c| Int::try_from(c).expect("counter count fits Int"))
+        }
+        // [CR#714.2d]: the greatest chapter number among the object's own
+        // abilities, read off the derivation in progress so a stripped chapter
+        // ([CR#613.1f]) stops counting. 0 when nothing watches a crossing.
+        Count::GreatestWatchedThreshold(reference) => {
+            resolve_count_ref(state, working, reference, watcher, controller)
+                .and_then(|id| working.get(&id))
+                .map_or(0, |derived| {
+                    watched_thresholds(&derived.characteristics.abilities)
+                        .map(|t| eval_count(t, state, working, watcher, controller))
+                        .max()
+                        .unwrap_or(0)
+                })
         }
         // [CR#120.3]: marked damage on the resolved object (base state).
         Count::Damage(reference) => {

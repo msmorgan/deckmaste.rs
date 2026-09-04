@@ -1259,6 +1259,129 @@ mod tests {
         id
     }
 
+    /// The Saga subtype's [CR#714.4] rule as core data: the ability-free
+    /// `StateBased` flavor whose final chapter number is read off the bearer's
+    /// OWN chapter abilities ([CR#714.2d]), so one generic row serves every
+    /// Saga. The `And` gate is [CR#714.4]'s "with one or more chapter
+    /// abilities" ([CR#714.2d]: none means a final chapter number of 0).
+    fn saga_subtype() -> deckmaste_core::Subtype {
+        let this = || Arc::new(Reference::Reg(deckmaste_core::RefId(0)));
+        let final_chapter = || deckmaste_core::Count::GreatestWatchedThreshold(this());
+        deckmaste_core::Subtype {
+            name: "Saga".into(),
+            types: [Type::Enchantment].into(),
+            confers: [deckmaste_core::Property::StateBased {
+                condition: Arc::new(Condition::And(Arc::from([
+                    Condition::Compare(
+                        final_chapter(),
+                        deckmaste_core::Cmp::AtLeast,
+                        deckmaste_core::Count::Literal(1),
+                    ),
+                    Condition::Compare(
+                        deckmaste_core::Count::CounterCount(this(), "LoreCounter".into()),
+                        deckmaste_core::Cmp::AtLeast,
+                        final_chapter(),
+                    ),
+                ]))),
+                effect: Arc::new(Instruction::act(deckmaste_core::Action::Sacrifice(
+                    Reference::Reg(deckmaste_core::RefId(1)),
+                    Reference::Reg(deckmaste_core::RefId(0)),
+                ))),
+            }]
+            .into(),
+        }
+    }
+
+    /// A `plugins/testing` Saga on the battlefield carrying the subtype's
+    /// [CR#714.4] conferral, with `lore` lore counters on it.
+    fn saga_on_field(state: &mut GameState, name: &str, lore: u32) -> crate::object::ObjectId {
+        let printed = Plugin::load_with_sibling_prelude(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/testing"),
+        )
+        .unwrap()
+        .card(name)
+        .unwrap()
+        .core;
+        let card = Card::Normal(CardFace::from(Characteristics {
+            subtypes: vec![saga_subtype()],
+            ..crate::derive::face(&printed).characteristics.clone()
+        }));
+        let card_id = state.cards.push(Arc::new(card), PlayerId(0));
+        let id = state.objects.mint(
+            ObjectSource::Card(card_id),
+            PlayerId(0),
+            Some(Zone::Battlefield),
+        );
+        state.zones.battlefield.push(id);
+        state
+            .objects
+            .obj_mut(id)
+            .counters
+            .insert("LoreCounter".into(), lore);
+        id
+    }
+
+    fn goes_to_graveyard(actions: &[GameEvent], object: crate::object::ObjectId) -> bool {
+        actions.iter().any(|e| {
+            matches!(e, GameEvent::ZoneChange(ZoneChange { object: o, to: Zone::Graveyard, .. }) if *o == object)
+        })
+    }
+
+    /// [CR#714.4] through the ability-free conferral: the rule names no chapter
+    /// number — it reads the card's own ([CR#714.2d]) — so a three-chapter Saga
+    /// is sacrificed at three lore counters and not before.
+    #[test]
+    fn state_based_conferral_sacrifices_a_finished_saga() {
+        let mut state = game();
+        let saga = saga_on_field(&mut state, "Test Saga", 2);
+        assert!(
+            !goes_to_graveyard(&sba::sweep(&state), saga),
+            "two lore counters is short of the final chapter number ([CR#714.4])"
+        );
+        state
+            .objects
+            .obj_mut(saga)
+            .counters
+            .insert("LoreCounter".into(), 3);
+        assert!(
+            goes_to_graveyard(&sba::sweep(&state), saga),
+            "the [CR#714.4] conferral sacrifices a Saga at its final chapter number"
+        );
+    }
+
+    /// [CR#714.2c,714.2d]: the final chapter number is the greatest threshold,
+    /// not the chapter COUNT — a Saga whose two chapter abilities are `I` and
+    /// `II, III` finishes at three, not two.
+    #[test]
+    fn a_chapter_range_finishes_at_its_greatest_threshold() {
+        let mut state = game();
+        let saga = saga_on_field(&mut state, "Test Saga Range", 2);
+        assert!(
+            !goes_to_graveyard(&sba::sweep(&state), saga),
+            "a range's greatest member is the final chapter number ([CR#714.2d])"
+        );
+        state
+            .objects
+            .obj_mut(saga)
+            .counters
+            .insert("LoreCounter".into(), 3);
+        assert!(goes_to_graveyard(&sba::sweep(&state), saga));
+    }
+
+    /// [CR#714.4]'s "with one or more chapter abilities": a Saga stripped of
+    /// its chapters ([CR#613.1f] layer 6) has a final chapter number of 0
+    /// ([CR#714.2d]) and is NOT sacrificed.
+    #[test]
+    fn a_chapterless_saga_is_not_sacrificed() {
+        let mut state = game();
+        let saga = saga_on_field(&mut state, "Test Saga", 3);
+        lose_all_abilities(&mut state, saga);
+        assert!(
+            !goes_to_graveyard(&sba::sweep(&state), saga),
+            "no chapter abilities means no [CR#714.4] sacrifice"
+        );
+    }
+
     /// [CR#704.5m] through the ability-free conferral: an Aura whose graveyard
     /// rule arrives as the subtype's `Property::StateBased` (no ability at all)
     /// still fires in the sweep. Same asserted outcome as

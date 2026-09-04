@@ -212,6 +212,17 @@ pub enum Count {
     /// bytes) so this variant doesn't make `Count` larger than its `StatOf`
     /// peer.
     CounterCount(Arc<Reference>, crate::CounterRef),
+    /// The greatest threshold a referenced object's own abilities watch a
+    /// crossing of ([`Condition::Crossed`](crate::Condition::Crossed)) — a
+    /// Saga's final chapter number ([CR#714.2d], "the greatest value among
+    /// chapter abilities it has"), read generically: a chapter ability's
+    /// intervening-if IS a `Crossed` gate ([CR#714.2b]), so the greatest
+    /// entry across the object's `Crossed` thresholds is that number. Read
+    /// off the DERIVED abilities, so a permanent that lost them ([CR#613.1f])
+    /// reads 0 — [CR#714.2d]'s "if a Saga somehow has no chapter abilities,
+    /// its final chapter number is 0". The `Reference` is boxed, like its
+    /// `CounterCount` peer.
+    GreatestWatchedThreshold(Arc<Reference>),
     /// The smaller of two counts — the +1/+1 vs -1/-1 annihilation removes
     /// `Min(CounterCount(+1/+1), CounterCount(-1/-1))` of each ([CR#704.5q]),
     /// and "the lesser of X and Y" appears across the card base. Boxed to keep

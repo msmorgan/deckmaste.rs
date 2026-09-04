@@ -7,10 +7,9 @@
 // counter-doubled 0→2 jump (Doubling Season) is ONE fact whose crossing
 // chapters I and II each observe (and chapter III does not). The Saga
 // subtype registry row (types/enchantment/Saga.ron) confers the
-// enters-with-counter Also [CR#714.3a] and the turn-based lore increment
-// [CR#714.3c]; the final-chapter sacrifice SBA carries the card's own final
-// chapter number, so it is spelled card-side ([CR#714.4,714.2d] — the Idris
-// History of Benalia exemplar).
+// enters-with-counter Also [CR#714.3a], the turn-based lore increment
+// [CR#714.3c] and the final-chapter sacrifice [CR#714.4], whose final chapter
+// number is the greatest threshold among these ([CR#714.2d]).
 //
 // `n` is ONE OR MORE chapter numbers ([CR#714.2c] — a range "{rN1}, {rN2}—"
 // fires the same effect at each), spliced into `Crossed`'s `thresholds`

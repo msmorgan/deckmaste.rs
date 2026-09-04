@@ -12,13 +12,11 @@
 //     own precombat main. Engine execution of registry `TurnBased` rows is
 //     stage 3; the chapter triggers themselves execute today.
 //
-// The FINAL-CHAPTER sacrifice SBA ([CR#714.4]) needs the card's own final
-// chapter number ([CR#714.2d] — the greatest threshold among ITS chapter
-// abilities), which a generic registry row cannot name; it is spelled
-// card-side as `Sba(when: Compare(CounterCount(This, LoreCounter),
-// AtLeast, <final>), then: Sacrifice(This))` — the Idris History of
-// Benalia exemplar. Chapters themselves are the `Chapter` ability macro
-// ([CR#714.2b]).
+// The FINAL-CHAPTER sacrifice SBA ([CR#714.4]) is a `StateBased` conferral
+// of this subtype, comparing the lore total to the card's own final chapter
+// number ([CR#714.2d]). This grammar has no term for that number, so the row
+// lives on the v2 stub; see the ticket's landing record. Chapters themselves
+// are the `Chapter` ability macro ([CR#714.2b]).
 (
     name: "Saga",
     kinds: [Subtype],

@@ -263,6 +263,20 @@ impl GameState {
                         .unwrap_or(0),
                 }
             }
+            // [CR#714.2d]: the greatest chapter number among the referenced
+            // object's DERIVED abilities — a stripped chapter ([CR#613.1f])
+            // stops counting. 0 when nothing watches a crossing.
+            Count::GreatestWatchedThreshold(reference) => self
+                .eval_reference_product(reference, frame)
+                .current
+                .filter(|&id| self.objects.get(id).is_some())
+                .map_or(0, |id| {
+                    let abilities = std::sync::Arc::clone(&self.layers().get(id).abilities);
+                    crate::layer::watched_thresholds(&abilities)
+                        .map(|t| self.eval_count(t, frame))
+                        .max()
+                        .unwrap_or(0)
+                }),
             // [CR#704.5q]: the lesser of two magnitudes (annihilation removes
             // the smaller of the two counter counts of each kind).
             Count::Min(a, b) => self.eval_count(a, frame).min(self.eval_count(b, frame)),

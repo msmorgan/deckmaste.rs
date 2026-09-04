@@ -1,7 +1,6 @@
 // [CR#714]: a Saga. The [Saga] subtype confers the enters-with-lore-counter
-// ([CR#714.3a]) and the turn-based lore increment ([CR#714.3c]). Chapter
-// thresholds belong to the card, and its final threshold ([CR#714.2b,714.2d])
-// drives the sacrifice SBA ([CR#714.4]) rather than the subtype.
+// ([CR#714.3a]), the turn-based lore increment ([CR#714.3c]) and the
+// final-chapter sacrifice ([CR#714.4]). Chapter thresholds belong to the card.
 Normal(
     name: "Test Saga",
     mana_cost: [Generic(1), White],
@@ -11,11 +10,5 @@ Normal(
         Chapter(n: [1], effect: ChangeLife(You, Up(1))),
         Chapter(n: [2], effect: ChangeLife(You, Up(2))),
         Chapter(n: [3], effect: ChangeLife(You, Up(3))),
-        // [CR#714.4]: sacrifice once the lore total reaches the final
-        // chapter number (3 here).
-        Static(Sba(
-            when: Compare(CounterCount(This, LoreCounter), AtLeast, 3),
-            then: Sacrifice(You, This),
-        )),
     ],
 )

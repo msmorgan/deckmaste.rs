@@ -359,7 +359,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
         (
             SubtypeCategory::Enchantment,
             "Saga",
-            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,LoreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,LoreCounter,1))])",
+            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,LoreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,LoreCounter,1)),StateBased(condition:And([Compare(GreatestWatchedThreshold(This),AtLeast,1),Compare(CounterCount(This,LoreCounter),AtLeast,GreatestWatchedThreshold(This))]),effect:Sacrifice(You,This))])",
         ),
     ];
 
