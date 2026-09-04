@@ -1,6 +1,10 @@
 ---
 needs: []
 ---
+DEFERRED to `maybe/` (2026-09-03, with the user): the Idris emit path is likely
+obsolete in the v2 era; this stays as the record of the gap rather than being
+folded into `card-form-characteristics-model`.
+
 **The Rust→Idris card emitter `idris_emit::emit_card_expr` maps only
 `Card::Normal`; a `Card::TwoFaced` returns a "not yet mapped" gap**, so no
 double-faced card can be re-emitted to Idris for the `idris-check` cross-check.
