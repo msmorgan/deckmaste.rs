@@ -244,12 +244,23 @@ frontFace : (name : String) -> (cost : Maybe ManaCost) ->
             (supers : List Supertype) -> (line : TypeLine) ->
             (text : AbilitySeq (costLetters cost)) -> (box : Maybe PrintedBox) ->
             CardFace
-frontFace name cost supers line text box = MkFace name cost [] supers line text box
+frontFace name cost supers line text box =
+  MkFace (MkCharacteristics name cost [] supers line text box)
 
 public export
 backFace : (name : String) -> (supers : List Supertype) -> (line : TypeLine) ->
            (text : AbilitySeq []) -> (box : Maybe PrintedBox) -> CardFace
-backFace name supers line text box = MkFace name Nothing [] supers line text box
+backFace name supers line text box =
+  MkFace (MkCharacteristics name Nothing [] supers line text box)
+
+||| [CR#710.1] a flip card's alternative characteristics, [CR#715.2] an Adventure's
+public export
+alternative : (name : String) -> (cost : Maybe ManaCost) ->
+              (supers : List Supertype) -> (line : TypeLine) ->
+              (text : AbilitySeq (costLetters cost)) -> (box : Maybe PrintedBox) ->
+              Characteristics
+alternative name cost supers line text box =
+  MkCharacteristics name cost [] supers line text box
 
 public export
 cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
@@ -264,8 +275,8 @@ cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype)
          {auto 0 dr : DoorFrame text} ->
          Card
 cardOf name cost supers line text box =
-  SingleFaced (MkFace name cost [] supers line text box)
-              {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr}}
+  SingleFaced (MkFace (MkCharacteristics name cost [] supers line text box))
+              {fl = MkCharacteristicsLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr}}
 
 public export
 printedBox : Maybe (Integer, Integer) -> Maybe PrintedBox
@@ -285,10 +296,12 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
        (stats : Maybe (Integer, Integer)) ->
        {auto 0 fl : FaceLaws Front
-                    (MkFace name cost [] supers line text (printedBox stats))} ->
+                    (MkFace (MkCharacteristics name cost [] supers line text
+                                               (printedBox stats)))} ->
        Card
 card name cost supers line text stats =
-  SingleFaced (MkFace name cost [] supers line text (printedBox stats)) {fl}
+  SingleFaced (MkFace (MkCharacteristics name cost [] supers line text
+                                         (printedBox stats))) {fl}
 
 public export
 levelBand : (range : LevelRange) -> (pow : Integer) -> (tou : Integer) ->
@@ -301,13 +314,15 @@ leveler : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype
           (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
           (stats : Maybe (Integer, Integer)) -> (bands : List LevelBand) ->
           {auto 0 nf : FaceLaws Front
-                       (MkFace name cost [] supers line text (printedBox stats))} ->
+                       (MkFace (MkCharacteristics name cost [] supers line text
+                                                  (printedBox stats)))} ->
           {auto 0 lv : So (levelerFrameOk line (printedBox stats) bands)} ->
           {auto 0 bl : LevelBandsLaws line bands} ->
           {auto 0 dj : So (bandsDisjoint bands)} ->
           Card
 leveler name cost supers line text stats bands =
-  Leveler (MkFace name cost [] supers line text (printedBox stats)) bands
+  Leveler (MkFace (MkCharacteristics name cost [] supers line text
+                                     (printedBox stats))) bands
           {nf} {lv} {bl} {dj}
 
 public export
@@ -322,12 +337,14 @@ prototype : (name : String) -> (cost : Maybe ManaCost) ->
             (text : AbilitySeq (costLetters cost)) ->
             (stats : Maybe (Integer, Integer)) -> (alt : PrototypeAlt) ->
             {auto 0 nf : FaceLaws Front
-                         (MkFace name cost [] supers line text (printedBox stats))} ->
+                         (MkFace (MkCharacteristics name cost [] supers line text
+                                                    (printedBox stats)))} ->
             {auto 0 pf : So (prototypeFrameOk line (printedBox stats))} ->
             {auto 0 al : PrototypeAltLaws line alt} ->
             Card
 prototype name cost supers line text stats alt =
-  Prototype (MkFace name cost [] supers line text (printedBox stats)) alt
+  Prototype (MkFace (MkCharacteristics name cost [] supers line text
+                                       (printedBox stats))) alt
             {nf} {pf} {al}
 
 public export

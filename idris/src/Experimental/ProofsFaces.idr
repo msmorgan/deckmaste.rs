@@ -20,7 +20,7 @@ okSingleSnow =
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
   Macros.card "" Nothing [Snow, Snow] (MkTypeLine [landType "Forest"] [Land]) [] Nothing {fl = ok})
-badDuplicateSnow MkFaceLaws impossible
+badDuplicateSnow MkCharacteristicsLaws impossible
 
 ||| "Draw a card." printed on an instant
 public export
@@ -34,66 +34,66 @@ public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
        [Spell (Draw You (Lit 1))] (Just (1, 1)) {fl = ok})
-badSpellAbilityOnPermanent MkFaceLaws impossible
+badSpellAbilityOnPermanent MkCharacteristicsLaws impossible
 
 ||| "Creatures you control get +1/+1."
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
        [Static (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
-badStaticOnSorcery MkFaceLaws impossible
+badStaticOnSorcery MkCharacteristicsLaws impossible
 
 ||| "Flying"
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
        [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
-badKeywordOnInstant MkFaceLaws impossible
+badKeywordOnInstant MkCharacteristicsLaws impossible
 
 ||| "{T}: Draw a card."
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
        [Activated TapSymbol (Draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
-badTapSorcery MkFaceLaws impossible
+badTapSorcery MkCharacteristicsLaws impossible
 
 ||| a creature card printed with no power or toughness
 public export
 badCreatureCardNoPt : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing {fl = ok})
-badCreatureCardNoPt (MkFaceLaws {bx = MkCardBox}) impossible
+badCreatureCardNoPt (MkCharacteristicsLaws {bx = MkCardBox}) impossible
 
 ||| a land card printed with "{1}"
 public export
 badLandWithManaCost : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Land]) [] Nothing {fl = ok})
-badLandWithManaCost MkFaceLaws impossible
+badLandWithManaCost MkCharacteristicsLaws impossible
 
 ||| "Legendary Legendary Creature"
 public export
 badDuplicateSupertype : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [Legendary, Legendary] (MkTypeLine [] [Creature])
        [] (Just (1, 1)) {fl = ok})
-badDuplicateSupertype MkFaceLaws impossible
+badDuplicateSupertype MkCharacteristicsLaws impossible
 
 ||| "Land Creature Instant"
 public export
 badMixedPermanentSpellLine : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Land, Creature, Instant]) [] (Just (1, 1)) {fl = ok})
-badMixedPermanentSpellLine (MkFaceLaws {ln = MkCardLine}) impossible
+badMixedPermanentSpellLine (MkCharacteristicsLaws {ln = MkCardLine}) impossible
 
 ||| a card printed with an empty type line
 public export
 badCardNoTypes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] []) [] Nothing {fl = ok})
-badCardNoTypes (MkFaceLaws {ln = MkCardLine}) impossible
+badCardNoTypes (MkCharacteristicsLaws {ln = MkCardLine}) impossible
 
 ||| "Creature Creature"
 public export
 badCardDuplicateType : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) [] (MkTypeLine [] [Creature, Creature]) []
        (Just (2, 2)) {fl = ok})
-badCardDuplicateType (MkFaceLaws {ln = MkCardLine}) impossible
+badCardDuplicateType (MkCharacteristicsLaws {ln = MkCardLine}) impossible
 
 public export
 turnedFaceDownHeader : Ability
@@ -144,7 +144,7 @@ badStarlessDefinedPt : Unspellable Card (\ok =>
        [Static (DefinesPt Macros.thisCreature BothEach
                           (Macros.countOf Macros.creatureYouControl))]
        (Just (2, 2)) {fl = ok})
-badStarlessDefinedPt (MkFaceLaws {bx = MkCardBox}) impossible
+badStarlessDefinedPt (MkCharacteristicsLaws {bx = MkCardBox}) impossible
 
 ||| "each creature with flying"
 public export
@@ -162,7 +162,7 @@ public export
 badProtectionOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
        [KeywordAbility "Protection" (Just (ParamQuality (ColorIs Red))) Nothing] Nothing {fl = ok})
-badProtectionOnInstant MkFaceLaws impossible
+badProtectionOnInstant MkCharacteristicsLaws impossible
 
 ||| "Protection from player"
 public export
@@ -176,7 +176,7 @@ badEquipOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 1]) [] (MkTypeLine [] [Sorcery])
        [KeywordAbility "Equip" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing]
        Nothing {fl = ok})
-badEquipOnSorcery MkFaceLaws impossible
+badEquipOnSorcery MkCharacteristicsLaws impossible
 
 ||| "each of one or more creatures"
 public export
@@ -219,7 +219,7 @@ badSiegeWithoutBattle : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [battleType "Siege"] [Kindred, Enchantment])
        [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
-badSiegeWithoutBattle (MkFaceLaws {ln = MkCardLine}) impossible
+badSiegeWithoutBattle (MkCharacteristicsLaws {ln = MkCardLine}) impossible
 
 ||| a "Kindred — Merfolk" card naming no other card type
 public export
@@ -227,7 +227,7 @@ badKindredAlone : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Merfolk"] [Kindred])
        [KeywordAbility "Flying" Nothing Nothing] Nothing {fl = ok})
-badKindredAlone (MkFaceLaws {ln = MkCardLine}) impossible
+badKindredAlone (MkCharacteristicsLaws {ln = MkCardLine}) impossible
 
 ||| "Enchanted planeswalker can't attack."
 public export
@@ -253,7 +253,7 @@ badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [Activated (LoyaltySymbol (LoyaltyUp 1)) (Draw You (Lit 1)) Nothing Nothing Nothing Nothing] Nothing {fl = ok})
-badLoyaltySorcery MkFaceLaws impossible
+badLoyaltySorcery MkCharacteristicsLaws impossible
 
 ||| "a token that's a copy of target creature, except it's an artifact"
 public export
@@ -325,7 +325,7 @@ badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
        [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)) ]
        Nothing {fl = ok})
-badChapterOnNonSaga MkFaceLaws impossible
+badChapterOnNonSaga MkCharacteristicsLaws impossible
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost."
 public export
@@ -351,27 +351,27 @@ public export
 badEscalateWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
        [Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])] Nothing {fl = ok})
-badEscalateWithoutModes MkFaceLaws impossible
+badEscalateWithoutModes MkCharacteristicsLaws impossible
 
 ||| "Entwine {2}"
 public export
 badEntwineWithoutModes : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
        [Macros.keywordCosting "Entwine" (Mana [Macros.generic 2])] Nothing {fl = ok})
-badEntwineWithoutModes MkFaceLaws impossible
+badEntwineWithoutModes MkCharacteristicsLaws impossible
 
 public export
 jointCrossAbilityChoice : Card
 jointCrossAbilityChoice =
   SingleFaced
-    (MkFace "Joint choice witness" Nothing [Color] []
+    (MkFace (MkCharacteristics "Joint choice witness" Nothing [Color] []
       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
       [ Static (Gains Macros.thisCreature
                  (Macros.keywordQuality "Protection" (Macros.ofChosen Color)))
       , Static (Macros.entersChoosing Macros.thisCreature Color)
       ]
-      (Macros.printedBox (Just (1, 1))))
-    {fl = MkFaceLaws}
+      (Macros.printedBox (Just (1, 1)))))
+    {fl = MkCharacteristicsLaws}
 
 ||| "Cumulative upkeep {2}" on an enchantment card
 public export
@@ -386,7 +386,7 @@ public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
        [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2]))) Nothing] Nothing {fl = ok})
-badCumulativeUpkeepOnSpell MkFaceLaws impossible
+badCumulativeUpkeepOnSpell MkCharacteristicsLaws impossible
 
 ||| "Renown 1 (When this creature deals combat damage to a player, …)"
 public export
@@ -437,7 +437,7 @@ public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
        [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black]))) Nothing] Nothing {fl = ok})
-badUnearthOnSpellCard MkFaceLaws impossible
+badUnearthOnSpellCard MkCharacteristicsLaws impossible
 
 ||| "Flashback {2}{U}"
 public export
@@ -446,7 +446,7 @@ badFlashbackOnPermanentCard : Unspellable Card (\ok =>
        (MkTypeLine [] [Artifact])
        [KeywordAbility "Flashback" (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue]))) Nothing]
        Nothing {fl = ok})
-badFlashbackOnPermanentCard MkFaceLaws impossible
+badFlashbackOnPermanentCard MkCharacteristicsLaws impossible
 
 ||| "for each attacking creature you control. You gain that much life."
 public export
@@ -492,7 +492,7 @@ public export
 badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
        [] Nothing {fl = ok})
-badPlaneswalkerNoLoyalty (MkFaceLaws {bx = MkCardBox}) impossible
+badPlaneswalkerNoLoyalty (MkCharacteristicsLaws {bx = MkCardBox}) impossible
 
 ||| a planeswalker card printing its starting loyalty
 public export
@@ -514,7 +514,7 @@ public export
 badBattleNoDefense : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [battleType "Siege"] [Battle]) [] Nothing {fl = ok})
-badBattleNoDefense (MkFaceLaws {bx = MkCardBox}) impossible
+badBattleNoDefense (MkCharacteristicsLaws {bx = MkCardBox}) impossible
 
 ||| an adventurer card whose inset frame is a named Adventure sorcery
 public export
@@ -523,17 +523,17 @@ okNamedAdventure =
   Adventurer (Macros.frontFace "" (Just [Macros.pip Blue]) []
                                (MkTypeLine [] [Creature]) []
                                (Macros.printedBox (Just (1, 1))))
-             (Macros.frontFace "" (Just [Macros.pip Blue]) []
-                               (MkTypeLine [spellType "Adventure"] [Sorcery])
-                               [] Nothing)
+             (Macros.alternative "" (Just [Macros.pip Blue]) []
+                                 (MkTypeLine [spellType "Adventure"] [Sorcery])
+                                 [] Nothing)
 
 ||| an adventurer card whose inset frame is a plain instant, naming no Adventure
 public export
 badUnnamedAdventure : Unspellable Card (\ok =>
   Adventurer (Macros.frontFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature]) []
                                (Macros.printedBox (Just (1, 1))))
-             (Macros.frontFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant]) []
-                               Nothing)
+             (Macros.alternative "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant]) []
+                                 Nothing)
              {ai = ok})
 badUnnamedAdventure Oh impossible
 
@@ -544,17 +544,26 @@ okCreatureFlipHalf =
   FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) []
                              (MkTypeLine [] [Creature]) []
                              (Macros.printedBox (Just (1, 1))))
-           (Macros.backFace "" [] (MkTypeLine [] [Creature]) []
-                            (Macros.printedBox (Just (2, 2))))
+           (Macros.alternative "" Nothing [] (MkTypeLine [] [Creature]) []
+                               (Macros.printedBox (Just (2, 2))))
 
 ||| a flip card whose upside-down half is an instant
 public export
 badSpellFlipHalf : Unspellable Card (\ok =>
   FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
                              (Macros.printedBox (Just (1, 1))))
-           (Macros.backFace "" [] (MkTypeLine [] [Instant]) [] Nothing)
+           (Macros.alternative "" Nothing [] (MkTypeLine [] [Instant]) [] Nothing)
            {ah = ok})
 badSpellFlipHalf Oh impossible
+
+failing "Mismatch between: CardFace and Characteristics"
+  ||| a flip card's upside-down half spelled as a back face -- a flip card's back is the normal card back, so the half is alternative characteristics, not a second face [CR#710.1]
+  badFaceAsFlipAlternative : Card
+  badFaceAsFlipAlternative =
+    FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
+                               (Macros.printedBox (Just (1, 1))))
+             (Macros.backFace "" [] (MkTypeLine [] [Creature]) []
+                              (Macros.printedBox (Just (2, 2))))
 
 ||| a transforming card whose back face prints no mana cost
 public export
@@ -572,11 +581,11 @@ badTransformingBackWithCost : Unspellable Card (\ok =>
   Transforming (Macros.frontFace "" (Just [Macros.pip Green]) []
                                  (MkTypeLine [] [Creature]) []
                                  (Macros.printedBox (Just (1, 1))))
-               (MkFace "" (Just [Macros.pip Green]) [] []
-                       (MkTypeLine [] [Creature]) []
-                       (Macros.printedBox (Just (1, 1))))
+               (MkFace (MkCharacteristics "" (Just [Macros.pip Green]) [] []
+                                          (MkTypeLine [] [Creature]) []
+                                          (Macros.printedBox (Just (1, 1)))))
                {bf = ok})
-badTransformingBackWithCost MkFaceLaws impossible
+badTransformingBackWithCost MkCharacteristicsLaws impossible
 
 ||| "your opponents' devotion to black"
 public export
@@ -632,7 +641,7 @@ badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
        [ Macros.triggered When (UnlocksDoor You ThisDoor)
            (DealDamage Macros.thisRoom (Lit 1) (Macros.each Opponent)) ]
        Nothing {fl = ok})
-badDoorHeaderOffSharedLine MkFaceLaws impossible
+badDoorHeaderOffSharedLine MkCharacteristicsLaws impossible
 
 ||| "unlock a locked door of a Room card in your graveyard"
 public export

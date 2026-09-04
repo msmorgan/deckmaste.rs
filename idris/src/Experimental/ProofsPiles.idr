@@ -174,4 +174,4 @@ badDelayedDoorDeixis : Unspellable Card (\ok =>
     [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
                     {so = Absent})]
     Nothing {fl = ok})
-badDelayedDoorDeixis MkFaceLaws impossible
+badDelayedDoorDeixis MkCharacteristicsLaws impossible

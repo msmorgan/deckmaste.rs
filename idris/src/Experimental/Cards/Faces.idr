@@ -168,7 +168,7 @@ merfolkSecretkeeper =
     (Macros.frontFace "Merfolk Secretkeeper" (Just [Macros.pip Blue]) []
             (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature]) []
             (Macros.printedBox (Just (0, 4))))
-    (Macros.frontFace "Venture Deeper" (Just [Macros.pip Blue]) []
+    (Macros.alternative "Venture Deeper" (Just [Macros.pip Blue]) []
             (MkTypeLine [spellType "Adventure"] [Sorcery])
             [ Spell (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
             Nothing)
@@ -186,7 +186,7 @@ orochiEggwatcher =
                                                AtLeast (Lit 10))
                                    (SetStatus Flipped Macros.thisCreature) ]) ]
             (Macros.printedBox (Just (1, 1))))
-    (Macros.backFace "Shidako, Broodmistress" [Legendary]
+    (Macros.alternative "Shidako, Broodmistress" Nothing [Legendary]
                (MkTypeLine [creatureType "Snake", creatureType "Shaman"] [Creature])
                [ Macros.activated
                    (Compound [ Mana [Macros.pip Green]
@@ -203,7 +203,7 @@ planeswalkerBackWithoutLoyalty =
 
 public export
 planeswalkerBackWithoutLoyaltyOk : FaceLaws Back Faces.planeswalkerBackWithoutLoyalty
-planeswalkerBackWithoutLoyaltyOk = MkFaceLaws
+planeswalkerBackWithoutLoyaltyOk = MkCharacteristicsLaws
 
 ||| Shapeshifter's printed box
 public export
@@ -242,7 +242,7 @@ akkiLavarunner =
                 (DealsDamage AnyDamage Macros.thisCreature (OnePatient Macros.anOpponent))
                 (SetStatus Flipped Macros.thisCreature) ]
             (Macros.printedBox (Just (1, 1))))
-    (Macros.backFace "Tok-Tok, Volcano Born" [Legendary]
+    (Macros.alternative "Tok-Tok, Volcano Born" Nothing [Legendary]
                (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
                [ Macros.keywordQuality "Protection" (ColorIs Red)
                , Static (DamageRule AnyDamage (DealtBy (Macros.a (And [Macros.source, ColorIs Red]))) (ToRecipient (Macros.a AnyPlayer)) (Scale (Shifted ShiftUp (Lit 1))) Repeatedly) ]
@@ -259,7 +259,7 @@ bushiTenderfoot =
                                      , HappenedTo (MkLookback DamageTaken ThisTurn (Just (Involving Macros.thisCreature))) ])))
                 (SetStatus Flipped Macros.thisCreature) ]
             (Macros.printedBox (Just (1, 1))))
-    (Macros.backFace "Kenzo the Hardhearted" [Legendary]
+    (Macros.alternative "Kenzo the Hardhearted" Nothing [Legendary]
                (MkTypeLine [creatureType "Human", creatureType "Samurai"] [Creature])
                [ Macros.keyword "DoubleStrike"
                , Macros.keywordNumber "Bushido" (Lit 2) ]
@@ -311,7 +311,7 @@ kitsuneMystic =
             (MkTypeLine [creatureType "Fox", creatureType "Wizard"] [Creature])
             [ kitsuneMysticFlip ]
             (Macros.printedBox (Just (2, 3))))
-    (Macros.backFace "Autumn-Tail, Kitsune Sage" [Legendary]
+    (Macros.alternative "Autumn-Tail, Kitsune Sage" Nothing [Legendary]
                (MkTypeLine [creatureType "Fox", creatureType "Wizard"] [Creature])
                [ Macros.activated (Mana [Macros.generic 1])
                    (AttachTo

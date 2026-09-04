@@ -247,9 +247,10 @@ jointBindings : List QualitySort -> Bindings -> Bindings
 jointBindings [] bs = bs
 jointBindings (q :: qs) bs = qualityB q :: jointBindings qs bs
 
+||| [CR#109.3] the characteristic set, printed on a face or supplied by a rules-defined alternative
 public export
-record CardFace where
-  constructor MkFace
+record Characteristics where
+  constructor MkCharacteristics
   name : String
   cost : Maybe ManaCost
   choices : List QualitySort
@@ -259,8 +260,9 @@ record CardFace where
   box : Maybe PrintedBox
 
 public export
-Characteristics : Type
-Characteristics = CardFace
+record CardFace where
+  constructor MkFace
+  characteristics : Characteristics
 
 public export
 abilityChoiceDelta : {bs : Bindings} -> AbilityAt bs -> List Binding
@@ -288,17 +290,21 @@ JointChoices : {bs : Bindings} -> List QualitySort -> AbilitySeq bs -> Type
 JointChoices qs text = So (jointChoicesOk qs (textChoiceDelta text))
 
 public export
-data FaceLaws : FaceSide -> CardFace -> Type where
-  MkFaceLaws : {0 side : FaceSide} -> {0 f : CardFace} ->
-               {auto 0 ln : CardLine f.line} ->
-               {auto 0 sp : CardSupers f.supers} ->
-               {auto 0 tx : CardText f.line f.text} ->
-               {auto 0 ch : CardChapters f.line f.text} ->
-               {auto 0 bx : CardBox side f.line f.text f.box} ->
-               {auto 0 mc : CardCost side f.line f.cost} ->
-               {auto 0 dr : DoorFrame f.text} ->
-               {auto 0 jc : JointChoices f.choices f.text} ->
-               FaceLaws side f
+data CharacteristicsLaws : FaceSide -> Characteristics -> Type where
+  MkCharacteristicsLaws : {0 side : FaceSide} -> {0 c : Characteristics} ->
+                          {auto 0 ln : CardLine c.line} ->
+                          {auto 0 sp : CardSupers c.supers} ->
+                          {auto 0 tx : CardText c.line c.text} ->
+                          {auto 0 ch : CardChapters c.line c.text} ->
+                          {auto 0 bx : CardBox side c.line c.text c.box} ->
+                          {auto 0 mc : CardCost side c.line c.cost} ->
+                          {auto 0 dr : DoorFrame c.text} ->
+                          {auto 0 jc : JointChoices c.choices c.text} ->
+                          CharacteristicsLaws side c
+
+public export
+FaceLaws : FaceSide -> CardFace -> Type
+FaceLaws side f = CharacteristicsLaws side f.characteristics
 
 public export
 record SharedLineHalf where
@@ -461,22 +467,24 @@ data Card : Type where
 
   Adventurer : (normal : CardFace) -> (adventure : Characteristics) ->
                {auto 0 nf : FaceLaws Front normal} ->
-               {auto 0 sf : FaceLaws Front adventure} ->
+               {auto 0 sf : CharacteristicsLaws Front adventure} ->
                {auto 0 ai : AdventureInset adventure.line} -> Card
 
   FlipCard : (normal : CardFace) -> (alternative : Characteristics) ->
              {auto 0 nf : FaceLaws Front normal} ->
-             {auto 0 af : FaceLaws Back alternative} ->
-             {auto 0 nh : FlipHalf normal.line} ->
+             {auto 0 af : CharacteristicsLaws Back alternative} ->
+             {auto 0 nh : FlipHalf normal.characteristics.line} ->
              {auto 0 ah : FlipHalf alternative.line} -> Card
 
   Leveler : (inner : CardFace) -> (bands : List LevelBand) ->
             {auto 0 nf : FaceLaws Front inner} ->
-            {auto 0 lv : So (levelerFrameOk inner.line inner.box bands)} ->
-            {auto 0 bl : LevelBandsLaws inner.line bands} ->
+            {auto 0 lv : So (levelerFrameOk inner.characteristics.line
+                                            inner.characteristics.box bands)} ->
+            {auto 0 bl : LevelBandsLaws inner.characteristics.line bands} ->
             {auto 0 dj : So (bandsDisjoint bands)} -> Card
 
   Prototype : (inner : CardFace) -> (alt : PrototypeAlt) ->
               {auto 0 nf : FaceLaws Front inner} ->
-              {auto 0 pf : So (prototypeFrameOk inner.line inner.box)} ->
-              {auto 0 al : PrototypeAltLaws inner.line alt} -> Card
+              {auto 0 pf : So (prototypeFrameOk inner.characteristics.line
+                                                inner.characteristics.box)} ->
+              {auto 0 al : PrototypeAltLaws inner.characteristics.line alt} -> Card
