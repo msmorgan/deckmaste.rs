@@ -38,10 +38,10 @@ badNoncreaturePower Oh impossible
 
 ||| "with power 2 or less or with power 2 or less"
 public export
-badRepeatedComparisonDisjunct : Unspellable (Predicate [] Object) (\ok =>
+okRepeatedComparisonDisjunct : Predicate [] Object
+okRepeatedComparisonDisjunct =
   Or [Compare [StatAxis Power] AtMost (Lit 2),
-      Compare [StatAxis Power] AtMost (Lit 2)] {dd = ok})
-badRepeatedComparisonDisjunct Oh impossible
+      Compare [StatAxis Power] AtMost (Lit 2)]
 
 ||| "with power 2 or less or mana value 3 or less"
 public export

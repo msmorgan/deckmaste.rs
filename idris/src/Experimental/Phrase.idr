@@ -116,25 +116,6 @@ mutual
     NumberBetween : (lo : Nat) -> (hi : Nat) ->
                     {auto 0 ok : So (lo <= hi)} -> ChoiceDomain (QSort Number)
 
-  public export
-  sameChoiceDomain : {0 a, b : ChoiceSort} ->
-                     ChoiceDomain a -> ChoiceDomain b -> Bool
-  sameChoiceDomain (NameOfCard a) (NameOfCard b) = predEq a b
-  sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = a == b
-  sameChoiceDomain (TypeOtherThan a) (TypeOtherThan b) = a == b
-  sameChoiceDomain BasicTypesOnly BasicTypesOnly = True
-  sameChoiceDomain NonbasicTypesOnly NonbasicTypesOnly = True
-  sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
-  sameChoiceDomain (NumberBetween a b) (NumberBetween c d) = a == c && b == d
-  sameChoiceDomain OpponentsOnly OpponentsOnly = True
-  sameChoiceDomain _ _ = False
-
-  public export
-  sameDomainOpt : {0 a, b : ChoiceSort} ->
-                  Maybe (ChoiceDomain a) -> Maybe (ChoiceDomain b) -> Bool
-  sameDomainOpt Nothing Nothing = True
-  sameDomainOpt (Just a) (Just b) = sameChoiceDomain a b
-  sameDomainOpt _ _ = False
 
   public export
   data EventSource : Bindings -> Type where
@@ -342,8 +323,7 @@ mutual
           Predicate bs k
     Or : (ps : List (Predicate bs k)) -> {auto 0 ne : NonEmpty ps} ->
          {auto 0 pd : ParallelDisjuncts ps} ->
-         {auto 0 cd : CoordinableDisjuncts ps} ->
-         {auto 0 dd : DistinctDisjuncts ps} -> Predicate bs k
+         {auto 0 cd : CoordinableDisjuncts ps} -> Predicate bs k
     Not : (p : Predicate bs k) -> {auto 0 ng : Negatable p} -> Predicate bs k
     Other : {auto 0 ok : So (anyTargeted k bs)} -> Predicate bs k
     NotChosen : {auto 0 cs : ChoiceInScope k bs} -> Predicate bs k
@@ -708,163 +688,14 @@ mutual
   ZoneCoherent : List (Predicate bs k) -> Type
   ZoneCoherent {bs} {k} ps = So (zonesOk ps)
 
-  public export
-  predEq : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
-  predEq (HasType a) (HasType b) = a == b
-  predEq (HasType _) _ = False
-  predEq (HasSubtype a) (HasSubtype b) = a == b
-  predEq (HasSubtype _) _ = False
-  predEq (ChosenPlayer a) (ChosenPlayer b) = a == b
-  predEq (ChosenPlayer _) _ = False
-  predEq AnyPlayer AnyPlayer = True
-  predEq AnyPlayer _ = False
-  predEq Opponent Opponent = True
-  predEq Opponent _ = False
-  predEq (QualityNoun a d) (QualityNoun a e) = sameDomainOpt d e
-  predEq (QualityNoun _ _) _ = False
-  predEq (CounterKindOn a) (CounterKindOn b) = nounEqRef a b
-  predEq (CounterKindOn _) _ = False
-  predEq (OfChosen r a) (OfChosen s b) = r == s && a == b
-  predEq (OfChosen _ _) _ = False
-  predEq (OfYourChoice a d) (OfYourChoice b e) = a == b && sameDomainOpt d e
-  predEq (OfYourChoice _ _) _ = False
-  predEq (AbilityHead a) (AbilityHead b) = a == b
-  predEq (AbilityHead _) _ = False
-  predEq (AbilityOf a) (AbilityOf b) = nounEqRef a b
-  predEq (AbilityOf _) _ = False
-  predEq (ActivatedBy a) (ActivatedBy b) = nounEqRef a b
-  predEq (ActivatedBy _) _ = False
-  predEq IsManaAbility IsManaAbility = True
-  predEq IsManaAbility _ = False
-  predEq (Targets _ _) _ = False
-  predEq IsSource IsSource = True
-  predEq IsSource _ = False
-  predEq (ManaCostHas _) _ = False
-  predEq (HasKeyword a) (HasKeyword b) = a == b
-  predEq (HasKeyword _) _ = False
-  predEq (HasPossessor ax a) (HasPossessor bx b) = ax == bx && nounEqRef a b
-  predEq (HasPossessor _ _) _ = False
-  predEq (CastBy a Nothing) (CastBy b Nothing) = nounEqRef a b
-  predEq (CastBy _ _) _ = False
-  predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
-  predEq (ExiledWith _) _ = False
-  predEq (InPile a) (InPile b) = nounEqRef a b
-  predEq (InPile _) _ = False
-  predEq Attacking Attacking = True
-  predEq Attacking _ = False
-  predEq BeingDeclaredAttacker BeingDeclaredAttacker = True
-  predEq BeingDeclaredAttacker _ = False
-  predEq Blocking Blocking = True
-  predEq Blocking _ = False
-  predEq (CombatRel AttackerOf _) _ = False
-  predEq Blocked Blocked = True
-  predEq Blocked _ = False
-  predEq (CombatRel {km = Object} r a) (CombatRel {km = Object} s b) =
-    r == s && nounEqRef a b
-  predEq (CombatRel _ _) _ = False
-  predEq (HappenedTo (MkLookback a v Nothing)) (HappenedTo (MkLookback b w Nothing)) =
-    sameEventName a b && sameLookback v w
-  predEq (HappenedTo _) _ = False
-  predEq (ColorIs a) (ColorIs b) = a == b
-  predEq (ColorIs _) _ = False
-  predEq IsColorless IsColorless = True
-  predEq IsColorless _ = False
-  predEq (ColorCount r a) (ColorCount s b) = r == s && a == b
-  predEq (ColorCount _ _) _ = False
-  predEq (HasSupertype a) (HasSupertype b) = a == b
-  predEq (HasSupertype _) _ = False
-  predEq (Named a) (Named b) = a == b
-  predEq (Named _) _ = False
-  predEq (HasDesignation a) (HasDesignation b) = a == b
-  predEq (HasDesignation _) _ = False
-  predEq (CoinCameUp Heads) (CoinCameUp Heads) = True
-  predEq (CoinCameUp Tails) (CoinCameUp Tails) = True
-  predEq (CoinCameUp _) _ = False
-  predEq (IsAttached a) (IsAttached b) = a == b
-  predEq (IsAttached _) _ = False
-  predEq (AttachedBy a x) (AttachedBy b y) = a == b && nounEqRef x y
-  predEq (AttachedBy _ _) _ = False
-  predEq (AttachedTo _) _ = False
-  predEq Permanent Permanent = True
-  predEq Permanent _ = False
-  predEq IsCard IsCard = True
-  predEq IsCard _ = False
-  predEq IsToken IsToken = True
-  predEq IsToken _ = False
-  predEq IsSpell IsSpell = True
-  predEq IsSpell _ = False
-  predEq IsEmblem IsEmblem = True
-  predEq IsEmblem _ = False
-  predEq IsCopyOfACard IsCopyOfACard = True
-  predEq IsCopyOfACard _ = False
-  predEq IsHistoric IsHistoric = True
-  predEq IsHistoric _ = False
-  predEq IsTransformed IsTransformed = True
-  predEq IsTransformed _ = False
-  predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
-  predEq (HasStatus _) _ = False
-  predEq (HasCounters Nothing) (HasCounters Nothing) = True
-  predEq (HasCounters (Just a)) (HasCounters (Just b)) = a == b
-  predEq (HasCounters _) _ = False
-  predEq (Compare cs r b) (Compare ds s e) = sameAxes cs ds && r == s &&
-                                           boundEq b e
-  predEq (Compare _ _ _) _ = False
-  predEq (Superlative o a d) (Superlative p b e) =
-    o == p && a == b && predEq d e
-  predEq (Superlative _ _ _) _ = False
-  predEq WithMostVotes WithMostVotes = True
-  predEq WithMostVotes _ = False
-  predEq (ChoseExtreme o) (ChoseExtreme p) = o == p
-  predEq (ChoseExtreme _) _ = False
-  predEq (CompareOver _ _ _ _) _ = False
-  predEq (CastFrom z) (CastFrom w) = zoneSort z == zoneSort w
-  predEq (CastFrom _) _ = False
-  predEq WasCast WasCast = True
-  predEq WasCast _ = False
-  predEq (InZone z) (InZone w) = zoneSort z == zoneSort w
-  predEq (InZone _) _ = False
-  predEq (And xs) (And ys) = predEqAll xs ys
-  predEq (And _) _ = False
-  predEq (Or _) _ = False
-  predEq (Not a) (Not b) = predEq a b
-  predEq (Not _) _ = False
-  predEq Other Other = True
-  predEq Other _ = False
-  predEq NotChosen NotChosen = True
-  predEq NotChosen _ = False
-  predEq (OtherThan _) _ = False
-  predEq (Joined _ _) _ = False
-
-  public export
-  predEqAll : {0 bs : Bindings} -> {0 k : Kind} ->
-              List (Predicate bs k) -> List (Predicate bs k) -> Bool
-  predEqAll [] [] = True
-  predEqAll (x :: xs) (y :: ys) = predEq x y && predEqAll xs ys
-  predEqAll _ _ = False
-
-  public export
-  negates : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Predicate bs k -> Bool
-  negates (Not a) b = predEq a b
-  negates a (Not b) = predEq a b
-  negates _ _ = False
-
-  public export
-  anyNegates : {0 bs : Bindings} -> {0 k : Kind} ->
-               Predicate bs k -> List (Predicate bs k) -> Bool
-  anyNegates p [] = False
-  anyNegates p (q :: qs) = negates p q || anyNegates p qs
-
-  public export
-  noNegatedPair : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  noNegatedPair [] = True
-  noNegatedPair (p :: ps) = not (anyNegates p ps) && noNegatedPair ps
-
+  ||| Each status category always has exactly one of its two values [CR#110.5].
   public export
   statusClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
                   Predicate bs k -> Predicate bs k -> Bool
   statusClashOf (HasStatus v) (HasStatus w) = statusClash v w
   statusClashOf _ _ = False
 
+  ||| A colorless object has no color [CR#105.2c].
   public export
   colorClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
                  Predicate bs k -> Predicate bs k -> Bool
@@ -872,6 +703,7 @@ mutual
   colorClashOf (ColorIs _) IsColorless = True
   colorClashOf _ _ = False
 
+  ||| A token is not a card [CR#111.6]; an emblem is neither [CR#114.5].
   public export
   cardTokenClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
                      Predicate bs k -> Predicate bs k -> Bool
@@ -921,6 +753,7 @@ mutual
   noStatusClash [] = True
   noStatusClash (p :: ps) = not (anyStatusClash p ps) && noStatusClash ps
 
+  ||| Instant and sorcery cards can't be permanents [CR#110.4].
   public export
   isPermanentHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isPermanentHead Permanent = True
@@ -953,6 +786,8 @@ mutual
   negTypes [] = []
   negTypes (p :: ps) = negTypesOf p ++ negTypes ps
 
+  ||| A subtype is correlated to its card type [CR#205.3c]; negate that type
+  ||| and the description's seed is empty.
   public export
   seedTypeAlts : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
   seedTypeAlts (HasSubtype s) = case subtypeType s of
@@ -980,7 +815,6 @@ mutual
   contradictionFree : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
   contradictionFree ps =
     let fs = flattenPs ps in
-    noNegatedPair fs &&
     not (anySeedEmptied (negTypes fs) fs) &&
     noStatusClash fs &&
     noColorClash fs &&
@@ -1156,22 +990,6 @@ mutual
   CoordinableDisjuncts {bs} {k} ps = So (coordinableAll ps)
 
   public export
-  anyPredEq : {0 bs : Bindings} -> {0 k : Kind} ->
-              Predicate bs k -> List (Predicate bs k) -> Bool
-  anyPredEq p [] = False
-  anyPredEq p (q :: qs) = predEq p q || anyPredEq p qs
-
-  public export
-  noRepeatedPair : {0 bs : Bindings} -> {0 k : Kind} ->
-                   List (Predicate bs k) -> Bool
-  noRepeatedPair [] = True
-  noRepeatedPair (p :: ps) = not (anyPredEq p ps) && noRepeatedPair ps
-
-  public export
-  DistinctDisjuncts : List (Predicate bs k) -> Type
-  DistinctDisjuncts {bs} {k} ps = So (noRepeatedPair ps)
-
-  public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
   negatable (ChosenPlayer _) = False
@@ -1286,11 +1104,19 @@ mutual
   detOk TheDet p = Uniquifying p
   detOk _ p = ()
 
+  ||| A party role is a creature subtype [CR#700.8].
+  public export
+  roleSubtype : {0 bs : Bindings} -> Predicate bs Object -> Maybe Subtype
+  roleSubtype (HasSubtype s) = Just s
+  roleSubtype _ = Nothing
+
   public export
   roleElem : {0 bs : Bindings} -> Predicate bs Object ->
              List (Predicate bs Object) -> Bool
   roleElem _ [] = False
-  roleElem p (q :: qs) = predEq p q || roleElem p qs
+  roleElem p (q :: qs) = case (roleSubtype p, roleSubtype q) of
+    (Just a, Just b) => a == b || roleElem p qs
+    _ => roleElem p qs
 
   ||| One creature is the party member for only one role [CR#700.8b], so a
   ||| repeated role would count it twice.

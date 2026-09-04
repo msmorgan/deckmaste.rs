@@ -42,9 +42,9 @@ badAscribedTarget Oh impossible
 
 ||| "creature you control that you don't control"
 public export
-badControlContradiction : Unspellable (Predicate [] Object) (\ok =>
-  And [HasPossessor ControllerAx You, Not (HasPossessor ControllerAx You)] {cf = ok})
-badControlContradiction Oh impossible
+okControlSelfNegation : Predicate [] Object
+okControlSelfNegation =
+  And [HasPossessor ControllerAx You, Not (HasPossessor ControllerAx You)]
 
 ||| "attacking noncreature"
 public export

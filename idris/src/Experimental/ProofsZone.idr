@@ -52,11 +52,11 @@ badTokenGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.destroy (Macros.target (And [IsToken, InZone (Macros.graveyardOf You)] {zc = ok})))
 badTokenGraveyard Oh impossible
 
-||| "Destroy target nontoken token."
+||| "Destroy target card token."
 public export
-badNontokenToken : Unspellable (Instruction []) (\ok =>
-  Macros.destroy (Macros.target (And [IsToken, Macros.nontoken] {cf = ok})))
-badNontokenToken Oh impossible
+badCardTokenTarget : Unspellable (Instruction []) (\ok =>
+  Macros.destroy (Macros.target (And [IsToken, IsCard] {cf = ok})))
+badCardTokenTarget Oh impossible
 
 ||| "Tap target creature. Untap that token."
 public export
@@ -260,16 +260,13 @@ badNotOnBattlefield Oh impossible
 
 ||| "of the chosen color and not of the chosen color"
 public export
-badQualityContradiction : Unspellable
-  (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
-  (\ok => And [Macros.ofChosen Color, Not (Macros.ofChosen Color)] {cf = ok})
-badQualityContradiction Oh impossible
+okQualitySelfNegation : Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object
+okQualitySelfNegation = And [Macros.ofChosen Color, Not (Macros.ofChosen Color)]
 
 ||| "creature that is a noncreature"
 public export
-badNestedContradiction : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, And [Not Macros.creature]] {cf = ok})
-badNestedContradiction Oh impossible
+okNestedSelfNegation : Predicate [] Object
+okNestedSelfNegation = And [Macros.creature, And [Not Macros.creature]]
 
 ||| "attacking card in your hand"
 public export
@@ -336,9 +333,8 @@ badEmptyOr IsNonEmpty impossible
 
 ||| "artifact or artifact"
 public export
-badRepeatedDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Macros.artifact, Macros.artifact] {dd = ok})
-badRepeatedDisjunct Oh impossible
+okRepeatedDisjunct : Predicate [] Object
+okRepeatedDisjunct = Or [Macros.artifact, Macros.artifact]
 
 ||| "artifact or attacking"
 public export

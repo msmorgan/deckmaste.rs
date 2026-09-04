@@ -68,10 +68,10 @@ okKeywordConjunction =
 
 ||| "Tap target creature with flying that doesn't have flying."
 public export
-badKeywordContradiction : Unspellable (Instruction []) (\ok =>
+okKeywordSelfNegation : Instruction []
+okKeywordSelfNegation =
   SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
-                            Not (HasKeyword (TheKeyword "Flying"))] {cf = ok})))
-badKeywordContradiction Oh impossible
+                            Not (HasKeyword (TheKeyword "Flying"))]))
 
 ||| "Tap target nonland Forest."
 public export
@@ -99,9 +99,8 @@ badWrappedStatusLaunder Oh impossible
 
 ||| "blocked creature that's unblocked"
 public export
-badBlockedAndUnblocked : Unspellable (Predicate [] Object) (\ok =>
-  And [Macros.creature, Blocked, Macros.unblocked] {cf = ok})
-badBlockedAndUnblocked Oh impossible
+okBlockedAndUnblocked : Predicate [] Object
+okBlockedAndUnblocked = And [Macros.creature, Blocked, Macros.unblocked]
 
 ||| "between two and three target creatures"
 public export
@@ -122,9 +121,9 @@ badPartialZoneJoin Oh impossible
 
 ||| "creature you control or creature you control"
 public export
-badRepeatedStructuredDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [And [Macros.creature, HasPossessor ControllerAx You], And [Macros.creature, HasPossessor ControllerAx You]] {dd = ok})
-badRepeatedStructuredDisjunct Oh impossible
+okRepeatedStructuredDisjunct : Predicate [] Object
+okRepeatedStructuredDisjunct =
+  Or [And [Macros.creature, HasPossessor ControllerAx You], And [Macros.creature, HasPossessor ControllerAx You]]
 
 ||| "if this creature is attacking"
 public export
