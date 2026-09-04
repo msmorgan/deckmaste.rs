@@ -9,3 +9,9 @@ STOP-and-report, no process artifacts in tracked source. Design only from v1
 (docs/memory/scratch/plan09-postmortem/taxonomy-v1-v2.md) — no v1 code, types,
 or feature vocabulary. Probe set: the audit §6 table filtered to this family.
 Standard constraints apply.
+
+
+Re-coverage targets routed from `english-v2-control-role-declared-valence`
+(retired there because their sole reading was wrong): Cavalier of Thorns,
+Animal Magnetism, Genesis Ultimatum — `Put X onto the battlefield and the
+rest into your graveyard`, a gapped coordinated destination.

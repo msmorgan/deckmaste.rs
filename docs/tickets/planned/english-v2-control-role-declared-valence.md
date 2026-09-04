@@ -25,8 +25,9 @@ The three wrongly blessed identities lose their sole reading. Their correct
 analysis (a gapped coordinated destination: `onto the battlefield and the rest
 into your graveyard`) is not expressible today, so they retire —
 `retirement/re-coverage obligation: Cavalier of Thorns, Animal Magnetism,
-Genesis Ultimatum` — and are routed to the coordination ticket that will
-express split destinations. Coverage 16,771 → 16,768 is the expected, ruled
+Genesis Ultimatum` — and are routed to `english-v2-gerund-and-ellipsis` (gapped
+coordination: `… onto the battlefield and the rest into your graveyard`),
+which must list them as re-coverage targets. Coverage 16,771 → 16,768 is the expected, ruled
 decrease (coordinator ruling: a decrease is permitted only for identities
 whose sole surviving reading is wrong); any other loss is a STOP. Report
 winner changes against the parent tip. Standard constraints apply.
