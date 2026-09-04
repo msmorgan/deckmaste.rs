@@ -111,13 +111,13 @@ spaceTimeAnomaly =
   Macros.card "Space-Time Anomaly"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.mills (Macros.target AnyPlayer) (PlayerStatOf LifeTotal You) They) ]
+       [ Spell Nothing (Macros.mills (Macros.target AnyPlayer) (PlayerStatOf LifeTotal You) They) ]
        Nothing
 
 ||| Consecrate // Consume
 consume : Ability
 consume =
-  Spell (Sequentially
+  Spell Nothing (Sequentially
            [ Macros.sacrifice (Macros.target AnyPlayer)
                (Macros.a (And [Macros.creature,
                                Superlative MaxOf (StatAxis Power)
@@ -129,7 +129,7 @@ bifurcate : Card
 bifurcate =
   Macros.card "Bifurcate" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
               [ Macros.searchLibraryFor (Macros.exactly 1)
                   (And [Permanent, Named (SameNameAs
                           (Macros.target (And [Macros.creature, Macros.nontoken])))])
@@ -143,7 +143,7 @@ manaLeak : Card
 manaLeak =
   Macros.card "Mana Leak" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Unless (CounterSpell (Macros.target Macros.spell))
+       [ Spell Nothing (Unless (CounterSpell (Macros.target Macros.spell))
                        (Macros.controllerOf ((Macros.It OneOf)))
                        (Mana [Macros.generic 3])) ]
        Nothing
@@ -152,7 +152,7 @@ public export
 oust : Card
 oust =
   Macros.card "Oust" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.move (Macros.target Macros.creature) (Macros.nthFromTop (Nth 2))
                   , Macros.gainsLife (Macros.controllerOf ((Macros.It OneOf))) (Lit 3) ]) ]
        Nothing
@@ -347,7 +347,7 @@ ertaisTrickery : Card
 ertaisTrickery =
   Macros.card "Ertai's Trickery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (OnlyIf (CounterSpell (Macros.target Macros.spell))
+       [ Spell Nothing (OnlyIf (CounterSpell (Macros.target Macros.spell))
                        (Macros.costWasPaid (ByKeyword "Kicker") Nothing (Macros.It OneOf)) Nothing) ]
        Nothing
 
@@ -358,7 +358,7 @@ celebrateTheHarvest =
   Macros.card "Celebrate the Harvest"
        (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.searchLibraryFor (UpToOf (LetterVal X))
                       (And [Macros.land, HasSupertype Basic])
                   , Define X (DistinctCount (ValueAxis Power)
@@ -527,7 +527,7 @@ scapeshift =
   Macros.card "Scapeshift"
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.sacrifice You (Macros.counted Macros.anyNumber
                                                        Macros.land)
                   , Macros.searchLibraryFor (UpToOf GroupSize) Macros.land
@@ -647,7 +647,7 @@ bileBlight : Card
 bileBlight =
   Macros.card "Bile Blight" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.gets
+       [ Spell Nothing (Macros.gets
                   (Both (Macros.target Macros.creature)
                           (Macros.allOf (And [ Macros.creature
                                       , Named (SameNameAs (Macros.That (TypeW Creature) OneOf))
@@ -662,7 +662,7 @@ echoingRuin : Card
 echoingRuin =
   Macros.card "Echoing Ruin" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.destroy
+       [ Spell Nothing (Macros.destroy
                   (Both (Macros.target Macros.artifact)
                           (Macros.allOf (And [ Macros.artifact
                                       , Named (SameNameAs (Macros.That (TypeW Artifact) OneOf))
@@ -675,7 +675,7 @@ hijack : Card
 hijack =
   Macros.card "Hijack" (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.gainControl You (Macros.target (Or [Macros.artifact, Macros.creature]))
                                        (Just Macros.untilEndOfTurn)
                   , Macros.untap (Macros.ItVerbed "GainControl" OneOf)
@@ -751,7 +751,7 @@ factOrFiction : Card
 factOrFiction =
   Macros.card "Fact or Fiction" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
                   , Macros.move Macros.onePile Macros.handZ
@@ -774,7 +774,7 @@ chronostutter : Card
 chronostutter =
   Macros.card "Chronostutter" (Just [Macros.generic 5, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.move (Macros.target Macros.creature) (Macros.nthFromTop (Nth 2))) ]
+       [ Spell Nothing (Macros.move (Macros.target Macros.creature) (Macros.nthFromTop (Nth 2))) ]
        Nothing
 
 public export
@@ -814,7 +814,7 @@ stompAndHowl : Card
 stompAndHowl =
   Macros.card "Stomp and Howl" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.destroy (Both (Macros.target Macros.artifact)
+       [ Spell Nothing (Macros.destroy (Both (Macros.target Macros.artifact)
                                        (Macros.target Macros.enchantment))) ]
        Nothing
 
@@ -824,7 +824,7 @@ churningEddy : Card
 churningEddy =
   Macros.card "Churning Eddy" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.returnTo (Both (Macros.target Macros.creature)
+       [ Spell Nothing (Macros.returnTo (Both (Macros.target Macros.creature)
                                         (Macros.target Macros.land))
                                 Macros.handZ []) ]
        Nothing
@@ -836,7 +836,7 @@ secretRendezvous =
   Macros.card "Secret Rendezvous"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Draw (EachOf (Both You (Macros.target Opponent))) (Lit 3)) ]
+       [ Spell Nothing (Draw (EachOf (Both You (Macros.target Opponent))) (Lit 3)) ]
        Nothing
 
 ||| Aggressive Instinct
@@ -845,7 +845,7 @@ aggressiveInstinct : Card
 aggressiveInstinct =
   Macros.card "Aggressive Instinct" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.dealsDamageOwnPower (Macros.target Macros.creatureYouControl)
+       [ Spell Nothing (Macros.dealsDamageOwnPower (Macros.target Macros.creatureYouControl)
                                            (Macros.target Macros.creatureYouDontControl)) ]
        Nothing
 

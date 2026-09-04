@@ -33,7 +33,7 @@ okGainsKeyword =
 ||| "Target creature gains a spell ability."
 public export
 badGainsSpellAbility : Unspellable (Instruction []) (\ok =>
-  Macros.gains (Macros.target Macros.creature) (Spell (Draw You (Lit 1))) Nothing {gr = ok})
+  Macros.gains (Macros.target Macros.creature) (Spell Nothing (Draw You (Lit 1))) Nothing {gr = ok})
 badGainsSpellAbility Oh impossible
 
 ||| "Creature spells you cast cost {1} less to cast."
@@ -127,7 +127,7 @@ public export
 badTokenSpellAbility : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                  (MkTypeLine [creatureType "Soldier"] [Creature])
-                                 [Spell (Draw You (Lit 1))] Nothing) {wf = ok})
+                                 [Spell Nothing (Draw You (Lit 1))] Nothing) {wf = ok})
 badTokenSpellAbility (Oh, Oh, Oh, Oh, Oh, Oh) impossible
 
 ||| "Instant and sorcery spells you cast have '{T}: Draw a card.'"

@@ -73,7 +73,7 @@ acceleratedMutation =
   Macros.card "Accelerated Mutation"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.gets (Macros.target Macros.creature)
                                 (PtUp (LetterVal X)) (PtUp (LetterVal X))
                                 (Just Macros.untilEndOfTurn)
@@ -261,7 +261,7 @@ seethingSong : Card
 seethingSong =
   Macros.card "Seething Song" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (AddMana You (Lit 1)
+       [ Spell Nothing (AddMana You (Lit 1)
                         (Runs [[OfColor Red, OfColor Red, OfColor Red,
                                 OfColor Red, OfColor Red]]) []) ]
        Nothing
@@ -414,7 +414,7 @@ blastOfGenius =
   Macros.card "Blast of Genius"
        (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.choose (Macros.target Macros.anyTarget)
            , Draw You (Lit 3)
            , Macros.discard You (Macros.a (InZone Macros.handZ))
@@ -428,7 +428,7 @@ riddleOfLightning =
   Macros.card "Riddle of Lightning"
        (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.choose (Macros.target Macros.anyTarget)
            , Macros.scry You (Lit 3)
            , Macros.revealCards (Macros.topSlice (Lit 1))
@@ -465,7 +465,7 @@ abruptDecay =
   Macros.card "Abrupt Decay" (Just [Macros.pip Black, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
        [ Static (Macros.objectCant "Counter" This)
-       , Spell (Macros.destroy
+       , Spell Nothing (Macros.destroy
                   (Macros.target (And [Permanent, Not Macros.land,
                                        Compare [StatAxis ManaValue] AtMost (Lit 3)]))) ]
        Nothing
@@ -562,7 +562,7 @@ shiningShoal =
                    (Macros.a (And [ColorIs White,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Continuously
+       , Spell Nothing (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                 (Macros.youAnd (Macros.allOf (And [Macros.creature,
                                                      HasPossessor ControllerAx You])))) (Redirect (Shield (LetterVal X)) (Macros.target Macros.anyTarget)) Repeatedly)
@@ -579,7 +579,7 @@ disruptingShoal =
                    (Macros.a (And [ColorIs Blue,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (OnlyIf (CounterSpell (Macros.target Macros.spell))
+       , Spell Nothing (OnlyIf (CounterSpell (Macros.target Macros.spell))
                        (CompareAmt (StatOf ManaValue ((Macros.It OneOf))) Eq (LetterVal X)) Nothing) ]
        Nothing
 
@@ -593,7 +593,7 @@ blazingShoal =
                    (Macros.a (And [ColorIs Red,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Macros.gets (Macros.target Macros.creature) (PtUp (LetterVal X))
+       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (PtUp (LetterVal X))
                             (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -607,7 +607,7 @@ sickeningShoal =
                    (Macros.a (And [ColorIs Black,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Macros.gets (Macros.target Macros.creature) (PtDown (LetterVal X))
+       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (PtDown (LetterVal X))
                             (PtDown (LetterVal X)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -621,7 +621,7 @@ nourishingShoal =
                    (Macros.a (And [ColorIs Green,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell (Macros.gainsLife You (LetterVal X)) ]
+       , Spell Nothing (Macros.gainsLife You (LetterVal X)) ]
        Nothing
 
 public export
@@ -629,7 +629,7 @@ spellSnare : Card
 spellSnare =
   Macros.card "Spell Snare" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (CounterSpell
+       [ Spell Nothing (CounterSpell
                   (Macros.target (And [Macros.spell,
                                        Compare [StatAxis ManaValue] Eq (Lit 2)]))) ]
        Nothing
@@ -639,7 +639,7 @@ isolate : Card
 isolate =
   Macros.card "Isolate" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.exile You
+       [ Spell Nothing (Macros.exile You
                   (Macros.target (And [Permanent,
                                        Compare [StatAxis ManaValue] Eq (Lit 1)]))) ]
        Nothing
@@ -649,7 +649,7 @@ disembowel : Card
 disembowel =
   Macros.card "Disembowel" (Just [Variable, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.destroy
+       [ Spell Nothing (Macros.destroy
                   (Macros.target (And [Macros.creature,
                                        Compare [StatAxis ManaValue] Eq (LetterVal X)]))) ]
        Nothing
@@ -659,7 +659,7 @@ repeal : Card
 repeal =
   Macros.card "Repeal" (Just [Variable, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.move (Macros.target (And [Not Macros.land, Permanent,
                                               Compare [StatAxis ManaValue] Eq (LetterVal X)]))
                                 Macros.handZ
@@ -672,7 +672,7 @@ entrancingMelody =
   Macros.card "Entrancing Melody"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (GainsControl You
                      (Macros.target (And [Macros.creature,
                                           Compare [StatAxis ManaValue] Eq (LetterVal X)])))
@@ -839,7 +839,7 @@ adNauseam =
   Macros.card "Ad Nauseam"
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
               [ Macros.revealCards (Macros.topSlice (Lit 1))
               , Macros.move (Macros.That CardW OneOf) Macros.handZ
               , Macros.losesLife You (StatOf ManaValue ((Macros.It OneOf)))
@@ -948,7 +948,7 @@ radiantFlames =
   Macros.card "Radiant Flames"
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (DealDamage This (Macros.colorsSpentToCast This)
+       [ Spell Nothing (DealDamage This (Macros.colorsSpentToCast This)
                            (Macros.each Macros.creature)) ]
        Nothing
 
@@ -1086,7 +1086,7 @@ collectedCompany : Card
 collectedCompany =
   Macros.card "Collected Company" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.lookAt ((Macros.topSlice (Lit 6)))
            , Macros.move (Macros.fromAmong (Macros.upTo 2)
                                            (And [Macros.creature,

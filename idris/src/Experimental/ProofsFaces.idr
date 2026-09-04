@@ -27,13 +27,13 @@ public export
 okSpellAbilityOnInstant : Card
 okSpellAbilityOnInstant =
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [Spell (Draw You (Lit 1))] Nothing
+       [Spell Nothing (Draw You (Lit 1))] Nothing
 
 ||| "Draw a card."
 public export
 badSpellAbilityOnPermanent : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature])
-       [Spell (Draw You (Lit 1))] (Just (1, 1)) {fl = ok})
+       [Spell Nothing (Draw You (Lit 1))] (Just (1, 1)) {fl = ok})
 badSpellAbilityOnPermanent MkCharacteristicsLaws impossible
 
 ||| "Creatures you control get +1/+1."

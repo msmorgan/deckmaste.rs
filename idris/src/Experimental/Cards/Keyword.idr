@@ -259,7 +259,7 @@ secretsOfTheGoldenCity =
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.keyword "Ascend"
-       , Spell (InsteadOf (Draw You (Lit 2))
+       , Spell Nothing (InsteadOf (Draw You (Lit 2))
                           (If (Matches You (HasDesignation CitysBlessing))
                               (Draw You (Lit 3))
                               Nothing)) ]
@@ -370,7 +370,7 @@ awakenTheBear : Card
 awakenTheBear =
   Macros.card "Awaken the Bear" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
                                   (PtUp (Lit 3)) (PtUp (Lit 3))
                            , Gains ((Macros.It OneOf)) (Macros.keyword "Trample") ])
@@ -495,7 +495,7 @@ irenicussVileDuplication =
   Macros.card "Irenicus's Vile Duplication"
        (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Create You (Lit 1)
+       [ Spell Nothing (Create You (Lit 1)
                   (TokenCopyOf (Macros.target (And [Macros.creature, HasPossessor ControllerAx You]))
                                [ExceptAbility (Macros.keyword "Flying"),
                                 ExceptNonlegendary])
@@ -507,7 +507,7 @@ cacklingCounterpart =
   Macros.card "Cackling Counterpart"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Create You (Lit 1)
+       [ Spell Nothing (Create You (Lit 1)
                   (TokenCopyOf (Macros.target (And [Macros.creature, HasPossessor ControllerAx You])) [])
                   [])
        , Macros.keywordCosting "Flashback"
@@ -614,7 +614,7 @@ crimsonWisps : Card
 crimsonWisps =
   Macros.card "Crimson Wisps" (Just [Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Continuously
                       (AndAlso Nothing [ Becomes (Macros.target Macros.creature) Sets (Colored (SomeColors [Red]))
                                , Gains ((Macros.It OneOf)) (Macros.keyword "Haste") ])
@@ -1194,7 +1194,7 @@ borrowedMalevolence =
   Macros.card "Borrowed Malevolence" (Just [Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
-       , Spell (Macros.chooseModes (Range (Just 1) (Just 2))
+       , Spell Nothing (Macros.chooseModes (Range (Just 1) (Just 2))
                   [ Macros.gets (Macros.target Macros.creature)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))
                                 (Just Macros.untilEndOfTurn)
@@ -1273,7 +1273,7 @@ conquerorsPledge =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.keywordCosting "Kicker" (Mana [Macros.generic 6])
-       , Spell (InsteadOf
+       , Spell Nothing (InsteadOf
                   (Macros.create (Lit 6)
                      (Macros.creatureTok 1 1 [White]
                         [creatureType "Kor", creatureType "Soldier"]))
@@ -1359,7 +1359,7 @@ aimHigh : Card
 aimHigh =
   Macros.card "Aim High" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
                   , Continuously
                       (AndAlso Nothing [ Gets Adds (Macros.ItVerbed "Untap" OneOf) (PtUp (Lit 2)) (PtUp (Lit 2))

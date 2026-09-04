@@ -39,7 +39,7 @@ alaundoTheSeer = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (Na
 daydream : Card
 daydream =
   Macros.card "Daydream" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
-       [Spell (Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
+       [Spell Nothing (Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
                              Macros.returnToBattlefieldWithCounters
                                (Macros.That CardW OneOf) (Macros.ownerOf (Macros.That CardW OneOf))
                                (Lit 1) Macros.plusOnePlusOne])
@@ -282,7 +282,7 @@ soulsMight : Card
 soulsMight =
   Macros.card "Soul's Might" (Just [Macros.generic 4, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ PutCounters (LetterVal X) (PrintedKind Macros.plusOnePlusOne)
                                 (Macros.target Macros.creature)
                   , Define X (StatOf Power (Macros.That (TypeW Creature) OneOf)) ]) ]
@@ -668,7 +668,7 @@ testOfFaith : Card
 testOfFaith =
   Macros.card "Test of Faith" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (Lit 3)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
@@ -680,7 +680,7 @@ temper : Card
 temper =
   Macros.card "Temper" (Just [Variable, Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (LetterVal X)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
                                                (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
@@ -1217,7 +1217,7 @@ feralContest : Card
 feralContest =
   Macros.card "Feral Contest" (Just [Macros.generic 3, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                                 (Macros.target Macros.creatureYouControl)
                   , Macros.mustBlockIt
@@ -1250,7 +1250,7 @@ stunningShot : Card
 stunningShot =
   Macros.card "Stunning Shot" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne)
                                 (Described (TargetDet (Macros.upTo 1)) Macros.creatureYouControl)
                   , Macros.tap (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))

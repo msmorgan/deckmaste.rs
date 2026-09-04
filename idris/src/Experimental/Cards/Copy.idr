@@ -18,7 +18,7 @@ repeatedReverberation =
   Macros.card "Repeated Reverberation"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Delayed
+       [ Spell Nothing (Delayed
                   (Casts You (Macros.a (And [Macros.instant, Macros.spell])) Nothing)
                   [ Casts You (Macros.a (And [Macros.sorcery, Macros.spell])) Nothing
                   , Activates You (Macros.a (AbilityHead LoyaltyClass)) ]
@@ -64,7 +64,7 @@ twincast : Card
 twincast =
   Macros.card "Twincast" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                       (Lit 1) []
@@ -76,7 +76,7 @@ fork : Card
 fork =
   Macros.card "Fork" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                       (Lit 1) [ExceptColor Red]
@@ -218,7 +218,7 @@ bonusRound =
   Macros.card "Bonus Round"
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Delayed (Casts (Macros.a AnyPlayer)
+       [ Spell Nothing (Delayed (Casts (Macros.a AnyPlayer)
                                (Macros.a (And [Macros.instantOrSorcery,
                                                Macros.spell])) Nothing)
                         [] (Just Macros.untilEndOfTurn)

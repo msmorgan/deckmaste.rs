@@ -233,3 +233,17 @@ public export
 badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
   DuringNextTurnOf (Macros.each Opponent) {one = ok})
 badPluralNextTurnSpan Refl impossible
+
+||| "Target opponent skips all combat phases of their next turn."
+public export
+okSkipDuringTheirNextTurn : Instruction []
+okSkipDuringTheirNextTurn =
+  Macros.throughout (Skips (Macros.target Opponent) Combat)
+                    (DuringNextTurnOf (Macros.That PlayerW OneOf))
+
+||| "You skip all combat phases of their next turn."
+public export
+badSkipDuringUnboundNextTurn : Unspellable (Instruction []) (\ok =>
+  Macros.throughout (Skips You Combat)
+                    (DuringNextTurnOf (Macros.That PlayerW OneOf {ok})))
+badSkipDuringUnboundNextTurn Refl impossible

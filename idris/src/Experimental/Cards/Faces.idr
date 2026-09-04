@@ -170,7 +170,7 @@ merfolkSecretkeeper =
             (Macros.printedBox (Just (0, 4))))
     (Macros.alternative "Venture Deeper" (Just [Macros.pip Blue]) []
             (MkTypeLine [spellType "Adventure"] [Sorcery])
-            [ Spell (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
+            [ Spell Nothing (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
             Nothing)
 
 orochiEggwatcher : Card
@@ -502,14 +502,14 @@ profitLoss =
   SplitCard
     (Macros.frontFace "Profit" (Just [Macros.generic 1, Macros.pip White]) []
             (MkTypeLine [] [Instant])
-            [ Spell (Macros.gets (Macros.allOf Macros.creatureYouControl)
+            [ Spell Nothing (Macros.gets (Macros.allOf Macros.creatureYouControl)
                                  (PtUp (Lit 1)) (PtUp (Lit 1))
                                  (Just Macros.untilEndOfTurn))
             , Macros.keyword "Fuse" ]
             Nothing)
     (Macros.frontFace "Loss" (Just [Macros.generic 2, Macros.pip Black]) []
             (MkTypeLine [] [Instant])
-            [ Spell (Macros.gets
+            [ Spell Nothing (Macros.gets
                        (Macros.allOf Macros.creatureYourOpponentsControl)
                        (PtDown (Lit 1)) (PtDown (Lit 1))
                        (Just Macros.untilEndOfTurn))
@@ -568,7 +568,7 @@ riddlesInTheDark =
   Macros.card "Riddles in the Dark"
        (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.lookAt (Macros.topSlice (Lit 4))
                   , SeparateIntoPiles You ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
                   , Macros.chooses Macros.anOpponent Macros.onePile
@@ -583,7 +583,7 @@ fortunesFavor =
   Macros.card "Fortune's Favor"
        (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Expose LookAt (Macros.target Opponent)
                            (ExposedCards (Macros.topSlice (Lit 4)))
                   , SeparateIntoPiles They ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]

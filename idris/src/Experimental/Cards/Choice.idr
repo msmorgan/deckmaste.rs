@@ -209,7 +209,7 @@ murmursFromBeyond =
   Macros.card "Murmurs from Beyond"
        (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards ((Macros.topSlice (Lit 3)))
                   , Macros.chooses (Macros.a Opponent) (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf)))
                   , Macros.move (Macros.That CardW OneOf) Macros.graveyardZ
@@ -245,7 +245,7 @@ runeSnag : Card
 runeSnag =
   Macros.card "Rune Snag" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Compound [Mana [Macros.generic 2],
+       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Compound [Mana [Macros.generic 2],
                                        Macros.scaledMana GenericUnit
                                          (Macros.times 2 (Macros.countOf
                                             (And [Named (PrintedName "Rune Snag"),
@@ -286,7 +286,7 @@ distantMelody : Card
 distantMelody =
   Macros.card "Distant Melody" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Draw You (Macros.forEach 1
                                 (And [Permanent, HasPossessor ControllerAx You,
@@ -299,7 +299,7 @@ cripplingFear =
   Macros.card "Crippling Fear"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Macros.gets (Macros.allOf (And [Macros.creature,
                                              Not (Macros.ofChosen (SubtypeQ Creature))]))
@@ -450,7 +450,7 @@ standardize : Card
 standardize =
   Macros.card "Standardize" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
               [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
               , Continuously (Becomes (Macros.each Macros.creature) Sets (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
                              (Just Macros.untilEndOfTurn) ]) ]
@@ -505,7 +505,7 @@ expelTheInterlopers =
   Macros.card "Expel the Interlopers"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.choose (Macros.a (Macros.qualityFrom Number
                                         (NumberBetween 0 10)))
            , Macros.destroy (Macros.allOf (And [Macros.creature,
@@ -536,7 +536,7 @@ conjurersBan : Card
 conjurersBan =
   Macros.card "Conjurer's Ban" (Just [Macros.pip White, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.choose (Macros.a (Macros.quality CardName))
            , Continuously
                (AndAlso Nothing [ Macros.objectCant "Cast"
@@ -544,7 +544,7 @@ conjurersBan =
                         , Macros.objectCant "Play"
                             (Macros.allOf (And [Macros.land, Named ChosenName])) ])
                (Just Macros.untilYourNextTurn) ])
-       , Spell (Draw You (Lit 1)) ]
+       , Spell Nothing (Draw You (Lit 1)) ]
        Nothing
 
 public export
@@ -615,12 +615,12 @@ borneUponAWind : Card
 borneUponAWind =
   Macros.card "Borne Upon a Wind" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (Macros.mayPlayDeed "Cast" You (Macros.allOf Macros.spell)
                      (Just (AsThoughOf (HasKeyword (TheKeyword "Flash"))))
                      (PlayRider Nothing Nothing Nothing False ItsOwnCost))
                   (Just ThisTurn))
-       , Spell (Draw You (Lit 1)) ]
+       , Spell Nothing (Draw You (Lit 1)) ]
        Nothing
 
 public export
@@ -738,7 +738,7 @@ summerBloom =
   Macros.card "Summer Bloom"
        (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
+       [ Spell Nothing (Continuously (Macros.mayPlayAdditionalLands You (Macros.upTo 3))
                              (Just ThisTurn)) ]
        Nothing
 
@@ -747,7 +747,7 @@ explore : Card
 explore =
   Macros.card "Explore" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn)
            , (Draw You (Lit 1)) ]) ]
@@ -759,7 +759,7 @@ urbanEvolution =
   Macros.card "Urban Evolution"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Draw You (Lit 3)
            , Continuously (Macros.mayPlayAdditionalLands You (Macros.exactly 1))
                           (Just ThisTurn) ]) ]
@@ -972,7 +972,7 @@ override : Card
 override =
   Macros.card "Override" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
+       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
                                             (And [Macros.artifact, HasPossessor ControllerAx You]))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
        Nothing
 
@@ -981,7 +981,7 @@ rakshasasDisdain : Card
 rakshasasDisdain =
   Macros.card "Rakshasa's Disdain" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
+       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
                                             (InZone (Macros.graveyardOf You)))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
        Nothing
 
@@ -1028,7 +1028,7 @@ primalSurge =
   Macros.card "Primal Surge"
        (Just [Macros.generic 8, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
               [ Macros.exile You (Macros.topSlice (Lit 1))
               , If (Macros.itsA Permanent)
                    ((May You (Macros.putOntoBattlefield ((Macros.It OneOf))) (Just (Repeat Again)) Nothing))
@@ -1136,7 +1136,7 @@ memoryPlunder =
        (Just [Macros.hybridPip Blue Black, Macros.hybridPip Blue Black,
               Macros.hybridPip Blue Black, Macros.hybridPip Blue Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   ((Macros.mayPlayDeed "Cast" You (Macros.target (And [Macros.instantOrSorcery, IsCard])) Nothing (PlayRider (Just (Macros.graveyardOf Macros.anOpponent)) Nothing Nothing False WithoutPaying)))
                   Nothing) ]
        Nothing
@@ -1278,7 +1278,7 @@ communeWithTheGods : Card
 communeWithTheGods =
   Macros.card "Commune with the Gods" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.revealCards ((Macros.topSlice (Lit 5)))
            , Macros.may You
                (Macros.move (Macros.fromAmong (Macros.exactly 1) (Or [Macros.creature, Macros.enchantment])
@@ -1362,7 +1362,7 @@ vraskasScorn =
   Macros.card "Vraska's Scorn"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ Macros.losesLife (Macros.target Opponent) (Lit 4)
            , Macros.may You
                (Sequentially
@@ -1562,7 +1562,7 @@ public export
 prosperity : Card
 prosperity =
   Macros.card "Prosperity" (Just [Variable, Macros.pip Blue]) []
-       (MkTypeLine [] [Sorcery]) [Spell (Draw (Macros.each AnyPlayer) (LetterVal X))] Nothing
+       (MkTypeLine [] [Sorcery]) [Spell Nothing (Draw (Macros.each AnyPlayer) (LetterVal X))] Nothing
 
 collectiveUnconscious : Instruction []
 collectiveUnconscious = Draw You (Macros.forEach 1 Macros.creatureYouControl)
@@ -1601,7 +1601,7 @@ duneblastCard =
   Macros.card "Duneblast"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip Black,
               Macros.pip Green])
-       [] (MkTypeLine [] [Sorcery]) [Spell Choice.duneblast] Nothing
+       [] (MkTypeLine [] [Sorcery]) [Spell Nothing Choice.duneblast] Nothing
 
 public export
 boreasChargerDifference : Amount (instrIntro Choice.boreasChargerChoice)
@@ -1613,7 +1613,7 @@ hymnToTourach : Card
 hymnToTourach =
   Macros.card "Hymn to Tourach" (Just [Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.discard (Macros.target AnyPlayer)
+       [ Spell Nothing (Macros.discard (Macros.target AnyPlayer)
                                 (Macros.countedAtRandom (Macros.exactly 2)
                                                         (InZone Macros.handZ))) ]
        Nothing
@@ -1624,7 +1624,7 @@ caughtInTheCrossfire : Card
 caughtInTheCrossfire =
   Macros.card "Caught in the Crossfire" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.spree
+       [ Spell Nothing (Macros.spree
                   [ (Just (Mana [Macros.generic 1]),
                      DealDamage This (Lit 2)
                        (Macros.each (And [Macros.creature, Macros.outlaw])))
@@ -1640,7 +1640,7 @@ requisitionRaid : Card
 requisitionRaid =
   Macros.card "Requisition Raid" (Just [Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.spree
+       [ Spell Nothing (Macros.spree
                   [ (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.artifact))
                   , (Just (Mana [Macros.generic 1]), Macros.destroy (Macros.target Macros.enchantment))
                   , (Just (Mana [Macros.generic 1]),
@@ -1655,7 +1655,7 @@ rustlerRampage : Card
 rustlerRampage =
   Macros.card "Rustler Rampage" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.spree
+       [ Spell Nothing (Macros.spree
                   [ (Just (Mana [Macros.generic 1]),
                      SetStatus Untapped
                        (Macros.allOf (And [Macros.creature,
@@ -1672,7 +1672,7 @@ consumingTide =
   Macros.card "Consuming Tide"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.chooses (Macros.each AnyPlayer)
                       (Macros.a (And [Permanent, Not Macros.land,
                                       HasPossessor ControllerAx Macros.They]))

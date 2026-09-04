@@ -88,7 +88,7 @@ zimoneDrawTwo =
 aerialVolley : Card
 aerialVolley =
   Macros.card "Aerial Volley" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
-       [Spell (Macros.dealsDivided This (Lit 3)
+       [Spell Nothing (Macros.dealsDivided This (Lit 3)
                             (Described (TargetDet (Macros.oneThrough 3)) (And [Macros.creature, HasKeyword (TheKeyword "Flying")])))] Nothing
 
 ||| Terrifying Presence
@@ -100,7 +100,7 @@ timelyReinforcements =
   Macros.card "Timely Reinforcements"
        (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ If (CompareAmt (PlayerStatOf LifeTotal You) Less
                                    (PlayerStatOf LifeTotal Macros.anOpponent))
                        (Macros.gainsLife You (Lit 6))
@@ -125,7 +125,7 @@ nightmarishEnd =
   Macros.card "Nightmarish End"
        (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.gets (Macros.target Macros.creature)
                                 (PtDown (LetterVal X)) (PtDown (LetterVal X))
                                 (Just Macros.untilEndOfTurn)
@@ -136,7 +136,7 @@ topple : Card
 topple =
   Macros.card "Topple" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.exile You
+       [ Spell Nothing (Macros.exile You
                   (Macros.target
                      (And [Macros.creature,
                            Superlative MaxOf (StatAxis Power)
@@ -186,7 +186,7 @@ blessedReversal =
   Macros.card "Blessed Reversal"
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.gainsLife You
+       [ Spell Nothing (Macros.gainsLife You
                   (Macros.times 3 (Macros.countOf (And [Macros.creature, CombatRel AttackerOf You])))) ]
        Nothing
 
@@ -195,7 +195,7 @@ extinction : Card
 extinction =
   Macros.card "Extinction" (Just [Macros.generic 4, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.destroy (Macros.allOf (And [Macros.creature,
+       [ Spell Nothing (Macros.destroy (Macros.allOf (And [Macros.creature,
                                             OfYourChoice (SubtypeQ Creature) Nothing]))) ]
        Nothing
 
@@ -205,7 +205,7 @@ defensiveManeuvers =
   Macros.card "Defensive Maneuvers"
        (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.gets (Macros.allOf (And [Macros.creature,
+       [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
                             (PtUp (Lit 0)) (PtUp (Lit 4))
                             (Just Macros.untilEndOfTurn)) ]
@@ -217,7 +217,7 @@ witchsVengeance =
   Macros.card "Witch's Vengeance"
        (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.gets (Macros.allOf (And [Macros.creature,
+       [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
                             (PtDown (Lit 3)) (PtDown (Lit 3))
                             (Just Macros.untilEndOfTurn)) ]
@@ -243,7 +243,7 @@ phyrexianRebirth =
   Macros.card "Phyrexian Rebirth"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.destroy (Macros.allOf Macros.creature)
                   , Create You (Lit 1)
                            (TokenWritten
@@ -262,7 +262,7 @@ damningVerdict =
   Macros.card "Damning Verdict"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.destroy
+       [ Spell Nothing (Macros.destroy
                   (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))) ]
        Nothing
 
@@ -272,7 +272,7 @@ hazardousConditions =
   Macros.card "Hazardous Conditions"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.gets (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))
+       [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))
                             (PtDown (Lit 2)) (PtDown (Lit 2))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -282,7 +282,7 @@ approachOfTheSecondSun : Card
 approachOfTheSecondSun =
   Macros.card "Approach of the Second Sun"
        (Just [Macros.generic 6, Macros.pip White]) [] (MkTypeLine [] [Sorcery])
-       [ Spell (If (AndCond
+       [ Spell Nothing (If (AndCond
                       [ Matches This (CastFrom (Macros.handOf You))
                       , Macros.happenedInvolving SpellCast
                                                  You
@@ -362,7 +362,7 @@ targetOpponentOrPlaneswalker =
 public export
 balefulMasteryPaidRead : Ability
 balefulMasteryPaidRead =
-  Spell (If (Macros.costWasPaid TheAlternative Nothing This)
+  Spell Nothing (If (Macros.costWasPaid TheAlternative Nothing This)
             (Draw (Macros.a Opponent) (Lit 1)) Nothing)
 
 ||| Karai, Future of the Foot
@@ -374,7 +374,7 @@ karaiSneakPaidThisTurn = Macros.paidCostRead (ByKeyword "Sneak") (Just ThisTurn)
 public export
 requitingHexAdditionalRead : Ability
 requitingHexAdditionalRead =
-  Spell (If (Macros.costWasPaid TheAdditional Nothing This)
+  Spell Nothing (If (Macros.costWasPaid TheAdditional Nothing This)
             (Macros.gainsLife You (Lit 2)) Nothing)
 
 ||| Lucid Dreams
@@ -384,7 +384,7 @@ lucidDreams =
   Macros.card "Lucid Dreams"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Draw You (LetterVal X)
                   , Define X (DistinctCount CardTypeAxis
                                 (Macros.allOf (InZone (Macros.graveyardOf You)))) ]) ]
@@ -396,7 +396,7 @@ roguesGallery : Card
 roguesGallery =
   Macros.card "Rogues' Gallery" (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (ForEachKindOf ColorAxis Nothing Color
+       [ Spell Nothing (ForEachKindOf ColorAxis Nothing Color
                   (Macros.move (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, Macros.ofChosen Color,
                                         InZone (Macros.graveyardOf You)]))
                                Macros.handZ)) ]
@@ -542,7 +542,7 @@ public export
 disarm : Card
 disarm =
   Macros.card "Disarm" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Spell (Unattach
+       [ Spell Nothing (Unattach
                   (Macros.allOf (And [ HasSubtype (artifactType "Equipment")
                               , AttachedTo (Macros.target Macros.creature) ]))) ]
        Nothing

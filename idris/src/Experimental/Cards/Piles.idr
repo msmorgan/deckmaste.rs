@@ -49,7 +49,7 @@ tyrantsChoice =
        (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
-           (Spell (Sequentially
+           (Spell Nothing (Sequentially
               [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["death", "torture"])
               , Macros.ifThen (VoteLead "death" False)
                   (Macros.sacrifice (Macros.each Opponent)
@@ -66,7 +66,7 @@ councilsJudgment =
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
-           (Spell (Sequentially
+           (Spell Nothing (Sequentially
               [ Macros.vote (Macros.each AnyPlayer) Openly
                      (ByCandidate (Macros.a (And [ Permanent
                                                  , Not Macros.land
@@ -99,7 +99,7 @@ pleaForPower =
        (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
-           (Spell (Sequentially
+           (Spell Nothing (Sequentially
               [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["time", "knowledge"])
               , Macros.ifThen (VoteLead "time" False) (ExtraTurn You (Lit 1))
               , Macros.ifThen (VoteLead "knowledge" True)
@@ -171,7 +171,7 @@ public export
 truthOrConsequencesVote : Ability
 truthOrConsequencesVote =
   Macros.abilityWord "secret council"
-    (Spell (Sequentially
+    (Spell Nothing (Sequentially
        [ Macros.vote (Macros.each AnyPlayer) Secretly (ByLabel ["truth", "consequences"])
        , Draw You (VotesFor "truth") ]))
 
@@ -182,7 +182,7 @@ deathOrGlory =
   Macros.card "Death or Glory"
        (Just [Macros.generic 4, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles You
                       (Macros.allOf (And [Macros.creature,
                                    InZone (Macros.graveyardOf You)])) 2 []
@@ -197,7 +197,7 @@ steamAugury =
   Macros.card "Steam Augury"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles You ((Macros.It ManyOf)) 2 []
                   , Macros.chooses Macros.anOpponent Macros.onePile
@@ -211,7 +211,7 @@ doOrDie : Card
 doOrDie =
   Macros.card "Do or Die" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles You
                       (Macros.allOf (And [Macros.creature,
                                    HasPossessor ControllerAx (Macros.target AnyPlayer)])) 2 []

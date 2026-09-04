@@ -779,7 +779,7 @@ mutual
   staticIntro (Gains n ab) = abLetterDelta ab ++ selfSubjIntro n
   staticIntro (GainsAbilitiesOf n _ src _) = nomIntro src
   staticIntro (Deontic n _ _ _ _ _ _ _) = selfSubjIntro n
-  staticIntro (Skips _ _) = bs
+  staticIntro (Skips who _) = nomIntro who
   staticIntro (KeepsUnspentMana who _) = nomIntro who
   staticIntro (Becomes n _ _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
@@ -1288,8 +1288,6 @@ mutual
                       {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> Instruction bs
     SkipsNext : (who : Noun bs Player) -> (part : TurnPart) ->
                 (count : Amount bs) -> Instruction bs
-    SkipsAllOf : (who : Noun bs Player) -> (part : TurnPart) ->
-                 {auto 0 ad : AddedPart part} -> Instruction bs
     ExtraTurn : (who : Noun bs Player) -> (count : Amount bs) -> Instruction bs
     AdditionalPart : (who : Maybe (Noun bs Player)) -> (part : TurnPart) ->
                      (anchor : Maybe TurnPart) ->
@@ -1323,7 +1321,6 @@ mutual
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
   reflexEncloseUse (AdditionalPart (Just _) _ _ _ _) = EncNotYetTaken
-  reflexEncloseUse (SkipsAllOf _ _) = EncNotYetTaken
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
   reflexEncloseUse (Pay _ _ _) = EncReflexive
   reflexEncloseUse (Enact _ _ _) = EncReflexive
@@ -1566,7 +1563,6 @@ mutual
   instrIntro (SkipsNext w _ count) = amtDelta count ++ nomIntro w
   instrIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   instrIntro (AdditionalPart who _ _ count _) = amtDelta count ++ agentIntro who
-  instrIntro (SkipsAllOf w _) = nomIntro w
   instrIntro (LosesCounters who _ amt) = optAmtIntro amt
   instrIntro (RemoveFromCombat n) = nomIntro n
   instrIntro (AttachTo _ host) = nomIntro host
@@ -1787,7 +1783,6 @@ mutual
                  (turnRefB :: (amtDelta count ++ nomIntro w))
                  ([])
   instrProfile (AdditionalPart who _ _ count _) = sameIntro (amtDelta count ++ agentIntro who) []
-  instrProfile (SkipsAllOf w _) = sameIntro (nomIntro w) []
   instrProfile (LosesCounters who _ amt) = sameIntro (optAmtIntro amt) []
   instrProfile (RemoveFromCombat n) = sameIntro (nomIntro n) []
   instrProfile (AttachTo _ host) = sameIntro (nomIntro host) []
@@ -2127,7 +2122,8 @@ mutual
                 AbilityAt bs
     Static : (se : StaticSpec bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
-    Spell : (instr : Instruction bs) -> AbilityAt bs
+    Spell : (window : Maybe (Timing bs)) -> (instr : Instruction bs) ->
+            AbilityAt bs
     MayBeginOnBattlefield : AbilityAt bs
     AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordTerm) ->
                       {auto 0 ex : KeywordExtendable ab} ->
@@ -2181,7 +2177,7 @@ mutual
     eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
       concurrentNamesThisDoor while || joinsNameThisDoor joins ||
       effectNamesThisDoor instr
-  abilityNamesThisDoor (Spell instr) = effectNamesThisDoor instr
+  abilityNamesThisDoor (Spell _ instr) = effectNamesThisDoor instr
   abilityNamesThisDoor (ItalicHead _ ab) = abilityNamesThisDoor ab
   abilityNamesThisDoor (AlsoForKeywords ab _) = abilityNamesThisDoor ab
   abilityNamesThisDoor _ = False
@@ -2247,7 +2243,7 @@ mutual
   grantableAb (Activated _ _ _ _ _ _) = True
   grantableAb (Triggered _ _ _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
-  grantableAb (Spell _) = False
+  grantableAb (Spell _ _) = False
   grantableAb MayBeginOnBattlefield = False
   grantableAb (AlsoForKeywords _ _) = False
   grantableAb (ItalicHead _ ab) = grantableAb ab
@@ -2264,7 +2260,7 @@ mutual
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
   emblemAbilityOk (ItalicHead _ ab) = emblemAbilityOk ab
-  emblemAbilityOk (Spell _) = False
+  emblemAbilityOk (Spell _ _) = False
   emblemAbilityOk MayBeginOnBattlefield = False
 
   public export
@@ -2338,7 +2334,7 @@ mutual
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
   abRegime (ItalicHead _ ab) = abRegime ab
-  abRegime (Spell _) = Nothing
+  abRegime (Spell _ _) = Nothing
   abRegime MayBeginOnBattlefield = Nothing
 
   public export
@@ -2349,7 +2345,7 @@ mutual
   abFunctionsOnStack (Static _) = False
   abFunctionsOnStack (AlsoForKeywords ab _) = abFunctionsOnStack ab
   abFunctionsOnStack (ItalicHead _ ab) = abFunctionsOnStack ab
-  abFunctionsOnStack (Spell _) = False
+  abFunctionsOnStack (Spell _ _) = False
   abFunctionsOnStack MayBeginOnBattlefield = False
 
   public export
@@ -2396,7 +2392,7 @@ mutual
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (ItalicHead _ ab) = abIntro ab
-  abIntro (Spell instr) = instrChoiceDelta instr ++ bs
+  abIntro (Spell _ instr) = instrChoiceDelta instr ++ bs
   abIntro MayBeginOnBattlefield = bs
 
   public export

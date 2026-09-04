@@ -43,7 +43,7 @@ badTransformedArrivalOffField Oh impossible
 public export
 badCardWordReadsPiles : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
                   , Macros.move (Macros.That CardW ManyOf {ok = ok}) Macros.handZ ]) ]
@@ -54,7 +54,7 @@ badCardWordReadsPiles Refl impossible
 public export
 badPileWordWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , Macros.move (Macros.That PileW ManyOf {ok = ok}) Macros.handZ ]) ]
        Nothing)
@@ -87,7 +87,7 @@ public export
 okMembershipInAPile : Card
 okMembershipInAPile =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
                   , Macros.move (Macros.allOf (And [IsCard,
@@ -100,7 +100,7 @@ okMembershipInAPile =
 public export
 badMembershipWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , Macros.move (Macros.allOf (And [IsCard,
                                     InPile (Macros.That PileW ManyOf {ok = ok})]))
@@ -119,7 +119,7 @@ okStatusOnBattlefieldNoun =
 public export
 badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
                   , SetStatus FaceDown (Macros.That PileW ManyOf) {sh = ok} ]) ]
        Nothing)
@@ -171,7 +171,7 @@ namedAdditionalPartAnchor =
 public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
-    [Spell (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
+    [Spell Nothing (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
                     {so = Absent})]
     Nothing {fl = ok})
 badDelayedDoorDeixis MkCharacteristicsLaws impossible

@@ -133,6 +133,20 @@ badPluralAttackWindow : Unspellable Ability (\ok =>
   Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (BeforePart DeclareAttackers (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
 badPluralAttackWindow Oh impossible
 
+||| "Cast this spell only before the combat damage step."
+public export
+okCastBeforeCombatDamage : Ability
+okCastBeforeCombatDamage =
+  Spell (Just (BeforePart CombatDamage Nothing)) (Draw You (Lit 1))
+
+||| "Cast this spell only before the turn."
+||| A turn is made of its phases [CR#500.1], so a point before the turn the
+||| spell would be cast in is not a window inside it (`okCastBeforeCombatDamage`).
+public export
+badCastBeforeTheTurn : Unspellable Ability (\ok =>
+  Spell (Just (BeforePart Turn Nothing {bp = ok})) (Draw You (Lit 1)))
+badCastBeforeTheTurn Oh impossible
+
 ||| "Ward {2}"
 public export
 okWardCost : Ability

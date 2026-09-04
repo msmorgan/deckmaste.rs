@@ -518,7 +518,7 @@ admiralsOrder =
        [ Static (Macros.onlyWhile
                    (AltCost This (Just (Mana [Macros.pip Blue])))
                    (Macros.happened AttackDeclaration You Lookback.ThisTurn))
-       , Spell (CounterSpell (Macros.target Macros.spell)) ]
+       , Spell Nothing (CounterSpell (Macros.target Macros.spell)) ]
        Nothing
 
 public export
@@ -709,7 +709,7 @@ reciprocate : Card
 reciprocate =
   Macros.card "Reciprocate" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.exile You
+       [ Spell Nothing (Macros.exile You
                   (Macros.target
                      (And [Macros.creature,
                            Macros.happenedToInvolving DamageDealing
@@ -755,7 +755,7 @@ faithsReward =
   Macros.card "Faith's Reward"
        (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.move
+       [ Spell Nothing (Macros.move
                   (Macros.allOf (And [Permanent,
                                InZone (Macros.graveyardOf You),
                                HappenedTo (MkLookback Placement Lookback.ThisTurn (Just (FromZones
@@ -929,7 +929,7 @@ hallowedMoonlight =
   Macros.card "Hallowed Moonlight"
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.ifWouldInstead
                       (Enters (Macros.a (And [Macros.creature, Not WasCast])) Nothing)
                       (Macros.exile You ((Macros.It OneOf)))
@@ -944,7 +944,7 @@ gatherSpecimens =
   Macros.card "Gather Specimens"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue, Macros.pip Blue])
        [] (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (EntersRider
                      (Macros.a (And [Macros.creature,
                                      HasPossessor ControllerAx Macros.anOpponent]))
@@ -1163,7 +1163,7 @@ repayInKind =
   Macros.card "Repay in Kind"
        (Just [Macros.generic 5, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Macros.lifeTotalBecomes (Macros.each AnyPlayer)
+       [ Spell Nothing (Macros.lifeTotalBecomes (Macros.each AnyPlayer)
                   (Macros.aggregate MinOf (PlayerStatAxis LifeTotal) AnyPlayer)) ]
        Nothing
 
@@ -1173,7 +1173,7 @@ squelch : Card
 squelch =
   Macros.card "Squelch" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ CounterSpell
                       (Macros.target (AbilityHead AnyActivated))
                   , (Draw You (Lit 1)) ]) ]

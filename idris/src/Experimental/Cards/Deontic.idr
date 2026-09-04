@@ -259,7 +259,7 @@ flaringPain : Card
 flaringPain =
   Macros.card "Flaring Pain" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
+       [ Spell Nothing (Continuously (CantPrevent AnyDamage (DamageDescribed Unattributed Everywhere) NoPreventionOnly)
                              (Just ThisTurn))
        , Macros.keywordCosting "Flashback" (Mana [Macros.pip Red]) ]
        Nothing
@@ -297,7 +297,7 @@ pinpointAvalanche =
   Macros.card "Pinpoint Avalanche"
        (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ DealDamage This (Lit 4) (Macros.target Macros.creature)
                   , Continuously
                       (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]) ]
@@ -318,7 +318,7 @@ callInAProfessional =
   Macros.card "Call In a Professional"
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Continuously
                       (Macros.playerCant "GainLife" (PlayerGroup AllPlayers))
                       (Just ThisTurn)
@@ -388,14 +388,14 @@ fatigue : Card
 fatigue =
   Macros.card "Fatigue" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (SkipsNext (Macros.target AnyPlayer) DrawStep (Lit 1))] Nothing
+       [Spell Nothing (SkipsNext (Macros.target AnyPlayer) DrawStep (Lit 1))] Nothing
 
 public export
 meditate : Card
 meditate =
   Macros.card "Meditate" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [Spell (Sequentially [Draw You (Lit 4), SkipsNext You Turn (Lit 1)])] Nothing
+       [Spell Nothing (Sequentially [Draw You (Lit 4), SkipsNext You Turn (Lit 1)])] Nothing
 
 public export
 blindingAngel : Card
@@ -458,7 +458,8 @@ emptyCityRuse : Card
 emptyCityRuse =
   Macros.card "Empty City Ruse" (Just [Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (SkipsAllOf (Macros.target Opponent) Combat)] Nothing
+       [Spell Nothing (Macros.throughout (Skips (Macros.target Opponent) Combat)
+                                 (DuringNextTurnOf (Macros.That PlayerW OneOf)))] Nothing
 
 ||| False Peace
 public export
@@ -466,7 +467,8 @@ falsePeace : Card
 falsePeace =
   Macros.card "False Peace" (Just [Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (SkipsAllOf (Macros.target AnyPlayer) Combat)] Nothing
+       [Spell Nothing (Macros.throughout (Skips (Macros.target AnyPlayer) Combat)
+                                 (DuringNextTurnOf (Macros.That PlayerW OneOf)))] Nothing
 
 ||| Battlefront Krushok
 public export
@@ -500,7 +502,7 @@ festival =
        (MkTypeLine [] [Instant])
        [ Static (OnlyDuring Upkeep (Just Macros.anOpponent)
                    (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
-       , Spell (Macros.cantAttack (Macros.allOf Macros.creature)
+       , Spell Nothing (Macros.cantAttack (Macros.allOf Macros.creature)
                                   (Just ThisTurn)) ]
        Nothing
 
@@ -521,7 +523,7 @@ terror : Card
 terror =
   Macros.card "Terror" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (CantBe (Macros.destroy (Macros.target
+       [ Spell Nothing (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not Macros.artifact,
                         Not (ColorIs Black)])))
                 "Regenerate" (Macros.ItVerbed "Destroy" OneOf)) ]
@@ -536,7 +538,7 @@ snuffOut =
                    (AltCost This (Just (Macros.payLife You 4)))
                    (Macros.exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                  HasPossessor ControllerAx You])))
-       , Spell (CantBe (Macros.destroy (Macros.target
+       , Spell Nothing (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not (ColorIs Black)])))
                 "Regenerate" (Macros.ItVerbed "Destroy" OneOf)) ]
        Nothing
@@ -547,7 +549,7 @@ wrathOfGod =
   Macros.card "Wrath of God"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (CantBe (Macros.destroy (Macros.allOf Macros.creature))
+       [ Spell Nothing (CantBe (Macros.destroy (Macros.allOf Macros.creature))
                        "Regenerate" ((Macros.It ManyOf))) ]
        Nothing
 
@@ -557,7 +559,7 @@ damnation =
   Macros.card "Damnation"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (CantBe (Macros.destroy (Macros.allOf Macros.creature))
+       [ Spell Nothing (CantBe (Macros.destroy (Macros.allOf Macros.creature))
                        "Regenerate" ((Macros.It ManyOf))) ]
        Nothing
 
@@ -584,7 +586,7 @@ cullingMark : Card
 cullingMark =
   Macros.card "Culling Mark" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Continuously (Macros.deontic (Macros.target Macros.creature)
+       [ Spell Nothing (Continuously (Macros.deontic (Macros.target Macros.creature)
                                       Require ["Block"] Agent NoDeonticPatient)
                              (Just ThisTurn)) ]
        Nothing

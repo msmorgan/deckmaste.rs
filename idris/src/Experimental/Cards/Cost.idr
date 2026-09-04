@@ -781,7 +781,7 @@ forceOfWill =
                    [ Macros.payLife You 1
                    , Do (Macros.exile You (Macros.a (And [ColorIs Blue,
                                                       InZone (Macros.handOf You)]))) ])))
-       , Spell (CounterSpell (Macros.target Macros.spell)) ]
+       , Spell Nothing (CounterSpell (Macros.target Macros.spell)) ]
        Nothing
 
 public export
@@ -1358,21 +1358,21 @@ uneshCriosphinxSovereign =
 opt : Card
 opt =
   Macros.card "Opt" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially [ Macros.scry You (Lit 1)
+       [ Spell Nothing (Sequentially [ Macros.scry You (Lit 1)
                              , (Draw You (Lit 1)) ]) ]
        Nothing
 
 serumVisions : Card
 serumVisions =
   Macros.card "Serum Visions" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially [ (Draw You (Lit 1))
+       [ Spell Nothing (Sequentially [ (Draw You (Lit 1))
                              , Macros.scry You (Lit 2) ]) ]
        Nothing
 
 consider : Card
 consider =
   Macros.card "Consider" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially [ Macros.surveil You (Lit 1)
+       [ Spell Nothing (Sequentially [ Macros.surveil You (Lit 1)
                              , (Draw You (Lit 1)) ]) ]
        Nothing
 
@@ -1382,7 +1382,7 @@ wordsOfWisdom =
   Macros.card "Words of Wisdom"
        (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Draw You (Lit 2)
                   , Draw (Macros.each (Macros.otherPlayer)) (Lit 1) ]) ]
        Nothing
@@ -1392,7 +1392,7 @@ deathWard : Card
 deathWard =
   Macros.card "Death Ward" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Regenerate (Macros.target Macros.creature)) ]
+       [ Spell Nothing (Regenerate (Macros.target Macros.creature)) ]
        Nothing
 
 public export

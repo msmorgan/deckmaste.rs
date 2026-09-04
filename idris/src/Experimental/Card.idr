@@ -64,7 +64,7 @@ classAbilityOk PermanentCard (Activated _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
-classAbilityOk PermanentCard (Spell _) = False
+classAbilityOk PermanentCard (Spell _ _) = False
 classAbilityOk PermanentCard (ItalicHead _ ab) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard MayBeginOnBattlefield = True
 classAbilityOk SpellCard (KeywordAbility k _ _) = keywordCardOk SpellCard k
@@ -72,7 +72,7 @@ classAbilityOk SpellCard (Activated c _ _ _ _ _) = costOffBattlefield c
 classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
-classAbilityOk SpellCard (Spell _) = True
+classAbilityOk SpellCard (Spell _ _) = True
 classAbilityOk SpellCard (ItalicHead _ ab) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard MayBeginOnBattlefield = False
 
@@ -204,7 +204,7 @@ keywordWantsModes _ = False
 
 public export
 abilityWritesModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
-abilityWritesModes (Spell (Modal _ _)) = True
+abilityWritesModes (Spell _ (Modal _ _)) = True
 abilityWritesModes (ItalicHead _ ab) = abilityWritesModes ab
 abilityWritesModes (AlsoForKeywords ab _) = abilityWritesModes ab
 abilityWritesModes _ = False
@@ -271,7 +271,7 @@ abilityChoiceDelta (Triggered _ _ _ _ _ _ _ _ instr) = instrChoiceDelta instr
 abilityChoiceDelta (Static se) = staticChoiceDelta se
 abilityChoiceDelta (AlsoForKeywords ab _) = abilityChoiceDelta ab
 abilityChoiceDelta (ItalicHead _ ab) = abilityChoiceDelta ab
-abilityChoiceDelta (Spell instr) = instrChoiceDelta instr
+abilityChoiceDelta (Spell _ instr) = instrChoiceDelta instr
 abilityChoiceDelta _ = []
 
 public export

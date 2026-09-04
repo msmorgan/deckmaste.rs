@@ -114,7 +114,7 @@ thunderwave =
   Macros.card "Thunderwave"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.rollDice You 1 20
                   , Macros.resultsTable
                       [ Macros.rollRow (Macros.fromTo 1 9)
@@ -208,7 +208,7 @@ chainReaction =
   Macros.card "Chain Reaction"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ DealDamage This (LetterVal X) (Macros.each Macros.creature)
                   , Define X (Macros.countOf Macros.creature) ]) ]
        Nothing
@@ -233,7 +233,7 @@ harshSustenance =
   Macros.card "Harsh Sustenance"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ DealDamage This (LetterVal X) (Macros.target Macros.anyTarget)
                   , Macros.gainsLife You (LetterVal X)
                   , Define X (Macros.countOf Macros.creatureYouControl) ]) ]
@@ -310,7 +310,7 @@ psychicPurge : Card
 psychicPurge =
   Macros.card "Psychic Purge" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (DealDamage This (Lit 1) (Macros.target Macros.anyTarget))
+       [ Spell Nothing (DealDamage This (Lit 1) (Macros.target Macros.anyTarget))
        , Macros.triggered When
            (Causes
               (CausedBySource
@@ -331,7 +331,7 @@ etherealHaze : Card
 etherealHaze =
   Macros.card "Ethereal Haze" (Just [Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Spell (Macros.preventAllBy AnyDamage (Macros.allOf Macros.creature)
+       [ Spell Nothing (Macros.preventAllBy AnyDamage (Macros.allOf Macros.creature)
                                     Everywhere (Just ThisTurn)) ]
        Nothing
 
@@ -357,7 +357,7 @@ dazzlingReflection : Card
 dazzlingReflection =
   Macros.card "Dazzling Reflection" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.gainsLife You (StatOf Power (Macros.target Macros.creature))
                   , Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.That (TypeW Creature) OneOf)) Everywhere (Prevent CutAll Nothing) NextTimeOnly)
@@ -405,7 +405,7 @@ turnTheTables =
   Macros.card "Turn the Tables"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule CombatOnly Unattributed (ToRecipient You) (Redirect CutAll (Macros.target (And [Macros.creature, Attacking]))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
@@ -457,7 +457,7 @@ carom : Card
 carom =
   Macros.card "Carom" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Continuously
                       (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Redirect (Shield (Lit 1)) (Macros.target (And [Macros.creature, Other]))) Repeatedly)
                       (Just ThisTurn)
@@ -493,7 +493,7 @@ candlesGlow : Card
 candlesGlow =
   Macros.card "Candles' Glow" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.anyTarget)) (Prevent (Shield (Lit 3)) (Just (Macros.gainsLife You Macros.preventedThisWay))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
@@ -532,7 +532,7 @@ healingGrace : Card
 healingGrace =
   Macros.card "Healing Grace" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Continuously
                       (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient (Macros.target Macros.anyTarget)) (Prevent (Shield (Lit 3)) Nothing) Repeatedly)
                       (Just ThisTurn)
@@ -545,7 +545,7 @@ reverseDamage =
   Macros.card "Reverse Damage"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient You) (Prevent CutAll (Just (Macros.gainsLife You Macros.preventedThisWay))) NextTimeOnly)
                   (Just ThisTurn)) ]
        Nothing
@@ -555,7 +555,7 @@ deflectingPalm : Card
 deflectingPalm =
   Macros.card "Deflecting Palm" (Just [Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient You) (Prevent CutAll (Just (DealDamage This ThatMuch (Macros.controllerOf ((Macros.It OneOf)))))) NextTimeOnly)
                   (Just ThisTurn)) ]
        Nothing
@@ -588,7 +588,7 @@ shadowbane : Card
 shadowbane =
   Macros.card "Shadowbane" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                    (Macros.youAnd (Macros.allOf Macros.creatureYouControl))) (Prevent CutAll (Just (If (PreventedFromSource
                                              (And [Macros.source, ColorIs Black]))
@@ -612,7 +612,7 @@ lavaAxe : Card
 lavaAxe =
   Macros.card "Lava Axe" (Just [Macros.generic 4, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (DealDamage This (Lit 5)
+       [ Spell Nothing (DealDamage This (Lit 5)
                            (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))) ]
        Nothing
 
@@ -621,7 +621,7 @@ searingFlesh : Card
 searingFlesh =
   Macros.card "Searing Flesh" (Just [Macros.generic 6, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell (DealDamage This (Lit 7)
+       [ Spell Nothing (DealDamage This (Lit 7)
                            (Macros.target (Macros.kindJoin Opponent (HasType Planeswalker)))) ]
        Nothing
 
@@ -659,7 +659,7 @@ endure =
   Macros.card "Endure"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Macros.preventAll AnyDamage
+       [ Spell Nothing (Macros.preventAll AnyDamage
                                   (ToRecipient
                                      (Macros.youAnd (Macros.allOf (And [Permanent,
                                                           HasPossessor ControllerAx You]))))
@@ -671,7 +671,7 @@ harmsWay : Card
 harmsWay =
   Macros.card "Harm's Way" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage (DealtBy (Macros.aYourChoice Macros.source)) (ToRecipient
                                 (Macros.youAnd (Macros.allOf (And [Permanent,
                                                      HasPossessor ControllerAx You])))) (Redirect (Shield (Lit 2)) (Macros.target Macros.anyTarget)) Repeatedly)
@@ -683,7 +683,7 @@ divineDeflection : Card
 divineDeflection =
   Macros.card "Divine Deflection" (Just [Variable, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously
+       [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient
                                (Macros.youAnd (Macros.allOf (And [Permanent,
                                                     HasPossessor ControllerAx You])))) (Prevent (Shield (LetterVal X)) (Just (DealDamage This ThatMuch
@@ -1011,7 +1011,7 @@ incinerate : Card
 incinerate =
   Macros.card "Incinerate" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
                   , Continuously
                       (Macros.objectCant "Regenerate"
@@ -1288,7 +1288,7 @@ public export
 searingBlaze : Ability
 searingBlaze =
   Macros.abilityWord "landfall"
-    (Spell
+    (Spell Nothing
       (InsteadOf
         (Simultaneously
            [ DealDamage This (Lit 1) Description.targetPlayerOrPlaneswalker
@@ -1326,7 +1326,7 @@ burnAtTheStake =
                                   (Macros.counted Macros.anyNumber
                                      (And [Macros.creature, HasPossessor ControllerAx You,
                                            Macros.untapped])))) False)
-       , Spell (DealDamage This (Macros.times 3 GroupSize)
+       , Spell Nothing (DealDamage This (Macros.times 3 GroupSize)
                            (Macros.target Macros.anyTarget)) ]
        Nothing
 
@@ -1342,7 +1342,7 @@ explosiveSingularity =
                                      (And [Macros.creature, HasPossessor ControllerAx You,
                                            Macros.untapped])))) True)
        , Static (CostsToCast This (CostLess (Macros.times 1 GroupSize) Nothing))
-       , Spell (DealDamage This (Lit 10) (Macros.target Macros.anyTarget)) ]
+       , Spell Nothing (DealDamage This (Lit 10) (Macros.target Macros.anyTarget)) ]
        Nothing
 
 ||| Tyrant of Valakut
@@ -1369,7 +1369,7 @@ fallOfTheTitansCard =
        (Just [Variable, Variable, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Macros.keywordCosting "Surge" (Mana [Variable, Macros.pip Red])
-       , Spell (DealDamage This (LetterVal X)
+       , Spell Nothing (DealDamage This (LetterVal X)
                   (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.anyTarget))) ]
        Nothing
 
@@ -1380,7 +1380,7 @@ tribalFlames =
   Macros.card "Tribal Flames" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "domain"
-           (Spell (Sequentially
+           (Spell Nothing (Sequentially
                      [ DealDamage This (LetterVal X)
                                   (Macros.target Macros.anyTarget)
                      , Define X (DistinctCount (SubtypeAxis Land BasicOnly)
@@ -1463,7 +1463,7 @@ destructiveRevelry : Card
 destructiveRevelry =
   Macros.card "Destructive Revelry" (Just [Macros.pip Red, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantment]))
                   , DealDamage This (Lit 2) (Macros.controllerOf (Macros.That PermanentW OneOf)) ]) ]
        Nothing
@@ -1583,7 +1583,7 @@ blindFury =
   Macros.card "Blind Fury"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
                   [ Continuously
                       (LosesAbilities (Macros.allOf Macros.creature)
                                       [LostWritten (Macros.keyword "Trample")])
@@ -1655,7 +1655,7 @@ laquatussDisdain : Card
 laquatussDisdain =
   Macros.card "Laquatus's Disdain" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Sequentially
+       [ Spell Nothing (Sequentially
            [ CounterSpell
                (Macros.target (And [Macros.spell, CastFrom Macros.graveyardZ]))
            , (Draw You (Lit 1)) ]) ]
@@ -1667,7 +1667,7 @@ stifle : Card
 stifle =
   Macros.card "Stifle" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (CounterSpell
+       [ Spell Nothing (CounterSpell
                   (Macros.target (Or [AbilityHead AnyActivated,
                                       AbilityHead AnyTriggered]))) ]
        Nothing
@@ -1679,7 +1679,7 @@ disallow =
   Macros.card "Disallow"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell (CounterSpell
+       [ Spell Nothing (CounterSpell
                   (Macros.target
                      (Or [ Macros.spell
                          , AbilityHead AnyActivated
@@ -1693,7 +1693,7 @@ fry =
   Macros.card "Fry" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Static (Macros.objectCant "Counter" This)
-       , Spell (DealDamage This (Lit 5)
+       , Spell Nothing (DealDamage This (Lit 5)
                    (Macros.target (And [Or [Macros.creature, HasType Planeswalker],
                                         Or [ColorIs White, ColorIs Blue]]))) ]
        Nothing

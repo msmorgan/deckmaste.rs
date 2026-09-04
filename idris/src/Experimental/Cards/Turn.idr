@@ -163,7 +163,7 @@ public export
 timeWalk : Card
 timeWalk =
   Macros.card "Time Walk" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [] [Sorcery]) [Spell (ExtraTurn You (Lit 1))] Nothing
+       (MkTypeLine [] [Sorcery]) [Spell Nothing (ExtraTurn You (Lit 1))] Nothing
 
 public export
 timeStretch : Card
@@ -171,7 +171,7 @@ timeStretch =
   Macros.card "Time Stretch"
        (Just [Macros.generic 8, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (ExtraTurn (Macros.target AnyPlayer) (Lit 2))] Nothing
+       [Spell Nothing (ExtraTurn (Macros.target AnyPlayer) (Lit 2))] Nothing
 
 public export
 timeSieve : Card
@@ -188,7 +188,7 @@ finalFortune : Card
 finalFortune =
   Macros.card "Final Fortune" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [Spell (Sequentially [ExtraTurn You (Lit 1),
+       [Spell Nothing (Sequentially [ExtraTurn You (Lit 1),
                              Macros.delayed (BeginningOf ThePart EndStep (Macros.thatTurns))
                                             (Concludes LoseGame You)])] Nothing
 
@@ -205,7 +205,7 @@ lastChance : Card
 lastChance =
   Macros.card "Last Chance" (Just [Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (Sequentially [ExtraTurn You (Lit 1),
+       [Spell Nothing (Sequentially [ExtraTurn You (Lit 1),
                              Macros.delayed (BeginningOf ThePart EndStep (Macros.thatTurns))
                                             (Concludes LoseGame You)])] Nothing
 
@@ -215,7 +215,7 @@ chanceForGlory =
   Macros.card "Chance for Glory"
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [Spell (Sequentially
+       [Spell Nothing (Sequentially
          [ Continuously (Gains (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You]))
                                (Macros.keyword "Indestructible")) Nothing
          , ExtraTurn You (Lit 1)
@@ -243,7 +243,7 @@ relentlessAssault =
   Macros.card "Relentless Assault"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Sorcery])
-       [Spell (Sequentially
+       [Spell Nothing (Sequentially
          [ SetStatus Untapped
              (Macros.allOf (And [Macros.creature,
                           Macros.happenedTo AttackDeclaration Lookback.ThisTurn]))
@@ -547,12 +547,12 @@ waxWane : Card
 waxWane =
   SplitCard
     (Macros.frontFace "Wax" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
-            [ Spell (Macros.gets (Macros.target Macros.creature)
+            [ Spell Nothing (Macros.gets (Macros.target Macros.creature)
                                  (PtUp (Lit 2)) (PtUp (Lit 2))
                                  (Just Macros.untilEndOfTurn)) ]
             Nothing)
     (Macros.frontFace "Wane" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
-            [ Spell (Macros.destroy (Macros.target Macros.enchantment)) ]
+            [ Spell Nothing (Macros.destroy (Macros.target Macros.enchantment)) ]
             Nothing)
 
 ||| Teleport
@@ -563,7 +563,7 @@ teleport =
        (MkTypeLine [] [Instant])
        [ Static (OnlyDuring DeclareAttackers Nothing
                    (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
-       , Spell (Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)) ]
+       , Spell Nothing (Macros.cantBeBlocked (Macros.target Macros.creature) (Just ThisTurn)) ]
        Nothing
 
 ||| Dazzling Beauty's cast restriction; its targeted effect and delayed
@@ -588,4 +588,42 @@ thawingGlaciers =
               , Macros.shuffle
               , Macros.delayed (BeginningOf ThePart Cleanup NoPossessor)
                   (Macros.move Macros.thisLand Macros.handZ) ]) ]
+       Nothing
+
+||| Blood Frenzy
+public export
+bloodFrenzy : Card
+bloodFrenzy =
+  Macros.card "Blood Frenzy" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Just (BeforePart CombatDamage Nothing))
+           (Sequentially
+              [ Macros.gets (Macros.target (And [Macros.creature,
+                                                 Or [Attacking, Blocking]]))
+                            (PtUp (Lit 4)) (PtUp (Lit 0))
+                            (Just Macros.untilEndOfTurn)
+              , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
+                  (Macros.destroy (Macros.That (TypeW Creature) OneOf)) ]) ]
+       Nothing
+
+||| Berserk
+public export
+berserk : Card
+berserk =
+  Macros.card "Berserk" (Just [Macros.pip Green]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Just (BeforePart CombatDamage Nothing))
+           (Sequentially
+              [ Macros.sharedSubject (Macros.target Macros.creature)
+                  [ Gains (Macros.ownSubject (Macros.target Macros.creature))
+                          (Macros.keyword "Trample")
+                  , Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
+                         (PtUp (StatOf Power (Macros.It OneOf))) (PtUp (Lit 0)) ]
+                  (Just Macros.untilEndOfTurn)
+              , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
+                  (OnlyIf (Macros.destroy (Macros.That (TypeW Creature) OneOf))
+                          (Macros.happened AttackDeclaration
+                                           (Macros.That (TypeW Creature) OneOf)
+                                           Lookback.ThisTurn)
+                          Nothing) ]) ]
        Nothing
