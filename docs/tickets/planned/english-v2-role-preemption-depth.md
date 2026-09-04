@@ -7,10 +7,16 @@ landing review HIGH-2). `right_edge_nominal_postmodifier_kind` in
 outermost postmodifier, so a `from` PP nested under an outer `of` (or other
 PP) survives beside the frame-role reading and the pair is settled by a
 specificity weight. The amendment "selected roles preempt postmodifiers" says
-this is elimination derived from declared valence, never a preference weight.
-Affected: ≤52 units (All Suns' Dawn, Aphetto Dredging, Belbe's Portal,
+this is elimination derived from the frame's declared Verb Frame, never a
+preference weight.
+Affected: ≤52 units (unstamped baseline; re-measure at claim and stamp the
+tree) (All Suns' Dawn, Aphetto Dredging, Belbe's Portal,
 Bloodline Bidding, Bone Harvest, Druidic Ritual, …); the frame-role reading
 wins in every one today, so no misselection, but the invariant does not hold.
+
+2026-09-04: superseded by ADR "Amendment: Verb Frame and execution-context
+vocabulary (2026-09-04)" — was: "derived from declared valence"; and the
+affected-unit count was an unstamped baseline.
 
 Pin: within a frame's object position, a right-peripheral PP whose preposition
 the frame declares as a role has no noun-postmodifier derivation at ANY depth

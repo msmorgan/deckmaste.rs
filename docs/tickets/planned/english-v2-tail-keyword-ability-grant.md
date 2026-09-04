@@ -10,13 +10,14 @@ duration, 118 with a keyword argument (`protection from black`, `ward {2}`),
 99 coordinated (`gains trample and haste`).
 
 Root cause: `have_keyword_ability: VerbPhrase` (`form have_keyword_ability =
-verb(head) lex(ability)`) is outside `abstract sum BaseVerbFrame`, and the shared
-adjunct host `predicate_adjunct_predicate` takes only `BaseVerbFrame`, so no
+verb(head) lex(ability)`) is outside `abstract sum LexicalVerbPhrase`, and the
+shared adjunct host `predicate_adjunct_predicate` takes only
+`LexicalVerbPhrase`, so no
 duration or other adjunct can ever attach; `ability: lex KeywordAbility` admits
 neither coordination nor an argument.
 
 Pinned shape: delete the bespoke construction and declare the grant as a new
-`BaseVerbFrame` member (sibling of the transitive frame) whose object is the
+`LexicalVerbPhrase` member (sibling of `TransitiveLexicalVerbPhrase`) whose object is the
 existing `abstract sum GrantedAbility { Keyword: KeywordLineItem, Quoted:
 QuotedAbility }`, the same value the nominal grant takes in `reference "with"
 granted`. `KeywordLineItem` already carries costed, amounted, qualified and
@@ -26,6 +27,11 @@ a per-grant coordination family. Durations and every other adjunct come from
 `predicate_adjunct_predicate` alone. Fold `quoted_ability_predicate` into the
 same frame if the two verb codecs' tails unify without a new sealed atom;
 otherwise leave it and say so in the landing record.
+
+2026-09-04: superseded by ADR "Amendment: Verb Frame and execution-context
+vocabulary (2026-09-04)" — was: "abstract sum BaseVerbFrame" / "a new
+`BaseVerbFrame` member (sibling of the transitive frame)". The sum is
+`LexicalVerbPhrase` and its members are named `*LexicalVerbPhrase`.
 
 Ruled against: a `duration: opt DurationPhrase` slot on the grant (the
 adjunct-class landing ruled per-X slots are replaced, not inherited; the

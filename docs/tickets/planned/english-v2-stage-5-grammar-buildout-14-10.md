@@ -10,10 +10,14 @@ constructions/coordination.rs are a phenomenon checklist (coordinable
 categories, serial-list comma conventions, and/or/nor, scope, agreement) —
 never code or vocabulary to import; settled v2 rulings win over v1 analyses.
 
-Final acceptance: 32,641/32,641 selected, covered, byte-exact, and totally
-owned; zero ties, exceptions, and counters; the coverage lock is the sole
+Final acceptance: 100% of the normalized corpus selected, covered, byte-exact,
+and totally owned (32,641/32,641 as measured 2026-09-03 on change `lkznywvp`;
+re-measure the corpus size at claim); zero ties, exceptions, and counters; the coverage lock is the sole
 retention proof. Genuine tie or contradiction = STOP-and-report. Standard
 constraints apply.
+
+2026-09-04: corpus total stamped and marked for re-measure — was:
+"32,641/32,641 selected, covered, byte-exact, and totally owned".
 
 The remaining families and their counts live in `docs/tickets/fog.md`
 under "Tail families"; that register, not this ticket, is what the loop reads.

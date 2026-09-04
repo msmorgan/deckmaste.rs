@@ -9,8 +9,8 @@ grammar") admits `CostSymbol`, `ManaAmount`, `KeywordManaCost` and their kin as
 printed notation. It does not admit `ActivationCostComponent`,
 `AdditionalCostBody`, `ControlledCostAction`, `CostComparisonPredicate`,
 `CastingRestriction`, or `RestrictionTurn`, which name game meaning and are
-the largest unticketed block of the ~24 game-semantic categories still in the
-grammar. The distribution/counter block has its own ticket and the predicative
+the largest unticketed block of the game-semantic categories still in the
+grammar (~24 when this was written, unstamped; re-measure at claim). The distribution/counter block has its own ticket and the predicative
 block is the `Predicative complement as one copular frame (A7)` entry in
 `../fog.md`; this one owns the cost family.
 
@@ -31,5 +31,9 @@ category as an alias. A specificity tie exposed by generalising is a STOP.
 
 Acceptance: the six categories gone, their coverage re-spelled, selection
 census before/after with every identity whose winning analysis moved listed,
-and the ADR's game-semantic-category count in the landing record. Standard
+and the remaining game-semantic-category count in the landing record.
+
+2026-09-04: audited against the ADR; the category count was an unstamped
+baseline — was: "the ~24 game-semantic categories" / "the ADR's
+game-semantic-category count" (the ADR carries no such count). Standard
 constraints apply.

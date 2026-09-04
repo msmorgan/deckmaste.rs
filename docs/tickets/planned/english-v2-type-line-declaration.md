@@ -8,10 +8,17 @@ superseding the follow-up left by `workbench-type-line-order-is-spelling`.
 The measured order table now lives at
 `crates/deckmaste_english_v2/docs/type-line-order.md` (12 attested
 sequences; ranks 9–14 are [CR#300.1]'s stated alphabetical convention), but
-the crate still builds no type line: nothing consumes the table. When the
-v2 spelling layer renders or parses a type line, this document is its
-declaration source — wire it then; do not build a consumer before one is
-needed.
+the crate still builds no type line: nothing consumes the table. The consumer
+is `english-v2-type-line-construction`, this ticket's `needs:` — when that
+Construction lands, convert this document into the declaration form it
+consumes.
+
+2026-09-04: the letter contradicted its own Acceptance (the 2026-09-04 STOP
+below) — was: "When the v2 spelling layer renders or parses a type line, this
+document is its declaration source — wire it then; do not build a consumer
+before one is needed." Acceptance demanded a consumed declaration with tests
+while the letter forbade building the consumer; the `needs:` routing is the
+recorded resolution.
 
 ## Consumption boundary
 
@@ -21,7 +28,15 @@ needed.
 
 - The type-line order is consumed from the declaration (or the doc is
   converted to the declaration form the crate uses), with tests against the
-  attested sequences.
+  attested sequences. The Linearization is total over the declared Card Type
+  inventory: the 12 attested sequences are conformance evidence, never the
+  admitted domain, and an unattested combination of declared Card Types must
+  linearize rather than reject (rewrite ADR, "Terminal generation (stage-5
+  Plan 03 ruling)": a recipe accepts its full structural domain, never an
+  observed-corpus subset).
+
+2026-09-04: attestation scope pinned per that ruling — the previous wording
+left "tests against the attested sequences" as the only stated domain.
 
 Standard constraints apply.
 
