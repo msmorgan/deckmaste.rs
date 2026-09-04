@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::Context;
 use anyhow::bail;
 use deckmaste_construction_core::macro_def::Onset;
+use deckmaste_english_v2::ast::OracleText;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::ByteMismatchScope as RuntimeByteMismatchScope;
 use deckmaste_english_v2::parser::InternalFailureKind as RuntimeInternalFailureKind;
@@ -17,13 +18,14 @@ use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectedOwnership as RuntimeSelectedOwnership;
 use deckmaste_english_v2::parser::SelectionDecision;
 use deckmaste_english_v2::parser::SelectionResolution;
+use deckmaste_english_v2::visit::Visitor;
 
 use super::CoverageArgs;
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 5;
+const REPORT_SCHEMA_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -66,6 +68,12 @@ pub(super) enum CoverageInternalFailureKind {
 pub(super) struct RoundtripFailure {
     expected: String,
     actual: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub(super) struct TraversalFailure {
+    expected: Vec<String>,
+    actual: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -385,6 +393,8 @@ pub(super) struct SelectedCoverage {
     ownership: CoverageOwnership,
     roundtrip_failure: Option<RoundtripFailure>,
     nonterminal_nodes: usize,
+    visited_constructions: usize,
+    traversal_failure: Option<TraversalFailure>,
     longest_form_literal_bytes: usize,
 }
 
@@ -404,6 +414,14 @@ impl SelectedCoverage {
     #[cfg(test)]
     const fn nonterminal_nodes(&self) -> usize {
         self.nonterminal_nodes
+    }
+    #[cfg(test)]
+    const fn visited_constructions(&self) -> usize {
+        self.visited_constructions
+    }
+    #[cfg(test)]
+    const fn traversal_failure(&self) -> Option<&TraversalFailure> {
+        self.traversal_failure.as_ref()
     }
     #[cfg(test)]
     const fn longest_form_literal_bytes(&self) -> usize {
@@ -456,7 +474,9 @@ impl CoverageRow {
                 selected.ownership.validate(&self.id)?;
                 let is_covered = selected.ownership.covered
                     && selected.ownership.failures.is_empty()
-                    && selected.roundtrip_failure.is_none();
+                    && selected.roundtrip_failure.is_none()
+                    && selected.traversal_failure.is_none()
+                    && selected.visited_constructions == selected.nonterminal_nodes;
                 let status_is_covered = self.status == CoverageStatus::SelectedCovered;
                 if is_covered != status_is_covered {
                     return Err(CoverageValidationError::RowStatusEvidence {
@@ -530,6 +550,8 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
                 ownership: mapped,
                 roundtrip_failure,
                 nonterminal_nodes: 0,
+                visited_constructions: 0,
+                traversal_failure: None,
                 longest_form_literal_bytes: 0,
             });
         }
@@ -554,7 +576,18 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
     row
 }
 
-fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>) -> CoverageRow {
+#[derive(Default)]
+struct TraversalRecorder {
+    constructions: Vec<&'static str>,
+}
+
+impl Visitor for TraversalRecorder {
+    fn enter_construction(&mut self, construction: &'static str) {
+        self.constructions.push(construction);
+    }
+}
+
+fn runtime_analysis_row(unit: &CorpusUnit, analysis: &ParseAnalysis<OracleText>) -> CoverageRow {
     let outcome = analysis.outcome();
     let (exception_resolved, exception_uses) = selection_exception_evidence(analysis.decision());
     let error = analysis.error().map(super::corpus::corpus_error_message);
@@ -588,7 +621,7 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
     );
     if let Some(selected) = row.selected.as_mut() {
         let selected_ordinal = analysis.decision().and_then(SelectionDecision::selected);
-        selected.nonterminal_nodes = selected_ordinal
+        let expected = selected_ordinal
             .and_then(|ordinal| {
                 analysis
                     .decision()?
@@ -596,7 +629,25 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
                     .iter()
                     .find(|candidate| candidate.ordinal() == ordinal)
             })
-            .map_or(0, |candidate| candidate.construction_path().len());
+            .map(deckmaste_english_v2::parser::SelectionCandidate::construction_path)
+            .unwrap_or_default();
+        selected.nonterminal_nodes = expected.len();
+        let mut traversal = TraversalRecorder::default();
+        if let Some(value) = analysis.selected() {
+            traversal.visit_oracle_text(value);
+        }
+        selected.visited_constructions = traversal.constructions.len();
+        if traversal.constructions.as_slice() != expected {
+            selected.traversal_failure = Some(TraversalFailure {
+                expected: expected.to_vec(),
+                actual: traversal
+                    .constructions
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            });
+            row.status = CoverageStatus::SelectedUncovered;
+        }
         selected.longest_form_literal_bytes = analysis
             .ownership()
             .into_iter()
@@ -635,6 +686,8 @@ pub(super) struct CoverageSummary {
     /// loading.
     literal_lexicon_collisions: usize,
     nonterminal_nodes: usize,
+    visited_constructions: usize,
+    traversal_failure_units: usize,
     longest_form_literal_bytes: usize,
     claims: usize,
     claimed_bytes: usize,
@@ -680,6 +733,8 @@ summary_getters!(
     ownership_failure_units,
     literal_lexicon_collisions,
     nonterminal_nodes,
+    visited_constructions,
+    traversal_failure_units,
     longest_form_literal_bytes,
     claims,
     claimed_bytes,
@@ -727,6 +782,17 @@ impl CoverageSummary {
                 selected.nonterminal_nodes,
                 "nonterminal_nodes",
             )?;
+            add_field(
+                &mut summary.visited_constructions,
+                selected.visited_constructions,
+                "visited_constructions",
+            )?;
+            if selected.traversal_failure.is_some() {
+                checked_increment(
+                    &mut summary.traversal_failure_units,
+                    "traversal_failure_units",
+                )?;
+            }
             summary.longest_form_literal_bytes = summary
                 .longest_form_literal_bytes
                 .max(selected.longest_form_literal_bytes);
@@ -1266,6 +1332,8 @@ impl CoverageRow {
                     actual: "actual".to_owned(),
                 }),
                 nonterminal_nodes: 0,
+                visited_constructions: 0,
+                traversal_failure: None,
                 longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
@@ -1330,6 +1398,8 @@ impl CoverageRow {
                 ownership: CoverageOwnership::from_source(summary, failures),
                 roundtrip_failure,
                 nonterminal_nodes: 0,
+                visited_constructions: 0,
+                traversal_failure: None,
                 longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
@@ -1463,6 +1533,8 @@ impl CoverageReport {
                     ownership: empty_ownership(),
                     roundtrip_failure: None,
                     nonterminal_nodes: 0,
+                    visited_constructions: 0,
+                    traversal_failure: None,
                     longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
@@ -1493,6 +1565,8 @@ impl CoverageReport {
                     ownership,
                     roundtrip_failure: None,
                     nonterminal_nodes: 0,
+                    visited_constructions: 0,
+                    traversal_failure: None,
                     longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
@@ -2000,17 +2074,21 @@ mod tests {
             CoverageRow::outcome_for_test(id('5'), CoverageStatus::InternalFailure),
         ];
         rows[0].selected_mut_for_test().nonterminal_nodes = 17;
+        rows[0].selected_mut_for_test().visited_constructions = 17;
         rows[0].selected_mut_for_test().longest_form_literal_bytes = 11;
         rows[1].selected_mut_for_test().nonterminal_nodes = 25;
+        rows[1].selected_mut_for_test().visited_constructions = 25;
         rows[1].selected_mut_for_test().longest_form_literal_bytes = 7;
         CoverageReport::try_new_with_collisions(id('a'), rows, 1).unwrap()
     }
 
     #[test]
-    fn summary_matches_all_thirty_one_independently_derived_fields() {
+    fn summary_matches_all_independently_derived_fields() {
         let report = independently_derived_report();
         let selected = report.rows()[0].selected().unwrap();
         assert_eq!(selected.nonterminal_nodes(), 17);
+        assert_eq!(selected.visited_constructions(), 17);
+        assert_eq!(selected.traversal_failure(), None);
         assert_eq!(selected.longest_form_literal_bytes(), 11);
         let summary = report.summary();
         assert_eq!(summary.total_units(), 5);
@@ -2026,6 +2104,8 @@ mod tests {
         assert_eq!(summary.ownership_failure_units(), 1);
         assert_eq!(summary.literal_lexicon_collisions(), 1);
         assert_eq!(summary.nonterminal_nodes(), 42);
+        assert_eq!(summary.visited_constructions(), 42);
+        assert_eq!(summary.traversal_failure_units(), 0);
         assert_eq!(summary.longest_form_literal_bytes(), 11);
         assert_eq!(summary.claims(), 55);
         assert_eq!(summary.claimed_bytes(), 550);
@@ -2046,6 +2126,8 @@ mod tests {
                 "ownership_failure_units": 1,
                 "literal_lexicon_collisions": 1,
                 "nonterminal_nodes": 42,
+                "visited_constructions": 42,
+                "traversal_failure_units": 0,
                 "longest_form_literal_bytes": 11,
                 "claims": 55,
                 "claimed_bytes": 550,
@@ -2076,6 +2158,8 @@ mod tests {
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
         assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);
+        assert_eq!(json["rows"][0]["selected"]["visited_constructions"], 17);
+        assert!(json["rows"][0]["selected"]["traversal_failure"].is_null());
         assert_eq!(
             json["rows"][0]["selected"]["longest_form_literal_bytes"],
             11
@@ -2102,6 +2186,8 @@ mod tests {
                 "ownership_failure_units",
                 "literal_lexicon_collisions",
                 "nonterminal_nodes",
+                "visited_constructions",
+                "traversal_failure_units",
                 "longest_form_literal_bytes",
                 "claims",
                 "claimed_bytes",
@@ -2482,8 +2568,18 @@ mod tests {
         assert_eq!(json["rows"][0]["status"], "selected_covered");
         let selected = &json["rows"][0]["selected"];
         assert!(selected["nonterminal_nodes"].as_u64().unwrap() > 0);
+        assert_eq!(
+            selected["visited_constructions"],
+            selected["nonterminal_nodes"]
+        );
+        assert!(selected["traversal_failure"].is_null());
         assert!(selected["longest_form_literal_bytes"].as_u64().unwrap() > 0);
         assert!(json["summary"]["nonterminal_nodes"].as_u64().unwrap() > 0);
+        assert_eq!(
+            json["summary"]["visited_constructions"],
+            json["summary"]["nonterminal_nodes"]
+        );
+        assert_eq!(json["summary"]["traversal_failure_units"], 0);
         assert!(
             json["summary"]["longest_form_literal_bytes"]
                 .as_u64()

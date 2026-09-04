@@ -221,7 +221,11 @@ fn emit_trait(
     terminals: &TerminalVisitors<'_>,
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
-    let mut methods = visitor_methods(plan, categories, constructions, terminals);
+    let mut methods = vec![quote! {
+        /// Reports one concrete AST construction before its children are visited.
+        fn enter_construction(&mut self, _construction: &'static str) {}
+    }];
+    methods.extend(visitor_methods(plan, categories, constructions, terminals));
 
     let mut leaf_origins = Vec::new();
     let mut seen = HashSet::new();
@@ -920,6 +924,7 @@ fn emit_construction_walker(
     construction: &ConstructionPlan,
 ) -> syn::Result<GeneratedItem> {
     let type_name = construction.element_type().to_owned();
+    let construction_id = syn::LitStr::new(construction.rule_id(), Span::call_site());
     let ty = ident(&type_name);
     let function = ident(&format!("walk_{}", snake_case(&type_name)));
     let mut allocator = LocalAllocator::default();
@@ -997,7 +1002,13 @@ fn emit_construction_walker(
                 kind: NamedKind::Function,
                 name: function.to_string(),
             },
-            quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#calls)* } },
+            quote! {
+                pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) {
+                    visitor.enter_construction(#construction_id);
+                    #destructure
+                    #(#calls)*
+                }
+            },
             vec![DeclarationKey::new(
                 DeclarationKind::Construction,
                 construction.construction_id(),
@@ -1070,7 +1081,14 @@ fn emit_construction_walker(
             kind: NamedKind::Function,
             name: function.to_string(),
         },
-        quote! { pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) { #destructure #(#form_bodies)* #exhaustiveness } },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) {
+                visitor.enter_construction(#construction_id);
+                #destructure
+                #(#form_bodies)*
+                #exhaustiveness
+            }
+        },
         vec![DeclarationKey::new(
             DeclarationKind::Construction,
             construction.construction_id(),
@@ -1833,6 +1851,7 @@ mod tests {
         assert_eq!(
             callbacks,
             [
+                "enter_construction",
                 "visit_atom",
                 "visit_branch",
                 "visit_holder",
@@ -1840,6 +1859,20 @@ mod tests {
                 "visit_word",
             ],
             "the complete Visitor inventory contains semantic callbacks only",
+        );
+
+        let syn::Item::Fn(atom_value) = named(&expansion, "walk_atom_value") else {
+            panic!("AtomValue walker is a function")
+        };
+        let atom_value_source = atom_value.block.to_token_stream().to_string();
+        assert_eq!(
+            atom_value_source.matches("enter_construction").count(),
+            1,
+            "each concrete construction reports exactly one traversal entry: {atom_value_source}",
+        );
+        assert!(
+            atom_value_source.contains("enter_construction (\"AtomAtom\")"),
+            "the traversal entry uses the parser construction identity: {atom_value_source}",
         );
 
         let walkers = expansion
@@ -1960,6 +1993,7 @@ mod tests {
         assert_eq!(
             calls,
             [
+                "visitor . enter_construction (\"NodeWriter\")",
                 "walk_plain (visitor , * & walk_mode_2 . plain)",
                 "walk_mode (visitor , walk_mode_2 . mode ())",
                 "visitor . visit_node (walk_mode_2 . child ())",
@@ -2325,6 +2359,10 @@ mod tests {
         assert_eq!(
             callbacks,
             [
+                (
+                    "enter_construction".into(),
+                    "_construction : & 'static str".into(),
+                ),
                 ("visit_expr".into(), "expr : & Expr".into()),
                 ("visit_predicate".into(), "predicate : & Predicate".into()),
                 ("visit_tag".into(), "tag : & Tag".into()),

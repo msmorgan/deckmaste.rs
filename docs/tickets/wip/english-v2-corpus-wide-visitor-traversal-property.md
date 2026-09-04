@@ -44,3 +44,50 @@ bytes is vacuous while `roundtrip` already proves the rendered bytes equal the
 input. The direction that needs proving — build an AST by hand, render it,
 parse it back — has no corpus source, and `tests/vertical_slice.rs` already
 holds it.
+
+## Landing record (2026-09-03)
+
+Measured on change `npypvsqz` with 16,702 covered lock identities.
+
+- Compiler shape: the generated `Visitor` now has a default no-op
+  `enter_construction` hook. Every concrete construction walker calls it once,
+  before visiting children, with that construction's rule identity. The
+  coverage gate records those identities and requires exact equality with the
+  selected candidate's ordered construction path; the existing ownership gate
+  independently continues to prove surface-byte order and coverage.
+- Coverage before/after: 16,702 -> 16,702 selected and covered units; 15,939
+  parse failures; 0 selected-uncovered, unresolved-tie, internal-failure,
+  exception-resolution, exception-use, round-trip, ownership, gap, overlap,
+  synthetic-claim, or provenance-plan-mismatch cases. The new traversal census
+  is 826,642 expected nonterminal nodes -> 826,642 visited constructions with 0
+  traversal failures.
+- Construction and selection censuses are unchanged: 398 -> 398 construction
+  declarations; 11,132 -> 11,132 unique and 5,570 -> 5,570
+  specificity-resolved selections.
+- Coverage lock: schema 4 and byte-unchanged at 49,352 lines, with 16,702
+  covered identities, source fingerprint
+  `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`,
+  normalization digest
+  `f3a2fccd079f0bc53c79b4c23e28e0351b3cf69a5324b3893c695638935341c9`,
+  and SHA-256
+  `837688617caf0b0ff0c3e6551fcf2d58772e463f71040c1c42e6d51f2cb26446`.
+- Assurance: restored 0; re-spelled 0; ignored with blockers 0; added 0
+  standalone tests; removed 2 vector-only standalone tests. Existing emitter
+  inventory/structure tests and coverage report/runner tests were extended.
+  The nominal suite retains its AST-shape, selection-path, specificity,
+  rendering, ownership, semantic-count, and rejection assertions while
+  deleting 3,235 lines of superseded literal preorder infrastructure and
+  vectors.
+- Positive artifacts: `cargo test --workspace`, `cargo clippy --workspace
+  --all-targets -- -D warnings`, `cargo fmt --all -- --check`, `cargo xtask
+  english_v2 coverage --check`, and `cargo xtask english_v2 ambiguity
+  --require-resolved` are green. Both corpus commands emitted only their
+  existing load-sensitive common-path wall-clock warning.
+- Deviations and additions: chose ordered rule identities rather than adding
+  source spans to AST nodes; this preserves the deliberate ownership/AST seam
+  while proving the requested exactly-once preorder against an independent
+  parser artifact. The coverage report schema advances 5 -> 6 for
+  `visited_constructions` and traversal-failure evidence. No grammar,
+  construction, coverage-lock, or add-only-ratchet change. No scratch or probe
+  tree was created.
+- STOPs: none.
