@@ -15,11 +15,14 @@ impl Lower for deckmaste_semantics::Selection {
             Self::InChosenOrder(f0, f1) => {
                 deckmaste_core::Selection::InChosenOrder(f0.lower(), f1.lower())
             }
-            Self::Random(f0, f1) => deckmaste_core::Selection::Random(f0.lower(), f1.lower()),
+            Self::Random(f0, f1) => deckmaste_core::Selection::Random(
+                f0.lower(),
+                std::sync::Arc::new(crate::region::predicate_region(|| f1.lower())),
+            ),
             // [CR#607.1]: "them" over a noted group — a register of this
             // region, or the card's memory cell read through the ability's
             // declared `Provenance::Linked` parameter (ADR law 8).
-            Self::AmongNoted(name, _) => deckmaste_core::Selection::Reg(
+            Self::AmongNoted(name, _) => crate::region::group_read(
                 crate::region::named(&name)
                     .or_else(|| crate::region::cell_read(&name))
                     .unwrap_or_else(|| {
@@ -50,12 +53,20 @@ impl Lower for deckmaste_semantics::Selection {
                 deckmaste_core::Selection::Reg,
             ),
             Self::ValidTargetsFor(f0) => deckmaste_core::Selection::ValidTargetsFor(f0.lower()),
-            Self::They => deckmaste_core::Selection::Reg(
+            Self::They => crate::region::group_read(
                 crate::region::they(None).expect("unbound `They` during semantic lowering"),
             ),
-            Self::Them(sort) => deckmaste_core::Selection::Reg(
-                crate::region::they(Some(sort)).expect("unbound sorted plural during lowering"),
-            ),
+            // The mention's own sort fixes which collection domain the
+            // register read belongs to ([CR#700.3b] — those PILES are not a
+            // group of Entities).
+            Self::Them(sort) => {
+                let register =
+                    crate::region::they(Some(sort)).expect("unbound sorted plural during lowering");
+                match sort.lower().register_kind() {
+                    deckmaste_core::Kind::Pile => deckmaste_core::Selection::Pile(register),
+                    _ => crate::region::group_read(register),
+                }
+            }
             Self::PilesOf { .. } => {
                 crate::region::refuse(
                     "noted pile sets have no register spelling yet; owner: engine-piles",
@@ -119,15 +130,21 @@ mod tests {
         );
     }
 
+    /// Re-spelled for the candidate region `Random` now carries: same
+    /// quantity, same lowered predicate, plus the declared domain.
     #[test]
     fn lowers_selection_random() {
-        assert_matches!(
-            deckmaste_semantics::Selection::Random(minimal_quantity(), minimal_predicate()).lower(),
-            deckmaste_core::Selection::Random(
-                deckmaste_core::Quantity::Range(None, None),
-                deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
-            )
+        let lowered =
+            deckmaste_semantics::Selection::Random(minimal_quantity(), minimal_predicate()).lower();
+        let deckmaste_core::Selection::Random(quantity, region) = lowered else {
+            panic!("expected a Random selection");
+        };
+        assert_eq!(quantity, deckmaste_core::Quantity::Range(None, None));
+        assert_eq!(
+            region.body,
+            deckmaste_core::Predicate::Class(deckmaste_core::ObjectClass::AbilityOnStack)
         );
+        assert_eq!(region.candidate_domain(), deckmaste_core::Domain::Object);
     }
 
     #[test]

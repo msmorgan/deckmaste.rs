@@ -1995,10 +1995,15 @@ mod tests {
         );
     }
 
-    /// [CR#704.5h]: `DealtDamageBy(This, Has(Deathtouch))` reads the DEAL-TIME
-    /// abilities captured on the object's damage marks — false with no marks,
-    /// false for a plain (non-deathtouch) mark, true once a
-    /// deathtouch-sourced mark exists.
+    /// [CR#704.5h]: the deathtouch clause reads the DEAL-TIME abilities
+    /// captured on the object's damage marks — false with no marks, false for
+    /// a plain (non-deathtouch) mark, true once a deathtouch-sourced mark
+    /// exists. Re-spelled from the retired `Is(Source, …)` reference form
+    /// ([CR#120.1] — a damage source is a relation, not a referent); same
+    /// subject, same asserted outcomes. Both surviving core spellings of that
+    /// relation are pinned side by side: the `DealtDamageBy` condition the
+    /// lethal-damage SBA authors, and the `WasDealtDamageBy` state predicate
+    /// that carries the same query into filters and target constraints.
     #[test]
     fn dealt_damage_by_deathtouch_reads_deal_time_marks() {
         use deckmaste_core::Ability;
@@ -2010,19 +2015,38 @@ mod tests {
 
         let (mut state, bear) = bear_on_field();
         let frame = this_frame(&state, bear);
+        // The predicate spelling of the same relation, which — unlike the
+        // condition — also rides filters and target constraints.
+        let as_predicate = Condition::Matches(
+            Reference::source_parameter(),
+            Predicate::State(deckmaste_core::StatePredicate::WasDealtDamageBy(
+                std::sync::Arc::new(Predicate::Characteristic(CharacteristicPredicate::Has(
+                    "Deathtouch".into(),
+                ))),
+            )),
+        );
         let cond = Condition::DealtDamageBy(
-            Reference::Reg(deckmaste_core::RefId(0)),
+            Reference::source_parameter(),
             Predicate::Characteristic(CharacteristicPredicate::Has("Deathtouch".into())),
         );
         assert!(
             !state.condition_holds(&cond, &frame),
             "no damage marks → no deathtouch source"
         );
+        assert!(
+            !state.condition_holds(&as_predicate, &frame),
+            "the predicate spelling agrees: no damage marks → no deathtouch source"
+        );
         // A plain (non-deathtouch) source does not satisfy it.
         state.objects.obj_mut(bear).mark_damage(None, Vec::new(), 1);
         assert!(
             !state.condition_holds(&cond, &frame),
             "a non-deathtouch source does not satisfy Has(Deathtouch)"
+        );
+        assert!(
+            !state.condition_holds(&as_predicate, &frame),
+            "the predicate spelling agrees: a non-deathtouch source does not satisfy \
+             Has(Deathtouch)"
         );
         // A deal-time deathtouch source does.
         state.objects.obj_mut(bear).mark_damage(
@@ -2033,6 +2057,10 @@ mod tests {
         assert!(
             state.condition_holds(&cond, &frame),
             "a deathtouch-sourced mark → condition holds"
+        );
+        assert!(
+            state.condition_holds(&as_predicate, &frame),
+            "the predicate spelling agrees: a deathtouch-sourced mark → condition holds"
         );
     }
 

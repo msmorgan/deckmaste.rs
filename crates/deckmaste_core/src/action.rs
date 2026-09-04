@@ -671,7 +671,10 @@ impl Action {
         let quantity = crate::Quantity::Range(Some(count.clone()), Some(count));
         let dest = crate::DefId(0);
         let over = if random {
-            Selection::Random(quantity.clone(), filter.clone())
+            Selection::Random(
+                quantity.clone(),
+                Arc::new(crate::Region::candidate(filter.clone())),
+            )
         } else {
             Selection::Reg(dest.into())
         };
@@ -845,13 +848,13 @@ pub fn discard_body_whose(body: &crate::Instruction) -> Option<&Reference> {
         Ose::Each(crate::Each {
             over: Selection::Random(_, filter),
             ..
-        }) => hand_owner_ref(filter),
+        }) => hand_owner_ref(&filter.body),
         Ose::Sequentially(parts) => parts.iter().find_map(|part| match part {
             Ose::Choose(choice) => Some(&choice.by),
             Ose::Each(crate::Each {
                 over: Selection::Random(_, filter),
                 ..
-            }) => hand_owner_ref(filter),
+            }) => hand_owner_ref(&filter.body),
             _ => None,
         }),
         _ => None,

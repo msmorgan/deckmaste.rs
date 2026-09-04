@@ -1013,10 +1013,14 @@ fn validate_candidate_domain(
             Ok(())
         }
         P::Not(part) => validate_candidate_domain(declared, part),
-        P::FromSource(part) => validate_candidate_domain(crate::Domain::Object, part),
-        P::State(crate::StatePredicate::RelatedBy(_, part)) => {
-            validate_candidate_domain(crate::Domain::Object, part)
-        }
+        // Relata that can only be objects: a stack ability's source
+        // ([CR#113.7]), a linked relation's other end ([CR#607.1]), and a
+        // damage source ([CR#120.1] — only an object deals damage).
+        P::FromSource(part)
+        | P::State(
+            crate::StatePredicate::RelatedBy(_, part)
+            | crate::StatePredicate::WasDealtDamageBy(part),
+        ) => validate_candidate_domain(crate::Domain::Object, part),
         P::State(crate::StatePredicate::Targets(part)) => {
             validate_candidate_domain(crate::Domain::Entity, part)
         }
@@ -1056,7 +1060,9 @@ fn validate_predicate_regions(
         P::Not(part)
         | P::FromSource(part)
         | P::State(
-            crate::StatePredicate::RelatedBy(_, part) | crate::StatePredicate::Targets(part),
+            crate::StatePredicate::RelatedBy(_, part)
+            | crate::StatePredicate::Targets(part)
+            | crate::StatePredicate::WasDealtDamageBy(part),
         ) => validate_predicate_regions(part, definitions),
         P::Characteristic(crate::CharacteristicPredicate::Stat(_, _, count))
         | P::PlayerStatCmp(_, _, count) => validate_count_regions(count, definitions),
@@ -1114,8 +1120,21 @@ fn validate_selection_regions(
 ) -> Result<(), ValidationError> {
     use crate::Selection as S;
     match selection {
-        S::Reg(reference) => validate_read(definitions, *reference, Some(Kind::Entities)),
-        S::SelectAll(region) => validate_predicate_region(region, definitions),
+        // Each register read declares its own collection domain
+        // ([CR#700.3b] — a pile is not an Entity group), so the shape it
+        // demands follows from the constructor with no cross-domain
+        // allowance.
+        S::Reg(_) | S::Pile(_) => validate_read(
+            definitions,
+            match selection {
+                S::Reg(reference) | S::Pile(reference) => *reference,
+                _ => unreachable!("matched above"),
+            },
+            Some(selection.collection_domain().register_kind()),
+        ),
+        S::SelectAll(region) | S::Random(_, region) => {
+            validate_predicate_region(region, definitions)
+        }
         S::Union(parts) => {
             for part in parts {
                 validate_selection_regions(part, definitions)?;
@@ -1342,8 +1361,7 @@ fn validate_read(
     if let Some(expected) = expected {
         let object_compatible = matches!(expected, Kind::Entity | Kind::Entities)
             && matches!(param.kind, Kind::Entity | Kind::Entities);
-        let pile_group = expected == Kind::Entities && param.kind == Kind::Pile;
-        if param.kind != expected && !object_compatible && !pile_group {
+        if param.kind != expected && !object_compatible {
             return Err(ValidationError::KindMismatch {
                 reference,
                 expected,
@@ -1916,6 +1934,147 @@ mod tests {
         );
     }
 
+    /// [CR#120.1]: only an object deals damage, so the damage-source
+    /// predicate reads its relatum in the Object domain — a player class
+    /// there is refused, and the atom itself keeps the DAMAGED object in the
+    /// Object domain.
+    #[test]
+    fn a_damage_source_is_read_in_the_object_domain() {
+        let dealt_by = |source| {
+            crate::Predicate::State(crate::StatePredicate::WasDealtDamageBy(Arc::new(source)))
+        };
+        let region = Region::over(dealt_by(crate::Predicate::Characteristic(
+            crate::CharacteristicPredicate::Has(crate::KeywordRef::from("Deathtouch")),
+        )));
+        assert_eq!(region.candidate_domain(), crate::Domain::Object);
+        assert_eq!(validate_predicate_region(&region, &[]), Ok(()));
+        assert_eq!(
+            validate_predicate_region(&Region::over(dealt_by(crate::Predicate::player())), &[]),
+            Err(ValidationError::CandidateDomain {
+                declared: crate::Domain::Object,
+                subject: crate::Domain::Player,
+            })
+        );
+    }
+
+    /// Every query constructor names the Entity domain it ranges over, so a
+    /// Player-only predicate cannot silently run over objects
+    /// ([CR#109.1,102.1]). A register read is the one constructor that
+    /// constrains nothing on its own — its declared parameter kind does.
+    #[test]
+    fn every_query_constructor_names_its_domain() {
+        use crate::Domain;
+        use crate::Reference;
+        use crate::Selection;
+
+        let reg = || Reference::Reg(RefId(0));
+        // References: each relation names the class its result belongs to
+        // ([CR#109.5,108.3,102.2,303.4b]).
+        assert_eq!(reg().referent_domain(), Domain::Entity);
+        assert_eq!(
+            Reference::ControllerOf(Arc::new(reg())).referent_domain(),
+            Domain::Player
+        );
+        assert_eq!(
+            Reference::OwnerOf(Arc::new(reg())).referent_domain(),
+            Domain::Player
+        );
+        assert_eq!(
+            Reference::OpponentOf(Arc::new(reg())).referent_domain(),
+            Domain::Player
+        );
+        // [CR#303.4b]: an Aura's host is "that object or player", so the
+        // attachment host does NOT narrow to the Object domain.
+        assert_eq!(
+            Reference::AttachHostOf(Arc::new(reg())).referent_domain(),
+            Domain::Entity
+        );
+        // A demoted selection inherits its members' domain.
+        let players = Selection::SelectAll(Arc::new(Region::over(crate::Predicate::player())));
+        assert_eq!(
+            Reference::Single(Arc::new(players.clone())).referent_domain(),
+            Domain::Player
+        );
+        // A coalesce over disagreeing arms widens rather than lying.
+        assert_eq!(
+            Reference::Coalesce(Arc::from([
+                Reference::ControllerOf(Arc::new(reg())),
+                Reference::Single(Arc::new(Selection::LibraryOf(reg()))),
+            ]))
+            .referent_domain(),
+            Domain::Entity
+        );
+        assert_eq!(
+            Reference::Coalesce(Arc::from([
+                Reference::ControllerOf(Arc::new(reg())),
+                Reference::OwnerOf(Arc::new(reg())),
+            ]))
+            .referent_domain(),
+            Domain::Player
+        );
+
+        // Selections: the declared region domain, the zone-slice object
+        // domain, and [CR#707.10d]'s explicitly mixed one.
+        assert_eq!(players.element_domain(), Domain::Player);
+        assert_eq!(
+            Selection::Random(
+                crate::Quantity::one(),
+                Arc::new(Region::over(crate::Predicate::creature()))
+            )
+            .element_domain(),
+            Domain::Object
+        );
+        assert_eq!(Selection::LibraryOf(reg()).element_domain(), Domain::Object);
+        assert_eq!(Selection::Pile(RefId(1)).element_domain(), Domain::Object);
+        assert_eq!(
+            Selection::ValidTargetsFor(reg()).element_domain(),
+            Domain::Entity
+        );
+        assert_eq!(Selection::Reg(RefId(1)).element_domain(), Domain::Entity);
+
+        // And the collection domains stay apart ([CR#700.3b]).
+        assert_eq!(
+            players.collection_domain(),
+            crate::CollectionDomain::Entities
+        );
+        assert_eq!(
+            Selection::Pile(RefId(1)).collection_domain(),
+            crate::CollectionDomain::Pile
+        );
+    }
+
+    /// A `Ref` predicate is "the candidate IS r", so it carries the
+    /// reference's own domain into the region's declaration: a filter naming
+    /// a controller declares the Player domain, and an object class beside it
+    /// is refused ([CR#109.5]).
+    #[test]
+    fn a_reference_predicate_narrows_to_its_referents_domain() {
+        let controller = crate::Predicate::Ref(crate::Reference::ControllerOf(Arc::new(
+            crate::Reference::source_parameter(),
+        )));
+        assert_eq!(controller.subject_domain(), crate::Domain::Player);
+        assert_eq!(
+            Region::over(controller.clone()).candidate_domain(),
+            crate::Domain::Player
+        );
+        assert_eq!(
+            validate_predicate_region(
+                &Region::candidate_in(
+                    crate::Domain::Object,
+                    crate::Predicate::And(Arc::from([
+                        controller,
+                        crate::Predicate::Class(crate::ObjectClass::Permanent),
+                    ]))
+                ),
+                &[]
+            ),
+            Err(ValidationError::CandidateDomain {
+                declared: crate::Domain::Object,
+                subject: crate::Domain::Player,
+            })
+        );
+    }
+
     #[test]
     fn sequential_effect_becomes_a_textual_block() {
         let block = Block::from(Instruction::Sequentially(Arc::from([])));
@@ -2329,7 +2488,10 @@ mod tests {
 
     /// Pile-producing instructions form a typed register chain: separating
     /// defines each candidate pile, choosing reads only those pile registers,
-    /// and the chosen pile remains an iterable object group ([CR#700.3a..700.3b]).
+    /// and the chosen pile is iterated through the pile-domain selection
+    /// ([CR#700.3a..700.3b]). Re-spelled from the Entity-group register read
+    /// this stage splits off: the subject, the chain, and the verdict are
+    /// unchanged.
     #[test]
     fn pile_registers_validate_as_iterable_groups() {
         let loop_body = Region::new(
@@ -2352,7 +2514,7 @@ mod tests {
                     by: crate::Reference::Reg(RefId(0)),
                     random: false,
                     then: Arc::new(Instruction::Each(crate::Each {
-                        over: crate::Selection::Reg(RefId(3)),
+                        over: crate::Selection::Pile(RefId(3)),
                         body: loop_body,
                     })),
                 }))),
@@ -2361,6 +2523,61 @@ mod tests {
         );
 
         assert_eq!(validate(&region), Ok(()));
+    }
+
+    /// The two collection domains do not answer for each other: a pile
+    /// register read as an Entity group, or an Entity group read as a pile,
+    /// is refused at load ([CR#700.3b] — the pile is not an object).
+    #[test]
+    fn a_pile_register_is_not_an_entity_group() {
+        // The same separate → choose chain as above; only the spelling of the
+        // read over the chosen pile (register 3) varies.
+        let over = |selection| {
+            Region::new(
+                Arc::from([param(0, Provenance::Source)]),
+                Instruction::SeparatePiles(crate::SeparatePiles {
+                    dests: Arc::from([DefId(1), DefId(2)]),
+                    group: crate::Selection::Union(Vec::new()),
+                    by: crate::Reference::Reg(RefId(0)),
+                    then: Some(Arc::new(Instruction::ChoosePile(crate::ChoosePile {
+                        dest: DefId(3),
+                        from: Arc::from([RefId(1), RefId(2)]),
+                        by: crate::Reference::Reg(RefId(0)),
+                        random: false,
+                        then: Arc::new(Instruction::Each(crate::Each {
+                            over: selection,
+                            body: Region::new(
+                                Arc::from([Param {
+                                    def: DefId(0),
+                                    kind: Kind::Entity,
+                                    provenance: Provenance::LoopElement,
+                                }]),
+                                Block::default(),
+                            ),
+                        })),
+                    }))),
+                })
+                .into(),
+            )
+        };
+
+        assert_eq!(validate(&over(crate::Selection::Pile(RefId(3)))), Ok(()));
+        assert_eq!(
+            validate(&over(crate::Selection::Reg(RefId(3)))),
+            Err(ValidationError::KindMismatch {
+                reference: RefId(3),
+                expected: Kind::Entities,
+                found: Kind::Pile,
+            }),
+        );
+        assert_eq!(
+            validate(&over(crate::Selection::Pile(RefId(0)))),
+            Err(ValidationError::KindMismatch {
+                reference: RefId(0),
+                expected: Kind::Pile,
+                found: Kind::Entity,
+            }),
+        );
     }
 
     /// A pile choice cannot consume an ordinary object register: a pile is an

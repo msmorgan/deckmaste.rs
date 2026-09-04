@@ -168,6 +168,7 @@ pub use dpsi::Ident;
 pub(crate) use dpsi::IdentSeed;
 pub use filter::Adjacency;
 pub use filter::CharacteristicPredicate;
+pub use filter::CollectionDomain;
 pub use filter::Domain;
 pub use filter::EntityClass;
 pub use filter::ObjectClass;
@@ -246,6 +247,7 @@ pub use status::Phasing;
 pub use status::Status;
 
 mod sort;
+pub use sort::ReferentSort;
 pub use sort::Sort;
 
 pub mod ron;

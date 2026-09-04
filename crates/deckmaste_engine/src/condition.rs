@@ -232,31 +232,6 @@ impl GameState {
     }
 }
 
-/// Does a damage source's DEAL-TIME abilities satisfy `filter`? The matcher
-/// behind `DealtDamageBy(subject, F)` ([CR#704.5h]): only what a mark captures
-/// — the source's abilities — is testable, so keyword predicates
-/// (`Has(Deathtouch)`) and their combinators are honored and every other
-/// predicate fizzles to `false` (a semantic-input error no-ops, never crashes).
-/// Matches by name via `ability_is_named`, exactly as the live `Has` arm does.
-fn source_abilities_match(
-    filter: &deckmaste_core::Predicate,
-    abilities: &[deckmaste_core::Ability],
-) -> bool {
-    use deckmaste_core::CharacteristicPredicate;
-    use deckmaste_core::Predicate;
-    if let Some(result) =
-        crate::target::walk_combinators(filter, |f| source_abilities_match(f, abilities))
-    {
-        return result;
-    }
-    match filter {
-        Predicate::Characteristic(CharacteristicPredicate::Has(name)) => abilities
-            .iter()
-            .any(|a| crate::layer::ability_is_named(a, &name.0)),
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;

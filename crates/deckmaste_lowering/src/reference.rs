@@ -82,9 +82,18 @@ impl Lower for deckmaste_semantics::Reference {
             Self::Coalesce(f0) => deckmaste_core::Reference::Coalesce(f0.lower()),
             Self::OwnerOf(f0) => deckmaste_core::Reference::OwnerOf(f0.lower()),
             Self::AttachHostOf(f0) => deckmaste_core::Reference::AttachHostOf(f0.lower()),
+            // [CR#120.1]: "an object that deals damage is the source of
+            // that damage" — being a source is a contextual relation over a
+            // SET of objects, never one Entity a core `Reference` denotes.
+            // Its only meaningful position is the damage-history query, which
+            // `Condition`'s lowering rewrites whole (both the explicit
+            // `DealtDamageBy(subject, F)` and the legacy `Matches(Source, F)`
+            // spelling); a `Source` anywhere else names nothing resolvable.
             Self::Source => {
                 crate::region::refuse(
-                    "damage-source history is only meaningful in a DealtDamageBy condition",
+                    "`Source` is the set of an object's marked-damage sources ([CR#120.1]), not \
+                     a reference to one object; damage-source history is only meaningful in a \
+                     DealtDamageBy condition",
                 );
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
             }
@@ -263,6 +272,22 @@ mod tests {
             deckmaste_semantics::Reference::AttachHostOf(std::sync::Arc::new(minimal_reference()))
                 .lower(),
             deckmaste_core::Reference::AttachHostOf(_)
+        );
+    }
+
+    /// Re-spelled from `lowers_reference_source`, whose target variant this
+    /// stage deletes: `Source` is a damage relation ([CR#120.1]), so it has
+    /// no core `Reference` spelling and lowering refuses it outside
+    /// `Matches`. Same subject, new outcome shape.
+    #[test]
+    fn source_is_not_a_core_reference() {
+        let outcome = crate::region::in_card("Source probe", || {
+            deckmaste_semantics::Reference::Source.lower()
+        });
+        let message = outcome.expect_err("a bare `Source` is refused");
+        assert!(
+            message.contains("[CR#120.1]"),
+            "the refusal names the damage-source rule: {message}"
         );
     }
 

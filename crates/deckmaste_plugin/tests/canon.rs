@@ -128,8 +128,10 @@ fn lightning_bolt_expands_target_macros() {
 
 /// Do or Die's authored pile labels are a surface convenience only: lowering
 /// allocates two pile registers, makes the choice read those registers, and
-/// makes the nested `Each` iterate the chosen-pile register
-/// ([CR#700.3a..700.3b]).
+/// makes the nested `Each` iterate the chosen-pile register through the
+/// PILE-domain selection ([CR#700.3a..700.3b] — the pile is not an Entity
+/// group). Re-spelled from the Entity-group register read this stage splits
+/// off; the registers and the shape are unchanged.
 #[test]
 fn do_or_die_lowers_pile_labels_to_registers() {
     let plugin = canon();
@@ -162,7 +164,11 @@ fn do_or_die_lowers_pile_labels_to_registers() {
     };
     assert_eq!(
         each.over,
-        deckmaste_core::Selection::Reg(deckmaste_core::RefId(6))
+        deckmaste_core::Selection::Pile(deckmaste_core::RefId(6))
+    );
+    assert_eq!(
+        each.over.collection_domain(),
+        deckmaste_core::CollectionDomain::Pile
     );
 }
 

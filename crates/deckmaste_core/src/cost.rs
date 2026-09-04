@@ -361,7 +361,8 @@ fn runnable_predicate_is_bound(predicate: &crate::Predicate) -> bool {
 
 fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
     match selection {
-        crate::Selection::Reg(_) => true,
+        // A register read of either collection domain is already bound.
+        crate::Selection::Reg(_) | crate::Selection::Pile(_) => true,
         crate::Selection::Union(selections) => selections.iter().all(runnable_selection_is_bound),
         crate::Selection::SelectAll(_)
         | crate::Selection::InChosenOrder(..)
@@ -875,7 +876,7 @@ mod tests {
     fn runnable_action_rejects_a_random_subject_hidden_in_a_reference() {
         let random = Reference::Single(Arc::new(crate::Selection::Random(
             crate::Quantity::one(),
-            crate::Predicate::Any,
+            Arc::new(crate::Region::candidate(crate::Predicate::Any)),
         )));
         assert_eq!(
             CostComponent::try_do_action(crate::Action::Sacrifice(
@@ -891,7 +892,7 @@ mod tests {
         let random = || {
             Reference::Single(Arc::new(crate::Selection::Random(
                 crate::Quantity::one(),
-                crate::Predicate::Any,
+                Arc::new(crate::Region::candidate(crate::Predicate::Any)),
             )))
         };
         let random_count = || Count::StatOf(random(), crate::Stat::Power);
@@ -1010,7 +1011,7 @@ mod tests {
         let random_reference = || {
             Reference::Single(Arc::new(crate::Selection::Random(
                 crate::Quantity::one(),
-                Predicate::Any,
+                Arc::new(crate::Region::candidate(Predicate::Any)),
             )))
         };
         assert_eq!(
@@ -1047,13 +1048,13 @@ mod tests {
         let random_reference = || {
             Reference::Single(Arc::new(crate::Selection::Random(
                 crate::Quantity::one(),
-                Predicate::Any,
+                Arc::new(crate::Region::candidate(Predicate::Any)),
             )))
         };
         for expr in [
             crate::Expr::Objects(crate::Selection::Random(
                 crate::Quantity::one(),
-                Predicate::Any,
+                Arc::new(crate::Region::candidate(Predicate::Any)),
             )),
             crate::Expr::Object(random_reference()),
             crate::Expr::Number(Count::StatOf(random_reference(), crate::Stat::Power)),

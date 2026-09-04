@@ -20,8 +20,21 @@ use crate::Reference;
 /// region registers, never resolved as anaphors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Selection {
-    /// The full object group stored in a region register.
+    /// The full ENTITY group stored in a region register — a
+    /// [`Kind::Entities`](crate::Kind::Entities) read. A pile-valued register
+    /// is a different domain and reads through [`Pile`](Self::Pile).
     Reg(crate::RefId),
+    /// The temporary PILE stored in a region register ([CR#700.3a]) — a
+    /// [`Kind::Pile`](crate::Kind::Pile) read, the collection-domain twin of
+    /// [`Reg`](Self::Reg).
+    ///
+    /// Separate from `Reg` because a pile is not an Entity group:
+    /// [CR#700.3b] — "each object in a pile is still an individual object.
+    /// The pile is not an object". A pile is written by a partition
+    /// instruction and named as a whole ("those piles", "a pile of your
+    /// choice"); its MEMBERS are objects, which is what
+    /// [`element_domain`](Self::element_domain) reports.
+    Pile(crate::RefId),
     /// All matching objects as one set ("every creature you control") — the
     /// group a distributor ([`Each`](crate::Each) / `StaticSpec::Each`)
     /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
@@ -42,8 +55,12 @@ pub enum Selection {
     /// [`Each`](crate::Each)es stay order-invisible — wrap only where the
     /// sequence is observable.
     InChosenOrder(Arc<Selection>, Reference),
-    /// A random selection of a quantity of matching objects.
-    Random(Quantity, Predicate),
+    /// A random selection of a quantity of matching candidates. The
+    /// predicate rides a candidate region like
+    /// [`SelectAll`](Self::SelectAll)'s, so the domain it enumerates over is
+    /// declared rather than inferred at evaluation ([CR#109.1,102.1] — ADR
+    /// law 2).
+    Random(Quantity, Arc<crate::Region<Predicate>>),
     /// The top `count` cards of a library, top → down (an ORDERED set —
     /// position is the whole point). `whose` names the library's player; the
     /// default `You` writes bare. Feeds the scry `Each` over the peeked
@@ -105,4 +122,49 @@ pub enum Selection {
     /// and ties yield the whole group (narrowed by the usual single/choice
     /// path downstream).
     Pick { op: AggregateOp, proj: Projection },
+}
+
+impl Selection {
+    /// The collection domain this selection ranges over — which register
+    /// shape it reads and what kind of group it denotes ([CR#700.3b]).
+    #[must_use]
+    pub fn collection_domain(&self) -> crate::CollectionDomain {
+        match self {
+            Selection::Pile(_) => crate::CollectionDomain::Pile,
+            _ => crate::CollectionDomain::Entities,
+        }
+    }
+
+    /// The Entity domain this selection's MEMBERS inhabit
+    /// ([CR#109.1,102.1]) — the group twin of
+    /// [`Reference::referent_domain`](crate::Reference::referent_domain).
+    /// Every constructor names one, so a Player-only query never enumerates
+    /// objects and the reverse. `Entity` means "either".
+    #[must_use]
+    pub fn element_domain(&self) -> crate::Domain {
+        match self {
+            // The declared candidate domain of the query's own region.
+            Selection::SelectAll(region) | Selection::Random(_, region) => {
+                region.candidate_domain()
+            }
+            // Zone slices read cards, and a pile holds objects ([CR#700.3b]).
+            Selection::TopOfLibrary { .. }
+            | Selection::BottomOfLibrary { .. }
+            | Selection::LibraryOf(_)
+            | Selection::TopOfGraveyard { .. }
+            | Selection::Pile(_) => crate::Domain::Object,
+            // Both Entity classes are in scope: [CR#707.10d] reads "each
+            // player or object it could target", and a register's members
+            // are whatever its declared parameter kind holds, which the
+            // selection alone cannot see.
+            Selection::ValidTargetsFor(_) | Selection::Reg(_) => crate::Domain::Entity,
+            Selection::InChosenOrder(inner, _) => inner.element_domain(),
+            Selection::Union(parts) => parts
+                .iter()
+                .map(Selection::element_domain)
+                .reduce(crate::Domain::meet)
+                .unwrap_or(crate::Domain::Entity),
+            Selection::Pick { proj, .. } => proj.of.element_domain(),
+        }
+    }
 }

@@ -99,6 +99,31 @@ impl Domain {
     }
 }
 
+/// Which COLLECTION a group-valued query ranges over — the collection-level
+/// twin of [`Domain`]. A [`crate::Selection`] names one, and the two never
+/// mix: [CR#700.3b] "each object in a pile is still an individual object. The
+/// pile is not an object", so a pile is a labeled group in its own domain and
+/// not an Entity group. [`crate::Kind`] is the register shape each answers to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CollectionDomain {
+    /// A group of Entities, each an individual member ([CR#109.1,102.1]) —
+    /// [`crate::Kind::Entities`].
+    Entities,
+    /// One temporary pile ([CR#700.3a,700.3b]) — [`crate::Kind::Pile`].
+    Pile,
+}
+
+impl CollectionDomain {
+    /// The register shape a selection in this domain reads.
+    #[must_use]
+    pub fn register_kind(self) -> crate::Kind {
+        match self {
+            CollectionDomain::Entities => crate::Kind::Entities,
+            CollectionDomain::Pile => crate::Kind::Pile,
+        }
+    }
+}
+
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
 /// object. `Type`/`Subtype` carry the RESOLVED def (`Arc<TypeDef>` /
 /// `Arc<Subtype>`) supplied by semantic lowering. Open, plugin-declared
@@ -188,6 +213,23 @@ pub enum StatePredicate {
     /// `And([InZone(Graveyard), WasPutFrom(Library)])` ([CR#701.17a]);
     /// "discarded" = `WasPutFrom(Hand)` ([CR#701.9a]).
     WasPutFrom(Zone),
+    /// The candidate was dealt damage by a source matching the inner
+    /// predicate — an EXISTENTIAL over the candidate's marked damage
+    /// ([CR#120.3]), read against each mark's DEAL-TIME abilities: the source
+    /// may since have lost the ability or left the battlefield, so the mark
+    /// carries what it had when it dealt the damage ([CR#702.2c]).
+    ///
+    /// [CR#120.1] settles why this is a predicate of the DAMAGED object and
+    /// not a reference: "an object that deals damage is the source of that
+    /// damage" — being a source is a contextual relation between two objects,
+    /// so a set of them is never one Entity a [`Reference`] can denote. The
+    /// lethal-damage SBA's deathtouch clause ([CR#704.5h]) is
+    /// `Matches(This, WasDealtDamageBy(Has(Deathtouch)))`.
+    ///
+    /// The relatum is an object ([CR#120.1] — only objects deal damage), so
+    /// the inner predicate runs in the Object domain. Boxed like its
+    /// `Targets`/`RelatedBy` peers to break the `Predicate` size cycle.
+    WasDealtDamageBy(Arc<Predicate>),
 }
 
 /// Structural relations the engine owns. Relations are
@@ -270,7 +312,7 @@ pub enum Predicate {
     /// the stack whose SOURCE — the object that generated it ([CR#113.7]) —
     /// matches the inner filter. Strict to abilities by construction: a
     /// spell carries its qualities itself, so "red spells or abilities from
-    /// red sources" is `Or([And([Kind(Spell), ColorIs(Red)]),
+    /// red sources" is `Or([And([Class(Spell), ColorIs(Red)]),
     /// FromSource(ColorIs(Red))])`. Boxed like the other one-child atoms.
     FromSource(Arc<Predicate>),
     And(Arc<[Predicate]>),
@@ -279,9 +321,8 @@ pub enum Predicate {
     /// The candidate matches iff a [`Condition`] holds with `It` bound to
     /// it — the bridge that lets a per-object filter slot reach the whole
     /// condition language ([CR#603.4] predicates) against the object being
-    /// matched. [`Reference::It`](crate::Reference::It) inside the condition
-    /// resolves to that candidate; `Ref(This)`/`Ref(You)` still anchor to the
-    /// carrier. Boxed to break the `Predicate` → `Condition` → `Predicate` size
+    /// matched. The region's candidate register inside the condition reads
+    /// that candidate; `Ref(This)`/`Ref(You)` still anchor to the carrier. Boxed to break the `Predicate` → `Condition` → `Predicate` size
     /// cycle. The one candidate-relative escape hatch: "shares a color with ~",
     /// "has the same name as ~", etc., expressed as
     /// `Where(SharesColor(It, This))` and kin.
@@ -355,9 +396,9 @@ impl Predicate {
                     }
                 }
             }
-            Predicate::Not(_) | Predicate::Ref(_) | Predicate::Where(_) | Predicate::Any => {
-                Domain::Entity
-            }
+            // "the candidate IS r", so the candidate's domain is r's own.
+            Predicate::Ref(reference) => reference.referent_domain(),
+            Predicate::Not(_) | Predicate::Where(_) | Predicate::Any => Domain::Entity,
         }
     }
 
@@ -377,8 +418,10 @@ impl RelationPredicate {
         match self {
             RelationPredicate::ControlledBy(_)
             | RelationPredicate::Owner(_)
-            | RelationPredicate::AttachedTo(_)
-            | RelationPredicate::Attachment(_) => Domain::Object,
+            | RelationPredicate::AttachedTo(_) => Domain::Object,
+            // [CR#303.4b]: an Aura enchants "that object or player", so the
+            // HOST side of the attachment relation admits either Entity.
+            RelationPredicate::Attachment(_) => Domain::Entity,
             RelationPredicate::Controls(_)
             | RelationPredicate::OpponentOf(_)
             | RelationPredicate::TeammateOf(_) => Domain::Player,
@@ -393,9 +436,13 @@ impl RelationPredicate {
             | RelationPredicate::Owner(p)
             | RelationPredicate::OpponentOf(p)
             | RelationPredicate::TeammateOf(p) => (p, Domain::Player),
-            RelationPredicate::Controls(p)
-            | RelationPredicate::AttachedTo(p)
-            | RelationPredicate::Attachment(p) => (p, Domain::Object),
+            // The host an attachment names is an object or a player
+            // ([CR#303.4b]); an attachment itself is always an object
+            // ([CR#301.5,303.4]).
+            RelationPredicate::AttachedTo(p) => (p, Domain::Entity),
+            RelationPredicate::Controls(p) | RelationPredicate::Attachment(p) => {
+                (p, Domain::Object)
+            }
         }
     }
 }
@@ -424,6 +471,7 @@ impl Normalize for StatePredicate {
         match self {
             Sp::RelatedBy(rel, f) => Sp::RelatedBy(rel, f.normalize()),
             Sp::Targets(f) => Sp::Targets(f.normalize()),
+            Sp::WasDealtDamageBy(f) => Sp::WasDealtDamageBy(f.normalize()),
             other => other,
         }
     }

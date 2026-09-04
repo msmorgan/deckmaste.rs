@@ -135,9 +135,28 @@ pub enum AggregateOp {
     AverageOf(RoundMode),
 }
 
+impl Countable {
+    /// The Entity domain the counted candidates inhabit
+    /// ([CR#109.1,102.1]) — the count-side twin of
+    /// [`Selection::element_domain`](crate::Selection::element_domain).
+    #[must_use]
+    pub fn element_domain(&self) -> crate::Domain {
+        match self {
+            Countable::Objects(region) => region.candidate_domain(),
+            // [CR#102.1]: the cross-player fold ranges over the people in
+            // the game and nothing else.
+            Countable::Players(_) => crate::Domain::Player,
+            Countable::Singleton(reference) => reference.referent_domain(),
+            // Mana symbols are not Entities; the domain question does not
+            // arise, so the widest answer is the honest one.
+            Countable::ManaSymbols(..) | Countable::ManaSpentMatching(..) => crate::Domain::Entity,
+        }
+    }
+}
+
 /// A per-element numeric projection over a set ([CR#107.1]) — the Idris
-/// `Project`. Each element of `of` binds [`Reference::It`] while `by` is
-/// read. Shared by [`Count::Aggregate`] (the value fold) and
+/// `Project`. Each element of `of` binds the projection region's candidate register
+/// while `by` is read. Shared by [`Count::Aggregate`] (the value fold) and
 /// [`Selection::Pick`](crate::Selection::Pick) (the extremal element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Projection {
@@ -145,7 +164,7 @@ pub struct Projection {
     /// `Countable::Players` (the cross-player fold, [CR#119.1]) are
     /// projectable today — Idris's `Projectable` proof.
     pub of: Countable,
-    /// The per-element read, over `Reference::It`.
+    /// The per-element read, over the projection region's candidate register.
     pub by: Arc<crate::Region<Count>>,
 }
 

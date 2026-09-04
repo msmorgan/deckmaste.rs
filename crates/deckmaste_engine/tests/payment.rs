@@ -994,7 +994,7 @@ fn random_discard_two_cost() -> Vec<CostComponent> {
                 _ => unreachable!("an at-random discard samples a Random selection"),
             },
             filter: random_sample_filter(match &each.over {
-                deckmaste_core::Selection::Random(_, filter) => filter.clone(),
+                deckmaste_core::Selection::Random(_, filter) => filter.body.clone(),
                 _ => unreachable!("an at-random discard samples a Random selection"),
             }),
         }),
@@ -1457,7 +1457,7 @@ fn discard_set_validates_before_any_card_moves() {
 fn nested_random_reference_cost_binder_fails_closed() {
     let random = Reference::Single(Arc::new(deckmaste_core::Selection::Random(
         deckmaste_core::Quantity::one(),
-        Predicate::Any,
+        Arc::new(deckmaste_core::Region::over(Predicate::Any)),
     )));
     assert_eq!(
         CostComponent::try_do_action(CoreAction::Tap(random)),
@@ -1625,7 +1625,7 @@ fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
 fn random_producer_subject_cost_binder_fails_closed() {
     let random = Reference::Single(Arc::new(deckmaste_core::Selection::Random(
         deckmaste_core::Quantity::one(),
-        Predicate::Any,
+        Arc::new(deckmaste_core::Region::over(Predicate::Any)),
     )));
     assert_eq!(
         CostComponent::try_do_action(CoreAction::Move(

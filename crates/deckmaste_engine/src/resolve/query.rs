@@ -148,6 +148,12 @@ impl GameState {
                     values
                 }
             }
+            // [CR#700.3b]: a pile register holds a labeled group whose members
+            // are still individual objects, so iterating it yields those
+            // members. Distinct from `Reg` only in the register shape it
+            // reads; a pile is never a target slot, so there is no
+            // announce-slot fallback.
+            Selection::Pile(reference) => self.activation_objects(frame.activation, *reference),
             // Thread the carrier (like `Pick`) so a carrier-relative predicate
             // resolves rather than panicking frameless: "each opponent" =
             // `SelectAll(OpponentOf(Ref(You)))` reads `Ref(You)` off the watcher.
@@ -951,7 +957,9 @@ mod tests {
                 .eval_selection_set(
                     &Selection::Random(
                         deckmaste_core::Quantity::one(),
-                        creatures_on_the_battlefield()
+                        std::sync::Arc::new(deckmaste_core::Region::over(
+                            creatures_on_the_battlefield()
+                        ))
                     ),
                     &frame
                 )

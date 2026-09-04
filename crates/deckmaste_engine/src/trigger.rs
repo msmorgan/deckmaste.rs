@@ -345,6 +345,10 @@ impl GameState {
         clippy::match_same_arms,
         reason = "separate false arms document distinct unsupported snapshot predicates"
     )]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one arm per predicate leaf; splitting the match hides which leaves are answered"
+    )]
     pub(crate) fn filter_matches_snapshot_with_activation(
         &self,
         filter: &Predicate,
@@ -534,6 +538,8 @@ impl GameState {
             // link back to a live object — genuinely unbuilt, not a
             // convenient-wrong default.
             Predicate::State(StatePredicate::WasPutFrom(_)) => false,
+            // A snapshot holds a damage TOTAL, not deal-time marks ([CR#120.3]).
+            Predicate::State(StatePredicate::WasDealtDamageBy(_)) => false,
             // [CR#302.6]: a gone/moved object has no summoning-sickness state
             // (snapshot doesn't capture it) — sound never-crash default.
             Predicate::State(StatePredicate::SummoningSick) => false,

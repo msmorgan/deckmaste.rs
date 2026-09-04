@@ -6297,7 +6297,9 @@ mod tests {
             Instruction::Each(deckmaste_core::Each {
                 over: Selection::Random(
                     deckmaste_core::Quantity::one(),
-                    creatures_on_the_battlefield(),
+                    std::sync::Arc::new(deckmaste_core::Region::over(
+                        creatures_on_the_battlefield(),
+                    )),
                 ),
                 body: loop_region(Instruction::Act(Action::destroy(Reference::Reg(ELEMENT)))),
             }),

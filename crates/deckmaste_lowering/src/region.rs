@@ -10,6 +10,8 @@ use deckmaste_core::RefId;
 use deckmaste_semantics::Ident;
 use deckmaste_semantics::Sort;
 
+use crate::Lower;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RegionKind {
     Static,
@@ -715,6 +717,27 @@ pub(crate) fn named(name: &Ident) -> Option<RefId> {
     read(|context| context.named.get(name).copied())
 }
 
+/// The declared register shape of `reference` in the region being built —
+/// what a group read has to agree with ([CR#700.3b]: a pile register is not
+/// an Entity group). `None` when the register is not (yet) declared here.
+pub(crate) fn register_kind(reference: RefId) -> Option<Kind> {
+    CONTEXTS.with(|contexts| {
+        contexts
+            .borrow()
+            .last()
+            .and_then(|context| context.definitions.get(reference.0 as usize).copied())
+    })
+}
+
+/// The group spelling of a register read, in the collection domain the
+/// register's own declared shape names ([CR#700.3a..700.3b]).
+pub(crate) fn group_read(reference: RefId) -> deckmaste_core::Selection {
+    match register_kind(reference) {
+        Some(Kind::Pile) => deckmaste_core::Selection::Pile(reference),
+        _ => deckmaste_core::Selection::Reg(reference),
+    }
+}
+
 pub(crate) fn push_antecedent(
     reference: RefId,
     kind: Kind,
@@ -819,33 +842,19 @@ pub(crate) fn scoped_antecedents<T>(f: impl FnOnce() -> T) -> T {
     value
 }
 
+/// Whether an antecedent of sort `have` can answer a mention of `want`.
+///
+/// The relation lives on the core sort, whose three arms ARE the three
+/// register domains, so an amount mention cannot reach an Entity antecedent
+/// and a pile mention cannot reach an Entity group ([CR#700.3b]).
 fn compatible(want: Sort, have: Sort) -> bool {
-    match (want, have) {
-        (Sort::Player, Sort::Player)
-        | (Sort::Card, Sort::Card)
-        | (Sort::Token, Sort::Token)
-        | (Sort::Spell, Sort::Spell)
-        | (Sort::StackObject, Sort::Spell | Sort::StackObject)
-        | (Sort::Permanent, Sort::Permanent | Sort::OfType(_) | Sort::Token)
-        | (Sort::Amount, Sort::Amount)
-        | (Sort::Pile, Sort::Pile) => true,
-        (Sort::OfType(a), Sort::OfType(b)) => a == b,
-        _ => false,
-    }
+    want.lower().compatible_with(have.lower())
 }
 
+/// Whether a register of shape `have` can answer a mention of `want` — the
+/// same domain split read straight off the sort.
 fn kind_compatible(want: Sort, have: Kind) -> bool {
-    match want {
-        Sort::Amount => have == Kind::Number,
-        Sort::Pile => have == Kind::Pile,
-        Sort::Player
-        | Sort::Card
-        | Sort::Token
-        | Sort::Spell
-        | Sort::StackObject
-        | Sort::Permanent
-        | Sort::OfType(_) => matches!(have, Kind::Entity | Kind::Entities),
-    }
+    want.lower().answered_by(have)
 }
 
 /// Whether `antecedent` can answer a mention of `cardinality`/`want`.

@@ -107,12 +107,16 @@ mod tests {
 }
 
 /// A bound variable: a value fixed earlier (at announce, by the rules of
-/// the position, or by a binder) and referenced later. References name
-/// *objects*; amounts live in [`crate::Quantity`].
+/// the position, or by a binder) and referenced later.
 ///
-/// A reference names an Entity, so it reaches a player as readily as an
-/// object ([CR#109.1,102.1]): the controller region parameter and the results
-/// of `ControllerOf` and `OwnerOf` resolve to players.
+/// A reference is SINGULAR and Entity-valued: every constructor denotes one
+/// Object or one Player ([CR#109.1,102.1]) — the controller region parameter
+/// and the results of `ControllerOf` and `OwnerOf` resolve to players.
+/// Nothing else lives here: a group is a [`crate::Selection`], an amount a
+/// [`crate::Quantity`], a pile a pile-valued register, and a contextual
+/// relation over a set (the sources of an object's marked damage,
+/// [CR#120.1]) a [`crate::Predicate`] atom. [`Reference::referent_domain`]
+/// states each constructor's domain.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Reference {
     /// An indexed read from the current region's activation record.
@@ -145,5 +149,37 @@ impl Reference {
     #[must_use]
     pub const fn controller_parameter() -> Self {
         Self::Reg(crate::RefId(1))
+    }
+
+    /// The Entity domain this reference's referent can inhabit
+    /// ([CR#109.1,102.1]). Every constructor names one: the possessor
+    /// relations produce a player ([CR#109.5,108.3,102.2]), an Aura's host
+    /// either Entity ([CR#303.4b]), a register read whatever its declared
+    /// [`Kind`](crate::Kind) holds, and a demoted selection its members'
+    /// domain. `Entity` means "either" — the constructor constrains nothing.
+    #[must_use]
+    pub fn referent_domain(&self) -> crate::Domain {
+        match self {
+            // [CR#109.5,108.3,102.2]: a controller, an owner, and an opponent
+            // are all players.
+            Reference::ControllerOf(_) | Reference::OwnerOf(_) | Reference::OpponentOf(_) => {
+                crate::Domain::Player
+            }
+            // [CR#303.4b]: "the object OR PLAYER an Aura is attached to" —
+            // an Equipment host is a creature ([CR#301.5]), but an Aura
+            // enchants either, so the host is Entity-wide.
+            Reference::AttachHostOf(_) => crate::Domain::Entity,
+            Reference::Single(selection) => selection.element_domain(),
+            // The first arm that resolves wins, so the reference can produce
+            // any domain its arms can.
+            Reference::Coalesce(parts) => parts
+                .iter()
+                .map(Reference::referent_domain)
+                .reduce(crate::Domain::meet)
+                .unwrap_or(crate::Domain::Entity),
+            // A register's domain is its declared parameter kind's, which the
+            // reference alone cannot see.
+            Reference::Reg(_) => crate::Domain::Entity,
+        }
     }
 }

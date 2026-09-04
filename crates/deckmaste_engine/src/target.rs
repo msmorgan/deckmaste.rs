@@ -152,6 +152,23 @@ where
     }
 }
 
+/// Whether a damage mark's captured DEAL-TIME abilities satisfy `filter`
+/// ([CR#120.3,702.2c]). The mark stores abilities, not an object, so only the
+/// combinators and `Has(name)` can be answered — every other atom would need
+/// the live source, which the deal-time reading deliberately does not consult.
+fn source_abilities_match(filter: &Predicate, abilities: &[deckmaste_core::Ability]) -> bool {
+    use deckmaste_core::CharacteristicPredicate;
+    if let Some(result) = walk_combinators(filter, |f| source_abilities_match(f, abilities)) {
+        return result;
+    }
+    match filter {
+        Predicate::Characteristic(CharacteristicPredicate::Has(name)) => abilities
+            .iter()
+            .any(|a| crate::layer::ability_is_named(a, &name.0)),
+        _ => false,
+    }
+}
+
 /// Whether the live object `id` matches `filter`. `watcher` is the carrier of
 /// the ability doing the matching (`Some` in the trigger lane, `None` for
 /// frameless targeting); it anchors `Ref(This)`/`Ref(You)` and threads into
@@ -558,6 +575,18 @@ pub(crate) fn matches_with_activation(
         // `DamagedBy`/`ExiledBy`), not a convenient-wrong default: fizzles to
         // `false`.
         Predicate::State(StatePredicate::WasPutFrom(_)) => false,
+        // [CR#120.3,702.2c]: was `id` dealt damage by a source matching
+        // `inner`? Existential over the object's marked damage, read against
+        // each mark's DEAL-TIME abilities — the source may since have lost
+        // the ability or left the battlefield, so the live source is never
+        // consulted ([CR#704.5h]'s deathtouch clause is the first consumer).
+        Predicate::State(StatePredicate::WasDealtDamageBy(inner)) => {
+            state.objects.get(id).is_some_and(|obj| {
+                obj.damage
+                    .iter()
+                    .any(|mark| source_abilities_match(inner, &mark.source_abilities))
+            })
+        }
         // ----- Seams: backed by subsystems not yet built -----
         // [CR#702.33d..702.33e]: the paid-cost linkage has no announce
         // record yet (engine-alt-costs).
@@ -699,7 +728,9 @@ fn resolve_frameless_reference(
             .iter()
             .find_map(|inner| resolve_frameless_reference(state, inner, watcher, activation)),
         // `Single` demotes a SELECTION, which only
-        // `resolve::eval_selection_set` evaluates and only from an `ExecutionFrame`.
+        // `resolve::eval_selection_set` evaluates and only from an
+        // `ExecutionFrame` — not a register derivation, so it does not resolve
+        // here.
         Reference::Single(_) => None,
     }
 }

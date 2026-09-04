@@ -25,6 +25,12 @@ impl Lower for deckmaste_semantics::Condition {
                 deckmaste_core::Condition::Compare(f0.lower(), f1.lower(), f2.lower())
             }
             Self::Exists(f0) => deckmaste_core::Condition::Exists(f0.lower()),
+            // [CR#120.1,120.3,702.2c]: `Matches(Source, F)` is not a read of
+            // one referent — it asks whether the object under evaluation was
+            // dealt damage by a source matching F, existentially over its
+            // marks' deal-time abilities. Core names that relation, so the
+            // whole condition lowers as a unit onto the same `DealtDamageBy`
+            // the explicit spelling below produces.
             Self::Matches(deckmaste_semantics::Reference::Source, filter) => {
                 deckmaste_core::Condition::DealtDamageBy(
                     deckmaste_core::Reference::Reg(

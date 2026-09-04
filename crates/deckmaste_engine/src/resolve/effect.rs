@@ -165,8 +165,15 @@ impl GameState {
         }
 
         let watcher = Some(self.frame_watcher(frame));
-        let candidates =
-            crate::target::candidates_with_activation(self, filter, watcher, frame.activation);
+        // The region's declared candidate domain gates the enumeration, so a
+        // random sample never offers a player to an Object-domain filter or
+        // the reverse ([CR#109.1,102.1]).
+        let candidates = crate::target::candidates_region_with_activation(
+            self,
+            filter,
+            watcher,
+            frame.activation,
+        );
         let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
         let n = usize::try_from(max).expect("sample count fits usize");
         let indices = rand::seq::index::sample(&mut self.rng, candidates.len(), n);

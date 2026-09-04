@@ -4,17 +4,24 @@
 
 use crate::Lower;
 
+const fn referent(sort: deckmaste_core::ReferentSort) -> deckmaste_core::Sort {
+    deckmaste_core::Sort::Referent(sort)
+}
+
 impl Lower for deckmaste_semantics::Sort {
     type Target = deckmaste_core::Sort;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Player => deckmaste_core::Sort::Player,
-            Self::Card => deckmaste_core::Sort::Card,
-            Self::Token => deckmaste_core::Sort::Token,
-            Self::Spell => deckmaste_core::Sort::Spell,
-            Self::StackObject => deckmaste_core::Sort::StackObject,
-            Self::Permanent => deckmaste_core::Sort::Permanent,
-            Self::OfType(f0) => deckmaste_core::Sort::OfType(f0.lower()),
+            // The Entity-valued nouns tag into the referent domain; the
+            // value and collection nouns are their own domains
+            // ([CR#608.2i,700.3b]).
+            Self::Player => referent(deckmaste_core::ReferentSort::Player),
+            Self::Card => referent(deckmaste_core::ReferentSort::Card),
+            Self::Token => referent(deckmaste_core::ReferentSort::Token),
+            Self::Spell => referent(deckmaste_core::ReferentSort::Spell),
+            Self::StackObject => referent(deckmaste_core::ReferentSort::StackObject),
+            Self::Permanent => referent(deckmaste_core::ReferentSort::Permanent),
+            Self::OfType(f0) => referent(deckmaste_core::ReferentSort::OfType(f0.lower())),
             Self::Amount => deckmaste_core::Sort::Amount,
             Self::Pile => deckmaste_core::Sort::Pile,
         }
@@ -38,7 +45,7 @@ mod tests {
     fn lowers_sort_player() {
         assert_matches!(
             deckmaste_semantics::Sort::Player.lower(),
-            deckmaste_core::Sort::Player
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::Player)
         );
     }
 
@@ -46,7 +53,7 @@ mod tests {
     fn lowers_sort_card() {
         assert_matches!(
             deckmaste_semantics::Sort::Card.lower(),
-            deckmaste_core::Sort::Card
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::Card)
         );
     }
 
@@ -54,7 +61,7 @@ mod tests {
     fn lowers_sort_token() {
         assert_matches!(
             deckmaste_semantics::Sort::Token.lower(),
-            deckmaste_core::Sort::Token
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::Token)
         );
     }
 
@@ -62,7 +69,7 @@ mod tests {
     fn lowers_sort_spell() {
         assert_matches!(
             deckmaste_semantics::Sort::Spell.lower(),
-            deckmaste_core::Sort::Spell
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::Spell)
         );
     }
 
@@ -70,7 +77,7 @@ mod tests {
     fn lowers_sort_stack_object() {
         assert_matches!(
             deckmaste_semantics::Sort::StackObject.lower(),
-            deckmaste_core::Sort::StackObject
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::StackObject)
         );
     }
 
@@ -78,7 +85,7 @@ mod tests {
     fn lowers_sort_permanent() {
         assert_matches!(
             deckmaste_semantics::Sort::Permanent.lower(),
-            deckmaste_core::Sort::Permanent
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::Permanent)
         );
     }
 
@@ -86,7 +93,9 @@ mod tests {
     fn lowers_sort_of_type() {
         assert_matches!(
             deckmaste_semantics::Sort::OfType(minimal_type()).lower(),
-            deckmaste_core::Sort::OfType(deckmaste_core::Type::Artifact)
+            deckmaste_core::Sort::Referent(deckmaste_core::ReferentSort::OfType(
+                deckmaste_core::Type::Artifact
+            ))
         );
     }
 
