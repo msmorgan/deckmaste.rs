@@ -216,7 +216,16 @@ fn indefinite(noun: Noun) -> NounPhrase {
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
-    determined_singular(DeterminativeHeadLemma::Target, noun)
+    let determiner = Determinative::TargetingMarkerDeterminative(TargetingMarkerDeterminative {
+        marker: TargetingMarker::Target,
+    });
+    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
+        nominal: singular_nominal(noun),
+    });
+    noun_phrase(UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(Determiner::Headed(determiner), nominal)
+            .expect("the targeting marker determinative agrees with its singular nominal"),
+    ))
 }
 
 fn determined_singular(determiner: DeterminativeHeadLemma, noun: Noun) -> NounPhrase {

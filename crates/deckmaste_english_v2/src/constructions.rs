@@ -121,6 +121,7 @@ constructions! {
         First = "first",
         Main = "main",
         Maximum = "maximum",
+        New = "new",
         Next = "next",
         Other = "other",
         Postcombat = "postcombat",
@@ -128,11 +129,11 @@ constructions! {
         Same = "same",
         Second = "second",
         SixSided = "six-sided",
-        Target = "target" {
-            feature HomographLicense = Licensed;
-            feature ModifierLicense = LocalDeterminer;
-        },
         Untap = "untap" { feature HomographLicense = Licensed; },
+    }
+    vocab TargetingMarker {
+        feature HomographLicense = Licensed;
+        Target = "target",
     }
     vocab ContractedPerfectSubject { Youve = "you've", Theyve = "they've", }
     vocab ContractedCopularSubject {
@@ -982,12 +983,6 @@ constructions! {
                     nominal_license = CountNominal;
                     fused_head_license = NominalOnly;
                     realizations = [{ surface = "any one"; }];
-                },
-                Target {
-                    number_license = SingularOnly;
-                    nominal_license = CountNominal;
-                    fused_head_license = NominalOnly;
-                    realizations = [{ surface = "target"; }];
                 },
             ];
         }
@@ -2384,6 +2379,7 @@ constructions! {
             First => Values::Consonant,
             Main => Values::Consonant,
             Maximum => Values::Consonant,
+            New => Values::Consonant,
             Next => Values::Consonant,
             Other => Values::Vowel,
             Postcombat => Values::Consonant,
@@ -2391,10 +2387,17 @@ constructions! {
             Same => Values::Consonant,
             Second => Values::Consonant,
             SixSided => Values::Consonant,
-            Target => Values::Consonant,
             Untap => Values::Vowel,
         };
         form attributive_adjective_modifier = lex(adjective);
+    }
+    construction targeting_marker_nominal_modifier: NominalModifier {
+        element TargetingMarkerNominalModifier { marker: lex TargetingMarker, }
+        derive modifier_license = Values::LocalDeterminer;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form targeting_marker_nominal_modifier = lex(marker);
     }
     construction counter_kind_modifier: NominalModifier {
         element CounterKindModifier { kind: CounterKind, }
@@ -3032,6 +3035,16 @@ constructions! {
         derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
         form singular_simple_determinative = lex(head);
+    }
+    construction targeting_marker_determinative: Determinative {
+        element TargetingMarkerDeterminative { marker: lex TargetingMarker, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive determiner_number = Values::SingularOnly;
+        derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::NominalOnly;
+        derive onset = Values::Consonant;
+        form targeting_marker_determinative = lex(marker);
     }
     construction plural_simple_determinative: Determinative {
         element PluralSimpleDeterminative {

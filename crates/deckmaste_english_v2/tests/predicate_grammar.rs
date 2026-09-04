@@ -789,7 +789,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
             ),
             (
                 " target".to_owned(),
-                "determinative:DeterminativeHead/Target".to_owned(),
+                "vocab:TargetingMarker/Target".to_owned(),
             ),
             (
                 " Equipment".to_owned(),
@@ -801,7 +801,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
             ),
             (
                 " target".to_owned(),
-                "determinative:DeterminativeHead/Target".to_owned(),
+                "vocab:TargetingMarker/Target".to_owned(),
             ),
             (
                 " creature".to_owned(),
@@ -1193,7 +1193,7 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
         [
             (
                 "Target".to_owned(),
-                "determinative:DeterminativeHead/Target".to_owned(),
+                "vocab:TargetingMarker/Target".to_owned(),
             ),
             (
                 " creature".to_owned(),
@@ -1462,7 +1462,7 @@ fn shared_transitive_lexical_verb_phrase_preserves_visit_order_and_literal_claim
         [
             (0, 3, "vocab:SubjectPronoun/You".to_owned()),
             (3, 13, "lexeme:keyword_action/Sacrifice/bare".to_owned(),),
-            (13, 20, "determinative:DeterminativeHead/Target".to_owned(),),
+            (13, 20, "vocab:TargetingMarker/Target".to_owned(),),
             (20, 27, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
                 27,
@@ -1470,7 +1470,7 @@ fn shared_transitive_lexical_verb_phrase_preserves_visit_order_and_literal_claim
                 "structural:AndPredicateCoordination/members/separator/pair/0".to_owned(),
             ),
             (32, 39, "core-verb:Control".to_owned()),
-            (39, 46, "determinative:DeterminativeHead/Target".to_owned(),),
+            (39, 46, "vocab:TargetingMarker/Target".to_owned(),),
             (46, 53, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
                 53,

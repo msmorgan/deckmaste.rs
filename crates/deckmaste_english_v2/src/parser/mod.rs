@@ -1217,12 +1217,12 @@ mod structural_trace_tests {
             assert_eq!(summary.claimed_bytes(), 22);
             assert_eq!(summary.form_literal_claims(), 1);
             assert_eq!(summary.form_literal_bytes(), 1);
-            assert_eq!(summary.vocab_claims(), 0);
-            assert_eq!(summary.vocab_bytes(), 0);
+            assert_eq!(summary.vocab_claims(), 1);
+            assert_eq!(summary.vocab_bytes(), 7);
             assert_eq!(summary.lexeme_claims(), 2);
             assert_eq!(summary.lexeme_bytes(), 14);
-            assert_eq!(summary.codec_claims(), 1);
-            assert_eq!(summary.codec_bytes(), 7);
+            assert_eq!(summary.codec_claims(), 0);
+            assert_eq!(summary.codec_bytes(), 0);
             assert_eq!(summary.identity_claims(), 0);
             assert_eq!(summary.identity_bytes(), 0);
             assert_eq!(summary.gap_spans(), 0);
@@ -1299,12 +1299,7 @@ mod structural_trace_tests {
                     7,
                     "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }), prepositional_adjunct_licensed: false, nonprepositional_adjunct_licensed: false }, agreement: Bare, onset: Consonant }",
                 ),
-                (7, 14, "AttributiveAdjective(Target)"),
-                (
-                    7,
-                    14,
-                    "DeterminativeHead { value: Closed(Target), onset: Consonant, following_onset: Any, number_license: SingularOnly, fused_head_license: NominalOnly, nominal_license: CountNominal }",
-                ),
+                (7, 14, "TargetingMarker(Target)"),
                 (
                     7,
                     14,

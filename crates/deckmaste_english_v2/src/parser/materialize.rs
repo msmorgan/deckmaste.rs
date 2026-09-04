@@ -1938,7 +1938,7 @@ mod tests {
                 Construction::NounPhraseQualifiedNounPhrase,
                 Construction::PostmodifiedReferenceUnqualifiedPostmodifiedReference,
                 Construction::UnqualifiedReferenceDeterminedNominal,
-                Construction::DeterminativeSingularSimpleDeterminative,
+                Construction::DeterminativeTargetingMarkerDeterminative,
                 Construction::NominalSingularNominalValue,
                 Construction::SingularNominalBareSingularNominal,
                 Construction::SingularHeadNounSingularHead,
@@ -1958,7 +1958,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),
-                RulePosition::Lexical(Lexical::DeclarationDeterminative(124)),
+                RulePosition::Lexical(Lexical::TargetingMarker),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
@@ -1989,7 +1989,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
-                    "determinative:DeterminativeHead/Target",
+                    "vocab:TargetingMarker/Target",
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },

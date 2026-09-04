@@ -1294,3 +1294,27 @@ Frame or a Lexical Verb Phrase, and English-v2 does not use that Game Model
 name for syntax. Historical uses of “valence,” “Numerative,” “base verb
 frame,” and unqualified engine “Frame” remain above as the record of the
 superseded vocabulary.
+
+## Amendment: one Targeting Marker with two projections (2026-09-04)
+
+Targeting-sense prenominal *target* is one invariant lexical Targeting Marker,
+not a determiner, adjective, or count noun. This supersedes the categorical
+target-as-determiner claim above, the 2026-08-27 target-as-noun amendment's
+statement that *target* remains a determiner, and the 2026-09-02 homograph
+ruling's description of attributive *target*. It retains the syntax those
+claims were trying to preserve: a thin determinative projection licenses bare
+singular *target creature*, while a thin nominal-modifier projection licenses
+*target* under *another*, numerals, *up to N*, and similar determiners, as well
+as in zero-determined plural nominals. Both projections consume the same
+Targeting Marker and contribute the same later projection to the Game Model
+Target relation; neither projection is a second lexeme. Rules meaning remains
+downstream: a target is chosen for a spell or ability according to its
+requirements [CR#115.1], and changing targets chooses new legal targets
+[CR#115.7a].
+
+The ordinary count noun *target/targets* and the verb paradigm
+*target/targets/targeted/targeting* remain independent lexical homographs. They
+license noun uses such as *choose new targets* and verb uses such as *a spell
+that targets*; they are not projections of the Targeting Marker. The declared
+homograph licence governs the shared surface without any scanner or grammar
+guard naming the marker, a construction, or a card.

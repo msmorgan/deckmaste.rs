@@ -183,7 +183,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 (0, 7, "lexeme:keyword_action/Destroy/bare"),
-                (7, 14, "determinative:DeterminativeHead/Target"),
+                (7, 14, "vocab:TargetingMarker/Target"),
                 (14, 23, "lexeme:type/Creature/singular"),
                 (23, 24, "structural:Sentences/sentences/terminator/0"),
             ]

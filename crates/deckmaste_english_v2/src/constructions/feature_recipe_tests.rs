@@ -42,8 +42,8 @@ mod coordination_feature_recipes {
     fn determinative(number: Number) -> Determinative {
         match number {
             Number::Singular => {
-                Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
-                    head: DeterminativeHead::Closed(DeterminativeHeadLemma::Target),
+                Determinative::TargetingMarkerDeterminative(TargetingMarkerDeterminative {
+                    marker: TargetingMarker::Target,
                 })
             }
             Number::Plural => Determinative::PluralSimpleDeterminative(PluralSimpleDeterminative {

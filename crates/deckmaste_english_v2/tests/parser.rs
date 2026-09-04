@@ -502,7 +502,9 @@ fn indefinite(noun: Noun) -> NounPhrase {
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(determined_nominal(
-        singular_simple_determinative(DeterminativeHeadLemma::Target),
+        Determinative::TargetingMarkerDeterminative(TargetingMarkerDeterminative {
+            marker: TargetingMarker::Target,
+        }),
         singular_nominal_value(noun),
     ))
 }
@@ -1421,7 +1423,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "NounPhraseQualifiedNounPhrase".to_owned(),
             "PostmodifiedReferenceUnqualifiedPostmodifiedReference".to_owned(),
             "UnqualifiedReferenceDeterminedNominal".to_owned(),
-            "DeterminativeSingularSimpleDeterminative".to_owned(),
+            "DeterminativeTargetingMarkerDeterminative".to_owned(),
             "NominalSingularNominalValue".to_owned(),
             "SingularNominalBareSingularNominal".to_owned(),
             "SingularHeadNounSingularHead".to_owned(),
@@ -1448,8 +1450,8 @@ fn parser_analysis_retains_complete_lexical_ownership() {
         (1, 1)
     );
     assert_eq!((summary.lexeme_claims(), summary.lexeme_bytes()), (2, 16));
-    assert_eq!((summary.vocab_claims(), summary.vocab_bytes()), (0, 0));
-    assert_eq!((summary.codec_claims(), summary.codec_bytes()), (1, 7));
+    assert_eq!((summary.vocab_claims(), summary.vocab_bytes()), (1, 7));
+    assert_eq!((summary.codec_claims(), summary.codec_bytes()), (0, 0));
     assert_eq!(summary.identity_claims(), 0);
     assert_eq!(summary.gap_spans(), 0);
     assert_eq!(summary.overlap_spans(), 0);
@@ -1766,7 +1768,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "NounPhraseQualifiedNounPhrase",
                     "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
                     "UnqualifiedReferenceDeterminedNominal",
-                    "DeterminativeSingularSimpleDeterminative",
+                    "DeterminativeTargetingMarkerDeterminative",
                     "NominalSingularNominalValue",
                     "SingularNominalBareSingularNominal",
                     "SingularHeadNounSingularHead",
