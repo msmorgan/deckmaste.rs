@@ -110,6 +110,41 @@ lines: +3 added, -2 retired).
   parent, so the narrowing is a parse-time improvement. All exceed the
   16.260 s quiet-host ceiling under contention; reported, not a STOP.
 
+### Refresh re-measurement (2026-09-04)
+
+`kata refresh` brought in `english-v2-concord-class` (Agreement -> ConcordClass
+across construction_core, english_v2 and xtask). Three files conflicted and
+were resolved keeping both sides: the two parser Debug-label fixtures
+(`parser/mod.rs`, `parser/scan.rs`) take trunk's `concord_class:` key and
+value together with this landing's removal of the two licence fields, and
+`tests/determiner_contract.rs` keeps this landing's duration-rescue rejection
+loop with trunk's renamed vocabulary in its message.
+
+Re-measured on the refreshed stack against the refreshed claim commit
+`lknmvxyrwnqx`: base selected/covered 16,824/16,824, parse failures 15,817;
+result 16,825/16,825, parse failures 15,816; census unique 13,328,
+specificity-resolved 3,497, exception-resolved 0, unresolved ties 0. Identical
+to the pre-refresh figures, so the rename is coverage- and census-neutral and
+every number in this record stands as measured. Result lock SHA-256
+`768840a5f72cfbd36d2864c3a9e2ad4a215bea671c41441a94e3d91a8be27553`, covered
+count 16,825.
+
+Gates on the refreshed stack, all foreground: `cargo fmt --all --check` exit 0;
+`cargo clippy -p {deckmaste_english_v2, deckmaste_construction_core,
+deckmaste_construction, xtask} --all-targets -- -D warnings` exit 0 each;
+`cargo test --workspace` 127 result lines, 6,114 passed, 0 failed, 6
+pre-existing ignored; `coverage --check` exit 0 with the lock exactly current,
+zero newly covered and zero drops; `ambiguity --require-resolved` exit 0;
+`roundtrip` 16,825 clean, 0 mismatched. No citation changed, so the cite gates
+were not exercised.
+
+Post-refresh performance advisory (8 workers; 1 concurrent codex executor plus
+this review on the host): coverage 82.389 s, 109,164 ns/B, load
+9.65/11.81/9.74; ambiguity 88.588 s, 121,898 ns/B, load 8.95/11.19/9.72;
+roundtrip 90.540 s, 117,287 ns/B, load 9.92/11.31/9.92; refreshed base
+coverage 88.323 s, 112,024 ns/B, load 5.09/8.88/9.20. All exceed the 16.260 s
+quiet-host ceiling under contention; reported, not a STOP.
+
 ### Deviations and additions
 
 Three verb-frame additions, none in either ticket's letter, each required to
