@@ -104,4 +104,5 @@ keywordFacts =
   , { word := "Decayed", paramShapes := [NoParam], counterEligible := True } defaultKeywordFacts
   , { word := "Exalted", paramShapes := [NoParam], counterEligible := True, bodied := True } defaultKeywordFacts
   , { word := "Shadow", paramShapes := [NoParam], counterEligible := True } defaultKeywordFacts
+  , { word := "Companion", paramShapes := [DeckConditionParam] } defaultKeywordFacts
   ]

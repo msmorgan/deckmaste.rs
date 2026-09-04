@@ -374,3 +374,47 @@ public export
 badCounterJoinedPlayer : Unspellable (Instruction []) (\ok =>
   CounterSpell (Macros.target Macros.anyTarget) {ct = ok})
 badCounterJoinedPlayer StackJoin impossible
+
+||| "Companion — Each permanent card in your starting deck has mana value 2 or less."
+public export
+okCompanionCharacteristicRead : AbilityAt []
+okCompanionCharacteristicRead =
+  Macros.companion
+    (EveryCardIs (And [Permanent, IsCard])
+       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))))
+
+||| "Companion — Each card on the battlefield in your starting deck ...": a
+||| zone is a place objects are during a game [CR#400.1] and the starting deck
+||| is outside it [CR#103.2b], so it is not a characteristic [CR#109.3].
+||| `EveryCardIs (And [Permanent, IsCard])` spells "each permanent card".
+public export
+badCompanionZoneScope : Unspellable (AbilityAt []) (\ok =>
+  Macros.companion
+    (EveryCardIs (InZone Macros.battlefieldZ)
+       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))) {dr = ok}))
+badCompanionZoneScope ReadsCharacteristics impossible
+
+||| "Companion — Each permanent card in your starting deck is tapped.":
+||| whether a permanent is tapped is not a characteristic [CR#109.3], and a
+||| card set aside for the starting deck is not on the battlefield [CR#103.2b].
+public export
+badCompanionBattlefieldStatus : Unspellable (AbilityAt []) (\ok =>
+  Macros.companion
+    (EveryCardIs (And [Permanent, IsCard])
+       (ACharacteristic (HasStatus Tapped) {dr = ok})))
+badCompanionBattlefieldStatus ReadsCharacteristics impossible
+
+||| "Companion — Each nonland card in your starting deck shares a card type."
+public export
+okCompanionSharedCardType : AbilityAt []
+okCompanionSharedCardType =
+  Macros.companion (CardsShare (And [Not Macros.land, IsCard]) CardTypeQ)
+
+||| "Companion — Each nonland card in your starting deck shares a color.": no
+||| printed companion compares a color across the deck, and the sort admits
+||| only the two characteristics they do compare [CR#109.3].
+public export
+badCompanionSharedColor : Unspellable (AbilityAt []) (\ok =>
+  Macros.companion
+    (CardsShare (And [Not Macros.land, IsCard]) Color {dc = ok}))
+badCompanionSharedColor ComparesCharacteristic impossible

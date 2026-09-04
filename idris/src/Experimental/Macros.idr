@@ -1815,6 +1815,13 @@ keywordNumberCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
 keywordNumberCosting kw amt c = KeywordAbility kw (Just (ParamNumberCost amt c)) Nothing {pf}
 
 public export
+companion : {0 bs : Bindings} -> (dc : DeckCondition) ->
+            {auto 0 pf : KeywordParamFits {bs} "Companion"
+                           (Just (ParamDeckCondition {bs} dc))} ->
+            AbilityAt bs
+companion dc = KeywordAbility "Companion" (Just (ParamDeckCondition dc)) Nothing {pf}
+
+public export
 abilityWord : {0 bs : Bindings} -> (word : AbilityWordLabel) ->
               (ab : AbilityAt bs) ->
               {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs

@@ -81,6 +81,7 @@ enum Shape {
     Ability,
     CompoundQuality,
     CompoundNumber,
+    DeckCondition,
 }
 
 impl Shape {
@@ -94,6 +95,7 @@ impl Shape {
             Shape::Ability => "AbilityParam",
             Shape::CompoundQuality => "CompoundParam QualityHead",
             Shape::CompoundNumber => "CompoundParam NumberHead",
+            Shape::DeckCondition => "DeckConditionParam",
         }
     }
 
@@ -109,6 +111,7 @@ impl Shape {
             ["Ability"] => Shape::Ability,
             ["Quality", "Cost"] => Shape::CompoundQuality,
             ["Amount", "Cost"] => Shape::CompoundNumber,
+            ["Condition"] => Shape::DeckCondition,
             _ => return None,
         })
     }
@@ -725,6 +728,10 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Shadow",
             counter_eligible: true,
+            ..D
+        },
+        Row {
+            label: "Companion",
             ..D
         },
     ]

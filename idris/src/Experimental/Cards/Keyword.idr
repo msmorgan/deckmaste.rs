@@ -1941,3 +1941,66 @@ grandeurDiscardCost =
   Do (Macros.discard You
         (Macros.a (And [Named (PrintedName "Korlash, Heir to Blackblade"),
                         OtherThan This, InZone Macros.handZ])))
+
+||| Gyruda, Doom of Depths
+gyrudaCompanion : AbilityAt []
+gyrudaCompanion =
+  Macros.companion (EveryCardIs IsCard (ManaValueParity EvenValue))
+
+||| Jegantha, the Wellspring
+jeganthaCompanion : AbilityAt []
+jeganthaCompanion =
+  Macros.companion (NoCardIs IsCard RepeatedManaSymbol)
+
+||| Kaheera, the Orphanguard
+kaheeraCompanion : AbilityAt []
+kaheeraCompanion =
+  Macros.companion
+    (EveryCardIs (And [Macros.creature, IsCard])
+       (AnyTraitOf [ ACharacteristic (HasSubtype (creatureType "Cat"))
+                   , ACharacteristic (HasSubtype (creatureType "Elemental"))
+                   , ACharacteristic (HasSubtype (creatureType "Nightmare"))
+                   , ACharacteristic (HasSubtype (creatureType "Dinosaur"))
+                   , ACharacteristic (HasSubtype (creatureType "Beast")) ]))
+
+||| Keruga, the Macrosage
+kerugaCompanion : AbilityAt []
+kerugaCompanion =
+  Macros.companion
+    (EveryCardIs IsCard
+       (AnyTraitOf [ ACharacteristic (Compare [CharAxis ManaValue] AtLeast (Lit 3))
+                   , ACharacteristic Macros.land ]))
+
+||| Lurrus of the Dream-Den
+lurrusCompanion : AbilityAt []
+lurrusCompanion =
+  Macros.companion
+    (EveryCardIs (And [Permanent, IsCard])
+       (ACharacteristic (Compare [CharAxis ManaValue] AtMost (Lit 2))))
+
+||| Lutri, the Spellchaser
+lutriCompanion : AbilityAt []
+lutriCompanion =
+  Macros.companion (CardsDiffer (And [Not Macros.land, IsCard]) CardName)
+
+||| Obosh, the Preypiercer
+oboshCompanion : AbilityAt []
+oboshCompanion =
+  Macros.companion
+    (EveryCardIs IsCard
+       (AnyTraitOf [ManaValueParity OddValue, ACharacteristic Macros.land]))
+
+||| Umori, the Collector
+umoriCompanion : AbilityAt []
+umoriCompanion =
+  Macros.companion (CardsShare (And [Not Macros.land, IsCard]) CardTypeQ)
+
+||| Yorion, Sky Nomad
+yorionCompanion : AbilityAt []
+yorionCompanion = Macros.companion (DeckSizeOverMinimum 20)
+
+||| Zirda, the Dawnwaker
+zirdaCompanion : AbilityAt []
+zirdaCompanion =
+  Macros.companion
+    (EveryCardIs (And [Permanent, IsCard]) (HasAbilityOf AnyActivated))

@@ -31,6 +31,7 @@ public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
                        | NumberParam | AbilityParam
                        | CompoundParam CompoundHead
+                       | DeckConditionParam
 
 public export
 keywordParamShapeIx : KeywordParamShape -> Nat
@@ -41,6 +42,7 @@ keywordParamShapeIx SubjectParam = 3
 keywordParamShapeIx NumberParam = 4
 keywordParamShapeIx AbilityParam = 5
 keywordParamShapeIx (CompoundParam _) = 6
+keywordParamShapeIx DeckConditionParam = 7
 
 public export
 sameKeywordParam : KeywordParamShape -> KeywordParamShape -> Bool

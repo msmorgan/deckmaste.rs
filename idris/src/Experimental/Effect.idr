@@ -1978,6 +1978,105 @@ mutual
   simPres (e :: es) = simPres es
 
   public export
+  deckAxis : ProjAxis -> Bool
+  deckAxis (CharAxis ManaValue) = True
+  deckAxis _ = False
+
+  public export
+  deckAxes : List ProjAxis -> Bool
+  deckAxes [] = True
+  deckAxes (a :: as) = deckAxis a && deckAxes as
+
+  public export
+  deckBound : Amount [] -> Bool
+  deckBound (Lit _) = True
+  deckBound _ = False
+
+  ||| A card set aside for the starting deck is outside the game
+  ||| [CR#103.2b], so only its characteristics are readable [CR#109.3]: a
+  ||| zone is a place objects are during a game [CR#400.1], and status,
+  ||| counters and controller are not characteristics.
+  public export
+  deckReadable : Predicate [] Object -> Bool
+  deckReadable IsCard = True
+  deckReadable Permanent = True
+  deckReadable (HasType _) = True
+  deckReadable (HasSubtype _) = True
+  deckReadable (Compare axes _ bound) = deckAxes axes && deckBound bound
+  deckReadable (And ps) = deckReadableAll ps
+  deckReadable (Not p) = deckReadable p
+  deckReadable _ = False
+
+  public export
+  deckReadableAll : List (Predicate [] Object) -> Bool
+  deckReadableAll [] = True
+  deckReadableAll (p :: ps) = deckReadable p && deckReadableAll ps
+
+  ||| A characteristic read of a card in the starting deck [CR#109.3].
+  public export
+  data DeckReadable : Predicate [] Object -> Type where
+    ReadsCharacteristics : {0 p : Predicate [] Object} ->
+                           {auto 0 ok : deckReadable p = True} ->
+                           DeckReadable p
+
+  public export
+  deckComparable : QualitySort -> Bool
+  deckComparable CardName = True
+  deckComparable CardTypeQ = True
+  deckComparable _ = False
+
+  ||| A characteristic a deck condition compares across the deck's cards
+  ||| [CR#109.3].
+  public export
+  data DeckComparable : QualitySort -> Type where
+    ComparesCharacteristic : {0 q : QualitySort} ->
+                             {auto 0 ok : deckComparable q = True} ->
+                             DeckComparable q
+
+  public export
+  data ManaParity = EvenValue | OddValue
+
+  ||| One card's side of a deck condition: a characteristic read
+  ||| [CR#109.3], or a reading a printed companion names that the
+  ||| characteristic vocabulary does not carry.
+  public export
+  data DeckTrait : Type where
+    ACharacteristic : (p : Predicate [] Object) ->
+                      {auto 0 dr : DeckReadable p} -> DeckTrait
+    ||| "cards with even mana values" [CR#202.3]
+    ManaValueParity : (par : ManaParity) -> DeckTrait
+    ||| "more than one of the same mana symbol in its mana cost"
+    RepeatedManaSymbol : DeckTrait
+    ||| "has an activated ability"
+    HasAbilityOf : (cls : AbilityClass) -> DeckTrait
+    ||| "... and land cards"
+    AnyTraitOf : (ts : List DeckTrait) ->
+                 {auto 0 ne : NonEmpty ts} -> DeckTrait
+
+  ||| Companion's restriction, fulfilled by the deck left after sideboarding
+  ||| and checked before the game begins [CR#702.139a,702.139b,103.2b].
+  public export
+  data DeckCondition : Type where
+    ||| "Each permanent card in your starting deck has mana value 2 or less."
+    EveryCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
+                  {auto 0 dr : DeckReadable scope} -> DeckCondition
+    ||| "No card in your starting deck has more than one of the same mana
+    ||| symbol in its mana cost."
+    NoCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
+               {auto 0 dr : DeckReadable scope} -> DeckCondition
+    ||| "Each nonland card in your starting deck has a different name."
+    CardsDiffer : (scope : Predicate [] Object) -> (ax : QualitySort) ->
+                  {auto 0 dr : DeckReadable scope} ->
+                  {auto 0 dc : DeckComparable ax} -> DeckCondition
+    ||| "Each nonland card in your starting deck shares a card type."
+    CardsShare : (scope : Predicate [] Object) -> (ax : QualitySort) ->
+                 {auto 0 dr : DeckReadable scope} ->
+                 {auto 0 dc : DeckComparable ax} -> DeckCondition
+    ||| "at least twenty cards more than the minimum deck size", a minimum
+    ||| the format sets [CR#100.2a,100.2b].
+    DeckSizeOverMinimum : (extra : Nat) -> DeckCondition
+
+  public export
   data KeywordParam : Bindings -> Type where
     ParamCost : Cost [] -> KeywordParam bs
     ParamQuality : {k : Kind} -> (p : Predicate bs k) ->
@@ -1990,6 +2089,7 @@ mutual
                        KeywordParam bs
     ParamNumberCost : (amt : Amount []) -> (cost : Cost []) ->
                       KeywordParam bs
+    ParamDeckCondition : (dc : DeckCondition) -> KeywordParam bs
 
   public export
   paramShapeOf : {0 bs : Bindings} -> Maybe (KeywordParam bs) -> KeywordParamShape
@@ -2000,6 +2100,7 @@ mutual
   paramShapeOf (Just (ParamNumber _)) = NumberParam
   paramShapeOf (Just (ParamQualityCost _ _)) = CompoundParam QualityHead
   paramShapeOf (Just (ParamNumberCost _ _)) = CompoundParam NumberHead
+  paramShapeOf (Just (ParamDeckCondition _)) = DeckConditionParam
 
   public export
   keywordParamFits : {0 bs : Bindings} -> KeywordLabel -> Maybe (KeywordParam bs) -> Bool
