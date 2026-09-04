@@ -2104,7 +2104,9 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
         if !matches!(
             default.feature,
             crate::model::Feature::BareLocativeComplement
+                | crate::model::Feature::DeterminerNumber
                 | crate::model::Feature::ModifierLicense
+                | crate::model::Feature::NominalLicense
                 | crate::model::Feature::HomographLicense
                 | crate::model::Feature::PrepositionComplementKind
                 | crate::model::Feature::PrepositionAttachment
@@ -2113,7 +2115,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed vocab metadata supports only BareLocativeComplement, HomographLicense, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
+                    "closed vocab metadata supports only BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
                 ),
             );
         }
@@ -2139,7 +2141,9 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
             if !matches!(
                 override_.feature,
                 crate::model::Feature::BareLocativeComplement
+                    | crate::model::Feature::DeterminerNumber
                     | crate::model::Feature::ModifierLicense
+                    | crate::model::Feature::NominalLicense
                     | crate::model::Feature::HomographLicense
                     | crate::model::Feature::PrepositionComplementKind
                     | crate::model::Feature::PrepositionAttachment
@@ -2148,7 +2152,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed vocab metadata supports only BareLocativeComplement, HomographLicense, ModifierLicense, PrepositionAttachment, and PrepositionComplementKind",
+                        "closed vocab metadata supports only BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
                     ),
                 );
             }
@@ -14509,6 +14513,42 @@ pub(crate) mod tests {
         assert!(emitted.contains("Lexical :: Modifiers"), "{emitted}");
         assert!(
             emitted.contains("ModifierNode :: try_new (* modifiers)"),
+            "{emitted}"
+        );
+    }
+
+    #[test]
+    fn determiner_vocab_metadata_emits_number_and_nominal_license_helpers() {
+        let expansion = crate::generate(quote! {
+            vocab DeterminerWord {
+                feature DeterminerNumber = Both;
+                feature NominalLicense = AnyNominal;
+                Owner = "owner",
+            }
+            construction phrase: Phrase {
+                element PhraseNode { determiner: lex DeterminerWord, }
+                require determiner.determiner_number is Both;
+                require determiner.nominal_license is AnyNominal;
+                form phrase = lex(determiner);
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("determiner-vocabulary metadata fixture generates");
+        let emitted = expansion.tokens().to_string();
+        assert!(
+            emitted.contains("fn determiner_number_for_determiner_word"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("DeterminerWord :: Owner => DeterminerNumber :: Both"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("fn nominal_license_for_determiner_word"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("DeterminerWord :: Owner => NominalLicense :: AnyNominal"),
             "{emitted}"
         );
     }

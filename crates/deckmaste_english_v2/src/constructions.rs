@@ -156,6 +156,8 @@ constructions! {
     vocab SubjectPronoun { He = "he", It = "it", She = "she", They = "they", You = "you", }
     vocab ObjectPronoun { Her = "her", Him = "him", It = "it", Them = "them", You = "you", }
     vocab PossessiveDeterminerPronoun {
+        feature DeterminerNumber = Both;
+        feature NominalLicense = AnyNominal;
         Her = "her",
         His = "his",
         Its = "its",
@@ -3136,9 +3138,8 @@ constructions! {
             possessor: Possessive,
             possessed: Nominal,
         }
+        // A singular demonstrative agrees with the possessor it determines.
         require possessor.number is Singular;
-        require possessed.number is Singular;
-        require possessed.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
         derive concord_class = possessed.concord_class;
         derive number = possessed.number;
         derive onset = Values::Consonant;
@@ -3147,57 +3148,52 @@ constructions! {
         derive locative_temporal_license = possessed.locative_temporal_license;
         form demonstrative_possessive_reference = lex(demonstrative) possessor possessed;
     }
-    construction possessed_singular_reference: UnqualifiedReference {
-        element PossessedSingularReference {
-            possessor: lex PossessiveDeterminerPronoun,
+    construction possessed_reference: UnqualifiedReference {
+        element PossessedReference {
+            possessor: lex PossessiveDeterminerPronoun checked by determiner_licenses_nominal(
+                possessor.determiner_number,
+                possessor.nominal_license,
+                nominal.number,
+                nominal.nominal_form
+            ),
             nominal: Nominal,
         }
-        require nominal.number is Singular;
-        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
+        // A coordinated Noun Phrase has phrase-level agreement distinct from
+        // the homogeneous Number of its Conjuncts.
+        require nominal.nominal_form in [
+            BareSingularNoun,
+            ModifiedSingularNoun,
+            BarePluralNoun,
+            ModifiedPluralNoun,
+            MassNoun
+        ];
         derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = possessor.onset;
         derive possessive_ending = nominal.possessive_ending;
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
-        form possessed_singular_reference = lex(possessor) nominal;
-    }
-    construction possessed_plural_reference: UnqualifiedReference {
-        element PossessedPluralReference {
-            possessor: lex PossessiveDeterminerPronoun,
-            nominal: Nominal,
-        }
-        require nominal.number is Plural;
-        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive concord_class = nominal.concord_class;
-        derive number = nominal.number;
-        derive onset = possessor.onset;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form possessed_plural_reference = lex(possessor) nominal;
-    }
-    construction possessed_mass_reference: UnqualifiedReference {
-        element PossessedMassReference {
-            possessor: lex PossessiveDeterminerPronoun,
-            nominal: Nominal,
-        }
-        require nominal.nominal_form is MassNoun;
-        derive concord_class = nominal.concord_class;
-        derive number = nominal.number;
-        derive onset = possessor.onset;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form possessed_mass_reference = lex(possessor) nominal;
+        form possessed_reference = lex(possessor) nominal;
     }
     construction genitive_determiner_reference: UnqualifiedReference {
         element GenitiveDeterminerReference {
-            possessor: Possessive,
+            possessor: Possessive checked by determiner_licenses_nominal(
+                possessor.determiner_number,
+                possessor.nominal_license,
+                nominal.number,
+                nominal.nominal_form
+            ),
             nominal: Nominal,
         }
-        require nominal.number is Singular;
-        require nominal.nominal_form in [BareSingularNoun, ModifiedSingularNoun];
+        // A coordinated Noun Phrase has phrase-level agreement distinct from
+        // the homogeneous Number of its Conjuncts.
+        require nominal.nominal_form in [
+            BareSingularNoun,
+            ModifiedSingularNoun,
+            BarePluralNoun,
+            ModifiedPluralNoun,
+            MassNoun
+        ];
         derive concord_class = nominal.concord_class;
         derive number = nominal.number;
         derive onset = Values::Consonant;
@@ -3206,41 +3202,11 @@ constructions! {
         derive locative_temporal_license = nominal.locative_temporal_license;
         form genitive_determiner_reference = possessor nominal;
     }
-    construction genitive_determiner_plural_reference: UnqualifiedReference {
-        element GenitiveDeterminerPluralReference {
-            possessor: Possessive,
-            nominal: Nominal,
-        }
-        require nominal.number is Plural;
-        require nominal.nominal_form in [BarePluralNoun, ModifiedPluralNoun];
-        derive concord_class = nominal.concord_class;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form genitive_determiner_plural_reference = possessor nominal;
-    }
-    construction genitive_determiner_mass_reference: UnqualifiedReference {
-        element GenitiveDeterminerMassReference {
-            possessor: Possessive,
-            nominal: Nominal,
-        }
-        require nominal.nominal_form is MassNoun;
-        derive concord_class = nominal.concord_class;
-        derive number = nominal.number;
-        derive onset = Values::Consonant;
-        derive possessive_ending = nominal.possessive_ending;
-        derive relationality = nominal.relationality;
-        derive locative_temporal_license = nominal.locative_temporal_license;
-        form genitive_determiner_mass_reference = possessor nominal;
-    }
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
         element GenitiveDeterminerCoordinationReference {
             possessor: Possessive,
             coordination: NominalCoordination,
         }
-        require coordination.number is Singular;
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive onset = Values::Consonant;
@@ -4120,6 +4086,8 @@ constructions! {
     }
     construction possessive: Possessive {
         element PossessiveValue { owner: PossessiveOwner, }
+        derive determiner_number = Values::Both;
+        derive nominal_license = Values::AnyNominal;
         derive number = owner.number;
         form singular when number is Singular = suffix(owner, "'s");
         form plural_s when all(
@@ -5195,8 +5163,12 @@ fn object_is_mass_nominal(value: &Object) -> bool {
         UnqualifiedReference::DeterminedNominal(determined) => {
             nominal_form_for_nominal(&determined.nominal) == NominalForm::MassNoun
         }
-        UnqualifiedReference::PossessedMassReference(_)
-        | UnqualifiedReference::GenitiveDeterminerMassReference(_) => true,
+        UnqualifiedReference::PossessedReference(possessed) => {
+            nominal_form_for_nominal(&possessed.nominal) == NominalForm::MassNoun
+        }
+        UnqualifiedReference::GenitiveDeterminerReference(genitive) => {
+            nominal_form_for_nominal(&genitive.nominal) == NominalForm::MassNoun
+        }
         _ => false,
     }
 }
@@ -5316,28 +5288,47 @@ fn determinative_licenses_plural(
     )
 }
 
+trait DeterminerForm {
+    fn number_agrees_with(self, number: Number) -> bool;
+}
+
+impl DeterminerForm for Option<&Determinative> {
+    fn number_agrees_with(self, number: Number) -> bool {
+        self.is_none_or(|det| number_for_determinative(det) == number)
+    }
+}
+
+impl DeterminerForm for &PossessiveDeterminerPronoun {
+    fn number_agrees_with(self, _number: Number) -> bool {
+        true
+    }
+}
+
+impl DeterminerForm for &Possessive {
+    fn number_agrees_with(self, _number: Number) -> bool {
+        true
+    }
+}
+
 fn determiner_licenses_nominal(
-    det: Option<&Determinative>,
-    determiner_number: Option<DeterminerNumber>,
-    nominal_license: Option<NominalLicense>,
+    det: impl DeterminerForm + Copy,
+    determiner_number: impl Into<Option<DeterminerNumber>>,
+    nominal_license: impl Into<Option<NominalLicense>>,
     number: Number,
     nominal_form: NominalForm,
 ) -> bool {
-    let Some(det) = det else {
+    let Some(determiner_number) = determiner_number.into() else {
         return number == Number::Plural || nominal_form == NominalForm::MassNoun;
-    };
-    let Some(determiner_number) = determiner_number else {
-        return false;
     };
     let number_is_licensed = match determiner_number {
         DeterminerNumber::SingularOnly => number == Number::Singular,
         DeterminerNumber::PluralOnly => number == Number::Plural,
         DeterminerNumber::Both => true,
     };
-    if !number_is_licensed || number_for_determinative(det) != number {
+    if !number_is_licensed || !det.number_agrees_with(number) {
         return false;
     }
-    let Some(nominal_license) = nominal_license else {
+    let Some(nominal_license) = nominal_license.into() else {
         return false;
     };
     match nominal_license {

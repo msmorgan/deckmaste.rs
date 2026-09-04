@@ -290,11 +290,10 @@ mod preposition_license_recipes {
             NounSingularHead::new(noun).expect("licensed complement head is a count noun"),
         );
         let nominal = Nominal::BareSingularNominal(BareSingularNominal { head });
-        let reference =
-            UnqualifiedReference::PossessedSingularReference(PossessedSingularReference {
-                possessor: PossessiveDeterminerPronoun::Your,
-                nominal,
-            });
+        let reference = UnqualifiedReference::PossessedReference(PossessedReference {
+            possessor: PossessiveDeterminerPronoun::Your,
+            nominal,
+        });
         let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
             UnqualifiedPostmodifiedReference {
                 reference: Box::new(reference),
@@ -330,11 +329,10 @@ mod preposition_license_recipes {
             locative_temporal_license_for_nominal(&nominal),
             LocativeTemporalLicense::OfAndTemporalLicensed,
         );
-        let reference =
-            UnqualifiedReference::PossessedSingularReference(PossessedSingularReference {
-                possessor: PossessiveDeterminerPronoun::Your,
-                nominal,
-            });
+        let reference = UnqualifiedReference::PossessedReference(PossessedReference {
+            possessor: PossessiveDeterminerPronoun::Your,
+            nominal,
+        });
         let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
             UnqualifiedPostmodifiedReference {
                 reference: Box::new(reference),

@@ -313,7 +313,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Destroy their creature.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferencePossessedSingularReference/NominalBareSingularNominal/HeadNounSingularHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferencePossessedReference/NominalBareSingularNominal/HeadNounSingularHead",
             specificity: "NNNNTNNNNTNNT",
             candidates: 1,
         },
@@ -750,7 +750,7 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Raise Dead",
             "Destroy target creature card from your graveyard.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferencePrepositionalQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalModifiedSingularNominal/NominalModifierNounModifier/HeadNounSingularHead/PrepositionalPhrasePrepositionalPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferencePossessedSingularReference/NominalBareSingularNominal/HeadNounSingularHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferencePrepositionalQualifiedReference/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalModifiedSingularNominal/NominalModifierNounModifier/HeadNounSingularHead/PrepositionalPhrasePrepositionalPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferencePossessedReference/NominalBareSingularNominal/HeadNounSingularHead",
             "NNNNTNNNNNNNNTNNTTTNNNNTNNT",
         ),
         (
@@ -3180,4 +3180,106 @@ fn any_one_is_one_closed_determiner_with_no_generic_duration_rival() {
             .iter()
             .any(|claim| { claim.stable_owner_id() == "determinative:DeterminativeHead/AnyOne" })
     );
+}
+
+#[test]
+fn possessive_determiners_license_nominals_without_form_partitioning() {
+    let parser = parser();
+    let context = context("Grammar Witness");
+    for (text, required_path) in [
+        (
+            "Destroy your creature.",
+            [
+                "UnqualifiedReferencePossessedReference",
+                "NominalBareSingularNominal",
+            ],
+        ),
+        (
+            "Destroy your creatures.",
+            [
+                "UnqualifiedReferencePossessedReference",
+                "NominalBarePluralNominal",
+            ],
+        ),
+        (
+            "Destroy target player's creatures and artifacts.",
+            [
+                "UnqualifiedReferenceGenitiveDeterminerCoordinationReference",
+                "NominalCoordinationAndNominalCoordination",
+            ],
+        ),
+        (
+            "That source's controllers gain 2 life.",
+            [
+                "UnqualifiedReferenceDemonstrativePossessiveReference",
+                "NominalBarePluralNominal",
+            ],
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert_eq!(
+            analysis.outcome(),
+            ParseAnalysisOutcome::Selected,
+            "{text:?}: {analysis:#?}",
+        );
+        let decision = analysis
+            .decision()
+            .expect("a selected possessive analysis records its decision");
+        let selected = decision.selected().expect("one analysis is selected");
+        let path = decision.candidates()[selected].construction_path();
+        for required in required_path {
+            assert!(
+                path.iter().any(|item| item == required),
+                "{text:?} lacks {required}: {path:?}",
+            );
+        }
+        let parsed = analysis
+            .selected()
+            .expect("a selected possessive analysis has an AST");
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+
+    let ungrammatical = "That sources' controller gains 2 life.";
+    assert_eq!(
+        parser.analyze(ungrammatical, &context).outcome(),
+        ParseAnalysisOutcome::ParseFailure,
+        "a singular demonstrative cannot determine a plural possessor",
+    );
+}
+
+#[test]
+fn shared_head_coordination_remains_selected_under_a_possessive_determiner() {
+    let parser = parser();
+    let context = context("Grammar Witness");
+    let text = "Destroy your first instant or sorcery spell.";
+    let analysis = parser.analyze(text, &context);
+    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
+    let decision = analysis
+        .decision()
+        .expect("the selected shared-head analysis records its decision");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    let selected = decision.selected().expect("one analysis is selected");
+    let path = decision.candidates()[selected].construction_path();
+    let relevant = path
+        .iter()
+        .filter(|item| {
+            item.starts_with("UnqualifiedReferencePossessed")
+                || item.starts_with("NominalModified")
+                || item.starts_with("NominalModifierOrSharedHead")
+                || item.starts_with("NominalCoordinationOr")
+        })
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        relevant,
+        [
+            "UnqualifiedReferencePossessedReference",
+            "NominalModifiedSingularNominal",
+            "NominalModifierOrSharedHeadModifier",
+        ],
+    );
+    let parsed = analysis
+        .selected()
+        .expect("the shared-head analysis has an AST");
+    assert_eq!(parsed.render(&context, parser.environment()), text);
 }

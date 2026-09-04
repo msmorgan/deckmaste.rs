@@ -69,6 +69,18 @@ pub(crate) fn emit(
                     items.push(emit_vocab_modifier_license_helper(row, origin.clone()));
                 }
                 if row
+                    .feature_members(crate::feature::Feature::DeterminerNumber)
+                    .is_some()
+                {
+                    items.push(emit_vocab_determiner_number_helper(row, origin.clone()));
+                }
+                if row
+                    .feature_members(crate::feature::Feature::NominalLicense)
+                    .is_some()
+                {
+                    items.push(emit_vocab_nominal_license_helper(row, origin.clone()));
+                }
+                if row
                     .feature_members(crate::feature::Feature::BareLocativeComplement)
                     .is_some()
                 {
@@ -824,6 +836,81 @@ fn emit_vocab_modifier_license_helper(
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> ModifierLicense { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_vocab_determiner_number_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("determiner_number", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::DeterminerNumber)
+        .expect("requested sealed determiner-number metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::SingularOnly => {
+                    quote! { DeterminerNumber::SingularOnly }
+                }
+                crate::feature::FeatureValue::PluralOnly => {
+                    quote! { DeterminerNumber::PluralOnly }
+                }
+                crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
+                _ => unreachable!("sealed determiner number has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> DeterminerNumber { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_vocab_nominal_license_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("nominal_license", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::NominalLicense)
+        .expect("requested sealed nominal-license metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::AnyNominal => {
+                    quote! { NominalLicense::AnyNominal }
+                }
+                crate::feature::FeatureValue::CountNominal => {
+                    quote! { NominalLicense::CountNominal }
+                }
+                crate::feature::FeatureValue::LicensedBareSingularNoun => {
+                    quote! { NominalLicense::BareSingularNoun }
+                }
+                crate::feature::FeatureValue::LicensedMassOrPluralCount => {
+                    quote! { NominalLicense::MassOrPluralCount }
+                }
+                _ => unreachable!("sealed nominal license has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> NominalLicense { match value { #(#members),* } } },
         vec![origin],
     )
 }

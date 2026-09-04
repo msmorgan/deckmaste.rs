@@ -813,6 +813,8 @@ fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
         .or_else(|| (ident == "HomographLicense").then_some(Feature::HomographLicense))
         .or_else(|| (ident == "MannerAnaphorClass").then_some(Feature::MannerAnaphorClass))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
+        .or_else(|| (ident == "DeterminerNumber").then_some(Feature::DeterminerNumber))
+        .or_else(|| (ident == "NominalLicense").then_some(Feature::NominalLicense))
         .or_else(|| {
             (ident == "PrepositionComplementKind").then_some(Feature::PrepositionComplementKind)
         })
