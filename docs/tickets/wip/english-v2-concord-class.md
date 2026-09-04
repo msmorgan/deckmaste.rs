@@ -26,8 +26,10 @@ acquire spurious agreement values.
 
 ## Landing record
 
-- Measured tree: feature change `vnkoqqpw` on claimed parent `utostlpl`, with
-  coverage-lock `covered` count 16,824. The schema-9 coverage lock is
+- Measured after the required refresh on the tree ending at landing-record
+  change `quyrvqmw`; implementation change `vnkoqqpw` is based on refreshed
+  claim `utostlpl`. The coverage-lock `covered` count is 16,824. The schema-9
+  coverage lock is
   byte-identical before and after: 49,474 lines, SHA-256
   `d7b889de6b5c1b79163ea5b3dfe9e18efde5bde1480aadcef4aa8f04b659148e`,
   and movement **+0/-0 rows, +0/-0 bytes**.
@@ -89,7 +91,7 @@ acquire spurious agreement values.
   `deckmaste_construction_core`, `deckmaste_construction`,
   `deckmaste_english_v2`, `deckmaste_english`, `deckmaste_spelling`,
   `deckmaste_legacy_render`, and `xtask`; and `cargo test --workspace` are
-  green. The workspace run completed 127 suites with 6,123 passed, 0 failed,
+  green. The refreshed workspace run completed 127 suites with 6,111 passed, 0 failed,
   and 6 pre-existing ignored tests. Representative artifacts are `test result:
   ok. 1 passed; 0 failed` for the renamed `trybuild` suite, `test result: ok. 39
   passed; 0 failed` for the generated consumer, `test result: ok. 398 passed; 0
@@ -105,11 +107,11 @@ acquire spurious agreement values.
   finds `Agreement` only in its glossary definition and retained/superseding
   historical decision prose, never in `crates/` or `plugins/builtin_v2`.
   No citation changed, so citation gates were not required.
-- Performance advisory: all corpus commands used 8 workers. The final coverage
-  run took 94.956311023 s at 114,435 ns/B with host load 9.22/9.30/10.17;
-  ambiguity took 102.133243624 s at 120,568 ns/B with load
-  12.05/8.97/9.57; roundtrip took 87.575906355 s at 111,682 ns/B with load
-  4.91/7.27/9.19. Each was one foreground gate process. Sibling-process
+- Performance advisory: all corpus commands used 8 workers. The final refreshed
+  coverage run took 106.124999044 s at 154,859 ns/B with host load
+  12.97/10.04/8.63; ambiguity took 94.939689223 s at 120,409 ns/B with load
+  6.85/8.95/8.51; roundtrip took 90.106497497 s at 113,190 ns/B with load
+  9.39/9.53/8.59. Each was one foreground gate process. Sibling-process
   visibility is unavailable in the sandbox; the reviewer supplies the
   contention count. The loaded-host readings exceed the 16.26 s quiet-host
   ceiling and are advisory, not a STOP.
@@ -119,8 +121,14 @@ acquire spurious agreement values.
   rejection assertions migrated in place; ignored with blockers 0; added 3
   test functions (the Inflectional Form applicability matrix, complete finite
   copula morphology inventory, and nine-path preterite copula selection pin);
-  removed 0. The `#[test]` inventory across `crates/` is 6,129 before and 6,132
-  after; the six ignored workspace tests are pre-existing.
+  removed 0. The feature-local `#[test]` delta is therefore +3; the six ignored
+  workspace tests are pre-existing.
+- Refresh: `kata refresh` completed without conflict. It rewrote the stack over
+  newer coordinator claim records but introduced no sibling source overlap;
+  pre-refresh and post-refresh ambiguity JSON is byte-identical. Formatting,
+  strict Clippy, the full workspace suite, coverage, ambiguity, roundtrip, enum
+  census, lock check, construction count, and vocabulary grep were all rerun on
+  the refreshed tree, and the figures above are the refreshed measurements.
 - Deviations and additions: no Construction was added or deleted. The three
   tests above are the ticket's required acceptance and copula pins. Re-spelling
   the unrelated legacy Person/Number product was necessary to satisfy the
