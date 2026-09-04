@@ -108,12 +108,13 @@ remained byte-identical to the saved parent-tip artifacts.
   under load and are advisory, not STOPs. The sandbox-visible post-gate process
   count was 4; sibling-executor contention is not visible and remains for the
   reviewer to stamp.
-- Assurance census: restored 0; re-spelled 2 existing test functions
+- Assurance census: restored 0; re-spelled 0; extended 2 existing test
+  functions with additional assertions
   (`declaration_verb_tail_is_a_normalized_semantic_frame_key` and
   `declaration_verb_custom_shapes_match_only_exact_authored_tails`); ignored
   with blockers 0; added 1 test function
   (`movement_control_role_rejects_an_undeclared_marker`); removed 0. The new
-  function pins both required `is_err()` oracles. The two re-spelled functions
+  function pins the required `is_err()` oracles. The two extended functions
   add exact frame-key and compiled-consumer assertions without weakening an
   existing oracle.
 - Deviations and additions: no production construction, dominance edge,
@@ -127,3 +128,86 @@ remained byte-identical to the saved parent-tip artifacts.
   coordinator ruling recorded above. No new STOP remains.
 - glossary gap: none.
 - decision wanted: none.
+
+### Review corrections
+
+Reviewed and integrated by the Opus landing reviewer on the refreshed tree
+`sryompyl` (landing commit `owowyory`), lock `covered` = 16,822.
+
+- MEDIUM — the parent (`english-v2-require-through-optional-role`) review
+  recorded **three** negative oracles that the dissolved control fence had
+  made parse; the ticket and this landing pinned only two. Fixed: the third,
+  `Put target creature card onto the battlefield onto the battlefield.`, is
+  added to `movement_control_role_rejects_an_undeclared_marker`; it is a
+  parse failure on this tree. Assurance census above is unchanged (still one
+  added test function).
+- MEDIUM — the assurance census called two additive test extensions
+  "re-spelled". Fixed above: re-spelled 0, extended 2.
+- LOW — contention stamp added to the performance advisory below.
+- LOW (note, no change) — `emit/rules.rs` keys a construction's marked roles
+  by role name across all its forms, so a role marked in one form
+  and bare in another would carry the marker into the shared optional helper.
+  No construction in the tree declares such a role; recorded so a future
+  author is not surprised.
+
+Independently verified, not taken from the record:
+
+- Per-unit selection neutrality over all 32,641 identities, refreshed parent
+  `rlxpzutm` versus the measured tree, joined on unit id: `rows 32641 32641
+  only-base 0 only-tree 0`; `status diffs 3, selected-index diffs 3,
+  candidate-count diffs 3, resolution diffs 3, path diffs 215`. The three
+  status changes are exactly Cavalier of Thorns (unique → parse failure),
+  Animal Magnetism (unique → parse failure) and Genesis Ultimatum
+  (specificity-resolved, 3 candidates → parse failure). The remaining 212
+  path diffs are pure deletions of the `PrepositionalPhrasePrepositionalPhrase`
+  wrapper with node order preserved — one node in 209 rows, two nodes in
+  Dubious Challenge, Flickerform, and Journey to Eternity // Atzal, Cave of
+  Eternity — with 0 non-conforming rows and 0 nodes added anywhere.
+- Parent census reproduced: 16,825 selected, 13,328 unique, 3,497
+  specificity-resolved, 15,816 parse failures, 0 unresolved ties. Measured
+  tree: 16,822 / 13,326 / 3,496 / 15,819 / 0.
+- Construction declarations 397 → 397 confirmed: 391 declared at the
+  top nesting level of `constructions.rs` (unchanged by this landing) plus 6
+  declared at deeper nesting elsewhere under `crates/deckmaste_english_v2/src`.
+  A count that reports 391 is counting only the first group.
+- The control complement is carried by every frame that takes `under
+  <player>'s control` in Oracle text: `put_onto`, `put_onto_source_after`,
+  `return_to`, `enter_location`, `enter_control`, and their `core_verbs.ron`
+  valence rows for Put, Return and Enter. A corpus scan of every oracle
+  sentence containing both `under` and `control` finds no other governing
+  verb — the `exile … then return it to the battlefield under its owner's
+  control` family is the `return_to` frame, and no `create … under …
+  control` sentence exists.
+- No `checked by`, `require`, or comment naming `under`, `Under`, `control`,
+  or `SelectedOnly` as a control fence remains; `SelectedOnly` survives only
+  as the declared `PrepositionAttachment` value on four preposition
+  vocabulary rows.
+- Positive control readings still select and round-trip byte-exactly:
+  `Put target creature card onto the battlefield under your control.`,
+  `Return target creature card to the battlefield under its owner's
+  control.`, `Test Card enters under an opponent's control.`, and
+  `Exile target creature, then return it to the battlefield under its
+  owner's control.`
+- No citation-bearing text changed, so the cite gates were not required.
+
+Review gate artifacts (foreground, final tree, `DECKMASTE_XTASK_WORKERS=8`):
+`cargo fmt --all`; `cargo clippy -p deckmaste_construction_core -p
+deckmaste_construction -p deckmaste_english_v2 --all-targets -- -D warnings`
+clean; `cargo test --workspace` — 128 `test result: ok` lines, 0 FAILED,
+including `deckmaste_construction_core` 398 passed, `compiled_consumer` 39
+passed, `deckmaste_english_v2` 144 passed, `predicate_grammar` 103 passed;
+`coverage --check` — 16,822 selected and covered, 0 selected-uncovered, 0
+unresolved ties, 0 internal failures, 0 round-trip mismatches, 0 ownership
+failures, 0 traversal failures, 0 gaps, 0 overlaps, 0 synthetic claims, 0
+provenance-plan mismatches, licensing checkers permitted 20 / forbidden 0,
+`lock_mode=ratchet`; `ambiguity --require-resolved --json` — 0 unresolved
+ties; `roundtrip --require-clean` — 16,822 accepted, 16,822 clean, 0
+mismatched.
+
+Review performance advisory: coverage 75 s at 101,205 ns/B (host load
+5.12/7.40/8.34); ambiguity 83 s at 105,734 ns/B (load 4.33/6.41/9.11);
+round trip 75 s at 101,597 ns/B (load 4.35/5.46/8.19); the refreshed-parent
+ambiguity baseline 91 s at 117,093 ns/B (load 11.39/10.10/9.39). All exceed
+the 16.26 s quiet-host ceiling under load and are advisory. **Contention
+stamp:** two concurrent sol executors plus one to two concurrent landing
+reviews on this host, one-minute load 4.3–11.4 across the gate runs.
