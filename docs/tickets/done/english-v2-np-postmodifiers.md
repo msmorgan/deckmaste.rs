@@ -116,3 +116,28 @@ landing. Harmony retained that replacement suite and the nonconflicting
 postmodifier tests; the same full gate set then passed on the final base.
 Coverage visited all 731,226 selected construction nodes with zero traversal
 failures.
+
+### Erratum (landing review, 2026-09-03)
+
+- HIGH: the adjunct licence is a whitelist (`environment.rs` valence rows
+  default to no licence; six verbs opt in), so well-formed English the parent
+  admitted is now rejected — `Draw a card for each card you've exiled this
+  turn.` parse-fails while the `discarded` variant parses. The shape is
+  corpus-attested on unlicensed verbs; those units fail for other reasons, so
+  the add-only ratchet could not see it. The test
+  `unlicensed_participial_relatives_leave_adjuncts_on_the_outer_predicate`
+  pins the wrong reading. Follow-up: `english-v2-adjunct-licence-removal`
+  (carries the ruling question).
+- This record lacked a Deviations and additions section (6 constructions
+  deleted / 7 added; −3 host fold, +4) and a performance advisory. Measured by
+  the reviewer: coverage 23.03s wall at host load 19–32 (ceiling 16.26s
+  quiet-host), 111.8 µs/B; per-byte thread CPU improved from 116.5 (parent) to
+  113.0 on the same host.
+- 45 units changed their selected analysis (undisclosed; census was stamped
+  against the claim baseline, not the parent). Five are fixes: `that has an
+  Adventure` / `that has a -1/-1 counter on it` move from a fused-determinative
+  + duration reading to the finite subject-gap relative. The rest are
+  recursive attachment ambiguities resolved low.
+- "restored 2 exact ordinal assertions" is not in the diff. The 59 → 60
+  collision is one additional form-literal row (`that` in the new transitive
+  subject-gap relative) on an already-colliding surface, not a new overlap.
