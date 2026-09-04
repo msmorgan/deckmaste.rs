@@ -1218,3 +1218,18 @@ threads) is part of the measured configuration and every timing claim
 states its worker count; a speed-up claim decomposes parallelism from
 constant-factor work. Persistent breach on a quiet host remains
 STOP-and-report; re-blessing the ceiling is a coordinator ruling.
+
+
+## Amendment: selected roles preempt postmodifiers (2026-09-03)
+
+A verb frame that declares a preposition role — required or optional —
+selects that preposition: within that frame's object position, the
+noun-postmodifier derivation of the same preposition does not exist. This
+is not a preference weight; it is derived from the frame's declared
+valence (the ruling "verb-selected prepositions attach at the frame"
+applied to optional roles). "Return target creature card from your
+graveyard to your hand" attaches `from your graveyard` to Return's source
+role; "Destroy target creature card from your graveyard" (Destroy declares
+no `from`) attaches it to the noun. Absence of an optional role still
+satisfies its predicate. Frame-role wrapper constructions that exist only
+to spell a preposition (`SourcePhrase`, `ControlPhrase`) are dissolved.
