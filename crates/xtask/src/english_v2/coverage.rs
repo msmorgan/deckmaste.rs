@@ -1174,7 +1174,8 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
                 mode,
                 args.retire.as_deref(),
                 diagnostics,
-            )
+            )?;
+            report.licensing_checkers.enforce_forbidden_policy()
         },
     )
 }
@@ -1243,7 +1244,6 @@ where
     let mode = args.lock_mode();
     if mode != CoverageLockMode::None {
         observer.record("gate".to_owned());
-        report.licensing_checkers.enforce_forbidden_policy()?;
         gate(&report, &args.lock, mode, diagnostics)?;
     }
     Ok(())
@@ -2632,8 +2632,8 @@ mod tests {
                 > 0
         );
         assert_eq!(json["summary"]["literal_lexicon_collisions"], 59);
-        assert_eq!(json["summary"]["licensing_checker_permitted"], 29);
-        assert_eq!(json["summary"]["licensing_checker_forbidden"], 2);
+        assert_eq!(json["summary"]["licensing_checker_permitted"], 26);
+        assert_eq!(json["summary"]["licensing_checker_forbidden"], 5);
     }
 
     #[test]
