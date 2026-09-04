@@ -64,6 +64,8 @@ plus the `LookReq` collapse of ruling 8. One round, ten independent edits.
   noun cannot be re-read after `agentIntro`. Collapse them with an `Own`-style
   re-read of the agent's own delta, so one macro serves all four.
 
+Also (copies-are-spells residue): after a one-shot `Copy` there is no spelling that reads the ORIGINAL spell (the copy binding carries `prov = Nothing`, and `TheVerbed "Copy"` is pinned unwritten); no bench card needs it yet — when one does, give the copy a provenance stamp or an `Other`-style exclusion rather than a new `Reach`.
+
 Done when: every constructor and proof named above is gone from the tree and
 `grep` finds no residue; the collapsed families each have a bench witness for
 both former spellings ("the last chosen" and "the chosen", a `Lookback` in

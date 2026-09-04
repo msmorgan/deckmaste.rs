@@ -38,6 +38,8 @@ before the join family is rewritten.
 
 Size: L.
 
+Also (copies-are-spells residue): `Words.wordReaches AbilityW` still carries `not (isCopyOrigin og)`, the same divergence from [CR#707.10] ("a copy of an ability is itself an ability") that the spell row just dropped; drop it with the fold and pin the plural ability read after a copy.
+
 Done when: `Kind` has no `Ability` constructor; "counter target spell or
 ability" and "copy target activated ability" are typechecking bench witnesses
 reading one kind; `JoinW`/`AbilityJoinW`/`CopyJoinW`/`UnionHalf` and
