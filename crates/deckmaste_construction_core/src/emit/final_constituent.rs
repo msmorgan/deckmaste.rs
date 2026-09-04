@@ -240,6 +240,9 @@ fn atom_expression(
             | AtomPlan::SentenceInitialLiteral(_)
             | AtomPlan::VerbFixed { .. }
             | AtomPlan::OpenDeclaration(_) => quote! { false },
+            // Bound and Circumfix are transparent delimiters: this fold finds
+            // the rightmost non-delimiter constituent. `quoted_ability` and
+            // both quote-terminator `checked by` sites depend on that contract.
             AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
                 unreachable!("value_atom removes wrappers")
             }

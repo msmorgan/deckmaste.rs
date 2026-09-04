@@ -9,6 +9,7 @@ use crate::emit::LocalAllocator;
 use crate::identifier::VISITOR_TRAIT;
 use crate::identifier::emitted_ident;
 use crate::identifier::key as identifier_key;
+use crate::identifier::path_key;
 use crate::identifier::snake_case;
 use crate::identifier::structural_sequence_walker;
 use crate::model::VisitMode;
@@ -221,10 +222,16 @@ fn emit_trait(
     terminals: &TerminalVisitors<'_>,
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
-    let mut methods = vec![quote! {
-        /// Reports one concrete AST construction before its children are visited.
-        fn enter_construction(&mut self, _construction: &'static str) {}
-    }];
+    let mut methods = vec![
+        quote! {
+            /// Reports one concrete AST construction before its children are visited.
+            fn enter_construction(&mut self, _construction: &'static str) {}
+        },
+        quote! {
+            /// Reports one terminal leaf in surface order before its typed callback.
+            fn enter_leaf(&mut self, _terminal: &'static str) {}
+        },
+    ];
     methods.extend(visitor_methods(plan, categories, constructions, terminals));
 
     let mut leaf_origins = Vec::new();
@@ -707,12 +714,13 @@ fn walk_structural_value(
         }
         ValueKindPlan::Lex(name) | ValueKindPlan::Identity(name) => {
             let walker = ident(&crate::identifier::prefixed("walk_", name));
+            let enter_leaf = enter_leaf_call(plan, name)?;
             let expression = if terminal_mode(plan, name)? == VisitMode::Copy {
                 quote! { *#expression }
             } else {
                 expression
             };
-            Ok(quote! { #walker(visitor, #expression); })
+            Ok(quote! { #enter_leaf #walker(visitor, #expression); })
         }
     }
 }
@@ -1163,11 +1171,12 @@ fn emit_construction_form_walker_calls(
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
+                let enter_leaf = enter_leaf_call(validated, terminal)?;
                 Some(if copy {
                     let value = copy_value(field, value);
-                    quote! { #walker(visitor, #value); }
+                    quote! { #enter_leaf #walker(visitor, #value); }
                 } else {
-                    quote! { #walker(visitor, #value); }
+                    quote! { #enter_leaf #walker(visitor, #value); }
                 })
             }
             AtomPlan::Identity { role, terminal } => {
@@ -1177,11 +1186,12 @@ fn emit_construction_form_walker_calls(
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
+                let enter_leaf = enter_leaf_call(validated, terminal)?;
                 Some(if copy {
                     let value = copy_value(field, value);
-                    quote! { #walker(visitor, #value); }
+                    quote! { #enter_leaf #walker(visitor, #value); }
                 } else {
-                    quote! { #walker(visitor, #value); }
+                    quote! { #enter_leaf #walker(visitor, #value); }
                 })
             }
             AtomPlan::Noun { role, terminal } => {
@@ -1190,21 +1200,24 @@ fn emit_construction_form_walker_calls(
                     .ok_or_else(|| internal("walker noun role absent"))?;
                 let callback = ident(&format!("visit_{}", snake_case(terminal)));
                 let value = field_value(construction, role, argument, field_locals)?;
+                let enter_leaf = enter_leaf_call(validated, terminal)?;
                 Some(if terminal_mode(validated, terminal)? == VisitMode::Copy {
                     let value = copy_value(field, value);
-                    quote! { visitor.#callback(#value); }
+                    quote! { #enter_leaf visitor.#callback(#value); }
                 } else {
-                    quote! { visitor.#callback(#value); }
+                    quote! { #enter_leaf visitor.#callback(#value); }
                 })
             }
             AtomPlan::VerbFixed { terminal, path, .. } => {
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
-                Some(quote! { #walker(visitor, #path); })
+                let enter_leaf = enter_leaf_call(validated, terminal)?;
+                Some(quote! { #enter_leaf #walker(visitor, #path); })
             }
             AtomPlan::OpenDeclaration(open) => {
                 let kind = crate::emit::declaration_kind(open.kind());
                 let name = syn::LitStr::new(open.name(), Span::call_site());
                 Some(quote! {
+                    visitor.enter_leaf("open declaration");
                     visitor.visit_declaration(
                         &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
                     );
@@ -1509,6 +1522,79 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
         }
     }
     Err(internal("terminal traversal mode is absent"))
+}
+
+fn enter_leaf_call(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStream> {
+    let label = terminal_label(plan, terminal)?;
+    let label = syn::LitStr::new(&label, Span::call_site());
+    Ok(quote! { visitor.enter_leaf(#label); })
+}
+
+fn terminal_label(plan: &SemanticPlan, terminal: &str) -> syn::Result<String> {
+    for planned in plan.terminals() {
+        let label = match planned {
+            TerminalPlan::Vocab(row) if row.name() == terminal => Some(row.name().to_owned()),
+            TerminalPlan::Lexeme(row) if row.name() == terminal => {
+                if row.is_verb_provider() {
+                    return Ok("verb lexeme".to_owned());
+                }
+                if row.morphology().recipe() == crate::morphology::MorphologyRecipe::EnglishNoun {
+                    return Ok("noun".to_owned());
+                }
+                Some(row.name().to_owned())
+            }
+            TerminalPlan::Binding(row) if row.name() == terminal => {
+                if row.declaration_verb().is_some() {
+                    return Ok("declaration verb".to_owned());
+                }
+                if plan
+                    .runtime_noun_binding()
+                    .is_some_and(|noun| noun.name() == terminal)
+                {
+                    return Ok("noun".to_owned());
+                }
+                Some(
+                    row.lexical_variant()
+                        .map_or_else(|| row.name().to_owned(), path_key),
+                )
+            }
+            TerminalPlan::ContextIdentity(row) if row.name() == terminal => {
+                Some(row.aggregate_ident().to_string())
+            }
+            TerminalPlan::CatalogIdentity(row) if row.name() == terminal => {
+                return Ok("catalog identity".to_owned());
+            }
+            TerminalPlan::SignedDecimal(row) if row.codec_name() == terminal => {
+                Some(row.codec_name().to_owned())
+            }
+            TerminalPlan::UnsignedNumber(row) if row.codec_name() == terminal => {
+                Some(row.codec_name().to_owned())
+            }
+            TerminalPlan::DeclarationNoun(row) if row.codec_name() == terminal => {
+                return Ok("declaration noun".to_owned());
+            }
+            TerminalPlan::DeclarationDeterminative(row) if row.codec_name() == terminal => {
+                return Ok("declaration determinative".to_owned());
+            }
+            TerminalPlan::DeclarationTerm(row) if row.codec_name() == terminal => {
+                return Ok("declaration term".to_owned());
+            }
+            TerminalPlan::Vocab(_)
+            | TerminalPlan::Lexeme(_)
+            | TerminalPlan::Binding(_)
+            | TerminalPlan::ContextIdentity(_)
+            | TerminalPlan::CatalogIdentity(_)
+            | TerminalPlan::SignedDecimal(_)
+            | TerminalPlan::UnsignedNumber(_)
+            | TerminalPlan::DeclarationNoun(_)
+            | TerminalPlan::DeclarationDeterminative(_)
+            | TerminalPlan::DeclarationTerm(_) => None,
+        };
+        if let Some(label) = label {
+            return Ok(snake_case(&label).replace('_', " "));
+        }
+    }
+    Err(internal("terminal traversal label is absent"))
 }
 
 fn binding_origin(binding: &BindingPlan, _constructions: &[ConstructionPlan]) -> DeclarationKey {
@@ -1852,6 +1938,7 @@ mod tests {
             callbacks,
             [
                 "enter_construction",
+                "enter_leaf",
                 "visit_atom",
                 "visit_branch",
                 "visit_holder",
@@ -1994,10 +2081,14 @@ mod tests {
             calls,
             [
                 "visitor . enter_construction (\"NodeWriter\")",
+                "visitor . enter_leaf (\"plain\")",
                 "walk_plain (visitor , * & walk_mode_2 . plain)",
+                "visitor . enter_leaf (\"mode\")",
                 "walk_mode (visitor , walk_mode_2 . mode ())",
                 "visitor . visit_node (walk_mode_2 . child ())",
+                "visitor . enter_leaf (\"self reference\")",
                 "walk_self_reference_spelling (visitor , walk_mode_2 . spelling ())",
+                "visitor . enter_leaf (\"marker\")",
                 "walk_marker (visitor , * & walk_mode_2 . visitor)",
             ],
             "access levels and callbacks must follow declaration/form order",
@@ -2363,6 +2454,7 @@ mod tests {
                     "enter_construction".into(),
                     "_construction : & 'static str".into(),
                 ),
+                ("enter_leaf".into(), "_terminal : & 'static str".into()),
                 ("visit_expr".into(), "expr : & Expr".into()),
                 ("visit_predicate".into(), "predicate : & Predicate".into()),
                 ("visit_tag".into(), "tag : & Tag".into()),

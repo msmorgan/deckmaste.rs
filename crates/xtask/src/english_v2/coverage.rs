@@ -397,6 +397,9 @@ pub(super) struct SelectedCoverage {
     nonterminal_nodes: usize,
     visited_constructions: usize,
     traversal_failure: Option<TraversalFailure>,
+    expected_leaves: usize,
+    visited_leaves: usize,
+    leaf_traversal_failure: Option<TraversalFailure>,
     longest_form_literal_bytes: usize,
 }
 
@@ -424,6 +427,18 @@ impl SelectedCoverage {
     #[cfg(test)]
     const fn traversal_failure(&self) -> Option<&TraversalFailure> {
         self.traversal_failure.as_ref()
+    }
+    #[cfg(test)]
+    const fn expected_leaves(&self) -> usize {
+        self.expected_leaves
+    }
+    #[cfg(test)]
+    const fn visited_leaves(&self) -> usize {
+        self.visited_leaves
+    }
+    #[cfg(test)]
+    const fn leaf_traversal_failure(&self) -> Option<&TraversalFailure> {
+        self.leaf_traversal_failure.as_ref()
     }
     #[cfg(test)]
     const fn longest_form_literal_bytes(&self) -> usize {
@@ -478,7 +493,9 @@ impl CoverageRow {
                     && selected.ownership.failures.is_empty()
                     && selected.roundtrip_failure.is_none()
                     && selected.traversal_failure.is_none()
-                    && selected.visited_constructions == selected.nonterminal_nodes;
+                    && selected.visited_constructions == selected.nonterminal_nodes
+                    && selected.leaf_traversal_failure.is_none()
+                    && selected.visited_leaves == selected.expected_leaves;
                 let status_is_covered = self.status == CoverageStatus::SelectedCovered;
                 if is_covered != status_is_covered {
                     return Err(CoverageValidationError::RowStatusEvidence {
@@ -554,6 +571,9 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
                 nonterminal_nodes: 0,
                 visited_constructions: 0,
                 traversal_failure: None,
+                expected_leaves: 0,
+                visited_leaves: 0,
+                leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
             });
         }
@@ -581,11 +601,16 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
 #[derive(Default)]
 struct TraversalRecorder {
     constructions: Vec<&'static str>,
+    leaves: Vec<&'static str>,
 }
 
 impl Visitor for TraversalRecorder {
     fn enter_construction(&mut self, construction: &'static str) {
         self.constructions.push(construction);
+    }
+
+    fn enter_leaf(&mut self, terminal: &'static str) {
+        self.leaves.push(terminal);
     }
 }
 
@@ -623,7 +648,7 @@ fn runtime_analysis_row(unit: &CorpusUnit, analysis: &ParseAnalysis<OracleText>)
     );
     if let Some(selected) = row.selected.as_mut() {
         let selected_ordinal = analysis.decision().and_then(SelectionDecision::selected);
-        let expected = selected_ordinal
+        let expected_constructions = selected_ordinal
             .and_then(|ordinal| {
                 analysis
                     .decision()?
@@ -633,20 +658,39 @@ fn runtime_analysis_row(unit: &CorpusUnit, analysis: &ParseAnalysis<OracleText>)
             })
             .map(deckmaste_english_v2::parser::SelectionCandidate::construction_path)
             .unwrap_or_default();
-        selected.nonterminal_nodes = expected.len();
+        let expected_leaves = selected_ordinal
+            .and_then(|ordinal| {
+                analysis
+                    .decision()?
+                    .candidates()
+                    .iter()
+                    .find(|candidate| candidate.ordinal() == ordinal)
+            })
+            .map(deckmaste_english_v2::parser::SelectionCandidate::leaf_path)
+            .unwrap_or_default();
+        selected.nonterminal_nodes = expected_constructions.len();
+        selected.expected_leaves = expected_leaves.len();
         let mut traversal = TraversalRecorder::default();
         if let Some(value) = analysis.selected() {
             traversal.visit_oracle_text(value);
         }
         selected.visited_constructions = traversal.constructions.len();
-        if traversal.constructions.as_slice() != expected {
+        selected.visited_leaves = traversal.leaves.len();
+        if traversal.constructions.as_slice() != expected_constructions {
             selected.traversal_failure = Some(TraversalFailure {
-                expected: expected.to_vec(),
+                expected: expected_constructions.to_vec(),
                 actual: traversal
                     .constructions
                     .into_iter()
                     .map(str::to_owned)
                     .collect(),
+            });
+            row.status = CoverageStatus::SelectedUncovered;
+        }
+        if traversal.leaves.as_slice() != expected_leaves {
+            selected.leaf_traversal_failure = Some(TraversalFailure {
+                expected: expected_leaves.to_vec(),
+                actual: traversal.leaves.into_iter().map(str::to_owned).collect(),
             });
             row.status = CoverageStatus::SelectedUncovered;
         }
@@ -695,6 +739,9 @@ pub(super) struct CoverageSummary {
     nonterminal_nodes: usize,
     visited_constructions: usize,
     traversal_failure_units: usize,
+    expected_leaves: usize,
+    visited_leaves: usize,
+    leaf_traversal_failure_units: usize,
     longest_form_literal_bytes: usize,
     claims: usize,
     claimed_bytes: usize,
@@ -745,6 +792,9 @@ summary_getters!(
     nonterminal_nodes,
     visited_constructions,
     traversal_failure_units,
+    expected_leaves,
+    visited_leaves,
+    leaf_traversal_failure_units,
     longest_form_literal_bytes,
     claims,
     claimed_bytes,
@@ -801,6 +851,22 @@ impl CoverageSummary {
                 checked_increment(
                     &mut summary.traversal_failure_units,
                     "traversal_failure_units",
+                )?;
+            }
+            add_field(
+                &mut summary.expected_leaves,
+                selected.expected_leaves,
+                "expected_leaves",
+            )?;
+            add_field(
+                &mut summary.visited_leaves,
+                selected.visited_leaves,
+                "visited_leaves",
+            )?;
+            if selected.leaf_traversal_failure.is_some() {
+                checked_increment(
+                    &mut summary.leaf_traversal_failure_units,
+                    "leaf_traversal_failure_units",
                 )?;
             }
             summary.longest_form_literal_bytes = summary
@@ -1406,6 +1472,9 @@ impl CoverageRow {
                 nonterminal_nodes: 0,
                 visited_constructions: 0,
                 traversal_failure: None,
+                expected_leaves: 0,
+                visited_leaves: 0,
+                leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
@@ -1472,6 +1541,9 @@ impl CoverageRow {
                 nonterminal_nodes: 0,
                 visited_constructions: 0,
                 traversal_failure: None,
+                expected_leaves: 0,
+                visited_leaves: 0,
+                leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
             }),
             internal_failure_kind: None,
@@ -1609,6 +1681,9 @@ impl CoverageReport {
                     nonterminal_nodes: 0,
                     visited_constructions: 0,
                     traversal_failure: None,
+                    expected_leaves: 0,
+                    visited_leaves: 0,
+                    leaf_traversal_failure: None,
                     longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
@@ -1641,6 +1716,9 @@ impl CoverageReport {
                     nonterminal_nodes: 0,
                     visited_constructions: 0,
                     traversal_failure: None,
+                    expected_leaves: 0,
+                    visited_leaves: 0,
+                    leaf_traversal_failure: None,
                     longest_form_literal_bytes: 0,
                 }),
                 internal_failure_kind: None,
@@ -2178,9 +2256,13 @@ mod tests {
         ];
         rows[0].selected_mut_for_test().nonterminal_nodes = 17;
         rows[0].selected_mut_for_test().visited_constructions = 17;
+        rows[0].selected_mut_for_test().expected_leaves = 31;
+        rows[0].selected_mut_for_test().visited_leaves = 31;
         rows[0].selected_mut_for_test().longest_form_literal_bytes = 11;
         rows[1].selected_mut_for_test().nonterminal_nodes = 25;
         rows[1].selected_mut_for_test().visited_constructions = 25;
+        rows[1].selected_mut_for_test().expected_leaves = 47;
+        rows[1].selected_mut_for_test().visited_leaves = 47;
         rows[1].selected_mut_for_test().longest_form_literal_bytes = 7;
         CoverageReport::try_new_with_collision_census(id('a'), rows, 1, 2).unwrap()
     }
@@ -2192,6 +2274,9 @@ mod tests {
         assert_eq!(selected.nonterminal_nodes(), 17);
         assert_eq!(selected.visited_constructions(), 17);
         assert_eq!(selected.traversal_failure(), None);
+        assert_eq!(selected.expected_leaves(), 31);
+        assert_eq!(selected.visited_leaves(), 31);
+        assert_eq!(selected.leaf_traversal_failure(), None);
         assert_eq!(selected.longest_form_literal_bytes(), 11);
         let summary = report.summary();
         assert_eq!(summary.total_units(), 5);
@@ -2212,6 +2297,9 @@ mod tests {
         assert_eq!(summary.nonterminal_nodes(), 42);
         assert_eq!(summary.visited_constructions(), 42);
         assert_eq!(summary.traversal_failure_units(), 0);
+        assert_eq!(summary.expected_leaves(), 78);
+        assert_eq!(summary.visited_leaves(), 78);
+        assert_eq!(summary.leaf_traversal_failure_units(), 0);
         assert_eq!(summary.longest_form_literal_bytes(), 11);
         assert_eq!(summary.claims(), 55);
         assert_eq!(summary.claimed_bytes(), 550);
@@ -2237,6 +2325,9 @@ mod tests {
                 "nonterminal_nodes": 42,
                 "visited_constructions": 42,
                 "traversal_failure_units": 0,
+                "expected_leaves": 78,
+                "visited_leaves": 78,
+                "leaf_traversal_failure_units": 0,
                 "longest_form_literal_bytes": 11,
                 "claims": 55,
                 "claimed_bytes": 550,
@@ -2264,11 +2355,15 @@ mod tests {
     fn report_and_summary_json_have_the_exact_reviewed_fields() {
         let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["schema_version"], super::REPORT_SCHEMA_VERSION);
         assert_eq!(json["rows"][0]["exception_resolved"], false);
         assert_eq!(json["rows"][0]["exception_uses"], 0);
         assert_eq!(json["rows"][0]["selected"]["nonterminal_nodes"], 17);
         assert_eq!(json["rows"][0]["selected"]["visited_constructions"], 17);
         assert!(json["rows"][0]["selected"]["traversal_failure"].is_null());
+        assert_eq!(json["rows"][0]["selected"]["expected_leaves"], 31);
+        assert_eq!(json["rows"][0]["selected"]["visited_leaves"], 31);
+        assert!(json["rows"][0]["selected"]["leaf_traversal_failure"].is_null());
         assert_eq!(
             json["rows"][0]["selected"]["longest_form_literal_bytes"],
             11
@@ -2300,6 +2395,9 @@ mod tests {
                 "nonterminal_nodes",
                 "visited_constructions",
                 "traversal_failure_units",
+                "expected_leaves",
+                "visited_leaves",
+                "leaf_traversal_failure_units",
                 "longest_form_literal_bytes",
                 "claims",
                 "claimed_bytes",
@@ -2691,6 +2789,9 @@ mod tests {
             selected["nonterminal_nodes"]
         );
         assert!(selected["traversal_failure"].is_null());
+        assert!(selected["expected_leaves"].as_u64().unwrap() > 0);
+        assert_eq!(selected["visited_leaves"], selected["expected_leaves"]);
+        assert!(selected["leaf_traversal_failure"].is_null());
         assert!(selected["longest_form_literal_bytes"].as_u64().unwrap() > 0);
         assert!(json["summary"]["nonterminal_nodes"].as_u64().unwrap() > 0);
         assert_eq!(
@@ -2698,6 +2799,12 @@ mod tests {
             json["summary"]["nonterminal_nodes"]
         );
         assert_eq!(json["summary"]["traversal_failure_units"], 0);
+        assert!(json["summary"]["expected_leaves"].as_u64().unwrap() > 0);
+        assert_eq!(
+            json["summary"]["visited_leaves"],
+            json["summary"]["expected_leaves"]
+        );
+        assert_eq!(json["summary"]["leaf_traversal_failure_units"], 0);
         assert!(
             json["summary"]["longest_form_literal_bytes"]
                 .as_u64()

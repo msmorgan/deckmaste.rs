@@ -39,6 +39,7 @@ pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (),
     pub(super) value: Arc<V>,
     pub(super) constructions: Arc<[C]>,
     pub(super) positions: Arc<[RulePosition<K, M>]>,
+    pub(super) leaves: Arc<[M]>,
     pub(super) claims: Arc<[SpannedLexical<T, O>]>,
 }
 
@@ -84,6 +85,7 @@ pub(crate) struct Candidate<V = Ability> {
     pub constructions: Vec<Construction>,
     pub positions: Vec<RulePosition<Category, Lexical>>,
     pub specificity: Vec<super::SpecificityTier>,
+    pub leaf_path: Vec<String>,
     pub claims: Vec<RawLexicalClaim>,
     pub synthetic_claims: Vec<crate::parser::TextSpan>,
 }
@@ -326,7 +328,7 @@ where
         let mut combinations = vec![Vec::new()];
         let mut cycle_pruned = false;
         let mut first_rejection = None;
-        for child in &family.children {
+        for (index, child) in family.children.iter().enumerate() {
             let child_values = match child {
                 Child::Node(id) => {
                     let outcome = self.materialize_node(forest, *id, state, rule_path, observation);
@@ -336,12 +338,22 @@ where
                     }
                     outcome.values
                 }
-                Child::Lexical(lexical) => Arc::from([MaterializedCandidate {
-                    value: Arc::new((self.build_leaf)(&lexical.value)),
-                    constructions: Arc::from([]),
-                    positions: Arc::from([]),
-                    claims: Arc::from([lexical.clone()]),
-                }]),
+                Child::Lexical(lexical) => {
+                    let position = rule
+                        .rhs
+                        .get(index)
+                        .expect("lexical family child retains its rule position");
+                    let RulePosition::Lexical(matcher) = position else {
+                        unreachable!("lexical family child retains its lexical rule position")
+                    };
+                    Arc::from([MaterializedCandidate {
+                        value: Arc::new((self.build_leaf)(&lexical.value)),
+                        constructions: Arc::from([]),
+                        positions: Arc::from([]),
+                        leaves: Arc::from([(self.lexical_matcher)(*matcher)]),
+                        claims: Arc::from([lexical.clone()]),
+                    }])
+                }
             };
             let mut next = Vec::new();
             for combination in combinations {
@@ -381,9 +393,11 @@ where
                         Vec::new()
                     };
                     let mut claims = Vec::new();
+                    let mut leaves = Vec::new();
                     for child in children {
                         constructions.extend(child.constructions.iter().copied());
                         positions.extend(child.positions.iter().cloned());
+                        leaves.extend(child.leaves.iter().cloned());
                         claims.extend(child.claims.iter().cloned());
                     }
                     claims.sort_by_key(|claim| (claim.span.start, claim.span.end));
@@ -393,6 +407,7 @@ where
                             value: Arc::new(value),
                             constructions: Arc::from(constructions),
                             positions: Arc::from(positions),
+                            leaves: Arc::from(leaves),
                             claims: Arc::from(claims),
                         },
                     );
@@ -739,6 +754,14 @@ fn finalize_candidates<R: GeneratedParseRoot>(
                 constructions: built.constructions.as_ref().to_vec(),
                 specificity: specificity_tiers(&built.positions),
                 positions: built.positions.as_ref().to_vec(),
+                leaf_path: built
+                    .leaves
+                    .iter()
+                    .filter_map(|leaf| match leaf {
+                        Lexical::Literal(_) | Lexical::EndOfInput => None,
+                        lexical => Some(lexical.class().label().to_owned()),
+                    })
+                    .collect(),
                 claims,
                 synthetic_claims,
             };

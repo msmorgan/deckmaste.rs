@@ -128,6 +128,7 @@ pub fn exception_decision_for_test() -> SelectionDecision {
         candidates,
         |candidate| std::slice::from_ref(&candidate.construction),
         |candidate| structural_specificity(&candidate.positions, |()| false),
+        |_| Vec::new(),
         |construction| name(construction).to_owned(),
         name,
         &exceptions,
@@ -239,6 +240,7 @@ pub(crate) fn analyze_selection<V>(
         candidates,
         |candidate| candidate.constructions.as_slice(),
         |candidate| Specificity(candidate.specificity.clone()),
+        |candidate| candidate.leaf_path.clone(),
         construction_name_v1,
         Construction::name,
         SELECTION_EXCEPTIONS,
@@ -249,6 +251,7 @@ fn selection_analysis_with_exceptions<T, C, Name>(
     candidates: Vec<T>,
     constructions: impl Fn(&T) -> &[C],
     specificity: impl Fn(&T) -> Specificity,
+    leaf_path: impl Fn(&T) -> Vec<String>,
     construction_name: Name,
     legacy_construction_name: impl Fn(C) -> &'static str,
     exceptions: &[SelectionException<C>],
@@ -270,6 +273,7 @@ where
         candidates,
         constructions,
         specificity,
+        leaf_path,
         construction_name,
         legacy_construction_name,
         exceptions,
@@ -291,6 +295,7 @@ where
         candidates,
         constructions,
         specificity,
+        |_| Vec::new(),
         |construction| construction_name(construction).to_owned(),
         &construction_name,
         exceptions,
@@ -348,6 +353,7 @@ fn decide_ranked<T, C, Name>(
     candidates: Vec<T>,
     constructions: impl Fn(&T) -> &[C],
     specificity: impl Fn(&T) -> Specificity,
+    leaf_path: impl Fn(&T) -> Vec<String>,
     construction_name: Name,
     legacy_construction_name: impl Fn(C) -> &'static str,
     exceptions: &[SelectionException<C>],
@@ -381,6 +387,7 @@ where
                     .map(&construction_name)
                     .collect(),
                 candidate.specificity.0.clone(),
+                leaf_path(&candidate.candidate),
             )
         })
         .collect::<Vec<_>>();
@@ -653,6 +660,7 @@ mod tests {
             constructions: vec![Construction::AbilityPlain],
             positions: Vec::new(),
             specificity: vec![specificity],
+            leaf_path: Vec::new(),
             claims: vec![RawLexicalClaim {
                 span: TextSpan { start: 0, end: 1 },
                 value: Leaf::Literal("x"),
@@ -1336,6 +1344,7 @@ mod tests {
                     matches!(lexical, TestLexical::LiteralAlpha)
                 })
             },
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             &[],
@@ -1411,6 +1420,7 @@ mod tests {
                     matches!(lexical, TestLexical::LiteralAlpha)
                 })
             },
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             &[],
@@ -1439,6 +1449,7 @@ mod tests {
             vec![shorter, longer],
             |candidate| candidate.constructions.as_slice(),
             |candidate| structural_specificity(&candidate.positions, |_| false),
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             &[],
@@ -1477,6 +1488,7 @@ mod tests {
                 candidates,
                 |candidate| candidate.constructions.as_slice(),
                 |candidate| structural_specificity(&candidate.positions, |_| false),
+                |_| Vec::new(),
                 |construction| format!("{construction:?}"),
                 construction_name,
                 &exceptions,
@@ -1497,6 +1509,7 @@ mod tests {
             test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
             |candidate| candidate.constructions.as_slice(),
             |candidate| structural_specificity(&candidate.positions, |_| false),
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             &[],
@@ -1553,6 +1566,7 @@ mod tests {
             candidates,
             |candidate| candidate.constructions.as_slice(),
             |candidate| structural_specificity(&candidate.positions, |_| false),
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             &exceptions,
@@ -1607,6 +1621,7 @@ mod tests {
             candidates,
             |candidate| candidate.constructions.as_slice(),
             |candidate| structural_specificity(&candidate.positions, |_| false),
+            |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
             exceptions,

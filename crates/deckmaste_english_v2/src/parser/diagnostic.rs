@@ -432,6 +432,7 @@ pub struct SelectionCandidate {
     ordinal: usize,
     construction_path: Vec<String>,
     specificity: Vec<SpecificityTier>,
+    leaf_path: Vec<String>,
 }
 
 impl SelectionCandidate {
@@ -439,11 +440,13 @@ impl SelectionCandidate {
         ordinal: usize,
         construction_path: Vec<String>,
         specificity: Vec<SpecificityTier>,
+        leaf_path: Vec<String>,
     ) -> Self {
         Self {
             ordinal,
             construction_path,
             specificity,
+            leaf_path,
         }
     }
 
@@ -460,6 +463,11 @@ impl SelectionCandidate {
     #[must_use]
     pub fn specificity(&self) -> &[SpecificityTier] {
         &self.specificity
+    }
+
+    #[must_use]
+    pub fn leaf_path(&self) -> &[String] {
+        &self.leaf_path
     }
 }
 
