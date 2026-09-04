@@ -117,17 +117,34 @@ feature-collapse precedent.
 The umbrella ticket is never claimed directly; each iteration the coordinator
 re-runs the failure census, takes the largest remaining family, mints one
 `english-v2-tail-<family>` ticket sized to that family, and deletes the family
-from this list when the ticket lands. Counts are from the 13-10 landing review
-(2026-09-02) and go stale with every landing; re-measure before minting.
+from this list when the ticket lands. Counts go stale with every landing:
+re-measure before minting, and stamp the measurement. No xtask command exposes
+a family key yet; the census below bucketed parse failures by first-failure
+byte offset over the `coverage` rows.
 
-- Spree and bulleted mode bodies (~420)
-- coordinated `with`-grants (~190; the same landing as `english-v2-with-preposition`, never two)
-- Saga chapter bodies (181 faces)
-- `emblem` into the noun inventory (88)
-- conditional-sentence modal heads (36; shape already right)
-- Class residues (33)
-- `choose one that hasn't been chosen` (23; relative clause on a fused quantity head)
-- leveler band bodies (5)
+Measured 2026-09-03 on change `lkznywvp` (16,771 / 32,641 covered, 15,870 parse
+failures):
+
+- keyword-ability grants (`gains`/`has` + keyword, with duration/argument/
+  coordination): 1,522 — minted as `english-v2-tail-keyword-ability-grant`
+- `Activate only …` timing restrictions: 573
+- `colorless` (scanner splits `color` + `less`): 391
+- `… is/are equal to …` comparisons: ~333
+- `if it was kicked` / kicker conditionals: 193
+- `defending player`: 190
+- Spree and bulleted mode bodies: 167 (was ~420 on 2026-09-02)
+- Saga chapter bodies: 138 (was 181)
+- `Spend this mana only …`: 132
+- landwalk (`Swamp` + `walk` split): 127
+- coordinated `with`-grants: ~112 by text marker (the same landing as
+  `english-v2-with-preposition`, never two)
+- `emblem` into the noun inventory: 82
+- `choose one that hasn't been chosen` (relative clause on a fused quantity
+  head): 26
+- conditional-sentence modal heads: not resolvable by this key (shape already
+  right per the 13-10 review)
+- leveler band bodies: 3
+- Class residues: 0 (closed by the 13-10 modal block; entry retired)
 - coordination families generally: v1's coordination modules are a phenomenon
   checklist (coordinable categories, serial-list comma conventions, and/or/nor,
   scope, agreement), never code or vocabulary to import
