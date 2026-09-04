@@ -448,8 +448,7 @@ badFlashbackOnPermanentCard : Unspellable Card (\ok =>
        Nothing {fl = ok})
 badFlashbackOnPermanentCard MkFaceLaws impossible
 
-||| "Target opponent loses 1 life for each attacking creature you control.
-||| You gain that much life."
+||| "for each attacking creature you control. You gain that much life."
 public export
 okThatMuchAfterQuantity : Effect []
 okThatMuchAfterQuantity =
@@ -728,8 +727,7 @@ modalCostReadbacks =
   , TimesPaid (ByKeyword "Escalate") This
   )
 
-||| "Tap target creature. It doesn't untap during its controller's next
-||| untap step."
+||| "It doesn't untap during its controller's next untap step."
 public export
 okUntapNextSingleIt : Effect []
 okUntapNextSingleIt =

@@ -358,8 +358,7 @@ badCumulativeUpkeepCounter : Unspellable CounterKind (\ok =>
   KeywordCounter "CumulativeUpkeep" {ok = ok})
 badCumulativeUpkeepCounter Oh impossible
 
-||| "This creature enters with your choice of a +1/+1 counter or a first
-||| strike counter on it."
+||| "your choice of a +1/+1 counter or a first strike counter on it."
 public export
 okCounterMenu : StaticEffect []
 okCounterMenu =
@@ -420,8 +419,7 @@ badThoseKindsUnannounced : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 1) (ThoseKinds {ok}) (Macros.target Macros.creature))
 badThoseKindsUnannounced Refl impossible
 
-||| "If one or more +1/+1 counters would be put on a creature you control,
-||| that many plus one are put instead."
+||| "If ... +1/+1 counters ... that many plus one are put instead."
 public export
 okInterceptsCounterEvent : StaticEffect []
 okInterceptsCounterEvent =

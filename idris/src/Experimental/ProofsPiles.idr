@@ -26,8 +26,7 @@ badSingletonBallot : Unspellable (Ballot []) (\ok =>
   ByLabel ["death"] {ok})
 badSingletonBallot Oh impossible
 
-||| "Put target creature card from your graveyard onto the battlefield
-||| transformed."
+||| "Put target creature card ... onto the battlefield transformed."
 public export
 okTransformedArrivalOnField : Effect []
 okTransformedArrivalOnField =
@@ -61,8 +60,7 @@ badPileWordWithoutAPartition : Unspellable Card (\ok =>
        Nothing)
 badPileWordWithoutAPartition Refl impossible
 
-||| "Reveal the top five cards of your library. An opponent separates them
-||| into two piles. Put one pile into your hand."
+||| "... into two piles. Put one pile into your hand."
 public export
 okOnePileAfterPartition : Effect []
 okOnePileAfterPartition =

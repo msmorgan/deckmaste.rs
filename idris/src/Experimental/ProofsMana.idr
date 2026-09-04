@@ -109,7 +109,8 @@ okDistributiveAttackWindow =
             (Just (BeforeAttackersDeclared (Just (Macros.each AnyPlayer))))
             Nothing Nothing Nothing
 
-||| "{2}: Draw a card. Activate only before all players' attackers are declared." [CR#102.1]
+||| "Activate only before all players' attackers are declared."
+||| A turn part has one active player [CR#102.1].
 public export
 badPluralAttackWindow : Unspellable Ability (\ok =>
   Activated (Mana [Macros.generic 2]) (Draw You (Lit 1)) (Just (BeforeAttackersDeclared (Just (Macros.allOf AnyPlayer)) {pk = ok})) Nothing Nothing Nothing)
@@ -285,7 +286,6 @@ okForEachScaledMana =
                                                  HasPossessor ControllerAx You]))
 
 ||| "Counter target spell unless its controller pays {2}."
-||| Refused as ScaledMana; Mana [Macros.generic 2] spells the flat cost.
 public export
 badLiteralScaledMana : Unspellable (Cost []) (\ok =>
   ScaledMana GenericUnit (Lit 2) {fe = ok})

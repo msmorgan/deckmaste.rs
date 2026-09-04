@@ -270,8 +270,7 @@ mutual
   shiftDelta : {bs : Bindings} -> PtShift bs -> List Binding
   shiftDelta s = amtDelta (shiftAmount s)
 
-  -- [CR#613.4b] sets base power/toughness, [CR#613.4c] modifies it; only a
-  -- modification is signed, and neither layer subtracts a whole characteristic.
+  -- Only modifications are signed; no layer subtracts a characteristic [CR#613.4b,613.4c].
   public export
   ptOpOk : {0 b1 : Bindings} -> {0 b2 : Bindings} ->
            CharOp -> PtShift b1 -> PtShift b2 -> Bool
@@ -2432,8 +2431,7 @@ mutual
   costPaidByYou TapSymbol = True
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
-  -- [CR#119.4] a life payment leaves the payer's own total; granting life is an
-  -- action the payer takes, so its recipient is free
+  -- A life payment targets its payer; granting life may target anyone [CR#119.4].
   costPaidByYou (Do (ChangeLife who (Down _))) = nounIsYou who
   costPaidByYou (Do (ChangeLife _ (Up _))) = True
   costPaidByYou (Do (Enact (Just subj) _ _)) = nounIsYou subj

@@ -50,14 +50,12 @@ okUntargetedOutcomeGate : Ability
 okUntargetedOutcomeGate = Static (Macros.playerCant "LoseGame" You)
 
 ||| "Target player can't lose the game."
-||| Refused as a Static; Continuously (playerCant …) spells the sentence.
 public export
 badTargetedOutcomeGate : Unspellable Ability (\ok =>
   Static (Macros.playerCant "LoseGame" (Macros.target AnyPlayer)) {ut = ok})
 badTargetedOutcomeGate Oh impossible
 
-||| "This creature gets +X/+0, where X is the number of creatures you
-||| control."
+||| "where X is the number of creatures you control."
 public export
 okSingleStaticXRider : StaticEffect []
 okSingleStaticXRider =

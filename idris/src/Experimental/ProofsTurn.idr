@@ -137,7 +137,6 @@ okUntilEndOfTurnSpan =
               (Just Macros.untilEndOfTurn)
 
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep."
-||| Refused as UntilEvent; Macros.untilYourNextUpkeep spells the duration.
 public export
 badUntilBeginningOfUpkeep : Unspellable (Effect []) (\ok =>
   Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf ThePart Upkeep (ByPlayer You)))) {sp = ok})

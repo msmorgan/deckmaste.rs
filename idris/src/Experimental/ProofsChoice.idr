@@ -14,7 +14,7 @@ public export
 okChosenNumberOneStanding : Amount [qualityB Number]
 okChosenNumberOneStanding = ChosenNumber
 
-||| "... is equal to the chosen number", two number choices standing (Shapeshifter prints "last")
+||| "... is equal to the chosen number"
 public export
 badChosenNumberTwoStanding :
   Unspellable (Amount [qualityB Number, qualityB Number]) (\ok => ChosenNumber {ok})
@@ -157,7 +157,6 @@ okStaticPlayerCant =
   Static (Macros.playerCant "GainLife" (PlayerGroup YourOpponents))
 
 ||| "Target player can't gain life."
-||| Refused as a Static; Continuously (playerCant …) spells the sentence.
 public export
 badStaticPlayerCantTargets : Unspellable Ability (\ok =>
   Static (Macros.playerCant "GainLife" (Macros.target AnyPlayer)) {ut = ok})

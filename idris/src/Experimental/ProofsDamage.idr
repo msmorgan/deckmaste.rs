@@ -675,7 +675,6 @@ okDestroyCreature : Effect []
 okDestroyCreature = Macros.destroy (Macros.target Macros.creature)
 
 ||| "Destroy target source."
-||| Refused for an unzoned noun, not for the verb; no sibling spells it.
 public export
 badDestroySource : Unspellable (Effect []) (\ok =>
   Macros.destroy (Macros.target Macros.source) {ok})

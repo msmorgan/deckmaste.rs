@@ -225,12 +225,12 @@ mutual
   data Predicate : Bindings -> Kind -> Type where
     HasType : CardType -> Predicate bs Object
     HasSubtype : Subtype -> Predicate bs Object
-    AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
+    AnyPlayer : Predicate bs Player
     Opponent : Predicate bs Player
     ChosenPlayer : {auto 0 ok : countChoice PlayerC bs = 1} ->
                    Predicate bs Player
     TheLastChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
-                          Predicate bs Player     -- printed "the last chosen player": the recency is lexical
+                          Predicate bs Player
     QualityNoun : (q : QualitySort) ->
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
@@ -242,7 +242,7 @@ mutual
     OfTheLastChosen : (q : QualitySort) ->
                       {auto 0 ok : ChoiceStands (countChoice (QSort q) bs)} ->
                       {auto 0 read : ChosenQualityRead q} ->
-                      Predicate bs Object         -- printed "the last chosen ...": the recency is lexical
+                      Predicate bs Object
     OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
@@ -311,7 +311,7 @@ mutual
                                        :: (predDelta dom ++ bs))) ->
                   (r : Comparator) -> (bound : Amount bs) ->
                   Predicate bs k
-    InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
+    InZone : ZoneExpr bs -> Predicate bs Object
     InPile : (pile : Noun bs Object) -> {auto 0 pm : PileMention pile} ->
              Predicate bs Object
     ExiledWith : (src : Noun bs Object) ->
@@ -1242,7 +1242,7 @@ mutual
                         {auto 0 pm : So (permanentSpellType (nounTy spell))} ->
                         Noun bs Object
     TheGrantor : (m : MarkerWord) -> Noun bs Object
-    You : Noun bs Player        -- "you" [CR#109.5]
+    You : Noun bs Player
     TheDefendingPlayer : Noun bs Player
     TheAttackingPlayer : Noun bs Player
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
@@ -1366,8 +1366,7 @@ mutual
   sliceDelta Nothing = []
   sliceDelta (Just p) = predDelta p
 
-  ||| "the chosen player" refers to the choice rather than making one
-  ||| [CR#607.2d], so a definite description over it re-reads that binding.
+  ||| A definite description re-reads the chosen-player binding [CR#607.2d].
   public export
   choiceRead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   choiceRead ChosenPlayer = True
@@ -1612,7 +1611,7 @@ mutual
                 {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
     TheLastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
                          {auto 0 rd : ChosenQualityRead Color} ->
-                         ColorTerm bs             -- printed "the last chosen color": the recency is lexical
+                         ColorTerm bs
 
   public export
   data Amount : Bindings -> Type where
@@ -1649,7 +1648,7 @@ mutual
     ChosenNumber : {auto 0 ok : countChoice (QSort Number) bs = 1} ->
                    Amount bs
     TheLastChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
-                          Amount bs               -- printed "the last chosen number": the recency is lexical
+                          Amount bs
     VotesFor : (l : VoteLabel) -> Amount bs
     TheOutcome : (s : OutcomeSort) -> {auto 0 ok : countOutcomes s bs = 1} ->
                  Amount bs
@@ -2821,8 +2820,7 @@ mutual
   nounPlur (PossessorsOf _ _) = ManyOf
   nounPlur (Designated _ _) = OneOf
 
-  ||| A turn part has one active player [CR#102.1], so a plural possessor
-  ||| names no part unless it distributes over the players.
+  ||| A plural possessor must distribute over players [CR#102.1].
   public export
   partPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
   partPossessorOk Nothing = True
@@ -2845,8 +2843,7 @@ mutual
   PointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
   PointWindowOk w = So (pointWindowOk w)
 
-  ||| A duration ends at one named point, so its possessor must be a single
-  ||| definite player.
+  ||| A duration's possessor must be a single definite player.
   public export
   durationPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
   durationPossessorOk Nothing = True

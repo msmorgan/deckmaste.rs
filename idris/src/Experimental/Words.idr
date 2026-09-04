@@ -3542,8 +3542,7 @@ public export
 Eq TurnPart where
   (==) a b = turnPartIx a == turnPartIx b
 
-||| A turn can hold more than one instance of a part [CR#500.8,505.1a], so a
-||| header can distribute over them: "each of your postcombat main phases".
+||| Turn parts can repeat, so headers may distribute over them [CR#500.8,505.1a].
 public export
 data PartQuant = ThePart | EachPart
 

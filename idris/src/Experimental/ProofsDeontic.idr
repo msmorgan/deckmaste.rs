@@ -147,7 +147,6 @@ okStaticUntargeting =
                          NoDeonticPatient)
 
 ||| "Target creature can't attack."
-||| Refused as a Static; Continuously (deontic …) spells the sentence.
 public export
 badStaticTargets : Unspellable Ability (\ok =>
   Static (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Agent NoDeonticPatient) {ut = ok})
@@ -390,14 +389,14 @@ distributedDeedReadsBackPluralUnderCondition =
   OnlyIf (Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))
          (Matches (Macros.That CardW ManyOf) Macros.creature) Nothing
 
-||| "Each opponent sacrifices a creature. Those sacrificed permanents can't be regenerated."
+||| "... sacrificed permanents can't be regenerated."
 public export
 distributedDeedRiderReadsBackPlural : Effect []
 distributedDeedRiderReadsBackPlural =
   CantBe (Macros.sacrifice (Macros.each Opponent) (Macros.a Macros.creature))
          "Regenerate" (Macros.TheVerbed "Sacrifice" PermanentW Attributive ManyOf)
 
-||| "Whenever enchanted player is dealt damage, they lose half their life, rounded up."
+||| "... dealt damage, they lose half their life, rounded up."
 public export
 enchantedPlayerDamageReadsBackAsThey : Ability
 enchantedPlayerDamageReadsBackAsThey =

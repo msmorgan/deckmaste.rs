@@ -141,8 +141,7 @@ badChooseDefinite : Unspellable (Effect []) (\ok =>
                                      Macros.creatureYouControl])) Nothing Openly {ch = ok})
 badChooseDefinite BareChoice impossible
 
-||| "This deals 3 damage to any target. This deals 1 damage to that permanent
-||| or player."
+||| "This deals 1 damage to that permanent or player."
 public export
 okUnionAnaphorAfterJoin : Effect []
 okUnionAnaphorAfterJoin =
@@ -450,8 +449,7 @@ youAndBindsNothing :
   nounDelta {bs = []} (Macros.youAnd Macros.thisCreature) = []
 youAndBindsNothing = Refl
 
-||| "This deals 3 damage to any target. If a player is dealt damage this way,
-||| you draw a card."
+||| "If a player is dealt damage this way, you draw a card."
 public export
 okDealtThisWayAfterDamage : Effect []
 okDealtThisWayAfterDamage =
@@ -700,9 +698,8 @@ lastChosenPlayerRead :
   Predicate [choiceB PlayerC, choiceB PlayerC] Player
 lastChosenPlayerRead = TheLastChosenPlayer
 
-||| "This deals 3 damage to a chosen player. This deals 3 damage to that
-||| player." Only a definite description refers to the choice [CR#607.2d];
-||| the indefinite binds a second player, so the read is ambiguous.
+||| "... a chosen player. ... that player."
+||| Only a definite description refers to the choice [CR#607.2d].
 public export
 badIndefiniteChosenPlayerRead : Unspellable (Effect [choiceB PlayerC]) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.a ChosenPlayer)
@@ -1580,8 +1577,7 @@ badItAcrossOwnSlot : Unspellable (Effect []) (\ok =>
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
 
-||| "Creatures you control get +1/+1 until end of turn. Draw cards equal to
-||| its power."
+||| "Draw cards equal to its power."
 public export
 badSingularReadOfBarePlural : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)

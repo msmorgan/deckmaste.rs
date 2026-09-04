@@ -240,8 +240,7 @@ badPlayerTargetingEvent SpellTargets impossible
 badPlayerTargetingEvent AbilityTargets impossible
 badPlayerTargetingEvent (EitherTargets _ _) impossible
 
-||| "If an ability of a creature you control triggers, it triggers an
-||| additional time."
+||| "If an ability ... triggers, it triggers an additional time."
 public export
 okMultipliedTrigger : StaticEffect []
 okMultipliedTrigger =
@@ -264,7 +263,6 @@ okExchangeTwoParties : Effect []
 okExchangeTwoParties = ExchangeLife (Both You (Macros.target Opponent))
 
 ||| "Exchange life totals with target opponent"
-||| Refused with one party; Both You (target Opponent) spells the sentence.
 public export
 badExchangeOneParty : Unspellable (Effect []) (\ok =>
   ExchangeLife (Macros.target Opponent) {tp = ok})

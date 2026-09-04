@@ -440,7 +440,7 @@ nongreenSpellsOrAbilities =
          (And [ AbilityHead AnyOnStack
               , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ])
 
-||| Hot Pursuit's intervening "if two or more players have lost the game"
+||| Hot Pursuit
 public export
 twoOrMorePlayersHaveLost : Condition []
 twoOrMorePlayersHaveLost =
