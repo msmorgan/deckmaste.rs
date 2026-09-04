@@ -9,14 +9,13 @@ CardSupers : List Supertype -> Type
 CardSupers ss = So (supersDistinct ss)
 
 public export
-data CardClass = PermanentCard | SpellCard | CommandZoneCard
+data CardClass = PermanentCard | SpellCard
 
 public export
 cardClassOf : List CardType -> CardClass
 cardClassOf [] = PermanentCard
 cardClassOf (t :: ts) =
-  if commandZoneType t then CommandZoneCard
-  else if spellCardType t then SpellCard
+  if spellCardType t then SpellCard
   else cardClassOf ts
 
 public export
@@ -28,11 +27,6 @@ public export
 anySpellType : List CardType -> Bool
 anySpellType [] = False
 anySpellType (t :: ts) = spellCardType t || anySpellType ts
-
-public export
-anyCommandZoneType : List CardType -> Bool
-anyCommandZoneType [] = False
-anyCommandZoneType (t :: ts) = commandZoneType t || anyCommandZoneType ts
 
 public export
 hasNonKindredType : List CardType -> Bool
@@ -49,7 +43,6 @@ public export
 keywordCardOk : CardClass -> KeywordLabel -> Bool
 keywordCardOk PermanentCard k = maybe False onPermanentCard (keywordFactsFor k)
 keywordCardOk SpellCard k = maybe False onSpellCard (keywordFactsFor k)
-keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor k)
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticSpec bs -> Bool
@@ -82,34 +75,10 @@ classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _) = True
 classAbilityOk SpellCard (ItalicHead _ ab) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard MayBeginOnBattlefield = False
-classAbilityOk CommandZoneCard (KeywordAbility k _ _) = keywordCardOk CommandZoneCard k
-classAbilityOk CommandZoneCard (Activated c _ _ _ _ _) = costOffBattlefield c
-classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _ _ _) = True
-classAbilityOk CommandZoneCard (Static _) = True
-classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
-classAbilityOk CommandZoneCard (Spell _) = False
-classAbilityOk CommandZoneCard (ItalicHead _ ab) = classAbilityOk CommandZoneCard ab
-classAbilityOk CommandZoneCard MayBeginOnBattlefield = False
-
-public export
-commandZoneTypeAbilityOk : {0 bs : Bindings} -> CardType -> AbilityAt bs -> Bool
-commandZoneTypeAbilityOk t (AlsoForKeywords ab _) = commandZoneTypeAbilityOk t ab
-commandZoneTypeAbilityOk t (ItalicHead _ ab) = commandZoneTypeAbilityOk t ab
-commandZoneTypeAbilityOk Conspiracy (Activated _ _ _ _ _ _) = False
-commandZoneTypeAbilityOk Dungeon (KeywordAbility _ _ _) = False
-commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _ _) = False
-commandZoneTypeAbilityOk Dungeon (Static _) = False
-commandZoneTypeAbilityOk _ _ = True
-
-public export
-commandZoneTypesAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
-commandZoneTypesAbilityOk [] a = True
-commandZoneTypesAbilityOk (t :: ts) a =
-  commandZoneTypeAbilityOk t a && commandZoneTypesAbilityOk ts a
 
 public export
 cardAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
-cardAbilityOk tys a = classAbilityOk (cardClassOf tys) a && commandZoneTypesAbilityOk tys a
+cardAbilityOk tys a = classAbilityOk (cardClassOf tys) a
 
 public export
 cardTextOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs -> Bool

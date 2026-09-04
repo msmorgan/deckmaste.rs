@@ -578,21 +578,6 @@ badTransformingBackWithCost : Unspellable Card (\ok =>
                {bf = ok})
 badTransformingBackWithCost MkFaceLaws impossible
 
-||| an activated ability printed on a conspiracy card
-public export
-badConspiracyActivated : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
-       [ Macros.activated (Mana [Macros.generic 1]) (Draw You (Lit 1)) ] Nothing {fl = ok})
-badConspiracyActivated MkFaceLaws impossible
-
-||| a static ability printed on a dungeon card
-public export
-badDungeonStatic : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Dungeon])
-       [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 1)
-                   Macros.plusOnePlusOne) ] Nothing {fl = ok})
-badDungeonStatic MkFaceLaws impossible
-
 ||| "your opponents' devotion to black"
 public export
 badPluralDevotion : Unspellable (Amount []) (\ok =>
