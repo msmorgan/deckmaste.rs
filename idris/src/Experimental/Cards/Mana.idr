@@ -923,6 +923,35 @@ investigatorsJournal =
                         Compare [CharAxis ManaValue] AtMost (Lit 2)]) ]) ]
        Nothing
 
+||| Engineered Explosives (its sunburst [CR#702.44a] written out)
+public export
+engineeredExplosives : Card
+engineeredExplosives =
+  Macros.card "Engineered Explosives" (Just [Variable]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (Macros.entersWithCounters Macros.thisArtifact
+                   (Macros.colorsSpentToCast Macros.thisArtifact)
+                   (Named "Charge"))
+       , Macros.activated (Compound [Mana [Macros.generic 1],
+                              Do (Macros.sacrifice You Macros.thisArtifact)])
+                          (Macros.destroy (Macros.each
+                             (And [Permanent,
+                                   Compare [CharAxis ManaValue] Eq
+                                     (CountersOn (Named "Charge")
+                                                 Macros.thisArtifact)]))) ]
+       Nothing
+
+||| Radiant Flames (converge is an ability word [CR#207.2c])
+public export
+radiantFlames : Card
+radiantFlames =
+  Macros.card "Radiant Flames"
+       (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (DealDamage This (Macros.colorsSpentToCast This)
+                           (Macros.each Macros.creature)) ]
+       Nothing
+
 ||| Birthing Pod
 public export
 birthingPodSearch : Ability
@@ -954,7 +983,7 @@ latchkeyFaerie =
        , Macros.keywordCosting "Prowl"
            (Mana [Macros.generic 2, Macros.pip Blue])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Prowl") Nothing))
+           (Macros.costWasPaid (ByKeyword "Prowl") Nothing Macros.thisCreature)
            (Sequentially
               [ Macros.searchLibraryOrGraveyard
                   (And [Macros.artifact,

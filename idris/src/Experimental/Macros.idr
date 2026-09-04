@@ -403,6 +403,63 @@ times : (per : Nat) -> (a : Amount bs) ->
 times per a = TimesOf (Lit per) a {nz}
 
 public export
+colorsSpentToCast : (n : Noun bs Object) ->
+                    {auto 0 sb : PaidSubject n} ->
+                    {auto 0 one : nounPlur n = OneOf} -> Amount bs
+colorsSpentToCast n = Paid ColorsSpent n {sb} {one}
+
+public export
+manaValueSpentToCast : (n : Noun bs Object) ->
+                       {auto 0 sb : PaidSubject n} ->
+                       {auto 0 one : nounPlur n = OneOf} -> Amount bs
+manaValueSpentToCast n = Paid ManaValueSpent n {sb} {one}
+
+public export
+timesPaid : (which : PaidCostName) -> (n : Noun bs Object) ->
+            {auto 0 nf : PaidFacetNamed (TimesPaid which)} ->
+            {auto 0 sb : PaidSubject n} ->
+            {auto 0 one : nounPlur n = OneOf} -> Amount bs
+timesPaid which n = Paid (TimesPaid which) n {nf} {sb} {one}
+
+public export
+paidCostRead : (which : PaidCostName) -> (window : Maybe Lookback) ->
+               (n : Noun bs Object) ->
+               {auto 0 nf : PaidFacetNamed (PaidCostReadback which window)} ->
+               {auto 0 sb : PaidSubject n} ->
+               {auto 0 one : nounPlur n = OneOf} -> Amount bs
+paidCostRead which window n = Paid (PaidCostReadback which window) n {nf} {sb} {one}
+
+public export
+costWasPaid : (which : PaidCostName) -> (window : Maybe Lookback) ->
+              (n : Noun bs Object) ->
+              {auto 0 nf : PaidFacetNamed (PaidCostReadback which window)} ->
+              {auto 0 sb : PaidSubject n} ->
+              {auto 0 one : nounPlur n = OneOf} -> Condition bs
+costWasPaid which window n =
+  CompareAmt (paidCostRead which window n {nf} {sb} {one}) AtLeast (Lit 1)
+
+public export
+coloredManaSpentToCast : (n : Noun bs Object) ->
+                         {auto 0 sb : PaidSubject n} ->
+                         {auto 0 one : nounPlur n = OneOf} -> Condition bs
+coloredManaSpentToCast n =
+  CompareAmt (colorsSpentToCast n {sb} {one}) AtLeast (Lit 1)
+
+public export
+noColoredManaSpentToCast : (n : Noun bs Object) ->
+                           {auto 0 sb : PaidSubject n} ->
+                           {auto 0 one : nounPlur n = OneOf} -> Condition bs
+noColoredManaSpentToCast n =
+  CompareAmt (colorsSpentToCast n {sb} {one}) Eq (Lit 0)
+
+public export
+noManaSpentToCast : (n : Noun bs Object) ->
+                    {auto 0 sb : PaidSubject n} ->
+                    {auto 0 one : nounPlur n = OneOf} -> Condition bs
+noManaSpentToCast n =
+  CompareAmt (manaValueSpentToCast n {sb} {one}) Eq (Lit 0)
+
+public export
 theRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
 theRest = TheRest ManyOf {ok}
 

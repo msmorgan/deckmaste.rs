@@ -1139,7 +1139,7 @@ krosanDruid =
        [ Macros.keywordCosting "Kicker"
            (Mana [Macros.generic 4, Macros.pip Green])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker") Nothing))
+           (Macros.costWasPaid (ByKeyword "Kicker") Nothing Macros.thisCreature)
            (Macros.gainsLife You (Lit 10)) ]
        (Just (2, 3))
 
@@ -1154,7 +1154,7 @@ lightkeeperOfEmeria =
        , Macros.keyword "Flying"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Macros.gainsLife You
-              (Macros.times 2 (TimesPaid (ByKeyword "Kicker") Macros.thisCreature))) ]
+              (Macros.times 2 (Macros.timesPaid (ByKeyword "Kicker") Macros.thisCreature))) ]
        (Just (2, 4))
 
 ||| Merfolk Falconer
@@ -1166,8 +1166,10 @@ merfolkFalconer =
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
-           (Casts You (Macros.a (And [Macros.spell,
-                                      PaidCost (ByKeyword "Kicker") Nothing])) Nothing)
+           (Casts You (Macros.a (CompareOver Macros.spell
+                                    (Macros.paidCostRead (ByKeyword "Kicker") Nothing
+                                                         (Macros.It OneOf))
+                                    AtLeast (Lit 1))) Nothing)
            (Macros.scry You (Lit 2)) ]
        (Just (4, 4))
 
@@ -1221,7 +1223,7 @@ rafterDemon =
        [ Macros.keywordCosting "Spectacle"
            (Mana [Macros.generic 3, Macros.pip Black, Macros.pip Red])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Spectacle") Nothing))
+           (Macros.costWasPaid (ByKeyword "Spectacle") Nothing Macros.thisCreature)
            ((Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))) ]
        (Just (4, 2))
 
@@ -1261,7 +1263,7 @@ conquerorsPledge =
                   (Macros.create (Lit 6)
                      (Macros.creatureTok 1 1 [White]
                         [creatureType "Kor", creatureType "Soldier"]))
-                  (If (Matches This (PaidCost (ByKeyword "Kicker") Nothing))
+                  (If (Macros.costWasPaid (ByKeyword "Kicker") Nothing This)
                       (Create You (Lit 12) TokenAsThose [])
                       Nothing)) ]
        Nothing
@@ -1292,7 +1294,7 @@ tourachDreadCantor =
        , Macros.keywordQuality "Protection" (ColorIs White)
        , Keyword.tourachDiscardTrigger
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker") Nothing))
+           (Macros.costWasPaid (ByKeyword "Kicker") Nothing Macros.thisCreature)
            (Macros.discard (Macros.target Opponent)
                             (Macros.countedAtRandom (Macros.exactly 2)
                                                     (InZone Macros.handZ))) ]

@@ -681,35 +681,35 @@ emblemGrantorRead : Noun [] Object
 emblemGrantorRead = TheGrantor EmblemMarker
 
 public export
-alternativeCostReadbacks : List (Predicate [] Object)
+alternativeCostReadbacks : List (Amount [])
 alternativeCostReadbacks =
-  [ PaidCost (ByKeyword "Escape") Nothing
-  , PaidCost (ByKeyword "Foretell") Nothing
-  , PaidCost (ByKeyword "Bestow") Nothing
-  , PaidCost (ByKeyword "Disguise") Nothing
-  , PaidCost (ByKeyword "Mutate") Nothing
-  , PaidCost (ByKeyword "Overload") Nothing
-  , PaidCost (ByKeyword "Disturb") Nothing
-  , PaidCost (ByKeyword "Dash") Nothing
-  , PaidCost (ByKeyword "Evoke") Nothing
-  , PaidCost (ByKeyword "Blitz") Nothing
-  , PaidCost (ByKeyword "Cleave") Nothing
-  , PaidCost (ByKeyword "Harmonize") Nothing
-  , PaidCost (ByKeyword "Impending") Nothing
-  , PaidCost (ByKeyword "Awaken") Nothing
-  , PaidCost (ByKeyword "Buyback") Nothing
-  , PaidCost (ByKeyword "Casualty") Nothing
-  , PaidCost (ByKeyword "Squad") Nothing
-  , PaidCost (ByKeyword "Offspring") Nothing
-  , PaidCost (ByKeyword "Gift") Nothing
-  , PaidCost (ByKeyword "Replicate") Nothing
+  [ Macros.paidCostRead (ByKeyword "Escape") Nothing This
+  , Macros.paidCostRead (ByKeyword "Foretell") Nothing This
+  , Macros.paidCostRead (ByKeyword "Bestow") Nothing This
+  , Macros.paidCostRead (ByKeyword "Disguise") Nothing This
+  , Macros.paidCostRead (ByKeyword "Mutate") Nothing This
+  , Macros.paidCostRead (ByKeyword "Overload") Nothing This
+  , Macros.paidCostRead (ByKeyword "Disturb") Nothing This
+  , Macros.paidCostRead (ByKeyword "Dash") Nothing This
+  , Macros.paidCostRead (ByKeyword "Evoke") Nothing This
+  , Macros.paidCostRead (ByKeyword "Blitz") Nothing This
+  , Macros.paidCostRead (ByKeyword "Cleave") Nothing This
+  , Macros.paidCostRead (ByKeyword "Harmonize") Nothing This
+  , Macros.paidCostRead (ByKeyword "Impending") Nothing This
+  , Macros.paidCostRead (ByKeyword "Awaken") Nothing This
+  , Macros.paidCostRead (ByKeyword "Buyback") Nothing This
+  , Macros.paidCostRead (ByKeyword "Casualty") Nothing This
+  , Macros.paidCostRead (ByKeyword "Squad") Nothing This
+  , Macros.paidCostRead (ByKeyword "Offspring") Nothing This
+  , Macros.paidCostRead (ByKeyword "Gift") Nothing This
+  , Macros.paidCostRead (ByKeyword "Replicate") Nothing This
   ]
 
 public export
-modalCostReadbacks : (Predicate [] Object, Amount [])
+modalCostReadbacks : (Amount [], Amount [])
 modalCostReadbacks =
-  ( PaidCost (ByKeyword "Entwine") Nothing
-  , TimesPaid (ByKeyword "Escalate") This
+  ( Macros.paidCostRead (ByKeyword "Entwine") Nothing This
+  , Macros.timesPaid (ByKeyword "Escalate") This
   )
 
 ||| "It doesn't untap during its controller's next untap step."

@@ -2167,6 +2167,25 @@ PaidCostNamed : PaidCostName -> Type
 PaidCostNamed n = So (paidCostNamed n)
 
 public export
+data PaidFacet : Type where
+  ColorsSpent : PaidFacet     -- colors of mana spent to cast it [CR#702.44a]
+  ManaValueSpent : PaidFacet  -- mana spent to pay the total cost [CR#601.2h]
+  TimesPaid : (which : PaidCostName) -> PaidFacet   -- [CR#702.33c..702.33d]
+  PaidCostReadback : (which : PaidCostName) -> (window : Maybe Lookback) ->
+                     PaidFacet                      -- "was kicked" [CR#702.33d]
+
+public export
+paidFacetNamed : PaidFacet -> Bool
+paidFacetNamed ColorsSpent = True
+paidFacetNamed ManaValueSpent = True
+paidFacetNamed (TimesPaid which) = paidCostNamed which
+paidFacetNamed (PaidCostReadback which _) = paidCostNamed which
+
+public export
+PaidFacetNamed : PaidFacet -> Type
+PaidFacetNamed f = So (paidFacetNamed f)
+
+public export
 distinctKeywordWords : List KeywordFacts -> Bool
 distinctKeywordWords [] = True
 distinctKeywordWords (f :: fs) =

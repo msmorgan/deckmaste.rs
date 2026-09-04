@@ -1331,7 +1331,7 @@ tyrantOfValakut =
            (Mana [Macros.generic 3, Macros.pip Red, Macros.pip Red])
        , Macros.keyword "Flying"
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Surge") Nothing))
+           (Macros.costWasPaid (ByKeyword "Surge") Nothing Macros.thisCreature)
            (DealDamage Macros.thisCreature (Lit 3)
                        (Macros.target Macros.anyTarget)) ]
        (Just (5, 4))

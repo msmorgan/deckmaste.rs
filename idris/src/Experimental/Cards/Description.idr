@@ -362,19 +362,19 @@ targetOpponentOrPlaneswalker =
 public export
 balefulMasteryPaidRead : Ability
 balefulMasteryPaidRead =
-  Spell (If (Matches This (PaidCost TheAlternative Nothing))
+  Spell (If (Macros.costWasPaid TheAlternative Nothing This)
             (Draw (Macros.a Opponent) (Lit 1)) Nothing)
 
 ||| Karai, Future of the Foot
 public export
-karaiSneakPaidThisTurn : Predicate [] Object
-karaiSneakPaidThisTurn = PaidCost (ByKeyword "Sneak") (Just ThisTurn)
+karaiSneakPaidThisTurn : Amount []
+karaiSneakPaidThisTurn = Macros.paidCostRead (ByKeyword "Sneak") (Just ThisTurn) This
 
 ||| Requiting Hex's read
 public export
 requitingHexAdditionalRead : Ability
 requitingHexAdditionalRead =
-  Spell (If (Matches This (PaidCost TheAdditional Nothing))
+  Spell (If (Macros.costWasPaid TheAdditional Nothing This)
             (Macros.gainsLife You (Lit 2)) Nothing)
 
 ||| Lucid Dreams

@@ -348,7 +348,7 @@ ertaisTrickery =
   Macros.card "Ertai's Trickery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (OnlyIf (CounterSpell (Macros.target Macros.spell))
-                       (Matches ((Macros.It OneOf)) (PaidCost (ByKeyword "Kicker") Nothing)) Nothing) ]
+                       (Macros.costWasPaid (ByKeyword "Kicker") Nothing (Macros.It OneOf)) Nothing) ]
        Nothing
 
 ||| Celebrate the Harvest

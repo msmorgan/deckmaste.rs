@@ -295,8 +295,6 @@ mutual
     HasCounters : (kind : Maybe CounterKind) ->
                   {auto 0 kn : CounterKindNamed Object kind} ->
                   Predicate bs Object
-    PaidCost : (which : PaidCostName) -> (window : Maybe Lookback) ->
-               {auto 0 nc : PaidCostNamed which} -> Predicate bs Object
     Compare : {k : Kind} -> (axes : List ProjAxis) -> (r : Comparator) ->
               (bound : Amount bs) ->
               {auto 0 at : AxesAt k axes} -> Predicate bs k
@@ -795,8 +793,6 @@ mutual
   predEq (HasCounters Nothing) (HasCounters Nothing) = True
   predEq (HasCounters (Just a)) (HasCounters (Just b)) = a == b
   predEq (HasCounters _) _ = False
-  predEq (PaidCost a wa) (PaidCost b wb) = a == b && sameWindow wa wb
-  predEq (PaidCost _ _) _ = False
   predEq (Compare cs r b) (Compare ds s e) = sameAxes cs ds && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
@@ -1681,9 +1677,10 @@ mutual
     CountersOn : {k : Kind} -> (kind : CounterKind) -> (holder : Noun bs k) ->
                  {auto 0 sc : counterScope kind = k} ->
                  {auto 0 one : nounPlur holder = OneOf} -> Amount bs
-    TimesPaid : (which : PaidCostName) -> (whose : Noun bs Object) ->
-                {auto 0 nc : PaidCostNamed which} ->
-                {auto 0 one : nounPlur whose = OneOf} -> Amount bs
+    Paid : (f : PaidFacet) -> (n : Noun bs Object) ->
+           {auto 0 nf : PaidFacetNamed f} ->
+           {auto 0 sb : PaidSubject n} ->
+           {auto 0 one : nounPlur n = OneOf} -> Amount bs
     EventTally : {k : Kind} -> (op : TallyOp) -> (ev : EventName) ->
                  (who : Noun bs k) -> (w : Lookback) ->
                  (what :
@@ -1735,7 +1732,7 @@ mutual
   amtDelta (StatOf _ nom) = nounDelta nom
   amtDelta (PlayerStatOf _ nom) = nounDelta nom
   amtDelta (CountersOn _ holder) = nounDelta holder
-  amtDelta (TimesPaid _ whose) = nounDelta whose
+  amtDelta (Paid _ n) = nounDelta n
   amtDelta (EventTally _ _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (CountOf grp) = nounDelta grp
   amtDelta (Aggregate _ _ grp) = nounDelta grp
@@ -1765,7 +1762,7 @@ mutual
   amtIntro (StatOf c nom) = nomIntro nom
   amtIntro (PlayerStatOf w nom) = nomIntro nom
   amtIntro (CountersOn _ holder) = nomIntro holder
-  amtIntro (TimesPaid _ whose) = nomIntro whose
+  amtIntro (Paid _ n) = nomIntro n
   amtIntro (EventTally _ _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (CountOf grp) = nomIntro grp
   amtIntro (Aggregate _ _ grp) = nomIntro grp
@@ -1801,7 +1798,7 @@ mutual
   amtPlur (StatOf _ _) = ManyOf
   amtPlur (PlayerStatOf _ _) = ManyOf
   amtPlur (CountersOn _ _) = ManyOf
-  amtPlur (TimesPaid _ _) = ManyOf
+  amtPlur (Paid _ _) = ManyOf
   amtPlur (EventTally _ _ _ _ _) = ManyOf
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
@@ -1880,7 +1877,7 @@ mutual
   readAmount (StatOf _ _) = True
   readAmount (PlayerStatOf _ _) = True
   readAmount (CountersOn _ _) = True
-  readAmount (TimesPaid _ _) = True
+  readAmount (Paid _ _) = True
   readAmount (EventTally _ _ _ _ _) = True
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True
@@ -2213,6 +2210,18 @@ mutual
                     {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
 
   public export
+  paidSubjectOk : {bs : Bindings} -> Noun bs Object -> Bool
+  paidSubjectOk This = True
+  paidSubjectOk (AsType _ n _) = paidSubjectOk n
+  paidSubjectOk (AsMarker _ n) = paidSubjectOk n
+  paidSubjectOk n = onStackZone (nounZone n)
+
+  public export
+  data PaidSubject : Noun bs Object -> Type where
+    PaymentHappened : {0 n : Noun bs Object} ->
+                      {auto 0 ok : So (paidSubjectOk n)} -> PaidSubject n
+
+  public export
   counterKind : Kind -> Bool
   counterKind Object = True
   counterKind (a \/ b) = counterKind a && counterKind b
@@ -2309,9 +2318,6 @@ mutual
                   Condition bs
     RolledDoubles : {auto 0 ok : countOutcomes RollResult bs = 1} ->
                     Condition bs
-    ManaSpentToCast : (what : Noun bs Object) -> (of_ : Maybe ManaMatch) ->
-                      {auto 0 zn : ZoneIs (nounZone what) Stack} ->
-                      Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : AtLeastTwoArms cs} ->
@@ -2380,7 +2386,6 @@ mutual
   condDelta (Happened _ who _ _) = selfSubjDelta who
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
-  condDelta (ManaSpentToCast what _) = nounDelta what
   condDelta (Matches n _) = nounDelta n ++ selfSubjDelta n
   condDelta (CompareAmt subj _ bound) =
     gapB :: (amtDelta bound ++ amtDelta subj)

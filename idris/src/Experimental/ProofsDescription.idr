@@ -433,15 +433,33 @@ badExactlySixColors Oh impossible
 
 ||| "if this creature's flying cost was paid"
 public export
-badPaidCostOnCostlessKeyword : Unspellable (Predicate [] Object) (\ok =>
-  PaidCost (ByKeyword "Flying") Nothing {nc = ok})
+badPaidCostOnCostlessKeyword : Unspellable (Amount []) (\ok =>
+  Paid (PaidCostReadback (ByKeyword "Flying") Nothing) This {nf = ok})
 badPaidCostOnCostlessKeyword Oh impossible
 
 ||| "for each time it was kickre'd"
 public export
 badTimesPaidUnknownKeyword : Unspellable (Amount []) (\ok =>
-  TimesPaid (ByKeyword "Kickre") Macros.thisCreature {nc = ok})
+  Paid (TimesPaid (ByKeyword "Kickre")) Macros.thisCreature {nf = ok})
 badTimesPaidUnknownKeyword Oh impossible
+
+||| "for each color of mana spent to cast this spell"
+public export
+okColorsSpentOnThis : Amount []
+okColorsSpentOnThis = Macros.colorsSpentToCast This
+
+||| "for each color of mana spent to cast a creature on the battlefield"
+public export
+badPaidReadOffStack : Unspellable (Amount []) (\ok =>
+  Paid ColorsSpent (Macros.a Macros.creature) {sb = ok})
+badPaidReadOffStack PaymentHappened impossible
+
+||| "if colored mana was spent to cast it" is a read of Paid ColorsSpent
+public export
+coloredManaSpentIsPaidColorsSpent :
+  Macros.coloredManaSpentToCast (This {bs = []}) =
+    CompareAmt (Paid ColorsSpent This) AtLeast (Lit 1)
+coloredManaSpentIsPaidColorsSpent = Refl
 
 ||| "spell that targets this creature"
 public export

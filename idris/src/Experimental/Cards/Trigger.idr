@@ -666,7 +666,7 @@ public export
 stormscapeBattlemageFirstKicker : Ability
 stormscapeBattlemageFirstKicker =
   Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-    (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker") Nothing))
+    (Macros.costWasPaid (ByNthKeyword (Nth 1) "Kicker") Nothing Macros.thisCreature)
     (Macros.gainsLife You (Lit 3))
 
 ||| All-Seeing Arbiter
@@ -1082,7 +1082,7 @@ vexingBaubleTrigger : Ability
 vexingBaubleTrigger =
   Macros.triggeredIf Whenever
     (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell) Nothing)
-    (NotCond (ManaSpentToCast ((Macros.It OneOf)) Nothing))
+    (Macros.noManaSpentToCast (Macros.It OneOf))
     (CounterSpell (Macros.That SpellW OneOf))
 
 ||| Void Mirror
@@ -1093,7 +1093,7 @@ voidMirror =
        (MkTypeLine [] [Artifact])
        [ Macros.triggeredIf Whenever
            (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell) Nothing)
-           (NotCond (ManaSpentToCast ((Macros.It OneOf)) (Just MatchAnyColor)))
+           (Macros.noColoredManaSpentToCast (Macros.It OneOf))
            (CounterSpell (Macros.That SpellW OneOf)) ]
        Nothing
 
