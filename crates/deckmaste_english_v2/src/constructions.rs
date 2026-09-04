@@ -1865,7 +1865,7 @@ constructions! {
     construction ordered_predicate: OrderedPredicate {
         element OrderedPredicateValue {
             head: lex OrderedVerb,
-            object: Object,
+            object: Object checked by object_has_no_selected_source_postmodifier(),
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             order_relation: lex Preposition,
@@ -4393,7 +4393,7 @@ constructions! {
     construction put_onto: VerbPhrase {
         element PutOnto {
             head: lex ObjectFromOntoResultControlVerb,
-            object: Object,
+            object: Object checked by object_has_no_selected_source_postmodifier(),
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
@@ -4421,7 +4421,7 @@ constructions! {
     construction put_on: VerbPhrase {
         element PutOn {
             head: lex ObjectFromOnVerb,
-            object: Object,
+            object: Object checked by object_has_no_selected_source_postmodifier(),
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
         }
@@ -4441,7 +4441,7 @@ constructions! {
     construction return_to: VerbPhrase {
         element ReturnTo {
             head: lex ObjectFromToResultControlVerb,
-            object: Object,
+            object: Object checked by object_has_no_selected_source_postmodifier(),
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             result: opt PredicativeComplement,
@@ -5027,6 +5027,66 @@ fn nominal_preposition_is_licensed(
         PrepositionComplementKind::OnComplement => accepts_surface,
         PrepositionComplementKind::TemporalComplement => accepts_temporal,
         PrepositionComplementKind::UnrestrictedComplement => false,
+    }
+}
+
+fn object_has_no_selected_source_postmodifier(object: &Object) -> bool {
+    right_edge_nominal_postmodifier_kind(object)
+        != Some(PrepositionComplementKind::SourceComplement)
+}
+
+fn right_edge_nominal_postmodifier_kind(object: &Object) -> Option<PrepositionComplementKind> {
+    let Object::ObjectNominal(NominalObject { value }) = object else {
+        return None;
+    };
+    right_edge_noun_phrase_postmodifier_kind(value)
+}
+
+fn right_edge_noun_phrase_postmodifier_kind(
+    noun_phrase: &NounPhrase,
+) -> Option<PrepositionComplementKind> {
+    match noun_phrase {
+        NounPhrase::LocativeCoordinatedNounPhrase(value) => match &value.coordination {
+            LocativeNounPhraseCoordination::LocativeAndNounPhraseCoordination(coordination) => {
+                coordination
+                    .members()
+                    .last()
+                    .and_then(right_edge_postmodified_reference_kind)
+            }
+        },
+        NounPhrase::QualifiedNounPhrase(value) => {
+            right_edge_postmodified_reference_kind(&value.reference)
+        }
+        NounPhrase::ComparativeQuantifiedReference(value) => {
+            right_edge_nominal_postmodifier_kind(&value.standard)
+        }
+        NounPhrase::PositionalPartitive(value) => {
+            right_edge_nominal_postmodifier_kind(&value.whole)
+        }
+        NounPhrase::FusedDeterminativeReference(_) | NounPhrase::CommonNounChoiceList(_) => None,
+    }
+}
+
+fn right_edge_postmodified_reference_kind(
+    reference: &PostmodifiedReference,
+) -> Option<PrepositionComplementKind> {
+    match reference {
+        PostmodifiedReference::PrepositionalQualifiedReference(value) => Some(
+            preposition_complement_kind_for_prepositional_phrase(value.modifier()),
+        ),
+        PostmodifiedReference::RelationalQualifiedReference(value) => Some(
+            preposition_complement_kind_for_prepositional_phrase(value.modifier()),
+        ),
+        PostmodifiedReference::UnqualifiedPostmodifiedReference(_)
+        | PostmodifiedReference::RelativeQualifiedReference(_)
+        | PostmodifiedReference::SubjectRelativeQualifiedReference(_)
+        | PostmodifiedReference::ContractedCopularRelativeReference(_)
+        | PostmodifiedReference::ReducedPassiveQualifiedReference(_)
+        | PostmodifiedReference::ReducedPassiveAdjunctQualifiedReference(_)
+        | PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(_)
+        | PostmodifiedReference::OtherThanQualifiedReference(_)
+        | PostmodifiedReference::ScalarQualifiedReference(_)
+        | PostmodifiedReference::GrantedAbilityQualifiedReference(_) => None,
     }
 }
 

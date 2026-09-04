@@ -3341,6 +3341,43 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
 }
 
 #[test]
+fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Return target creature card from your graveyard to your hand.",
+        "Return target creature card to your hand.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert!(analysis.selected().is_some(), "{text:?}: {analysis:#?}");
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1, "{text:?}: {decision:#?}");
+        assert_eq!(
+            decision.resolution(),
+            SelectionResolution::Unique,
+            "{text:?}"
+        );
+    }
+
+    let noun_modified = parser.analyze(
+        "Destroy target creature card from your graveyard.",
+        &context,
+    );
+    assert!(noun_modified.selected().is_some(), "{noun_modified:#?}");
+    let decision = noun_modified
+        .decision()
+        .expect("selected noun-postmodifier parse has a decision");
+    assert_eq!(decision.candidates().len(), 1, "{decision:#?}");
+    assert!(
+        decision.candidates()[0]
+            .construction_path()
+            .iter()
+            .any(|construction| construction.ends_with("PrepositionalQualifiedReference"))
+    );
+}
+
+#[test]
 fn location_state_and_object_control_frames_select_exact_products() {
     let parser = parser();
     let context = context();
