@@ -190,3 +190,15 @@ apply.
   `Possessive` construction's total `number` derive) that makes the deletion
   provably selection-neutral rather than asserted, and the out-of-scope
   observation about `demonstrative_possessive_reference`.
+
+### 2026-09-04 — the pinned single construction was delivered
+
+This landing's *Pinned shape versus delivered shape* entry recorded that the
+ticket's one `genitive_determiner_reference` was unreachable because the
+`nominal_form` requirements the number-feature landing left on the three
+genitive branches were load-bearing. `english-v2-possessive-nominal-form-
+collapse` (R10) removed that block: the determiner's `nominal_license` and
+`determiner_number` are now declared properties read through the existing
+`determiner_licenses_nominal` checker, so the singular, plural and mass
+genitive branches are one `genitive_determiner_reference` again, and the three
+`possessed_*` branches are one `possessed_reference`. Nothing is left open here.

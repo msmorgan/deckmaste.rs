@@ -48,3 +48,33 @@ underspecification the brief pins.
   identities (the Hurricane family, the token lists, Eaten by Spiders), so the
   ranker cannot be turned back wholesale — the two readings need the packed
   candidate this ticket describes.
+
+2026-09-04, routed from the `english-v2-possessive-nominal-form-collapse` (R10)
+landing STOP, by coordinator ruling: the possessive coordination arm is struck
+from that ticket and deferred here.
+
+- The arm. `possessed_reference` (a possessive determiner plus a Nominal) has
+  no coordination arm, so `your creature and artifact` has no derivation. Its
+  sibling `genitive_determiner_coordination_reference` is the shape the arm
+  would copy. R10 removed that construction's `coordination.number is Singular`
+  requirement, so the genitive side now licenses `target player's creatures and
+  artifacts`; the possessive side is what remains open.
+- The two sentences. `Destroy your creature and artifact.` is the sentence the
+  arm exists to admit. `Whenever you cast your first instant or sorcery spell
+  each turn, …` (Aquatic Alchemist // Bubble Up, identity
+  `eabbc2128de743c6555fa404e3102827062681275d373db6f3adbed32980abbb`) is the
+  sentence the arm breaks.
+- The two analyses of the second sentence. Correct, and what trunk selects
+  today: `PossessedReference -> ModifiedSingularNominal ->
+  AttributiveAdjectiveModifier(first) -> OrSharedHeadModifier(instant or
+  sorcery) -> SingularHead(spell)`, i.e. `your first [instant or sorcery]
+  spell`. What the probed arm made specificity select instead:
+  `PossessedCoordinationReference -> OrNominalCoordination ->
+  ModifiedSingularCoordinationMember(first instant) +
+  ModifiedSingularCoordinationMember(sorcery spell)`, i.e. `your [first
+  instant] or [sorcery spell]`. Both bracketings are English; neither is
+  excluded by a Nominal Form or determiner-licence fact at that site, and R10's
+  fences forbid a dominance edge, an exception, or a narrowed value list to
+  choose between them. The missing piece is the general
+  bracketing-preference/attachment device this ticket pins, so the arm lands
+  with it, not before it.

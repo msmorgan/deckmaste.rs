@@ -3215,6 +3215,13 @@ fn possessive_determiners_license_nominals_without_form_partitioning() {
                 "NominalBarePluralNominal",
             ],
         ),
+        (
+            "Destroy that player's creature and artifact.",
+            [
+                "UnqualifiedReferenceGenitiveDeterminerCoordinationReference",
+                "NominalCoordinationAndNominalCoordination",
+            ],
+        ),
     ] {
         let analysis = parser.analyze(text, &context);
         assert_eq!(

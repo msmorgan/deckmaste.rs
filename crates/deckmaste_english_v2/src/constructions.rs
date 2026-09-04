@@ -3140,6 +3140,15 @@ constructions! {
         }
         // A singular demonstrative agrees with the possessor it determines.
         require possessor.number is Singular;
+        // A coordinated Noun Phrase has phrase-level agreement distinct from
+        // the homogeneous Number of its Conjuncts.
+        require possessed.nominal_form in [
+            BareSingularNoun,
+            ModifiedSingularNoun,
+            BarePluralNoun,
+            ModifiedPluralNoun,
+            MassNoun
+        ];
         derive concord_class = possessed.concord_class;
         derive number = possessed.number;
         derive onset = Values::Consonant;
