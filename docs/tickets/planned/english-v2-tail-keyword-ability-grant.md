@@ -1,9 +1,6 @@
 ---
 needs: [english-v2-clause-level-duration, english-v2-granted-ability-coordination]
 ---
-2026-09-04: inherits re-coverage owed for `Target creature gains trample until
-end of turn.` from `english-v2-clause-level-duration`.
-
 **Keyword-ability grants are a verb frame, not a bespoke predicate.** `Target
 creature gains flying until end of turn.` fails while `Target creature gets
 +1/+1 until end of turn.` selects. Sizing from the 2026-09-03 failure census
@@ -53,3 +50,6 @@ tree's change id and lock `covered` count; every newly covered identity with
 its selected analysis; performance advisory), with the construction count
 showing the bespoke construction deleted rather than kept beside the frame, and
 both byte-exact laws green with total ownership. Standard constraints apply.
+
+2026-09-04: inherits re-coverage owed for `Target creature gains trample until
+end of turn.` from `english-v2-clause-level-duration`.

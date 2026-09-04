@@ -4586,7 +4586,7 @@ constructions! {
         element HaveObjectControl {
             head: lex HaveObjectControlVerb,
             object: Object,
-            predicate: VerbPhrase,
+            predicate: BarePredicate,
         }
         derive concord_class = head.concord_class;
         derive predicate.concord_class = Values::Other;

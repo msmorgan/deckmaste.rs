@@ -312,16 +312,23 @@ fn declarative_get_power_toughness_with_duration(
     else {
         panic!("duration has the general predicate-adjunct construction: {text:?}")
     };
-    assert!(matches!(
-        value.adjunct.as_ref(),
-        PredicateAdjunct::Duration(_)
-    ));
+    assert_duration_adjunct(value.adjunct.as_ref(), text);
     let LexicalVerbPhrase::GetPowerToughnessLexicalVerbPhrase(predicate) = value.predicate.as_ref()
     else {
         panic!("power/toughness adjustment remains a lexical verb phrase: {text:?}")
     };
     let GetPowerToughnessLexicalVerbPhrase::GetPowerToughness(predicate) = predicate;
     (predicate.head.clone(), predicate.adjustment.clone())
+}
+
+fn assert_duration_adjunct(adjunct: &PredicateAdjunct, text: &str) {
+    let PredicateAdjunct::Duration(duration) = adjunct else {
+        panic!("the shared adjunct is a duration: {text:?}")
+    };
+    assert!(matches!(
+        duration.duration.as_ref(),
+        DurationPhrase::Until(_)
+    ));
 }
 
 fn exact_claim_trace(
@@ -1168,6 +1175,37 @@ impl Visitor for PowerToughnessVisitor {
         self.0.push("negative-magnitude");
         deckmaste_english_v2::visit::walk_negative_power_toughness_magnitude(self, value);
     }
+}
+
+#[test]
+fn a_causative_complement_hosts_the_shared_clause_level_duration() {
+    let parser = parser();
+    let context = context();
+    let text = "You may have target creature get -1/-1 until end of turn.";
+    let ability = assert_selected(&parser, &context, text);
+    assert_eq!(ability.render(&context, parser.environment()), text);
+
+    let Predicate::Auxiliary(auxiliary) = declarative_predicate(&parser, &context, text) else {
+        panic!("the modal takes a bare complement: {text:?}")
+    };
+    let AuxiliaryPredicate::AuxiliaryPredicate(auxiliary) = auxiliary.as_ref();
+    let BarePredicate::Atomic(complement) = auxiliary.predicate() else {
+        panic!("the causative is the modal's atomic complement: {text:?}")
+    };
+    let VerbPhrase::HaveObjectControl(causative) = complement.as_ref() else {
+        panic!("the modal complement is the object-control frame: {text:?}")
+    };
+    let BarePredicate::Adjunct(embedded) = causative.predicate() else {
+        panic!("the embedded clause carries the shared adjunct envelope: {text:?}")
+    };
+    let PredicateAdjunctPredicate::PredicateAdjunctPredicate(embedded) = embedded.as_ref() else {
+        panic!("the embedded duration uses the general adjunct construction: {text:?}")
+    };
+    assert_duration_adjunct(embedded.adjunct.as_ref(), text);
+    assert!(matches!(
+        embedded.predicate.as_ref(),
+        LexicalVerbPhrase::GetPowerToughnessLexicalVerbPhrase(_)
+    ));
 }
 
 #[test]
