@@ -296,7 +296,8 @@ mod tests {
 
     /// The runtime type registry ([CR#300.1]) assembled from canon+builtin+
     /// wizards mirrors the subtype registry: bare names resolve, and each
-    /// `TypeDef` carries the correct `permanent` flag from the plugin data.
+    /// `TypeDef` carries the correct `permanent_type` flag from the plugin
+    /// data.
     #[test]
     #[cfg_attr(
         not(wizards_corpus),
@@ -309,7 +310,7 @@ mod tests {
             "Land resolves in the runtime registry"
         );
         assert!(state.types.contains_key("Creature"));
-        assert!(!state.types["Instant"].permanent);
+        assert!(!state.types["Instant"].permanent_type);
     }
 
     /// End-to-end: both seats are auto-developed by `GreedyDemo` (which, unlike

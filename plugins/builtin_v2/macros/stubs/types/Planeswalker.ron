@@ -3,5 +3,5 @@ Type(
     spelling: "planeswalker",
     grammar: Noun(singular: "planeswalker"),
     params: [],
-    body: TypeDef(name: "Planeswalker", permanent: true),
+    body: TypeDef(name: "Planeswalker", permanent_type: true),
 )

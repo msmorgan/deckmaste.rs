@@ -3,5 +3,5 @@ Type(
     spelling: "sorcery",
     grammar: Noun(singular: "sorcery", plural: "sorceries"),
     params: [],
-    body: TypeDef(name: "Sorcery", permanent: false),
+    body: TypeDef(name: "Sorcery", permanent_type: false),
 )

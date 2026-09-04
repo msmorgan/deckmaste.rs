@@ -3717,7 +3717,7 @@ mod tests {
     fn instant_typedef() -> deckmaste_core::TypeDef {
         deckmaste_core::TypeDef {
             name: "Instant".into(),
-            permanent: false,
+            permanent_type: false,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticSpec::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Cast {
@@ -3804,7 +3804,7 @@ mod tests {
     fn land_typedef() -> deckmaste_core::TypeDef {
         deckmaste_core::TypeDef {
             name: "Land".into(),
-            permanent: true,
+            permanent_type: true,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticSpec::Deontic(deckmaste_core::Deontic::May(
                     deckmaste_core::DeonticAction::Play {

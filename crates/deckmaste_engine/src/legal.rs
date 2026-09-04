@@ -2154,7 +2154,7 @@ mod tests {
     fn cant_cast_instant_typedef() -> deckmaste_core::TypeDef {
         deckmaste_core::TypeDef {
             name: "Instant".into(),
-            permanent: false,
+            permanent_type: false,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Cast {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -2459,7 +2459,7 @@ mod tests {
     fn land_typedef() -> deckmaste_core::TypeDef {
         deckmaste_core::TypeDef {
             name: "Land".into(),
-            permanent: true,
+            permanent_type: true,
             confers: vec![deckmaste_core::Property::Ability(Arc::new(
                 Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Play {
                     what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
@@ -2621,7 +2621,7 @@ mod tests {
         let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
             name: "Creature".into(),
-            permanent: true,
+            permanent_type: true,
             confers: vec![
                 ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
                     by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),

@@ -3,5 +3,5 @@ Type(
     spelling: "enchantment",
     grammar: Noun(singular: "enchantment"),
     params: [],
-    body: TypeDef(name: "Enchantment", permanent: true),
+    body: TypeDef(name: "Enchantment", permanent_type: true),
 )

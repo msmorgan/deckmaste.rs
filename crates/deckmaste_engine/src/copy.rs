@@ -457,7 +457,7 @@ fn apply_type_op(types: &mut Vec<TypeDef>, op: &CollectionOp<Ident>) {
 /// `state.types` so a granted type's `confers` rides along; no `&GameState`
 /// reaches `apply_exceptions` (module doc), so this can't do that lookup. It
 /// falls back to the SAME registry-absent shape `resolve_type` itself uses
-/// (name-only, `permanent: false`, no `confers`) — except for the six
+/// (name-only, `permanent_type: false`, no `confers`) — except for the six
 /// built-in card types, which have a registry-free structural `TypeDef`
 /// already (`Type::def()`, "fixtures use it so structure-only tests need no
 /// plugin load"). A plugin-declared custom type's `confers` is lost either
@@ -478,7 +478,7 @@ fn minimal_type_def(name: &Ident) -> TypeDef {
     BUILTIN.into_iter().find(|t| t.name() == *name).map_or(
         TypeDef {
             name: *name,
-            permanent: false,
+            permanent_type: false,
             confers: Vec::new().into(),
         },
         Type::def,

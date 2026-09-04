@@ -404,7 +404,7 @@ impl GameState {
     /// True iff any of the card's printed types is a PERMANENT type
     /// ([CR#608.3] — a spell of this type enters the battlefield on
     /// resolution instead of resolving as a one-shot effect). Reads the
-    /// `TypeDef.permanent` flag, not an enum name-list. Grizzly Bears →
+    /// `TypeDef.permanent_type` flag, not an enum name-list. Grizzly Bears →
     /// true; Instant `DealDamage` `AnyTarget` → false. The
     /// battlefield-entry-vs-resolve control-flow fork this feeds
     /// (`resolve.rs:93`) stays hardcoded.
@@ -413,7 +413,7 @@ impl GameState {
         crate::derive::face(self.def(id))
             .types
             .iter()
-            .any(|t| t.permanent)
+            .any(|t| t.permanent_type)
     }
 
     /// Returns the effect of the spell's first `Ability::Spell(SpellAbility {
@@ -582,9 +582,9 @@ mod tests {
     /// [CR#608.3]: a permanent spell enters the battlefield on resolution.
     /// Baseline: a creature spell (Grizzly-Bears-shaped) is permanent; an
     /// instant spell (bolt-shaped) is not. `Type::def()` carries the correct
-    /// `permanent` flag, so no plugin load is needed.
+    /// `permanent_type` flag, so no plugin load is needed.
     #[test]
-    fn is_permanent_spell_reads_the_permanent_flag() {
+    fn is_permanent_spell_reads_the_permanent_type_flag() {
         let mut state = game();
         let bear = spell_with_types(&mut state, vec![Type::Creature.def()]);
         assert!(
@@ -598,38 +598,55 @@ mod tests {
         );
     }
 
-    /// The real proof `is_permanent_spell` reads `TypeDef.permanent` and not
-    /// an enum name-list: a NON-canonical type name ("Contraption" — not one
-    /// of `Type`'s ten variants, so no hardcoded name-list could ever
-    /// recognize it) flagged `permanent: true` is treated as permanent. And
-    /// the converse pins it isn't secretly still keying off the name: a
+    /// The real proof `is_permanent_spell` reads `TypeDef.permanent_type` and
+    /// not an enum name-list: a NON-canonical type name ("Contraption" — not
+    /// one of `Type`'s ten variants, so no hardcoded name-list could ever
+    /// recognize it) flagged `permanent_type: true` is treated as permanent.
+    /// And the converse pins it isn't secretly still keying off the name: a
     /// `TypeDef` named "Land" — a name a hardcoded list WOULD recognize —
-    /// but flagged `permanent: false` is NOT treated as permanent.
+    /// but flagged `permanent_type: false` is NOT treated as permanent.
     #[test]
     fn is_permanent_spell_follows_the_flag_not_a_hardcoded_name_list() {
         let mut state = game();
         let contraption = deckmaste_core::TypeDef {
             name: "Contraption".into(),
-            permanent: true,
+            permanent_type: true,
             confers: vec![].into(),
         };
         let novel = spell_with_types(&mut state, vec![contraption]);
         assert!(
             state.is_permanent_spell(novel),
-            "a novel type name flagged permanent:true is permanent — no hardcoded \
+            "a novel type name flagged permanent_type:true is permanent — no hardcoded \
              name-list could ever recognize \"Contraption\""
         );
 
         let fake_land = deckmaste_core::TypeDef {
             name: "Land".into(),
-            permanent: false,
+            permanent_type: false,
             confers: vec![].into(),
         };
         let non_permanent_land = spell_with_types(&mut state, vec![fake_land]);
         assert!(
             !state.is_permanent_spell(non_permanent_land),
-            "a TypeDef named \"Land\" but flagged permanent:false is NOT permanent — \
+            "a TypeDef named \"Land\" but flagged permanent_type:false is NOT permanent — \
              the old hardcoded name-list would have said true for this name alone"
+        );
+    }
+
+    /// Land witness for the cast-resolution helper: Land is a Permanent Type
+    /// ([CR#110.4]), so a Land-flagged spell fixture reads `permanent_type:
+    /// true` here exactly like Creature. The [CR#110.4b] carve-out — a land
+    /// card is never a Permanent Spell — is enforced upstream of this helper:
+    /// a land is played, not cast ([CR#305.1]), so a real land never goes on
+    /// the stack and never becomes the `id` this function is called on.
+    /// `is_permanent_spell` itself has no Land special case, and needs none.
+    #[test]
+    fn land_reads_permanent_type_true_though_a_real_land_never_reaches_this_helper() {
+        let mut state = game();
+        let land = spell_with_types(&mut state, vec![Type::Land.def()]);
+        assert!(
+            state.is_permanent_spell(land),
+            "Land is a Permanent Type [CR#110.4]; the flag alone drives this helper"
         );
     }
 

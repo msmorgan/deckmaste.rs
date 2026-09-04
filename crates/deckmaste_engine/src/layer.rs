@@ -1744,13 +1744,13 @@ fn resolve_subtype(state: &GameState, name: &Ident) -> Subtype {
 
 /// Resolve a layer-4 type `Ident` to a full `TypeDef` ([CR#300.1]): look it up
 /// in `state.types` so a granted type's `confers` ride along. An `Ident` absent
-/// from the registry yields a minimal name-only `TypeDef` (`permanent: false`,
-/// no `confers`) — the type still applies, carrying no rules (fizzle, never
-/// crash).
+/// from the registry yields a minimal name-only `TypeDef` (`permanent_type:
+/// false`, no `confers`) — the type still applies, carrying no rules (fizzle,
+/// never crash).
 fn resolve_type(state: &GameState, name: &Ident) -> TypeDef {
     state.types.get(name).cloned().unwrap_or_else(|| TypeDef {
         name: *name,
-        permanent: false,
+        permanent_type: false,
         confers: Vec::new().into(),
     })
 }

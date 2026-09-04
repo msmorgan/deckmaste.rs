@@ -15,7 +15,7 @@ struct ExpectedType {
     name: &'static str,
     singular: &'static str,
     plural: Option<&'static str>,
-    permanent: bool,
+    permanent_type: bool,
     body: &'static str,
 }
 
@@ -24,24 +24,24 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         name: "Artifact",
         singular: "artifact",
         plural: Some("artifacts"),
-        permanent: true,
-        body: r#"TypeDef(name:"Artifact",permanent:true)"#,
+        permanent_type: true,
+        body: r#"TypeDef(name:"Artifact",permanent_type:true)"#,
     },
     ExpectedType {
         name: "Battle",
         singular: "battle",
         plural: Some("battles"),
-        permanent: true,
-        body: r#"TypeDef(name:"Battle",permanent:true)"#,
+        permanent_type: true,
+        body: r#"TypeDef(name:"Battle",permanent_type:true)"#,
     },
     ExpectedType {
         name: "Creature",
         singular: "creature",
         plural: Some("creatures"),
-        permanent: true,
+        permanent_type: true,
         body: r#"TypeDef(
             name:"Creature",
-            permanent:true,
+            permanent_type:true,
             confers:[
                 Ability(Static(May(Attack(by:Ref(This))))),
                 Ability(Static(May(Block(by:Ref(This))))),
@@ -60,24 +60,24 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         name: "Dungeon",
         singular: "dungeon",
         plural: Some("dungeons"),
-        permanent: false,
-        body: r#"TypeDef(name:"Dungeon",permanent:false)"#,
+        permanent_type: false,
+        body: r#"TypeDef(name:"Dungeon",permanent_type:false)"#,
     },
     ExpectedType {
         name: "Enchantment",
         singular: "enchantment",
         plural: Some("enchantments"),
-        permanent: true,
-        body: r#"TypeDef(name:"Enchantment",permanent:true)"#,
+        permanent_type: true,
+        body: r#"TypeDef(name:"Enchantment",permanent_type:true)"#,
     },
     ExpectedType {
         name: "Instant",
         singular: "instant",
         plural: Some("instants"),
-        permanent: false,
+        permanent_type: false,
         body: r#"TypeDef(
             name:"Instant",
-            permanent:false,
+            permanent_type:false,
             confers:[Ability(Static(May(Cast(what:Ref(This),window:InstantSpeed))))]
         )"#,
     },
@@ -85,17 +85,17 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         name: "Kindred",
         singular: "kindred",
         plural: None,
-        permanent: false,
-        body: r#"TypeDef(name:"Kindred",permanent:false)"#,
+        permanent_type: false,
+        body: r#"TypeDef(name:"Kindred",permanent_type:false)"#,
     },
     ExpectedType {
         name: "Land",
         singular: "land",
         plural: Some("lands"),
-        permanent: true,
+        permanent_type: true,
         body: r#"TypeDef(
             name:"Land",
-            permanent:true,
+            permanent_type:true,
             confers:[Ability(Static(May(Play(what:Ref(This)))))]
         )"#,
     },
@@ -103,15 +103,15 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         name: "Planeswalker",
         singular: "planeswalker",
         plural: Some("planeswalkers"),
-        permanent: true,
-        body: r#"TypeDef(name:"Planeswalker",permanent:true)"#,
+        permanent_type: true,
+        body: r#"TypeDef(name:"Planeswalker",permanent_type:true)"#,
     },
     ExpectedType {
         name: "Sorcery",
         singular: "sorcery",
         plural: Some("sorceries"),
-        permanent: false,
-        body: r#"TypeDef(name:"Sorcery",permanent:false)"#,
+        permanent_type: false,
+        body: r#"TypeDef(name:"Sorcery",permanent_type:false)"#,
     },
 ];
 
@@ -170,8 +170,8 @@ fn type_rows(declarations: &[NormalizedDeclaration]) -> BTreeMap<&str, &Normaliz
 #[test]
 fn semantic_body_comparison_preserves_whitespace_inside_strings() {
     assert_ne!(
-        compact_ron(r#"TypeDef(name: "Arti fact", permanent: true)"#),
-        compact_ron(r#"TypeDef(name: "Artifact", permanent: true)"#),
+        compact_ron(r#"TypeDef(name: "Arti fact", permanent_type: true)"#),
+        compact_ron(r#"TypeDef(name: "Artifact", permanent_type: true)"#),
     );
 }
 
@@ -229,9 +229,9 @@ fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
                     .get_ron()
             ),
             compact_ron(expected.body),
-            "{} permanent={} and conferrals",
+            "{} permanent_type={} and conferrals",
             expected.name,
-            expected.permanent
+            expected.permanent_type
         );
         assert_eq!(
             declaration.provenance().path(),

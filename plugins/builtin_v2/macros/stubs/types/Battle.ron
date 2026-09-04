@@ -3,5 +3,5 @@ Type(
     spelling: "battle",
     grammar: Noun(singular: "battle"),
     params: [],
-    body: TypeDef(name: "Battle", permanent: true),
+    body: TypeDef(name: "Battle", permanent_type: true),
 )

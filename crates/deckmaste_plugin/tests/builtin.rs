@@ -94,7 +94,7 @@ fn basic_color(name: &str) -> Color {
 fn land_type() -> deckmaste_core::TypeDef {
     deckmaste_core::TypeDef {
         name: "Land".into(),
-        permanent: true,
+        permanent_type: true,
         confers: vec![Property::Ability(Arc::new(Ability::r#static(
             deckmaste_core::StaticSpec::Deontic(deckmaste_core::Deontic::May(
                 deckmaste_core::DeonticAction::Play {

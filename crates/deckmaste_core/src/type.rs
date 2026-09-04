@@ -82,14 +82,14 @@ impl std::hash::Hash for Subtype {
 #[derive(Debug, Clone, Eq, Deserialize, Serialize)]
 pub struct TypeDef {
     pub name: Ident,
-    pub permanent: bool,
+    pub permanent_type: bool,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub confers: Arc<[Property]>,
 }
 
 // Identity is the NAME (see [`Subtype`]'s eq): a type ref always resolves to
-// one declaration for that name, so `permanent`/`confers` are redundant to
-// compare.
+// one declaration for that name, so `permanent_type`/`confers` are redundant
+// to compare.
 impl PartialEq for TypeDef {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
@@ -125,7 +125,7 @@ impl Type {
     /// ([CR#608.3]) rather than resolving as a one-shot effect. The six
     /// permanent types are true; Instant/Sorcery/Kindred/Dungeon false.
     #[must_use]
-    pub const fn permanent(self) -> bool {
+    pub const fn permanent_type(self) -> bool {
         matches!(
             self,
             Type::Artifact
@@ -137,7 +137,7 @@ impl Type {
         )
     }
 
-    /// The STRUCTURAL canonical [`TypeDef`] — name + `permanent`, EMPTY
+    /// The STRUCTURAL canonical [`TypeDef`] — name + `permanent_type`, EMPTY
     /// `confers`. Fixtures use it so structure-only tests need no plugin load;
     /// real games get `confers` via the plugin-loaded registry. NOT `const`:
     /// `Ident::new` interns at runtime.
@@ -145,7 +145,7 @@ impl Type {
     pub fn def(self) -> TypeDef {
         TypeDef {
             name: self.name(),
-            permanent: self.permanent(),
+            permanent_type: self.permanent_type(),
             confers: [].into(),
         }
     }
@@ -171,25 +171,26 @@ impl TypeRef {
         self.0.name.as_str()
     }
 
-    /// A NAME-ONLY ref (`permanent: false`, empty `confers`) for render/engine
-    /// code that constructs a filter ref from a bare [`Ident`] — identity is
-    /// by-name, so the fabricated `permanent`/`confers` never participate in a
-    /// match. Not for reconstructing the authoritative def (parse/registry
-    /// carry that); use [`Type::def`] / the loaded registry for that.
+    /// A NAME-ONLY ref (`permanent_type: false`, empty `confers`) for
+    /// render/engine code that constructs a filter ref from a bare [`Ident`]
+    /// — identity is by-name, so the fabricated `permanent_type`/`confers`
+    /// never participate in a match. Not for reconstructing the authoritative
+    /// def (parse/registry carry that); use [`Type::def`] / the loaded
+    /// registry for that.
     #[must_use]
     pub fn named(name: Ident) -> Self {
         TypeRef(Arc::new(TypeDef {
             name,
-            permanent: false,
+            permanent_type: false,
             confers: [].into(),
         }))
     }
 }
 
 impl From<Type> for TypeRef {
-    /// The structural ref for a closed [`Type`] — name + `permanent`, EMPTY
-    /// `confers` (see [`Type::def`]). By-name eq makes it match a parse-built
-    /// ref whose `Arc` carries the full `confers`.
+    /// The structural ref for a closed [`Type`] — name + `permanent_type`,
+    /// EMPTY `confers` (see [`Type::def`]). By-name eq makes it match a
+    /// parse-built ref whose `Arc` carries the full `confers`.
     fn from(t: Type) -> Self {
         TypeRef(Arc::new(t.def()))
     }
@@ -250,13 +251,13 @@ mod tests {
     fn typedef_round_trips_and_skips_empty_confers() {
         let land = TypeDef {
             name: "Land".into(),
-            permanent: true,
+            permanent_type: true,
             confers: [].into(),
         };
         let written = crate::ron::options().to_string(&land).unwrap();
         // Plain top-level structs serialize without their type name prefix
         // (unlike enum-variant positions); empty `confers` is skipped.
-        assert_eq!(written, r#"(name:"Land",permanent:true)"#);
+        assert_eq!(written, r#"(name:"Land",permanent_type:true)"#);
         assert_eq!(
             crate::ron::options().from_str::<TypeDef>(&written).unwrap(),
             land
@@ -264,12 +265,12 @@ mod tests {
     }
 
     #[test]
-    fn def_is_structural_name_and_permanent_empty_confers() {
+    fn def_is_structural_name_and_permanent_type_empty_confers() {
         assert_eq!(
             Type::Creature.def(),
             TypeDef {
                 name: "Creature".into(),
-                permanent: true,
+                permanent_type: true,
                 confers: [].into()
             }
         );
@@ -277,7 +278,7 @@ mod tests {
             Type::Instant.def(),
             TypeDef {
                 name: "Instant".into(),
-                permanent: false,
+                permanent_type: false,
                 confers: [].into()
             }
         );
@@ -292,10 +293,21 @@ mod tests {
             Type::Land,
             Type::Planeswalker,
         ] {
-            assert!(t.permanent(), "{t:?} is a permanent type");
+            assert!(t.permanent_type(), "{t:?} is a permanent type");
         }
         for t in [Type::Instant, Type::Sorcery, Type::Kindred, Type::Dungeon] {
-            assert!(!t.permanent(), "{t:?} is not a permanent type");
+            assert!(!t.permanent_type(), "{t:?} is not a permanent type");
         }
+    }
+
+    /// Land witness: Land is a Permanent Type ([CR#110.4]) even though a
+    /// land card is never a Permanent Spell ([CR#110.4b]) — it's played, not
+    /// cast ([CR#305.1]), so it never resolves as a spell in the first place.
+    /// `permanent_type` records ONLY the Permanent Type membership; nothing
+    /// here encodes cast-ability or the Spell/Permanent role distinction.
+    #[test]
+    fn land_is_a_permanent_type() {
+        assert!(Type::Land.permanent_type());
+        assert!(Type::Land.def().permanent_type);
     }
 }

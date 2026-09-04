@@ -5,7 +5,7 @@ Type(
     params: [],
     body: TypeDef(
         name: "Land",
-        permanent: true,
+        permanent_type: true,
         confers: [
             Ability(Static(May(Play(what: Ref(This))))),
         ],

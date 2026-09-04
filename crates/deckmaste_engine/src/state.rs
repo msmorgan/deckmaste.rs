@@ -136,7 +136,7 @@ pub struct GameConfig {
     /// a `TypeDef`'s confers normally ride the card value — but a layer-4
     /// `CardTypes(...)` modification carries only bare `Ident` names, so the
     /// engine needs this registry to resolve them back to `TypeDef` structs
-    /// (with their `permanent`/`confers`). Populated from the loaded plugin's
+    /// (with their `permanent_type`/`confers`). Populated from the loaded plugin's
     /// `types` at construction; empty means a granted type resolves to a
     /// minimal name-only `TypeDef` (no inherent rules).
     pub types: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::TypeDef>,
@@ -428,7 +428,7 @@ pub struct GameImage {
     pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
     /// The type registry ([CR#300.1]) — `Ident → TypeDef`. The layer-4
     /// `CardTypes(...)` modifications carry bare `Ident` names; this maps
-    /// them back to full `TypeDef` structs (with `permanent`/`confers`).
+    /// them back to full `TypeDef` structs (with `permanent_type`/`confers`).
     /// Populated from the loaded plugin's `types` at construction (like
     /// `subtypes`); empty means a granted type carries no inherent rules. An
     /// `Ident` absent from this map applies as a minimal name-only `TypeDef`.

@@ -5,7 +5,7 @@ Type(
     params: [],
     body: TypeDef(
         name: "Creature",
-        permanent: true,
+        permanent_type: true,
         confers: [
             Ability(Static(May(Attack(by: Ref(This))))),
             Ability(Static(May(Block(by: Ref(This))))),

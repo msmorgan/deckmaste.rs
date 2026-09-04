@@ -461,7 +461,7 @@ mod tests {
     fn lint_flags_undeclared_type() {
         let undeclared = TypeDef {
             name: "Bogus".into(),
-            permanent: true,
+            permanent_type: true,
             confers: vec![].into(),
         };
         let declared: HashMap<Ident, TypeDef> = HashMap::new();

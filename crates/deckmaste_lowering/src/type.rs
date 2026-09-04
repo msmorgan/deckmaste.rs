@@ -51,7 +51,7 @@ impl Lower for deckmaste_semantics::TypeDef {
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::TypeDef {
             name: self.name.lower(),
-            permanent: self.permanent.lower(),
+            permanent_type: self.permanent.lower(),
             confers: self.confers.lower(),
         }
     }
@@ -232,7 +232,7 @@ mod tests {
             .lower(),
             deckmaste_core::TypeDef {
                 name: _,
-                permanent: false,
+                permanent_type: false,
                 confers: _
             }
         );

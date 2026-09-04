@@ -80,7 +80,7 @@ fn combatant_creature_def() -> deckmaste_core::TypeDef {
     let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
-        permanent: true,
+        permanent_type: true,
         confers: vec![
             ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
                 by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),

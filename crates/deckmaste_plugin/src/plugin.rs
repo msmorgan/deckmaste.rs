@@ -936,7 +936,7 @@ mod tests {
     }
 
     #[test]
-    fn builtin_loads_ten_canonical_types_with_permanent_flags() {
+    fn builtin_loads_ten_canonical_types_with_permanent_type_flags() {
         use deckmaste_core::TypeDef;
         let plugin = Plugin::load(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin"),
@@ -951,7 +951,7 @@ mod tests {
             plugin.types["Land"],
             TypeDef {
                 name: "Land".into(),
-                permanent: true,
+                permanent_type: true,
                 confers: vec![deckmaste_core::Property::Ability(Arc::new(
                     deckmaste_core::Ability::r#static(deckmaste_core::StaticSpec::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Play {
@@ -973,7 +973,7 @@ mod tests {
             plugin.types["Instant"],
             TypeDef {
                 name: "Instant".into(),
-                permanent: false,
+                permanent_type: false,
                 confers: vec![deckmaste_core::Property::Ability(Arc::new(
                     deckmaste_core::Ability::r#static(deckmaste_core::StaticSpec::Deontic(
                         deckmaste_core::Deontic::May(deckmaste_core::DeonticAction::Cast {
@@ -995,7 +995,7 @@ mod tests {
 
     /// The builtin type declarations reach the wizards corpus via the sibling
     /// prelude. Split from
-    /// `builtin_loads_ten_canonical_types_with_permanent_flags`
+    /// `builtin_loads_ten_canonical_types_with_permanent_type_flags`
     /// so that test's builtin assertions still run on a bare checkout.
     #[test]
     #[cfg_attr(

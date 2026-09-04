@@ -228,7 +228,7 @@ const RON_BOLTS: &str = r#"(
          prefer: Cast(
             what: (pick: Min, by: StatOf(Reg(0), ManaValue)),
             target: (pick: Max, by: StatOf(Reg(0), Power), among:
-                Characteristic(Type((name:"Creature",permanent:true)))))),
+                Characteristic(Type((name:"Creature",permanent_type:true)))))),
         (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))),
         (when: And([]), prefer: Pass),
     ],

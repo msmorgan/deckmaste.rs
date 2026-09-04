@@ -5,7 +5,7 @@ Type(
     params: [],
     body: TypeDef(
         name: "Instant",
-        permanent: false,
+        permanent_type: false,
         confers: [
             Ability(Static(May(Cast(what: Ref(This), window: InstantSpeed)))),
         ],

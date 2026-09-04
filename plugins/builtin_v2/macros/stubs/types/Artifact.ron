@@ -3,5 +3,5 @@ Type(
     spelling: "artifact",
     grammar: Noun(singular: "artifact"),
     params: [],
-    body: TypeDef(name: "Artifact", permanent: true),
+    body: TypeDef(name: "Artifact", permanent_type: true),
 )
