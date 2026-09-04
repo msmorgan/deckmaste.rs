@@ -9,6 +9,8 @@ pub mod environment {
     use deckmaste_construction_core::macro_def::DeclarationIdentity;
     use deckmaste_construction_core::macro_def::GrammarRecipe;
     use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+    use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
+    use deckmaste_construction_core::macro_def::NounRelationality;
     use deckmaste_construction_core::macro_def::Onset;
     use deckmaste_construction_core::macro_def::SurfaceFeature;
 
@@ -84,6 +86,24 @@ pub mod environment {
                 .find(|declaration| declaration.identity() == id)
                 .and_then(NormalizedDeclaration::grammar)
                 .map(deckmaste_construction_core::macro_def::GrammarRow::recipe)
+        }
+
+        pub(crate) fn declaration_noun_features(
+            &self,
+            id: &DeclarationIdentity,
+        ) -> Option<(NounLocativeTemporalLicense, NounRelationality, bool)> {
+            let declaration = self
+                .declarations
+                .iter()
+                .find(|declaration| declaration.identity() == id)?;
+            let semantics = declaration.noun_class()?;
+            let number_invariant = self.surface(id, SurfaceFeature::Singular)
+                == self.surface(id, SurfaceFeature::Plural);
+            Some((
+                semantics.locative_temporal_license,
+                semantics.relationality,
+                number_invariant,
+            ))
         }
 
         pub(crate) fn declarations(&self) -> &[NormalizedDeclaration] {
