@@ -1790,7 +1790,7 @@ controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn
 public export
 ownSurvivesSecondSingular : Instruction []
 ownSurvivesSecondSingular =
-  Sequentially [Macros.exile You (Macros.target Macros.artifact),
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
                 Macros.dealsDamageOwnPower (Macros.target Macros.creature)
                                            (Macros.target Macros.anyTarget)]
 
@@ -1798,12 +1798,12 @@ ownSurvivesSecondSingular =
 public export
 okItReadsTheOnlyBareSingular : Instruction []
 okItReadsTheOnlyBareSingular =
-  Sequentially [Macros.exile You (Macros.target Macros.creature),
+  Sequentially [Macros.exile (Macros.target Macros.creature),
                 Draw You (StatOf Power (Macros.It OneOf))]
 
 public export
 badItAcrossOwnSlot : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.exile You (Macros.target Macros.artifact),
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
                 DealDamage (Macros.target Macros.creature) (StatOf Power ((Macros.It OneOf) {ok}))
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
@@ -2111,20 +2111,20 @@ public export
 distributedDeedReadsBackPlural : Instruction []
 distributedDeedReadsBackPlural =
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive ManyOf) ]
+               , Macros.exile (Macros.TheVerbed "Discard" CardW Attributive ManyOf) ]
 
 ||| "Discard a card. Exile the discarded card."
 public export
 okTheVerbedAfterSingularDiscard : Instruction []
 okTheVerbedAfterSingularDiscard =
   Sequentially [ Macros.discard You (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf) ]
+               , Macros.exile (Macros.TheVerbed "Discard" CardW Attributive OneOf) ]
 
 ||| "Each opponent discards a card. Exile that card."
 public export
 badDistributedDiscardSingular : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-               , Macros.exile You (Macros.TheVerbed "Discard" CardW Attributive OneOf {ok}) ])
+               , Macros.exile (Macros.TheVerbed "Discard" CardW Attributive OneOf {ok}) ])
 badDistributedDiscardSingular Refl impossible
 
 ||| "Tap target creature."

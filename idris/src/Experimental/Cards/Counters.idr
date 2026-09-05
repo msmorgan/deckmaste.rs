@@ -30,7 +30,7 @@ kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.cre
 jhoiraOfTheGhitu : Ability
 jhoiraOfTheGhitu =
   Macros.activated (Compound [Mana [Macros.generic 2],
-                       Do (Macros.exile You (Macros.a (And [Not Macros.land, InZone (Macros.handOf You)])))])
+                       Do (Macros.exile (Macros.a (And [Not Macros.land, InZone (Macros.handOf You)])))])
                    (PutCounters (Lit 4) (PrintedKind (NamedCounter "Time")) (Macros.TheVerbed "Exile" CardW Attributive OneOf))
 
 alaundoTheSeer : Instruction []
@@ -42,7 +42,7 @@ alaundoTheSeer =
 daydream : Card
 daydream =
   Macros.card "Daydream" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
-       [Spell Nothing (Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
+       [Spell Nothing (Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
                              Macros.returnToBattlefieldWithCounters
                                (Macros.That CardW OneOf) (Macros.ownerOf (Macros.That CardW OneOf))
                                (Lit 1) Macros.plusOnePlusOne])
@@ -740,7 +740,7 @@ vault75MiddleSchool =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
-           (Macros.exile You (Macros.allOf (And [Macros.creature,
+           (Macros.exile (Macros.allOf (And [Macros.creature,
                                       Compare [StatAxis Power] AtLeast (Lit 4)])))
        , Macros.triggered When (ChapterMark [ChapterII, ChapterIII])
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
@@ -946,7 +946,7 @@ urborgScavengers =
                             (Enters Macros.thisCreature Nothing)
                             [Macros.attacks Macros.thisCreature]
                             (Sequentially
-                               [ Macros.exile You (Macros.target (InZone Macros.graveyardZ))
+                               [ Macros.exile (Macros.target (InZone Macros.graveyardZ))
                                , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature ])
        , AlsoForKeywords
            (Static (Macros.onlyWhile
@@ -1431,7 +1431,7 @@ charnelTroll =
        (MkTypeLine [creatureType "Troll"] [Creature])
        [ Macros.keyword "Trample"
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-           ((IfDone (Macros.exile You (Macros.a (And [Macros.creature,
+           ((IfDone (Macros.exile (Macros.a (And [Macros.creature,
                                             InZone (Macros.graveyardOf You)]))) (Just (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                            Macros.thisCreature)) (Just (Macros.sacrifice You Macros.thisCreature))))
        , Macros.activated

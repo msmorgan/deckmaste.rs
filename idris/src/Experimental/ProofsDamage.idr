@@ -252,7 +252,7 @@ badConditionAntecedent (Refl, _) impossible
 ||| "You may sacrifice a creature. If you don't, exile it."
 public export
 badIfNotReadsMayBody : Unspellable (Instruction []) (\ok =>
-  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
+  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It OneOf) {ok})))))
 badIfNotReadsMayBody Refl impossible
 
 ||| "other than this creature"

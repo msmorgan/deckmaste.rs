@@ -97,13 +97,13 @@ badSameColorHybrid Oh impossible
 public export
 okIfDoneReadsDoneBody : Instruction []
 okIfDoneReadsDoneBody =
-  IfDone (Macros.exile You (Macros.a Macros.creatureYouControl))
+  IfDone (Macros.exile (Macros.a Macros.creatureYouControl))
          (Just (Macros.move (Macros.It OneOf) Macros.battlefieldZ)) Nothing
 
 ||| "Sacrifice a creature. If you don't, exile it."
 public export
 badIfNotReadsMandatoryBody : Unspellable (Instruction []) (\ok =>
-  (IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile You ((Macros.It OneOf) {ok})))))
+  (IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It OneOf) {ok})))))
 badIfNotReadsMandatoryBody Refl impossible
 
 ||| "Counter target spell unless its controller pays {3}."

@@ -132,7 +132,7 @@ exquisiteArchangel =
        (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword "Flying"
        , Static (Intercepts (LosesGame You) [] Nothing
-                            (Sequentially [Macros.exile You Macros.thisCreature,
+                            (Sequentially [Macros.exile Macros.thisCreature,
                                            Macros.lifeTotalBecomes You (PlayerStatOf StartingLifeTotal You)])
                             Repeatedly Nothing) ]
        (Just (5, 5))
@@ -287,7 +287,7 @@ drachNyen =
        (Just [Macros.generic 4, Macros.pip Black, Macros.pip Red]) [Legendary]
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.triggered When (Enters Macros.thisEquipment Nothing)
-                          (Macros.exile You (Described (TargetDet (Macros.upTo 1)) Macros.creature))
+                          (Macros.exile (Described (TargetDet (Macros.upTo 1)) Macros.creature))
        , Static (AndAlso Nothing [ Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keyword "Menace")
                          , Gets Adds (AttachHost Equipped (TypeW Creature))
@@ -981,7 +981,7 @@ stormOfSouls =
                                  (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [creatureType "Spirit"] [])
                                           [Macros.keyword "Flying"] Nothing)
                                  Nothing,
-                Macros.exile You This]
+                Macros.exile This]
 
 public export
 answeredPrayers : Card
@@ -1395,7 +1395,7 @@ archfiendsVessel =
            (OrCond [ Happened ((Macros.It OneOf)) (MkLookback Entry Triggering (Just (FromZones (FromZone [Macros.graveyardOf You]) Nothing)))
                    , Matches ((Macros.It OneOf)) (And [Macros.castBy You,
                                       CastFrom (Macros.graveyardOf You)]) ])
-           (Reflexively (Macros.exile You ((Macros.It OneOf)))
+           (Reflexively (Macros.exile ((Macros.It OneOf)))
               (Macros.create (Lit 1)
                  (MkToken (Just (Lit 5 ** Lit 5)) [Black]
                           (MkTypeLine [creatureType "Demon"] [Creature])
@@ -1413,7 +1413,7 @@ containmentPriest =
        , Static (Intercepts
                    (Enters (Macros.a (And [Macros.creature, Macros.nontoken,
                                            Not WasCast])) Nothing)
-                   [] Nothing (Macros.exile You ((Macros.It OneOf))) Repeatedly Nothing) ]
+                   [] Nothing (Macros.exile ((Macros.It OneOf))) Repeatedly Nothing) ]
        (Just (2, 2))
 
 ||| Veiling Oddity

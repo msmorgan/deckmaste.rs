@@ -100,13 +100,13 @@ solitaryConfinement = (May You ((Macros.discard You (Macros.a (InZone Macros.han
 yasminKhan : Ability
 yasminKhan =
   Macros.activated TapSymbol
-                   (Sequentially [Macros.exile You (Macros.topSlice (Lit 1)),
+                   (Sequentially [Macros.exile (Macros.topSlice (Lit 1)),
                            Continuously ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just Macros.untilYourNextEndStep)])
 
 ||| Brazen Cannonade
 brazenCannonadePermission : Instruction []
 brazenCannonadePermission =
-  Sequentially [Macros.exile You (Macros.topSlice (Lit 1)),
+  Sequentially [Macros.exile (Macros.topSlice (Lit 1)),
                 Continuously ((Macros.mayPlayDeed "Play" You ((Macros.It OneOf)) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost))) (Just (Until (EndOf Combat (Just You))))]
 
 thousandMoonsCrackshot : Ability
@@ -159,7 +159,7 @@ scourgeOfNelToth =
 
 escapeToTheWilds : Instruction []
 escapeToTheWilds =
-  Sequentially [Macros.exile You ((Macros.topSlice (Lit 5))),
+  Sequentially [Macros.exile ((Macros.topSlice (Lit 5))),
                 Continuously
                   ((Macros.mayPlayDeed "Play" You (Macros.TheVerbed "Exile" CardW ThisWay ManyOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                   (Just (Until (EndOf Turn (Just You))))]
@@ -199,7 +199,7 @@ phyrexianIngester =
        [ Macros.abilityWord "imprint"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
                              (Macros.may You
-                                (Macros.exile You
+                                (Macros.exile
                                    (Macros.target
                                       (And [Macros.creature, Macros.nontoken])))))
        , phyrexianIngesterPump ]
@@ -697,7 +697,7 @@ precognitionField =
        , Static ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell,
                                                  Macros.instantOrSorcery])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost)))
        , Macros.activated (Mana [Macros.generic 3])
-                          (Macros.exile You (LibrarySlice OnTop (Lit 1) You)) ]
+                          (Macros.exile (LibrarySlice OnTop (Lit 1) You)) ]
        Nothing
 
 public export
@@ -710,7 +710,7 @@ mysticForge =
            [ (Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, Macros.artifact])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost))
            , (Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, IsColorless])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost)) ])
        , Macros.activated (Compound [TapSymbol, Macros.payLife You 1])
-                          (Macros.exile You (LibrarySlice OnTop (Lit 1) You)) ]
+                          (Macros.exile (LibrarySlice OnTop (Lit 1) You)) ]
        Nothing
 
 public export
@@ -1043,7 +1043,7 @@ primalSurge =
        (Just [Macros.generic 8, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (Sequentially
-              [ Macros.exile You (Macros.topSlice (Lit 1))
+              [ Macros.exile (Macros.topSlice (Lit 1))
               , If (Macros.itsA Permanent)
                    ((May You (Macros.putOntoBattlefield ((Macros.It OneOf))) (Just (Repeat Again)) Nothing))
                    Nothing ]) ]
@@ -1459,7 +1459,7 @@ public export
 apexOfPowerCast : Instruction []
 apexOfPowerCast =
   Sequentially
-    [ Macros.exile You (LibrarySlice OnTop (Lit 7) You)
+    [ Macros.exile (LibrarySlice OnTop (Lit 7) You)
     , Continuously
         (Macros.mayPlayDeed "Cast" You
              (Macros.fromAmong Macros.anyNumber Macros.spell ((Macros.It ManyOf))) Nothing
@@ -1748,7 +1748,7 @@ sculptedSunburst =
                                          HasPossessor ControllerAx Macros.They])
                                    AtMost (StatOf Power (Macros.It OneOf))))
                   , If (ChoseThisWay You Macros.creature)
-                       (Macros.exile You
+                       (Macros.exile
                           (Macros.each (And [Macros.creature, NotChosen])))
                        Nothing ]) ]
        Nothing

@@ -500,7 +500,7 @@ okDistributedChoiceReadsAsGroup : Instruction []
 okDistributedChoiceReadsAsGroup =
   Sequentially
     [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
-    , Macros.exile You (Macros.It ManyOf) ]
+    , Macros.exile (Macros.It ManyOf) ]
 
 ||| "Each player chooses a creature. Exile it." — a distributive choice stands
 ||| as one per chooser, so the singular read has no antecedent
@@ -509,7 +509,7 @@ public export
 badDistributedChoiceReadSingular : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
-    , Macros.exile You ((Macros.It OneOf) {ok}) ])
+    , Macros.exile ((Macros.It OneOf) {ok}) ])
 badDistributedChoiceReadSingular Refl impossible
 
 ||| "Look at the top card of your library. You may put that card into your

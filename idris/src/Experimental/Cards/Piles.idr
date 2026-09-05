@@ -71,7 +71,7 @@ councilsJudgment =
                      (ByCandidate (Macros.a (And [ Permanent
                                                  , Not Macros.land
                                                  , Not (HasPossessor ControllerAx You) ])))
-              , Macros.exile You (Macros.allOf (And [Permanent, WithMostVotes])) ])) ]
+              , Macros.exile (Macros.allOf (And [Permanent, WithMostVotes])) ])) ]
        Nothing
 
 ||| Orchard Elemental
@@ -189,7 +189,7 @@ deathOrGlory =
                   [ SeparateIntoPiles You
                       (Macros.allOf (And [Macros.creature,
                                    InZone (Macros.graveyardOf You)])) 2 []
-                  , Macros.exile You (Macros.pileOfChoice Macros.anOpponent)
+                  , Macros.exile (Macros.pileOfChoice Macros.anOpponent)
                   , Macros.move (Macros.theOther Pile) Macros.battlefieldZ ]) ]
        Nothing
 

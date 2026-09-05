@@ -67,7 +67,7 @@ lichsMasteryGate = Static (Macros.playerCant "LoseGame" You)
 theGoldenThrone : Ability
 theGoldenThrone =
   Static (Intercepts (LosesGame You) [] Nothing
-                     (Sequentially [Macros.exile You Macros.thisArtifact,
+                     (Sequentially [Macros.exile Macros.thisArtifact,
                                     Macros.lifeTotalBecomes You (Lit 1)])
                      Repeatedly Nothing)
 
@@ -729,7 +729,7 @@ sunscour =
   Macros.card "Sunscour"
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.counted (Macros.exactly 2)
                                  (And [ColorIs White,
                                        InZone (Macros.handOf You)]))))))

@@ -20,7 +20,7 @@ okSacrificeAsCost =
 public export
 badCostReadsSiblingDeed : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
-                       Do (Macros.exile You (Macros.TheVerbed "Sacrifice" CardW Attributive OneOf)) {ok}])
+                       Do (Macros.exile (Macros.TheVerbed "Sacrifice" CardW Attributive OneOf)) {ok}])
             (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badCostReadsSiblingDeed Oh impossible
 
@@ -352,7 +352,7 @@ badActivatedClosesCardLetter Oh impossible
 public export
 sharedSubjectSurvivesSecondSingular : Instruction []
 sharedSubjectSurvivesSecondSingular =
-  Sequentially [Macros.exile You (Macros.target Macros.artifact),
+  Sequentially [Macros.exile (Macros.target Macros.artifact),
                 Macros.sharedSubject (Macros.target Macros.creature)
                   [ Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
                          (PtUp (Lit 1)) (PtUp (Lit 1))

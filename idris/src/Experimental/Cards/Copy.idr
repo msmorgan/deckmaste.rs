@@ -51,7 +51,7 @@ public export
 flawlessForgeryLine : Instruction []
 flawlessForgeryLine =
   Sequentially
-    [ Macros.exile You (Macros.target (And [ Macros.instantOrSorcery
+    [ Macros.exile (Macros.target (And [ Macros.instantOrSorcery
                                        , InZone (Macros.graveyardOf
                                                    (Macros.a Opponent)) ]))
     , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []

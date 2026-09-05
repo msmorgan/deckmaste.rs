@@ -92,7 +92,7 @@ badContinuousAsCost Oh impossible
 public export
 badInsteadAsCost : Unspellable Ability (\ok =>
   Activated (Do (InsteadOf (Macros.destroy (Macros.target Macros.creature))
-                           (Macros.exile You (Macros.target Macros.creature))) {ok})
+                           (Macros.exile (Macros.target Macros.creature))) {ok})
             (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badInsteadAsCost Oh impossible
 
@@ -106,7 +106,7 @@ badDelayedAsCost Oh impossible
 ||| an "until" rider written as a cost
 public export
 badHeldUntilAsCost : Unspellable Ability (\ok =>
-  Activated (Do (HeldUntil (Macros.exile You (Macros.target Macros.creature))
+  Activated (Do (HeldUntil (Macros.exile (Macros.target Macros.creature))
                            (Dies (Macros.a Macros.creature))) {ok})
             (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badHeldUntilAsCost Oh impossible

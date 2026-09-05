@@ -491,7 +491,7 @@ public export
 meldThemInto : Instruction []
 meldThemInto =
   Sequentially
-    [ Macros.exile You
+    [ Macros.exile
         (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
                             Or [Named (PrintedName "Graf Rats"),
                                 Named (PrintedName "Midnight Scavengers")]]))
@@ -722,7 +722,7 @@ arcaneProxy =
        [ Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
            (Matches ((Macros.It OneOf)) (Macros.castBy You))
            (Sequentially
-              [ Macros.exile You
+              [ Macros.exile
                   (Macros.target (And [ Macros.instantOrSorcery
                                       , IsCard
                                       , Compare [StatAxis ManaValue] AtMost

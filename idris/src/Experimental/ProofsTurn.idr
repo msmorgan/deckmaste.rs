@@ -29,7 +29,7 @@ badDelayedOther Refl impossible
 
 public export
 badStaleCarrier : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
+  Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
                Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
@@ -52,7 +52,7 @@ public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile You ((Macros.It OneOf) {ok})) Nothing Nothing Nothing Nothing)
+            (Macros.exile ((Macros.It OneOf) {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 ||| "Tap target creature you control. Sacrifice it."
@@ -65,7 +65,7 @@ okSacrificeOnBattlefield =
 ||| "Exile target creature. Sacrifice it."
 public export
 badSacrificeExiled : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.exile You (Macros.target Macros.creature),
+  Sequentially [Macros.exile (Macros.target Macros.creature),
                Macros.sacrifice You ((Macros.It OneOf)) {ok}])
 badSacrificeExiled Oh impossible
 
@@ -108,7 +108,7 @@ badVerbedAmbig Refl impossible
 public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
-            (Sequentially [Macros.exile You (Macros.target Macros.creature),
+            (Sequentially [Macros.exile (Macros.target Macros.creature),
                            Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (Macros.That CardW OneOf {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 

@@ -77,7 +77,7 @@ synodSanctumReturn =
 coldStorage : Card
 coldStorage =
   Macros.card "Cold Storage" (Just [Macros.generic 4]) [] (MkTypeLine [] [Artifact])
-       [Macros.activated (Mana [Macros.generic 3]) (Macros.exile You (Macros.target Macros.creatureYouControl)),
+       [Macros.activated (Mana [Macros.generic 3]) (Macros.exile (Macros.target Macros.creatureYouControl)),
         Macros.activated (Do (Macros.sacrifice You Macros.thisArtifact))
                                 (Macros.putOntoBattlefieldUnderYourControl
                      (Macros.each (And [Macros.creature, Macros.exiledWithThisArtifact])))]
@@ -779,7 +779,7 @@ forceOfWill =
        (MkTypeLine [] [Instant])
        [ Static (AltCost This (Just (Compound
                    [ Macros.payLife You 1
-                   , Do (Macros.exile You (Macros.a (And [ColorIs Blue,
+                   , Do (Macros.exiles You (Macros.a (And [ColorIs Blue,
                                                       InZone (Macros.handOf You)]))) ])))
        , Spell Nothing (CounterSpell (Macros.target Macros.spell)) ]
        Nothing
@@ -1086,7 +1086,7 @@ deathMaskDuplicant =
        (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
        [ Macros.abilityWord "imprint"
            (Macros.activated (Mana [Macros.generic 1])
-                             (Macros.exile You
+                             (Macros.exile
                                 (Macros.target
                                    (And [Macros.creature,
                                          InZone (Macros.graveyardOf You)]))))

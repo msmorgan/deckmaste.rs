@@ -683,11 +683,16 @@ destroy : (n : Noun bs Object) -> {auto 0 ok : ZoneIs (nounZone n) Battlefield} 
 destroy n = Enact Nothing "Destroy" (Move n graveyardZ [] {mk})
 
 public export
-exile : {k : Kind} -> (agent : Noun bs Player) -> (n : Noun (agentIntro agent) k) ->
-        {auto 0 mk : Movable n} ->
-        {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.exileZ [] {mk})} ->
-        Instruction bs
-exile agent n = Enact (Just agent) "Exile" (Move n exileZ [] {mk}) {ke}
+exile : {k : Kind} -> (n : Noun bs k) ->
+        {auto 0 mk : Movable n} -> Instruction bs
+exile n = Enact Nothing "Exile" (Move n exileZ [] {mk})
+
+public export
+exiles : {k : Kind} -> (agent : Noun bs Player) -> (n : Noun (agentIntro agent) k) ->
+         {auto 0 mk : Movable n} ->
+         {auto 0 ke : EnactKeepsOuter (Just agent) (Move n Macros.exileZ [] {mk})} ->
+         Instruction bs
+exiles agent n = Enact (Just agent) "Exile" (Move n exileZ [] {mk}) {ke}
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
@@ -1852,7 +1857,7 @@ scry : {bs : Bindings} -> (agent : Noun bs Player) ->
                          (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr)} ->
        Instruction bs
 scry agent amt =
-  Enact (Just agent) "Scry" {kn = ActInFactsTable}
+  Enact (Just agent) "Scry" {kn = ActInFactsTable} {ag = Oh}
         (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
            (onBottomIn AnyOrder {af = Oh})
            (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr) {ke}
@@ -1888,7 +1893,7 @@ fateseal : {bs : Bindings} -> (agent : Noun bs Player) ->
                          (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr)} ->
            Instruction bs
 fateseal agent whose amt =
-  Enact (Just agent) "Fateseal" {kn = ActInFactsTable}
+  Enact (Just agent) "Fateseal" {kn = ActInFactsTable} {ag = Oh}
         (Macros.lookAndSortOf (Macros.agentRef agent ar) nd whose sp amt mn
            (onBottomIn AnyOrder {af = Oh})
            (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr) {ke}
@@ -1921,7 +1926,7 @@ surveil : {bs : Bindings} -> (agent : Noun bs Player) ->
                             Macros.graveyardZ GraveyardOkBare Oh ps tr pr)} ->
           Instruction bs
 surveil agent amt =
-  Enact (Just agent) "Surveil" {kn = ActInFactsTable}
+  Enact (Just agent) "Surveil" {kn = ActInFactsTable} {ag = Oh}
         (Macros.lookAndSort (Macros.agentRef agent ar) nd sp amt mn
            graveyardZ GraveyardOkBare Oh ps tr pr) {ke}
 

@@ -1255,6 +1255,7 @@ mutual
     Enact : (subj : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
             (e : Instruction (agentCtx subj)) ->
             {auto 0 kn : KnownAct v} ->
+            {auto 0 ag : So (enactAgentOk subj v)} ->
             {auto 0 ke : EnactKeepsOuter subj e} -> Instruction bs
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
@@ -1605,6 +1606,13 @@ mutual
   KeepsOuterEach : Plurality -> (outer : Bindings) -> (out : Bindings) -> Type
   KeepsOuterEach OneOf outer out = ()
   KeepsOuterEach ManyOf outer out = EachStackOk outer out
+
+  ||| An enacted act names a subject only where the act's facts row gives its
+  ||| agent role a player, the way `verbedVoiceOk` gates a verbed event.
+  public export
+  enactAgentOk : {0 bs : Bindings} -> Maybe (Noun bs Player) -> VerbLabel -> Bool
+  enactAgentOk Nothing v = True
+  enactAgentOk (Just _) v = deedKindOk v Agent Player
 
   public export
   EnactKeepsOuter : {bs : Bindings} -> (subj : Maybe (Noun bs Player)) ->

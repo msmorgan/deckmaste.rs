@@ -97,7 +97,7 @@ ulvenwaldTracker = Fights (Macros.target Macros.creatureYouControl) (Macros.targ
 botBashingTime : Instruction []
 botBashingTime =
   Sequentially [ DealDamage This (Lit 6) (Macros.target Macros.creature)
-               , Macros.ifWouldInstead (Dies (Macros.That (TypeW Creature) OneOf)) (Macros.exile You ((Macros.It OneOf))) (Just ThisTurn)
+               , Macros.ifWouldInstead (Dies (Macros.That (TypeW Creature) OneOf)) (Macros.exile ((Macros.It OneOf))) (Just ThisTurn)
                ]
 
 wordsOfWar : Instruction []
@@ -1479,7 +1479,7 @@ public export
 eachOfThoseOpponentsTopCard : Instruction []
 eachOfThoseOpponentsTopCard =
   Sequentially [ DealDamage This (Lit 1) (Macros.each Opponent)
-               , Macros.exile You (LibrarySlice OnTop (Lit 1) (EachOf (Macros.That PlayerW ManyOf))) ]
+               , Macros.exile (LibrarySlice OnTop (Lit 1) (EachOf (Macros.That PlayerW ManyOf))) ]
 
 ||| Inquisitor's Flail
 public export
@@ -1523,7 +1523,7 @@ frostwielder =
        [ Static (Intercepts
                    (Dies (Macros.a (And [ Macros.creature
                                         , HappenedTo (MkLookback DamageTaken ThisTurn (Just (Involving Macros.thisCreature))) ])))
-                   [] Nothing (Macros.exile You ((Macros.It OneOf))) Repeatedly Nothing)
+                   [] Nothing (Macros.exile ((Macros.It OneOf))) Repeatedly Nothing)
        , Macros.activated TapSymbol
            (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
        (Just (1, 2))

@@ -73,7 +73,7 @@ public export
 okLoopMovesItsOwn : Instruction []
 okLoopMovesItsOwn =
   Sequentially [ ForEachOf (Macros.each Opponent)
-                   (Macros.exile You (Macros.a (And [Macros.creature,
+                   (Macros.exile (Macros.a (And [Macros.creature,
                       HasPossessor ControllerAx (Macros.That PlayerW OneOf)])))
                , Macros.putOntoBattlefield (Macros.It ManyOf) ]
 
@@ -87,7 +87,7 @@ public export
 badLoopedZoneMoveRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.tap (Macros.target Macros.creature)
                , ForEachOf (Macros.each Opponent)
-                           (Macros.exile You (Macros.It OneOf)) {ko = ok}
+                           (Macros.exile (Macros.It OneOf)) {ko = ok}
                , Macros.untap (Macros.It OneOf) ])
 badLoopedZoneMoveRead Refl impossible
 
@@ -97,7 +97,7 @@ badLoopedZoneMoveRead Refl impossible
 public export
 badUnloopedZoneMoveRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.tap (Macros.target Macros.creature)
-               , Macros.exile You (Macros.It OneOf)
+               , Macros.exile (Macros.It OneOf)
                , Macros.untap (Macros.It OneOf) {ok} ])
 badUnloopedZoneMoveRead Oh impossible
 
@@ -115,7 +115,7 @@ public export
 badKindLoopZoneMoveRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.tap (Macros.target Macros.creature)
                , ForEachKindOf ColorAxis (Just (Macros.allOf Permanent)) Color
-                               (Macros.exile You (Macros.It OneOf)) {ko = ok}
+                               (Macros.exile (Macros.It OneOf)) {ko = ok}
                , Macros.untap (Macros.It OneOf) ])
 badKindLoopZoneMoveRead Refl impossible
 
@@ -126,7 +126,7 @@ badKindLoopZoneMoveRead Refl impossible
 public export
 okDistributedMovesItsOwn : Instruction []
 okDistributedMovesItsOwn =
-  Sequentially [ Macros.exile (Macros.each Opponent)
+  Sequentially [ Macros.exiles (Macros.each Opponent)
                    (Macros.a (And [Macros.creature,
                       HasPossessor ControllerAx (Macros.That PlayerW OneOf)]))
                , Macros.putOntoBattlefield (Macros.It ManyOf) ]
@@ -140,7 +140,7 @@ okDistributedMovesItsOwn =
 public export
 badDistributedZoneMoveRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.tap (Macros.target Macros.creature)
-               , Macros.exile (Macros.each Opponent) (Macros.It OneOf) {ke = ok}
+               , Macros.exiles (Macros.each Opponent) (Macros.It OneOf) {ke = ok}
                , Macros.untap (Macros.It OneOf) ])
 badDistributedZoneMoveRead EachOnlyAdds impossible
 badDistributedZoneMoveRead EachClosesOwnParts impossible
@@ -254,6 +254,21 @@ public export
 badUnknownVerbLabel : Unspellable (Instruction []) (\ok =>
   Enact Nothing "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ []) {kn = ok})
 badUnknownVerbLabel ActInFactsTable impossible
+
+||| "You exile a card from your hand."
+public export
+okAgentedKnownAct : Instruction []
+okAgentedKnownAct =
+  Enact (Just You) "Exile"
+        (Move (Macros.a (InZone Macros.handZ)) Macros.exileZ [])
+
+||| "You transform target creature." `"Transform"`'s facts row gives its agent
+||| role no player, so the agented voice is refused; the printed sentence is
+||| the agentless `Macros.transform`.
+public export
+badAgentedAgentlessAct : Unspellable (Instruction []) (\ok =>
+  Enact (Just You) "Transform" (TurnOver (Macros.target Macros.creature)) {ag = ok})
+badAgentedAgentlessAct Oh impossible
 
 ||| "1 life for each creature"
 public export
@@ -407,7 +422,7 @@ okChosenCardRemention =
 ||| "Draw a card. Exile that card."
 public export
 badDrawnCardRemention : Unspellable (Instruction []) (\ok =>
-  Sequentially [(Draw You (Lit 1)), Macros.exile You (Macros.That CardW OneOf {ok})])
+  Sequentially [(Draw You (Lit 1)), Macros.exile (Macros.That CardW OneOf {ok})])
 badDrawnCardRemention Refl impossible
 
 ||| "Draw a card and you gain 1 life."
@@ -425,7 +440,7 @@ badEmptySimultaneous ItIsSucc impossible
 ||| "Exile target creature and destroy that card."
 public export
 badSimultaneousReadsRetag : Unspellable (Instruction []) (\ok =>
-  Simultaneously [Macros.exile You (Macros.target Macros.creature),
+  Simultaneously [Macros.exile (Macros.target Macros.creature),
                   Macros.destroy (Macros.That CardW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badSimultaneousReadsRetag (_, Oh) impossible
 
@@ -441,14 +456,14 @@ okTapAfterSimultaneousDamage =
 ||| tapped [CR#701.26a]; `okTapAfterSimultaneousDamage` spells the admitted read.
 public export
 badTapAfterSimultaneousExile : Unspellable (Instruction []) (\ok =>
-  Sequentially [ Simultaneously [Macros.exile You (Macros.target Macros.creature)]
+  Sequentially [ Simultaneously [Macros.exile (Macros.target Macros.creature)]
                , Macros.tap ((Macros.It OneOf)) {ok} ])
 badTapAfterSimultaneousExile Oh impossible
 
 ||| The same sentence with the exile as its own clause.
 public export
 badTapAfterSequentialExile : Unspellable (Instruction []) (\ok =>
-  Sequentially [ Macros.exile You (Macros.target Macros.creature)
+  Sequentially [ Macros.exile (Macros.target Macros.creature)
                , Macros.tap ((Macros.It OneOf)) {ok} ])
 badTapAfterSequentialExile Oh impossible
 
@@ -510,20 +525,20 @@ badSearchZonedDescription Refl impossible
 public export
 badDistributedMillSingular : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.mills (Macros.each AnyPlayer) (Lit 1) (Macros.each AnyPlayer)
-               , Macros.exile You ((Macros.It OneOf) {ok}) ])
+               , Macros.exile ((Macros.It OneOf) {ok}) ])
 badDistributedMillSingular Refl impossible
 
 ||| "one of up to two target creatures"
 public export
 okPartitiveOfTargetGroup : Instruction []
 okPartitiveOfTargetGroup =
-  Macros.exile You (SomeOf (CountedSlice (Macros.exactly 1)) Nothing
+  Macros.exile (SomeOf (CountedSlice (Macros.exactly 1)) Nothing
                            (Described (TargetDet (Macros.upTo 2)) Macros.creature))
 
 ||| "one of a creature you control"
 public export
 badPartitiveOfDescription : Unspellable (Instruction []) (\ok =>
-  Macros.exile You (SomeOf (CountedSlice (Macros.exactly 1)) Nothing (Macros.a Macros.creature) {gm = ok}))
+  Macros.exile (SomeOf (CountedSlice (Macros.exactly 1)) Nothing (Macros.a Macros.creature) {gm = ok}))
 badPartitiveOfDescription Oh impossible
 
 ||| "Look at the top four cards of your library. Exile one of them."
@@ -531,12 +546,12 @@ public export
 okPartitiveOfThem : Instruction []
 okPartitiveOfThem =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
-                Macros.exile You (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf))]
+                Macros.exile (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf))]
 
 ||| "two of one of them"
 public export
 badPartitiveOfPartitive : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Macros.exile You (Macros.someOf (Macros.exactly 1) (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) {gm = ok})])
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Macros.exile (Macros.someOf (Macros.exactly 1) (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) {gm = ok})])
 badPartitiveOfPartitive Oh impossible
 
 ||| "each of the rest"
@@ -544,7 +559,7 @@ public export
 badEachOfTheRest : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
-               , Macros.exile You (EachOf (Macros.theRest Object) {gm = ok})
+               , Macros.exile (EachOf (Macros.theRest Object) {gm = ok})
                ])
 badEachOfTheRest Oh impossible
 
@@ -553,12 +568,12 @@ public export
 okWouldDieOnBattlefield : Instruction []
 okWouldDieOnBattlefield =
   Macros.ifWouldInstead (Dies (Macros.target Macros.creatureYouControl))
-                 (Macros.exile You (Macros.It OneOf)) (Just ThisTurn)
+                 (Macros.exile (Macros.It OneOf)) (Just ThisTurn)
 
 public export
 badWouldDieInGraveyard : Unspellable (Instruction []) (\ok =>
   Macros.ifWouldInstead (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok})
-                 (Macros.exile You ((Macros.It OneOf))) (Just ThisTurn))
+                 (Macros.exile ((Macros.It OneOf))) (Just ThisTurn))
 badWouldDieInGraveyard Oh impossible
 
 ||| "Reveal the top card of your library. Put that card into your hand."
@@ -861,20 +876,20 @@ public export
 distributedDeedReadsBackPluralUnderAnnouncement : Instruction []
 distributedDeedReadsBackPluralUnderAnnouncement =
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW ManyOf) ]
+                 , Macros.exile (Macros.That CardW ManyOf) ]
 
 ||| "Discard a card. Simultaneously, exile that card."
 public export
 okThatAfterSingularDiscard : Instruction []
 okThatAfterSingularDiscard =
   Simultaneously [ Macros.discard You (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW OneOf) ]
+                 , Macros.exile (Macros.That CardW OneOf) ]
 
 ||| "Each opponent discards a card. Simultaneously, exile that card."
 public export
 badDistributedAnnouncedDiscardSingular : Unspellable (Instruction []) (\ok =>
   Simultaneously [ Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ))
-                 , Macros.exile You (Macros.That CardW OneOf {ok}) ])
+                 , Macros.exile (Macros.That CardW OneOf {ok}) ])
 badDistributedAnnouncedDiscardSingular Refl impossible
 
 ||| "Draw a card. You gain 1 life."

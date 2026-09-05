@@ -17,7 +17,7 @@ cloudkinSeer : Ability
 cloudkinSeer = Macros.triggered When (Enters Macros.thisCreature Nothing) (Draw You (Lit 1))
 
 promiseOfTomorrow : Ability
-promiseOfTomorrow = Macros.triggered Whenever (Dies (Macros.a Macros.creatureYouControl)) (Macros.exile You ((Macros.It OneOf)))
+promiseOfTomorrow = Macros.triggered Whenever (Dies (Macros.a Macros.creatureYouControl)) (Macros.exile ((Macros.It OneOf)))
 
 libraryLarcenist : Ability
 libraryLarcenist = Macros.triggered Whenever (Macros.attacks Macros.thisCreature) (Draw You (Lit 1))
@@ -36,7 +36,7 @@ scholarOfStars =
 miserysShadow : Ability
 miserysShadow =
   Static (Intercepts (Dies (Macros.a (And [Macros.creature, HasPossessor ControllerAx (Macros.a Opponent)]))) [] Nothing
-                     (Macros.exile You ((Macros.It OneOf))) Repeatedly Nothing)
+                     (Macros.exile ((Macros.It OneOf))) Repeatedly Nothing)
 
 beastWhisperer : Ability
 beastWhisperer =
@@ -652,7 +652,7 @@ thoughtLashTrigger =
   Macros.triggered When
     (PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment
               "CumulativeUpkeep")
-    (Macros.exile (Macros.That PlayerW OneOf) (Macros.each (InZone (Macros.libraryOf They))))
+    (Macros.exiles (Macros.That PlayerW OneOf) (Macros.each (InZone (Macros.libraryOf They))))
 
 ||| Heart of Bogardan
 public export
@@ -714,7 +714,7 @@ reciprocate : Card
 reciprocate =
   Macros.card "Reciprocate" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing (Macros.exile You
+       [ Spell Nothing (Macros.exile
                   (Macros.target
                      (And [Macros.creature,
                            Macros.happenedToInvolving DamageDealing
@@ -911,7 +911,7 @@ bioplasm =
        [ Macros.triggered Whenever
            (Macros.attacks Macros.thisCreature)
            (Sequentially
-              [ Macros.exile You (Macros.topSlice (Lit 1))
+              [ Macros.exile (Macros.topSlice (Lit 1))
               , If Anaphora.bioplasmCardTest
                    (Macros.gets Macros.thisCreature
                         (PtUp (StatOf Power
@@ -939,7 +939,7 @@ hallowedMoonlight =
        [ Spell Nothing (Sequentially
                   [ Macros.ifWouldInstead
                       (Enters (Macros.a (And [Macros.creature, Not WasCast])) Nothing)
-                      (Macros.exile You ((Macros.It OneOf)))
+                      (Macros.exile ((Macros.It OneOf)))
                       (Just Macros.untilEndOfTurn)
                   , (Draw You (Lit 1)) ]) ]
        Nothing

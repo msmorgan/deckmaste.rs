@@ -16,12 +16,12 @@ throughTheBreach = Sequentially [Macros.may You (Macros.move (Macros.a (And [Mac
                                  Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.sacrifice You (Macros.That (TypeW Creature) OneOf))]
 
 turnToMist : Instruction []
-turnToMist = Sequentially [Macros.exile You (Macros.target Macros.creature),
+turnToMist = Sequentially [Macros.exile (Macros.target Macros.creature),
                            Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.move (Macros.That CardW OneOf) Macros.battlefieldZ)]
 
 voyagerStaff : Ability
 voyagerStaff = Macros.activated (Compound [Mana [Macros.generic 2], Do (Macros.sacrifice You Macros.thisArtifact)])
-                                (Sequentially [Macros.exile You (Macros.target Macros.creature),
+                                (Sequentially [Macros.exile (Macros.target Macros.creature),
                                           Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.move (Macros.TheVerbed "Exile" CardW Attributive OneOf) Macros.battlefieldZ)])
 
 staffOfNin : Ability
@@ -54,7 +54,7 @@ brazenCannonade =
    (Macros.triggeredIf At
                      (BeginningOf EachPart PostcombatMain (ByPlayer You))
                      (Macros.happened AttackDeclaration You Lookback.ThisTurn)
-                     (Macros.exile You (Macros.topSlice (Lit 1))))
+                     (Macros.exile (Macros.topSlice (Lit 1))))
 
 fourKnocks : Ability
 fourKnocks =
@@ -151,7 +151,7 @@ saheelisCopy =
                                 [ExceptTypes (MkTypeLine [] [Artifact])])
                    []
                , Macros.gainsHaste (Macros.That TokenW OneOf) Nothing
-               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.exile You ((Macros.It OneOf))) ]
+               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.exile ((Macros.It OneOf))) ]
 
 public export
 timeWalk : Card
@@ -443,7 +443,7 @@ selfSacrificeThenExile : Ability
 selfSacrificeThenExile =
   Macros.activated (Do (Macros.sacrifice You Macros.thisArtifact))
     (Sequentially
-       [ Macros.exile You (Macros.target Macros.creature)
+       [ Macros.exile (Macros.target Macros.creature)
        , Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing
                  (Move (Macros.That CardW OneOf) Macros.battlefieldZ
                        []) ])

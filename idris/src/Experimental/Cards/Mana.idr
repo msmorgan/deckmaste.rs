@@ -487,7 +487,7 @@ theFlux =
        , Macros.triggered When
            (ChapterMark [ChapterII, ChapterIII, ChapterIV, ChapterV])
            (Sequentially
-              [ Macros.exile You (Macros.topSlice (Lit 1))
+              [ Macros.exile (Macros.topSlice (Lit 1))
               , Continuously ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                              (Just ThisTurn) ])
        , Macros.triggered When (ChapterMark [ChapterVI])
@@ -541,7 +541,7 @@ shiningShoal =
   Macros.card "Shining Shoal"
        (Just [Variable, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.a (And [ColorIs White,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -558,7 +558,7 @@ disruptingShoal =
   Macros.card "Disrupting Shoal"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.a (And [ColorIs Blue,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -572,7 +572,7 @@ blazingShoal =
   Macros.card "Blazing Shoal"
        (Just [Variable, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.a (And [ColorIs Red,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -586,7 +586,7 @@ sickeningShoal =
   Macros.card "Sickening Shoal"
        (Just [Variable, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.a (And [ColorIs Black,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -600,7 +600,7 @@ nourishingShoal =
   Macros.card "Nourishing Shoal"
        (Just [Variable, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [spellType "Arcane"] [Instant])
-       [ Static (AltCost This (Just (Do (Macros.exile You
+       [ Static (AltCost This (Just (Do (Macros.exiles You
                    (Macros.a (And [ColorIs Green,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
@@ -622,7 +622,7 @@ isolate : Card
 isolate =
   Macros.card "Isolate" (Just [Macros.pip White]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing (Macros.exile You
+       [ Spell Nothing (Macros.exile
                   (Macros.target (And [Permanent,
                                        Compare [StatAxis ManaValue] Eq (Lit 1)]))) ]
        Nothing

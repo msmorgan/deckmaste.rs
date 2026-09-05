@@ -8,7 +8,7 @@ import Experimental.Cards.Description
 
 
 cloudshift : Instruction []
-cloudshift = Sequentially [Macros.exile You (Macros.target Macros.creatureYouControl),
+cloudshift = Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
                            Macros.putOntoBattlefieldUnderYourControl (Macros.That CardW OneOf)]
 
 bitterDownfall : Instruction []
@@ -21,7 +21,7 @@ suspendedSentence = Sequentially [Macros.destroy (Macros.target (And [Macros.cre
 
 flickeringSpirit : Instruction []
 flickeringSpirit =
-  Sequentially [ Macros.exile You Macros.thisCreature
+  Sequentially [ Macros.exile Macros.thisCreature
                , Move ((Macros.It OneOf)) Macros.battlefieldZ
                       [Under (Macros.ownerOf ((Macros.It OneOf)))] ]
 
@@ -69,7 +69,7 @@ revealFourPartition = Sequentially [ Macros.revealCards ((Macros.topSlice (Lit 4
 
 exileFourOfThem : Instruction []
 exileFourOfThem = Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 8)))
-                               , Macros.exile You (Macros.someOf (Macros.exactly 4) ((Macros.It ManyOf)))
+                               , Macros.exile (Macros.someOf (Macros.exactly 4) ((Macros.It ManyOf)))
                                , Macros.move (Macros.theRest Object) (Macros.onTopIn AnyOrder)
                                ]
 
@@ -93,7 +93,7 @@ glimpseTheUnthinkable =
 millThenReadGroup : Instruction []
 millThenReadGroup =
   Sequentially [ Macros.mills You (Lit 3) You
-               , Macros.exile You (Macros.That CardW ManyOf) ]
+               , Macros.exile (Macros.That CardW ManyOf) ]
 
 takeIntoCustody : Instruction []
 takeIntoCustody = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
@@ -180,14 +180,14 @@ everAfter =
 public export
 martyrsCry : Instruction []
 martyrsCry =
-  Sequentially [Macros.exile You (Macros.allOf (And [Macros.creature, ColorIs White])),
+  Sequentially [Macros.exile (Macros.allOf (And [Macros.creature, ColorIs White])),
                 ForEachOf (Macros.TheVerbed "Exile" (TypeW Creature) ThisWay ManyOf)
                           (Draw (Macros.controllerOf ((Macros.It OneOf))) (Lit 1))]
 
 public export
 anotherRound : Instruction []
 anotherRound =
-  Sequentially [ Macros.exile You (Macros.counted Macros.anyNumber
+  Sequentially [ Macros.exile (Macros.counted Macros.anyNumber
                                  Macros.creatureYouControl)
                , Move ((Macros.It ManyOf)) Macros.battlefieldZ
                       [Under (Macros.ownerOf ((Macros.It ManyOf)))]
@@ -197,11 +197,11 @@ anotherRound =
 public export
 eradicateSearch : Instruction []
 eradicateSearch =
-  Sequentially [ Macros.exile You (Macros.target (And [Macros.creature,
+  Sequentially [ Macros.exile (Macros.target (And [Macros.creature,
                                                    Not (ColorIs Black)]))
                , Macros.searchZonesOf (Macros.controllerOf (Macros.That CardW OneOf))
                                       (Named (SameNameAs (Macros.That CardW OneOf)))
-               , Macros.exile You Macros.foundCard
+               , Macros.exile Macros.foundCard
                , Shuffle (Macros.That PlayerW OneOf) ]
 
 ||| Deem Inferior
@@ -252,7 +252,7 @@ thaliasLancersSearch =
 contrabandLivestock : Instruction []
 contrabandLivestock =
   Sequentially
-    [Macros.exile You (Macros.target Macros.creature),
+    [Macros.exile (Macros.target Macros.creature),
      (Macros.rollDice You 1 20),
      Macros.resultsTable
        [Macros.rollRow (Macros.fromTo 1 9)
@@ -420,7 +420,7 @@ nekrataalOneDestroyed = Refl
 public export
 sequencedRiderBody : Instruction []
 sequencedRiderBody =
-  Sequentially [ Macros.exile You (Macros.target Macros.artifact)
+  Sequentially [ Macros.exile (Macros.target Macros.artifact)
                , Macros.destroy (Macros.target Macros.creature) ]
 
 public export
@@ -563,7 +563,7 @@ gleamOfDeath =
 public export
 tezzeretAllArtifacts : Instruction []
 tezzeretAllArtifacts =
-  Sequentially [ Macros.exile You (Macros.topSlice (Lit 10))
+  Sequentially [ Macros.exile (Macros.topSlice (Lit 10))
                , Macros.move (Macros.allFromAmong Macros.artifact
                                 (Macros.TheVerbed "Exile" CardW ThisWay ManyOf))
                              Macros.battlefieldZ ]
@@ -587,7 +587,7 @@ companyBareSlice = Macros.someOf (Macros.exactly 2) ((Macros.It ManyOf))
 public export
 exileTopThenPutFromAmong : Instruction []
 exileTopThenPutFromAmong =
-  Sequentially [ Macros.exile You
+  Sequentially [ Macros.exile
                    (LibrarySlice OnTop (Lit 7) (Macros.target Opponent))
                , Macros.putOntoBattlefieldUnderYourControl
                    (Macros.fromAmong (Macros.exactly 1) Macros.creature

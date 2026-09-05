@@ -37,7 +37,7 @@ terashisVerdict =
 
 pillarOfLight : Instruction []
 pillarOfLight =
-  Macros.exile You (Macros.target (And [Macros.creature, Compare [StatAxis Toughness] AtLeast (Lit 4)]))
+  Macros.exile (Macros.target (And [Macros.creature, Compare [StatAxis Toughness] AtLeast (Lit 4)]))
 
 unholyAnnex : Instruction []
 unholyAnnex =
@@ -134,7 +134,7 @@ topple : Card
 topple =
   Macros.card "Topple" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell Nothing (Macros.exile You
+       [ Spell Nothing (Macros.exile
                   (Macros.target
                      (And [Macros.creature,
                            Superlative MaxOf (StatAxis Power)
@@ -385,7 +385,7 @@ bioplasmAttack = Attacks Macros.thisCreature NoDefender
 
 public export
 bioplasmExile : Instruction (eventAfter Description.bioplasmAttack)
-bioplasmExile = Macros.exile You (Macros.topSlice (Lit 1))
+bioplasmExile = Macros.exile (Macros.topSlice (Lit 1))
 
 public export
 bioplasmAfterExile : Bindings
@@ -524,7 +524,7 @@ disarm =
        Nothing
 
 rawExile : Instruction []
-rawExile = Macros.exile You (Macros.target Macros.creature)
+rawExile = Macros.exile (Macros.target Macros.creature)
 
 disenchant : Instruction []
 disenchant = Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantment]))

@@ -561,19 +561,24 @@ actFacts =
     } (plainAct "Sacrifice")
   , { participle := Just "exiled"
     , actDest := Just Exile
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False Nothing
     } (plainAct "Exile")
   , { participle := Just "discarded"
     , actDest := Just Graveyard
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Hand)
     } (plainAct "Discard")
   , { participle := Just "milled"
     , actDest := Just Graveyard
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Library)
     } (plainAct "Mill")
   , { actStepwise := True
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Scry")
   , { actStepwise := True
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Surveil")
   , { participle := Just "tapped"
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
@@ -589,7 +594,8 @@ actFacts =
   , { patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     , actFeature := Just ControlGrant
     } (plainAct "GainControl")
-  , { patientRole := MkDeedRole [Object] [] False Nothing
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] False Nothing
     } (plainAct "Put")
   , { actLoci := [Battlefield, Graveyard, Exile, Hand, Library, Stack, Command]
     , agentRole := MkDeedRole [Player] [] True Nothing
@@ -597,6 +603,7 @@ actFacts =
     , actBounded := True
     } (plainAct "Search")
   , { actLoci := [Library]
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Shuffle")
   , plainAct "Proliferate"
   , plainAct "The Ring Tempts You"
@@ -730,7 +737,8 @@ actFacts =
   , plainAct "Exert"
   , plainAct "Explore"
   , plainAct "Face A Villainous Choice"
-  , plainAct "Fateseal"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Fateseal")
   , plainAct "Fight"
   , plainAct "Forage"
   , plainAct "Goad"
