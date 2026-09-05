@@ -134,63 +134,91 @@ re-measure before minting, and stamp the measurement. No xtask command exposes
 a family key yet; the census below bucketed parse failures by first-failure
 byte offset over the `coverage` rows.
 
-Measured 2026-09-05 on change `osnrsxuvkrwo` (19,198 / 32,641 covered, 13,443
-parse failures). Key: the first-failure byte offset carried in each
-`parse_failure` row's `message` ("parse failed at bytes N..M"), bucketed by the
-token at that offset and the token before it. 534 rows carry no offset (build
-rejections) and are unbucketed. A unit is a whole card face, so a family's count
-is the units it is the FIRST failure of, not the units that contain its surface.
+Measured 2026-09-05 on change `ptoxwkmmrqno` (19,469 / 32,641 covered, 13,172
+parse failures; 541 rows unbucketed). Key: the first-failure byte offset in each
+`parse_failure` row's `message`, bucketed by the token at that offset and the
+token before it. A unit is a whole card face, so a family's count is the units it
+is the FIRST failure of.
 
-**Reading a mid-word offset.** An offset that lands inside an orthographic word
-(`color|less`, `Other|wise`, `a|ddition`, `land|cycling`) is an ARTIFACT, not a
-scanner split. `has_lexical_boundary`
-(`crates/deckmaste_english_v2/src/parser/scan.rs:1184`) does enforce a right
-word boundary; a prefix reading survives only when an adjacency-marked
-continuation suppresses it, and that branch then dies without affecting the
-outcome. The real gap in every such case is that no lexeme spans the whole
-word. Verified on `colorless` 2026-09-05. Do not mint a scanner ticket on this
-evidence.
+**Reading a mid-word offset.** An offset inside an orthographic word
+(`color|less`, `Other|wise`, `a|ddition`, `land|cycling`) is an ARTIFACT of
+boundary suppression, not a scanner split: `has_lexical_boundary`
+(`crates/deckmaste_english_v2/src/parser/scan.rs:1184`) does enforce a right word
+boundary, and the prefix reading survives only under an adjacency-marked
+continuation, then dies. Bucket such rows by the WHOLE WORD. Never mint a scanner
+ticket on this evidence.
 
-Top ten by first-failure attribution:
+**Classify before minting.** A family is LEXICAL iff (i) the fix is a member
+added to an existing inventory, (ii) every consumer it reaches is already a
+standalone `lex(...)`/`verb(head)` form, and (iii) the landing adds zero
+constructions, sums, seams or features. LEXICAL families are BATCHED one ticket
+per round (`english-v2-lexical-inventory-<date>`); only STRUCTURAL families get a
+one-family ticket. Criterion (ii) is decided by reading the consumer's `form`
+line, never by the category name appearing in a derivation — and every row is
+verified against a CONTROL sentence whose lexeme already exists. Six of this
+round's classifications flipped on that check; see below.
 
-- `as` not licensed as a general preposition or comparator: 437 — OWNED by
-  `english-v2-remaining-prepositions`, which names `as` as its hardest member
-  and splits the `as long as` / `as though` subordinator sites explicitly
-- `colorless`: 387 — minted 2026-09-05 as
-  `english-v2-tail-color-property-adjectives`. One absent member of the
-  colour-property class ([CR#105.2c]); the class is complete at eight
-- `if … was kicked` / kicker conditionals: 194 — UNOWNED. No `Kick` verb is
-  declared anywhere (`core_verbs.ron` has no entry), while
-  `predicative_declared_participle` (`verb(head)`, bare) is already the right
-  standalone host — a lexeme-data gap, not a seam
-- restrictive `only … each turn`: 191 — OWNED by
-  `english-v2-frequency-adverbial-family`
-- `in addition to its other types`: 169 — UNOWNED, and double-blocked:
-  `addition` is absent from the closed `CommonNoun` inventory, and
-  `nominal_preposition_is_licensed` refuses every `to`-postmodifier outright —
-  the second half is `english-v2-locative-licence-set`'s pinned defect
-- copula contraction + `still` + predicate (`It's still a land.`): 115 — UNOWNED
-- elliptical `If you don't, …`: 109 — fogged above under "Gerund clauses and
-  modal ellipsis (A9, A11)"; a fog entry is not a ticket
-- sentence-initial `Otherwise,`: 84 — UNOWNED, named nowhere
-- `until you <verb>` finite subordinate clause: 84 — OWNED by
-  `english-v2-subordinate-clause`
-- bare `X` as a card-count quantifier (`the top X cards`): 80 — UNOWNED
+Families at >= 15 units:
 
-Not a family, do not mint: the bare `.` fragment accounts for 653 failures
-spread over 101 distinct preceding tokens (`turn` 163, `time` 48, `top` 41,
-`cards` 35, `card` 34, `control` 29, … down to singletons). It is the generic
-end-of-sentence position, not one phenomenon.
+| family | units | class | owner |
+|---|---:|---|---|
+| preterite finite clause (`died`, `attacked`, `entered`, `left`, …) | 929 shaped | STRUCTURAL | minted `english-v2-tail-preterite-finite-clause` |
+| `as`-clause (`only as a sorcery`, `enter as a copy of`) | 496 | STRUCTURAL | `english-v2-remaining-prepositions` |
+| elliptical / re-subjected predicate sequencing (`If you don't, …`, `…, then you may …`) | 350 | STRUCTURAL | fogged only, under "Gerund clauses and modal ellipsis (A9, A11)" |
+| `was kicked` | 194 | LEXICAL | batched |
+| `in addition to its other types` | 170 | STRUCTURAL | `english-v2-locative-licence-set` (double-blocked; the noun alone will not land it) |
+| `dealt by` / `controlled by` | 154 | STRUCTURAL | `english-v2-remaining-prepositions` — fails at `by`, not at the participle |
+| landwalk fused surfaces (`Swampwalk`, …) | 127 | LEXICAL | batched |
+| energy counters (`you get {E}{E}`) | 104 | STRUCTURAL | UNOWNED |
+| copula contraction + `still` | 99 | STRUCTURAL | UNOWNED |
+| `who` relative clause | 94 | STRUCTURAL | `english-v2-relative-clause` |
+| typecycling fused surfaces (`landcycling`, …) | 91 | LEXICAL | `macro-keyword-templates` (design-gated there) |
+| `share` / `shares` | 91 | LEXICAL | batched |
+| bare `X` as card-count quantifier | 141 | STRUCTURAL | UNOWNED |
+| `until you <verb>` | 84 | STRUCTURAL | `english-v2-subordinate-clause` |
+| sentence-initial `Otherwise,` | 84 | STRUCTURAL | UNOWNED |
+| `amount of X equal to Y` | 83 | STRUCTURAL | UNOWNED |
+| `win` | 77 | LEXICAL | batched |
+| `Activate only once each turn.` | 79 | STRUCTURAL | `english-v2-frequency-adverbial-family` |
+| `the greatest X` (superlative measure) | 76 | unresolved | UNOWNED |
+| `This ability triggers only once` | 74 | STRUCTURAL | UNOWNED (the frequency ticket does not quote this shape) |
+| `Affinity for X` | 73 | STRUCTURAL | `english-v2-affinity-quality-surface` |
+| `creature without <ability>` (NP postmodifier) | 68 | STRUCTURAL | UNOWNED |
+| `attacks alone` | 64 | STRUCTURAL | UNOWNED |
+| `equal to` as an NP postmodifier | 58 | STRUCTURAL | UNOWNED |
+| `Multikicker` / `Prototype` / `Change` | 53 | mixed | UNOWNED |
+| `devotion` | 52 | STRUCTURAL | UNOWNED |
+| `Partner with <name>` | 52 | STRUCTURAL | `english-keyword-atom-roles` |
+| storage / finality counter kinds | 45 | LEXICAL, consumer unverified | UNOWNED — verify criterion (ii) before batching |
+| `instead of V-ing` | 44 | STRUCTURAL | UNOWNED |
+| The Ring tempts you | 42 | STRUCTURAL | `macro-ring-emblem` |
+| `transforms into <name>` | 37 | unverified | UNOWNED |
+| `historic` | 33 | STRUCTURAL | UNOWNED |
+| `unlock` | 30 | LEXICAL | batched |
+| level-range line (`1-9 \|`) | 26 | STRUCTURAL | UNOWNED |
+| `party` | 26 | STRUCTURAL | `engine-party` (design-gated) |
+| `exert` | 26 | LEXICAL | batched |
+| `Splice onto <subtype>` | 23 | STRUCTURAL | UNOWNED |
+| `exploits` | 23 | LEXICAL | `english-ability-derived-verb-batch` |
+| `target beyond the first` | 22 | STRUCTURAL | UNOWNED |
+| `at random` (postmodifier position) | 21 | unresolved | UNOWNED |
+| `twice that much/many` | 21 | unresolved | UNOWNED |
 
-Routed residues:
+Not a family, do not mint: the bare `.` fragment, 660 units over 102 distinct
+preceding tokens — the generic end-of-sentence position.
 
-- `vocab Color` is misnamed: [CR#105.4] states that multicolored and colorless
-  are not colours, and the class already holds *monocolored* and *multicolored*.
-  `english-v2-tail-color-property-adjectives` sharpens this and routes the
-  rename to be minted at its landing.
-- coordination families generally: v1's coordination modules are a phenomenon
-  checklist (coordinable categories, serial-list comma conventions, and/or/nor,
-  scope, agreement), never code or vocabulary to import.
+Classifications that flipped on the control check (record, so they are not
+re-proposed): `died` and the other `-ed` forms are NOT lexeme gaps — `Attack`
+has its frames and `attacked` still fails, so they are the preterite family;
+`dealt by` fails at `by`, not at `dealt`, so it is a preposition gap; `shares`
+and `win` ARE lexeme gaps, proved by `that controls a land` and `If you control
+a Goblin` selecting; `was kicked` IS a lexeme gap, proved by `was exiled`
+selecting; `named` had zero units under this key and was dropped.
+
+Routed residue: `vocab Color` is misnamed ([CR#105.4]) — `english-v2-rename-color-vocabulary`,
+not folded into the lexical batch because its replacement name is unpinned.
+Coordination families generally: v1's coordination modules are a phenomenon
+checklist, never code or vocabulary to import.
 
 Hangs on: nothing; this is the live frontier.
 
