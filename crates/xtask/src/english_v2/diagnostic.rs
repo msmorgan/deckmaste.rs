@@ -1024,6 +1024,7 @@ enum NonterminalKind {
     AmountKeywordLineItem,
     AmountCostKeywordLineItem,
     QualifiedKeywordLineItem,
+    QualityPrefixKeywordLineItem,
     QualityCostKeywordLineItem,
     SubjectKeywordLineItem,
     KeywordQualityCoordination,
@@ -1775,6 +1776,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::AmountCostKeywordLineItem
         }
         NonterminalCategory::QualifiedKeywordLineItem => NonterminalKind::QualifiedKeywordLineItem,
+        NonterminalCategory::QualityPrefixKeywordLineItem => {
+            NonterminalKind::QualityPrefixKeywordLineItem
+        }
         NonterminalCategory::SubjectKeywordLineItem => NonterminalKind::SubjectKeywordLineItem,
         NonterminalCategory::KeywordQualityCoordination => {
             NonterminalKind::KeywordQualityCoordination

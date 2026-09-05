@@ -958,6 +958,24 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                     "structural atoms cannot nest",
                 ));
             }
+            "right_adjacent" if allow_bound => {
+                let value = parse_form_atom(&content, false)?;
+                if !content.is_empty() {
+                    return Err(content
+                        .error("right_adjacent atoms accept exactly one ordinary value atom"));
+                }
+                FormAtom::Bound(crate::model::BoundAtom {
+                    direction: crate::model::BoundDirection::Suffix,
+                    affix: None,
+                    value: Box::new(value),
+                })
+            }
+            "right_adjacent" => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    "right_adjacent atoms cannot nest",
+                ));
+            }
             "prefix" | "suffix" if allow_bound => {
                 let direction = if ident == "prefix" {
                     crate::model::BoundDirection::Prefix
@@ -984,7 +1002,7 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                 }
                 FormAtom::Bound(crate::model::BoundAtom {
                     direction,
-                    affix,
+                    affix: Some(affix),
                     value: Box::new(value),
                 })
             }
@@ -3366,7 +3384,7 @@ mod tests {
     }
 
     #[test]
-    fn bound_prefix_and_suffix_atoms_parse_the_four_approved_shapes() {
+    fn bound_and_right_adjacent_atoms_parse_the_five_approved_shapes() {
         let declarations = crate::parse_declarations(quote::quote! {
             vocab Modifier { Black = "black", Elf = "Elf", }
             construction plain_prefix: Root {
@@ -3385,11 +3403,15 @@ mod tests {
                 element PluralSuffix { owner: Root, }
                 form plural_suffix = suffix(owner, "'");
             }
+            construction fused: Root {
+                element Fused { owner: Root, modifier: lex Modifier, }
+                form fused = right_adjacent(owner) lex(modifier);
+            }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("the four closed bound-atom spellings parse");
+        .expect("the five closed boundary spellings parse");
 
-        assert_eq!(declarations.declarations.len(), 6);
+        assert_eq!(declarations.declarations.len(), 7);
     }
 
     #[test]

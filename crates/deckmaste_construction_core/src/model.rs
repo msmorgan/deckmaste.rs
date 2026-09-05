@@ -332,7 +332,7 @@ pub struct MarkedAtom {
 #[derive(Debug)]
 pub struct BoundAtom {
     pub direction: BoundDirection,
-    pub affix: LitStr,
+    pub affix: Option<LitStr>,
     pub value: Box<FormAtom>,
 }
 

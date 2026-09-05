@@ -144,6 +144,66 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
 }
 
 #[test]
+fn declaration_backed_quality_prefixes_realize_bound_keyword_surfaces_exactly() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+
+    for (text, expected_quality) in [
+        (
+            "Islandwalk",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Island"),
+        ),
+        (
+            "Desertwalk",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Desert"),
+        ),
+        ("Nonbasic landwalk", (DeclarationKind::Type, "Land")),
+        ("Legendary landwalk", (DeclarationKind::Type, "Land")),
+        (
+            "Snow Swampwalk",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Swamp"),
+        ),
+        ("Artifact landwalk", (DeclarationKind::Type, "Land")),
+    ] {
+        let parsed = assert_exact_document(&parser, &environment, text);
+        let mut visitor = DeclarationVisitor::default();
+        visitor.visit_oracle_text(&parsed);
+        assert!(
+            visitor
+                .0
+                .iter()
+                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "Landwalk"),
+            "{text:?}: {:?}",
+            visitor.0,
+        );
+        assert!(
+            visitor
+                .0
+                .iter()
+                .any(|(kind, name)| *kind == expected_quality.0 && name == expected_quality.1),
+            "{text:?}: {:?}",
+            visitor.0,
+        );
+
+        let analysis = parser.analyze_oracle_text(text, &context());
+        let decision = analysis.decision().expect("quality keyword selects");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| Some(candidate.ordinal()) == decision.selected())
+            .expect("quality keyword has one selected candidate");
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|name| { name == "QualityPrefixKeywordLineItemQualityPrefixKeywordLineItem" })
+        );
+    }
+
+    assert!(parser.parse_oracle_text("Denimwalk", &context()).is_err());
+}
+
+#[test]
 fn declared_quality_prepositions_stay_inside_keyword_abilities() {
     let environment = environment(declarations());
     let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");

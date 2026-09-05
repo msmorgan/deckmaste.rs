@@ -820,10 +820,12 @@ fn lower_construction_rows(
                     match atom {
                         AtomPlan::Bound {
                             direction: crate::semantic::BoundDirectionPlan::Prefix,
+                            affix: Some(_),
                             ..
                         } => rhs.extend([affix, authored]),
                         AtomPlan::Bound {
                             direction: crate::semantic::BoundDirectionPlan::Suffix,
+                            affix: Some(_),
                             ..
                         } => rhs.extend([authored, affix]),
                         AtomPlan::Circumfix { .. } => rhs.extend([
@@ -2114,7 +2116,12 @@ fn emit_bound_affix_position(
             "bound-affix rule symbol references an ordinary atom",
         ));
     };
-    let literal = syn::LitStr::new(affix, Span::call_site());
+    let literal = syn::LitStr::new(
+        affix
+            .as_deref()
+            .ok_or_else(|| internal("boundary-only atom has no affix rule symbol"))?,
+        Span::call_site(),
+    );
     let stable_id = syn::LitStr::new(
         &format!(
             "form:{}/{}/{atom_index}/affix",
@@ -2642,7 +2649,7 @@ mod tests {
             .expect("fixture has a structural construction");
         let atom = crate::semantic::AtomPlan::Bound {
             direction: crate::semantic::BoundDirectionPlan::Prefix,
-            affix: "non".to_owned(),
+            affix: Some("non".to_owned()),
             value: Box::new(crate::semantic::AtomPlan::Category {
                 role: "maybe".to_owned(),
                 category: "Item".to_owned(),

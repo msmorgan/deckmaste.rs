@@ -700,7 +700,7 @@ pub(crate) enum AtomPlan {
     OpenDeclaration(OpenDeclarationAtomPlan),
     Bound {
         direction: BoundDirectionPlan,
-        affix: String,
+        affix: Option<String>,
         value: Box<AtomPlan>,
     },
     Circumfix {
@@ -1113,7 +1113,9 @@ impl RuntimeEmissionPlan {
                     .flat_map(FormPlan::atoms)
                     .flat_map(|atom| {
                         let mut literals = Vec::new();
-                        if let AtomPlan::Bound { affix, .. } = atom
+                        if let AtomPlan::Bound {
+                            affix: Some(affix), ..
+                        } = atom
                             && is_punctuation_literal(affix)
                         {
                             literals.push(affix.clone());
@@ -4925,7 +4927,7 @@ impl AtomPlan {
                 };
                 Ok(Self::Bound {
                     direction,
-                    affix: authored.affix.value(),
+                    affix: authored.affix.as_ref().map(syn::LitStr::value),
                     value: Box::new(Self::from_source(&authored.value, resolved)?),
                 })
             }
@@ -6019,6 +6021,7 @@ fn morphology_feature_name(feature: crate::macro_def::SurfaceFeature) -> &'stati
         SurfaceFeature::Singular => "Singular",
         SurfaceFeature::Plural => "Plural",
         SurfaceFeature::Fixed => "Fixed",
+        SurfaceFeature::BoundSuffix => "BoundSuffix",
         SurfaceFeature::BlockLabel => "BlockLabel",
     }
 }
@@ -6628,6 +6631,7 @@ impl DeclarationTermPlan {
                     crate::macro_def::SurfaceFeature::Fixed,
                     |slot| match identifier_key(&slot.value).as_str() {
                         "Fixed" => crate::macro_def::SurfaceFeature::Fixed,
+                        "BoundSuffix" => crate::macro_def::SurfaceFeature::BoundSuffix,
                         "Participle" => crate::macro_def::SurfaceFeature::PAST_PARTICIPLE,
                         "BlockLabel" => crate::macro_def::SurfaceFeature::BlockLabel,
                         _ => unreachable!("validated declaration_term feature is closed"),

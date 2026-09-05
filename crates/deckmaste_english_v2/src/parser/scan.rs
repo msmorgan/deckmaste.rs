@@ -891,6 +891,7 @@ impl ScanInput<'_> {
                     SurfaceFeature::Plural => Number::Plural,
                     SurfaceFeature::Inflectional(_)
                     | SurfaceFeature::Fixed
+                    | SurfaceFeature::BoundSuffix
                     | SurfaceFeature::BlockLabel => continue,
                 };
                 if matches!(wanted, FeatureConstraint::Any)

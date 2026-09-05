@@ -2265,6 +2265,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 | crate::macro_def::SurfaceFeature::Singular
                 | crate::macro_def::SurfaceFeature::Plural
                 | crate::macro_def::SurfaceFeature::Fixed
+                | crate::macro_def::SurfaceFeature::BoundSuffix
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the ConcordClass feature axis")
                 }
@@ -2306,6 +2307,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     }
                     crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
+                    | crate::macro_def::SurfaceFeature::BoundSuffix
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -2348,6 +2350,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
                                 crate::macro_def::SurfaceFeature::Inflectional(_)
                                 | crate::macro_def::SurfaceFeature::Fixed
+                        | crate::macro_def::SurfaceFeature::BoundSuffix
                                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"
@@ -2566,6 +2569,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             ::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple,
                         ) => "gerund_participle",
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::Fixed => "fixed",
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::BoundSuffix => "bound_suffix",
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel => "block_label",
                     };
                     LexicalOwner::construct_label(|| {

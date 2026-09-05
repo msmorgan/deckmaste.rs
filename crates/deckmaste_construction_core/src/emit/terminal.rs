@@ -1440,6 +1440,7 @@ fn emit_lexeme_surface_helper(
                     ));
                 }
                 crate::macro_def::SurfaceFeature::Fixed
+                | crate::macro_def::SurfaceFeature::BoundSuffix
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                     return Err(syn::Error::new(
                         Span::call_site(),

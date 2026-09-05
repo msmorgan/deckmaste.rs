@@ -69,6 +69,9 @@ pub(super) fn surface_feature(value: crate::macro_def::SurfaceFeature) -> TokenS
         crate::macro_def::SurfaceFeature::Fixed => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::Fixed }
         }
+        crate::macro_def::SurfaceFeature::BoundSuffix => {
+            quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::BoundSuffix }
+        }
         crate::macro_def::SurfaceFeature::BlockLabel => {
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::BlockLabel }
         }
@@ -731,7 +734,9 @@ pub(super) fn closed_lexeme_owner_id(
         crate::macro_def::SurfaceFeature::Inflectional(
             crate::macro_def::InflectionalForm::GerundParticiple,
         ) => "gerund_participle",
-        crate::macro_def::SurfaceFeature::Fixed | crate::macro_def::SurfaceFeature::BlockLabel => {
+        crate::macro_def::SurfaceFeature::Fixed
+        | crate::macro_def::SurfaceFeature::BoundSuffix
+        | crate::macro_def::SurfaceFeature::BlockLabel => {
             unreachable!("closed lexemes use only ConcordClass or Number features")
         }
     };

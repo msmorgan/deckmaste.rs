@@ -279,12 +279,25 @@ pub enum Grammar {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         onset: Option<Onset>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        bound_suffix: Option<BoundSuffixGrammar>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         participial_adjective: Option<ParticipialAdjectiveGrammar>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         block_label: Option<BlockLabelGrammar>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         parameter: Option<FixedKeywordParameterGrammar>,
     },
+}
+
+/// A supplemental bound-suffix use of a fixed keyword declaration.
+///
+/// The suffix is a separately owned lexical surface. Constructions decide
+/// which declaration-backed quality precedes it and suppress the intervening
+/// word boundary.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BoundSuffixGrammar {
+    pub surface: String,
 }
 
 /// The surface grammar selected by one fixed keyword parameter.
@@ -698,6 +711,7 @@ pub enum SurfaceFeature {
     Singular,
     Plural,
     Fixed,
+    BoundSuffix,
     BlockLabel,
 }
 
@@ -712,7 +726,9 @@ impl SurfaceFeature {
     pub const fn inflectional_form(self) -> Option<InflectionalForm> {
         match self {
             Self::Inflectional(form) => Some(form),
-            Self::Singular | Self::Plural | Self::Fixed | Self::BlockLabel => None,
+            Self::Singular | Self::Plural | Self::Fixed | Self::BoundSuffix | Self::BlockLabel => {
+                None
+            }
         }
     }
 }
@@ -807,6 +823,7 @@ enum GrammarSourceMap {
     },
     Fixed {
         surface: SourcePosition,
+        bound_suffix_surface: Option<SourcePosition>,
         participial_adjective_surface: Option<SourcePosition>,
         block_label_surface: Option<SourcePosition>,
     },
@@ -896,10 +913,18 @@ enum DiagnosticGrammar<'a> {
         #[serde(borrow)]
         surface: &'a RawValue,
         #[serde(default, borrow)]
+        bound_suffix: Option<DiagnosticBoundSuffixGrammar<'a>>,
+        #[serde(default, borrow)]
         participial_adjective: Option<DiagnosticParticipialAdjectiveGrammar<'a>>,
         #[serde(default, borrow)]
         block_label: Option<DiagnosticBlockLabelGrammar<'a>>,
     },
+}
+
+#[derive(Deserialize)]
+struct DiagnosticBoundSuffixGrammar<'a> {
+    #[serde(borrow)]
+    surface: &'a RawValue,
 }
 
 #[derive(Deserialize)]
@@ -1197,15 +1222,21 @@ impl GrammarSourceMap {
             DiagnosticGrammar::FixedTerm { surface }
             | DiagnosticGrammar::FixedClause { surface } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
+                bound_suffix_surface: None,
                 participial_adjective_surface: None,
                 block_label_surface: None,
             }),
             DiagnosticGrammar::FixedKeyword {
                 surface,
+                bound_suffix,
                 participial_adjective,
                 block_label,
             } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
+                bound_suffix_surface: bound_suffix
+                    .as_ref()
+                    .map(|grammar| raw_position(path, source, grammar.surface, declaration))
+                    .transpose()?,
                 participial_adjective_surface: participial_adjective
                     .as_ref()
                     .and_then(|grammar| grammar.surface)
@@ -1777,10 +1808,15 @@ type NormalizedGrammarParts = (
 #[derive(Clone, Copy)]
 struct FixedGrammarPositions {
     surface: SourcePosition,
+    bound_suffix: Option<SourcePosition>,
     participial_adjective: Option<SourcePosition>,
     block_label: Option<SourcePosition>,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "normalization dispatch covers every closed declaration grammar recipe"
+)]
 fn normalize_grammar(
     path: &Path,
     source_map: &GrammarSourceMap,
@@ -1896,12 +1932,14 @@ fn normalize_grammar(
                 Grammar::FixedKeyword {
                     surface,
                     onset,
+                    bound_suffix,
                     participial_adjective,
                     block_label,
                     parameter,
                 },
                 GrammarSourceMap::Fixed {
                     surface: position,
+                    bound_suffix_surface,
                     participial_adjective_surface,
                     block_label_surface,
                 },
@@ -1909,11 +1947,13 @@ fn normalize_grammar(
                 path,
                 FixedGrammarPositions {
                     surface: *position,
+                    bound_suffix: *bound_suffix_surface,
                     participial_adjective: *participial_adjective_surface,
                     block_label: *block_label_surface,
                 },
                 surface,
                 onset,
+                bound_suffix,
                 participial_adjective,
                 block_label,
                 parameter,
@@ -1988,11 +2028,16 @@ fn normalize_fixed_grammar(
     Ok((head, recipe, surfaces, None, None))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "fixed keyword normalization preserves each independent supplemental surface"
+)]
 fn normalize_fixed_keyword_grammar(
     path: &Path,
     positions: FixedGrammarPositions,
     surface: String,
     onset: Option<Onset>,
+    bound_suffix: Option<BoundSuffixGrammar>,
     participial_adjective: Option<ParticipialAdjectiveGrammar>,
     block_label: Option<BlockLabelGrammar>,
     parameter: Option<FixedKeywordParameterGrammar>,
@@ -2009,13 +2054,23 @@ fn normalize_fixed_keyword_grammar(
             ValidationError::InvalidFixedLexeme,
         ));
     }
-    let (head, recipe, surfaces) = fixed_grammar(
+    let (head, recipe, mut surfaces) = fixed_grammar(
         path,
         positions.surface,
         surface,
         onset,
         GrammarRecipe::FixedKeyword { parameter },
     )?;
+    if let Some(grammar) = bound_suffix {
+        let position = positions.bound_suffix.unwrap_or(positions.surface);
+        validate_surface(path, position, "bound suffix", &grammar.surface)?;
+        surfaces.push(RealizedSurface {
+            feature: SurfaceFeature::BoundSuffix,
+            onset: normalized_onset(path, position, &grammar.surface, None)?,
+            onset_override: None,
+            text: grammar.surface,
+        });
+    }
     let participial_adjective = participial_adjective
         .map(|grammar| {
             normalize_participial_adjective(

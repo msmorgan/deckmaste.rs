@@ -2436,7 +2436,15 @@ fn lower_atom(
             direction,
             affix,
             value,
-        } => lower_bound_atom(validated, row, form, *direction, affix, value, lowering)?,
+        } => lower_bound_atom(
+            validated,
+            row,
+            form,
+            *direction,
+            affix.as_deref(),
+            value,
+            lowering,
+        )?,
         AtomPlan::Circumfix {
             prefix,
             value,
@@ -2553,22 +2561,25 @@ fn lower_bound_atom(
     row: &ConstructionPlan,
     form: &crate::semantic::FormPlan,
     direction: crate::semantic::BoundDirectionPlan,
-    affix_surface: &str,
+    affix_surface: Option<&str>,
     value: &AtomPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    let affix = syn::LitStr::new(affix_surface, Span::call_site());
+    let affix = affix_surface.map(|surface| syn::LitStr::new(surface, Span::call_site()));
     let push_affix = |lowering: &mut Lowering| {
-        lowering
-            .patterns
-            .push(quote! { BuildValue::Leaf(Leaf::Literal(#affix)) });
+        if let Some(affix) = &affix {
+            lowering
+                .patterns
+                .push(quote! { BuildValue::Leaf(Leaf::Literal(#affix)) });
+        }
     };
     match direction {
         crate::semantic::BoundDirectionPlan::Prefix => {
             push_affix(lowering);
             lower_atom(validated, row, form, value, lowering)?;
             if let Some(role) = atom_role(value)
-                && let Some(onset) = crate::macro_def::normalize_surface_onset(affix_surface, None)
+                && let Some(onset) = affix_surface
+                    .and_then(|surface| crate::macro_def::normalize_surface_onset(surface, None))
             {
                 let onset = match onset {
                     crate::macro_def::Onset::Consonant => FeatureValue::Consonant,
@@ -3523,6 +3534,7 @@ fn verb_onset_pattern(
             | crate::macro_def::SurfaceFeature::Singular
             | crate::macro_def::SurfaceFeature::Plural
             | crate::macro_def::SurfaceFeature::Fixed
+            | crate::macro_def::SurfaceFeature::BoundSuffix
             | crate::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated verb lexeme has ConcordClass rows")
             }

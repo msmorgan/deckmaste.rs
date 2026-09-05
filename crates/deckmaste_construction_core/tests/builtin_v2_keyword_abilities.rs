@@ -216,7 +216,10 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             &GrammarRecipe::FixedKeyword { parameter },
             "{name}",
         );
-        assert_eq!(grammar.surfaces().len(), 1);
+        assert_eq!(
+            grammar.surfaces().len(),
+            usize::from(name == "Landwalk") + 1
+        );
         assert_eq!(grammar.surfaces()[0].feature(), SurfaceFeature::Fixed);
         if let Some(expected_params) = parameterized.get(name.as_str()) {
             let params = declaration.params().expect("parameterized row has params");
@@ -253,6 +256,20 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         );
         assert_eq!(declaration.grammar().unwrap().surfaces()[0].text(), surface);
     }
+}
+
+#[test]
+fn landwalk_declares_one_bound_suffix_surface() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+    let grammar = ability(&declarations, "Landwalk")
+        .grammar()
+        .expect("Landwalk contributes keyword grammar");
+
+    assert_eq!(grammar.surfaces()[0].text(), "landwalk");
+    assert_eq!(grammar.surfaces()[1].feature(), SurfaceFeature::BoundSuffix);
+    assert_eq!(grammar.surfaces()[1].text(), "walk");
 }
 
 #[test]

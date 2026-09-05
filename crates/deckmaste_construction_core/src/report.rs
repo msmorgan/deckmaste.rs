@@ -546,6 +546,7 @@ fn surface_feature_key(feature: crate::macro_def::SurfaceFeature) -> &'static st
             crate::macro_def::InflectionalForm::GerundParticiple,
         ) => "gerund_participle",
         crate::macro_def::SurfaceFeature::Fixed => "fixed",
+        crate::macro_def::SurfaceFeature::BoundSuffix => "bound_suffix",
         crate::macro_def::SurfaceFeature::BlockLabel => "block_label",
     }
 }

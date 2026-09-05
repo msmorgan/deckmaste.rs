@@ -4,5 +4,6 @@ KeywordAbility(
     spelling: "landwalk",
     grammar: FixedKeyword(
         surface: "landwalk",
+        bound_suffix: (surface: "walk"),
     ),
 )

@@ -3179,14 +3179,14 @@ fn validate_declaration_term_source(
     if let Some(feature) = source.feature_slots.first()
         && !matches!(
             identifier_key(&feature.value).as_str(),
-            "Fixed" | "Participle" | "BlockLabel"
+            "Fixed" | "BoundSuffix" | "Participle" | "BlockLabel"
         )
     {
         combine(
             errors,
             syn::Error::new(
                 feature.value.span(),
-                "declaration_term feature must be `Fixed`, `Participle`, or `BlockLabel`",
+                "declaration_term feature must be `Fixed`, `BoundSuffix`, `Participle`, or `BlockLabel`",
             ),
         );
     }
@@ -6302,33 +6302,32 @@ fn validate_bound_form_atom<'a>(
     let FormAtom::Bound(bound) = atom else {
         return atom;
     };
-    let affix = bound.affix.value();
-    if affix.is_empty() {
-        combine(
-            errors,
-            syn::Error::new(
-                bound.affix.span(),
-                "a bound affix must have a nonempty fixed byte surface",
-            ),
-        );
+    if let Some(authored_affix) = &bound.affix {
+        let affix = authored_affix.value();
+        if affix.is_empty() {
+            combine(
+                errors,
+                syn::Error::new(
+                    authored_affix.span(),
+                    "a bound affix must have a nonempty fixed byte surface",
+                ),
+            );
+        }
+        if affix.chars().any(char::is_whitespace) {
+            combine(
+                errors,
+                syn::Error::new(
+                    authored_affix.span(),
+                    "a bound affix must not contain whitespace",
+                ),
+            );
+        }
     }
-    if affix.chars().any(char::is_whitespace) {
+    if let FormAtom::Literal(literal) | FormAtom::LicensedLiteral(literal) = bound.value.as_ref() {
         combine(
             errors,
             syn::Error::new(
-                bound.affix.span(),
-                "a bound affix must not contain whitespace",
-            ),
-        );
-    }
-    if matches!(
-        bound.value.as_ref(),
-        FormAtom::Literal(_) | FormAtom::LicensedLiteral(_)
-    ) {
-        combine(
-            errors,
-            syn::Error::new(
-                bound.affix.span(),
+                literal.span(),
                 "a bound atom accepts exactly one ordinary value atom",
             ),
         );
@@ -11876,7 +11875,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn bound_atoms_validate_the_four_closed_shapes() {
+    fn bound_atoms_validate_the_fixed_affix_and_right_adjacent_shapes() {
         validate(quote! {
             vocab Modifier { Black = "black", Elf = "Elf", }
             construction owner: Owner {
@@ -11899,9 +11898,13 @@ pub(crate) mod tests {
                 element PluralSuffix { owner: Owner, }
                 form plural_suffix = suffix(owner, "'");
             }
+            construction fused: Root {
+                element Fused { owner: Owner, modifier: lex Modifier, }
+                form fused = right_adjacent(owner) lex(modifier);
+            }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("validated bound atoms retain their one value atom and fixed affix");
+        .expect("validated boundary atoms retain one ordinary value atom");
     }
 
     #[test]
@@ -12816,7 +12819,9 @@ pub(crate) mod tests {
                 kinds = [KeywordAbility];
                 feature = Plural;
             })
-            .contains("declaration_term feature must be `Fixed`, `Participle`, or `BlockLabel`")
+            .contains(
+                "declaration_term feature must be `Fixed`, `BoundSuffix`, `Participle`, or `BlockLabel`",
+            )
         );
     }
 

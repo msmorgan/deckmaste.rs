@@ -439,6 +439,7 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                 | crate::macro_def::SurfaceFeature::Singular
                 | crate::macro_def::SurfaceFeature::Plural
                 | crate::macro_def::SurfaceFeature::Fixed
+                | crate::macro_def::SurfaceFeature::BoundSuffix
                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                     unreachable!("validated verb lexeme has the ConcordClass feature axis")
                 }
@@ -512,6 +513,7 @@ fn noun_surface_candidates(
             }
             crate::macro_def::SurfaceFeature::Inflectional(_)
             | crate::macro_def::SurfaceFeature::Fixed
+            | crate::macro_def::SurfaceFeature::BoundSuffix
             | crate::macro_def::SurfaceFeature::BlockLabel => {
                 unreachable!("validated noun lexeme has the Number feature axis")
             }

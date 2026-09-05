@@ -2411,7 +2411,7 @@ fn render_atoms(
                     form,
                     atom_index,
                     *direction,
-                    affix,
+                    affix.as_deref(),
                     value,
                     locals,
                     root_names,
@@ -2631,16 +2631,16 @@ fn render_bound_atom(
     form: &FormPlan,
     atom_index: usize,
     direction: crate::semantic::BoundDirectionPlan,
-    affix: &str,
+    affix: Option<&str>,
     value: &AtomPlan,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
     fields: &HashMap<String, &ConstructionFieldPlan>,
 ) -> syn::Result<TokenStream> {
-    let affix_statement = match direction {
+    let affix_statement = affix.map(|affix| match direction {
         crate::semantic::BoundDirectionPlan::Prefix => render_prefix_surface_statement(affix),
         crate::semantic::BoundDirectionPlan::Suffix => render_fixed_surface_statement(affix),
-    };
+    });
     let affix_id = syn::LitStr::new(
         &format!(
             "form:{}/{}/{atom_index}/affix",
@@ -2649,15 +2649,17 @@ fn render_bound_atom(
         ),
         Span::call_site(),
     );
-    let affix_claim = quote! {
-        writer.claim(
-            || LexicalOwner::static_owner(
-                LexicalProvenanceKind::FormLiteral,
-                #affix_id,
-            ),
-            |writer| { #affix_statement },
-        );
-    };
+    let affix_claim = affix_statement.map(|affix_statement| {
+        quote! {
+            writer.claim(
+                || LexicalOwner::static_owner(
+                    LexicalProvenanceKind::FormLiteral,
+                    #affix_id,
+                ),
+                |writer| { #affix_statement },
+            );
+        }
+    });
     let value_statement = if let Some(role) = render_atom_role(value)
         && let Some(field) = fields.get(role)
         && let Some(structural) = field.structural_plan()
@@ -3553,6 +3555,7 @@ fn render_owner(
                         | crate::macro_def::SurfaceFeature::Singular
                         | crate::macro_def::SurfaceFeature::Plural
                         | crate::macro_def::SurfaceFeature::Fixed
+                        | crate::macro_def::SurfaceFeature::BoundSuffix
                         | crate::macro_def::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the ConcordClass feature axis")
                         }
@@ -3601,6 +3604,7 @@ fn render_owner(
                             crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
                             crate::macro_def::SurfaceFeature::Inflectional(_)
                             | crate::macro_def::SurfaceFeature::Fixed
+                            | crate::macro_def::SurfaceFeature::BoundSuffix
                             | crate::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
                             }
@@ -3634,6 +3638,7 @@ fn render_owner(
                                 crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
                                 crate::macro_def::SurfaceFeature::Inflectional(_)
                                 | crate::macro_def::SurfaceFeature::Fixed
+                        | crate::macro_def::SurfaceFeature::BoundSuffix
                                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!("validated noun lexeme has the Number feature axis")
                                 }
@@ -4428,6 +4433,7 @@ fn implicit_verb_onset(
                         | crate::macro_def::SurfaceFeature::Singular
                         | crate::macro_def::SurfaceFeature::Plural
                         | crate::macro_def::SurfaceFeature::Fixed
+                        | crate::macro_def::SurfaceFeature::BoundSuffix
                         | crate::macro_def::SurfaceFeature::BlockLabel => {
                             unreachable!("validated verb lexeme has the ConcordClass feature axis")
                         }
@@ -4624,10 +4630,10 @@ fn bound_prefix_onset(
                     | AtomPlan::Noun { role: found, .. }
                     if found == role
             )
-            .then_some(affix)
+            .then_some(affix.as_deref())
         });
         has_bound_prefix |= affix.is_some();
-        form_onsets.push(affix.and_then(|surface| {
+        form_onsets.push(affix.flatten().and_then(|surface| {
             crate::macro_def::normalize_surface_onset(surface, None).map(super::onset)
         }));
     }
@@ -4708,6 +4714,7 @@ fn lexical_onset_expr(
                     }
                     crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
+                    | crate::macro_def::SurfaceFeature::BoundSuffix
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -4796,6 +4803,7 @@ fn declaration_noun_onset_expr(
                     }
                     crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
+                    | crate::macro_def::SurfaceFeature::BoundSuffix
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -4966,6 +4974,7 @@ fn lexical_possessive_ending_expr(
                     }
                     crate::macro_def::SurfaceFeature::Inflectional(_)
                     | crate::macro_def::SurfaceFeature::Fixed
+                    | crate::macro_def::SurfaceFeature::BoundSuffix
                     | crate::macro_def::SurfaceFeature::BlockLabel => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -4993,6 +5002,7 @@ fn lexical_possessive_ending_expr(
                             crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
                             crate::macro_def::SurfaceFeature::Inflectional(_)
                             | crate::macro_def::SurfaceFeature::Fixed
+                            | crate::macro_def::SurfaceFeature::BoundSuffix
                             | crate::macro_def::SurfaceFeature::BlockLabel => {
                                 unreachable!("validated noun lexeme has the Number feature axis")
                             }
