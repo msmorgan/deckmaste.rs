@@ -31,3 +31,37 @@ clear message; a fixture repo is not needed — test the pure functions over a
 
 Consumption boundary: `crates/xtask` only. After landing, CLAUDE.md's
 gate-scope bullet names the command. Standard constraints apply.
+
+## Landing record
+
+Tree: `xoqmtkpz` after `kata refresh` reported a no-op.
+
+PROVE:
+
+- The changed-path closure for this landing is `xtask`; `cargo xtask gate
+  --changed` printed `cargo test -p xtask`, and `cargo xtask gate --changed
+  --run` executed it successfully.
+- `cargo fmt --all`, `cargo clippy -p xtask --all-targets -- -D warnings`, and
+  `cargo test -p xtask` passed. Test artifact: `test result: ok` (465 tests
+  invoked by the selected package, command exit 0).
+- Grammar and corpus gates: unchanged (no grammar change). No coverage,
+  selection, roundtrip, licensing-checker, or environment-load result was
+  remeasured because this ticket changes only `xtask`'s gate machinery.
+
+DISCLOSE:
+
+- Newly covered identities: none (no grammar change). Selection census and
+  construction pair: unchanged (no grammar change).
+- Deviations and additions: none beyond the ticket's command-surface and
+  snapshot/path-list tests.
+- Assurance: restored 0; re-spelled 0; ignored 0; added 6; removed 0.
+- STOP: none. Glossary gap: none. Citations: unchanged.
+
+REPORT:
+
+- Closure gate: `cargo test -p xtask`; strict companion:
+  `cargo clippy -p xtask --all-targets -- -D warnings`.
+- Coverage lock, construction count, homograph/form-literal overlap
+  inventories, and performance advisory: unchanged (no grammar change).
+- Verification host load after the no-op refresh: 16.41 / 17.02 / 13.68
+  (1/5/15 minute); `CARGO_BUILD_JOBS=8`.

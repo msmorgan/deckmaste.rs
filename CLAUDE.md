@@ -135,7 +135,8 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   `construction_core`'s builtin_v2 integration test under `-p english_v2 -p
   xtask` (2026-09-04). Until `cargo xtask gate --changed` exists, compute the
   closure with `cargo metadata --no-deps --format-version 1` (reverse deps of
-  the changed crates) and state it in the landing record.
+  the changed crates) and state it in the landing record. Use
+  `cargo xtask gate --changed` to derive and print the closure gate.
 - `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
   simulations); CI's full job runs them.
 

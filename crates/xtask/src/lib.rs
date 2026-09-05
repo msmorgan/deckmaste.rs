@@ -20,6 +20,7 @@ pub mod english_v2;
 pub mod extract;
 pub mod facts;
 pub mod fidelity;
+pub mod gate;
 pub mod generate;
 pub mod graduate;
 pub mod idris_check;

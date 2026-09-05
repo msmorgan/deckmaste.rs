@@ -15,6 +15,7 @@ use xtask::english_v2::EnglishV2Args;
 use xtask::extract::ExtractArgs;
 use xtask::facts::FactsArgs;
 use xtask::fidelity::FidelityArgs;
+use xtask::gate::GateArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
@@ -49,6 +50,8 @@ enum Cmd {
     Fidelity(FidelityArgs),
     /// Generate a plugin's cards (stubs -> extract -> resolve -> graduate).
     Generate(GenerateArgs),
+    /// Print or run the reverse-dependency test gate for changed paths.
+    Gate(GateArgs),
     /// Generate a plugin's keyword/subtype macro stubs.
     Stubs(StubsArgs),
     /// Extract cards/*.ron.todo from mtgjson.
@@ -89,6 +92,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Card(args) => xtask::card::run(args),
         Cmd::Fidelity(args) => xtask::fidelity::run(args),
         Cmd::Generate(args) => xtask::generate::run(&args),
+        Cmd::Gate(args) => xtask::gate::run(&args),
         Cmd::Stubs(args) => xtask::stubs::run(&args),
         Cmd::Extract(args) => xtask::extract::run(&args),
         Cmd::Resolve(args) => xtask::resolve::run(&args),
@@ -121,6 +125,22 @@ mod tests {
     fn derive_cards_subcommand_parses_with_defaults() {
         let cli = Cli::try_parse_from(["cargo xtask", "derive-cards"]).unwrap();
         assert!(matches!(cli.command, Cmd::DeriveCards(_)));
+    }
+
+    #[test]
+    fn gate_changed_accepts_its_exact_flags() {
+        let cli = Cli::try_parse_from([
+            "cargo xtask",
+            "gate",
+            "--changed",
+            "--from",
+            "default@",
+            "--run",
+            "--clippy",
+        ])
+        .expect("gate accepts its changed-path flags");
+        assert!(matches!(cli.command, Cmd::Gate(_)));
+        assert!(Cli::try_parse_from(["cargo xtask", "gate"]).is_err());
     }
 
     #[test]
