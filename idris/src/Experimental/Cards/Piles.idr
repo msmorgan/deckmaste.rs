@@ -18,8 +18,8 @@ tezzeretsGatebreaker =
               , Macros.may You
                   (Sequentially
                      [ Macros.revealCards
-                         (Macros.fromAmong (Macros.exactly 1) (Or [ColorIs Blue, Macros.artifact]) ((Macros.It ManyOf)))
-                     , Macros.move (Macros.That CardW OneOf) Macros.handZ ])
+                         (Macros.fromAmong (Macros.exactly 1) (Or [ColorIs Blue, Macros.artifact]) ((Macros.Them)))
+                     , Macros.move (Macros.That CardW) Macros.handZ ])
               , Macros.move (Macros.theRest Object) (Macros.onBottomIn RandomOrder) ])
        , Macros.activated
            (Compound [Mana [Macros.generic 5, Macros.pip Blue], TapSymbol,
@@ -180,7 +180,7 @@ truthOrConsequencesVote =
        , Draw You (VotesFor "truth")
        , Macros.choose (Macros.aAtRandom Opponent)
        , DealDamage This (Macros.times 3 (VotesFor "consequences"))
-                    (Macros.That PlayerW OneOf) ]))
+                    (Macros.That PlayerW) ]))
 
 ||| Death or Glory
 public export
@@ -206,9 +206,9 @@ steamAugury =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles You ((Macros.It ManyOf)) 2 []
+                  , SeparateIntoPiles You ((Macros.Them)) 2 []
                   , Macros.chooses Macros.anOpponent Macros.onePile
-                  , Macros.move (Macros.That PileW OneOf) Macros.handZ
+                  , Macros.move (Macros.That PileW) Macros.handZ
                   , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
@@ -225,7 +225,7 @@ doOrDie =
                   , CantBe (Macros.destroy
                               (Macros.allOf (And [Macros.creature,
                                            InPile (Macros.pileOfChoice They)])))
-                           "Regenerate" (Macros.ItVerbed "Destroy" ManyOf) ]) ]
+                           "Regenerate" (Macros.ThemVerbed "Destroy") ]) ]
        Nothing
 
 ||| Liliana of the Veil

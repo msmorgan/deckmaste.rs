@@ -40,14 +40,14 @@ public export
 okIt : Instruction []
 okIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                Macros.gets (Macros.It OneOf) (Down (Lit 1)) (Down (Lit 1))
+                Macros.gets (Macros.It) (Down (Lit 1)) (Down (Lit 1))
                             (Just Macros.untilEndOfTurn)]
 
 ||| "Target creature fights target creature. Tap it."
 public export
 badIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Fights (Macros.target Macros.creature) (Macros.target Macros.creature),
-                SetStatus Tapped ((Macros.It OneOf) {ok})])
+                SetStatus Tapped ((Macros.It) {ok})])
 badIt Refl impossible
 
 ||| "Tap target creature."
@@ -59,7 +59,7 @@ okTapBattlefield = SetStatus Tapped (Macros.target Macros.creature)
 public export
 badTheyIt : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.each Macros.creature),
-                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTheyIt (Refl, _) impossible
 
 ||| "Choose two target creatures. Tap them."
@@ -68,21 +68,21 @@ okThem : Instruction []
 okThem =
   Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature)
                        Openly Nothing,
-                SetStatus Tapped (Macros.It ManyOf)]
+                SetStatus Tapped (Macros.Them)]
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
 badThemAmbig : Unspellable (Instruction []) (\ok =>
   Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
                Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
-               SetStatus Tapped ((Macros.It ManyOf) {ok})])
+               SetStatus Tapped ((Macros.Them) {ok})])
 badThemAmbig Refl impossible
 
 public export
 badInnerAmbig : Unspellable (Instruction []) (\ok =>
   Sequentially [Fights (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent]))
                        (Macros.target (And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent])),
-               Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
+               Macros.losesLife (Macros.That PlayerW {ok}) (Lit 1)])
 badInnerAmbig Refl impossible
 
 ||| "A creature doesn't untap during your untap step."
@@ -134,7 +134,7 @@ okDamageCreature = DealDamage This (Lit 3) (Macros.target Macros.creature)
 public export
 badDamageGraveyardCard : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               DealDamage This (Lit 3) ((Macros.It OneOf)) {rk = ok}])
+               DealDamage This (Lit 3) ((Macros.It)) {rk = ok}])
 badDamageGraveyardCard ObjectTakes impossible
 
 ||| "This deals 1 damage to a color."
@@ -176,13 +176,13 @@ public export
 okDestroyDamagedCreature : Instruction []
 okDestroyDamagedCreature =
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.creature),
-                Macros.destroy (Macros.It OneOf)]
+                Macros.destroy (Macros.It)]
 
 ||| "This deals 3 damage to any target. Destroy it."
 public export
 badDestroyAnyTargetRemention : Unspellable (Instruction []) (\ok =>
   Sequentially [DealDamage This (Lit 3) (Macros.target Macros.anyTarget),
-               Macros.destroy ((Macros.It OneOf)) {ok}])
+               Macros.destroy ((Macros.It)) {ok}])
 badDestroyAnyTargetRemention Oh impossible
 
 ||| "This deals 1 damage to target creature."
@@ -240,19 +240,19 @@ public export
 okTapDamagedCreature : Instruction []
 okTapDamagedCreature =
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.creature),
-                SetStatus Tapped (Macros.It OneOf)]
+                SetStatus Tapped (Macros.It)]
 
 ||| "You gain 2 life if you control a creature. Tap it."
 public export
 badConditionAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [OnlyIf (Macros.gainsLife You (Lit 2)) (Macros.exists Macros.creatureYouControl) Nothing,
-                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badConditionAntecedent (Refl, _) impossible
 
 ||| "You may sacrifice a creature. If you don't, exile it."
 public export
 badIfNotReadsMayBody : Unspellable (Instruction []) (\ok =>
-  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It OneOf) {ok})))))
+  (May You (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It) {ok})))))
 badIfNotReadsMayBody Refl impossible
 
 ||| "other than this creature"
@@ -329,7 +329,7 @@ public export
 okRestAfterPart : Instruction []
 okRestAfterPart =
   Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
-               , Move (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Macros.handZ []
+               , Move (Macros.someOf (Macros.exactly 1) (Macros.Them)) Macros.handZ []
                , Move (Macros.theRest Object) Macros.graveyardZ []
                ]
 
@@ -348,7 +348,7 @@ badRestWithoutPart Oh impossible
 public export
 badRestDisposedTwice : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
-               , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
+               , Move (Macros.someOf (Macros.exactly 1) ((Macros.Them))) Macros.handZ []
                , Move (Macros.theRest Object) Macros.onBottomZ []
                , Move (Macros.theRest Object {ok}) Macros.graveyardZ []
                ])
@@ -584,7 +584,7 @@ okThatMuchAfterDamageEvent =
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
-            (DealDamage ((Macros.It OneOf)) (Macros.preventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
+            (DealDamage ((Macros.It)) (Macros.preventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
 public export
@@ -600,8 +600,8 @@ okThatCreatureAfterDamage : Instruction []
 okThatCreatureAfterDamage =
   Sequentially [ Macros.dealsDamageOwnPower Macros.thisCreature
                                             (Macros.target Macros.creature)
-               , DealDamage (Macros.That (TypeW Creature) OneOf)
-                            (StatOf Power (Macros.It OneOf))
+               , DealDamage (Macros.That (TypeW Creature))
+                            (StatOf Power (Macros.It))
                             Macros.thisCreature ]
 
 ||| "When this creature dies, it deals 1 damage to target creature. That
@@ -614,13 +614,13 @@ okThatCreatureAfterTargetedDamage =
                [ DealDamage Macros.thisCreature (Lit 1)
                             (Macros.target Macros.creature)
                , Macros.losesLife
-                   (Macros.controllerOf (Macros.That (TypeW Creature) OneOf))
+                   (Macros.controllerOf (Macros.That (TypeW Creature)))
                    (Lit 1) ])
 
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
   Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
-            (DealDamage (Macros.That (TypeW Creature) OneOf {ok = ok}) ThatMuch
+            (DealDamage (Macros.That (TypeW Creature) {ok = ok}) ThatMuch
                         (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible
 
@@ -709,7 +709,7 @@ badCreatureHalfRead : Unspellable (Instruction []) (\ok =>
         (Macros.target (Joined (HasType Planeswalker) AnyPlayer))
     , (Macros.discard
         (EitherOf (Pro (UnionHalf PlayerW) OneOf Whole)
-                  (Macros.controllerOf (Macros.That (TypeW Creature) OneOf {ok = ok})))
+                  (Macros.controllerOf (Macros.That (TypeW Creature) {ok = ok})))
         (Macros.a (InZone Macros.handZ))) ])
 badCreatureHalfRead Refl impossible
 

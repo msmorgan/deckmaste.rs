@@ -12,12 +12,12 @@ import Experimental.Cards.Faces
 ||| Through the Breach Splice
 throughTheBreach : Instruction []
 throughTheBreach = Sequentially [Macros.may You (Macros.move (Macros.a (And [Macros.creature, InZone (Macros.handOf You)])) Macros.battlefieldZ),
-                                 Macros.gainsHaste (Macros.That (TypeW Creature) OneOf) Nothing,
-                                 Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.sacrifice You (Macros.That (TypeW Creature) OneOf))]
+                                 Macros.gainsHaste (Macros.That (TypeW Creature)) Nothing,
+                                 Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.sacrifice You (Macros.That (TypeW Creature)))]
 
 turnToMist : Instruction []
 turnToMist = Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.move (Macros.That CardW OneOf) Macros.battlefieldZ)]
+                           Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.move (Macros.That CardW) Macros.battlefieldZ)]
 
 voyagerStaff : Ability
 voyagerStaff = Macros.activated (Compound [Mana [Macros.generic 2], Do (Macros.sacrifice You Macros.thisArtifact)])
@@ -78,9 +78,9 @@ apathy =
        , Macros.triggered At
            (Macros.beginningOfPossessed ThePart Upkeep
               (Macros.controllerOf (AttachHost Enchanted (TypeW Creature))))
-           (May (Macros.That PlayerW OneOf)
-                (Macros.discard (Macros.That PlayerW OneOf) (Macros.aAtRandom (InZone Macros.handZ)))
-                (Just (Macros.untap (Macros.That (TypeW Creature) OneOf)))
+           (May (Macros.That PlayerW)
+                (Macros.discard (Macros.That PlayerW) (Macros.aAtRandom (InZone Macros.handZ)))
+                (Just (Macros.untap (Macros.That (TypeW Creature))))
                 Nothing) ]
        Nothing
 
@@ -150,8 +150,8 @@ saheelisCopy =
                                                      HasPossessor ControllerAx You]))
                                 [ExceptTypes (MkTypeLine [] [Artifact])])
                    []
-               , Macros.gainsHaste (Macros.That TokenW OneOf) Nothing
-               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.exile ((Macros.It OneOf))) ]
+               , Macros.gainsHaste (Macros.That TokenW) Nothing
+               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor) (Macros.exile ((Macros.It))) ]
 
 public export
 timeWalk : Card
@@ -287,7 +287,7 @@ paradoxHaze =
        , Macros.triggered At
            (NthOccurrence (Nth 1) (Just Turn)
               (Macros.beginningOfPossessed ThePart Upkeep (AttachHost Enchanted PlayerW)))
-           (Macros.getsAdditionalPart (Macros.That PlayerW OneOf) Upkeep (Lit 1)) ]
+           (Macros.getsAdditionalPart (Macros.That PlayerW) Upkeep (Lit 1)) ]
        Nothing
 
 public export
@@ -302,7 +302,7 @@ ritesOfFlourishing =
        (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered At (BeginningOf ThePart DrawStep (ByPlayer (Macros.each AnyPlayer)))
-           (Draw (Macros.That PlayerW OneOf) (Lit 1))
+           (Draw (Macros.That PlayerW) (Lit 1))
        , Static (Macros.mayPlayAdditionalLands (Macros.each AnyPlayer) (Macros.exactly 1)) ]
        Nothing
 
@@ -380,7 +380,7 @@ curseOfTheBloodyTome =
        [ Macros.keywordSubject "Enchant" AnyPlayer
        , Macros.triggered At
                           (Macros.beginningOfPossessed ThePart Upkeep (AttachHost Enchanted PlayerW))
-                          (Macros.mills (Macros.That PlayerW OneOf) (Lit 2) They) ]
+                          (Macros.mills (Macros.That PlayerW) (Lit 2) They) ]
        Nothing
 
 public export
@@ -390,7 +390,7 @@ shriekingAffliction =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggeredIf At
                             (BeginningOf ThePart Upkeep (ByPlayer (Macros.each Opponent)))
-                            (CompareAmt (Macros.countOf (InZone (Macros.handOf (Macros.That PlayerW OneOf))))
+                            (CompareAmt (Macros.countOf (InZone (Macros.handOf (Macros.That PlayerW))))
                                         AtMost (Lit 1))
                             (Macros.losesLife They (Lit 3)) ]
        Nothing
@@ -445,7 +445,7 @@ selfSacrificeThenExile =
     (Sequentially
        [ Macros.exile (Macros.target Macros.creature)
        , Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing
-                 (Move (Macros.That CardW OneOf) Macros.battlefieldZ
+                 (Move (Macros.That CardW) Macros.battlefieldZ
                        []) ])
 
 ||| Mirror Universe
@@ -493,8 +493,8 @@ landTax =
               (Sequentially
                  [ Macros.searchLibraryFor (Macros.upTo 3)
                      (And [Macros.land, HasSupertype Basic])
-                 , Macros.revealCards (Macros.That CardW ManyOf)
-                 , Macros.move (Macros.That CardW ManyOf) Macros.handZ
+                 , Macros.revealCards (Macros.Those CardW)
+                 , Macros.move (Macros.Those CardW) Macros.handZ
                  , Macros.shuffle ])) ]
        Nothing
 
@@ -576,7 +576,7 @@ thawingGlaciers =
            (Sequentially
               [ Macros.searchLibraryFor (Macros.exactly 1)
                   (And [Macros.land, HasSupertype Basic])
-              , Macros.putOntoBattlefieldTapped (Macros.That CardW OneOf)
+              , Macros.putOntoBattlefieldTapped (Macros.That CardW)
               , Macros.shuffle
               , Macros.delayed (BeginningOf ThePart Cleanup NoPossessor)
                   (Macros.move Macros.thisLand Macros.handZ) ]) ]
@@ -595,7 +595,7 @@ bloodFrenzy =
                             (Up (Lit 4)) (Up (Lit 0))
                             (Just Macros.untilEndOfTurn)
               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
-                  (Macros.destroy (Macros.That (TypeW Creature) OneOf)) ]) ]
+                  (Macros.destroy (Macros.That (TypeW Creature))) ]) ]
        Nothing
 
 ||| Berserk
@@ -610,13 +610,13 @@ berserk =
                   [ Gains (Macros.ownSubject (Macros.target Macros.creature))
                           (Macros.keyword "Trample")
                   , Modify (Macros.ownSubject (Macros.target Macros.creature)) Power (Up (LetterVal X))
-                  , Modify ((Macros.It OneOf)) Toughness (Up (Lit 0))
-                  , DefinesLetter X (StatOf Power (Macros.It OneOf)) ]
+                  , Modify ((Macros.It)) Toughness (Up (Lit 0))
+                  , DefinesLetter X (StatOf Power (Macros.It)) ]
                   (Just Macros.untilEndOfTurn)
               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
-                  (OnlyIf (Macros.destroy (Macros.That (TypeW Creature) OneOf))
+                  (OnlyIf (Macros.destroy (Macros.That (TypeW Creature)))
                           (Macros.happened AttackDeclaration
-                                           (Macros.That (TypeW Creature) OneOf)
+                                           (Macros.That (TypeW Creature))
                                            Lookback.ThisTurn)
                           Nothing) ]) ]
        Nothing

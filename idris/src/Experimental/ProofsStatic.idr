@@ -20,7 +20,7 @@ okGetsBattlefieldSubject =
 ||| "That creature gets +2/+0 as long as this creature is attacking."
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
-  Static (Macros.onlyWhile (Macros.getsPt (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
+  Static (Macros.onlyWhile (Macros.getsPt (Macros.That (TypeW Creature) {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
                                  {ok = Builtin.snd ok})
                            (Matches Macros.thisCreature Attacking)))
 badThatCreatureIsCondSubject (Refl, _) impossible
@@ -242,13 +242,13 @@ public export
 okSkipDuringTheirNextTurn : Instruction []
 okSkipDuringTheirNextTurn =
   Macros.throughout (Skips (Macros.target Opponent) Combat)
-                    (DuringNextTurnOf (Macros.That PlayerW OneOf))
+                    (DuringNextTurnOf (Macros.That PlayerW))
 
 ||| "You skip all combat phases of their next turn."
 public export
 badSkipDuringUnboundNextTurn : Unspellable (Instruction []) (\ok =>
   Macros.throughout (Skips You Combat)
-                    (DuringNextTurnOf (Macros.That PlayerW OneOf {ok})))
+                    (DuringNextTurnOf (Macros.That PlayerW {ok})))
 badSkipDuringUnboundNextTurn Refl impossible
 
 ||| "Your opponents can't gain life." A rules-meaningful sentence with no

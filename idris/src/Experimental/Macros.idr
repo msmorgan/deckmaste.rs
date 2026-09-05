@@ -6,27 +6,42 @@ import public Experimental
 %default total
 
 public export
-It : (pl : Plurality) -> {auto 0 ok : countReach Bare pl bs = 1} -> Noun bs Object
-It pl = Pro Bare pl Whole
+It : {auto 0 ok : countReach Bare OneOf bs = 1} -> Noun bs Object
+It = Pro Bare OneOf Whole
+
+public export
+Them : {auto 0 ok : countReach Bare ManyOf bs = 1} -> Noun bs Object
+Them = Pro Bare ManyOf Whole
 
 public export
 ItCard : {auto 0 ok : countReach (AtSlot CardSlot) OneOf bs = 1} -> Noun bs Object
 ItCard = Pro (AtSlot CardSlot) OneOf Whole
 
 public export
-ItVerbed : (v : VerbLabel) -> (pl : Plurality) -> {auto 0 kn : KnownAct v} ->
-           {auto 0 ok : countReach (Stamped v) pl bs = 1} -> Noun bs Object
-ItVerbed v pl = Pro (Stamped v) pl Whole
+ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
+           {auto 0 ok : countReach (Stamped v) OneOf bs = 1} -> Noun bs Object
+ItVerbed v = Pro (Stamped v) OneOf Whole
+
+public export
+ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownAct v} ->
+             {auto 0 ok : countReach (Stamped v) ManyOf bs = 1} -> Noun bs Object
+ThemVerbed v = Pro (Stamped v) ManyOf Whole
 
 public export
 They : {auto 0 ok : countReach (Word PlayerW) OneOf bs = 1} -> Noun bs Player
 They = Pro (Word PlayerW) OneOf Whole
 
 public export
-That : (w : NounWord) -> (pl : Plurality) ->
-       {auto 0 ok : countReach (Word w) pl bs = 1} ->
+That : (w : NounWord) ->
+       {auto 0 ok : countReach (Word w) OneOf bs = 1} ->
        Noun bs (kindOfW w)
-That w pl = Pro (Word w) pl Whole
+That w = Pro (Word w) OneOf Whole
+
+public export
+Those : (w : NounWord) ->
+        {auto 0 ok : countReach (Word w) ManyOf bs = 1} ->
+        Noun bs (kindOfW w)
+Those w = Pro (Word w) ManyOf Whole
 
 public export
 thatTurn : {auto 0 ok : countReach ThatTurn OneOf bs = 1} -> Noun bs TurnRef
@@ -140,7 +155,7 @@ youOr n = EitherOf You n
 
 public export
 thatJoin : {auto 0 ok : countReach (Word JoinW) OneOf bs = 1} -> Noun bs (Object \/ Player)
-thatJoin = That JoinW OneOf {ok}
+thatJoin = That JoinW {ok}
 
 public export
 chosenPlayer : {auto 0 ok : choiceRefOk TheChoice (countChoice PlayerC bs)} ->
@@ -1334,15 +1349,15 @@ public export
 itsA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
        {auto 0 sy : PredSays p} ->
        {auto 0 zc : ZoneFits (zoneOfReach Bare OneOf bs) (seedZone p)} ->
-       {auto 0 ah : AttachFits (Macros.It OneOf {ok}) p} ->
+       {auto 0 ah : AttachFits (Macros.It {ok}) p} ->
        Condition bs
-itsA p = Matches (It OneOf {ok}) p {sy} {zc} {ah}
+itsA p = Matches (It {ok}) p {sy} {zc} {ah}
 
 public export
 itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countReach Bare OneOf bs = 1} ->
           {auto 0 sy : PredSays p} ->
           {auto 0 zc : ZoneFits (zoneOfReach Bare OneOf bs) (seedZone p)} ->
-          {auto 0 ah : AttachFits (Macros.It OneOf {ok}) p} ->
+          {auto 0 ah : AttachFits (Macros.It {ok}) p} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
 itIsntA p = NotCond (itsA p {ok} {sy} {zc} {ah})
 
@@ -1487,7 +1502,7 @@ lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
 public export
 foundCard : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Noun bs Object
-foundCard = ItVerbed "Search" OneOf {ok}
+foundCard = ItVerbed "Search" {ok}
 
 public export
 revealsIt : {auto 0 ok : countReach (Stamped "Search") OneOf bs = 1} -> Instruction bs
@@ -2476,7 +2491,7 @@ public export
                (0 ac : countReach (Word (TypeW Creature)) OneOf (AmassCtx {bs}) = 1) -> Bindings
 AmassAfter n ac =
   instrIntro (PutCounters {bs = AmassCtx {bs}} (Lit n) (PrintedKind plusOnePlusOne)
-                        (That (TypeW Creature) OneOf {ok = ac}))
+                        (That (TypeW Creature) {ok = ac}))
 
 ||| "amass [subtype] N" [CR#701.47a]
 public export
@@ -2491,9 +2506,9 @@ amass sub n =
                     Nothing
                , choose (Macros.a armyYouControl)
                , PutCounters (Lit n) (PrintedKind plusOnePlusOne)
-                             (That (TypeW Creature) OneOf {ok = ac})
+                             (That (TypeW Creature) {ok = ac})
                , If (itIsntA (HasSubtype (creatureType sub)) {ok = ab})
-                    (becomes (It OneOf {ok = ab}) (subtypesOnly [creatureType sub]) Nothing)
+                    (becomes (It {ok = ab}) (subtypesOnly [creatureType sub]) Nothing)
                     Nothing ]
 
 

@@ -371,21 +371,21 @@ okSetStatusOnBattlefield : Instruction []
 okSetStatusOnBattlefield =
   Sequentially [Create You (Lit 1)
                        (TokenCopyOf (Macros.target Macros.creature) []) [],
-                SetStatus Untapped (Macros.That TokenW OneOf)]
+                SetStatus Untapped (Macros.That TokenW)]
 
 ||| "Copy target instant or sorcery spell. Untap that token."
 public export
 badStackCopyAsToken : Unspellable (Instruction []) (\ok =>
   Sequentially [Copy FromStack You (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                           (Lit 1) [],
-                SetStatus Untapped (Macros.That TokenW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Untapped (Macros.That TokenW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badStackCopyAsToken (Refl, _) impossible
 
 ||| "Create a token that's a copy of target creature. Untap that copy."
 public export
 badTokenCopyAsCopyMention : Unspellable (Instruction []) (\ok =>
   Sequentially [Create You (Lit 1) (TokenCopyOf (Macros.target Macros.creature) []) [],
-                SetStatus Untapped (Macros.That CopyW OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Untapped (Macros.That CopyW {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badTokenCopyAsCopyMention (Refl, _) impossible
 
 ||| "Saga — I, II, III — Draw a card."
@@ -806,7 +806,7 @@ distributiveGroupSurvives : Instruction []
 distributiveGroupSurvives =
   Sequentially
     [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
-    , ChangeLife (Macros.That PlayerW ManyOf) (Down (Lit 1))
+    , ChangeLife (Macros.Those PlayerW) (Down (Lit 1))
     ]
 
 public export
@@ -856,13 +856,13 @@ public export
 okUntapNextSingleIt : Instruction []
 okUntapNextSingleIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                DoesntUntapNext (Macros.It OneOf) (Lit 1)]
+                DoesntUntapNext (Macros.It) (Lit 1)]
 
 public export
 badUntapNextAmbiguousIt : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 SetStatus Tapped (Macros.target Macros.artifact),
-                DoesntUntapNext ((Macros.It OneOf) {ok = ok}) (Lit 1)])
+                DoesntUntapNext ((Macros.It) {ok = ok}) (Lit 1)])
 badUntapNextAmbiguousIt Refl impossible
 
 ||| "I — Draw a card."

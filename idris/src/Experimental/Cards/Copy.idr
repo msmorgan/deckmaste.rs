@@ -24,8 +24,8 @@ repeatedReverberation =
                   , Activates You (Macros.a (AbilityHead LoyaltyClass)) ]
                   (Just ThisTurn)
                   (Sequentially
-                     [ Copy FromStack You (Macros.That StackW OneOf) (Lit 2) []
-                     , Macros.may You (ChooseNewTargets (Macros.That CopyW ManyOf)) ])) ]
+                     [ Copy FromStack You (Macros.That StackW) (Lit 2) []
+                     , Macros.may You (ChooseNewTargets (Macros.Those CopyW)) ])) ]
        Nothing
 
 ||| Frontline Heroism
@@ -43,8 +43,8 @@ frontlineHeroismCopy =
            (MkToken (Just (Lit 1 ** Lit 1)) [Red]
                     (MkTypeLine [creatureType "Soldier"] [Creature])
                     [Macros.keyword "Haste"] Nothing)
-       , Copy FromStack You (Macros.That SpellW OneOf) (Lit 1) []
-       , CopyTargets (Macros.That CopyW OneOf) (Macros.That TokenW OneOf) ])
+       , Copy FromStack You (Macros.That SpellW) (Lit 1) []
+       , CopyTargets (Macros.That CopyW) (Macros.That TokenW) ])
 
 ||| Flawless Forgery
 public export
@@ -54,8 +54,8 @@ flawlessForgeryLine =
     [ Macros.exile (Macros.target (And [ Macros.instantOrSorcery
                                        , InZone (Macros.graveyardOf
                                                    (Macros.a Opponent)) ]))
-    , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []
-    , Continuously (Macros.mayPlayDeed "Cast" You (Macros.That CopyW OneOf) Nothing
+    , Copy FromCardZone You (Macros.That CardW) (Lit 1) []
+    , Continuously (Macros.mayPlayDeed "Cast" You (Macros.That CopyW) Nothing
                        (PlayRider Nothing Nothing Nothing False WithoutPaying))
                    Nothing ]
 
@@ -68,7 +68,7 @@ twincast =
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                       (Lit 1) []
-                  , Macros.may You (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ]
+                  , Macros.may You (ChooseNewTargets (Macros.That CopyW)) ]) ]
        Nothing
 
 public export
@@ -80,7 +80,7 @@ fork =
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                       (Lit 1) [ExceptColor Red]
-                  , Macros.may You (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ]
+                  , Macros.may You (ChooseNewTargets (Macros.That CopyW)) ]) ]
        Nothing
 
 public export
@@ -94,8 +94,8 @@ meletisCharlatan =
                       [ Copy FromStack
                           (Macros.controllerOf (Macros.target
                                            (And [Macros.instantOrSorcery, Macros.spell])))
-                          ((Macros.It OneOf)) (Lit 1) []
-                      , Macros.may (Macros.That PlayerW OneOf) (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ]
+                          ((Macros.It)) (Lit 1) []
+                      , Macros.may (Macros.That PlayerW) (ChooseNewTargets (Macros.That CopyW)) ]) ]
        (Just (2, 3))
 
 public export
@@ -106,7 +106,7 @@ echoMagesFourthLevel =
                [ Copy FromStack You
                    (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
                    (Lit 2) []
-               , Macros.may You (ChooseNewTargets (Macros.That CopyW ManyOf)) ])
+               , Macros.may You (ChooseNewTargets (Macros.Those CopyW)) ])
 
 ||| Strionic Resonator
 public export
@@ -119,7 +119,7 @@ strionicResonator =
               [ Copy FromStack You
                   (Macros.target (And [AbilityHead AnyTriggered, HasPossessor ControllerAx You]))
                   (Lit 1) []
-              , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW OneOf)) ]) ]
+              , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW)) ]) ]
        Nothing
 
 ||| Mister Fantastic
@@ -133,7 +133,7 @@ misterFantasticCopy =
        [ Copy FromStack You
            (Macros.target (And [AbilityHead AnyTriggered, HasPossessor ControllerAx You]))
            (Lit 2) []
-       , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW ManyOf)) ])
+       , Macros.may You (ChooseNewTargets (Macros.Those AbilityCopyW)) ])
 
 ||| Rowan's Talent
 public export
@@ -144,8 +144,8 @@ rowansTalentCopy =
        (Macros.a (And [ AbilityHead LoyaltyClass
                       , AbilityOf (AttachHost Enchanted (TypeW Planeswalker)) ])))
     (Sequentially
-       [ Copy FromStack You (Macros.That AbilityW OneOf) (Lit 1) []
-       , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW OneOf)) ])
+       [ Copy FromStack You (Macros.That AbilityW) (Lit 1) []
+       , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW)) ])
 
 ||| Rings of Brighthearth
 public export
@@ -157,8 +157,8 @@ ringsOfBrighthearth =
            (Activates You (Macros.a (AbilityHead AnyActivated)))
            (Macros.itIsntAnAbility IsManaAbility)
            ((May You (Pay You (Mana [Macros.generic 2]) PaidOnce) (Just (Sequentially
-                 [ Copy FromStack You (Macros.That AbilityW OneOf) (Lit 1) []
-                 , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW OneOf)) ])) Nothing)) ]
+                 [ Copy FromStack You (Macros.That AbilityW) (Lit 1) []
+                 , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW)) ])) Nothing)) ]
        Nothing
 
 ||| Iron Man, Bleeding Edge
@@ -173,7 +173,7 @@ ironManBleedingEdge =
        , Macros.triggeredOnlyOnce Whenever
            (Casts You (Macros.a (And [Macros.artifact, Macros.spell])) Nothing)
            ActionOncePerTurn
-           (Macros.may You (Copy FromStack You ((Macros.It OneOf)) (Lit 1) [ExceptNonlegendary])) ]
+           (Macros.may You (Copy FromStack You ((Macros.It)) (Lit 1) [ExceptNonlegendary])) ]
        (Just (3, 5))
 
 ||| Donal, Herald of Wings
@@ -191,7 +191,7 @@ donalHeraldOfWings =
               Nothing)
            ActionOncePerTurn
            (Macros.may You
-              (Copy FromStack You ((Macros.It OneOf)) (Lit 1)
+              (Copy FromStack You ((Macros.It)) (Lit 1)
                  [ExceptChars (MkToken (Just (Lit 1 ** Lit 1)) []
                                        (MkTypeLine [creatureType "Spirit"] [])
                                        [] Nothing)
@@ -208,7 +208,7 @@ tawnosTheToymaker =
                           (Casts You (Macros.a (And [Or [HasSubtype (creatureType "Beast"), HasSubtype (creatureType "Bird")],
                                               Macros.creature, Macros.spell])) Nothing)
                           (Macros.may You
-                      (Copy FromStack You ((Macros.It OneOf)) (Lit 1)
+                      (Copy FromStack You ((Macros.It)) (Lit 1)
                                  [ExceptTypes (MkTypeLine [] [Artifact])])) ]
        (Just (3, 5))
 
@@ -223,9 +223,9 @@ bonusRound =
                                                Macros.spell])) Nothing)
                         [] (Just Macros.untilEndOfTurn)
                         (Sequentially
-                           [ Copy FromStack (Macros.That PlayerW OneOf) (Macros.It OneOf) (Lit 1) []
-                           , Macros.may (Macros.That PlayerW OneOf)
-                               (ChooseNewTargets (Macros.That CopyW OneOf)) ])) ]
+                           [ Copy FromStack (Macros.That PlayerW) (Macros.It) (Lit 1) []
+                           , Macros.may (Macros.That PlayerW)
+                               (ChooseNewTargets (Macros.That CopyW)) ])) ]
        Nothing
 
 ||| Melek, Izzet Paragon
@@ -241,8 +241,8 @@ melekIzzetParagon =
            (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
                   (Just Macros.yourLibrary))
            (Sequentially
-              [ Copy FromStack You ((Macros.It OneOf)) (Lit 1) []
-              , Macros.may You (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ]
+              [ Copy FromStack You ((Macros.It)) (Lit 1) []
+              , Macros.may You (ChooseNewTargets (Macros.That CopyW)) ]) ]
        (Just (2, 4))
 
 ||| Pyromancer's Goggles
@@ -254,6 +254,6 @@ pyromancersGogglesMana =
       [ OnSpent TriggersThen False
                 (Macros.a (And [ColorIs Red, Macros.instantOrSorcery, Macros.spell]))
                 (Sequentially
-                   [ Copy FromStack You (Macros.That SpellW OneOf) (Lit 1) []
+                   [ Copy FromStack You (Macros.That SpellW) (Lit 1) []
                    , Macros.may You
-                       (ChooseNewTargets (Macros.That CopyW OneOf)) ]) ])
+                       (ChooseNewTargets (Macros.That CopyW)) ]) ])

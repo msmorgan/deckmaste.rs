@@ -15,7 +15,7 @@ crovaxTheCursed =
 
 additiveEvolution : Instruction []
 additiveEvolution = Sequentially [Macros.create (Lit 1) (Macros.creatureTok 0 0 [Green, Blue] [creatureType "Fractal"]),
-                                  PutCounters (Lit 3) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf))]
+                                  PutCounters (Lit 3) (PrintedKind Macros.plusOnePlusOne) ((Macros.It))]
 
 battlegrowth : Instruction []
 battlegrowth = PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)
@@ -25,7 +25,7 @@ chainbreaker = RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macro
 
 kaitoBaneOfNightmares : Instruction []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                                      PutCounters (Lit 2) (PrintedKind (NamedCounter "Stun")) ((Macros.It OneOf))]
+                                      PutCounters (Lit 2) (PrintedKind (NamedCounter "Stun")) ((Macros.It))]
 
 jhoiraOfTheGhitu : Ability
 jhoiraOfTheGhitu =
@@ -44,7 +44,7 @@ daydream =
   Macros.card "Daydream" (Just [Macros.pip White]) [] (MkTypeLine [] [Sorcery])
        [Spell Nothing (Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
                              Macros.returnToBattlefieldWithCounters
-                               (Macros.That CardW OneOf) (Macros.ownerOf (Macros.That CardW OneOf))
+                               (Macros.That CardW) (Macros.ownerOf (Macros.That CardW))
                                (Lit 1) Macros.plusOnePlusOne])
        , Macros.keywordCosting "Flashback" (Mana [Macros.generic 2, Macros.pip White])]
        Nothing
@@ -54,7 +54,7 @@ ashnodsTransmogrant =
   Macros.activated (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
                    (Sequentially [PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                                          (Macros.target (And [Macros.creature, Not Macros.artifact])),
-                             Macros.becomes (Macros.That (TypeW Creature) OneOf) (Macros.typesOnly [Artifact]) Nothing])
+                             Macros.becomes (Macros.That (TypeW Creature)) (Macros.typesOnly [Artifact]) Nothing])
 
 azulaAlwaysLies : Instruction []
 azulaAlwaysLies =
@@ -76,7 +76,7 @@ ajaniAdversaryOfTyrants =
 naturesPanoply : Instruction []
 naturesPanoply =
   Sequentially [Macros.choose (Described (TargetDet Macros.anyNumber) Macros.creature),
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (EachOf ((Macros.It ManyOf)))]
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (EachOf ((Macros.Them)))]
 
 armamentCorps : Instruction []
 armamentCorps =
@@ -98,7 +98,7 @@ anointerOfValor : Ability
 anointerOfValor =
   Macros.triggered Whenever (Macros.attacks (Macros.a Macros.creature))
     (Macros.mayWhen You (Pay You (Mana [Macros.generic 3]) PaidOnce)
-                 (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature) OneOf)))
+                 (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature))))
 
 avianOddity : Instruction []
 avianOddity = PutCounters (Lit 1) (PrintedKind Macros.flyingCounter) (Macros.target Macros.creatureYouControl)
@@ -269,7 +269,7 @@ chainsaw =
   Macros.card "Chainsaw" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.triggered When (Enters Macros.thisEquipment Nothing)
-                          (DealDamage ((Macros.It OneOf)) (Lit 3)
+                          (DealDamage ((Macros.It)) (Lit 3)
                                (Described (TargetDet (Macros.upTo 1)) Macros.creature))
        , Macros.triggered Whenever
                           (Dies (Macros.counted (Macros.atLeast 1) Macros.creature))
@@ -288,7 +288,7 @@ soulsMight =
        [ Spell Nothing (Sequentially
                   [ PutCounters (LetterVal X) (PrintedKind Macros.plusOnePlusOne)
                                 (Macros.target Macros.creature)
-                  , Define X (StatOf Power (Macros.That (TypeW Creature) OneOf)) ]) ]
+                  , Define X (StatOf Power (Macros.That (TypeW Creature))) ]) ]
        Nothing
 
 woodlandChampion : Card
@@ -382,7 +382,7 @@ hardenedScales =
                    (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                             (Macros.a Macros.creatureYouControl)) [] Nothing
                    (PutCounters (Plus ThatMuch (Lit 1))
-                                (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf)))
+                                (PrintedKind Macros.plusOnePlusOne) ((Macros.It)))
                    Repeatedly Nothing) ]
        Nothing
 
@@ -395,7 +395,7 @@ branchingEvolution =
                    (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                             (Macros.a Macros.creatureYouControl)) [] Nothing
                    (PutCounters (Macros.times 2 ThatMuch)
-                                (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature) OneOf))
+                                (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature)))
                    Repeatedly Nothing) ]
        Nothing
 
@@ -405,7 +405,7 @@ corpsejackMenace =
   Static (Intercepts
             (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                      (Macros.a Macros.creatureYouControl)) [] Nothing
-            (PutCounters (Macros.times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf)))
+            (PutCounters (Macros.times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) ((Macros.It)))
             Repeatedly Nothing)
 
 ||| Doubling Season
@@ -421,7 +421,7 @@ doublingSeason =
        , Static (Intercepts
                    (Macros.manyCountersPutByEffect
                       (Macros.a (And [Permanent, HasPossessor ControllerAx You]))) [] Nothing
-                   (PutCounters (Macros.times 2 ThatMuch) ThoseKinds (Macros.That PermanentW OneOf))
+                   (PutCounters (Macros.times 2 ThatMuch) ThoseKinds (Macros.That PermanentW))
                    Repeatedly Nothing) ]
        Nothing
 
@@ -431,7 +431,7 @@ docSamsonDistributive =
   Static (Intercepts
             (Macros.manyBareCountersPutBy You
                (Macros.a (And [Permanent, HasPossessor ControllerAx You]))) [] Nothing
-            (PutCounters (Plus ThatMuch (Lit 1)) ThoseKinds (Macros.That PermanentW OneOf))
+            (PutCounters (Plus ThatMuch (Lit 1)) ThoseKinds (Macros.That PermanentW))
             Repeatedly Nothing)
 
 ||| Winding Constrictor
@@ -444,7 +444,7 @@ windingConstrictor =
                       (Macros.a (And [Or [Macros.artifact, Macros.creature],
                                       HasPossessor ControllerAx You]))) [] Nothing
                    (PutCounters (Plus ThatMuch (Lit 1))
-                                ThoseKinds (Macros.That PermanentW OneOf))
+                                ThoseKinds (Macros.That PermanentW))
                    Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.bareCounterEvent CounterPut ManyCounters You) [] Nothing
@@ -466,7 +466,7 @@ captainMarvelSameKinds =
   Macros.triggeredIf Whenever
     (Macros.manyBareCountersPutBy You
        (Macros.a (Macros.otherCreature Macros.thisCreature)))
-    (NotCond (Matches ((Macros.It OneOf)) (HasSubtype (creatureType "Kree"))))
+    (NotCond (Matches ((Macros.It)) (HasSubtype (creatureType "Kree"))))
     (Macros.may You (PutCounters ThatMuch ThoseKinds Macros.thisCreature))
 
 ||| Denry Klin, Editor in Chief
@@ -475,7 +475,7 @@ denryKlinSameKinds =
   Macros.triggeredIf Whenever
     (Enters (Macros.a (And [Macros.nontoken, Macros.creatureYouControl])) Nothing)
     (Matches Macros.thisCreature (HasCounters Nothing))
-    (PutCounters (Lit 1) (SameAs Macros.thisCreature) (Macros.That (TypeW Creature) OneOf))
+    (PutCounters (Lit 1) (SameAs Macros.thisCreature) (Macros.That (TypeW Creature)))
 
 ||| Denry Klin, Editor in Chief
 denryKlin : Card
@@ -511,7 +511,7 @@ starPupil =
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 1)
                                            Macros.plusOnePlusOne)
        , Macros.triggered When (Dies Macros.thisCreature)
-                          (PutCounters (Lit 1) (SameAs ((Macros.It OneOf)))
+                          (PutCounters (Lit 1) (SameAs ((Macros.It)))
                              (Macros.target Macros.creatureYouControl)) ]
        (Just (0, 0))
 
@@ -602,7 +602,7 @@ primalVigor =
                    (Macros.counterEvent CounterPut Macros.plusOnePlusOne ManyCounters
                                             (Macros.a Macros.creature)) [] Nothing
                    (PutCounters (Macros.times 2 ThatMuch)
-                                (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature) OneOf))
+                                (PrintedKind Macros.plusOnePlusOne) (Macros.That (TypeW Creature)))
                    Repeatedly Nothing) ]
        Nothing
 
@@ -675,7 +675,7 @@ testOfFaith =
        [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (Lit 3)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
-                                               (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
+                                               (Macros.That (TypeW Creature))))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
 
@@ -687,7 +687,7 @@ temper =
        [ Spell Nothing (Continuously
                   (DamageRule AnyDamage Unattributed (ToRecipient (Macros.target Macros.creature)) (Prevent (Shield (LetterVal X)) (Just (PutCounters Macros.preventedThisWay
                                                (PrintedKind Macros.plusOnePlusOne)
-                                               (Macros.That (TypeW Creature) OneOf)))) Repeatedly)
+                                               (Macros.That (TypeW Creature))))) Repeatedly)
                   (Just ThisTurn)) ]
        Nothing
 
@@ -700,7 +700,7 @@ phytohydra =
        (MkTypeLine [creatureType "Plant", creatureType "Hydra"] [Creature])
        [ Static (Intercepts (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing
                             (PutCounters ThatMuch
-                                         (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf)))
+                                         (PrintedKind Macros.plusOnePlusOne) ((Macros.It)))
                             Repeatedly Nothing) ]
        (Just (1, 1))
 
@@ -828,7 +828,7 @@ matopiGolem =
        [ Macros.activated (Mana [Macros.generic 1])
                           (ThisWay (Regenerate Macros.thisCreature)
                             (Regenerates Macros.thisCreature)
-                            (PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne) ((Macros.It OneOf)))) ]
+                            (PutCounters (Lit 1) (PrintedKind Macros.minusOneMinusOne) ((Macros.It)))) ]
        (Just (3, 3))
 
 public export
@@ -862,7 +862,7 @@ oonasBlackguard =
                       (Macros.a (And [Macros.creature, HasPossessor ControllerAx You,
                                HasCounters (Just Macros.plusOnePlusOne)]))
                       (Macros.a AnyPlayer))
-                          ((Macros.discard (Macros.That PlayerW OneOf) (Macros.a (InZone Macros.handZ)))) ]
+                          ((Macros.discard (Macros.That PlayerW) (Macros.a (InZone Macros.handZ)))) ]
        (Just (1, 1))
 
 public export
@@ -980,7 +980,7 @@ mildManneredLibrarian =
        [ Macros.activatedOnlyOnce (Mana [Macros.generic 3, Macros.pip Green])
                                   (Sequentially
                                      [ Continuously (Becomes Macros.thisCreature Sets (Bundle (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing) Nothing)) Nothing
-                                     , PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf))
+                                     , PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne) ((Macros.It))
                                      , (Draw You (Lit 1)) ])
                                   OncePerGame ]
        (Just (1, 1))
@@ -993,11 +993,11 @@ infernalVessel =
        [ Macros.triggeredIf When
                             (Dies Macros.thisCreature)
                             (Macros.itIsntA (HasSubtype (creatureType "Demon")))
-                            (Sequentially [Macros.returnToBattlefieldWithCounters ((Macros.It OneOf))
-                                                                                  (Macros.ownerOf ((Macros.It OneOf)))
+                            (Sequentially [Macros.returnToBattlefieldWithCounters ((Macros.It))
+                                                                                  (Macros.ownerOf ((Macros.It)))
                                                                                   (Lit 2)
                                                                                   Macros.plusOnePlusOne,
-                                           Macros.becomesAs ((Macros.It OneOf))
+                                           Macros.becomesAs ((Macros.It))
                                                             (MkToken Nothing [] (MkTypeLine [creatureType "Demon"] []) [] Nothing)
                                                             Nothing]) ]
        (Just (2, 1))
@@ -1134,7 +1134,7 @@ whirlingDervish =
            (BeginningOf ThePart EndStep (ByPlayer (Macros.each AnyPlayer)))
            (Macros.happenedInvolving DamageDealing Macros.thisCreature
                                      Lookback.ThisTurn Macros.anOpponent)
-           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf))) ]
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It))) ]
        (Just (1, 1))
 
 ||| Ichor Shade
@@ -1208,7 +1208,7 @@ contractualSafeguardPass =
   Sequentially
     [ Macros.choose (Macros.a (CounterKindOn (Macros.a Macros.creatureYouControl)))
     , PutCounters (Lit 1) BoundKind
-        (Macros.each (Macros.otherCreatureYouControl ((Macros.It OneOf)))) ]
+        (Macros.each (Macros.otherCreatureYouControl ((Macros.It)))) ]
 
 ||| Feral Contest
 public export
@@ -1311,7 +1311,7 @@ captainMarvelApexAvenger =
            (CounterEvent CounterPut Nothing
                          (Macros.a (And [Macros.creature, OtherThan This]))
                          ManyCounters (Just You) False)
-           (Matches ((Macros.It OneOf)) (Not (HasSubtype (creatureType "Kree"))))
+           (Matches ((Macros.It)) (Not (HasSubtype (creatureType "Kree"))))
            (Macros.may You (PutCounters ThatMuch ThoseKinds This)) ]
        (Just (4, 4))
 
@@ -1370,7 +1370,7 @@ agentOfTheShadowThievesGrantedTrigger =
     [] Nothing [] Nothing Nothing
     (Just (NotCond (Macros.exists (And [Opponent,
              Compare [PlayerStatAxis LifeTotal] Greater
-                     (PlayerStatOf LifeTotal (Macros.That PlayerW OneOf))]))))
+                     (PlayerStatOf LifeTotal (Macros.That PlayerW))]))))
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  Macros.thisCreature)
 

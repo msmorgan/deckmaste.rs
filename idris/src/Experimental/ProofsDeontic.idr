@@ -352,7 +352,7 @@ badForbidAttackWithPatient Oh impossible
 public export
 badBlocksItself : Unspellable (Instruction []) (\ok =>
   Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
-                               (DeonticCounterpart ((Macros.It OneOf))) {pt = ok})
+                               (DeonticCounterpart ((Macros.It))) {pt = ok})
                (Just ThisTurn))
 badBlocksItself Oh impossible
 
@@ -371,7 +371,7 @@ okCoordinatedLandHostBlocks : Ability
 okCoordinatedLandHostBlocks =
   Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Land)) Power (Up (Lit 1))
                           , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Land)) (Up (Lit 1))) Toughness (Up (Lit 1))
-                  , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Agent NoDeonticPatient ])
+                  , Macros.deontic ((Macros.It)) Forbid ["Block"] Agent NoDeonticPatient ])
 
 ||| "This deals 4 damage to target creature. The damage can't be prevented."
 public export
@@ -450,7 +450,7 @@ public export
 distributedDeedReadsBackPluralUnderCondition : Instruction []
 distributedDeedReadsBackPluralUnderCondition =
   OnlyIf (Macros.discard (Macros.each Opponent) (Macros.a (InZone Macros.handZ)))
-         (Matches (Macros.That CardW ManyOf) Macros.creature) Nothing
+         (Matches (Macros.Those CardW) Macros.creature) Nothing
 
 ||| "... sacrificed permanents can't be regenerated."
 public export

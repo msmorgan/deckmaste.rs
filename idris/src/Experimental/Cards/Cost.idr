@@ -320,7 +320,7 @@ elspethSunsChampion =
                           (GetsEmblem You
                       [ Static (AndAlso Nothing [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 2))
                                                 , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 2))) Toughness (Up (Lit 2))
-                                        , Gains ((Macros.It ManyOf)) (Macros.keyword "Flying") ]) ]) ]
+                                        , Gains ((Macros.Them)) (Macros.keyword "Flying") ]) ]) ]
        (Macros.loyaltyBox 4)
 
 ||| Elspeth's Talent
@@ -539,9 +539,9 @@ candlesOfLeng =
        [ Macros.activated (Compound [Mana [Macros.generic 4], TapSymbol])
            (Sequentially
               [ Macros.revealCards (Macros.topSlice (Lit 1))
-              , If (Matches ((Macros.It OneOf)) (Named (SameNameAs
+              , If (Matches ((Macros.It)) (Named (SameNameAs
                                   (Macros.a (InZone (Macros.graveyardOf You))))))
-                          (Macros.move ((Macros.It OneOf)) Macros.graveyardZ)
+                          (Macros.move ((Macros.It)) Macros.graveyardZ)
                           (Just (Draw You (Lit 1))) ]) ]
        Nothing
 
@@ -907,7 +907,7 @@ elspethsTalent =
                           (Continuously
                       (AndAlso Nothing [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 2))
                                        , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 2))) Toughness (Up (Lit 2))
-                               , Gains ((Macros.It ManyOf)) (Macros.keyword "Vigilance") ])
+                               , Gains ((Macros.Them)) (Macros.keyword "Vigilance") ])
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -975,7 +975,7 @@ generalTazriPump =
                                  HasPossessor ControllerAx You]))
                      (Up (LetterVal X)) (Up (LetterVal X))
                      (Just Macros.untilEndOfTurn)
-       , Define X (DistinctCount ColorAxis (Macros.That (TypeW Creature) ManyOf)) ])
+       , Define X (DistinctCount ColorAxis (Macros.Those (TypeW Creature))) ])
 
 ||| Diplomatic Escort
 public export
@@ -1043,7 +1043,7 @@ sugarCoat =
                                              , Do (Macros.sacrifice You Macros.thisArtifact) ])
                                    (Macros.gainsLife You (Lit 3)) ]
                                Nothing) Nothing)
-           , LosesAllAbilities ((Macros.It OneOf)) Nothing ]) ]
+           , LosesAllAbilities ((Macros.It)) Nothing ]) ]
        Nothing
 
 ||| Doc Aurlock, Grizzled Genius
@@ -1128,7 +1128,7 @@ embercleave =
                                 (And [Macros.creature, Attacking, HasPossessor ControllerAx You]))
                              Nothing))
        , Macros.triggered When (Enters Macros.thisEquipment Nothing)
-           (AttachTo ((Macros.It OneOf)) (Macros.target Macros.creatureYouControl))
+           (AttachTo ((Macros.It)) (Macros.target Macros.creatureYouControl))
        , Static (AndAlso (Just (AttachHost Equipped (TypeW Creature)))
                    [ Modify (Macros.ownSubject (AttachHost Equipped (TypeW Creature))) Power (Up (Lit 1))
                    , Modify (Macros.ownSubject (AttachHost Equipped (TypeW Creature))) Toughness (Up (Lit 1))
@@ -1329,7 +1329,7 @@ deadlyDancerPump =
                                  (Both Macros.thisCreature
                                        (Macros.target (And [Macros.creature, OtherThan This]))))
                               Power (Up (Lit 1))
-                     , Modify (EachOf (Both Macros.thisCreature ((Macros.It OneOf))))
+                     , Modify (EachOf (Both Macros.thisCreature ((Macros.It))))
                               Toughness (Up (Lit 0)) ])
                   (Just Macros.untilEndOfTurn))
 
@@ -1355,7 +1355,7 @@ uneshCriosphinxSovereign =
                    Nothing)
            (Sequentially
               [ Macros.revealCards (Macros.topSlice (Lit 4))
-              , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
+              , SeparateIntoPiles Macros.anOpponent ((Macros.Them)) 2 []
               , Macros.move Macros.onePile Macros.handZ
               , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Just (4, 4))

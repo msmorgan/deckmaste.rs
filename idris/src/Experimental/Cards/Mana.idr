@@ -30,7 +30,7 @@ luckyOffering =
 
 overload : Instruction []
 overload = OnlyIf (Macros.destroy (Macros.target Macros.artifact))
-                  (CompareAmt (StatOf ManaValue ((Macros.It OneOf))) AtMost (Lit 2))
+                  (CompareAmt (StatOf ManaValue ((Macros.It))) AtMost (Lit 2))
                   Nothing
 
 austereCommand : Instruction []
@@ -225,7 +225,7 @@ saheeliFiligreeMaster =
                           (MkToken (Just (Lit 1 ** Lit 1)) []
                                    (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
                                    [Macros.keyword "Flying"] Nothing)
-                      , Macros.gainsHaste ((Macros.It ManyOf)) (Just Macros.untilEndOfTurn) ])
+                      , Macros.gainsHaste ((Macros.Them)) (Just Macros.untilEndOfTurn) ])
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
                           (GetsEmblem You
                       [ Static (Macros.getsPt (Macros.allOf (And [Macros.artifact, Macros.creature,
@@ -418,7 +418,7 @@ riddleOfLightning =
            [ Macros.choose (Macros.target Macros.anyTarget)
            , Macros.scry You (Lit 3)
            , Macros.revealCards (Macros.topSlice (Lit 1))
-           , DealDamage This (StatOf ManaValue (Macros.That CardW OneOf)) (Macros.thatJoin) ]) ]
+           , DealDamage This (StatOf ManaValue (Macros.That CardW)) (Macros.thatJoin) ]) ]
        Nothing
 
 public export
@@ -488,7 +488,7 @@ theFlux =
            (ChapterMark [ChapterII, ChapterIII, ChapterIV, ChapterV])
            (Sequentially
               [ Macros.exile (Macros.topSlice (Lit 1))
-              , Continuously ((Macros.mayPlayDeed "Play" You (Macros.That CardW OneOf) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
+              , Continuously ((Macros.mayPlayDeed "Play" You (Macros.That CardW) Nothing (PlayRider Nothing Nothing Nothing False ItsOwnCost)))
                              (Just ThisTurn) ])
        , Macros.triggered When (ChapterMark [ChapterVI])
            (AddMana You (Lit 6) (Runs [[OfColor Red]]) []) ]
@@ -563,7 +563,7 @@ disruptingShoal =
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell Nothing (OnlyIf (CounterSpell (Macros.target Macros.spell))
-                       (CompareAmt (StatOf ManaValue ((Macros.It OneOf))) Eq (LetterVal X)) Nothing) ]
+                       (CompareAmt (StatOf ManaValue ((Macros.It))) Eq (LetterVal X)) Nothing) ]
        Nothing
 
 public export
@@ -793,7 +793,7 @@ coalStoker =
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggeredIf When
                             (Enters Macros.thisCreature Nothing)
-                            (Matches ((Macros.It OneOf)) (CastFrom (Macros.handOf You)))
+                            (Matches ((Macros.It)) (CastFrom (Macros.handOf You)))
                             (AddMana You (Lit 1) (Runs [[OfColor Red, OfColor Red, OfColor Red]]) []) ]
        (Just (3, 3))
 
@@ -818,8 +818,8 @@ adNauseam =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
               [ Macros.revealCards (Macros.topSlice (Lit 1))
-              , Macros.move (Macros.That CardW OneOf) Macros.handZ
-              , Macros.losesLife You (StatOf ManaValue ((Macros.It OneOf)))
+              , Macros.move (Macros.That CardW) Macros.handZ
+              , Macros.losesLife You (StatOf ManaValue ((Macros.It)))
               , Macros.may You (Repeat AnyNumber) ]) ]
        Nothing
 
@@ -834,8 +834,8 @@ public export
 causticBroncoLoss : Instruction []
 causticBroncoLoss =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 1))
-               , Macros.move (Macros.That CardW OneOf) Macros.handZ
-               , OnlyIf (Macros.losesLife You (StatOf ManaValue ((Macros.It OneOf))))
+               , Macros.move (Macros.That CardW) Macros.handZ
+               , OnlyIf (Macros.losesLife You (StatOf ManaValue ((Macros.It))))
                         (NotCond (Matches Macros.thisCreature (HasDesignation Saddled Nothing)))
                         (Just (Macros.losesLife (Macros.each Opponent) ThatMuch)) ]
 
@@ -943,7 +943,7 @@ hibernationsEndTrigger =
           [ Macros.searchLibraryFor (Macros.exactly 1)
               (And [Macros.creature,
                     Compare [StatAxis ManaValue] Eq (CountersOn (NamedCounter "Age") Macros.thisEnchantment)])
-          , Macros.putOntoBattlefield (Macros.That CardW OneOf)
+          , Macros.putOntoBattlefield (Macros.That CardW)
           , Macros.shuffle ]))
 
 ||| Latchkey Faerie
@@ -1037,7 +1037,7 @@ prismariPianist =
               (Create You (Lit 1)
                  (TokenWritten (Macros.creatureTok 1 1 [Blue, Red]
                                   [creatureType "Elemental"])) [])
-              (If (CompareAmt (StatOf ManaValue (Macros.That SpellW OneOf)) AtLeast (Lit 5))
+              (If (CompareAmt (StatOf ManaValue (Macros.That SpellW)) AtLeast (Lit 5))
                   (Create You (Lit 3) TokenAsThose [])
                   Nothing)) ]
        (Just (2, 1))
@@ -1053,7 +1053,7 @@ collectedCompany =
            , Macros.move (Macros.fromAmong (Macros.upTo 2)
                                            (And [Macros.creature,
                                                  Compare [StatAxis ManaValue] AtMost (Lit 3)])
-                                           ((Macros.It ManyOf)))
+                                           ((Macros.Them)))
                          Macros.battlefieldZ
            , Macros.move (Macros.theRest Object) (Macros.onBottomIn AnyOrder) ]) ]
        Nothing
@@ -1069,7 +1069,7 @@ soldeviAdnate =
                       Do (Macros.sacrifice You
                             (Macros.a (And [Macros.creature,
                                             Or [ColorIs Black, Macros.artifact]])))])
-           (AddMana You (StatOf ManaValue (Macros.ItVerbed "Sacrifice" OneOf))
+           (AddMana You (StatOf ManaValue (Macros.ItVerbed "Sacrifice"))
                     (Runs [[OfColor Black]]) []) ]
        (Just (1, 2))
 
@@ -1197,7 +1197,7 @@ talionTheKindlyLord =
                                   Compare [StatAxis ManaValue, StatAxis Power, StatAxis Toughness]
                                           Eq Macros.chosenNumber]))
                   Nothing)
-           (Sequentially [ Macros.losesLife (Macros.That PlayerW OneOf) (Lit 2)
+           (Sequentially [ Macros.losesLife (Macros.That PlayerW) (Lit 2)
                          , (Draw You (Lit 1)) ]) ]
        (Just (3, 4))
 
@@ -1219,7 +1219,7 @@ delightedHalflingMana =
     (AddMana You (Lit 1) (AnyColor SameColor)
       [ OnSpent AffectsIt True
                 (Macros.a (And [HasSupertype Legendary, Macros.spell]))
-                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW OneOf)) Nothing) ])
+                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW)) Nothing) ])
 
 ||| Boseiju, Who Shelters All
 public export
@@ -1229,7 +1229,7 @@ boseijuMana =
     (AddMana You (Lit 1) (Runs [[Colorless]])
       [ OnSpent AffectsIt False
                 (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
-                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW OneOf))
+                (Continuously (Macros.objectCant "Counter" (Macros.That SpellW))
                               Nothing) ])
 
 ||| Generator Servant
@@ -1244,7 +1244,7 @@ generatorServant =
            (AddMana You (Lit 1) (Runs [[Colorless, Colorless]])
              [ OnSpent AffectsIt False
                        (Macros.a (And [Macros.creature, Macros.spell]))
-                       (Macros.gainsHaste (ResolvedPermanent (Macros.That SpellW OneOf))
+                       (Macros.gainsHaste (ResolvedPermanent (Macros.That SpellW))
                                           (Just Macros.untilEndOfTurn)) ]) ]
        (Just (2, 1))
 
@@ -1261,7 +1261,7 @@ animalAttendant =
                        (Macros.a (And [Not (HasSubtype (creatureType "Human")),
                                        Macros.creature, Macros.spell]))
                        (Continuously
-                          (EntersRider (ResolvedPermanent (Macros.That SpellW OneOf))
+                          (EntersRider (ResolvedPermanent (Macros.That SpellW))
                                        (WithCounters (Lit 1)
                                               (PrintedKind Macros.plusOnePlusOne)
                                               Additional))
@@ -1310,8 +1310,8 @@ manaFlare =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land) Nothing)
-           (AddMana (Macros.That PlayerW OneOf) (Lit 1)
-                    (ProducedByEvent (Macros.That (TypeW Land) OneOf)) []) ]
+           (AddMana (Macros.That PlayerW) (Lit 1)
+                    (ProducedByEvent (Macros.That (TypeW Land))) []) ]
        Nothing
 
 ||| Shimmerwilds Growth
@@ -1325,7 +1325,7 @@ shimmerwildsGrowth =
        , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (Macros.ofChosen Color)))
        , Macros.triggered Whenever
            (TappedForMana Nothing (AttachHost Enchanted (TypeW Land)) Nothing)
-           (AddMana (Macros.controllerOf (Macros.That (TypeW Land) OneOf)) (Lit 1)
+           (AddMana (Macros.controllerOf (Macros.That (TypeW Land))) (Lit 1)
                     (OfChosenColor Nothing) []) ]
        Nothing
 
@@ -1341,7 +1341,7 @@ gauntletOfPower =
        , Macros.triggered Whenever
            (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
                           (Just (ManaOfColor Macros.thatColor)))
-           (AddMana (Macros.controllerOf (Macros.That (TypeW Land) OneOf)) (Lit 1)
+           (AddMana (Macros.controllerOf (Macros.That (TypeW Land))) (Lit 1)
                     (OfChosenColor Nothing) []) ]
        Nothing
 

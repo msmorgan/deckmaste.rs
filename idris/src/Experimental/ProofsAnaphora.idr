@@ -34,7 +34,7 @@ badConditionalArmAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                    (Macros.exists Macros.creatureYouControl)
                    Nothing,
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It) {ok})])
 badConditionalArmAntecedent Refl impossible
 
 public export
@@ -42,7 +42,7 @@ badBothArmsAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [May You (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It) {ok})])
 badBothArmsAntecedent Refl impossible
 
 ||| "Put target creature onto the battlefield."
@@ -62,12 +62,12 @@ public export
 okAgentChoiceOfSome : Instruction []
 okAgentChoiceOfSome =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
-                Choose Nothing (Just You) (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly Nothing]
+                Choose Nothing (Just You) (Macros.someOf (Macros.exactly 1) (Macros.Them)) Openly Nothing]
 
 ||| "Look at the top four cards of your library. Choose one of them."
 public export
 badChooseSomeOf : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing Nothing (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Openly Nothing {ch = ok}])
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing Nothing (Macros.someOf (Macros.exactly 1) ((Macros.Them))) Openly Nothing {ch = ok}])
 badChooseSomeOf Oh impossible
 
 ||| "Exile target creature."
@@ -145,19 +145,19 @@ okUnionAnaphorAfterJoin : Instruction []
 okUnionAnaphorAfterJoin =
   Sequentially [ DealDamage This (Lit 3)
                    (Macros.target (Joined Macros.creature AnyPlayer))
-               , DealDamage This (Lit 1) (Macros.That JoinW OneOf) ]
+               , DealDamage This (Lit 1) (Macros.That JoinW) ]
 
 ||| "This deals 3 damage to that permanent or player."
 public export
 badUnionAnaphorNoAntecedent : Unspellable (Instruction []) (\ok =>
-  DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}))
+  DealDamage This (Lit 3) (Macros.That JoinW {ok = ok}))
 badUnionAnaphorNoAntecedent Refl impossible
 
 ||| "Destroy target creature. This deals 3 damage to that permanent or player."
 public export
 badUnionAnaphorOnObject : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
-               , DealDamage This (Lit 3) (Macros.That JoinW OneOf {ok = ok}) ])
+               , DealDamage This (Lit 3) (Macros.That JoinW {ok = ok}) ])
 badUnionAnaphorOnObject Refl impossible
 
 ||| "Counter target activated ability. Counter that spell or ability." An
@@ -167,7 +167,7 @@ public export
 okStackAnaphorOnAbility : Instruction []
 okStackAnaphorOnAbility =
   Sequentially [ CounterSpell (Macros.target (AbilityHead AnyActivated))
-               , CounterSpell (Macros.That StackW OneOf) ]
+               , CounterSpell (Macros.That StackW) ]
 
 public export
 afterAnyTargetDamage : Bindings
@@ -180,7 +180,7 @@ afterAnyTargetDamage =
 public export
 okUnionAnaphorAfterAnyTarget :
   Noun ProofsAnaphora.afterAnyTargetDamage (Object \/ Player)
-okUnionAnaphorAfterAnyTarget = Macros.That JoinW OneOf
+okUnionAnaphorAfterAnyTarget = Macros.That JoinW
 
 ||| "This deals 3 damage to any target. Counter that spell or ability."
 ||| Refused: an any-target union is not on the stack. `That JoinW` spells the
@@ -188,7 +188,7 @@ okUnionAnaphorAfterAnyTarget = Macros.That JoinW OneOf
 public export
 badStackAnaphorOnPlayerUnion :
   Unspellable (Noun ProofsAnaphora.afterAnyTargetDamage Object) (\ok =>
-    Macros.That StackW OneOf {ok = ok})
+    Macros.That StackW {ok = ok})
 badStackAnaphorOnPlayerUnion Refl impossible
 
 ||| "a creature with protection from a color"
@@ -415,7 +415,7 @@ okLoopGroupSurvives =
     [ ForEachOf (Macros.each AnyPlayer)
         (Macros.choose (Macros.target (And [Permanent,
                                             HasPossessor ControllerAx Macros.They])))
-    , Draw (Macros.That PlayerW ManyOf) (Lit 1) ]
+    , Draw (Macros.Those PlayerW) (Lit 1) ]
 
 ||| "For each player, choose target permanent that player controls. That
 ||| player draws a card." — the element the loop binds is body-local, so only
@@ -426,7 +426,7 @@ badLoopElementRead : Unspellable (Instruction []) (\ok =>
     [ ForEachOf (Macros.each AnyPlayer)
         (Macros.choose (Macros.target (And [Permanent,
                                             HasPossessor ControllerAx Macros.They])))
-    , Draw (Macros.That PlayerW OneOf {ok}) (Lit 1) ])
+    , Draw (Macros.That PlayerW {ok}) (Lit 1) ])
 badLoopElementRead Refl impossible
 
 ||| "if you activated an activated ability this turn"
@@ -494,7 +494,7 @@ okPluralSpellReadAfterCopy =
   Sequentially
     [ Copy FromStack You
         (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 2) []
-    , Macros.may You (ChooseNewTargets (Macros.That SpellW ManyOf)) ]
+    , Macros.may You (ChooseNewTargets (Macros.Those SpellW)) ]
 
 ||| "Copy target instant or sorcery spell. You may choose new targets for the
 ||| copy."
@@ -504,7 +504,7 @@ okCopyReadAfterCopy =
   Sequentially
     [ Copy FromStack You
         (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 1) []
-    , Macros.may You (ChooseNewTargets (Macros.That CopyW OneOf)) ]
+    , Macros.may You (ChooseNewTargets (Macros.That CopyW)) ]
 
 ||| "Copy target instant or sorcery spell. You may choose new targets for that
 ||| spell." Refused: the copy is itself a spell [CR#707.10], so the singular
@@ -515,7 +515,7 @@ badSingularSpellReadAfterCopy : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ Copy FromStack You
         (Macros.target (And [Macros.instantOrSorcery, Macros.spell])) (Lit 1) []
-    , Macros.may You (ChooseNewTargets (Macros.That SpellW OneOf {ok = ok})) ])
+    , Macros.may You (ChooseNewTargets (Macros.That SpellW {ok = ok})) ])
 badSingularSpellReadAfterCopy Refl impossible
 
 ||| "Copy target activated ability twice. You may choose new targets for those
@@ -526,7 +526,7 @@ okPluralAbilityReadAfterCopy : Instruction []
 okPluralAbilityReadAfterCopy =
   Sequentially
     [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 2) []
-    , Macros.may You (ChooseNewTargets (Macros.That AbilityW ManyOf)) ]
+    , Macros.may You (ChooseNewTargets (Macros.Those AbilityW)) ]
 
 ||| "Copy target activated ability. You may choose new targets for that
 ||| ability." Refused: the copy is itself an ability [CR#707.10], so the
@@ -536,7 +536,7 @@ public export
 badSingularAbilityReadAfterCopy : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 1) []
-    , Macros.may You (ChooseNewTargets (Macros.That AbilityW OneOf {ok = ok})) ])
+    , Macros.may You (ChooseNewTargets (Macros.That AbilityW {ok = ok})) ])
 badSingularAbilityReadAfterCopy Refl impossible
 
 ||| "Copy target activated ability. You may choose new targets for the copy."
@@ -545,7 +545,7 @@ okAbilityCopyReadAfterCopy : Instruction []
 okAbilityCopyReadAfterCopy =
   Sequentially
     [ Copy FromStack You (Macros.target (AbilityHead AnyActivated)) (Lit 1) []
-    , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW OneOf)) ]
+    , Macros.may You (ChooseNewTargets (Macros.That AbilityCopyW)) ]
 
 ||| "Change the target of target spell or ability with a single target." One
 ||| object [CR#109.1]: the reading is one stack-zone payload, not a join.
@@ -791,7 +791,7 @@ afterALook =
 ||| "Look at the top card of your library. Put that card into your graveyard."
 public export
 okReadsLookedAtCard : Noun ProofsAnaphora.afterALook Object
-okReadsLookedAtCard = Macros.That CardW OneOf
+okReadsLookedAtCard = Macros.That CardW
 
 public export
 afterShuffledLook : Bindings
@@ -801,7 +801,7 @@ afterShuffledLook =
 
 public export
 badReadsShuffledLibraryCard :
-  Unspellable (Noun ProofsAnaphora.afterShuffledLook Object) (\ok => Macros.That CardW OneOf {ok})
+  Unspellable (Noun ProofsAnaphora.afterShuffledLook Object) (\ok => Macros.That CardW {ok})
 badReadsShuffledLibraryCard Refl impossible
 
 ||| "Whenever you scry, …"
@@ -1219,7 +1219,7 @@ resolveManys k bs ok =
 
 public export
 itReadsOnlyPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 -> Noun bs Object
-itReadsOnlyPrefix bs ok = (Macros.It OneOf) {bs} {ok}
+itReadsOnlyPrefix bs ok = (Macros.It) {bs} {ok}
 
 public export
 itResolvesInPrefix : (bs : Bindings) -> countReach Bare OneOf bs = 1 ->
@@ -1245,7 +1245,7 @@ public export
 itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                           KnownAct v -> countReach (Stamped v) OneOf bs = 1 ->
                           Noun bs Object
-itVerbedReadsOnlyPrefix bs v kn ok = Macros.ItVerbed v OneOf {bs} {ok}
+itVerbedReadsOnlyPrefix bs v kn ok = Macros.ItVerbed v {bs} {ok}
 
 public export
 itVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -1374,7 +1374,7 @@ ownResolvesInPrefix pl own outer ok =
 public export
 theyReadsOnlyPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
                       Noun bs Player
-theyReadsOnlyPrefix bs ok = Macros.That PlayerW OneOf {bs} {ok}
+theyReadsOnlyPrefix bs ok = Macros.That PlayerW {bs} {ok}
 
 public export
 theyResolvesInPrefix : (bs : Bindings) -> countReach (Word PlayerW) OneOf bs = 1 ->
@@ -1386,7 +1386,7 @@ theyResolvesInPrefix bs ok =
 
 public export
 themReadsOnlyPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 -> Noun bs Object
-themReadsOnlyPrefix bs ok = (Macros.It ManyOf) {bs} {ok}
+themReadsOnlyPrefix bs ok = (Macros.Them) {bs} {ok}
 
 public export
 themResolvesInPrefix : (bs : Bindings) -> countReach Bare ManyOf bs = 1 ->
@@ -1399,7 +1399,7 @@ public export
 themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                             KnownAct v -> countReach (Stamped v) ManyOf bs = 1 ->
                             Noun bs Object
-themVerbedReadsOnlyPrefix bs v kn ok = Macros.ItVerbed v ManyOf {bs} {ok}
+themVerbedReadsOnlyPrefix bs v kn ok = Macros.ThemVerbed v {bs} {ok}
 
 public export
 themVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
@@ -1413,7 +1413,7 @@ themVerbedResolvesInPrefix bs v ok =
 public export
 thatReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                       countReach (Word w) OneOf bs = 1 -> Noun bs (kindOfW w)
-thatReadsOnlyPrefix bs w ok = Macros.That w OneOf {bs} {ok}
+thatReadsOnlyPrefix bs w ok = Macros.That w {bs} {ok}
 
 public export
 thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -1441,7 +1441,7 @@ thatHalfResolvesInPrefix bs w ok =
 public export
 thoseReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
                        countReach (Word w) ManyOf bs = 1 -> Noun bs (kindOfW w)
-thoseReadsOnlyPrefix bs w ok = Macros.That w ManyOf {bs} {ok}
+thoseReadsOnlyPrefix bs w ok = Macros.Those w {bs} {ok}
 
 public export
 thoseResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
@@ -1799,12 +1799,12 @@ public export
 okItReadsTheOnlyBareSingular : Instruction []
 okItReadsTheOnlyBareSingular =
   Sequentially [Macros.exile (Macros.target Macros.creature),
-                Draw You (StatOf Power (Macros.It OneOf))]
+                Draw You (StatOf Power (Macros.It))]
 
 public export
 badItAcrossOwnSlot : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile (Macros.target Macros.artifact),
-                DealDamage (Macros.target Macros.creature) (StatOf Power ((Macros.It OneOf) {ok}))
+                DealDamage (Macros.target Macros.creature) (StatOf Power ((Macros.It) {ok}))
                            (Macros.target Macros.anyTarget)])
 badItAcrossOwnSlot Refl impossible
 
@@ -1813,7 +1813,7 @@ public export
 badSingularReadOfBarePlural : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)
                             (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn),
-                Draw You (StatOf Power ((Macros.It OneOf) {ok}))])
+                Draw You (StatOf Power ((Macros.It) {ok}))])
 badSingularReadOfBarePlural Refl impossible
 
 ||| "Destroy target creature. If this enchantment isn't a creature, it becomes
@@ -1838,7 +1838,7 @@ public export
 badCondUnwindowedRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , If (NotCond (Matches Macros.thisEnchantment Macros.creature))
-                    (Macros.becomes ((Macros.It OneOf) {ok})
+                    (Macros.becomes ((Macros.It) {ok})
                                     (MkTypeLine [creatureType "Angel"] [Creature])
                                     (Just Macros.untilEndOfTurn))
                     Nothing ])

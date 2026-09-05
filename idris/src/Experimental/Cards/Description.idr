@@ -610,7 +610,7 @@ archpriestOfIonaFullParty =
     (Sequentially
        [ Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 1))
                      (Just Macros.untilEndOfTurn)
-       , Macros.gains ((Macros.It OneOf)) (Macros.keyword "Flying")
+       , Macros.gains ((Macros.It)) (Macros.keyword "Flying")
                       (Just Macros.untilEndOfTurn) ])
 
 ||| Squad Commander

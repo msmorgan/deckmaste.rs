@@ -39,13 +39,13 @@ public export
 okSinglePower : Instruction []
 okSinglePower =
   Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly Nothing,
-                Macros.gainsLife You (StatOf Power (Macros.It OneOf))]
+                Macros.gainsLife You (StatOf Power (Macros.It))]
 
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Instruction []) (\ok =>
   Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
-                Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
+                Macros.gainsLife You (StatOf Power ((Macros.Them)) {one = ok})])
 badGroupPower Refl impossible
 
 ||| "Choose target creature. Its owner loses 1 life."
@@ -53,14 +53,14 @@ public export
 okSingleOwner : Instruction []
 okSingleOwner =
   Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly Nothing,
-                Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
+                Macros.losesLife (Macros.ownerOf (Macros.It)) (Lit 1)]
 
 ||| "Choose two target creatures. Their owners each lose 1 life."
 public export
 okGroupOwners : Instruction []
 okGroupOwners =
   Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
-                Macros.losesLife (Macros.ownerOf (Macros.It ManyOf)) (Lit 1)]
+                Macros.losesLife (Macros.ownerOf (Macros.Them)) (Lit 1)]
 
 ||| "Choose target creature."
 public export
@@ -131,13 +131,13 @@ badSpreeMissingCost Oh impossible
 public export
 badModalReadsAcrossModes : Unspellable (Instruction []) (\ok =>
   Macros.chooseModes (Macros.exactly 1) [Macros.destroy (Macros.target Macros.artifact),
-                    SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                    SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badModalReadsAcrossModes (_, Oh) impossible
 
 public export
 badReadsAfterModal : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.chooseModes (Macros.exactly 1) [Macros.destroy (Macros.target Macros.artifact), Macros.destroy (Macros.target Macros.enchantment)],
-                SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badReadsAfterModal (_, Oh) impossible
 
 ||| "you pay 1 life"
@@ -360,8 +360,8 @@ okDistributedLoopParts =
     [ ForEachOf (Macros.each AnyPlayer)
         (Macros.choose (Macros.target (And [Permanent,
                                             HasPossessor ControllerAx Macros.They])))
-    , Macros.sacrifice (Macros.That PlayerW ManyOf)
-                       (Macros.That PermanentW ManyOf) ]
+    , Macros.sacrifice (Macros.Those PlayerW)
+                       (Macros.Those PermanentW) ]
 
 public export
 badDistributedRestOfSharedGroup : Unspellable (Instruction []) (\ok =>
@@ -412,7 +412,7 @@ okGetsBattlefield =
 public export
 badGetsGraveyard : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                Macros.gets ((Macros.It OneOf)) (Up (Lit 3)) (Up (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
+                Macros.gets ((Macros.It)) (Up (Lit 3)) (Up (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
 badGetsGraveyard Oh impossible
 
 ||| "Choose a creature. This deals 3 damage to each creature not chosen this
@@ -513,7 +513,7 @@ okDistributedChoiceReadsAsGroup : Instruction []
 okDistributedChoiceReadsAsGroup =
   Sequentially
     [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
-    , Macros.exile (Macros.It ManyOf) ]
+    , Macros.exile (Macros.Them) ]
 
 ||| "Each player chooses a creature. Exile it." — a distributive choice stands
 ||| as one per chooser, so the singular read has no antecedent
@@ -522,14 +522,14 @@ public export
 badDistributedChoiceReadSingular : Unspellable (Instruction []) (\ok =>
   Sequentially
     [ Macros.chooses (Macros.each AnyPlayer) (Macros.a Macros.creature)
-    , Macros.exile ((Macros.It OneOf) {ok}) ])
+    , Macros.exile ((Macros.It) {ok}) ])
 badDistributedChoiceReadSingular Refl impossible
 
 ||| "Look at the top card of your library. You may put that card into your
 ||| graveyard." No printed card on the bench.
 lookAtTopThenBin : Instruction []
 lookAtTopThenBin =
-  Sequentially [Macros.lookAt (Macros.topSlice (Lit 1)), Macros.may You (Macros.move (Macros.That CardW OneOf) Macros.graveyardZ)]
+  Sequentially [Macros.lookAt (Macros.topSlice (Lit 1)), Macros.may You (Macros.move (Macros.That CardW) Macros.graveyardZ)]
 
 ||| "Until end of turn, you may play lands and cast spells from your
 ||| graveyard." No printed card on the bench.

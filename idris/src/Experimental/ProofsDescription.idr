@@ -50,13 +50,13 @@ okThatPlayer : Instruction []
 okThatPlayer =
   Sequentially [SetStatus Tapped (Macros.target (And [Macros.creature,
                   HasPossessor ControllerAx Macros.anOpponent])),
-                Macros.losesLife (Macros.That PlayerW OneOf) (Lit 1)]
+                Macros.losesLife (Macros.That PlayerW) (Lit 1)]
 
 public export
 badDisjunctAntecedent : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target (Or [And [Macros.creature, HasPossessor ControllerAx Macros.anOpponent],
                                         And [Macros.land, HasPossessor ControllerAx You]])),
-                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
+                Macros.losesLife (Macros.That PlayerW {ok}) (Lit 1)])
 badDisjunctAntecedent Refl impossible
 
 ||| "Tap target creature with flying."
@@ -155,13 +155,13 @@ okMatchesArtifact : Instruction []
 okMatchesArtifact =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
                 OnlyIf (Macros.gainsLife You (Lit 1))
-                       (Matches (Macros.It OneOf) Macros.artifact) Nothing]
+                       (Matches (Macros.It) Macros.artifact) Nothing]
 
 ||| "Tap target creature. You gain 1 life if it's."
 public export
 badMatchesNothing : Unspellable (Instruction []) (\ok =>
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                OnlyIf (Macros.gainsLife You (Lit 1)) (Matches ((Macros.It OneOf)) (And []) {sy = ok}) Nothing])
+                OnlyIf (Macros.gainsLife You (Lit 1)) (Matches ((Macros.It)) (And []) {sy = ok}) Nothing])
 badMatchesNothing Oh impossible
 
 ||| "if the number of artifacts you control is 4 or greater"
@@ -370,14 +370,14 @@ public export
 okItAfterAntecedent : Instruction []
 okItAfterAntecedent =
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
-               , Macros.losesLife (Macros.controllerOf (Macros.It OneOf))
-                                  (StatOf Power (Macros.It OneOf)) ]
+               , Macros.losesLife (Macros.controllerOf (Macros.It))
+                                  (StatOf Power (Macros.It)) ]
 
 public export
 badOtherwiseReadsLeadingArm : Unspellable (Instruction []) (\ok =>
   If (Macros.exists Macros.creatureYouControl)
      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
-     (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+     (Just (SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsLeadingArm (Refl, _) impossible
 
 public export
@@ -386,7 +386,7 @@ badLeadingConditionAntecedent : Unspellable (Instruction []) (\ok =>
                                (PlayerStatOf LifeTotal Macros.anOpponent))
                    (Macros.gainsLife You (Lit 6))
                    Nothing,
-                Macros.losesLife (Macros.That PlayerW OneOf {ok}) (Lit 1)])
+                Macros.losesLife (Macros.That PlayerW {ok}) (Lit 1)])
 badLeadingConditionAntecedent Refl impossible
 
 ||| "If you control an artifact and an enchantment, …"
@@ -434,7 +434,7 @@ afterTopLook =
 ||| "Look at the top card of your library. Put that card into your graveyard."
 public export
 okReadsLookedAtLibraryCard : Noun ProofsDescription.afterTopLook Object
-okReadsLookedAtLibraryCard = Macros.That CardW OneOf
+okReadsLookedAtLibraryCard = Macros.That CardW
 
 public export
 afterShuffledIntoLook : Bindings
@@ -444,7 +444,7 @@ afterShuffledIntoLook =
 
 public export
 badReadsShuffledIntoLibraryCard :
-  Unspellable (Noun ProofsDescription.afterShuffledIntoLook Object) (\ok => Macros.That CardW OneOf {ok})
+  Unspellable (Noun ProofsDescription.afterShuffledIntoLook Object) (\ok => Macros.That CardW {ok})
 badReadsShuffledIntoLibraryCard Refl impossible
 
 ||| "if you control four or more creatures"

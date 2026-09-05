@@ -186,9 +186,9 @@ rainOfGore =
                    (Causes
                       (CausedBySource
                          (Macros.a (Or [Macros.spell, AbilityHead AnyOnStack])))
-                      (LifeChanges (Macros.controllerOf ((Macros.It OneOf))) LifeGoesUp))
+                      (LifeChanges (Macros.controllerOf ((Macros.It))) LifeGoesUp))
                    [] Nothing
-                   (Macros.losesLife (Macros.That PlayerW OneOf) ThatMuch)
+                   (Macros.losesLife (Macros.That PlayerW) ThatMuch)
                    Repeatedly Nothing) ]
        Nothing
 
@@ -227,10 +227,10 @@ turnToFrog =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Continuously
                   (AndAlso Nothing [ LosesAllAbilities (Macros.target Macros.creature) Nothing
-                           , Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing [Blue]
+                           , Becomes ((Macros.It)) Sets (Bundle (MkToken Nothing [Blue]
                                                   (MkTypeLine [creatureType "Frog"] []) [] Nothing) Nothing)
-                           , Modify ((Macros.It OneOf)) Power (Set (Lit 1))
-                           , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 1))) Toughness (Set (Lit 1)) ])
+                           , Modify ((Macros.It)) Power (Set (Lit 1))
+                           , Modify (Macros.itsOther ((Macros.It)) (Set (Lit 1))) Toughness (Set (Lit 1)) ])
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -239,8 +239,8 @@ humility =
   Macros.card "Humility" (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (AndAlso Nothing [ LosesAllAbilities (Macros.allOf Macros.creature) Nothing
-                         , Modify ((Macros.It ManyOf)) Power (Set (Lit 1))
-                         , Modify (Macros.itsOther ((Macros.It ManyOf)) (Set (Lit 1))) Toughness (Set (Lit 1)) ]) ]
+                         , Modify ((Macros.Them)) Power (Set (Lit 1))
+                         , Modify (Macros.itsOther ((Macros.Them)) (Set (Lit 1))) Toughness (Set (Lit 1)) ]) ]
        Nothing
 
 ||| Tahngarth, First Mate
@@ -557,7 +557,7 @@ namelessInversionBody : Instruction []
 namelessInversionBody =
   Continuously (AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 3))
                                 , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 3))) Toughness (Down (Lit 3))
-                        , Becomes ((Macros.It OneOf)) Loses (EveryTypeOf CreatureSpace) ])
+                        , Becomes ((Macros.It)) Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
 
 ||| Ego Erasure
@@ -567,7 +567,7 @@ egoErasureBody =
   Continuously (AndAlso Nothing [ Modify (Macros.allOf (And [Macros.creature,
                                             HasPossessor ControllerAx (Macros.target AnyPlayer)])) Power (Down (Lit 2))
                                 , Modify (Macros.itsOther (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx (Macros.target AnyPlayer)])) (Down (Lit 2))) Toughness (Up (Lit 0))
-                        , Becomes ((Macros.It ManyOf)) Loses (EveryTypeOf CreatureSpace) ])
+                        , Becomes ((Macros.Them)) Loses (EveryTypeOf CreatureSpace) ])
                (Just Macros.untilEndOfTurn)
 
 ||| Lithoform Blight
@@ -575,7 +575,7 @@ public export
 lithoformBlightLoss : StaticSpec []
 lithoformBlightLoss =
   AndAlso Nothing [ Becomes (AttachHost Enchanted (TypeW Land)) Loses (EveryTypeOf LandSpace)
-          , LosesAllAbilities ((Macros.It OneOf)) Nothing ]
+          , LosesAllAbilities ((Macros.It)) Nothing ]
 
 ||| Energybending
 public export
@@ -630,7 +630,7 @@ blatantThievery =
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (ForEachOf (Macros.each Opponent)
                   (Continuously
-                     (GainsControl You (Macros.target (HasPossessor ControllerAx (Macros.That PlayerW OneOf))))
+                     (GainsControl You (Macros.target (HasPossessor ControllerAx (Macros.That PlayerW))))
                      Nothing)) ]
        Nothing
 
@@ -798,7 +798,7 @@ clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
                                   (Just Macros.thisCreature) Nothing)
                      [] Nothing
-                     (Regenerate ((Macros.It OneOf))) Repeatedly Nothing)
+                     (Regenerate ((Macros.It))) Repeatedly Nothing)
 
 ||| Rampant Frogantua
 public export
@@ -968,7 +968,7 @@ bondsOfFaithPump : Ability
 bondsOfFaithPump =
   Static (Macros.onlyWhile
             (Macros.getsPt (AttachHost Enchanted (TypeW Creature)) (Up (Lit 2)) (Up (Lit 2)))
-            (Matches ((Macros.It OneOf)) (HasSubtype (creatureType "Human"))))
+            (Matches ((Macros.It)) (HasSubtype (creatureType "Human"))))
 
 ||| Field of Dreams
 public export
@@ -1037,7 +1037,7 @@ luxiorTypeSetting =
             [ Becomes (AttachHost Equipped PermanentW) Loses
                       (Bundle (MkToken Nothing [] (Macros.typesOnly [Planeswalker]) [] Nothing)
                               Nothing)
-            , Becomes ((Macros.It OneOf)) Adds
+            , Becomes ((Macros.It)) Adds
                       (Bundle (MkToken Nothing [] (MkTypeLine [] [Creature]) [] Nothing)
                               Nothing) ])
 

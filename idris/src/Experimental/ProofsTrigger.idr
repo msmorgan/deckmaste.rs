@@ -60,13 +60,13 @@ okThatCreatureAfterAttack : Ability
 okThatCreatureAfterAttack =
   Triggered Whenever (Attacks (Macros.a Macros.creature) NoDefender)
             [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf) (Up (Lit 2)) (Up (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature)) (Up (Lit 2)) (Up (Lit 0))
                          (Just Macros.untilEndOfTurn))
 
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
   Triggered Whenever (Attacks Macros.thisCreature NoDefender) [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature) {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
                          {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf (Refl, _) impossible
 
@@ -182,7 +182,7 @@ afterLifePayment = eventAfter (the (GameEvent []) (PaysLife (Macros.a AnyPlayer)
 ||| "Whenever a player pays life, that player draws a card."
 public export
 okLifePaymentPayerReadback : Noun ProofsTrigger.afterLifePayment Player
-okLifePaymentPayerReadback = Macros.That PlayerW OneOf
+okLifePaymentPayerReadback = Macros.That PlayerW
 
 public export
 afterPassivePayment : Bindings
@@ -193,7 +193,7 @@ afterPassivePayment =
 ||| "Whenever this creature's cumulative upkeep is paid, that player …"
 public export
 badPassivePayerReadback :
-  Unspellable (Noun ProofsTrigger.afterPassivePayment Player) (\ok => Macros.That PlayerW OneOf {ok})
+  Unspellable (Noun ProofsTrigger.afterPassivePayment Player) (\ok => Macros.That PlayerW {ok})
 badPassivePayerReadback Refl impossible
 
 ||| "Whenever a player pays life, you gain that much life."

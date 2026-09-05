@@ -48,8 +48,8 @@ okPileWordAfterPartition =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
-                  , Macros.move (Macros.That PileW ManyOf) Macros.handZ ]) ]
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.Them)) 2 []
+                  , Macros.move (Macros.Those PileW) Macros.handZ ]) ]
        Nothing
 
 ||| "Reveal the top five cards of your library. An opponent separates those
@@ -62,8 +62,8 @@ okCardWordReadsPiles =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent ((Macros.It ManyOf)) 2 []
-                  , Macros.move (Macros.That CardW ManyOf) Macros.handZ ]) ]
+                  , SeparateIntoPiles Macros.anOpponent ((Macros.Them)) 2 []
+                  , Macros.move (Macros.Those CardW) Macros.handZ ]) ]
        Nothing
 
 ||| "Reveal the top five cards of your library. Put those piles into your hand."
@@ -72,7 +72,7 @@ badPileWordWithoutAPartition : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , Macros.move (Macros.That PileW ManyOf {ok = ok}) Macros.handZ ]) ]
+                  , Macros.move (Macros.Those PileW {ok = ok}) Macros.handZ ]) ]
        Nothing)
 badPileWordWithoutAPartition Refl impossible
 
@@ -81,7 +81,7 @@ public export
 okOnePileAfterPartition : Instruction []
 okOnePileAfterPartition =
   Sequentially [ Macros.revealCards (Macros.topSlice (Lit 5))
-               , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
+               , SeparateIntoPiles Macros.anOpponent (Macros.Them) 2 []
                , Macros.move Macros.onePile Macros.handZ ]
 
 ||| "Put target player into your hand." -- a zone holds objects [CR#400.1];
@@ -105,7 +105,7 @@ okMembershipInAPile =
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
-                  , SeparateIntoPiles Macros.anOpponent (Macros.It ManyOf) 2 []
+                  , SeparateIntoPiles Macros.anOpponent (Macros.Them) 2 []
                   , Macros.move (Macros.allOf (And [IsCard,
                                     InPile (Macros.pileOfChoice You)]))
                                 Macros.handZ ]) ]
@@ -119,7 +119,7 @@ badMembershipWithoutAPartition : Unspellable Card (\ok =>
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , Macros.move (Macros.allOf (And [IsCard,
-                                    InPile (Macros.That PileW ManyOf {ok = ok})]))
+                                    InPile (Macros.Those PileW {ok = ok})]))
                                 Macros.handZ ]) ]
        Nothing)
 badMembershipWithoutAPartition Refl impossible
@@ -150,7 +150,7 @@ badPileFaceAsAStatus : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
-                  , SetStatus FaceDown (Macros.That PileW ManyOf) {sh = ok} ]) ]
+                  , SetStatus FaceDown (Macros.Those PileW) {sh = ok} ]) ]
        Nothing)
 badPileFaceAsAStatus ObjectHoldsStatus impossible
 

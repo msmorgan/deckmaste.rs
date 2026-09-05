@@ -18,7 +18,7 @@ okSacrificeBattlefield = Macros.sacrifice You (Macros.a Macros.creature)
 public export
 badStale : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Macros.sacrifice You ((Macros.It OneOf)) {ok})])
+               Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Macros.sacrifice You ((Macros.It)) {ok})])
 badStale Oh impossible
 
 public export
@@ -30,7 +30,7 @@ badDelayedOther Refl impossible
 public export
 badStaleCarrier : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile (Macros.target Macros.creatureYouControl),
-               Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []])
+               Move (Macros.That (TypeW Creature) {ok}) Macros.battlefieldZ []])
 badStaleCarrier Refl impossible
 
 ||| "Sacrifice a creature: Draw a card."
@@ -44,7 +44,7 @@ okActivatedCostAndEffect =
 public export
 badHiddenCost : Unspellable Ability (\ok =>
   Activated (Do (Move (Macros.a Macros.creature) Macros.handZ []))
-            (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
+            (SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
 badHiddenCost (Refl, _) impossible
 
 ||| "Discard a card, Sacrifice a creature: Exile it."
@@ -52,7 +52,7 @@ public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do ((Macros.discard You (Macros.a (InZone Macros.handZ)))),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile ((Macros.It OneOf) {ok})) Nothing Nothing Nothing Nothing)
+            (Macros.exile ((Macros.It) {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 ||| "Tap target creature you control. Sacrifice it."
@@ -60,19 +60,19 @@ public export
 okSacrificeOnBattlefield : Instruction []
 okSacrificeOnBattlefield =
   Sequentially [ SetStatus Tapped (Macros.target Macros.creatureYouControl)
-               , Macros.sacrifice You (Macros.It OneOf) ]
+               , Macros.sacrifice You (Macros.It) ]
 
 ||| "Exile target creature. Sacrifice it."
 public export
 badSacrificeExiled : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.exile (Macros.target Macros.creature),
-               Macros.sacrifice You ((Macros.It OneOf)) {ok}])
+               Macros.sacrifice You ((Macros.It)) {ok}])
 badSacrificeExiled Oh impossible
 
 public export
 badDeadCreatureRead : Unspellable (Instruction []) (\ok =>
   Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
-          (Move (Macros.That (TypeW Creature) OneOf {ok}) Macros.battlefieldZ []))
+          (Move (Macros.That (TypeW Creature) {ok}) Macros.battlefieldZ []))
 badDeadCreatureRead Refl impossible
 
 ||| "Discard a card: Return the discarded card to the battlefield."
@@ -109,7 +109,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (Macros.That CardW OneOf {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
+                           Delayed (BeginningOf ThePart EndStep NoPossessor) [] Nothing (Move (Macros.That CardW {ok}) Macros.battlefieldZ [])]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 ||| "Tap target creature."
@@ -139,13 +139,13 @@ badTriggerAtYourTurn Oh impossible
 ||| "Whenever a creature dies, tap it."
 public export
 badTriggerTapsDeadCreature : Unspellable Ability (\ok =>
-  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped ((Macros.It OneOf)) {ok}))
+  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped ((Macros.It)) {ok}))
 badTriggerTapsDeadCreature Oh impossible
 
 ||| "Whenever a creature leaves the battlefield, tap it."
 public export
 badLeavesThenTap : Unspellable Ability (\ok =>
-  Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped ((Macros.It OneOf)) {ok}))
+  Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped ((Macros.It)) {ok}))
 badLeavesThenTap Oh impossible
 
 ||| "Target creature gets +3/+3 until end of turn."
@@ -215,13 +215,13 @@ badAfterReflexiveReadsTrigger : Unspellable (Instruction []) (\ok =>
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                                      (MkTypeLine [creatureType "Soldier"] [Creature])
                                                      [] Nothing)),
-                SetStatus Tapped (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
+                SetStatus Tapped (Macros.That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badAfterReflexiveReadsTrigger (Refl, _) impossible
 
 ||| "Sacrifice a creature. When you do, tap it."
 public export
 badReflexiveTapsSacrificed : Unspellable (Instruction []) (\ok =>
-  Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (SetStatus Tapped ((Macros.It OneOf)) {ok}))
+  Reflexively (Macros.sacrifice You (Macros.a Macros.creature)) (SetStatus Tapped ((Macros.It)) {ok}))
 badReflexiveTapsSacrificed Oh impossible
 
 ||| "target creature blocking this creature"

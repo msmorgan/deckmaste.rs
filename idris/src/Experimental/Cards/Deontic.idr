@@ -15,14 +15,14 @@ changeOfHeart = Macros.cantAttack (Macros.target Macros.creature) (Just ThisTurn
 
 blindblast : Instruction []
 blindblast = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
-                           Macros.cantBlock (Macros.That (TypeW Creature) OneOf) (Just ThisTurn)]
+                           Macros.cantBlock (Macros.That (TypeW Creature)) (Just ThisTurn)]
 
 blindingFlare : Instruction []
 blindingFlare = Macros.cantBlock (Described (TargetDet Macros.anyNumber) Macros.creature) (Just ThisTurn)
 
 cowardKiller : Instruction []
 cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (Just ThisTurn),
-                             Macros.becomes (Macros.That (TypeW Creature) OneOf) (Macros.subtypesOnly [creatureType "Coward"])
+                             Macros.becomes (Macros.That (TypeW Creature)) (Macros.subtypesOnly [creatureType "Coward"])
                                      (Just Macros.untilEndOfTurn)]
 
 ||| Auriok Siege Sled
@@ -37,13 +37,13 @@ auriokSiegeSledDenial =
 ||| Blindblast
 blindblastWhole : Instruction []
 blindblastWhole = Sequentially [DealDamage This (Lit 1) (Macros.target Macros.creature),
-                                Macros.cantBlock (Macros.That (TypeW Creature) OneOf) (Just ThisTurn),
+                                Macros.cantBlock (Macros.That (TypeW Creature)) (Just ThisTurn),
                                 (Draw You (Lit 1))]
 
 sparkmagesGambit : Instruction []
 sparkmagesGambit =
   Sequentially [DealDamage This (Lit 1) (EachOf (Described (TargetDet (Macros.upTo 2)) Macros.creature)),
-                Macros.cantBlock (Macros.That (TypeW Creature) ManyOf) (Just ThisTurn)]
+                Macros.cantBlock (Macros.Those (TypeW Creature)) (Just ThisTurn)]
 
 ||| Glacial Chasm
 glacialChasmCant : Ability
@@ -186,7 +186,7 @@ nowhereToRunWardLine =
         (Not (HasKeyword (TheKeyword "Hexproof")))
     , Macros.deontic
         (Macros.allOf (And [ AbilityHead (KeywordClass "Ward")
-                    , AbilityOf (Macros.That (TypeW Creature) ManyOf) ]))
+                    , AbilityOf (Macros.Those (TypeW Creature)) ]))
         Forbid ["Trigger"] Agent NoDeonticPatient ]
 
 ||| Mornsong Aria
@@ -234,7 +234,7 @@ undercoverButler =
                                          (Macros.the (And [AnyPlayer,
                                              Superlative MaxOf (PlayerStatAxis LifeTotal)
                                                          AnyPlayer])))
-                          (Continuously (Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Patient NoDeonticPatient)
+                          (Continuously (Macros.deontic ((Macros.It)) Forbid ["Block"] Patient NoDeonticPatient)
                                  (Just ThisTurn)) ]
        (Just (2, 3))
 
@@ -245,7 +245,7 @@ aetherTunnel =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 1))
                                  , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 0))
-                         , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Patient NoDeonticPatient ]) ]
+                         , Macros.deontic ((Macros.It)) Forbid ["Block"] Patient NoDeonticPatient ]) ]
        Nothing
 
 public export
@@ -280,7 +280,7 @@ gideonJura =
                                              HasPossessor ControllerAx (Macros.target Opponent)]))
                                 Require ["Attack"] Agent
                                 (DefendingPlayer Macros.thisPlaneswalker))
-                       (DuringNextTurnOf (Macros.That PlayerW OneOf)))
+                       (DuringNextTurnOf (Macros.That PlayerW)))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
            (Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped])))
        , Macros.activated (LoyaltySymbol LoyaltyZero)
@@ -291,7 +291,7 @@ gideonJura =
                                                   creatureType "Soldier"] [Creature])
                                      [] Nothing) (Just Planeswalker)))
                   (Just Macros.untilEndOfTurn)
-              , Macros.preventAll AnyDamage (ToRecipient ((Macros.It OneOf)))
+              , Macros.preventAll AnyDamage (ToRecipient ((Macros.It)))
                                   (Just ThisTurn) ]) ]
        (Macros.loyaltyBox 6)
 
@@ -316,7 +316,7 @@ whippoorwillImmunity =
     , Continuously
         (CantPrevent AnyDamage
                      (DamageDescribed Unattributed
-                        (ToRecipient (Macros.That (TypeW Creature) OneOf)))
+                        (ToRecipient (Macros.That (TypeW Creature))))
                      NoRedirectEither)
         (Just ThisTurn) ]
 
@@ -414,7 +414,7 @@ blindingAngel =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
            (Macros.dealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
-           (SkipsNext (Macros.That PlayerW OneOf) Combat (Lit 1)) ] (Just (2, 4))
+           (SkipsNext (Macros.That PlayerW) Combat (Lit 1)) ] (Just (2, 4))
 
 public export
 eonHub : Card
@@ -468,7 +468,7 @@ emptyCityRuse =
   Macros.card "Empty City Ruse" (Just [Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [Spell Nothing (Macros.throughout (Skips (Macros.target Opponent) Combat)
-                                 (DuringNextTurnOf (Macros.That PlayerW OneOf)))] Nothing
+                                 (DuringNextTurnOf (Macros.That PlayerW)))] Nothing
 
 ||| False Peace
 public export
@@ -477,7 +477,7 @@ falsePeace =
   Macros.card "False Peace" (Just [Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [Spell Nothing (Macros.throughout (Skips (Macros.target AnyPlayer) Combat)
-                                 (DuringNextTurnOf (Macros.That PlayerW OneOf)))] Nothing
+                                 (DuringNextTurnOf (Macros.That PlayerW)))] Nothing
 
 ||| Battlefront Krushok
 public export
@@ -523,7 +523,7 @@ demotion =
        , Static (AndAlso Nothing
            [ Macros.deontic (AttachHost Enchanted (TypeW Creature)) Forbid ["Block"] Agent NoDeonticPatient
            , Macros.objectCant "Activate"
-               (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf ((Macros.It OneOf))])) ]) ]
+               (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf ((Macros.It))])) ]) ]
        Nothing
 
 public export
@@ -534,7 +534,7 @@ terror =
        [ Spell Nothing (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not Macros.artifact,
                         Not (ColorIs Black)])))
-                "Regenerate" (Macros.ItVerbed "Destroy" OneOf)) ]
+                "Regenerate" (Macros.ItVerbed "Destroy")) ]
        Nothing
 
 public export
@@ -548,7 +548,7 @@ snuffOut =
                                  HasPossessor ControllerAx You])))
        , Spell Nothing (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not (ColorIs Black)])))
-                "Regenerate" (Macros.ItVerbed "Destroy" OneOf)) ]
+                "Regenerate" (Macros.ItVerbed "Destroy")) ]
        Nothing
 
 public export
@@ -558,7 +558,7 @@ wrathOfGod =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (CantBe (Macros.destroy (Macros.allOf Macros.creature))
-                       "Regenerate" ((Macros.It ManyOf))) ]
+                       "Regenerate" ((Macros.Them))) ]
        Nothing
 
 public export
@@ -568,7 +568,7 @@ damnation =
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (CantBe (Macros.destroy (Macros.allOf Macros.creature))
-                       "Regenerate" ((Macros.It ManyOf))) ]
+                       "Regenerate" ((Macros.Them))) ]
        Nothing
 
 public export
@@ -651,7 +651,7 @@ berserkersFrenzyLowRoll : Instruction []
 berserkersFrenzyLowRoll =
   Sequentially
     [ Macros.choose (Macros.counted Macros.anyNumber Macros.creature)
-    , Continuously (Macros.deontic ((Macros.It ManyOf)) Require ["Block"] Agent NoDeonticPatient)
+    , Continuously (Macros.deontic ((Macros.Them)) Require ["Block"] Agent NoDeonticPatient)
                    (Just ThisTurn) ]
 
 ||| Damn
@@ -671,7 +671,7 @@ nekrataalWhole =
            (CantBe (Macros.destroy (Macros.target
                       (And [Macros.creature, Not Macros.artifact,
                             Not (ColorIs Black)])))
-                   "Regenerate" (Macros.That (TypeW Creature) OneOf)) ]
+                   "Regenerate" (Macros.That (TypeW Creature))) ]
        (Just (2, 1))
 
 ||| Concussive Bolt, both paragraphs
@@ -774,7 +774,7 @@ myrPrototype =
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
        , Static (Macros.deontic Macros.thisCreature
                    (GatedBy (Macros.scaledMana GenericUnit (Macros.times 1
-                      (CountersOn Macros.plusOnePlusOne ((Macros.It OneOf))))))
+                      (CountersOn Macros.plusOnePlusOne ((Macros.It))))))
                    ["Attack", "Block"] Agent NoDeonticPatient) ]
        (Just (2, 2))
 
@@ -806,7 +806,7 @@ awesomePresence =
        , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
                    (GatedBy (Macros.scaledMana GenericUnit (Macros.times 3
                       (Macros.countOf (And [Macros.creature, HasPossessor ControllerAx They,
-                                     CombatRel BlockerOf ((Macros.It OneOf))])))))
+                                     CombatRel BlockerOf ((Macros.It))])))))
                    ["Block"] Patient NoDeonticPatient) ]
        Nothing
 
@@ -834,7 +834,7 @@ distortionStrikeLine =
     [ Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 0))
                   (Just Macros.untilEndOfTurn)
     , Continuously
-        (Macros.deontic (Macros.That (TypeW Creature) OneOf) Forbid ["Block"]
+        (Macros.deontic (Macros.That (TypeW Creature)) Forbid ["Block"]
                         Patient NoDeonticPatient)
         (Just ThisTurn) ]
 
@@ -849,11 +849,11 @@ retroMutation =
        , Static (AndAlso Nothing
            [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
                                (MkTypeLine [creatureType "Turtle"] []) [] Nothing) Nothing)
-           , Modify ((Macros.It OneOf)) Power (Set (Lit 0))
-           , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 0))) Toughness (Set (Lit 1))
-           , Deontic ((Macros.It OneOf)) Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing
+           , Modify ((Macros.It)) Power (Set (Lit 0))
+           , Modify (Macros.itsOther ((Macros.It)) (Set (Lit 0))) Toughness (Set (Lit 1))
+           , Deontic ((Macros.It)) Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing
                       NoDeonticRider
-           , LosesAllAbilities ((Macros.It OneOf)) Nothing ]) ]
+           , LosesAllAbilities ((Macros.It)) Nothing ]) ]
        Nothing
 
 ||| Hotshot Mechanic
@@ -922,7 +922,7 @@ arrest =
                    [ Macros.deontic (AttachHost Enchanted (TypeW Creature))
                        Forbid ["Attack", "Block"] Agent NoDeonticPatient
                    , Macros.deontic (Macros.allOf (And [AbilityHead AnyActivated,
-                                                 AbilityOf ((Macros.It OneOf))]))
+                                                 AbilityOf ((Macros.It))]))
                        Forbid ["Activate"] Patient NoDeonticPatient ]) ]
        Nothing
 

@@ -10,7 +10,7 @@ cyberConversion : Instruction []
 cyberConversion =
   Sequentially
     [ SetStatus FaceDown (Macros.target Macros.creature)
-    , Macros.becomesAs ((Macros.It OneOf))
+    , Macros.becomesAs ((Macros.It))
         (MkToken (Just (Lit 2 ** Lit 2)) []
                  (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature]) [] Nothing)
         Nothing ]
@@ -50,10 +50,10 @@ missyFaceDownReturn =
     (Dies (Macros.a (And [Macros.creature, Not Macros.artifact,
                           OtherThan Macros.thisCreature])))
     (Sequentially
-       [ Move ((Macros.It OneOf)) Macros.battlefieldZ
+       [ Move ((Macros.It)) Macros.battlefieldZ
               [EntersAs FaceDown, EntersTapped, Under You]
        , Continuously
-           (Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
+           (Becomes ((Macros.It)) Sets (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
                               (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature])
                               [] Nothing) Nothing))
            Nothing ])
@@ -70,10 +70,10 @@ yedoraGraveGardener =
                                  OtherThan Macros.thisCreature])))
            (Macros.may You
               (Sequentially
-                 [ Move ((Macros.It OneOf)) Macros.battlefieldZ
-                        [EntersAs FaceDown, Under (Macros.ownerOf ((Macros.It OneOf)))]
+                 [ Move ((Macros.It)) Macros.battlefieldZ
+                        [EntersAs FaceDown, Under (Macros.ownerOf ((Macros.It)))]
                  , Continuously
-                     (Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing []
+                     (Becomes ((Macros.It)) Sets (Bundle (MkToken Nothing []
                                         (MkTypeLine [landType "Forest"] [Land])
                                         [] Nothing) Nothing))
                      Nothing ])) ]
@@ -320,7 +320,7 @@ kitsuneMystic =
                          (And [ HasSubtype (enchantmentType "Aura")
                               , AttachedTo (Macros.a Macros.creature) ]))
                       (Macros.a (And [Macros.creature,
-                                      OtherThan (Macros.That (TypeW Creature) OneOf)]))) ]
+                                      OtherThan (Macros.That (TypeW Creature))]))) ]
                (Macros.printedBox (Just (4, 5))))
 
 ||| Vesuvan Shapeshifter
@@ -330,7 +330,7 @@ vesuvanShapeshifterCopySpan :
             (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
 vesuvanShapeshifterCopySpan =
   Continuously
-    (BecomesCopy Macros.thisCreature (Macros.That (TypeW Creature) OneOf)
+    (BecomesCopy Macros.thisCreature (Macros.That (TypeW Creature))
        [ExceptAbility
           (Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
              (Macros.may You (SetStatus FaceDown Macros.thisCreature)))])
@@ -347,8 +347,8 @@ arlinnKord =
                 (Continuously
                    (AndAlso Nothing [ Modify (Described (TargetDet (Macros.upTo 1)) Macros.creature) Power (Up (Lit 2))
                                     , Modify (Macros.itsOther (Described (TargetDet (Macros.upTo 1)) Macros.creature) (Up (Lit 2))) Toughness (Up (Lit 2))
-                            , Gains ((Macros.It OneOf)) (Macros.keyword "Vigilance")
-                            , Gains ((Macros.It OneOf)) (Macros.keyword "Haste") ])
+                            , Gains ((Macros.It)) (Macros.keyword "Vigilance")
+                            , Gains ((Macros.It)) (Macros.keyword "Haste") ])
                    (Just Macros.untilEndOfTurn))
             , Macros.activated (LoyaltySymbol LoyaltyZero)
                 (Sequentially
@@ -362,7 +362,7 @@ arlinnKord =
                    (Continuously
                       (AndAlso Nothing [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 1))
                                        , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 1))) Toughness (Up (Lit 1))
-                               , Gains ((Macros.It ManyOf)) (Macros.keyword "Trample") ])
+                               , Gains ((Macros.Them)) (Macros.keyword "Trample") ])
                       (Just Macros.untilEndOfTurn))
                , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
                    (Sequentially
@@ -372,7 +372,7 @@ arlinnKord =
                    (GetsEmblem You
                       [ Static (AndAlso Nothing
                           [ Gains (Macros.allOf Macros.creatureYouControl) (Macros.keyword "Haste")
-                          , Gains ((Macros.It ManyOf)) (Macros.activated TapSymbol
+                          , Gains ((Macros.Them)) (Macros.activated TapSymbol
                               (DealDamage Macros.thisCreature (StatOf Power Macros.thisCreature)
                                           (Macros.target Macros.anyTarget))) ]) ]) ]
                Nothing)
@@ -396,7 +396,7 @@ neglectedHeirloom =
                (MkTypeLine [artifactType "Equipment"] [Artifact])
                [ Static (AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 3))
                                          , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 3))) Toughness (Up (Lit 3))
-                                 , Gains ((Macros.It OneOf)) (Macros.keyword "FirstStrike") ])
+                                 , Gains ((Macros.It)) (Macros.keyword "FirstStrike") ])
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
                Nothing)
 
@@ -408,7 +408,7 @@ harvestHand =
     (Macros.frontFace "Harvest Hand" (Just [Macros.generic 3]) []
             (MkTypeLine [creatureType "Scarecrow"] [Artifact, Creature])
             [ Macros.triggered When (Dies Macros.thisCreature)
-                (Macros.returnToBattlefieldTransformed ((Macros.It OneOf)) You) ]
+                (Macros.returnToBattlefieldTransformed ((Macros.It)) You) ]
             (Macros.printedBox (Just (2, 2))))
     (Macros.backFace "Scrounged Scythe" []
                (MkTypeLine [artifactType "Equipment"] [Artifact])
@@ -449,7 +449,7 @@ chitteringHostOnScavengers =
                 (Continuously
                    (AndAlso Nothing [ Modify (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) Power (Up (Lit 1))
                                     , Modify (Macros.itsOther (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (Up (Lit 1))) Toughness (Up (Lit 0))
-                            , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
+                            , Gains ((Macros.Them)) (Macros.keyword "Menace") ])
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
 
@@ -465,7 +465,7 @@ chitteringHostOnGrafRats =
                 (Continuously
                    (AndAlso Nothing [ Modify (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) Power (Up (Lit 1))
                                     , Modify (Macros.itsOther (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (Up (Lit 1))) Toughness (Up (Lit 0))
-                            , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
+                            , Gains ((Macros.Them)) (Macros.keyword "Menace") ])
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
 
@@ -495,7 +495,7 @@ meldThemInto =
         (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
                             Or [Named (PrintedName "Graf Rats"),
                                 Named (PrintedName "Midnight Scavengers")]]))
-    , Macros.meldInto (Macros.ItVerbed "Exile" ManyOf) "Chittering Host" ]
+    , Macros.meldInto (Macros.ThemVerbed "Exile") "Chittering Host" ]
 
 ||| Profit // Loss
 public export
@@ -572,9 +572,9 @@ riddlesInTheDark =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.lookAt (Macros.topSlice (Lit 4))
-                  , SeparateIntoPiles You ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
+                  , SeparateIntoPiles You ((Macros.Them)) 2 [FaceDownPile, FaceUpPile]
                   , Macros.chooses Macros.anOpponent Macros.onePile
-                  , Macros.move (Macros.That PileW OneOf) Macros.handZ
+                  , Macros.move (Macros.That PileW) Macros.handZ
                   , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
 
@@ -588,7 +588,7 @@ fortunesFavor =
        [ Spell Nothing (Sequentially
                   [ Expose LookAt (Macros.target Opponent)
                            (ExposedCards (Macros.topSlice (Lit 4)))
-                  , SeparateIntoPiles They ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
+                  , SeparateIntoPiles They ((Macros.Them)) 2 [FaceDownPile, FaceUpPile]
                   , Macros.move Macros.onePile Macros.handZ
                   , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        Nothing
@@ -605,9 +605,9 @@ curatorOfDestinies =
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Sequentially
               [ Macros.lookAt (Macros.topSlice (Lit 5))
-              , SeparateIntoPiles You ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
+              , SeparateIntoPiles You ((Macros.Them)) 2 [FaceDownPile, FaceUpPile]
               , Macros.chooses Macros.anOpponent Macros.onePile
-              , Macros.move (Macros.That PileW OneOf) Macros.handZ
+              , Macros.move (Macros.That PileW) Macros.handZ
               , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Just (5, 5))
 
@@ -623,7 +623,7 @@ atrisOracleOfHalfTruths =
            (Sequentially
               [ Expose LookAt (Macros.target Opponent)
                        (ExposedCards (Macros.topSlice (Lit 3)))
-              , SeparateIntoPiles They ((Macros.It ManyOf)) 2 [FaceDownPile, FaceUpPile]
+              , SeparateIntoPiles They ((Macros.Them)) 2 [FaceDownPile, FaceUpPile]
               , Macros.move Macros.onePile Macros.handZ
               , Macros.move (Macros.theOther Pile) Macros.graveyardZ ]) ]
        (Macros.printedBox (Just (3, 2)))
@@ -640,7 +640,7 @@ garrukRelentless =
                 (Sequentially
                    [ DealDamage Macros.thisPlaneswalker (Lit 3)
                                 (Macros.target Macros.creature)
-                   , DealDamage (Macros.That (TypeW Creature) OneOf) (StatOf Power (Macros.That (TypeW Creature) OneOf))
+                   , DealDamage (Macros.That (TypeW Creature)) (StatOf Power (Macros.That (TypeW Creature)))
                                 Macros.thisPlaneswalker ])
             , Macros.activated (LoyaltySymbol LoyaltyZero)
                 (Macros.create (Lit 1)
@@ -665,8 +665,8 @@ garrukRelentless =
                           (AndAlso Nothing
                              [ Gains (Macros.allOf Macros.creatureYouControl)
                                      (Macros.keyword "Trample")
-                             , Modify (Macros.It ManyOf) Power (Up (LetterVal X))
-                             , Modify (Macros.It ManyOf) Toughness (Up (LetterVal X)) ])
+                             , Modify (Macros.Them) Power (Up (LetterVal X))
+                             , Modify (Macros.Them) Toughness (Up (LetterVal X)) ])
                           (Just Macros.untilEndOfTurn)
                       , Define X (Macros.countOf (And [Macros.creature,
                                                 InZone (Macros.graveyardOf You)])) ]) ]
@@ -721,7 +721,7 @@ arcaneProxy =
   Macros.prototype "Arcane Proxy" (Just [Macros.generic 7]) []
        (MkTypeLine [creatureType "Wizard"] [Artifact, Creature])
        [ Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches ((Macros.It OneOf)) (Macros.castBy You))
+           (Matches ((Macros.It)) (Macros.castBy You))
            (Sequentially
               [ Macros.exile
                   (Macros.target (And [ Macros.instantOrSorcery
@@ -729,9 +729,9 @@ arcaneProxy =
                                       , Compare [StatAxis ManaValue] AtMost
                                                 (StatOf Power Macros.thisCreature)
                                       , InZone (Macros.graveyardOf You) ]))
-              , Copy FromCardZone You (Macros.That CardW OneOf) (Lit 1) []
+              , Copy FromCardZone You (Macros.That CardW) (Lit 1) []
               , Continuously
-                  (Macros.mayPlayDeed "Cast" You (Macros.That CopyW OneOf) Nothing
+                  (Macros.mayPlayDeed "Cast" You (Macros.That CopyW) Nothing
                      (PlayRider Nothing Nothing Nothing False WithoutPaying))
                   Nothing ]) ]
        (Just (4, 3))

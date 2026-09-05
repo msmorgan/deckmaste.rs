@@ -68,17 +68,17 @@ okFlatCoordination : StaticSpec []
 okFlatCoordination =
   AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 1))
                   , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 1))) Toughness (Up (Lit 1))
-                  , Gains (Macros.It OneOf) (KeywordAbility "Flying" Nothing Nothing)
-                  , Gains (Macros.It OneOf) (KeywordAbility "Trample" Nothing Nothing) ]
+                  , Gains (Macros.It) (KeywordAbility "Flying" Nothing Nothing)
+                  , Gains (Macros.It) (KeywordAbility "Trample" Nothing Nothing) ]
 
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 public export
 badNestedCoordination : Unspellable (StaticSpec []) (\ok =>
   AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 1))
                                                , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 1))) Toughness (Up (Lit 1))
-                               , Gains ((Macros.It OneOf)) (KeywordAbility "Flying" Nothing Nothing) ])
+                               , Gains ((Macros.It)) (KeywordAbility "Flying" Nothing Nothing) ])
                       {nc = ok}
-                      (Coord.(::) (Gains ((Macros.It OneOf)) (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
+                      (Coord.(::) (Gains ((Macros.It)) (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
 badNestedCoordination Oh impossible
 
 ||| "Whenever a creature enters, destroy that creature."
@@ -87,14 +87,14 @@ okThatCreatureAfterAntecedent : Ability
 okThatCreatureAfterAntecedent =
   Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing []
             Nothing Nothing Nothing
-            (Macros.destroy (Macros.That (TypeW Creature) OneOf))
+            (Macros.destroy (Macros.That (TypeW Creature)))
 
 ||| "This creature gets +1/+1 and that creature has flying."
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
   Static (AndAlso Nothing [ Modify Macros.thisCreature Power (Up (Lit 1))
                           , Modify (Macros.itsOther Macros.thisCreature (Up (Lit 1))) Toughness (Up (Lit 1))
-                  , Gains (Macros.That (TypeW Creature) OneOf {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
+                  , Gains (Macros.That (TypeW Creature) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
 ||| "Creatures you control get +1/+1 and they have flying."
@@ -104,14 +104,14 @@ okCoordinatedPlural =
   Static (AndAlso Nothing
             [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 1))
             , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 1))) Toughness (Up (Lit 1))
-            , Gains (Macros.It ManyOf) (KeywordAbility "Flying" Nothing Nothing) ])
+            , Gains (Macros.Them) (KeywordAbility "Flying" Nothing Nothing) ])
 
 ||| "Enchanted creature gets +1/+1 and they have flying."
 public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
   Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 1))
                           , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 1))
-                  , Gains ((Macros.It ManyOf) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
+                  , Gains ((Macros.Them) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badCoordinatedHostPlural Refl impossible
 
 ||| "Create a 1/1 white Soldier creature token with flying."
@@ -369,7 +369,7 @@ okSharedSubjectDelta = Macros.ownSubject {bs = []} (Macros.target Macros.creatur
 
 public export
 badSharedSubjectEmptyDelta : Unspellable (Noun [] Object) (\ok =>
-  Macros.ownSubject {bs = []} (Macros.ItVerbed "Untap" OneOf) {ok})
+  Macros.ownSubject {bs = []} (Macros.ItVerbed "Untap") {ok})
 badSharedSubjectEmptyDelta Refl impossible
 
 ||| "Pay 2 life: Draw a card."

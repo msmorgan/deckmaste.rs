@@ -67,7 +67,7 @@ okAltHeaderAgreeingReadback =
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf) (Down (Lit 1))
+            (Macros.gets (Macros.That (TypeW Creature)) (Down (Lit 1))
                          (Down (Lit 1)) (Just Macros.untilEndOfTurn))
 
 public export
@@ -76,7 +76,7 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Down (Lit 1))
+            (Macros.gets (Macros.That (TypeW Creature) {ok = Builtin.fst ok}) (Down (Lit 1))
                          (Down (Lit 1)) {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badAltHeaderMixedReadback (Refl, _) impossible
 
@@ -87,7 +87,7 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
             , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
             Nothing [] Nothing Nothing Nothing
             (DealDamage Macros.thisCreature
-                        (StatOf Power ((Macros.That (TypeW Creature) OneOf) {ok = ok}))
+                        (StatOf Power ((Macros.That (TypeW Creature)) {ok = ok}))
                         (Macros.each Opponent)))
 badThreeArmHeaderReadback Refl impossible
 
@@ -98,7 +98,7 @@ badJoinedHeaderReadback : Unspellable Ability (\ok =>
                 (Dies (Macros.a Macros.creatureYouControl)) ]
             Nothing Nothing Nothing
             (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
-                         ((Macros.It OneOf) {ok = ok})))
+                         ((Macros.It) {ok = ok})))
 badJoinedHeaderReadback Refl impossible
 
 ||| "Remove a +1/+1 counter from target creature."
@@ -113,7 +113,7 @@ okRemoveCounterFromTarget =
 public export
 badRemoveCountersDead : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) ((Macros.It OneOf)) {cm = ok}])
+                RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind Macros.plusOnePlusOne)) ((Macros.It)) {cm = ok}])
 badRemoveCountersDead Oh impossible
 
 ||| "Move a counter from target creature onto this creature."
@@ -126,7 +126,7 @@ okMoveCounterOntoThis =
 ||| "Move a counter from target creature onto it."
 public export
 badMoveCountersSelf : Unspellable (Instruction []) (\ok =>
-  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) ((Macros.It OneOf)) {md = ok})
+  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) ((Macros.It)) {md = ok})
 badMoveCountersSelf Oh impossible
 
 ||| "Create a 1/1 creature creature token."
@@ -160,7 +160,7 @@ badSimultaneousReadsOutcome Refl impossible
 public export
 badSimultaneousReadsMayDeed : Unspellable (Instruction []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
-                  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+                  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It) {ok})])
 badSimultaneousReadsMayDeed Refl impossible
 
 ||| "You may have this deal 2 damage and you gain that much life."
@@ -175,7 +175,7 @@ public export
 badBatchTwoCreatesThenIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"]),
                                Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])],
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It) {ok})])
 badBatchTwoCreatesThenIt Refl impossible
 
 public export
@@ -192,13 +192,13 @@ okCreatedThenCountered =
   Sequentially [Create You (Lit 1)
                        (TokenWritten
                           (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf)]
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.It)]
 
 public export
 badDistributedCreationIt : Unspellable (Instruction []) (\ok =>
   Sequentially [Create (Macros.each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf) {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It) {ok})])
 badDistributedCreationIt Refl impossible
 
 ||| "Put a +1/+1 counter on each of up to two target creatures."
@@ -231,7 +231,7 @@ badBarePluralDamageRecipient Oh impossible
 public export
 badThemCounterRecipient : Unspellable (Instruction []) (\ok =>
   Sequentially [Choose Nothing Nothing (Described (TargetDet Macros.anyNumber) Macros.creature) Openly Nothing,
-                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It ManyOf)) {pm = ok}])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.Them)) {pm = ok}])
 badThemCounterRecipient Oh impossible
 
 ||| "Exile target creature with a +1/+1 counter on it."
@@ -340,7 +340,7 @@ okManyCounterBatchSize =
                            (Macros.a Macros.creatureYouControl) ManyCounters
                            Nothing False) [] Nothing
              (PutCounters (Plus ThatMuch (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf))
+                          (PrintedKind Macros.plusOnePlusOne) (Macros.It))
              Repeatedly Nothing
 
 public export
@@ -348,7 +348,7 @@ badSingularCounterBatchSize : Unspellable (StaticSpec []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) OneCounter Nothing False) [] Nothing
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) ((Macros.It OneOf)))
+                          (PrintedKind Macros.plusOnePlusOne) ((Macros.It)))
              Repeatedly Nothing)
 badSingularCounterBatchSize Refl impossible
 
@@ -467,7 +467,7 @@ okInterceptsCounterEvent =
                                   (Macros.a Macros.creatureYouControl))
              [] Nothing
              (PutCounters (Plus ThatMuch (Lit 1))
-                          (PrintedKind Macros.plusOnePlusOne) (Macros.It OneOf))
+                          (PrintedKind Macros.plusOnePlusOne) (Macros.It))
              Repeatedly Nothing
 
 public export
@@ -506,7 +506,7 @@ public export
 badOtherwiseReadsIfArm : Unspellable (Instruction []) (\ok =>
   OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Macros.exists Macros.creatureYouControl)
-     (Just (SetStatus Tapped ((Macros.It OneOf) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
+     (Just (SetStatus Tapped ((Macros.It) {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsIfArm (Refl, _) impossible
 
 ||| "Create a 1/1 black Zombie creature token. Create two of those tokens."
@@ -566,7 +566,7 @@ okAgentlessCounterReplacement =
                                 HasPossessor ControllerAx (PlayerGroup YourTeam)])))
              [] Nothing
              (PutCounters (Plus ThatMuch (Lit 1)) ThoseKinds
-                          (Macros.That PermanentW OneOf))
+                          (Macros.That PermanentW))
              Repeatedly Nothing
 
 ||| "one or more counters would be put on a permanent your team controls"

@@ -98,12 +98,12 @@ public export
 okIfDoneReadsDoneBody : Instruction []
 okIfDoneReadsDoneBody =
   IfDone (Macros.exile (Macros.a Macros.creatureYouControl))
-         (Just (Macros.move (Macros.It OneOf) Macros.battlefieldZ)) Nothing
+         (Just (Macros.move (Macros.It) Macros.battlefieldZ)) Nothing
 
 ||| "Sacrifice a creature. If you don't, exile it."
 public export
 badIfNotReadsMandatoryBody : Unspellable (Instruction []) (\ok =>
-  (IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It OneOf) {ok})))))
+  (IfDone (Macros.sacrifice You (Macros.a Macros.creature)) Nothing (Just (Macros.exile ((Macros.It) {ok})))))
 badIfNotReadsMandatoryBody Refl impossible
 
 ||| "Counter target spell unless its controller pays {3}."
@@ -111,13 +111,13 @@ public export
 okUnlessManaCost : Instruction []
 okUnlessManaCost =
   Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
-                (CounterSpell (Macros.It OneOf)) (Mana [Macros.generic 3])
+                (CounterSpell (Macros.It)) (Mana [Macros.generic 3])
 
 ||| "Counter target spell unless its controller taps."
 public export
 badUnlessTapSymbol : Unspellable (Instruction []) (\ok =>
   Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
-                (CounterSpell ((Macros.It OneOf))) TapSymbol {pb = ok})
+                (CounterSpell ((Macros.It))) TapSymbol {pb = ok})
 badUnlessTapSymbol Oh impossible
 
 ||| "Activate only before the combat damage step."
@@ -467,7 +467,7 @@ afterAPlainLandTap =
 ||| "one mana of any type that land produced"
 public export
 okProducedByTapEvent : ProducedMana ProofsMana.afterALandTapForMana
-okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land) OneOf)
+okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land))
 
 ||| "Whenever a player taps a land, add one mana of any type that land
 ||| produced" — a tap that is not a mana ability resolving produces no mana
@@ -475,7 +475,7 @@ okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land) OneOf)
 public export
 badProducedByPlainTap :
   Unspellable (ProducedMana ProofsMana.afterAPlainLandTap) (\ok =>
-    ProducedByEvent (Macros.That (TypeW Land) OneOf) {pm = ok})
+    ProducedByEvent (Macros.That (TypeW Land)) {pm = ok})
 badProducedByPlainTap Refl impossible
 
 ||| "Add one mana of any type that land produced"
