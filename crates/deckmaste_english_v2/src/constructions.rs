@@ -5908,8 +5908,9 @@ trait ClauseVerbFrame {
 
 impl ClauseVerbFrame for PrepositionalPredicateAdjunctHost {
     fn visit_clause_verb_frame(&self, visitor: &mut dyn Visitor) {
-        if let Self::Verb(predicate) = self {
-            walk_verb_phrase(visitor, predicate);
+        match self {
+            Self::Verb(predicate) => walk_verb_phrase(visitor, predicate),
+            Self::CostComparison(_) | Self::Alternative(_) => {}
         }
     }
 }
