@@ -1495,6 +1495,10 @@ impl<V> ParserTrace<V> {
         &self.outcome
     }
     #[must_use]
+    pub fn selected(&self) -> Option<&V> {
+        self.analysis.selected()
+    }
+    #[must_use]
     pub const fn scanner_matches(&self) -> &Bounded<ScannerMatch> {
         self.structural.scanner_matches()
     }

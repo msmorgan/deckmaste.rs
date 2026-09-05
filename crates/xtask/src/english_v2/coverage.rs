@@ -26,6 +26,7 @@ use super::CoverageArgs;
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
+use super::packed;
 
 const REPORT_SCHEMA_VERSION: u32 = 10;
 
@@ -452,6 +453,8 @@ pub(super) struct SelectedCoverage {
     visited_leaves: usize,
     leaf_traversal_failure: Option<TraversalFailure>,
     longest_form_literal_bytes: usize,
+    #[serde(skip)]
+    packed: bool,
 }
 
 impl SelectedCoverage {
@@ -633,6 +636,7 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
                 visited_leaves: 0,
                 leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
+                packed: false,
             });
         }
         ParseAnalysisOutcome::ParseFailure => row.status = CoverageStatus::ParseFailure,
@@ -760,6 +764,9 @@ fn runtime_analysis_row(unit: &CorpusUnit, analysis: &ParseAnalysis<OracleText>)
             .filter_map(|claim| claim.span().end.checked_sub(claim.span().start))
             .max()
             .unwrap_or(0);
+        selected.packed = analysis
+            .selected()
+            .is_some_and(|value| !packed::oracle_text(value).is_empty());
     }
     row
 }
@@ -819,6 +826,10 @@ pub(super) struct CoverageSummary {
     overlap_bytes: usize,
     synthetic_claims: usize,
     provenance_plan_mismatches: usize,
+    #[serde(skip)]
+    packed_units: usize,
+    #[serde(skip)]
+    packed_unit_ids: Vec<String>,
 }
 
 #[cfg(test)]
@@ -895,6 +906,10 @@ impl CoverageSummary {
                 }
             }
             let Some(selected) = &row.selected else { continue };
+            if selected.packed {
+                checked_increment(&mut summary.packed_units, "packed_units")?;
+                summary.packed_unit_ids.push(row.id.clone());
+            }
             summary.accumulate_traversal(selected)?;
             summary.longest_form_literal_bytes = summary
                 .longest_form_literal_bytes
@@ -1493,8 +1508,15 @@ fn render_report(
     }
     let summary = serde_json::to_string(&report.summary)
         .context("serializing English-v2 coverage summary")?;
-    writeln!(output, "summary {summary} lock_mode={}", lock_policy.name())
-        .context("writing English-v2 coverage summary")?;
+    writeln!(
+        output,
+        "summary {summary} packed_units={} packed_unit_ids={} lock_mode={}",
+        report.summary.packed_units,
+        serde_json::to_string(&report.summary.packed_unit_ids)
+            .context("serializing packed-unit identities")?,
+        lock_policy.name()
+    )
+    .context("writing English-v2 coverage summary")?;
     Ok(())
 }
 
@@ -1587,6 +1609,7 @@ impl CoverageRow {
                 visited_leaves: 0,
                 leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
+                packed: false,
             }),
             internal_failure_kind: None,
             message: None,
@@ -1656,6 +1679,7 @@ impl CoverageRow {
                 visited_leaves: 0,
                 leaf_traversal_failure: None,
                 longest_form_literal_bytes: 0,
+                packed: false,
             }),
             internal_failure_kind: None,
             message: None,
@@ -1783,6 +1807,7 @@ impl CoverageReport {
                     visited_leaves: 0,
                     leaf_traversal_failure: None,
                     longest_form_literal_bytes: 0,
+                    packed: false,
                 }),
                 internal_failure_kind: None,
                 message: None,
@@ -1893,6 +1918,7 @@ fn covered_row_for_test(id: String, face_name: Option<&str>) -> CoverageRow {
             visited_leaves: 0,
             leaf_traversal_failure: None,
             longest_form_literal_bytes: 0,
+            packed: false,
         }),
         internal_failure_kind: None,
         message: None,
@@ -2400,6 +2426,7 @@ mod tests {
         rows[0].selected_mut_for_test().expected_leaves = 31;
         rows[0].selected_mut_for_test().visited_leaves = 31;
         rows[0].selected_mut_for_test().longest_form_literal_bytes = 11;
+        rows[0].selected_mut_for_test().packed = true;
         rows[1].selected_mut_for_test().nonterminal_nodes = 25;
         rows[1].selected_mut_for_test().visited_constructions = 25;
         rows[1].selected_mut_for_test().expected_leaves = 47;
@@ -2444,6 +2471,8 @@ mod tests {
         assert_eq!(summary.longest_form_literal_bytes(), 11);
         assert_eq!(summary.claims(), 55);
         assert_eq!(summary.claimed_bytes(), 550);
+        assert_eq!(summary.packed_units, 1);
+        assert_eq!(summary.packed_unit_ids, [id('1')]);
 
         assert_eq!(
             serde_json::to_value(summary).unwrap(),

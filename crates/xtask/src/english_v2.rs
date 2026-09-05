@@ -9,6 +9,7 @@ mod diagnostic;
 mod flavor_words;
 mod inspect;
 mod licensing_checkers;
+mod packed;
 mod parse;
 mod probe;
 mod report;

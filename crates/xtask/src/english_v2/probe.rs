@@ -14,6 +14,7 @@ use super::ProbeOnset;
 use super::ProbeRoot;
 use super::diagnostic;
 use super::diagnostic::DiagnosticReport;
+use super::packed;
 
 pub(super) fn run(args: &ProbeArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     orchestrate(args, output, &mut ProductionSteps)
@@ -46,6 +47,14 @@ trait ProbeSteps {
         json: bool,
         output: &mut dyn Write,
     ) -> anyhow::Result<()>;
+    fn render_packed(
+        &mut self,
+        _trace: &Self::Trace,
+        _json: bool,
+        _output: &mut dyn Write,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 struct ProductionSteps;
@@ -120,6 +129,29 @@ impl ProbeSteps for ProductionSteps {
     ) -> anyhow::Result<()> {
         diagnostic::render(report, json, output)
     }
+
+    fn render_packed(
+        &mut self,
+        trace: &Self::Trace,
+        json: bool,
+        output: &mut dyn Write,
+    ) -> anyhow::Result<()> {
+        if json {
+            return Ok(());
+        }
+        let packed_sites = match trace {
+            ProductionTrace::Ability(trace) => {
+                trace.selected().map_or_else(Vec::new, packed::ability)
+            }
+            ProductionTrace::Sentence(trace) => {
+                trace.selected().map_or_else(Vec::new, packed::sentence)
+            }
+            ProductionTrace::OracleText(trace) => {
+                trace.selected().map_or_else(Vec::new, packed::oracle_text)
+            }
+        };
+        packed::write_human(&packed_sites, output)
+    }
 }
 
 fn orchestrate<S: ProbeSteps>(
@@ -143,6 +175,7 @@ fn orchestrate<S: ProbeSteps>(
     );
     let report = steps.map(&args.text, &args.context, &trace);
     steps.render(&report, args.json, output)?;
+    steps.render_packed(&trace, args.json, output)?;
     output.flush().context("flush English-v2 probe output")?;
 
     if let Some((kind, message)) = report.internal_failure() {

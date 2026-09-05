@@ -14,6 +14,7 @@ use super::corpus::CorpusUnit;
 use super::corpus::ValidatedCorpusId;
 use super::diagnostic;
 use super::diagnostic::DiagnosticReport;
+use super::packed;
 
 pub(super) fn run(args: &InspectArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     orchestrate(args, output, &mut ProductionSteps)
@@ -50,6 +51,14 @@ trait InspectSteps {
         output: &mut dyn Write,
     ) -> anyhow::Result<()>;
     fn flush(&mut self, output: &mut dyn Write) -> anyhow::Result<()>;
+    fn render_packed(
+        &mut self,
+        _trace: &Self::Trace,
+        _json: bool,
+        _output: &mut dyn Write,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 struct ProductionSteps;
@@ -123,6 +132,19 @@ impl InspectSteps for ProductionSteps {
     fn flush(&mut self, output: &mut dyn Write) -> anyhow::Result<()> {
         output.flush().context("flush English-v2 inspect output")
     }
+
+    fn render_packed(
+        &mut self,
+        trace: &Self::Trace,
+        json: bool,
+        output: &mut dyn Write,
+    ) -> anyhow::Result<()> {
+        if json {
+            return Ok(());
+        }
+        let packed_sites = trace.selected().map_or_else(Vec::new, packed::oracle_text);
+        packed::write_human(&packed_sites, output)
+    }
 }
 
 fn orchestrate<S: InspectSteps>(
@@ -148,6 +170,7 @@ fn orchestrate<S: InspectSteps>(
         .expect("thread CPU clock is monotonic");
     let report = steps.map(&unit, &trace);
     steps.render(&report, args.json, output)?;
+    steps.render_packed(&trace, args.json, output)?;
     steps.flush(output)?;
     super::corpus::write_corpus_performance(
         "inspect",

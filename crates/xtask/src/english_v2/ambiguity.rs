@@ -18,6 +18,8 @@ use super::corpus::Corpus;
 use super::corpus::CorpusPerformance;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
+use super::packed;
+use super::packed::PackedSite;
 
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
@@ -211,6 +213,7 @@ struct AmbiguityRow {
     message: Option<String>,
     internal_kind: Option<InternalKind>,
     decision: Option<SelectionDecision>,
+    packed_sites: Vec<PackedSite>,
 }
 
 impl AmbiguityRow {
@@ -225,6 +228,9 @@ impl AmbiguityRow {
 
         let analysis = parser.analyze_oracle_text(unit.text(), &context);
         row.decision = analysis.decision().map(SelectionDecision::from_parser);
+        row.packed_sites = analysis
+            .selected()
+            .map_or_else(Vec::new, packed::oracle_text);
         match analysis.outcome() {
             ParseAnalysisOutcome::Selected => {
                 row.status = AmbiguityStatus::Selected;
@@ -256,6 +262,7 @@ impl AmbiguityRow {
             message: None,
             internal_kind: None,
             decision: None,
+            packed_sites: Vec::new(),
         }
     }
 
@@ -311,6 +318,10 @@ struct AmbiguitySummary {
     parse_failures: usize,
     internal_failures: usize,
     exception_uses: usize,
+    #[serde(skip)]
+    packed_units: usize,
+    #[serde(skip)]
+    packed_unit_ids: Vec<String>,
 }
 
 impl AmbiguitySummary {
@@ -334,6 +345,10 @@ impl AmbiguitySummary {
                         }
                     }
                     summary.exception_uses += decision.exception_uses.len();
+                    if !row.packed_sites.is_empty() {
+                        summary.packed_units += 1;
+                        summary.packed_unit_ids.push(row.id.clone());
+                    }
                 }
                 AmbiguityStatus::ParseFailure => summary.parse_failures += 1,
                 AmbiguityStatus::UnresolvedTie => {
@@ -443,6 +458,7 @@ impl AmbiguityReport {
                     .then(|| format!("Fixture {number} failed.")),
                 internal_kind: None,
                 decision: None,
+                packed_sites: Vec::new(),
             }
         }
         fn candidate(ordinal: usize, tier: SpecificityTier) -> SelectionCandidate {
@@ -506,6 +522,7 @@ impl AmbiguityReport {
             resolution: SelectionResolution::Exception,
             exception_uses: vec!["fixture-right-wins".to_owned()],
         });
+        rows[1].packed_sites = vec![packed::fixture()];
         rows[4].decision = Some(SelectionDecision {
             candidates: (0..3)
                 .map(|ordinal| SelectionCandidate {
@@ -667,6 +684,14 @@ fn render_report(
     .context("writing English-v2 ambiguity census summary")?;
     writeln!(output, "summary exception_uses={}", summary.exception_uses)
         .context("writing English-v2 ambiguity census summary")?;
+    writeln!(
+        output,
+        "summary packed_units={} packed_unit_ids={}",
+        summary.packed_units,
+        serde_json::to_string(&summary.packed_unit_ids)
+            .context("serializing packed-unit identities")?
+    )
+    .context("writing English-v2 ambiguity packed-unit census")?;
     Ok(())
 }
 
@@ -827,6 +852,17 @@ mod tests {
             serde_json::json!(["fixture-right-wins"])
         );
         assert_eq!(
+            json["rows"][1]["packed_sites"],
+            serde_json::json!([{
+                "construction_path": ["Fixture"],
+                "role": "mobile",
+                "paths": [[
+                    {"role": {"name": "host"}},
+                    {"conjunct": {"name": "members", "ordinal": 1}}
+                ]]
+            }])
+        );
+        assert_eq!(
             json["rows"][4]["decision"]["survivors"],
             serde_json::json!([0, 1, 2])
         );
@@ -894,6 +930,11 @@ mod tests {
             summary.unique + summary.specificity_resolved + summary.exception_resolved
         );
         assert_eq!(summary.exception_uses, 1);
+        assert_eq!(summary.packed_units, 1);
+        assert_eq!(
+            summary.packed_unit_ids,
+            ["0000000000000000000000000000000000000000000000000000000000000002"]
+        );
     }
 
     #[test]
