@@ -359,6 +359,13 @@ def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "increase or decrease the result by N" -/
 def shiftResult (amount : Amount) : Instruction := .shiftResult none amount
+/-- A deontic clause with no bound, premise, or rider. -/
+def deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
+    (patient : DeonticPatient) : StaticSpec :=
+  .deontic subject compulsion deeds role none patient none .noRider
+/-- "When <event>, <instruction>" as a delayed trigger. -/
+def delayed (event : GameEvent) (instruction : Instruction) : Instruction :=
+  .delayed event [] none instruction
 /-- "<subject> can't attack [this turn]" -/
 def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid ["Attack"] .agent none .noPatient none .noRider) duration
