@@ -1889,7 +1889,7 @@ mod tests {
                 Lex("Preposition", "On"),
                 Role("FrameComplement"),
                 Literal("in"),
-                Role("ObjectOrder"),
+                Role("OrderDeterminer"),
                 Literal("order"),
             ]),
         ));
@@ -1909,7 +1909,7 @@ mod tests {
             &core(CoreVerbIdentity::Cost),
             predicate(&[
                 Role("ManaAmount"),
-                Role("CostComparisonDirection"),
+                Role("ComparisonDirection"),
                 Role("ControlledCostAction"),
             ]),
         ));

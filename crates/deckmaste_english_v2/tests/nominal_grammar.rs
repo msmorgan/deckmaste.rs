@@ -4,7 +4,7 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CommonNoun;
-use deckmaste_english_v2::ast::CostComparisonDirection;
+use deckmaste_english_v2::ast::ComparisonDirection;
 use deckmaste_english_v2::ast::CountReference;
 use deckmaste_english_v2::ast::MannerReference;
 use deckmaste_english_v2::ast::Noun;
@@ -871,7 +871,7 @@ fn assert_former_count_fixture_ownership(
             37,
             42,
             LexicalProvenanceKind::Vocab,
-            "vocab:CostComparisonDirection/Less",
+            "vocab:ComparisonDirection/Less",
         ),
         (42, 47, LexicalProvenanceKind::Lexeme, "core-verb:Gain"),
         (47, 49, LexicalProvenanceKind::Vocab, "vocab:Variable/X"),
@@ -1018,7 +1018,7 @@ fn former_count_fixture_has_exact_compositional_ast_and_ownership() {
             value: ScalarNumber { magnitude: 2 },
         })
     ));
-    assert_eq!(comparison.direction(), CostComparisonDirection::Less);
+    assert_eq!(comparison.direction(), ComparisonDirection::Less);
     let deckmaste_english_v2::ast::Predicate::Atomic(predicate) = predicate else {
         panic!("gain-life comparison keeps an atomic predicate")
     };

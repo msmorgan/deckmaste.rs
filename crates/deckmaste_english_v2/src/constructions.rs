@@ -31,7 +31,7 @@ constructions! {
     vocab BareCopula { Be = "be", }
     vocab PredicativeAdjective { Legendary = "legendary", }
     vocab FaceOrientation { FaceUp = "face up", }
-    vocab ObjectOrder { Any = "any", Random = "a random", }
+    vocab OrderDeterminer { Any = "any", Random = "a random", }
     // Attachment and bare-complement licensing are orthogonal declared facts.
     // Every member spells out both values so additions cannot inherit a
     // permissive default accidentally.
@@ -149,8 +149,8 @@ constructions! {
         Youre = "you're",
     }
     vocab FloatedQuantifier { All = "all", Both = "both", Each = "each", }
-    vocab CostComparisonDirection { More = "more", Less = "less", }
-    vocab DistributionReplacement { Instead = "instead", }
+    vocab ComparisonDirection { More = "more", Less = "less", }
+    vocab ReplacementMarker { Instead = "instead", }
     vocab PastPossession { Had = "had", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     vocab SubjectPronoun { He = "he", It = "it", She = "she", They = "they", You = "you", }
@@ -602,7 +602,7 @@ constructions! {
             feature = ConcordClass;
         }
     }
-    codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, DistributionReplacement?]; feature = ConcordClass; } }
+    codec DistributedMeasureVerb { generate declaration_verb { position = Verb; tail = [Amount, MassNoun, DistributionPhrase, ReplacementMarker?]; feature = ConcordClass; } }
     codec ObjectEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality]; feature = ConcordClass; } }
     codec ObjectEqualityToVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, ScalarEquality, lex(Preposition::To), recipient: Object]; feature = ConcordClass; } }
     codec ObjectToEqualityVerb { generate declaration_verb { position = Verb; tail = [object: ObjectNounPhrase, lex(Preposition::To), recipient: Object, ScalarEquality]; feature = ConcordClass; } }
@@ -692,7 +692,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", ObjectOrder, "order"];
+            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", OrderDeterminer, "order"];
             feature = ConcordClass;
         }
     }
@@ -716,7 +716,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [ManaAmount, CostComparisonDirection, ControlledCostAction];
+            tail = [ManaAmount, ComparisonDirection, ControlledCostAction];
             feature = ConcordClass;
         }
     }
@@ -1908,13 +1908,13 @@ constructions! {
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             order_relation: lex Preposition,
-            order: lex ObjectOrder,
+            determiner: lex OrderDeterminer,
         }
         require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
         derive concord_class = head.concord_class;
         form ordered_predicate =
-            verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(order) "order";
+            verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(determiner) "order";
     }
     construction irrealis_copular_clause: IrrealisCopularClause {
         element IrrealisCopularClauseValue {
@@ -1994,11 +1994,11 @@ constructions! {
     construction instead_predicate: InsteadPredicate {
         element InsteadPredicateValue {
             predicate: Predicate,
-            replacement: lex DistributionReplacement,
+            marker: lex ReplacementMarker,
         }
-        require replacement is Instead;
+        require marker is Instead;
         derive concord_class = predicate.concord_class;
-        form instead_predicate = predicate lex(replacement);
+        form instead_predicate = predicate lex(marker);
     }
     // A frequency adverbial counts occurrences of the predicate; "more than
     // once" is the comparative form.
@@ -2054,7 +2054,7 @@ constructions! {
         element CostComparisonPredicateValue {
             head: lex CostComparisonVerb,
             amount: ManaAmount,
-            direction: lex CostComparisonDirection,
+            direction: lex ComparisonDirection,
             action: ControlledCostAction,
         }
         derive concord_class = head.concord_class;
@@ -3069,12 +3069,12 @@ constructions! {
     }
     construction any_number_quantifying_determiner: Determinative {
         element AnyNumberQuantifyingDeterminer {
-            order: lex ObjectOrder,
+            determiner: lex OrderDeterminer,
             unit: Head,
             relation: lex Preposition,
         }
         require unit.number is Singular;
-        require order is Any;
+        require determiner is Any;
         require relation is Of;
         derive concord_class = Values::Other;
         derive number = Values::Plural;
@@ -3082,10 +3082,10 @@ constructions! {
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Vowel;
-        form any_number_quantifying_determiner = lex(order) unit lex(relation);
+        form any_number_quantifying_determiner = lex(determiner) unit lex(relation);
     }
     construction no_more_quantifying_determiner: Determinative {
-        element NoMoreQuantifyingDeterminer { direction: lex CostComparisonDirection, }
+        element NoMoreQuantifyingDeterminer { direction: lex ComparisonDirection, }
         require direction is More;
         derive concord_class = Values::Other;
         derive number = Values::Plural;
@@ -3598,7 +3598,7 @@ constructions! {
     construction scalar_or_less: ScalarComparison {
         element ScalarOrLess {
             threshold: ScalarThreshold,
-            direction: lex CostComparisonDirection,
+            direction: lex ComparisonDirection,
         }
         require direction is Less;
         form scalar_or_less = threshold "or" lex(direction);
@@ -3613,7 +3613,7 @@ constructions! {
     }
     construction scalar_less_than: ScalarComparison {
         element ScalarLessThan {
-            direction: lex CostComparisonDirection,
+            direction: lex ComparisonDirection,
             threshold: ScalarThreshold,
         }
         require direction is Less;
@@ -3629,7 +3629,7 @@ constructions! {
     }
     construction scalar_less_than_or_equal_to: ScalarComparison {
         element ScalarLessThanOrEqualTo {
-            direction: lex CostComparisonDirection,
+            direction: lex ComparisonDirection,
             degree: lex ScalarDegree,
             threshold: ScalarThreshold,
         }
@@ -4326,11 +4326,11 @@ constructions! {
             amount: Amount,
             measure: MassNoun,
             distribution: DistributionPhrase,
-            replacement: opt lex DistributionReplacement,
+            marker: opt lex ReplacementMarker,
         }
         derive concord_class = head.concord_class;
         form distributed_measure_predicate =
-            verb(head) amount measure distribution lex(replacement);
+            verb(head) amount measure distribution lex(marker);
     }
     construction declared_object_equality_to_predicate: VerbPhrase {
         element DeclaredObjectEqualityToPredicate {

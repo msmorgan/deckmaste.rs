@@ -33,7 +33,7 @@
     (identity: Cost, bare: "cost", third_person: "costs", frames: [
         Predicate([
             Role("ManaAmount"),
-            Role("CostComparisonDirection"),
+            Role("ComparisonDirection"),
             Role("ControlledCostAction"),
         ]),
     ]),
@@ -43,7 +43,7 @@
             Amount,
             Role("MassNoun"),
             Role("DistributionPhrase"),
-            OptionalRole("DistributionReplacement"),
+            OptionalRole("ReplacementMarker"),
         ]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality"), Lex("Preposition", "To"), Role("Object")]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), Role("Object"), Role("ScalarEquality")]),
@@ -129,7 +129,7 @@
             Lex("Preposition", "On"),
             Role("FrameComplement"),
             Literal("in"),
-            Role("ObjectOrder"),
+            Role("OrderDeterminer"),
             Literal("order"),
         ]),
     ]),

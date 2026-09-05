@@ -3876,7 +3876,7 @@ impl Visitor for AdjunctSurfaceVisitor {
         deckmaste_english_v2::visit::walk_at_random_manner(self, value);
     }
 
-    fn visit_object_order(&mut self, value: ObjectOrder) {
+    fn visit_order_determiner(&mut self, value: OrderDeterminer) {
         self.0.push(format!("order:{value:?}"));
     }
 
@@ -4027,7 +4027,7 @@ fn cost_position_reuses_the_typed_predicate_algebra() {
             ),
             (
                 " instead".to_owned(),
-                "vocab:DistributionReplacement/Instead".to_owned(),
+                "vocab:ReplacementMarker/Instead".to_owned(),
             ),
             (": ".to_owned(), "form:activated/activated/1".to_owned(),),
             ("Draw".to_owned(), "core-verb:Draw".to_owned(),),

@@ -554,7 +554,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                                     value: ScalarNumber { magnitude: 2 },
                                                 },
                                             ),
-                                            CostComparisonDirection::Less,
+                                            ComparisonDirection::Less,
                                         )
                                         .expect(
                                             "the closed member satisfies the direction requirement",
