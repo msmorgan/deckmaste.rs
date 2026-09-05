@@ -29,6 +29,16 @@ does not exist; `docs/decisions/README.md` indexes it. Deliver:
   Idris→Lean phrasebook into the ADR's appendix, so the README describes the
   workbench as it is.
 
+- The `gh-pages` bookmark is out of tree and easy to forget: its
+  `index.html` (the live deckmaste.rs landing page) links the README and the
+  guided tour and describes the pipeline in its own words. Audit it in the
+  same landing: today it names neither workbench (checked 2026-09-05, bookmark
+  and live site identical), so the work is to keep its prose and links true
+  once those two docs change, and to add the Lean workbench to its
+  "what's implemented" list if the page is to mention verification at all.
+  The bookmark is hand-authored; edit it on its own line, never from a
+  feature workspace.
+
 Historical ADRs (`semantics-spelling-lowering`, `semantics-v2`,
 `oracle-text-is-forward-anaphoric`, `workbench-ron-shaped-and-label-rulings`
 and the rest that cite Idris files as evidence) are not rewritten; each gets
