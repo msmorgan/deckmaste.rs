@@ -115,6 +115,26 @@ theorem badGoadedPlayer :
       = [.designationScope "goaded", .designationHolder "goaded" .player] := by
   decide
 
+/-- "… it becomes monstrous," conferred by the Monstrosity keyword action's own expansion. -/
+theorem okMonstrousByDeed :
+    Instruction.check [] (.gainsDesignation thisCreature "monstrous" (.byDeed "Monstrosity") none)
+      = [] := by
+  decide
+
+/-- The same conferral misattributed to a keyword ability: Monstrosity is a keyword action
+(a deed), so no keyword row confers "monstrous". -/
+theorem badMonstrousByKeyword :
+    Instruction.check []
+      (.gainsDesignation thisCreature "monstrous" (.byKeyword "Monstrosity") none)
+      = [.designationChecked "monstrous"] := by
+  decide
+
+/-- "You get an enduring story," conferred by the storied keyword ability's own expansion. -/
+theorem okEnduringStoryByStoried :
+    Instruction.check [] (.gainsDesignation .you "an enduring story" (.byKeyword "Storied") none)
+      = [] := by
+  decide
+
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/
 theorem okStillALand :
     StaticSpec.check []

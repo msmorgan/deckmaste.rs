@@ -431,11 +431,12 @@ inductive LockState where
   | locked | unlocked
   deriving DecidableEq, Repr
 
-/-- How a designation was conferred: by an instruction, or in a keyword's expansion, named
-by the keyword. -/
+/-- How a designation was conferred: by an instruction, in a keyword ability's expansion, or
+in a keyword action's (deed's) expansion, named by the conferrer. -/
 inductive Conferral where
   | instructed
   | byKeyword (keyword : KeywordLabel)
+  | byDeed (deed : VerbLabel)
   deriving DecidableEq, Repr
 
 inductive AttachWord where

@@ -189,6 +189,8 @@ structure ActFacts where
   /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
   own library is a different deed. -/
   opponentsLibrary : Bool := false
+  /-- The designation this keyword action's expansion confers, if any [CR#701.37a]. -/
+  confers : Option DesignationLabel := none
   deriving Repr, BEq
 
 private def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
@@ -231,7 +233,7 @@ def actFacts : List ActFacts :=
       agentRole := playerAgent, feature := some .librarySearch, bounded := true },
     { label := "Shuffle", loci := [.library], agentRole := playerAgent },
     { label := "Proliferate", agentRole := playerAgent },
-    { label := "The Ring Tempts You" },
+    { label := "The Ring Tempts You", confers := some "Ring-bearer" },
     { label := "Transform", intransitive := true, agentRole := playerAgent,
       patientRole := fieldObject },
     { label := "Convert", intransitive := true, agentRole := playerAgent,
@@ -311,15 +313,15 @@ def actFacts : List ActFacts :=
     { label := "Fateseal", stepwise := true, agentRole := playerAgent, opponentsLibrary := true },
     { label := "Fight" },
     { label := "Forage", agentRole := playerAgent },
-    { label := "Goad", agentRole := playerAgent },
-    { label := "Harness" },
+    { label := "Goad", agentRole := playerAgent, confers := some "goaded" },
+    { label := "Harness", confers := some "harnessed" },
     { label := "Heal" },
     { label := "Incubate", dest := some .battlefield, agentRole := playerAgent },
     { label := "Investigate", dest := some .battlefield, agentRole := playerAgent },
     { label := "Learn" },
     { label := "Manifest", dest := some .battlefield, agentRole := playerAgent },
     { label := "Manifest Dread", agentRole := playerAgent },
-    { label := "Monstrosity" },
+    { label := "Monstrosity", confers := some "monstrous" },
     { label := "Open An Attraction" },
     { label := "Planeswalk", agentRole := playerAgent },
     { label := "Populate" },
@@ -328,7 +330,7 @@ def actFacts : List ActFacts :=
     { label := "Roll To Visit Your Attractions" },
     { label := "Set In Motion" },
     { label := "Support" },
-    { label := "Suspect", agentRole := playerAgent },
+    { label := "Suspect", agentRole := playerAgent, confers := some "suspected" },
     { label := "Time Travel" },
     { label := "Triple" },
     { label := "Phase In", intransitive := true,
@@ -1160,34 +1162,34 @@ structure DesignationFacts where
   effectful : Bool
   zone : Option Zone
   type : Option CardType
-  /-- The keyword whose expansion confers it, if a keyword owns it. -/
-  keyword : Option KeywordLabel
   /-- Which half of a Room permanent this designation unlocks, for the two that do. -/
   half : Option RoomHalf := none
   deriving Repr, BEq
 
-def playerHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .player, true, none, none, keyword, none⟩
+def playerHeld (label : String) : DesignationFacts :=
+  ⟨label, .heldBy .player, true, none, none, none⟩
 
-def creatureHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, some .creature, keyword, none⟩
+def permanentHeld (label : String) : DesignationFacts :=
+  ⟨label, .heldBy .object, true, some .battlefield, none, none⟩
 
-def permanentHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, none, keyword, none⟩
-
-/-- The designations the CR defines today: those of [CR#701.15b,701.37b,701.54b,701.60b,701.64b], the keyword ones of [CR#702.112b,702.131c,702.158b,702.171b,702.195b], levels [CR#716.2b], solved [CR#719.3b], the monarch and the initiative [CR#725.1,726.1], day and night [CR#731.1]. -/
+/-- The designations the CR defines today: those of
+[CR#701.15b,701.37b,701.54b,701.60b,701.64b], the keyword ones of
+[CR#702.112b,702.131c,702.158b,702.171b,702.195b], levels [CR#716.2b], solved [CR#719.3b], the
+monarch and the initiative [CR#725.1,726.1], day and night [CR#731.1]. Which keyword or deed
+confers a row is not carried here: it is declared with the conferrer itself, in
+`keywordFacts`/`actFacts`, and read back by `conferralOk`. -/
 def designationTable : List DesignationFacts := [
   playerHeld "the monarch", playerHeld "the initiative",
-  playerHeld "the city's blessing" (some "Ascend"), playerHeld "an enduring story",
-  creatureHeld "goaded", creatureHeld "Ring-bearer", creatureHeld "monstrous" (some "Monstrosity"),
-  creatureHeld "renowned" (some "Renown"), creatureHeld "suspected", creatureHeld "prepared",
-  creatureHeld "Alpha sector", creatureHeld "Beta sector", creatureHeld "Gamma sector",
-  permanentHeld "saddled" (some "Saddle"), permanentHeld "harnessed", permanentHeld "level",
+  playerHeld "the city's blessing", playerHeld "an enduring story",
+  permanentHeld "goaded", permanentHeld "Ring-bearer", permanentHeld "monstrous",
+  permanentHeld "renowned", permanentHeld "suspected", permanentHeld "prepared",
+  permanentHeld "alpha sector", permanentHeld "beta sector", permanentHeld "gamma sector",
+  permanentHeld "saddled", permanentHeld "harnessed", permanentHeld "level",
   permanentHeld "solved", { permanentHeld "left half unlocked" with half := some .left },
   { permanentHeld "right half unlocked" with half := some .right },
-  ⟨"commander", .heldByCard, false, none, none, none, none⟩,
-  ⟨"day", .heldByGame, true, none, none, none, none⟩,
-  ⟨"night", .heldByGame, true, none, none, none, none⟩ ]
+  ⟨"commander", .heldByCard, false, none, none, none⟩,
+  ⟨"day", .heldByGame, true, none, none, none⟩,
+  ⟨"night", .heldByGame, true, none, none, none⟩ ]
 
 def findDesignation (label : DesignationLabel) : List DesignationFacts → Option DesignationFacts
   | [] => none
@@ -1242,12 +1244,6 @@ def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
   ((designationTable.find? (·.half == some h)).map (·.label)).getD ""
 
 def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
-
-/-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; conferral by
-a keyword must be by the keyword that owns that designation. -/
-def conferralOk (label : DesignationLabel) : Conferral → Bool
-  | .instructed => label.checked
-  | .byKeyword keyword => label.facts.bind (·.keyword) == some keyword
 
 /-- A combat relation written without its counterpart ("attacking", "blocking", "blocked"):
 the ones that read as a bare participle. -/

@@ -54,6 +54,8 @@ structure KeywordFacts where
   [CR#702.21a,702.24a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. -/
   bodied : Bool := false
   wantsModes : Bool := false
+  /-- The designation this keyword ability's expansion confers, if any [CR#702.112a]. -/
+  confers : Option DesignationLabel := none
   deriving Repr, BEq
 
 def keywordFacts : List KeywordFacts :=
@@ -76,9 +78,10 @@ def keywordFacts : List KeywordFacts :=
     { word := "Enchant", paramShapes := [.subject] },
     { word := "Equip", paramShapes := [.cost, .compound .quality], paidCost := true },
     { word := "Suspend", paramShapes := [.compound .number], onInstantOrSorceryCard := true, paidCost := true },
-    { word := "Ascend", paramShapes := [.noParam], onInstantOrSorceryCard := true },
-    { word := "Storied", paramShapes := [.noParam] },
-    { word := "Renown", paramShapes := [.number], bodied := true },
+    { word := "Ascend", paramShapes := [.noParam], onInstantOrSorceryCard := true,
+      confers := some "the city's blessing" },
+    { word := "Storied", paramShapes := [.noParam], confers := some "an enduring story" },
+    { word := "Renown", paramShapes := [.number], bodied := true, confers := some "renowned" },
     { word := "Indestructible", paramShapes := [.noParam], counterEligible := true },
     { word := "Flash", paramShapes := [.noParam], regime := some .atCasting, functionsOnStack := true, onInstantOrSorceryCard := true },
     { word := "Kicker", paramShapes := [.cost], regime := some .atCasting, functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true },
@@ -110,7 +113,7 @@ def keywordFacts : List KeywordFacts :=
     { word := "Landwalk", paramShapes := [.quality] },
     { word := "Changeling", paramShapes := [.noParam], onInstantOrSorceryCard := true },
     { word := "Crew", paramShapes := [.number] },
-    { word := "Saddle", paramShapes := [.number] },
+    { word := "Saddle", paramShapes := [.number], confers := some "saddled" },
     { word := "PartnerWith", paramShapes := [.quality] },
     { word := "Emerge", paramShapes := [.cost], regime := some .atCasting, functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true },
     { word := "Craft", paramShapes := [.cost], paidCost := true },
@@ -334,5 +337,14 @@ def CounterKind.known : CounterKind → Bool
   | .boost p t => counterShift p && counterShift t
   | .keyword k => keywordCounterOk k
   | .named l => knownCounter l
+
+/-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; conferral by
+a keyword ability or a keyword action (deed) must be by the one whose expansion declares it.
+Lives here, not in `Check.Words`, because it is the first module that can see both
+`keywordFacts` (this file) and `actFacts` (`Check.Words`) without a cycle. -/
+def conferralOk (label : DesignationLabel) : Conferral → Bool
+  | .instructed => label.checked
+  | .byKeyword keyword => (keywordFactsFor keyword).bind (·.confers) == some label
+  | .byDeed deed => (actFactsFor deed).bind (·.confers) == some label
 
 end Semantics
