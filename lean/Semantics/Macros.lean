@@ -238,6 +238,7 @@ def anOpponent : NounPhrase := a .opponent
 def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
 def thisLand : NounPhrase := .asType .land .this none
+def thisPermanent : NounPhrase := .asMarker .permanent .this
 def thisSpell : NounPhrase := .asMarker .spell .this
 def thisRoom : NounPhrase := .asType .enchantment .this (some (enchantmentType "Room"))
 def thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
@@ -272,6 +273,8 @@ def onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
 def pileOfChoice (player : NounPhrase) : NounPhrase := .pileOf (.counted (exactly 1)) (some player)
 /-- "you and <subject>" -/
 def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
+/-- "you or <subject>" -/
+def youOr (subject : NounPhrase) : NounPhrase := .eitherOf .you subject
 def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
 def ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
@@ -625,6 +628,10 @@ def sharedSubject (subject : NounPhrase) (parts : List StaticSpec) (duration : O
 def ifWouldInstead (event : GameEvent) (replacement : Instruction) (duration : Option Duration) :
     Instruction :=
   .continuously (.intercepts event [] none replacement .repeatedly none) duration
+/-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
+def preventAll (kind : DamageKind) (scope : DamageScope) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
 /-- "The next time <event> would happen, <replacement> instead [duration]." -/
 def nextTimeWouldInstead (event : GameEvent) (replacement : Instruction)
     (duration : Option Duration) : Instruction :=
@@ -642,6 +649,18 @@ def playerCant (deed : Deed) (player : NounPhrase) : StaticSpec :=
 /-- "<spec> as long as <condition>" -/
 def onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditionally spec condition .asLongAs
+/-- "<spec> unless <condition>" -/
+def onlyUnless (spec : StaticSpec) (condition : Condition) : StaticSpec :=
+  .conditionally spec (.not condition) .unless_
+/-- "<who> can't <deed> <what>" -/
+def cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
+  .deontic who .forbid [deed] .agent none (.counterpart what) none .noRider
+/-- "<what> can't be the target of <by>" -/
+def cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
+  .deontic what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider
+/-- "<what> can be the target of <by> as though it didn't have <p>" -/
+def canBeTargetedAsThough (what by_ : NounPhrase) (p : Predicate) : StaticSpec :=
+  .deontic what .permit [.core .target] .patient none (.targetedBy by_) (some (.of p)) .noRider
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
 def throughout (spec : StaticSpec) (duration : Duration) : Instruction :=
   .continuously spec (some duration)
@@ -667,6 +686,9 @@ def thatTurns : HeaderPossessor := .byTurn thatTurn
 def dealsCombatDamage (source : NounPhrase) (patient : NounPhrase) : GameEvent :=
   .dealsDamage .combatOnly source (some patient)
 def attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject none
+/-- "<subject> attacks <whom>" -/
+def attacksPlayer (subject whom : NounPhrase) : GameEvent :=
+  .combat .attackerOf subject (some whom)
 def blocks (subject : NounPhrase) (blocked : Option NounPhrase) : GameEvent :=
   .combat .blockerOf subject blocked
 def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent :=
@@ -767,6 +789,21 @@ def stormExpansion : Ability :=
             (a (.and [spell, .otherThan thisSpell])))
           [],
         may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
+/-- Cumulative upkeep's reminder text: "At the beginning of your upkeep, if this permanent is
+on the battlefield, put an age counter on it. Then you may pay [cost] for each age counter on
+it. If you don't, sacrifice it." [CR#702.24a] -/
+def cumulativeUpkeepExpansion (cost : Cost) : Ability :=
+  triggeredIf (.beginningOf .the .upkeep (.byPlayer .you))
+    (.matches thisPermanent (.inZone battlefield))
+    (.sequentially
+      [ .putCounters (.lit 1) (.printed (.named "Age")) thisPermanent,
+        .may .you
+          (.pay .you (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent)))
+            .once)
+          none (some (sacrifice .you thisPermanent)) ])
+/-- "Cumulative upkeep [cost]" with its reminder text. -/
+def cumulativeUpkeep (cost : Cost) : Ability :=
+  .keyword "CumulativeUpkeep" (some (.cost cost)) (some (cumulativeUpkeepExpansion cost))
 def activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
 /-- "[cost]: <instruction>. Activate only <timing>." -/
