@@ -6,8 +6,8 @@ constructions! {
         form child = "child";
     }
     construction invalid: Root {
-        element Invalid { mobile_tail: mobile Child, suffix: Child, }
-        form invalid = mobile_tail suffix;
+        element Invalid { prefix: Child, mobile_middle: mobile Child, suffix: Child, }
+        form invalid = prefix mobile_middle suffix;
     }
     root Root { punctuation = "."; eoi = true; standalone_render = true; }
 }

@@ -1,0 +1,5 @@
+error: mobile role `mobile_middle` must be at an edge or adjacent to a `seq` role in form `invalid`
+ --> tests/compile_fail/mobile_role_not_edge.rs:9:42
+  |
+9 |         element Invalid { prefix: Child, mobile_middle: mobile Child, suffix: Child, }
+  |                                          ^^^^^^^^^^^^^

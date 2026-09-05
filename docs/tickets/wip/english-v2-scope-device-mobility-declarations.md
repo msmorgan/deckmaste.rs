@@ -90,3 +90,88 @@ unresolved ties.
 Terms the design needs that `docs/contexts/oracle-english/CONTEXT.md` does not
 define: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing, Mobility.
 Listed as gaps; none is coined into the tracked glossary by this ticket.
+
+## Landing record
+
+### STOP — a named Determiner role is mid-form
+
+Measured on change `voxolnnllusv` after `kata refresh` moved the claim base to
+the landed role-preemption change `slqupuzyyvmp`, with coverage-lock `covered`
+count 17,601. All gates and figures below are from that refreshed tree.
+
+**STOP.** Section A.2 names the Determiner role of a Nominal that dominates a
+Coordination as mobile. `AllPredeterminedNominal.det` is such a role: its
+`nominal: Nominal` admits the coordination-valued Nominal productions, and its
+form is `all_predetermined_nominal = predeterminer det nominal`. The `det` role
+is the middle of that form and is not adjacent to a `seq` role. It therefore
+fails the amended placement rule, which permits a Move S shared Constituent at
+the left edge of its own Construction's form or next to a `seq` role. The
+ticket says to stop on exactly this condition and forbids reshaping the
+Construction to make the annotation fit, so no mobility declarations were
+made. A coordinator ruling is needed on how this Determiner role is represented
+under the edge rule before phase 2 can resume.
+
+**Safe committed subset.** The independently pinned validation amendment is
+complete: a mobile role at either edge now validates, while a mid-form mobile
+role still fails with a diagnostic naming the role and form. The validator unit
+witness now includes a left-edge role. The trybuild fixture was re-spelled from
+the now-valid left-edge case to a mid-form case and pins
+`mobile_middle` / `invalid` in the diagnostic. No declaration, emitted-slot,
+collapse, principle-(iv), AST-Category, selection, or census code changed.
+
+**PROVE.** Coverage is 17,601 -> 17,601. Report mode printed no lock-delta rows
+(lock +0/-0), and `english-v2-coverage.lock` stayed byte-identical at SHA-256
+`766eca211bace1feebdd8a1c2c53c35655c36159c3f4df7dbe18a0e6d29fdcac`.
+No identity became covered or stopped being covered. The structural laws remain
+exact: roundtrip 17,601/17,601 clean with 0 mismatches; ownership has 0 failure
+units, gaps, overlaps, synthetic claims, or provenance-plan mismatches;
+Construction traversal is 750,925 nodes / 750,925 visits with 0 failure units;
+leaf traversal is 263,397 expected / 263,397 visited with 0 failure units.
+Unresolved ties and internal failures are both 0. Forbidden word-naming
+licensing checkers are 0, permitted licensing checkers are 20, and the
+environment loaded without an error.
+
+**DISCLOSE.** The production grammar is unchanged: `constructions.rs` and
+`core_verbs.ron` are untouched, and Construction count is 387 -> 387. Parent
+and tree `ambiguity --json --require-resolved --workers 8` reports are
+byte-identical across all 32,641 units (`cmp` exit 0), both SHA-256
+`54399b5258823a8cd26e72f390ba8811478866471ddda73ab35f0f8d3c41ec65`.
+The selection census is unchanged: 13,759 unique, 3,842
+specificity-resolved, 0 exception-resolved, 15,040 parse failures, 0
+unresolved ties, and 0 internal failures. Newly covered identities: none.
+
+Assurance counts: restored 0; re-spelled 2 (the validator edge-topology unit
+and the trybuild placement fixture); ignored with blockers 0; added 0; removed
+0. Deviations and additions: the ticket is incomplete because its explicit
+STOP fired; only the separately required placement-validation widening and its
+witnesses are present. Citations changed: none. Glossary gaps: Scope,
+Attachment, Head, Premodifier, Peripheral, Bracketing, Mobility.
+
+**REPORT.** Lock `covered`: 17,601. Construction count: 387. Licensed
+vocabulary/lexicon homographs (2): `AttributiveAdjective::Untap` beside the
+declaration keyword action `Untap`; `TargetingMarker::Target` beside
+`CommonNoun::Target`. Form-literal/vocabulary overlaps (9): `additional` in
+`additional_cost`; `to` in `up_to_quantifying_determiner`; `the` and `next` in
+`definite_next_mass_quantity_reference`; `to` in
+`scalar_less_than_or_equal_to`; `the` in `number_of_scalar_value`; `the` in
+`greatest_scalar_value`; `other` in `other_than_qualified_reference`; and `the`
+in `positional_partitive`.
+
+Performance advisory, all with 8 workers: coverage 112 s at 137,513 ns/B,
+host load 15.75/15.81/13.17; ambiguity 121 s at 144,408 ns/B, host load
+15.34/15.79/14.00; roundtrip 118 s at 129,218 ns/B, host load
+15.07/16.23/14.51. Each exceeds the 16.26 s quiet-host ceiling under load and
+is provenance, never a gate target. The sandbox cannot observe sibling-process
+count; each measurement used one foreground gate process. Wall clock: start
+2026-09-04 22:24:16 PDT; end 2026-09-04 23:13:16 PDT.
+
+Positive gates on the refreshed tree: `cargo fmt --all` exited 0; strict
+all-target Clippy for `deckmaste_construction_core` and
+`deckmaste_construction` finished without diagnostics; `cargo test
+--workspace` exited 0 with every completed `test result: ok` line at 0 failed,
+including `compile_fail_fixtures` and
+`mobile_roles_add_only_an_empty_derived_slot_and_both_attachment_heights_agree`;
+the focused validator witness passed 1/1; coverage reported 17,601 selected and
+covered with every failure counter 0; ambiguity required resolution and
+reported 0 ties; roundtrip reported 17,601 clean and 0 mismatched. Citation
+gates were not required because no citation changed.

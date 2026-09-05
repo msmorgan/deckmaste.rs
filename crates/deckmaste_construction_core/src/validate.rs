@@ -7747,7 +7747,7 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
                 else {
                     continue;
                 };
-                let right_edge = index + 1 == form.atoms.len();
+                let edge = index == 0 || index + 1 == form.atoms.len();
                 let is_sequence_role = |atom: &FormAtom| {
                     role(atom)
                         .and_then(|role| fields.get(&identifier_key(role)))
@@ -7757,13 +7757,13 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
                     .checked_sub(1)
                     .is_some_and(|adjacent| is_sequence_role(&form.atoms[adjacent]))
                     || form.atoms.get(index + 1).is_some_and(is_sequence_role);
-                if !right_edge && !sequence_adjacent {
+                if !edge && !sequence_adjacent {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             field.name.span(),
                             format!(
-                                "mobile role `{}` must be at the right edge or adjacent to a `seq` role in form `{}`",
+                                "mobile role `{}` must be at an edge or adjacent to a `seq` role in form `{}`",
                                 field.name, form.name,
                             ),
                         ),
@@ -11244,7 +11244,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn mobile_roles_are_right_edge_or_sequence_adjacent_and_diagnostics_name_the_role() {
+    fn mobile_roles_are_edge_or_sequence_adjacent_and_diagnostics_name_the_role() {
         validate(quote! {
             construction child: Child {
                 element ChildNode {}
@@ -11253,6 +11253,10 @@ pub(crate) mod tests {
             construction right_edge: Root {
                 element RightEdge { prefix: Child, tail: mobile Child, }
                 form right_edge = prefix tail;
+            }
+            construction left_edge: Root {
+                element LeftEdge { shared: mobile Child, suffix: Child, }
+                form left_edge = shared suffix;
             }
             construction sequence_left: SharedRoot {
                 element SequenceLeft {
@@ -11275,7 +11279,7 @@ pub(crate) mod tests {
             root SharedRoot { punctuation = "."; eoi = true; standalone_render = true; }
             root OtherRoot { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("right-edge and either-side sequence-adjacent mobile roles validate");
+        .expect("edge and either-side sequence-adjacent mobile roles validate");
 
         let diagnostic = error(quote! {
             construction child: Child {
@@ -11283,13 +11287,13 @@ pub(crate) mod tests {
                 form child = "child";
             }
             construction invalid: Root {
-                element Invalid { mobile_tail: mobile Child, suffix: Child, }
-                form invalid = mobile_tail suffix;
+                element Invalid { prefix: Child, mobile_middle: mobile Child, suffix: Child, }
+                form invalid = prefix mobile_middle suffix;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            diagnostic.contains("mobile role `mobile_tail` must be at the right edge or adjacent to a `seq` role in form `invalid`"),
+            diagnostic.contains("mobile role `mobile_middle` must be at an edge or adjacent to a `seq` role in form `invalid`"),
             "{diagnostic}",
         );
     }
