@@ -325,6 +325,7 @@ pub(crate) fn emit(
                         pub struct #declaration {
                             reference: Box<crate::environment::VerbInventoryRef>,
                             inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
+                            role_prepositions: ::std::sync::Arc<[VerbFrameRolePreposition]>,
                             #pair_field
                         }
                     },
@@ -374,6 +375,10 @@ pub(crate) fn emit(
                                 .into_iter()
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
                                 .then_some(Self {
+                                    role_prepositions: verb_inventory_role_prepositions(
+                                        environment,
+                                        &reference,
+                                    ).into(),
                                     reference: Box::new(reference),
                                     inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY,
                                     #pair_initializer
@@ -429,6 +434,10 @@ pub(crate) fn emit(
                                     && has_present_paradigm
                                     && has_one_homographic_surface)
                                 .then_some(Self {
+                                    role_prepositions: verb_inventory_role_prepositions(
+                                        environment,
+                                        &reference,
+                                    ).into(),
                                     reference: Box::new(reference),
                                     inflectional_forms: retained_inflectional_forms,
                                     #pair_initializer
@@ -443,6 +452,12 @@ pub(crate) fn emit(
                                 &self,
                             ) -> ::deckmaste_construction_core::macro_def::InflectionalFormSet {
                                 self.inflectional_forms
+                            }
+
+                            pub(crate) fn role_prepositions(
+                                &self,
+                            ) -> &[VerbFrameRolePreposition] {
+                                &self.role_prepositions
                             }
                         }
                     },
@@ -912,6 +927,9 @@ pub(crate) fn emit(
         verb.frame_key().atoms() == [crate::semantic::VerbFrameAtom::FrameComplementPair]
     }) {
         items.extend(emit_frame_complement_pair_role_resolver(validated));
+    }
+    if validated.runtime_declaration_verbs().next().is_some() {
+        items.push(emit_verb_inventory_role_prepositions_helper(validated));
     }
     Ok((items, contributions))
 }
@@ -1433,6 +1451,42 @@ fn preposition_bearing_members(
         }
     }
     (origins, members)
+}
+
+fn emit_verb_inventory_role_prepositions_helper(plan: &SemanticPlan) -> GeneratedItem {
+    let (origins, members) = preposition_bearing_members(plan);
+    let arms = members.iter().map(|(terminal, member)| {
+        quote! {
+            (#terminal, #member) => Some(VerbFrameRolePreposition::new(#terminal, #member)),
+        }
+    });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: "verb_inventory_role_prepositions".to_owned(),
+        },
+        quote! {
+            fn verb_inventory_role_prepositions(
+                environment: &crate::environment::ParserEnvironment,
+                reference: &crate::environment::VerbInventoryRef,
+            ) -> Vec<VerbFrameRolePreposition> {
+                environment
+                    .verb_frame_role_preposition_keys(reference)
+                    .into_iter()
+                    .filter_map(|role| match role {
+                        #(#arms)*
+                        _ => None,
+                    })
+                    .fold(Vec::new(), |mut roles, role| {
+                        if !roles.contains(&role) {
+                            roles.push(role);
+                        }
+                        roles
+                    })
+            }
+        },
+        origins,
+    )
 }
 
 fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedItem; 2] {

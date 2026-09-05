@@ -508,6 +508,13 @@ fn visitor_methods(
                 _verb: &crate::environment::VerbInventoryRef,
             ) {}
         });
+        methods.push(quote! {
+            fn visit_verb_frame_role_preposition(
+                &mut self,
+                _terminal: &'static str,
+                _member: &'static str,
+            ) {}
+        });
     }
     methods
 }
@@ -540,6 +547,9 @@ fn emit_declaration_verb_value_walker(codec: &DeclarationVerbPlan) -> GeneratedI
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, declaration: &#ty) {
                 visitor.visit_verb_inventory(declaration.reference());
+                for role in declaration.role_prepositions() {
+                    visitor.visit_verb_frame_role_preposition(role.terminal, role.member);
+                }
                 if let crate::environment::VerbInventoryRef::Declaration(id) = declaration.reference() {
                     visitor.visit_declaration(id);
                 }

@@ -813,6 +813,33 @@ impl ParserEnvironment {
             })
     }
 
+    pub(crate) fn verb_frame_role_preposition_keys<'a>(
+        &'a self,
+        reference: &'a VerbInventoryRef,
+    ) -> Vec<(&'a str, &'a str)> {
+        self.data
+            .verb_inventory
+            .get(reference)
+            .into_iter()
+            .flat_map(|record| &record.frames)
+            .flat_map(|frame| &frame.atoms)
+            .filter_map(|atom| match atom {
+                OwnedVerbFrameAtom::Lex(terminal, member)
+                | OwnedVerbFrameAtom::OptionalLex(terminal, member)
+                | OwnedVerbFrameAtom::MarkedRole(terminal, member, _)
+                | OwnedVerbFrameAtom::OptionalMarkedRole(terminal, member, _) => {
+                    Some((terminal.as_str(), member.as_str()))
+                }
+                OwnedVerbFrameAtom::Literal(_)
+                | OwnedVerbFrameAtom::Amount
+                | OwnedVerbFrameAtom::ObjectNounPhrase
+                | OwnedVerbFrameAtom::PredicativeComplement
+                | OwnedVerbFrameAtom::Role(_)
+                | OwnedVerbFrameAtom::OptionalRole(_) => None,
+            })
+            .collect()
+    }
+
     pub(crate) fn verb_inventory_surface(
         &self,
         reference: &VerbInventoryRef,

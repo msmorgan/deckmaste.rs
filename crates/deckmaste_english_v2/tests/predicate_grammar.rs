@@ -185,6 +185,10 @@ fn environment() -> ParserEnvironment {
             r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
         ),
         (
+            "/synthetic/subtypes/Island.ron",
+            r#"Subtype(category:Land,name:"Island",spelling:"Island",grammar:Noun(singular:"Island"))"#,
+        ),
+        (
             "/synthetic/subtypes/Mountain.ron",
             r#"Subtype(category:Land,name:"Mountain",spelling:"Mountain",grammar:Noun(singular:"Mountain"))"#,
         ),
@@ -3817,6 +3821,51 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
             .construction_path()
             .iter()
             .any(|construction| construction.ends_with("PrepositionalQualifiedReference"))
+    );
+}
+
+#[test]
+fn declared_frame_prepositions_preempt_only_matching_predicate_adjuncts() {
+    let parser = parser();
+    let context = context();
+
+    let search = parser.analyze("Search your library for a card.", &context);
+    let decision = search
+        .decision()
+        .expect("the frame reading produces a selection decision");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.candidates().len(), 1, "{decision:#?}");
+    let selected = &decision.candidates()[0];
+    assert!(
+        selected
+            .construction_path()
+            .iter()
+            .any(|construction| construction
+                == "ObjectForObjectLexicalVerbPhraseDeclaredObjectForObjectLexicalVerbPhrase")
+    );
+    assert!(
+        selected
+            .construction_path()
+            .iter()
+            .all(|construction| !construction.contains("PredicateAdjunct")),
+        "a marker declared by the verb has no competing Predicate-Adjunct derivation: \
+         {selected:#?}",
+    );
+
+    let draw = parser.analyze("Draw a card for each Island you control.", &context);
+    let decision = draw
+        .decision()
+        .expect("the free adjunct produces a selection decision");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.candidates().len(), 1, "{decision:#?}");
+    assert!(
+        decision.candidates()[0]
+            .construction_path()
+            .iter()
+            .any(|construction| construction
+                == "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate"),
+        "a marker absent from the verb's declared frames keeps its Predicate-Adjunct \
+         derivation: {decision:#?}",
     );
 }
 

@@ -4947,7 +4947,7 @@ mod tests {
         let text = "Search your library for a card.";
         let raw = ability_candidates(text, "Cynical Loner", false);
         let packed = ability_candidates(text, "Cynical Loner", true);
-        assert_eq!(raw.len(), 2);
+        assert_eq!(raw.len(), 1);
         assert_eq!(packed.len(), raw.len());
         assert_eq!(
             raw.iter()
@@ -4969,11 +4969,11 @@ mod tests {
             .expect("the canonical exception inventory is valid");
         let (selected, decision) = analysis.into_result_and_decision();
         let selected = selected
-            .expect("the two frame readings remain resolvable")
-            .expect("one frame reading is selected");
+            .expect("the frame reading remains resolvable")
+            .expect("the frame reading is selected");
         assert_eq!(
             decision.expect("selection records its basis").resolution(),
-            SelectionResolution::Specificity,
+            SelectionResolution::Unique,
         );
         assert!(!scope_witness(&selected.value).verb_frames.is_empty());
     }

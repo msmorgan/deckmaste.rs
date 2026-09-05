@@ -2,6 +2,7 @@
 pub struct DeclarationTransitiveVerb {
     reference: Box<crate::environment::VerbInventoryRef>,
     inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
+    role_prepositions: ::std::sync::Arc<[VerbFrameRolePreposition]>,
 }
 impl DeclarationTransitiveVerb {
     pub fn new(
@@ -24,6 +25,11 @@ impl DeclarationTransitiveVerb {
                 environment.verb_inventory_surface(&reference, feature).is_some()
             })
             .then_some(Self {
+                role_prepositions: verb_inventory_role_prepositions(
+                        environment,
+                        &reference,
+                    )
+                    .into(),
                 reference: Box::new(reference),
                 inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY,
             })
@@ -90,6 +96,11 @@ impl DeclarationTransitiveVerb {
         (environment.verb_frame_licenses(&reference, frame) && has_present_paradigm
             && has_one_homographic_surface)
             .then_some(Self {
+                role_prepositions: verb_inventory_role_prepositions(
+                        environment,
+                        &reference,
+                    )
+                    .into(),
                 reference: Box::new(reference),
                 inflectional_forms: retained_inflectional_forms,
             })
@@ -101,6 +112,9 @@ impl DeclarationTransitiveVerb {
         &self,
     ) -> ::deckmaste_construction_core::macro_def::InflectionalFormSet {
         self.inflectional_forms
+    }
+    pub(crate) fn role_prepositions(&self) -> &[VerbFrameRolePreposition] {
+        &self.role_prepositions
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

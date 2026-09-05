@@ -2102,7 +2102,9 @@ constructions! {
     construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PrepositionalPredicateAdjunctPredicateValue {
             predicate: PrepositionalPredicateAdjunctHost,
-            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional_and_not_declared_role(
+                predicate.value
+            ),
         }
         derive concord_class = predicate.concord_class;
         derive inflectional_form = predicate.inflectional_form;
@@ -2113,7 +2115,9 @@ constructions! {
         element StackedPredicateAdjunctPredicate {
             predicate: LexicalVerbPhrase,
             leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
-            trailing: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            trailing: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional_and_not_declared_role(
+                predicate.value
+            ),
         }
         derive concord_class = predicate.concord_class;
         derive inflectional_form = predicate.inflectional_form;
@@ -3677,7 +3681,9 @@ constructions! {
         element PositiveObjectGapRelativeWithPrepositionalAdjunct {
             subject: Subject,
             head: lex TransitiveVerb,
-            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional_and_not_declared_role(
+                head.value
+            ),
         }
         derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative_with_prepositional_adjunct = subject verb(head) adjunct;
@@ -3711,7 +3717,9 @@ constructions! {
         element ContractedPerfectPrepositionalAdjunctObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
             head: lex DeclaredTransitiveParticipleHead,
-            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional_and_not_declared_role(
+                head.value
+            ),
         }
         form contracted_perfect_object_gap_relative_with_prepositional_adjunct = lex(subject) verb(head) adjunct;
     }
@@ -4102,7 +4110,9 @@ constructions! {
         element ReducedPassivePrepositionalAdjunctQualifiedReference {
             reference: PostmodifiedReference,
             clause: PassivePredicate,
-            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional_and_not_declared_role(
+                clause.value
+            ),
         }
         derive concord_class = reference.concord_class;
         derive number = reference.number;
@@ -5890,6 +5900,89 @@ fn predicate_adjunct_is_prepositional(adjunct: &PredicateAdjunct) -> bool {
         PredicateAdjunct::Prepositional(_) => true,
         _ => false,
     }
+}
+
+trait ClauseVerbFrame {
+    fn visit_clause_verb_frame(&self, visitor: &mut dyn Visitor);
+}
+
+impl ClauseVerbFrame for PrepositionalPredicateAdjunctHost {
+    fn visit_clause_verb_frame(&self, visitor: &mut dyn Visitor) {
+        if let Self::Verb(predicate) = self {
+            walk_verb_phrase(visitor, predicate);
+        }
+    }
+}
+
+macro_rules! clause_verb_frame {
+    ($($ty:ty => $walk:ident),* $(,)?) => {
+        $(
+            impl ClauseVerbFrame for $ty {
+                fn visit_clause_verb_frame(&self, visitor: &mut dyn Visitor) {
+                    $walk(visitor, self);
+                }
+            }
+        )*
+    };
+}
+
+clause_verb_frame!(
+    LexicalVerbPhrase => walk_lexical_verb_phrase,
+    TransitiveVerb => walk_transitive_verb,
+    DeclaredTransitiveParticipleHead => walk_declared_transitive_participle_head,
+    PassivePredicate => walk_passive_predicate,
+);
+
+#[derive(Default)]
+struct ClauseVerbFrameRolePrepositions {
+    found_verb: bool,
+    collect_roles: bool,
+    roles: Vec<VerbFrameRolePreposition>,
+}
+
+impl Visitor for ClauseVerbFrameRolePrepositions {
+    fn visit_verb_inventory(&mut self, _verb: &crate::environment::VerbInventoryRef) {
+        self.collect_roles = !self.found_verb;
+        self.found_verb = true;
+    }
+
+    fn visit_verb_frame_role_preposition(&mut self, terminal: &'static str, member: &'static str) {
+        if self.collect_roles {
+            self.roles
+                .push(VerbFrameRolePreposition::new(terminal, member));
+        }
+    }
+}
+
+fn predicate_adjunct_role_preposition(
+    adjunct: &PredicateAdjunct,
+) -> Option<VerbFrameRolePreposition> {
+    match adjunct {
+        PredicateAdjunct::Focus(focused) => predicate_adjunct_role_preposition(&focused.focus),
+        PredicateAdjunct::Prepositional(prepositional) => {
+            Some(role_preposition_for_phrase(&prepositional.adjunct))
+        }
+        PredicateAdjunct::Purpose(_)
+        | PredicateAdjunct::Duration(_)
+        | PredicateAdjunct::Frequency(_)
+        | PredicateAdjunct::QualifiedFrequency(_)
+        | PredicateAdjunct::Manner(_) => None,
+    }
+}
+
+/// Principle (ii): a right-peripheral Prepositional Phrase whose marker is a
+/// declared role of the Clause's Verb Frame has no Predicate-Adjunct
+/// derivation.
+fn predicate_adjunct_is_prepositional_and_not_declared_role(
+    adjunct: &PredicateAdjunct,
+    predicate: &impl ClauseVerbFrame,
+) -> bool {
+    let Some(preposition) = predicate_adjunct_role_preposition(adjunct) else {
+        return false;
+    };
+    let mut declared = ClauseVerbFrameRolePrepositions::default();
+    predicate.visit_clause_verb_frame(&mut declared);
+    !declared.roles.contains(&preposition)
 }
 
 fn predicate_adjunct_is_nonprepositional(adjunct: &PredicateAdjunct) -> bool {

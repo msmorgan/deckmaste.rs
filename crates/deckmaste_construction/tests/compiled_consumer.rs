@@ -169,6 +169,36 @@ pub mod environment {
             }
         }
 
+        pub(crate) fn verb_frame_role_preposition_keys<'a>(
+            &'a self,
+            reference: &'a VerbInventoryRef,
+        ) -> Vec<(&'a str, &'a str)> {
+            let VerbInventoryRef::Declaration(id) = reference else {
+                return Vec::new();
+            };
+            let Some(GrammarRecipe::Verb { frame_set }) = self.grammar_recipe(id) else {
+                return Vec::new();
+            };
+            let deckmaste_construction_core::macro_def::VerbFrameSet::Custom { frames } = frame_set
+            else {
+                return Vec::new();
+            };
+            frames
+                .iter()
+                .flatten()
+                .filter_map(|atom| match atom {
+                    deckmaste_construction_core::macro_def::CustomTailAtom::Lex(
+                        terminal,
+                        member,
+                    ) => Some((terminal.as_str(), member.as_str())),
+                    deckmaste_construction_core::macro_def::CustomTailAtom::Literal(_)
+                    | deckmaste_construction_core::macro_def::CustomTailAtom::Amount
+                    | deckmaste_construction_core::macro_def::CustomTailAtom::ObjectNounPhrase
+                    | deckmaste_construction_core::macro_def::CustomTailAtom::PredicativeComplement => None,
+                })
+                .collect()
+        }
+
         #[expect(
             clippy::unused_self,
             reason = "the fixture preserves the environment lookup API used by generated code"
@@ -1390,7 +1420,7 @@ pub mod declaration_verb_fixture {
             VerbFrameAtom::Lex("RolePreposition", "Selected"),
             VerbFrameAtom::Role("Nominal"),
         ];
-        const ROLE_ONLY: &[&[VerbFrameAtom]] = &[ROLE];
+        const OBJECT_AND_ROLE: &[&[VerbFrameAtom]] = &[OBJECT, ROLE];
         const OPTIONAL_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::OptionalMarkedRole(
             "AmountWord",
             "One",
@@ -1450,7 +1480,22 @@ pub mod declaration_verb_fixture {
                 LEX_MARKED_ONLY
             }
             ("OptionalMarked", VerbFrameSet::Intransitive) => OPTIONAL_MARKED_ONLY,
-            ("Selector", VerbFrameSet::Intransitive) => ROLE_ONLY,
+            ("Selector", VerbFrameSet::Custom { frames })
+                if frames.as_slice()
+                    == [
+                        vec![CustomTailAtom::ObjectNounPhrase],
+                        vec![
+                            CustomTailAtom::ObjectNounPhrase,
+                            CustomTailAtom::Lex(
+                                "RolePreposition".to_owned(),
+                                "Selected".to_owned(),
+                            ),
+                            CustomTailAtom::ObjectNounPhrase,
+                        ],
+                    ] =>
+            {
+                OBJECT_AND_ROLE
+            }
             _ => NO_FRAMES,
         }
     }
@@ -1695,7 +1740,7 @@ pub mod declaration_verb_fixture {
             ),
             declaration(
                 "/synthetic/actions/Selector.ron",
-                r#"KeywordAction(name:"Selector",spelling:"select",grammar:Verb(bare:"select",frame_set:Intransitive))"#,
+                r#"KeywordAction(name:"Selector",spelling:"select",grammar:Verb(bare:"select",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,Lex("RolePreposition","Selected"),ObjectNounPhrase]])))"#,
             ),
             declaration(
                 "/synthetic/actions/OptionalMarked.ron",
@@ -2339,9 +2384,35 @@ pub mod declaration_verb_fixture {
     }
 
     pub(crate) fn run_role_preemption() {
+        #[derive(Default)]
+        struct RolePrepositions(Vec<(&'static str, &'static str)>);
+
+        impl Visitor for RolePrepositions {
+            fn visit_verb_frame_role_preposition(
+                &mut self,
+                terminal: &'static str,
+                member: &'static str,
+            ) {
+                self.0.push((terminal, member));
+            }
+        }
+
         let environment = environment();
         let context = ParseContext::default();
-        let head = DeclarationRoleVerb::new(&environment, id(&environment, "Selector"))
+        let selector = id(&environment, "Selector");
+
+        let transitive = DeclarationTransitiveVerb::new(&environment, selector.clone())
+            .expect("the declaration also licenses an unmarked transitive frame");
+        let mut roles = RolePrepositions::default();
+        walk_declaration_transitive_verb(&mut roles, &transitive);
+        assert_eq!(
+            roles.0,
+            [("RolePreposition", "Selected")],
+            "the generated accessor reads role markers from every frame declared by the verb, \
+             not only the frame used to construct this terminal",
+        );
+
+        let head = DeclarationRoleVerb::new(&environment, selector)
             .expect("the declared frame licenses the role verb");
 
         let bare = || {
