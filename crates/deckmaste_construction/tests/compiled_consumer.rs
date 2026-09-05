@@ -1385,6 +1385,12 @@ pub mod declaration_verb_fixture {
         const DUPLICATED: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Amount];
         const EXTRA: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Literal("extra")];
         const LEX_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::Lex("AmountWord", "One")];
+        const ROLE: &[VerbFrameAtom] = &[
+            VerbFrameAtom::ObjectNounPhrase,
+            VerbFrameAtom::Lex("RolePreposition", "Selected"),
+            VerbFrameAtom::Role("Nominal"),
+        ];
+        const ROLE_ONLY: &[&[VerbFrameAtom]] = &[ROLE];
         const OPTIONAL_MARKED: &[VerbFrameAtom] = &[VerbFrameAtom::OptionalMarkedRole(
             "AmountWord",
             "One",
@@ -1444,6 +1450,7 @@ pub mod declaration_verb_fixture {
                 LEX_MARKED_ONLY
             }
             ("OptionalMarked", VerbFrameSet::Intransitive) => OPTIONAL_MARKED_ONLY,
+            ("Selector", VerbFrameSet::Intransitive) => ROLE_ONLY,
             _ => NO_FRAMES,
         }
     }
@@ -1538,12 +1545,77 @@ pub mod declaration_verb_fixture {
             }
             form participle = verb(head) lex(object);
         }
+        vocab Conjunction { And = "and", }
+        vocab RolePreposition {
+            Selected = "onto" { feature PrepositionComplementKind = UnrestrictedComplement; },
+            Free = "beside" { feature PrepositionComplementKind = InComplement; },
+        }
+        codec RoleVerb {
+            generate declaration_verb {
+                position = Verb;
+                tail = [ObjectNounPhrase, lex(RolePreposition::Selected), destination: Nominal];
+                feature = ConcordClass;
+            }
+        }
+        construction bare_nominal: Nominal {
+            element BareNominal { word: lex ObjectWord, }
+            form bare_nominal = lex(word);
+        }
+        construction qualified_nominal: Nominal {
+            element QualifiedNominal { reference: Nominal, modifier: NominalModifier, }
+            form qualified_nominal = reference modifier;
+        }
+        construction paired_nominal: Nominal {
+            element PairedNominal {
+                first: Nominal,
+                conjunction: lex Conjunction,
+                second: Nominal,
+            }
+            form paired_nominal = first lex(conjunction) second;
+        }
+        construction prepositional_modifier: NominalModifier {
+            element PrepositionalModifier {
+                relation: lex RolePreposition,
+                complement: Nominal,
+            }
+            form prepositional_modifier = lex(relation) complement;
+        }
+        construction role_preemption: RolePhrase {
+            element RolePreemption {
+                head: lex RoleVerb,
+                object: Nominal checked by nominal_has_no_pending_role_postmodifier(
+                    head.verb_frame_role_prepositions
+                ),
+                destination: Nominal checked by nominal_has_no_pending_role_postmodifier(
+                    head.verb_frame_role_prepositions
+                ),
+            }
+            derive head.concord_class = Values::Other;
+            form role_preemption =
+                verb(head) object lex(RolePreposition::Selected) destination;
+        }
         root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root Nominal { punctuation = "."; eoi = true; standalone_render = true; }
+        root RolePhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root MeasureComplementPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root LexMarkedPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalMarkedPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+
+    /// Principle (ii) in the compiled consumer: a Prepositional Phrase on the
+    /// right periphery of the governed Nominal whose preposition the frame
+    /// still has pending has no Postmodifier derivation.
+    fn nominal_has_no_pending_role_postmodifier(
+        material: &Nominal,
+        role_preemption: &mut VerbFrameRolePreemption,
+    ) -> bool {
+        let pending: &VerbFrameRolePreemption = role_preemption;
+        !RightPeripheryRolePreposition::right_periphery_role_preposition(
+            material,
+            &mut |preposition| pending.is_pending(preposition),
+        )
     }
 
     impl crate::environment::ParserEnvironment {
@@ -1620,6 +1692,10 @@ pub mod declaration_verb_fixture {
             declaration(
                 "/synthetic/actions/LexMarked.ron",
                 r#"KeywordAction(name:"LexMarked",spelling:"mark",grammar:Verb(bare:"mark",frame_set:Custom(frames:[[Lex("AmountWord","One")]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Selector.ron",
+                r#"KeywordAction(name:"Selector",spelling:"select",grammar:Verb(bare:"select",frame_set:Intransitive))"#,
             ),
             declaration(
                 "/synthetic/actions/OptionalMarked.ron",
@@ -2203,6 +2279,109 @@ pub mod declaration_verb_fixture {
                 (9, 10, "root:MeasureComplementPhrase/punctuation"),
             ],
             "open-only rendering owns one exact disjoint complete lexical partition",
+        );
+    }
+
+    pub(crate) fn run_role_preemption() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let head = DeclarationRoleVerb::new(&environment, id(&environment, "Selector"))
+            .expect("the declared frame licenses the role verb");
+
+        let bare = || {
+            let BuildValue::Nominal(nominal, _) = build(
+                RuleId::NominalBareNominal,
+                &[BuildValue::Leaf(Leaf::ObjectWord(ObjectWord::Object))],
+                &context,
+            )
+            .expect("a bare nominal builds") else {
+                panic!("the bare rule builds its declared category")
+            };
+            nominal
+        };
+        let modified = |relation: RolePreposition| {
+            let BuildValue::NominalModifier(modifier, _) = build(
+                RuleId::NominalModifierPrepositionalModifier,
+                &[
+                    BuildValue::Leaf(Leaf::RolePreposition(relation)),
+                    BuildValue::Nominal(bare(), FeatureConstraint::Any),
+                ],
+                &context,
+            )
+            .expect("a prepositional modifier builds") else {
+                panic!("the modifier rule builds its declared category")
+            };
+            let BuildValue::Nominal(nominal, _) = build(
+                RuleId::NominalQualifiedNominal,
+                &[
+                    BuildValue::Nominal(bare(), FeatureConstraint::Any),
+                    BuildValue::NominalModifier(modifier, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+            .expect("a postmodified nominal builds") else {
+                panic!("the qualified rule builds its declared category")
+            };
+            nominal
+        };
+        let paired = |first: Nominal, second: Nominal| {
+            let BuildValue::Nominal(nominal, _) = build(
+                RuleId::NominalPairedNominal,
+                &[
+                    BuildValue::Nominal(first, FeatureConstraint::Any),
+                    BuildValue::Leaf(Leaf::Conjunction(Conjunction::And)),
+                    BuildValue::Nominal(second, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+            .expect("a coordinated nominal builds") else {
+                panic!("the pair rule builds its declared category")
+            };
+            nominal
+        };
+        let phrase = |object: Nominal, destination: Nominal| {
+            build(
+                RuleId::RolePhraseRolePreemption,
+                &[
+                    BuildValue::Leaf(Leaf::RoleVerb {
+                        verb: head.clone(),
+                        concord_class: ConcordClass::Other,
+                        onset: Onset::Consonant,
+                    }),
+                    BuildValue::Nominal(object, FeatureConstraint::Any),
+                    BuildValue::Leaf(Leaf::RolePreposition(RolePreposition::Selected)),
+                    BuildValue::Nominal(destination, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+        };
+
+        assert!(
+            phrase(bare(), bare()).is_some(),
+            "a governed nominal with no Prepositional Phrase keeps its derivation",
+        );
+        assert!(
+            phrase(modified(RolePreposition::Selected), bare()).is_none(),
+            "the declared role preposition has no right-peripheral Postmodifier derivation \
+             in the object",
+        );
+        assert!(
+            phrase(modified(RolePreposition::Free), bare()).is_some(),
+            "a preposition the frame does not declare as a role is untouched",
+        );
+        assert!(
+            phrase(paired(modified(RolePreposition::Selected), bare()), bare()).is_some(),
+            "a non-final Coordination arm is not right-peripheral, so it keeps its \
+             Postmodifier derivation",
+        );
+        assert!(
+            phrase(paired(bare(), modified(RolePreposition::Selected)), bare()).is_none(),
+            "the final Coordination arm is right-peripheral",
+        );
+        assert!(
+            phrase(bare(), modified(RolePreposition::Selected)).is_some(),
+            "the ordered state fills the role at the frame marker, so the same preposition \
+             remains a Postmodifier after it",
         );
     }
 
@@ -7784,6 +7963,11 @@ fn declaration_verb_open_only_codec_crosses_every_runtime_boundary() {
 #[test]
 fn declaration_verb_frame_set_perturbation_moves_frame_availability() {
     declaration_verb_fixture::run_frame_set_perturbation();
+}
+
+#[test]
+fn frame_role_preemption_reads_the_declared_frame_along_the_right_periphery() {
+    declaration_verb_fixture::run_role_preemption();
 }
 
 #[test]

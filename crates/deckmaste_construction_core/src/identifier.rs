@@ -13,6 +13,7 @@ pub(crate) const CHECKED_BUILD_FUNCTION: &str = "build_checked";
 pub(crate) const RIGHTMOST_LEAF_TRAIT: &str = "RightmostLeaf";
 pub(crate) const RIGHTMOST_LEAF_CATEGORY_TRAIT: &str = "RightmostLeafCategory";
 pub(crate) const RIGHTMOST_LEAF_IS_FUNCTION: &str = "rightmost_leaf_is";
+pub(crate) const RIGHT_PERIPHERY_PREPOSITION_TRAIT: &str = "RightPeripheryRolePreposition";
 pub(crate) const INVARIANT_CONSTRUCTOR: &str = "new";
 pub(crate) const CHECKED_CONSTRUCTOR: &str = "try_new";
 pub(crate) const BUILD_REJECTION_TYPE: &str = "BuildRejection";

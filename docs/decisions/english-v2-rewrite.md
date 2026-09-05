@@ -1380,6 +1380,10 @@ Prepositional Phrase after the object in linear order, so preemption removes onl
 that candidate and preserves later same-preposition Postmodifiers inside governed
 material.
 
+Amended again 2026-09-04: the candidate is sought along the right periphery of
+the governed material in form order, so a Prepositional Phrase inside a non-final
+Conjunct is not a role candidate and keeps its Postmodifier derivation.
+
 ## Ruling: adjunct licences removed; attachment misselection is a recorded class (2026-09-03)
 
 Verb valence rows carry no adjunct licence. A temporal, manner, or locative

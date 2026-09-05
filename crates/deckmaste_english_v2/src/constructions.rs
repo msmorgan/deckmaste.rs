@@ -1833,9 +1833,7 @@ constructions! {
     construction declared_to_object_passive_predicate: DeclaredToObjectPassivePredicate {
         element DeclaredToObjectPassivePredicateValue {
             head: lex DeclaredToObjectParticipleHead,
-            complement: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
-                head.verb_frame_role_prepositions
-            ),
+            complement: FrameComplement,
         }
         form declared_to_object_passive_predicate =
             verb(head) lex(Preposition::To) complement;
@@ -4227,9 +4225,7 @@ constructions! {
     construction declared_with_object_lexical_verb_phrase: WithObjectLexicalVerbPhrase {
         element DeclaredWithObjectLexicalVerbPhrase {
             head: lex WithObjectVerb,
-            object: Object checked by governed_material_has_no_selected_role_postmodifier(
-                head.verb_frame_role_prepositions
-            ),
+            object: Object,
         }
         derive concord_class = head.concord_class;
         form declared_with_object_lexical_verb_phrase = verb(head) lex(Preposition::With) object;
@@ -4561,20 +4557,13 @@ constructions! {
     construction enter_control: VerbPhrase {
         element EnterControl {
             head: lex EnterControlVerb,
-            control: Object checked by governed_material_has_no_selected_role_postmodifier(
-                head.verb_frame_role_prepositions
-            ),
+            control: Object,
         }
         derive concord_class = head.concord_class;
         form enter_control = verb(head) marked(Preposition::Under, control);
     }
     construction look_at: VerbPhrase {
-        element LookAt {
-            head: lex LookAtVerb,
-            object: Object checked by governed_material_has_no_selected_role_postmodifier(
-                head.verb_frame_role_prepositions
-            ),
-        }
+        element LookAt { head: lex LookAtVerb, object: Object, }
         derive concord_class = head.concord_class;
         form look_at = verb(head) lex(Preposition::At) object;
     }
@@ -4595,9 +4584,7 @@ constructions! {
     construction declared_for_object_predicate: VerbPhrase {
         element DeclaredForObjectPredicate {
             head: lex ForObjectVerb,
-            object: Object checked by governed_material_has_no_selected_role_postmodifier(
-                head.verb_frame_role_prepositions
-            ),
+            object: Object,
         }
         derive concord_class = head.concord_class;
         form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
@@ -5194,17 +5181,29 @@ fn nominal_preposition_is_licensed(
     }
 }
 
+/// Material a Verb Frame governs: its object position and the interior of
+/// every Complement it selects.
 trait GovernedMaterial {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V);
+    /// Runs `found` over every right-peripheral Prepositional Phrase, outermost
+    /// first, and reports whether one satisfied it.
+    fn right_periphery_role_preposition(
+        &self,
+        found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+    ) -> bool;
 
+    /// The preposition this material spells at its own left edge, when the
+    /// material is itself a Prepositional Phrase filling a frame role.
     fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
         None
     }
 }
 
 impl<T: GovernedMaterial + ?Sized> GovernedMaterial for &T {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        (*self).walk_governed(visitor);
+    fn right_periphery_role_preposition(
+        &self,
+        found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+    ) -> bool {
+        (*self).right_periphery_role_preposition(found)
     }
 
     fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
@@ -5212,21 +5211,34 @@ impl<T: GovernedMaterial + ?Sized> GovernedMaterial for &T {
     }
 }
 
-impl GovernedMaterial for Object {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        walk_object(visitor, self);
-    }
+macro_rules! governed_material {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl GovernedMaterial for $ty {
+                fn right_periphery_role_preposition(
+                    &self,
+                    found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+                ) -> bool {
+                    RightPeripheryRolePreposition::right_periphery_role_preposition(self, found)
+                }
+            }
+        )*
+    };
 }
 
-impl GovernedMaterial for FrameComplement {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        walk_frame_complement(visitor, self);
-    }
-}
+governed_material!(
+    Object,
+    FrameComplement,
+    PredicativeComplement,
+    ScalarEquality
+);
 
 impl GovernedMaterial for PrepositionalPhrase {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        walk_prepositional_phrase(visitor, self);
+    fn right_periphery_role_preposition(
+        &self,
+        found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+    ) -> bool {
+        RightPeripheryRolePreposition::right_periphery_role_preposition(self, found)
     }
 
     fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
@@ -5234,18 +5246,11 @@ impl GovernedMaterial for PrepositionalPhrase {
     }
 }
 
-impl GovernedMaterial for PredicativeComplement {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        walk_predicative_complement(visitor, self);
-    }
-}
-
-impl GovernedMaterial for ScalarEquality {
-    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
-        walk_scalar_equality(visitor, self);
-    }
-}
-
+/// Principle (ii): a right-peripheral Prepositional Phrase whose preposition
+/// the frame still has pending as a role has no Postmodifier derivation. A
+/// phrase that is not on the right periphery of the governed material — a
+/// non-final Coordination arm, say — cannot be the role, so it keeps its
+/// Postmodifier derivation.
 fn governed_material_has_no_selected_role_postmodifier<T: GovernedMaterial + ?Sized>(
     material: &T,
     role_preemption: &mut VerbFrameRolePreemption,
@@ -5253,47 +5258,8 @@ fn governed_material_has_no_selected_role_postmodifier<T: GovernedMaterial + ?Si
     if let Some(preposition) = material.leading_role_preposition() {
         role_preemption.fill(preposition);
     }
-    let mut visitor = PendingRolePostmodifier {
-        role_preemption,
-        found: false,
-    };
-    material.walk_governed(&mut visitor);
-    !visitor.found
-}
-
-struct PendingRolePostmodifier<'a> {
-    role_preemption: &'a VerbFrameRolePreemption,
-    found: bool,
-}
-
-impl Visitor for PendingRolePostmodifier<'_> {
-    fn visit_postmodified_reference(&mut self, reference: &PostmodifiedReference) {
-        walk_postmodified_reference(self, reference);
-        if let Some(preposition) = right_edge_postmodifier_preposition(reference) {
-            self.found |= self.role_preemption.is_pending(preposition);
-        }
-    }
-}
-
-fn right_edge_postmodifier_preposition(
-    reference: &PostmodifiedReference,
-) -> Option<VerbFrameRolePreposition> {
-    match reference {
-        PostmodifiedReference::PrepositionalQualifiedReference(value) => {
-            Some(role_preposition_for_phrase(value.modifier()))
-        }
-        PostmodifiedReference::RelationalQualifiedReference(value) => {
-            Some(role_preposition_for_phrase(value.modifier()))
-        }
-        PostmodifiedReference::UnqualifiedPostmodifiedReference(_)
-        | PostmodifiedReference::RelativeQualifiedReference(_)
-        | PostmodifiedReference::SubjectRelativeQualifiedReference(_)
-        | PostmodifiedReference::ContractedCopularRelativeReference(_)
-        | PostmodifiedReference::ReducedPassiveQualifiedReference(_)
-        | PostmodifiedReference::ReducedPassiveAdjunctQualifiedReference(_)
-        | PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(_)
-        | PostmodifiedReference::OtherThanQualifiedReference(_) => None,
-    }
+    let pending: &VerbFrameRolePreemption = role_preemption;
+    !material.right_periphery_role_preposition(&mut |preposition| pending.is_pending(preposition))
 }
 
 fn role_preposition_for_phrase(phrase: &PrepositionalPhrase) -> VerbFrameRolePreposition {

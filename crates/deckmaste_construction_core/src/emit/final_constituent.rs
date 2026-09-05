@@ -2,10 +2,13 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+use crate::feature::Feature;
+use crate::identifier::RIGHT_PERIPHERY_PREPOSITION_TRAIT;
 use crate::identifier::RIGHTMOST_LEAF_CATEGORY_TRAIT;
 use crate::identifier::RIGHTMOST_LEAF_IS_FUNCTION;
 use crate::identifier::RIGHTMOST_LEAF_TRAIT;
 use crate::identifier::emitted_ident;
+use crate::identifier::feature_helper;
 use crate::plan::DeclarationKey;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
@@ -23,6 +26,18 @@ use crate::semantic::StructuralFieldPlan;
 use crate::semantic::ValueKindPlan;
 
 use super::SemanticTypeKind;
+
+/// Which right-periphery question a generated fold answers.
+///
+/// Both modes descend the same rightmost constituent in form order; they
+/// differ only in what each node on that descent contributes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Fold {
+    /// Is `target` the category of some node on the right periphery?
+    RightmostLeaf,
+    /// Does some right-peripheral Prepositional Phrase satisfy `found`?
+    RolePreposition,
+}
 
 pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let traversal_trait = ident(RIGHTMOST_LEAF_TRAIT);
@@ -70,6 +85,26 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         ),
     ];
 
+    let periphery_trait = ident(RIGHT_PERIPHERY_PREPOSITION_TRAIT);
+    let role_prepositions = plan.runtime_declaration_verbs().next().is_some();
+    if role_prepositions {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Trait,
+                name: RIGHT_PERIPHERY_PREPOSITION_TRAIT.to_owned(),
+            },
+            quote! {
+                pub(crate) trait #periphery_trait {
+                    fn right_periphery_role_preposition(
+                        &self,
+                        found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+                    ) -> bool;
+                }
+            },
+            semantic_origins(plan),
+        ));
+    }
+
     for semantic_type in super::semantic_types(plan) {
         let type_name = semantic_type.name;
         let ty = ident(type_name);
@@ -87,11 +122,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             },
             vec![origin.clone()],
         ));
-        let body = match semantic_type.kind {
-            SemanticTypeKind::Category => emit_category_body(plan, type_name)?,
-            SemanticTypeKind::Product => emit_product_body(plan, type_name)?,
-            SemanticTypeKind::Sum => emit_sum_body(plan, type_name)?,
-        };
+        let body = emit_type_body(plan, semantic_type.kind, type_name, Fold::RightmostLeaf)?;
         items.push(GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some(RIGHTMOST_LEAF_TRAIT.to_owned()),
@@ -104,34 +135,71 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
                     }
                 }
             },
-            vec![origin],
+            vec![origin.clone()],
         ));
+        if role_prepositions {
+            let body = emit_type_body(plan, semantic_type.kind, type_name, Fold::RolePreposition)?;
+            items.push(GeneratedItem::new(
+                ItemKey::Impl {
+                    trait_name: Some(RIGHT_PERIPHERY_PREPOSITION_TRAIT.to_owned()),
+                    self_ty: type_name.to_owned(),
+                },
+                quote! {
+                    impl #periphery_trait for #ty {
+                        fn right_periphery_role_preposition(
+                            &self,
+                            found: &mut dyn FnMut(VerbFrameRolePreposition) -> bool,
+                        ) -> bool {
+                            #body
+                        }
+                    }
+                },
+                vec![origin],
+            ));
+        }
     }
 
     Ok(items)
 }
 
-fn emit_category_body(plan: &SemanticPlan, category: &str) -> syn::Result<TokenStream> {
+fn emit_type_body(
+    plan: &SemanticPlan,
+    kind: SemanticTypeKind,
+    type_name: &str,
+    fold: Fold,
+) -> syn::Result<TokenStream> {
+    match kind {
+        SemanticTypeKind::Category => emit_category_body(plan, type_name, fold),
+        SemanticTypeKind::Product => emit_product_body(plan, type_name, fold),
+        SemanticTypeKind::Sum => emit_sum_body(plan, type_name, fold),
+    }
+}
+
+fn emit_category_body(plan: &SemanticPlan, category: &str, fold: Fold) -> syn::Result<TokenStream> {
     let arms = plan
         .constructions()
         .iter()
         .filter(|construction| construction.category() == category)
         .map(|construction| {
             let variant = ident(construction.category_variant());
-            let body = emit_construction_body(plan, construction, &quote! { value })?;
+            let body = emit_construction_body(plan, construction, &quote! { value }, fold)?;
             Ok(quote! { Self::#variant(value) => { #body } })
         })
         .collect::<syn::Result<Vec<_>>>()?;
     Ok(quote! { match self { #(#arms,)* } })
 }
 
-fn emit_product_body(plan: &SemanticPlan, product_name: &str) -> syn::Result<TokenStream> {
+fn emit_product_body(
+    plan: &SemanticPlan,
+    product_name: &str,
+    fold: Fold,
+) -> syn::Result<TokenStream> {
     if let Some(construction) = plan
         .constructions()
         .iter()
         .find(|construction| construction.element_type() == product_name)
     {
-        return emit_construction_body(plan, construction, &quote! { self });
+        return emit_construction_body(plan, construction, &quote! { self }, fold);
     }
     let product = plan
         .products()
@@ -140,12 +208,12 @@ fn emit_product_body(plan: &SemanticPlan, product_name: &str) -> syn::Result<Tok
         .ok_or_else(|| internal("semantic product has no sealed source"))?;
     let mut expression = quote! { false };
     for field in product.fields() {
-        expression = structural_field_expression(field, &quote! { self }, &expression);
+        expression = structural_field_expression(field, &quote! { self }, &expression, fold);
     }
     Ok(expression)
 }
 
-fn emit_sum_body(plan: &SemanticPlan, sum_name: &str) -> syn::Result<TokenStream> {
+fn emit_sum_body(plan: &SemanticPlan, sum_name: &str, fold: Fold) -> syn::Result<TokenStream> {
     let sum = plan
         .sums()
         .iter()
@@ -153,7 +221,7 @@ fn emit_sum_body(plan: &SemanticPlan, sum_name: &str) -> syn::Result<TokenStream
         .ok_or_else(|| internal("semantic sum has no sealed source"))?;
     let arms = sum.alternatives().iter().map(|alternative| {
         let variant = ident(alternative.name());
-        let expression = value_expression(alternative.value(), &quote! { value });
+        let expression = value_expression(alternative.value(), &quote! { value }, fold);
         quote! { Self::#variant(value) => #expression }
     });
     Ok(quote! { match self { #(#arms,)* } })
@@ -163,6 +231,7 @@ fn emit_construction_body(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
     value: &TokenStream,
+    fold: Fold,
 ) -> syn::Result<TokenStream> {
     let has_feature_guard = construction.forms().iter().any(|form| {
         form.guard().predicate().is_some_and(|predicate| {
@@ -177,7 +246,7 @@ fn emit_construction_body(
             .forms()
             .first()
             .ok_or_else(|| internal("construction has no canonical form"))?;
-        return emit_form_expression(plan, construction, form, value);
+        return emit_form_expression(plan, construction, form, value, fold);
     }
 
     let forms = construction
@@ -185,7 +254,7 @@ fn emit_construction_body(
         .iter()
         .enumerate()
         .map(|(form_index, form)| {
-            let expression = emit_form_expression(plan, construction, form, value)?;
+            let expression = emit_form_expression(plan, construction, form, value, fold)?;
             let guard =
                 super::emit_form_guard_expression(construction, form_index, |domain, expected| {
                     guard_expression(construction, value, domain, expected)
@@ -214,12 +283,71 @@ fn emit_form_expression(
     construction: &ConstructionPlan,
     form: &FormPlan,
     value: &TokenStream,
+    fold: Fold,
 ) -> syn::Result<TokenStream> {
     let mut expression = quote! { false };
     for atom in form.atoms() {
-        expression = atom_expression(plan, construction, atom.value_atom(), value, &expression)?;
+        expression = atom_expression(
+            plan,
+            construction,
+            atom.value_atom(),
+            value,
+            &expression,
+            fold,
+        )?;
+    }
+    if fold == Fold::RolePreposition
+        && let Some(preposition) = leading_role_preposition(plan, construction, form, value)?
+    {
+        expression = quote! { #preposition || { #expression } };
     }
     Ok(expression)
+}
+
+/// Emits the role preposition a construction spells at its own left edge.
+///
+/// A form whose first atom is a preposition-marked lexical atom *is* a
+/// Prepositional Phrase, so a node of that shape on the right periphery is a
+/// right-peripheral Prepositional Phrase. A form that merely contains a marked
+/// Complement further in spells no preposition of its own.
+fn leading_role_preposition(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    value: &TokenStream,
+) -> syn::Result<Option<TokenStream>> {
+    let Some(atom) = form.atoms().first().map(AtomPlan::value_atom) else {
+        return Ok(None);
+    };
+    match atom {
+        AtomPlan::Lex { role, terminal }
+            if plan.terminal_has_feature(terminal, Feature::PrepositionComplementKind) =>
+        {
+            let field = construction.field(role)?;
+            if !matches!(
+                field.structural_plan().map(StructuralFieldPlan::kind),
+                None | Some(StructuralFieldKindPlan::Required(_))
+            ) {
+                return Ok(None);
+            }
+            let name = field.name();
+            let helper = ident(&feature_helper("verb_frame_role_preposition", terminal));
+            Ok(Some(quote! { found(#helper(#value.#name)) }))
+        }
+        AtomPlan::LexFixed {
+            terminal, variant, ..
+        }
+        | AtomPlan::Marked {
+            terminal, variant, ..
+        } if plan.terminal_has_feature(terminal, Feature::PrepositionComplementKind) => {
+            let terminal = syn::LitStr::new(terminal, Span::call_site());
+            let variant = syn::LitStr::new(variant, Span::call_site());
+            Ok(Some(
+                quote! { found(VerbFrameRolePreposition::new(#terminal, #variant)) },
+            ))
+        }
+        _ => Ok(None),
+    }
 }
 
 fn atom_expression(
@@ -228,6 +356,7 @@ fn atom_expression(
     atom: &AtomPlan,
     value: &TokenStream,
     fallback: &TokenStream,
+    fold: Fold,
 ) -> syn::Result<TokenStream> {
     let (AtomPlan::Category { role, .. } | AtomPlan::Marked { role, .. }) = atom else {
         return Ok(match atom {
@@ -259,7 +388,7 @@ fn atom_expression(
     }
     if let Some(structural) = field.structural_plan() {
         return Ok(construction_structural_field_expression(
-            field, structural, value, fallback,
+            field, structural, value, fallback, fold,
         ));
     }
     let field_name = field.name();
@@ -274,6 +403,7 @@ fn atom_expression(
     Ok(value_expression(
         &ValueKindPlan::Category(field.terminal().to_owned()),
         &child,
+        fold,
     ))
 }
 
@@ -311,6 +441,7 @@ fn construction_structural_field_expression(
     structural: &StructuralFieldPlan,
     value: &TokenStream,
     fallback: &TokenStream,
+    fold: Fold,
 ) -> TokenStream {
     let field_name = field.name();
     match structural.kind() {
@@ -320,11 +451,11 @@ fn construction_structural_field_expression(
             } else {
                 quote! { &#value.#field_name }
             };
-            value_expression(kind, &child)
+            value_expression(kind, &child, fold)
         }
         StructuralFieldKindPlan::Zeroable(kind) => {
             let ty = field.value_type();
-            let present = value_expression(kind, &quote! { child });
+            let present = value_expression(kind, &quote! { child }, fold);
             quote! {
                 match &#value.#field_name {
                     #ty::Headed(child) => #present,
@@ -338,7 +469,7 @@ fn construction_structural_field_expression(
             } else {
                 quote! { #value.#field_name.as_ref() }
             };
-            let present = value_expression(kind, &quote! { child });
+            let present = value_expression(kind, &quote! { child }, fold);
             quote! {
                 match #optional {
                     Some(child) => #present,
@@ -352,7 +483,7 @@ fn construction_structural_field_expression(
             } else {
                 quote! { &#value.#field_name }
             };
-            let present = value_expression(item, &quote! { child });
+            let present = value_expression(item, &quote! { child }, fold);
             quote! {
                 match #sequence.last() {
                     Some(child) => #present,
@@ -367,6 +498,7 @@ fn structural_field_expression(
     field: &StructuralFieldPlan,
     value: &TokenStream,
     fallback: &TokenStream,
+    fold: Fold,
 ) -> TokenStream {
     let field_name = ident(field.name());
     match field.kind() {
@@ -376,7 +508,7 @@ fn structural_field_expression(
             } else {
                 quote! { &#value.#field_name }
             };
-            value_expression(kind, &child)
+            value_expression(kind, &child, fold)
         }
         StructuralFieldKindPlan::Zeroable(kind) | StructuralFieldKindPlan::Optional(kind) => {
             let optional = if field.is_recursive() {
@@ -384,7 +516,7 @@ fn structural_field_expression(
             } else {
                 quote! { #value.#field_name.as_ref() }
             };
-            let present = value_expression(kind, &quote! { child });
+            let present = value_expression(kind, &quote! { child }, fold);
             quote! {
                 match #optional {
                     Some(child) => #present,
@@ -398,7 +530,7 @@ fn structural_field_expression(
             } else {
                 quote! { &#value.#field_name }
             };
-            let present = value_expression(item, &quote! { child });
+            let present = value_expression(item, &quote! { child }, fold);
             quote! {
                 match #sequence.last() {
                     Some(child) => #present,
@@ -409,14 +541,21 @@ fn structural_field_expression(
     }
 }
 
-fn value_expression(kind: &ValueKindPlan, child: &TokenStream) -> TokenStream {
+fn value_expression(kind: &ValueKindPlan, child: &TokenStream, fold: Fold) -> TokenStream {
     match kind {
         ValueKindPlan::Category(name) | ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
             let ty = ident(name);
             let category = ident(name);
-            quote! {
-                target == Category::#category
-                    || <#ty as RightmostLeaf>::rightmost_leaf_is(#child, target)
+            match fold {
+                Fold::RightmostLeaf => quote! {
+                    target == Category::#category
+                        || <#ty as RightmostLeaf>::rightmost_leaf_is(#child, target)
+                },
+                Fold::RolePreposition => quote! {
+                    <#ty as RightPeripheryRolePreposition>::right_periphery_role_preposition(
+                        #child, found,
+                    )
+                },
             }
         }
         ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) => quote! { false },
@@ -593,6 +732,115 @@ mod tests {
             .unwrap_or_else(|| panic!("rightmost-leaf implementation for {ty}"))
             .tokens
             .to_string()
+    }
+
+    fn role_preposition_fixture() -> SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
+                lexeme CoreVerb using EnglishVerb { Act = "act", }
+                vocab Word { Thing = "thing", }
+                vocab Conjunction { And = "and", }
+                vocab Relation {
+                    Selected = "selected" {
+                        feature PrepositionComplementKind = UnrestrictedComplement;
+                    },
+                }
+                codec FramedVerb {
+                    generate declaration_verb {
+                        closed = CoreVerb;
+                        position = Verb;
+                        tail = [ObjectNounPhrase, lex(Relation::Selected), destination: Nominal];
+                        feature = ConcordClass;
+                    }
+                }
+                construction bare: Nominal {
+                    element BareNominal { word: lex Word, }
+                    form bare = lex(word);
+                }
+                construction qualified: Nominal {
+                    element QualifiedNominal { reference: Nominal, modifier: Modifier, }
+                    form qualified = reference modifier;
+                }
+                construction paired: Nominal {
+                    element PairedNominal {
+                        first: Nominal,
+                        conjunction: lex Conjunction,
+                        second: Nominal,
+                    }
+                    form paired = first lex(conjunction) second;
+                }
+                construction relation_modifier: Modifier {
+                    element RelationModifier { relation: lex Relation, complement: Nominal, }
+                    form relation_modifier = lex(relation) complement;
+                }
+                construction framed: Root {
+                    element Framed {
+                        head: lex FramedVerb,
+                        object: Nominal,
+                        destination: Nominal,
+                    }
+                    derive head.concord_class = Values::Other;
+                    form framed = verb(head) object lex(Relation::Selected) destination;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("right-periphery fixture parses"),
+        )
+        .expect("right-periphery fixture validates")
+        .into_semantic()
+    }
+
+    fn periphery_implementation(items: &[GeneratedItem], ty: &str) -> String {
+        items
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: Some(trait_name),
+                        self_ty,
+                    } if trait_name == RIGHT_PERIPHERY_PREPOSITION_TRAIT && self_ty == ty
+                )
+            })
+            .unwrap_or_else(|| panic!("right-periphery implementation for {ty}"))
+            .tokens
+            .to_string()
+    }
+
+    #[test]
+    fn the_right_periphery_fold_reads_a_leading_declared_preposition() {
+        let items = emit(&role_preposition_fixture()).expect("right-periphery fixture emits");
+        let modifier = periphery_implementation(&items, "Modifier");
+
+        assert!(
+            modifier
+                .contains("found (verb_frame_role_preposition_for_relation (value . relation))"),
+            "a form that opens with a declared preposition reports it: {modifier}",
+        );
+    }
+
+    #[test]
+    fn the_right_periphery_fold_descends_only_the_last_constituent() {
+        let items = emit(&role_preposition_fixture()).expect("right-periphery fixture emits");
+        let nominal = periphery_implementation(&items, "Nominal");
+
+        assert!(
+            nominal.contains("value . second"),
+            "the final Conjunct is on the right periphery: {nominal}",
+        );
+        assert!(
+            !nominal.contains("value . first"),
+            "a non-final Conjunct is not on the right periphery: {nominal}",
+        );
+        assert!(
+            nominal.contains("value . modifier"),
+            "a required Postmodifier is the right periphery: {nominal}",
+        );
+        assert!(
+            !nominal.contains("value . reference"),
+            "the modified reference is not on the right periphery: {nominal}",
+        );
     }
 
     #[test]

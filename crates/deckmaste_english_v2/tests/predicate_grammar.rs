@@ -3639,18 +3639,58 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
 }
 
 #[test]
-fn frame_complement_preemption_removes_forge_devils_incoherent_bracketing() {
+fn role_preemption_reaches_only_the_right_periphery_of_the_governed_material() {
     let parser = parser();
     let context = context();
 
+    let selected_path = |text: &str| {
+        let analysis = parser.analyze(text, &context);
+        assert!(analysis.selected().is_some(), "{text:?}: {analysis:#?}");
+        let decision = analysis.decision().expect("selected parse has a decision");
+        decision.candidates()[decision
+            .selected()
+            .expect("selected decision identifies its candidate")]
+        .construction_path()
+        .to_vec()
+    };
+    let postmodifiers = |path: &[String]| {
+        path.iter()
+            .enumerate()
+            .filter(|(_, construction)| construction.ends_with("PrepositionalQualifiedReference"))
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>()
+    };
+
+    // The last Conjunct is right-peripheral to the object, so its `from` fills
+    // Return's declared source role instead of postmodifying that Conjunct.
+    let preempted = selected_path(
+        "Return target creature card and target land card from your graveyard to your hand.",
+    );
     assert!(
-        parser
-            .parse(
-                "It deals 1 damage to target creature and 1 damage to you.",
-                &context,
-            )
-            .is_err(),
-        "the incoherent nominal-Postmodifier bracketing must not survive before frame-complement coordination lands",
+        postmodifiers(&preempted).is_empty(),
+        "a right-peripheral declared source is not a Postmodifier: {preempted:#?}",
+    );
+
+    // A non-final Conjunct is not right-peripheral, so its `from` keeps its
+    // Postmodifier derivation and both targets stay inside the object.
+    let spared = selected_path(
+        "Return target creature card from a graveyard and target creature on the battlefield to their owners' hands.",
+    );
+    let coordination = spared
+        .iter()
+        .position(|construction| construction.ends_with("AndNounPhraseCoordination"))
+        .expect("the object coordinates its two targets");
+    let spared_postmodifiers = postmodifiers(&spared);
+    assert_eq!(
+        spared_postmodifiers.len(),
+        2,
+        "each Conjunct keeps its own Postmodifier: {spared:#?}",
+    );
+    assert!(
+        spared_postmodifiers
+            .iter()
+            .all(|index| *index > coordination),
+        "both Postmodifiers sit inside the object coordination: {spared:#?}",
     );
 }
 

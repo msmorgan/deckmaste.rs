@@ -12,6 +12,7 @@ use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
 use crate::identifier::PRIVATE_ROOT_RENDERER_PREFIX;
+use crate::identifier::RIGHT_PERIPHERY_PREPOSITION_TRAIT;
 use crate::identifier::RIGHTMOST_LEAF_CATEGORY_TRAIT;
 use crate::identifier::RIGHTMOST_LEAF_IS_FUNCTION;
 use crate::identifier::RIGHTMOST_LEAF_TRAIT;
@@ -5013,6 +5014,10 @@ fn generated_name_inventory(
         (
             RIGHTMOST_LEAF_CATEGORY_TRAIT,
             "fixed generated rightmost-leaf category trait",
+        ),
+        (
+            RIGHT_PERIPHERY_PREPOSITION_TRAIT,
+            "fixed generated right-periphery role-preposition trait",
         ),
         (RULE_CATEGORY_TYPE, "fixed generated rules category type"),
         (

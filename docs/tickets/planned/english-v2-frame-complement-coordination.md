@@ -40,3 +40,21 @@ identities keep coverage with a correct selected analysis, each listed. Report
 the census for every frame the Construction reaches.
 
 Standard constraints apply. Gate scope: `cargo test --workspace`.
+
+## Identities routed here by the `english-v2-role-preemption-depth` landing (2026-09-04)
+
+These keep coverage on the parent's bracketing after B6 — the right-periphery
+rule does not reach an incoherent Coordination whose final Conjunct carries no
+role preposition — so each still needs the coherent cluster Coordination this
+ticket mints, and each must be listed in this ticket's acceptance:
+
+- Trygon Prime (`0ac2cee1...`) — `... put a +1/+1 counter on it and a +1/+1
+  counter on up to one other target attacking creature.`
+- Sumala Sentry (`31b2e614...`) — `... put a +1/+1 counter on it and a +1/+1
+  counter on this creature.`
+- Evolutionary Escalation; X-23, Deadly Weapon; Ajani, the Greathearted; Stand
+  Together; Serrated Biskelion; Filigree Vector; Juniper Order Ranger; Brokers
+  Ascendancy; River Heralds' Boon — all
+  `put <quantity> on <recipient> and <quantity> on <recipient>`, all selecting
+  `put [<quantity> on <recipient> and <quantity>] on [<recipient>]`, whose
+  Coordination joins a permanent with a counter.
