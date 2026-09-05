@@ -217,6 +217,10 @@ def among (group : NounPhrase) : NounPhrase := .someOf .whole none group
 /-- "N <p> from among <group>" -/
 def fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) (some p) group
+/-- "one pile": one of the piles just made. -/
+def onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
+/-- "the pile of <player>'s choice" -/
+def pileOfChoice (player : NounPhrase) : NounPhrase := .pileOf (.counted (exactly 1)) (some player)
 /-- "you and <subject>" -/
 def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
 def theDefendingPlayer : NounPhrase := .combatPlayer .defending
