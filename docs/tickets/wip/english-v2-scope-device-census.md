@@ -78,3 +78,13 @@ exception-resolved / 15,040 parse failures / 0 unresolved ties. Expected
 Terms the design needs that `docs/contexts/oracle-english/CONTEXT.md` does not
 define: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing, Mobility.
 Listed as gaps; none is coined into the tracked glossary by this ticket.
+
+## Landing record
+
+STOP — no implementation or corpus gate was run. The ticket's `Gate scope:
+cargo test --workspace` conflicts with the recorded `CLAUDE.md` gate-scope
+ruling and the task instruction, both of which require the tool-computed
+reverse-dependency closure through `cargo xtask gate --changed`. The conflict
+cannot be resolved by this ticket claimant. No product files changed; no
+coverage, selection, lock, construction, performance, or assurance figures
+were measured. Deviations and additions: none. Glossary gaps: none added.
