@@ -3383,3 +3383,46 @@ fn a_declared_type_owns_a_possessive_without_an_identity_claim() {
         "{specificity:?}",
     );
 }
+
+/// `Colorless` is the eighth member of the color-property vocabulary
+/// ([CR#105.2c]), and every nominal consumer of that vocabulary reaches it:
+/// the attributive modifier, the `non` prefix modifier, and the fused nominal
+/// head. The class is closed at those eight, so *colored* has no member.
+#[test]
+fn the_colorless_color_property_reaches_every_nominal_consumer() {
+    let parser = parser();
+    let context = context("Context Card");
+
+    for (text, construction) in [
+        (
+            "Create a 1/1 colorless Servo artifact creature token.",
+            "NominalModifierColorModifier",
+        ),
+        (
+            "Destroy target noncolorless creature.",
+            "NominalModifierNonColorModifier",
+        ),
+        ("Sacrifice a colorless.", "NominalFusedColorNominal"),
+    ] {
+        let parsed = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("{text:?} must select: {error:?}"));
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+        let (path, _) = selected_path_and_specificity(&parser, "Context Card", text);
+        assert!(
+            path.contains(&construction.to_owned()),
+            "{text:?} must select through {construction}: {path:?}",
+        );
+    }
+
+    for text in [
+        "Create a 1/1 colored Servo artifact creature token.",
+        "Destroy target noncolored creature.",
+        "Sacrifice a colored.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "{text:?}: the color-property vocabulary is closed at eight members",
+        );
+    }
+}

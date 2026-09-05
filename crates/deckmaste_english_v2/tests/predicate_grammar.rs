@@ -4856,3 +4856,27 @@ fn preposition_attachment_and_complement_head_licenses_are_conjunctive() {
         );
     }
 }
+
+/// The predicative color complement takes the whole color-property
+/// vocabulary, including `colorless` ([CR#105.2c]) beside the five colors and
+/// the two cardinality adjectives.
+#[test]
+fn predicative_color_complements_accept_the_colorless_property() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "This permanent is colorless.",
+        "Target creature becomes colorless.",
+        "This permanent is monocolored.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    assert!(
+        parser
+            .parse("This permanent is colored.", &context)
+            .is_err(),
+        "the color-property vocabulary has no *colored* member",
+    );
+}

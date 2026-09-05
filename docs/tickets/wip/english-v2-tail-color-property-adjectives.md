@@ -156,9 +156,11 @@ forbidden licensing checkers. No coverage identity was lost.
 
 DISCLOSE. The parent-tip per-unit diff is exactly 271
 `parse_failure -> selected` identities; every gain has an expected selected
-consumer: `NominalModifierColorModifier` (280 occurrences across 261
-identities), `PredicativeColorComplementPredicativeColor` (9), and the
-pre-ruled `NominalModifierNonColorModifier` occurrence (1). No gain uses an
+consumer: `NominalModifierColorModifier` (280 occurrences across 263
+identities), `PredicativeColorComplementPredicativeColor` (9 occurrences across
+8 identities), and one `NominalModifierNonColorModifier` occurrence. That last
+one is `nonblack` on Corpsehatch, an existing member on a unit this landing
+gains for its *colorless* modifier — not a `noncolorless` gain. No gain uses an
 unexpected consumer, and there is no fused-color gain in the corpus. Selection
 census: 19,198 selected / 15,056 unique / 4,142 specificity-resolved before;
 19,469 / 15,271 / 4,198 after. The specificity share rises by 56; no
@@ -167,21 +169,102 @@ construction pair was added. The routed follow-up
 
 The fog register's retired scanner diagnosis was deleted. `noncolorless` and a
 fused colorless head remain admitted by the existing general consumers, as
-pre-ruled. Deviations and additions: no construction or test was added or
-deleted. Assurance counts: restored 0; re-spelled 0; ignored 0; added 0;
-removed 0. Glossary gap: none; this record uses the existing source vocabulary
-name rather than introducing an Oracle-English term.
+pre-ruled; the corpus prints neither, so both are witnessed by unit test only.
+Deviations and additions: no construction was added or deleted; review added
+two unit tests (below). Assurance counts: restored 0; re-spelled 0; ignored 0;
+added 2; removed 0. Glossary gap: `docs/contexts/oracle-english/CONTEXT.md`
+names no term for the color-**property** class this vocabulary holds — the five
+Game Model Colors plus *monocolored*, *multicolored* and *colorless*, which
+[CR#105.4] excludes from Color. Naming it is the pinned first step of the
+routed `english-v2-rename-color-vocabulary`; this landing introduces no term
+and keeps the existing source name.
+
+The census sized this family at 387 units; 271 of them now select. The
+remaining 116 fail for grammar this ticket does not own: sampled twelve
+(Reef Roads, Foul Roads, Shorikai, Sugar Coat, Black Mage's Rod, Chaos Moon,
+Dancer's Chakrams, Brood Birthing, Whirler Virtuoso, Kavaron, Baku Altar,
+Corrupted Crossroads) and in every one the *colorless* span itself parses —
+the first failure is downstream, at a quoted-ability verb (`saddles`, `crews`),
+a coordinated quote-interior predicate, `Otherwise`, `count the number of`,
+an energy or ki counter, Station, or a mana-restriction sentence. No sampled
+residue is a color-property gap.
 
 REPORT. Coverage lock: 19,198 -> 19,469 (+271); construction count: 393 ->
-393. Full coverage check with 8 workers took 130.291525784 s at 152,535 ns/B;
-host load was 19.70 / 13.99 / 10.32. Concurrent-process count is unavailable
-inside the sandbox. The quiet-host ceiling was exceeded under load and is
-reported, not fitted. Homograph inventory: `AttributiveAdjective::Untap` /
+393; permitted licensing checkers 21, forbidden 0. Performance advisory, on the
+integrated tree (change `mpkmytrvntos`, lock covered 19,469): full coverage
+check with 8 workers took 107,852 ms against the 16.26 s quiet-host ceiling, at
+121,722 ns/B; host load 8.01 / 12.62 / 13.72. The implementer's pre-review
+measurement on `ppxwomzppxxl` was 130,292 ms at 152,535 ns/B, host load
+19.70 / 13.99 / 10.32. True contention across both: five concurrent executors
+plus this review (six sessions); the implementer's in-sandbox process count was
+unavailable and is superseded by this stamp. The ceiling is exceeded under that
+load and is reported, not fitted. Homograph inventory: `AttributiveAdjective::Untap` /
 keyword-action `Untap`; `TargetingMarker::Target` / `CommonNoun::Target`.
 Form-literal/vocabulary overlap inventory: `additional`, `to`, `the`, `next`,
 `to`, `the`, `the`, `other`, `the` at the reported construction atoms. The
 full gain delta follows; each line supplies the identity, card, and selected
 analysis.
+
+### Review corrections
+
+- **No test witnessed the new vocabulary member.** Added
+  `the_colorless_color_property_reaches_every_nominal_consumer`
+  (`tests/nominal_grammar.rs`) — attributive `color_modifier`, `non_color_modifier`
+  on *noncolorless*, and the fused `fused_color_nominal` head, each asserted by
+  selected construction path and byte-exact render — and
+  `predicative_color_complements_accept_the_colorless_property`
+  (`tests/predicate_grammar.rs`) for *is/becomes colorless*. Both carry a
+  *colored* negative so the eight-member closure is asserted, not assumed. Both
+  falsified: with the vocabulary line removed each fails at the *colorless*
+  span (`bytes 18..22` and `23..27`), then restored.
+- **`NominalModifierNonColorModifier` gain misattributed.** The single
+  occurrence is `nonblack`, not the pre-ruled `noncolorless`; DISCLOSE corrected
+  and the two pre-ruled shapes are now stated as test-only witnesses.
+- **Consumer identity counts off by two.** `NominalModifierColorModifier`
+  covers 263 identities, not 261; the predicative consumer's 9 occurrences fall
+  on 8 identities (Ersatz Gnomes carries two). Re-derived from the selected
+  construction path of all 271 gain identities.
+- **Sizing residue undisclosed.** The 387-unit census versus 271 gains was
+  unexplained; the residue is now sampled and its cause class stated.
+- **Glossary gap denied.** The record claimed none while routing a rename
+  ticket that exists because Oracle English has no name for the class; recorded
+  as a gap and routed.
+- **Contention stamp missing.** Replaced the sandbox "unavailable" line with the
+  true count (five executors plus this review).
+- **Routed ticket lacked its authority.** `english-v2-rename-color-vocabulary`
+  now cites [CR#105.1] and [CR#105.4] for the claim that *colorless* and
+  *multicolored* are not Colors.
+- **`cite check --list-noncompliant` was red on the delivered tree.** The perf
+  advisory's raw `130291525784` ns wall time, printed with a decimal point after
+  three digits, matched the bare-rule regex
+  (`\b[0-9]{3}\.[0-9]+[a-z]*\b`); a wip ticket is in the checker's source set
+  (only `docs/tickets/done/` is excluded), so the landing could not have passed
+  its own citation gate. Wall times are now written in milliseconds.
+
+Selection neutrality, re-derived at review on the final tree: of the 586
+corpus units whose card carries the surface *colorless*, 271 are the gains and
+315 select; **no unit that selected before this landing contains the surface at
+all** (the other 315 are sibling faces of those cards), so no pre-existing
+analysis can have moved. Each of the 271 gains was re-read from its selected
+construction path, not from the record: 263 through
+`NominalModifierColorModifier`, 8 through
+`PredicativeColorComplementPredicativeColor`, none through
+`NominalFusedColorNominal`. All nine predicative gains are *is/are/becomes
+colorless*; every attributive gain modifies a token type, `creature`, `spell`,
+`sources`, `nonland permanent` or `Forest land`. No negative oracle and no
+wrong analysis.
+
+Review gate scope: `cargo test -p deckmaste_english_v2 -p xtask` — the diff is
+confined to `crates/deckmaste_english_v2`, whose only reverse dependency is
+`xtask` (`cargo metadata --no-deps`), and trunk's new
+`cargo xtask gate --changed --from default@` prints that exact command. No
+`plugins/builtin_v2/`, `core_verbs.ron` or `emit/` path is touched, so the
+workspace gate does not apply. `ambiguity --require-resolved` and
+`roundtrip --require-clean` were not re-run separately: their exit predicates
+read only `internal_failures`, `unresolved_ties` and accepted-render
+`mismatched`, and the single full `coverage --check` above reports
+`unresolved_ties:0`, `internal_failures:0` and `roundtrip_mismatch_units:0`
+over all 32,641 units.
 
 ### Coverage lock delta
 
