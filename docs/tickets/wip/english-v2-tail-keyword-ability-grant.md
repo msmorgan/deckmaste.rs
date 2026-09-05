@@ -54,3 +54,38 @@ both byte-exact laws green with total ownership. Standard constraints apply.
 2026-09-04: inherits the coverage owed for `Target creature gains trample until
 end of turn.` from `english-v2-clause-level-duration`; re-measured on that
 landing's tree, the witness is still a parse failure and never regressed.
+
+## Landing record
+
+Work started 2026-09-04 20:15:55 -07:00 and stopped before implementation on
+feature change `kwruqqtv`.
+
+### STOP
+
+The ticket's STOP-and-report list says that **any coverage loss** is a STOP.
+The governing rewrite ADR amendment, "what a landing proves, discloses, and
+reports (2026-09-04)", says that only an **unexplained** loss is a defect and
+that a decrease with a complete, classified, and routed identity list is
+normal. `CLAUDE.md` repeats the ADR rule. These instructions disagree about
+whether a fully explained coverage decrease stops this landing.
+
+The task's stop protocol requires a STOP for a ticket-versus-ruling
+contradiction even when the executor could choose a resolution. No grammar,
+declaration, test, coverage lock, or citation was changed; the frontier and
+landing metrics were not measured, and no implementation gates were run after
+the contradiction was found.
+
+### PROVE / DISCLOSE / REPORT
+
+- Coverage and selection changes: not measured; no implementation exists.
+- Newly covered, no-longer-covered, or selection-changed identities: none
+  produced by this change.
+- Construction count and provenance inventories: unchanged by this change,
+  but not re-measured because of the STOP.
+- Assurance: restored 0; re-spelled 0; ignored with blockers 0; added 0;
+  removed 0.
+- Deviations and additions: none.
+- Glossary gaps: none.
+- Decision wanted: amend the ticket so its coverage-loss STOP agrees with the
+  2026-09-04 ADR and `CLAUDE.md`, or explicitly supersede that ruling for this
+  ticket.
