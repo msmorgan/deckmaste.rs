@@ -341,6 +341,8 @@ def fullParty : Condition := fullPartyOf .you
 
 def generic (amount : Nat) : ManaSymbol := .simple (.generic amount)
 def pip (color : Color) : ManaSymbol := .simple (.specific (.of color))
+/-- "{C}" -/
+def colorlessPip : ManaSymbol := .simple (.specific .colorless)
 /-- "{A/B}" -/
 def hybridPip (left right : Color) : ManaSymbol := .hybrid (.specific (.of left)) right
 /-- "{1} for each …", "{R} for each …": a mana cost scaled by an amount. -/
@@ -674,6 +676,9 @@ def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from
 /-- "<who> loses all [<kind>] counters" -/
 def losesAllCounters (who : NounPhrase) (kind : Option CounterKindSource) : Instruction :=
   .losesCounters who kind none
+/-- "remove all [<kind>] counters from <from>" -/
+def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
+  .removeCounters none kind from_
 
 /-- The agent re-read after its own clause: "you" stays "you", anyone else is "they". -/
 def agentRef : NounPhrase → NounPhrase
@@ -770,6 +775,14 @@ def amass (subtype : String) (count : Nat) : Instruction :=
             (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
           none)
         none ]
+/-- "monstrosity N" with its reminder text [CR#701.37a]: "If this permanent isn't monstrous,
+put N +1/+1 counters on it and it becomes monstrous." -/
+def monstrosity (amount : Amount) : Instruction :=
+  .if_ (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
+    (.sequentially
+      [ .putCounters amount (.printed plusOnePlusOne) thisPermanent,
+        .gainsDesignation thisPermanent "monstrous" (.byDeed (.action "Monstrosity")) none ])
+    none
 def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
   .continuously (getsPt subject power toughness) duration
@@ -819,6 +832,9 @@ def onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
 /-- "<spec> unless <condition>" -/
 def onlyUnless (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditionally spec (.not condition) .unless_
+/-- "<spec> if <condition>" -/
+def onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticSpec :=
+  .conditionally spec condition .ifSo
 /-- "<who> can't <deed> <what>" -/
 def cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
   .deontic who .forbid [deed] .agent none (.counterpart what) none .noRider
@@ -1080,6 +1096,13 @@ def activatedBy (cost : Cost) (instruction : Instruction) (who : NounPhrase) : A
 /-- "[cost]: <instruction>. Activate only once <limit>." -/
 def activatedOnlyOnce (cost : Cost) (instruction : Instruction) (limit : UsageLimit) : Ability :=
   .activated cost instruction none (some limit) none none
+/-- "[cost]: <instruction>. Activate only if <guard>." -/
+def activatedOnlyIf (cost : Cost) (instruction : Instruction) (guard : Condition) : Ability :=
+  .activated cost instruction none none (some guard) none
+/-- "[cost]: <instruction>. Activate only once <limit> and only if <guard>." -/
+def activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (limit : UsageLimit)
+    (guard : Condition) : Ability :=
+  .activated cost instruction none (some limit) (some guard) none
 
 /-! ## Cards -/
 

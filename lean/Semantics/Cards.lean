@@ -4,6 +4,7 @@ import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Choice
 import Semantics.Cards.Copy
+import Semantics.Cards.Cost
 import Semantics.Cards.Counters
 import Semantics.Cards.Deontic
 import Semantics.Cards.Description
