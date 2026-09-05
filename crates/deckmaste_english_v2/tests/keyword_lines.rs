@@ -144,7 +144,7 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
 }
 
 #[test]
-fn declaration_backed_quality_prefixes_realize_bound_keyword_surfaces_exactly() {
+fn declaration_backed_bound_qualities_realize_fused_keyword_surfaces_exactly() {
     let environment = environment(declarations());
     let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
 
@@ -196,7 +196,7 @@ fn declaration_backed_quality_prefixes_realize_bound_keyword_surfaces_exactly() 
             selected
                 .construction_path()
                 .iter()
-                .any(|name| { name == "QualityPrefixKeywordLineItemQualityPrefixKeywordLineItem" })
+                .any(|name| { name == "BoundQualityKeywordLineItemBoundQualityKeywordLineItem" })
         );
     }
 

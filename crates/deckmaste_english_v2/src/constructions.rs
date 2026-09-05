@@ -4930,7 +4930,7 @@ constructions! {
         AmountCosted: AmountCostKeywordLineItem,
         Qualified: QualifiedKeywordLineItem,
         QualityCosted: QualityCostKeywordLineItem,
-        QualityPrefixed: QualityPrefixKeywordLineItem,
+        BoundQualified: BoundQualityKeywordLineItem,
         Subject: SubjectKeywordLineItem,
     }
     abstract sum GrantedAbility {
@@ -5055,15 +5055,15 @@ constructions! {
         derive locative_temporal_license = Values::Unlicensed;
         form qualified_keyword_line_item = lex(keyword) quality;
     }
-    construction quality_prefix_keyword_line_item: QualityPrefixKeywordLineItem {
-        element QualityPrefixKeywordLineItemValue {
+    construction bound_quality_keyword_line_item: BoundQualityKeywordLineItem {
+        element BoundQualityKeywordLineItemValue {
             quality: Nominal,
             keyword: lex BoundQualityKeywordAbility,
         }
         derive quality.number = Values::Singular;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
-        form quality_prefix_keyword_line_item = right_adjacent(quality) lex(keyword);
+        form bound_quality_keyword_line_item = right_adjacent(quality) lex(keyword);
     }
     construction quality_cost_keyword_line_item: QualityCostKeywordLineItem {
         element QualityCostKeywordLineItemValue {

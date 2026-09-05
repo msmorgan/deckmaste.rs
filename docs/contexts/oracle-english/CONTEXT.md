@@ -217,4 +217,12 @@ Object or Player.
 The Nominal a parameterized Keyword Ability takes as its argument, on a keyword
 line or in a grant — *black* in *protection from black*, *artifacts* in
 *affinity for artifacts*. Each Keyword Ability's declaration selects whether its
-Keyword Quality is bare or introduced by a Preposition.
+Keyword Quality is bare, introduced by a Preposition, or carries the keyword's
+Bound Keyword Surface.
+
+**Bound Keyword Surface** (project term):
+The surface a Keyword Ability contributes as a suffix bound to its Keyword
+Quality, so that quality and keyword are written as one word — *walk* in
+*islandwalk* and in *nonbasic landwalk* [CR#702.14a]. A declaration states it
+separately from that Keyword Ability's own free surface.
+_Avoid_: Prefix for the Keyword Quality it binds to

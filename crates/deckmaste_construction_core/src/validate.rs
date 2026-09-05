@@ -6296,6 +6296,7 @@ fn validate_generated_rust_ident(
 
 fn validate_bound_form_atom<'a>(
     atom: &'a FormAtom,
+    is_form_final: bool,
     fields: &HashMap<String, &FieldKind>,
     errors: &mut Option<syn::Error>,
 ) -> &'a FormAtom {
@@ -6360,6 +6361,18 @@ fn validate_bound_form_atom<'a>(
             syn::Error::new(
                 role.span(),
                 "bound atom values must be required, singular fields",
+            ),
+        );
+    }
+    if bound.affix.is_none()
+        && is_form_final
+        && let Some(role) = value_role
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                role.span(),
+                "a boundary-only atom must be followed by the material it binds",
             ),
         );
     }
@@ -6568,12 +6581,18 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         }
         for form in &construction.forms {
             validate_form_guard(construction, form, &fields, symbols, &mut errors);
-            for atom in &form.atoms {
+            let final_atom_index = form.atoms.len().saturating_sub(1);
+            for (atom_index, atom) in form.atoms.iter().enumerate() {
                 if let FormAtom::Circumfix(circumfix) = atom {
                     validate_circumfix_form_atom(circumfix, &fields, &mut errors);
                     continue;
                 }
-                let atom = validate_bound_form_atom(atom, &fields, &mut errors);
+                let atom = validate_bound_form_atom(
+                    atom,
+                    atom_index == final_atom_index,
+                    &fields,
+                    &mut errors,
+                );
                 match atom {
                     FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
                     FormAtom::Lex(role) => check_lex_role(role, &fields, symbols, &mut errors),
@@ -11926,6 +11945,10 @@ pub(crate) mod tests {
                 quote! { prefix("non", "black") },
                 "exactly one ordinary value atom",
             ),
+            (
+                quote! { right_adjacent("black") },
+                "exactly one ordinary value atom",
+            ),
         ];
 
         for (atom, diagnostic) in rejected {
@@ -11942,12 +11965,36 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn boundary_only_atoms_reject_a_form_final_position() {
+        let actual = error(quote! {
+            vocab Modifier { Black = "black", }
+            construction invalid: Root {
+                element Invalid { modifier: lex Modifier, }
+                form invalid = right_adjacent(lex(modifier));
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            actual.contains("must be followed by the material it binds"),
+            "{actual}"
+        );
+    }
+
+    #[test]
     fn bound_atoms_reject_optional_and_sequence_role_values() {
         let rejected = [
             (quote! { maybe: opt Item, }, quote! { prefix("non", maybe) }),
             (quote! { maybe: opt Item, }, quote! { suffix(maybe, "'s") }),
             (quote! { items: seq Item, }, quote! { prefix("non", items) }),
             (quote! { items: seq Item, }, quote! { suffix(items, "'s") }),
+            (
+                quote! { maybe: opt Item, },
+                quote! { right_adjacent(maybe) },
+            ),
+            (
+                quote! { items: seq Item, },
+                quote! { right_adjacent(items) },
+            ),
         ];
 
         for (field, atom) in rejected {

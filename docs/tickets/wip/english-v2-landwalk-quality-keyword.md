@@ -99,11 +99,14 @@ subset.
   relational reference over mass nominal (Witch Engine). Yavimaya Dryad also
   selected `ThenPredicateSequence` over `BareThenPredicateSequence`.
 - **Current attestation is provenance, not admissibility.** The current corpus
-  has 185 basic fused units (96 selected, 89 stopped elsewhere), 2 Desertwalk
+  has 185 basic fused units (96 selected, 89 not selected), 2 Desertwalk
   (1/1), 2 Nonbasic landwalk (2/0), and 2 Legendary landwalk (1/1). It also has
   one selected Snow landwalk and one selected artifact landwalk. The grammar
-  admits the full declared Nominal quality shape required by [CR#702.14a,702.14c]
-  rather than filtering it to those counts.
+  admits a full declared Nominal as the Keyword Quality; [CR#702.14a] licenses
+  land types, the card type land, card types and supertypes, so the admitted
+  set is wider than the licensed one (*Bearwalk*, *Cardwalk* parse). Nothing
+  narrows it, because no declared feature distinguishes those declaration kinds
+  today and every corpus selection below is a licensed shape.
 - **Joke printings.** Direct probes show Townwalk (declared land Subtype) and
   Planeswalkerwalk (declared Type) fall out for free through the same analysis;
   Denimwalk remains a parse failure because it has no declaration. No row,
@@ -122,16 +125,18 @@ subset.
   selection, no negative oracle began parsing, and no tie occurred. The ticket's
   macro-template sentence was read as governing v1, as directed by the
   coordinator; it did not constrain v2.
-- **Glossary gap:** `docs/contexts/oracle-english/CONTEXT.md` still has no term
-  for a keyword surface whose declared quality and keyword stem are realized as
-  one orthographic word. This landing records the gap rather than coining a
-  domain synonym; `BoundSuffix` and `right_adjacent` are compiler mechanics.
+- **Glossary gap, closed at review.** `docs/contexts/oracle-english/CONTEXT.md`
+  had no term for a keyword surface whose declared quality and keyword stem are
+  realized as one orthographic word. The review added **Bound Keyword Surface**
+  citing `[CR#702.14a]` and extended **Keyword Quality** to name the third
+  realization; `BoundSuffix` and `right_adjacent` remain compiler mechanics.
 
 #### Newly covered identities and selected analyses
 
 Every identity below selected a path containing
-`QualityPrefixKeywordLineItemQualityPrefixKeywordLineItem` and the `Landwalk`
-declaration's `BoundSuffix`. The heading gives the selected landwalk surface;
+`BoundQualityKeywordLineItemBoundQualityKeywordLineItem` (the path printer
+spells every node as its Category followed by its construction name) and the
+`Landwalk` declaration's `BoundSuffix`. The heading gives the selected landwalk surface;
 basic fused and Desertwalk forms use
 `NominalBareSingularNominal / HeadNounSingularHead`, Nonbasic uses
 `NominalModifiedSingularNominal / NominalModifierNonSupertypeModifier /
@@ -306,4 +311,98 @@ analysis ledger, not a surface-only census.
   4.76 / 6.68 / 6.84. Ambiguity: 113,843 ms, 135,024 ns/B, host load 7.90 /
   7.64 / 7.20. Roundtrip: 107,946 ms, 121,690 ns/B, host load 3.86 / 5.62 /
   6.46. Every pass exceeded the 16,260 ms quiet-host ceiling under the reported
-  load; this is provenance, not a fitted gate.
+  load; this is provenance, not a fitted gate. **True contention** (the
+  implementer's sandboxed process count is meaningless): 2 concurrent codex
+  executors and 0 other Opus reviewers were running against this host.
+
+### Review corrections
+
+Applied by the landing reviewer on this workspace; gates below were re-run
+after them.
+
+- **MEDIUM — the record misattributed the unselected fused units.** "89
+  stopped elsewhere" implied the landwalk constituent was never the blocker.
+  It usually is: printed Oracle text writes the fused word in lowercase
+  wherever it is not line-initial, and the land Subtype declaration has no
+  running-position lowercase reading, so the parse stops inside the fused
+  word. Measured on this tree: 199 faces carry a basic fused walk surface, 123
+  carry a capitalized one, 76 carry only lowercase ones; sampled failures stop
+  at the fused word (Burrowing bytes 40..52, Crevasse 15..27, Deadfall 15..25,
+  Coral Barrier 80..90), not elsewhere. Fixed by restating the paragraph and
+  routing the remainder to the new planned ticket
+  `english-v2-running-case-fused-keyword-quality`. No identity regressed: every
+  such unit was already a parse failure at the fork point, so this landing is
+  still +102 / -0.
+- **MEDIUM — construction misnamed.** `QualityPrefixKeywordLineItem` called
+  the Keyword Quality a prefix, but the quality is free material and the
+  keyword stem is the bound element; `prefix(...)` already means a fixed affix
+  in this compiler, and the row's own lexeme codec is
+  `BoundQualityKeywordAbility`. Renamed to `BoundQualityKeywordLineItem`
+  (element `BoundQualityKeywordLineItemValue`, sum member `BoundQualified`,
+  construction `bound_quality_keyword_line_item`) across `constructions.rs`,
+  `ast.rs`, the xtask diagnostic projection and the keyword-line test. The
+  doubled name in a selected path is the path printer's Category-plus-
+  construction spelling, shared with every other node
+  (`KeywordLineKeywordLine`, `AsClauseTailAsClauseTail`) — not a nested pair.
+- **MEDIUM — a general law carried a per-declaration carve-out.**
+  `builtin_v2_keyword_abilities.rs` had re-spelled its universal
+  surface-count assertion to `usize::from(name == "Landwalk") + 1`. Re-spelled
+  name-free: exactly one `Fixed` surface, first in the row, with every further
+  surface a `BoundSuffix`. Landwalk's own count stays pinned by
+  `landwalk_declares_one_bound_suffix_surface`.
+- **MEDIUM — the new boundary atom shipped without rejection tests, and
+  without a well-formedness rule.** A form-final `right_adjacent(...)` would
+  leak its `suppress_next_space` into whatever the parent form renders next,
+  so `validate_bound_form_atom` now rejects a boundary-only atom in final
+  position ("a boundary-only atom must be followed by the material it binds"),
+  and the two existing bound-atom rejection tables gained `right_adjacent`
+  rows for a literal value and for optional/sequence role values.
+- **LOW — indentation.** Two mechanically inserted `BoundSuffix` match arms
+  (`emit/render.rs`, `emit/runtime.rs`) sat at the wrong indent inside blocks
+  `cargo fmt` declines to reformat; realigned by hand.
+- **Glossary.** Added **Bound Keyword Surface** to
+  `docs/contexts/oracle-english/CONTEXT.md` citing `[CR#702.14a]` and extended
+  **Keyword Quality** with the third realization, closing the disclosed gap.
+- **Review assurance counts:** restored 0; re-spelled 2 (the universal
+  keyword-ability surface assertion; the keyword-line test renamed with its
+  construction); ignored 0; added 1 test
+  (`boundary_only_atoms_reject_a_form_final_position`) plus 4 rejection rows
+  inside 2 existing tests; removed 0.
+- **Review deviations:** one validation rule and one glossary entry beyond the
+  ticket's letter, both justified above. Nothing under `data/gen` was touched
+  and `cargo xtask catalogs check` stayed clean.
+
+Verified in review, not re-measured: the ledger's 102 identities are exactly
+the 102 hashes the lock gained; 16 identities across every surface bucket
+(Desert, Forest, Island, Legendary, Mountain, Nonbasic, Plains, Snow, Swamp,
+artifact, plus the two grant sites and the three specificity-resolved units)
+were re-read with `ambiguity --json` and each selects the Landwalk declaration
+with a Type, Supertype or land Subtype quality; `walk` is claimed by
+`lexeme:keyword_ability/Landwalk/bound_suffix` and appears in no vocabulary.
+
+**Review gates**, all foreground, stamped on feature change `rrrzuukt` with
+coverage lock `covered = 19,947`. `cargo xtask gate --changed --run --clippy`
+printed and ran `cargo test -p deckmaste_construction_core -p
+deckmaste_construction -p deckmaste_english_v2 -p xtask` — 1,419 passed, 0
+failed, 1 ignored (pre-existing) — then strict clippy over the same four
+crates with no findings. `coverage --check` (`DECKMASTE_COVERAGE_LOCK=report`):
+32,641 total units, 19,947 selected and covered, 0 selected-uncovered, ties,
+internal failures, roundtrip mismatches, ownership/traversal/leaf failures,
+gaps, overlaps, synthetic claims or provenance mismatches; 884,907
+expected/visited nodes; 308,886 expected/visited leaves; permitted licensing
+checkers 23, forbidden 0; no lock delta section. `ambiguity
+--require-resolved`: selected 19,947, unique 15,774, specificity-resolved
+4,173, unresolved ties 0, internal failures 0. `roundtrip --require-clean`:
+19,947 accepted, 19,947 clean, 0 mismatched, 12,694 not accepted. `cite check
+--list-noncompliant` reported 0; `cite check` 14,498 citations, 0 stale; `jj
+diff --git | cite audit --diff` audited 6 sites, each read against its rule.
+`cargo fmt --all` and `cargo xtask catalogs check` clean.
+
+Review performance advisory, workers 8, host load reported per pass:
+`coverage --check` 108,064 ms, **130,699 ns/B**, load 6.13 / 8.04 / 5.84;
+`ambiguity` 116,754 ms, **139,757 ns/B**, load 9.28 / 9.59 / 6.78;
+`roundtrip` 106,418 ms, **125,078 ns/B**, load 10.01 / 9.68 / 7.13. Each
+exceeds the 16,260 ms quiet-host ceiling under 2 concurrent codex executors
+and 0 other Opus reviewers; provenance, not a gate. The `kata refresh` that
+followed these gates brought in ticket-file moves only (two claim commits and
+one `wip`/`planned` rename), which reach no crate, so nothing was re-run.

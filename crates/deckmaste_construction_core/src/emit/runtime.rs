@@ -2350,7 +2350,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 crate::macro_def::SurfaceFeature::Plural => quote! { Number::Plural },
                                 crate::macro_def::SurfaceFeature::Inflectional(_)
                                 | crate::macro_def::SurfaceFeature::Fixed
-                        | crate::macro_def::SurfaceFeature::BoundSuffix
+                                | crate::macro_def::SurfaceFeature::BoundSuffix
                                 | crate::macro_def::SurfaceFeature::BlockLabel => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"

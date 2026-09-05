@@ -217,10 +217,21 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             "{name}",
         );
         assert_eq!(
-            grammar.surfaces().len(),
-            usize::from(name == "Landwalk") + 1
+            grammar
+                .surfaces()
+                .iter()
+                .filter(|surface| surface.feature() == SurfaceFeature::Fixed)
+                .count(),
+            1,
+            "{name}",
         );
         assert_eq!(grammar.surfaces()[0].feature(), SurfaceFeature::Fixed);
+        assert!(
+            grammar.surfaces()[1..]
+                .iter()
+                .all(|surface| surface.feature() == SurfaceFeature::BoundSuffix),
+            "{name}",
+        );
         if let Some(expected_params) = parameterized.get(name.as_str()) {
             let params = declaration.params().expect("parameterized row has params");
             assert_eq!(
