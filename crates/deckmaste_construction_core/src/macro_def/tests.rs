@@ -1420,3 +1420,86 @@ fn unknown_builtin_nursery_locations_fail_closed() {
         Some(ValidationError::UnexpectedBuiltinLocation { .. })
     ));
 }
+
+#[test]
+fn fixed_quality_parameters_require_a_quality_bearing_keyword_signature() {
+    for params in ["", "params: [Amount],"] {
+        let source = format!(
+            r#"
+KeywordAbility(
+    name: "Quorbling",
+    {params}
+    spelling: "quorbling",
+    grammar: FixedKeyword(
+        surface: "quorbling",
+        parameter: Quality(preposition: ("Preposition", "For")),
+    ),
+)
+"#
+        );
+        assert_eq!(
+            validation(&source),
+            ValidationError::FixedKeywordParameterGrammarMismatch,
+            "{params:?}",
+        );
+    }
+
+    for preposition in [r#"("", "For")"#, r#"("Preposition", "")"#] {
+        let source = format!(
+            r#"
+KeywordAbility(
+    name: "Quorbling",
+    params: [Quality],
+    spelling: "quorbling",
+    grammar: FixedKeyword(
+        surface: "quorbling",
+        parameter: Quality(preposition: {preposition}),
+    ),
+)
+"#
+        );
+        assert_eq!(
+            validation(&source),
+            ValidationError::InvalidFixedLexeme,
+            "{preposition}",
+        );
+    }
+}
+
+#[test]
+fn fixed_quality_parameters_retain_their_declared_marker_and_number() {
+    for (params, declared_number, expected_number) in [
+        (
+            "[Quality]",
+            "nominal_number: Plural,",
+            Some(FixedKeywordNominalNumber::Plural),
+        ),
+        ("[Quality, Cost]", "", None),
+    ] {
+        let source = format!(
+            r#"
+KeywordAbility(
+    name: "Quorbling",
+    params: {params},
+    spelling: "quorbling",
+    grammar: FixedKeyword(
+        surface: "quorbling",
+        parameter: Quality(preposition: ("Preposition", "For"), {declared_number}),
+    ),
+)
+"#
+        );
+        let declaration = read_str(source_path("Quorbling.ron"), &source)
+            .expect("a quality-bearing keyword may declare its parameter grammar");
+        assert_eq!(
+            declaration.grammar().expect("grammar normalizes").recipe(),
+            &GrammarRecipe::FixedKeyword {
+                parameter: Some(FixedKeywordParameterGrammar::Quality {
+                    preposition: FixedLexeme("Preposition".to_owned(), "For".to_owned()),
+                    nominal_number: expected_number,
+                }),
+            },
+            "{params}",
+        );
+    }
+}

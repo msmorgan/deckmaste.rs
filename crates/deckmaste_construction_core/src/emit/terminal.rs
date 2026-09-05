@@ -1283,10 +1283,15 @@ fn emit_declaration_verb_role_prepositions_helper(
     ]
 }
 
-fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedItem; 2] {
+/// Every preposition-bearing vocabulary member, paired with its owning
+/// vocabulary's declaration key. Position in this sequence is the ordinal a
+/// generated preposition carries, so it is the single authority every emitter
+/// that indexes prepositions reads.
+fn preposition_bearing_members(
+    plan: &SemanticPlan,
+) -> (Vec<DeclarationKey>, Vec<(syn::LitStr, syn::LitStr)>) {
     let mut origins = Vec::new();
-    let mut arms = Vec::new();
-    let mut values = Vec::new();
+    let mut members = Vec::new();
     for terminal in plan.terminals() {
         let TerminalPlan::Vocab(vocab) = terminal else {
             continue;
@@ -1305,14 +1310,24 @@ fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedIt
         for variant in vocab.variants() {
             let member_name = identifier_key(variant.name());
             let member = syn::LitStr::new(&member_name, variant.name().span());
-            let index = syn::Index::from(values.len());
-            arms.push(quote! {
-                (#terminal_name, #member) => Some(#index),
-            });
-            values.push(quote! {
-                [VerbFrameRolePreposition::new(#terminal_name, #member)]
-            });
+            members.push((terminal_name.clone(), member));
         }
+    }
+    (origins, members)
+}
+
+fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedItem; 2] {
+    let (origins, members) = preposition_bearing_members(plan);
+    let mut arms = Vec::new();
+    let mut values = Vec::new();
+    for (terminal_name, member) in &members {
+        let index = syn::Index::from(values.len());
+        arms.push(quote! {
+            (#terminal_name, #member) => Some(#index),
+        });
+        values.push(quote! {
+            [VerbFrameRolePreposition::new(#terminal_name, #member)]
+        });
     }
     [
         GeneratedItem::new(
@@ -1350,27 +1365,16 @@ fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedIt
 pub(super) fn fixed_keyword_parameter_preposition_match_arms(
     plan: &SemanticPlan,
 ) -> Vec<TokenStream> {
-    let mut arms = Vec::new();
-    for terminal in plan.terminals() {
-        let TerminalPlan::Vocab(vocab) = terminal else {
-            continue;
-        };
-        if vocab
-            .feature_members(crate::feature::Feature::PrepositionComplementKind)
-            .is_none()
-        {
-            continue;
-        }
-        let terminal_name = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
-        for variant in vocab.variants() {
-            let member_name = identifier_key(variant.name());
-            let member = syn::LitStr::new(&member_name, variant.name().span());
-            let index = u16::try_from(arms.len())
+    let (_, members) = preposition_bearing_members(plan);
+    members
+        .iter()
+        .enumerate()
+        .map(|(index, (terminal_name, member))| {
+            let index = u16::try_from(index)
                 .expect("preposition-bearing vocabulary index must fit the scanner carrier");
-            arms.push(quote! { (#terminal_name, #member) => #index, });
-        }
-    }
-    arms
+            quote! { (#terminal_name, #member) => #index, }
+        })
+        .collect()
 }
 
 fn emit_lexeme_surface_helper(

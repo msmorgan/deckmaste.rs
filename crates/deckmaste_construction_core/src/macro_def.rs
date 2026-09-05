@@ -298,7 +298,8 @@ pub enum FixedKeywordParameterGrammar {
     },
 }
 
-/// One vocabulary member selected as a fixed grammatical marker.
+/// One vocabulary member selected as a fixed grammatical marker: the
+/// vocabulary's name, then the member's name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct FixedLexeme(pub String, pub String);
 

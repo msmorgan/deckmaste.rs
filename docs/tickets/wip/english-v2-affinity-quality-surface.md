@@ -34,10 +34,13 @@ Standard constraints apply.
 
 ## Landing record
 
-Start wall clock: 2026-09-05T05:30:50-07:00. Measured feature change:
-`plqmtymyrvmk`, after `kata refresh` rebased it onto the then-current default
-line. This record is provenance from that refreshed tree, not an attestation of
-confidence.
+Start wall clock: 2026-09-05T05:30:50-07:00. Implementation change:
+`plqmtymyrvmk`. Every number below was re-measured by the landing review on the
+twice-refreshed tree `mwqnxyzzlznr` (implementation plus the review
+corrections), whose lock `covered` count is 19,622; the implementer's original
+figures were taken before the frequency-adverbial and bare-duration landings
+reached the default line and are superseded. This record is provenance from
+that tree, not an attestation of confidence.
 
 ### PROVE
 
@@ -84,30 +87,36 @@ test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 The authoritative refreshed-tree corpus gates, all with 8 workers, passed:
 
 ```text
-summary {"total_units":32641,"selected_units":19527,"covered_units":19527,"selected_uncovered_units":0,"parse_failures":13114,"unresolved_ties":0,"internal_failures":0,"exception_resolved":0,"exception_uses":0,"roundtrip_mismatch_units":0,"ownership_failure_units":0,"licensed_vocab_lexicon_homographs":2,"form_literal_vocab_overlaps":9,"licensing_checker_permitted":23,"licensing_checker_forbidden":0,"gap_spans":0,"gap_bytes":0,"overlap_spans":0,"overlap_bytes":0,"synthetic_claims":0,"provenance_plan_mismatches":0} lock_mode=report
+summary {"total_units":32641,"selected_units":19622,"covered_units":19622,"selected_uncovered_units":0,"parse_failures":13019,"unresolved_ties":0,"internal_failures":0,"exception_resolved":0,"exception_uses":0,"roundtrip_mismatch_units":0,"ownership_failure_units":0,"licensed_vocab_lexicon_homographs":2,"form_literal_vocab_overlaps":9,"licensing_checker_permitted":23,"licensing_checker_forbidden":0,"nonterminal_nodes":869121,"visited_constructions":869121,"traversal_failure_units":0,"expected_leaves":303174,"visited_leaves":303174,"leaf_traversal_failure_units":0,"longest_form_literal_bytes":11,"gap_spans":0,"gap_bytes":0,"overlap_spans":0,"overlap_bytes":0,"synthetic_claims":0,"provenance_plan_mismatches":0} lock_mode=report
 English v2 accepted-set round trip
-  parse accepted         19527
-  clean                  19527
+  parse accepted         19622
+  clean                  19622
   mismatched             0
-  not parse accepted     13114
+  not parse accepted     13019
 ```
 
-`DECKMASTE_COVERAGE_LOCK=report` was present on both coverage commands.
-`coverage --check` and `coverage --bless` reported the same delta: lock covered
-19,469 -> 19,527 (+58), with no losses. The construction count is 393 -> 394.
-The refreshed-parent ambiguity census was 19,469 selected (15,271 unique;
-4,198 specificity-resolved; 13,172 failures); the feature census is 19,527
-selected (15,320 unique; 4,207 specificity-resolved; 13,114 failures). Both
-have zero unresolved ties, zero internal failures, and zero exception uses.
-The per-unit diff is 58 gains, zero losses, and 196 selected-to-selected path
-changes with zero resolution changes.
+`DECKMASTE_COVERAGE_LOCK=report` was present on the coverage command. On the
+review tree `coverage --check` reports the lock exactly current at 19,622
+covered with no newly covered and no lost identities, so the landing's lock
+delta against the pre-landing default line is 19,564 -> 19,622 (+58) with no
+losses; `--bless` was not re-run because `--check` proved the lock already
+add-only blessed. The construction count is 393 -> 394. The parent ambiguity
+census (fork point `urzsmtxwkqqy`, measured with the same flags) was 19,564
+selected (15,510 unique; 4,054 specificity-resolved; 13,077 failures); the
+feature census is 19,622 selected (15,560 unique; 4,062 specificity-resolved;
+13,019 failures). Both have zero unresolved ties, zero internal failures, and
+zero exception uses. The per-unit diff is 58 gains, zero losses, and 197
+selected-to-selected path changes with zero resolution changes. `--require-resolved`
+materializes candidates the plain census does not, so both sides of any census
+comparison must carry the same flags; a mixed-flag pair reports a spurious
+157-unit unique-to-specificity migration.
 
 Frogmite (`0cda1a1...`), Myr Enforcer (`dac10f4d...`), and Thoughtcast
 (`a23e54f7...`) select `KeywordLine > QualifiedKeywordLineItem >
 PrepositionalKeywordQuality > NominalBarePlural > HeadPlural` (Thoughtcast
 then continues through its unchanged draw sentence). All 58 gains contain the
 prepositional keyword-quality arm and none contains
-`ReferencedQualityKeywordAbility`; 49 are unique and 9 are
+`ReferencedQualityKeywordAbility`; 50 are unique and 8 are
 specificity-resolved. Every gain is a positive Affinity oracle. The exact
 report-mode lock delta follows:
 
@@ -186,7 +195,7 @@ the intended selected analysis:
   — Tezzeret, Master of the Bridge: specificity-resolved; the same intended
   grant analysis. The parent had the same wrong split as Sami.
 
-All 194 selected Protection identities remain selected with the same
+All 195 selected Protection identities remain selected with the same
 unique/specificity resolution. For every unit, deleting only the inserted
 `PrepositionalKeywordQuality` node(s) from the feature path exactly reproduces
 the parent path. They are named below under their selected analysis:
@@ -245,7 +254,7 @@ the parent path. They are named below under their selected analysis:
 - `f28c1a31c05eddec61e8edd3da1ee02523a902afa879c9f1f3ab82cac1cbe5fc` — Progenitus
 - `dd7ba9cc04aa68fc7b69604bd1b21a31a7885704537b8b62704e18d2354b722c` — Teroh's Vanguard
 
-#### Selection-neutral Protection: unique, `QualifiedKeywordLineItem > PrepositionalKeywordQuality > Nominal` (149)
+#### Selection-neutral Protection: unique, `QualifiedKeywordLineItem > PrepositionalKeywordQuality > Nominal` (150)
 
 - `3aa9e8f06f875f514ce8ed408f9a0b1e6d27d177506ee896fd625accc70d77c9` — Abbey Gargoyles
 - `7fa6e1768036e2c8c35d92d785abb7db5ca40f31210a92db69413f1dfa872a4c` — Absolute Grace
@@ -341,6 +350,7 @@ the parent path. They are named below under their selected analysis:
 - `3cb8ae2fbe37456b8e32029a42d990bbd28834f5d1b2140761d9cb7193cf57dc` — Riptide Biologist
 - `32aa2395b9ecc1c20a9b0e5c4cc4650de2adb5aa31ca6324b6068d892a7eb559` — Scalebane's Elite
 - `b008f92371da89328249b04ab4b46c735576af000de3c8b6da8c3d8211eb248c` — Scragnoth
+- `a6261926ff9350e80a605d6f9ab24bf8aa58eb6ae6eb0b9f9da325c9e19fa6ee` — Scryb Ranger
 - `2ca2ec23c3613599c39ed59c20f499254d4488d7b4c808450b4e0c273c7df25d` — Sea Sprite
 - `cf3603ad3a1ab173f9c5640dc4743a6321a58648f20b48561ffea94e080956a5` — Shifting Ceratops
 - `0f3bab1459678396c195d8d2189a2e50e344a6646fc7078857fc45b5d49bcbfd` — Shivan Zombie
@@ -421,22 +431,38 @@ selection was added as declaration data after the affected subset revealed
 real singular/plural ties for invariant homographs. The general `role.value`
 projection and compact generated parameter marker were necessary compiler
 support. No construction, frame, or requirement was retained to hold an
-inventory number. No citations changed, so the cite gate was not in scope.
+inventory number. The review added three items beyond the implementation: one
+shared enumeration behind the two emitters that index preposition-bearing
+vocabulary members, two `macro_def` validation tests for the new
+`FixedKeywordParameterGrammarMismatch` and `InvalidFixedLexeme` errors, and the
+**Keyword Quality** entry in `docs/contexts/oracle-english/CONTEXT.md`. The
+ticket text cites `[CR#702.41a]`, which is already registered; `cite check
+--list-noncompliant` is empty and `cite check` reports 0 stale.
 
 Assurance: restored 0; re-spelled 5 existing assertions/matrices; ignored 0;
-added 2 tests; removed 0. STOP: none. Glossary gap: none. Decision wanted:
-none.
+added 4 tests (2 implementation, 2 review); removed 0. STOP: none. Decision
+wanted: none.
+
+Glossary: **Keyword Quality** was the term this landing needed and the Oracle
+English glossary did not define; the review added it. Residual glossary gap:
+the wider keyword-line family (Keyword Line, Keyword Line Item, Keyword Cost)
+is still undefined in `docs/contexts/oracle-english/CONTEXT.md`; that predates
+this landing and is routed, not fixed here.
 
 ### REPORT
 
-Coverage performance advisory (`--check`): 8 workers, 125,346 ms,
-140,995 ns/B, host load 13.58 / 15.92 / 15.36. Ambiguity: 8 workers,
-120,129 ms, 131,852 ns/B, host load 11.70 / 15.31 / 15.39. Roundtrip:
-8 workers, 103,740 ms, 129,812 ns/B, host load 11.47 / 14.51 / 15.11.
-These exceed the 16.26 s quiet-host ceiling under load and are reported, not
-fitted. The sandbox cannot observe sibling processes, so the true concurrent
-process count is unavailable for this implementer record and remains for the
-reviewer to stamp.
+Coverage performance advisory, re-measured by the review on `mwqnxyzzlznr`
+with 8 workers: coverage `--check` 126,968 ms, 156,346 ns/B, host load
+16 / 23 / 21; ambiguity 122,306 ms, 150,548 ns/B, host load 17 / 20 / 18;
+roundtrip 106,170 ms, 123,073 ns/B, host load 7 / 11 / 15. These exceed the
+16.26 s quiet-host ceiling under load and are reported, not fitted. Contention
+stamp: four feature executors were live during these measurements
+(`english-v2-scope-device-collapse`, `english-v2-lexical-inventory-2026-09-05`,
+`english-v2-tail-preterite-finite-clause`, and this workspace) alongside two
+concurrent landing reviews; two default-line landings
+(`english-v2-frequency-adverbial-family`, then
+`english-v2-bare-duration-adjunct-licence` plus a `ci:` change) arrived during
+the review and forced two `kata refresh` passes and a full re-gate.
 
 Inventory report: 23 permitted licensing checkers, 0 forbidden; 2 licensed
 vocabulary/lexicon homographs (`AttributiveAdjective::Untap` beside keyword
@@ -447,3 +473,57 @@ literal 11 bytes; 0 mapping layers, 0 handwritten codecs, 0 selection
 exceptions, 0 terminal bindings, and 0 checked-constructor bindings.
 
 End wall clock: 2026-09-05T07:00:07-07:00.
+
+### Review corrections
+
+- **Duplicated ordinal authority (MEDIUM).** `fixed_keyword_parameter_preposition_match_arms`
+  re-enumerated the preposition-bearing vocabulary members that
+  `emit_frame_complement_pair_role_resolver` already enumerates, and the
+  checked constructor compares one ordinal space against the other. Two
+  independent loops had to stay in lockstep with nothing tying them. Fixed by
+  factoring `preposition_bearing_members`, which both emitters now read
+  (`crates/deckmaste_construction_core/src/emit/terminal.rs`).
+- **New validation errors untested (MEDIUM).** `FixedKeywordParameterGrammarMismatch`
+  and `InvalidFixedLexeme` had no test. Added
+  `fixed_quality_parameters_require_a_quality_bearing_keyword_signature` and
+  `fixed_quality_parameters_retain_their_declared_marker_and_number` in
+  `crates/deckmaste_construction_core/src/macro_def/tests.rs`, covering both
+  rejections and the `[Quality]` / `[Quality, Cost]` acceptances.
+- **Record numbers stale (MEDIUM).** Every corpus figure was measured before
+  the frequency-adverbial and bare-duration landings reached the default line.
+  Re-measured and restamped on `mwqnxyzzlznr`; the census, the lock delta, the
+  gain unique/specificity split and the path-change count all moved.
+- **Protection list short by one (MEDIUM).** Scryb Ranger
+  (`a626192...`) is a 195th selection-neutral Protection identity on the
+  refreshed tree; added under the unique
+  `QualifiedKeywordLineItem > PrepositionalKeywordQuality > Nominal` heading.
+- **`Glossary gap: none` was wrong (MEDIUM).** The landing introduced
+  **Prepositional Keyword Quality** over an undefined **Keyword Quality**.
+  Added the Keyword Quality entry to the Oracle English glossary and disclosed
+  the residual keyword-line family gap above.
+- **`FixedLexeme` positions undocumented (LOW).** Its doc line now names the
+  vocabulary name and the member name in order.
+
+Verified and not changed: the preposition is declaration data on the keyword
+parameter (`Affinity.ron` `("Preposition", "For")`, `Protection.ron`
+`("Preposition", "From")`) read through a lexeme-style marker, with no
+keyword, lexeme, preposition or card named in a grammar guard; the two checked
+constructors read only the declared parameter. All 58 gains were read against
+their oracle text — every one is a positive Affinity printing, quality inside
+the keyword, including the modified plurals *snow lands* and *artifact
+creatures* and the invariant plurals *Equipment*, *Plains*, *Islands*,
+*Forests*, *Mountains*, *Swamps*, *Gates*, *Towns*. Every one of the 195
+Protection path changes is exactly the insertion of the shared
+`PrepositionalKeywordQuality` node into an otherwise identical path, with
+resolution unchanged; `protection from red`, `protection from everything`
+(Progenitus), `protection from monocolored creatures` and the coordinated
+`protection from ... and from ...` line all still select. `protection from
+each color` remains a parse failure on both sides of the diff for reasons
+outside this keyword surface — a pre-existing gap, not a loss.
+
+Routed, not fixed here: `crates/deckmaste_construction/tests/compiled_consumer.rs`
+has no `declaration_term` codec family at all, so there is no compiled-consumer
+fixture case for a fixed-keyword parameter — positive or negative — and minting
+that family is a ticket of its own. The new declaration-term parameter carrier
+is covered end to end by `deckmaste_english_v2`'s `keyword_lines.rs` witnesses
+and negatives.

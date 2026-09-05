@@ -204,3 +204,9 @@ Targets.
 The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in
 rules text stating that a Game Model Spell or Ability targets a Game Model
 Object or Player.
+
+**Keyword Quality** (project term):
+The Nominal a parameterized Keyword Ability takes as its argument, on a keyword
+line or in a grant — *black* in *protection from black*, *artifacts* in
+*affinity for artifacts*. Each Keyword Ability's declaration selects whether its
+Keyword Quality is bare or introduced by a Preposition.
