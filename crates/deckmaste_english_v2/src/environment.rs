@@ -525,12 +525,23 @@ struct EnvironmentData {
     initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
     running_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
     initial_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
+    bound_suffix_surfaces: BTreeSet<Arc<str>>,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
     verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
     initial_verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
     licensed_vocab_lexicon_homographs: Vec<String>,
     form_literal_vocab_overlaps: usize,
+}
+
+fn record_bound_suffix_surface(
+    surfaces: &mut BTreeSet<Arc<str>>,
+    feature: SurfaceFeature,
+    surface: &Arc<str>,
+) {
+    if feature == SurfaceFeature::BoundSuffix {
+        surfaces.insert(Arc::clone(surface));
+    }
 }
 
 #[cfg(test)]
@@ -624,11 +635,13 @@ impl ParserEnvironment {
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         let mut running_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
         let mut initial_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
+        let mut bound_suffix_surfaces = BTreeSet::<Arc<str>>::new();
         for records_by_name in records.values() {
             for record in records_by_name.values() {
                 if let Some(recipe) = &record.recipe {
                     let position = recipe.position();
                     for (feature, onset, surface) in &record.surfaces {
+                        record_bound_suffix_surface(&mut bound_suffix_surfaces, *feature, surface);
                         let initial = initial_surface(surface);
                         let reading = DeclarationReading {
                             id: record.id.clone(),
@@ -713,6 +726,7 @@ impl ParserEnvironment {
                 initial_readings,
                 running_surface_byte_limits,
                 initial_surface_byte_limits,
+                bound_suffix_surfaces,
                 catalog_providers: frozen_catalog_providers,
                 verb_inventory,
                 verb_inventory_readings,
@@ -933,6 +947,13 @@ impl ParserEnvironment {
             .get(&position)
             .copied()
             .unwrap_or_default()
+    }
+
+    pub(crate) fn bound_suffix_starts_at(&self, text: &str) -> bool {
+        self.data
+            .bound_suffix_surfaces
+            .iter()
+            .any(|surface| text.starts_with(surface.as_ref()))
     }
 
     /// Returns the exact surface for a declaration and realized feature.

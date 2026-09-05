@@ -885,7 +885,18 @@ impl ScanInput<'_> {
             } else {
                 self.environment.readings(position, candidate)
             };
-            for reading in readings {
+            let bound_suffix_readings = (!initial
+                && matches!(
+                    right_boundary,
+                    LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+                )
+                && self
+                    .environment
+                    .bound_suffix_starts_at(&surface_text[relative_end..]))
+            .then(|| initial_surface(candidate))
+            .map(|surface| self.environment.initial_readings(position, &surface))
+            .unwrap_or_default();
+            for reading in readings.iter().chain(bound_suffix_readings) {
                 let number = match reading.feature() {
                     SurfaceFeature::Singular => Number::Singular,
                     SurfaceFeature::Plural => Number::Plural,

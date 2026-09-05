@@ -160,7 +160,7 @@ fn declaration_backed_bound_qualities_realize_fused_keyword_surfaces_exactly() {
         ("Nonbasic landwalk", (DeclarationKind::Type, "Land")),
         ("Legendary landwalk", (DeclarationKind::Type, "Land")),
         (
-            "Snow Swampwalk",
+            "Snow swampwalk",
             (DeclarationKind::Subtype(SubtypeCategory::Land), "Swamp"),
         ),
         ("Artifact landwalk", (DeclarationKind::Type, "Land")),
@@ -201,6 +201,61 @@ fn declaration_backed_bound_qualities_realize_fused_keyword_surfaces_exactly() {
     }
 
     assert!(parser.parse_oracle_text("Denimwalk", &context()).is_err());
+}
+
+#[test]
+fn declaration_backed_bound_qualities_use_running_case_inside_grants() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+
+    for (text, expected_quality) in [
+        (
+            "Enchanted creature has mountainwalk.",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Mountain"),
+        ),
+        (
+            "Target creature gains islandwalk until end of turn.",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Island"),
+        ),
+        (
+            "Create a 1/1 green Saproling creature token with forestwalk.",
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "Forest"),
+        ),
+    ] {
+        let parsed = assert_exact_document(&parser, &environment, text);
+        let mut visitor = DeclarationVisitor::default();
+        visitor.visit_oracle_text(&parsed);
+        assert!(
+            visitor
+                .0
+                .iter()
+                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "Landwalk"),
+            "{text:?}: {:?}",
+            visitor.0,
+        );
+        assert!(
+            visitor
+                .0
+                .iter()
+                .any(|(kind, name)| *kind == expected_quality.0 && name == expected_quality.1),
+            "{text:?}: {:?}",
+            visitor.0,
+        );
+
+        let analysis = parser.analyze_oracle_text(text, &context());
+        let decision = analysis.decision().expect("quality keyword selects");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| Some(candidate.ordinal()) == decision.selected())
+            .expect("quality keyword has one selected candidate");
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|name| { name == "BoundQualityKeywordLineItemBoundQualityKeywordLineItem" })
+        );
+    }
 }
 
 #[test]

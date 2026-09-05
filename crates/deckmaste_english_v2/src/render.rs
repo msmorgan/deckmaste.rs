@@ -23,6 +23,7 @@ pub(crate) struct Writer<'a> {
     output: String,
     case: CasePosition,
     prefix: PrefixPosition,
+    last_word: Option<(usize, CasePosition)>,
     following_onset: Option<deckmaste_construction_core::macro_def::Onset>,
     claims: ClaimSink<'a>,
 }
@@ -33,6 +34,7 @@ impl Writer<'_> {
             output: String::new(),
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
+            last_word: None,
             following_onset: None,
             claims: ClaimSink::Noop,
         }
@@ -43,6 +45,7 @@ impl Writer<'_> {
             output: String::new(),
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
+            last_word: None,
             following_onset: None,
             claims: ClaimSink::Collect(claims),
         }
@@ -85,6 +88,8 @@ impl Writer<'_> {
             PrefixPosition::WordOwnedSpace => self.output.push(' '),
             PrefixPosition::SurfaceOwned | PrefixPosition::None => {}
         }
+        let word_start = self.output.len();
+        let word_case = self.case;
         if matches!(
             self.case,
             CasePosition::DocumentInitial | CasePosition::SentenceInitial
@@ -99,10 +104,39 @@ impl Writer<'_> {
         }
         self.case = CasePosition::Continuation;
         self.prefix = PrefixPosition::WordOwnedSpace;
+        self.last_word = Some((word_start, word_case));
     }
 
     pub(crate) fn suppress_next_space(&mut self) {
         self.prefix = PrefixPosition::SurfaceOwned;
+    }
+
+    pub(crate) fn bind_declared_suffix(&mut self) {
+        let Some((start, CasePosition::Continuation)) = self.last_word else {
+            self.suppress_next_space();
+            return;
+        };
+        let Some(first) = self.output[start..].chars().next() else {
+            self.suppress_next_space();
+            return;
+        };
+        let replacement = first.to_lowercase().collect::<String>();
+        let old_end = start + first.len_utf8();
+        if replacement != first.to_string() {
+            let delta = replacement.len().cast_signed() - first.len_utf8().cast_signed();
+            self.output.replace_range(start..old_end, &replacement);
+            if let ClaimSink::Collect(claims) = &mut self.claims {
+                for claim in claims.iter_mut() {
+                    if claim.span.start >= old_end {
+                        claim.span.start = claim.span.start.saturating_add_signed(delta);
+                    }
+                    if claim.span.end >= old_end {
+                        claim.span.end = claim.span.end.saturating_add_signed(delta);
+                    }
+                }
+            }
+        }
+        self.suppress_next_space();
     }
 
     pub(crate) fn identity(&mut self, identity: &str) {
@@ -112,6 +146,7 @@ impl Writer<'_> {
         self.output.push_str(identity);
         self.case = CasePosition::Continuation;
         self.prefix = PrefixPosition::WordOwnedSpace;
+        self.last_word = None;
     }
 
     pub(crate) fn punctuation(&mut self, mark: char) {
@@ -122,6 +157,7 @@ impl Writer<'_> {
             CasePosition::Continuation
         };
         self.prefix = PrefixPosition::WordOwnedSpace;
+        self.last_word = None;
     }
 
     #[allow(
@@ -132,6 +168,7 @@ impl Writer<'_> {
         self.output.push_str(surface);
         self.case = transition.case_after(self.case);
         self.prefix = PrefixPosition::SurfaceOwned;
+        self.last_word = None;
     }
 
     #[cfg(test)]
@@ -203,6 +240,22 @@ mod tests {
         );
         assert_eq!(writer.finish(), "Test");
         assert_eq!(labels.get(), 0);
+    }
+
+    #[test]
+    fn declared_suffix_binding_applies_sentence_case_to_the_bound_word() {
+        let mut initial = super::Writer::new();
+        initial.word("Island");
+        initial.bind_declared_suffix();
+        initial.word("walk");
+        assert_eq!(initial.finish(), "Islandwalk");
+
+        let mut running = super::Writer::new();
+        running.word("creature");
+        running.word("Island");
+        running.bind_declared_suffix();
+        running.word("walk");
+        assert_eq!(running.finish(), "Creature islandwalk");
     }
 
     #[test]

@@ -2405,6 +2405,23 @@ fn render_atoms(
                 value,
             } = atom
             {
+                let declared_bound_suffix = affix.is_none()
+                    && matches!(direction, crate::semantic::BoundDirectionPlan::Suffix)
+                    && form
+                        .atoms()
+                        .get(atom_index + 1)
+                        .and_then(|atom| match atom {
+                            AtomPlan::Lex { terminal, .. } => Some(terminal.as_str()),
+                            _ => None,
+                        })
+                        .is_some_and(|terminal| {
+                            matches!(
+                                validated.atom_terminal(terminal),
+                                Ok(AtomTerminal::DeclarationTerm { plan, .. })
+                                    if plan.feature()
+                                        == crate::macro_def::SurfaceFeature::BoundSuffix
+                            )
+                        });
                 return render_bound_atom(
                     validated,
                     construction,
@@ -2412,6 +2429,7 @@ fn render_atoms(
                     atom_index,
                     *direction,
                     affix.as_deref(),
+                    declared_bound_suffix,
                     value,
                     locals,
                     root_names,
@@ -2632,6 +2650,7 @@ fn render_bound_atom(
     atom_index: usize,
     direction: crate::semantic::BoundDirectionPlan,
     affix: Option<&str>,
+    declared_bound_suffix: bool,
     value: &AtomPlan,
     locals: &RenderLocals,
     root_names: &HashSet<String>,
@@ -2698,6 +2717,11 @@ fn render_bound_atom(
             #affix_claim
             writer.suppress_next_space();
             #value_render
+        },
+        crate::semantic::BoundDirectionPlan::Suffix if declared_bound_suffix => quote! {
+            #value_render
+            writer.bind_declared_suffix();
+            #affix_claim
         },
         crate::semantic::BoundDirectionPlan::Suffix => quote! {
             #value_render
@@ -7382,6 +7406,42 @@ mod tests {
         assert!(
             source.contains("concord_class_for_person (only . person ())"),
             "the consuming verb operand uses the canonical helper from the explicit writer: {source}",
+        );
+    }
+
+    #[test]
+    fn declared_bound_suffix_feature_drives_sentence_case_binding() {
+        let expansion = crate::generate(quote::quote! {
+            vocab OwnerWord { Invented = "invented", }
+            codec KeywordSuffix {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = Any;
+                    feature = BoundSuffix;
+                }
+            }
+            construction owner: Owner {
+                element OwnerValue { word: lex OwnerWord, }
+                form owner = lex(word);
+            }
+            construction fused: Root {
+                element FusedValue { owner: Owner, suffix: lex KeywordSuffix, }
+                form fused = right_adjacent(owner) lex(suffix);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a declaration-backed bound suffix emits through its sealed feature");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains("writer . bind_declared_suffix ()"),
+            "{source}"
         );
     }
 
