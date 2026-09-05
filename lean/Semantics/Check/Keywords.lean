@@ -305,7 +305,7 @@ def keywordFunctionsOnStack (k : KeywordLabel) : Bool :=
 
 def PaidCostName.named : PaidCostName → Bool
   | .byKeyword kw => (keywordFactsFor kw).elim false (·.paidCost)
-  | .byNthKeyword _ kw => (keywordFactsFor kw).elim false (·.paidCost)
+  | .byNthKeyword ordinal kw => ordinal.ok && (keywordFactsFor kw).elim false (·.paidCost)
   | .theAlternative => true
   | .theAdditional => true
 

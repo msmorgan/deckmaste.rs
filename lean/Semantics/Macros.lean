@@ -1,4 +1,5 @@
 import Semantics
+import Semantics.Check
 
 /-!
 # Semantics.Macros
@@ -22,6 +23,19 @@ def it : NounPhrase := .pro .bare .one .whole
 
 /-- "them" -/
 def them : NounPhrase := .pro .bare .many .whole
+
+/-- "it", stamped by the verb that produced it: "the exiled card". -/
+def itVerbed (verb : VerbLabel) : NounPhrase := .pro (.stamped verb) .one .whole
+/-- "them", stamped by the verb that produced them. -/
+def themVerbed (verb : VerbLabel) : NounPhrase := .pro (.stamped verb) .many .whole
+/-- "that turn" -/
+def thatTurn : NounPhrase := .pro .thatTurn .one .whole
+/-- "it", read against the prior clause; the antecedent instruction is the anchor. -/
+def itPrior (bs : Bindings) (prior : Instruction) : NounPhrase :=
+  .pro .bare .one (.top (Instruction.delta bs prior).length)
+/-- "it", read as the subject of the condition just stated. -/
+def itCondSubject (bs : Bindings) (condition : Condition) : NounPhrase :=
+  .pro .bare .one (.top (Condition.delta bs condition).length)
 
 /-- "it", read at the card slot: the card a looked-at or revealed slice named. -/
 def itCard : NounPhrase := .pro (.atSlot .card) .one .whole
@@ -89,6 +103,9 @@ def hand : ZoneExpr := .zone .hand .bare
 def library : ZoneExpr := .zone .library .bare
 def graveyard : ZoneExpr := .zone .graveyard .bare
 def stack : ZoneExpr := .zone .stack .bare
+def command : ZoneExpr := .zone .command .bare
+def libraryOf (player : NounPhrase) : ZoneExpr := .zone .library (.possessedBy player)
+def yourLibrary : ZoneExpr := libraryOf .you
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 def graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
@@ -100,6 +117,9 @@ def creature : Predicate := .hasType .creature
 def artifact : Predicate := .hasType .artifact
 def enchantment : Predicate := .hasType .enchantment
 def land : Predicate := .hasType .land
+def instant : Predicate := .hasType .instant
+def sorcery : Predicate := .hasType .sorcery
+def instantOrSorcery : Predicate := .or [instant, sorcery]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
 def spell : Predicate := .and [.inZone stack, .not (.abilityHead .anyOnStack)]
 def untapped : Predicate := .hasStatus .untapped
@@ -116,6 +136,14 @@ def blocked : Predicate := .inCombat .blockedBy none
 def unblocked : Predicate := .not blocked
 def creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
 def emblem : Predicate := .isEmblem
+/-- "the chosen player" -/
+def chosenPlayer : Predicate := .chosenPlayer .theChoice
+/-- "the last chosen player" -/
+def theLastChosenPlayer : Predicate := .chosenPlayer .theLatestChoice
+/-- "of the chosen <quality>" -/
+def ofChosen (sort : QualitySort) : Predicate := .ofChosen .theChoice sort
+/-- "of the last chosen <quality>" -/
+def ofTheLastChosen (sort : QualitySort) : Predicate := .ofChosen .theLatestChoice sort
 def copyOfACard : Predicate := .isCopyOfACard
 def cardOnTheStack : Predicate := .and [.isCard, spell]
 def tokenOnTheBattlefield : Predicate := .and [.isToken, permanent]
@@ -149,6 +177,14 @@ def anOpponent : NounPhrase := a .opponent
 def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
 def thisAbility : NounPhrase := .asMarker .ability .this
+def thisEnchantment : NounPhrase := .asType .enchantment .this none
+/-- "the rest of them" -/
+def theRest (kind : Kind) : NounPhrase := .theRest kind .many
+/-- "N of <group>" -/
+def someOf (quantity : Quantity) (group : NounPhrase) : NounPhrase :=
+  .someOf (.counted quantity) none group
+/-- "you and <subject>" -/
+def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
 def theDefendingPlayer : NounPhrase := .combatPlayer .defending
 def theAttackingPlayer : NounPhrase := .combatPlayer .attacking
 def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
@@ -182,6 +218,12 @@ def countersOn (kind : CounterKind) (holder : NounPhrase) : Amount := .statOf (.
 def plus (left right : Amount) : Amount := .arith .plus left right
 def minus (left right : Amount) : Amount := .arith .minus left right
 def times (per amount : Amount) : Amount := .arith .times per amount
+/-- "that much damage prevented this way" -/
+def preventedThisWay : Amount := .theOutcome .damagePrevented
+
+/-! ## Counters -/
+
+def plusOnePlusOne : CounterKind := .boost (.up 1) (.up 1)
 
 /-! ## Instructions -/
 
@@ -193,6 +235,9 @@ def exile (subject : NounPhrase) : Instruction := .enact none "Exile" (.move sub
 def sacrifice (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) "Sacrifice" (.move subject graveyard [])
 def tap (subject : NounPhrase) : Instruction := .enact none "Tap" (.setStatus .tapped subject)
+def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
+  .enact (some agent) "Discard" (.move subject graveyard [])
+def shuffle : Instruction := .shuffle .you
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
 def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.down amount)
@@ -219,6 +264,21 @@ def chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
   .choose none none subject .openly (some while_)
 def rollDice (player : NounPhrase) (count sides : Nat) : Instruction :=
   .rollDice player (.lit count) (.sides sides)
+def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
+  .flipCoins player (.count (.lit count))
+/-- "<decider> may <body>" -/
+def may (decider : NounPhrase) (body : Instruction) : Instruction := .may decider body none none
+/-- "Choose N — <modes>", no mode costing anything. -/
+def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
+  .modal quantity (modes.map (none, ·))
+/-- "<source> deals damage equal to its power to <recipient>" -/
+def dealsDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounPhrase) :
+    Instruction :=
+  .dealDamage source
+    (.statOf (.stat .power)
+      (.pro .bare .one
+        (.top (NounPhrase.selfSubjDelta source ++ NounPhrase.delta bs source).length)))
+    recipient
 
 /-- A token's characteristics from the parts a creature token names. -/
 def creatureTokenOf (power toughness : Amount) (colors : List Color) (subtypes : List Subtype) :
@@ -285,6 +345,18 @@ def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Opt
 
 def gains (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
   .continuously (.gains subject ability) duration
+/-- "<subject> becomes <added> in addition to its other types [until …]" -/
+def becomes (subject : NounPhrase) (added : Characteristics) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.becomes subject .adds (.bundle added none)) duration
+/-- Several static clauses sharing one subject, as one instruction. -/
+def sharedSubject (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.andAlso (some subject) parts) duration
+/-- "If <event> would happen, <replacement> instead [duration]." -/
+def ifWouldInstead (event : GameEvent) (replacement : Instruction) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.intercepts event [] none replacement .repeatedly none) duration
 
 /-! ## Events -/
 

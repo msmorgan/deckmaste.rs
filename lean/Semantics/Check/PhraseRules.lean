@@ -72,9 +72,10 @@ mutual
     | .hasPossessor ax n =>
       NounPhrase.check (some .player) bs n ++ refuse n.soleHolderOk .soleHolder ++
         refuse (possessorKind ax k) (.possessorKind ax k)
-    | .castBy n _ =>
+    | .castBy n rank =>
       kindCheck k (some .object) ++ NounPhrase.check (some .player) bs n ++
-        refuse n.soleHolderOk .soleHolder
+        refuse n.soleHolderOk .soleHolder ++
+        refuse (OptOrdinal.ok (rank.map (·.1))) .ordinalNonZero
     | .castFrom z =>
       kindCheck k (some .object) ++ ZoneExpr.check bs z ++
         refuse (playableFrom (some z.sort)) .playableFrom
@@ -347,7 +348,8 @@ mutual
     | .zone z scope => ZoneScope.check z bs scope
     | .library place ord off scope =>
       LibraryPlace.check bs place ++ refuse (place.arrangementOk ord) .placeArrangementFits ++
-        refuse (place.ordinalOk off) .placeOrdinalFits ++ ZoneScope.check .library bs scope
+        refuse (place.ordinalOk off) .placeOrdinalFits ++
+        refuse (OptOrdinal.ok off) .ordinalNonZero ++ ZoneScope.check .library bs scope
   termination_by structural z => z
 
   def ZoneExpr.checkAll (bs : Bindings) : List ZoneExpr → List Refusal

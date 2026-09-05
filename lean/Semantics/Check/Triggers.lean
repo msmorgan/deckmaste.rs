@@ -500,7 +500,8 @@ mutual
         refuse (zoneFits (NounPhrase.zone bs' what) (some .battlefield)) .zoneFits ++
         OptManaTypeTerm.check (nomIntro bs' what) ty
     | .unlocksDoor who door => NounPhrase.check (some .player) bs who ++ Door.check (nomIntro bs who) door
-    | .nthOccurrence _ _ ev => GameEvent.check bs ev
+    | .nthOccurrence ordinal _ ev =>
+      refuse ordinal.ok .ordinalNonZero ++ GameEvent.check bs ev
     | .triggers what =>
       NounPhrase.check (some .object) bs what ++ refuse what.plur.isOne .singular ++
         refuse (!what.targeted) .nontarget

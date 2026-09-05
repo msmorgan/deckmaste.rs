@@ -57,6 +57,7 @@ inductive Refusal where
   | playableFrom
   | placeArrangementFits
   | placeOrdinalFits
+  | ordinalNonZero
   | exposableZone (z : Zone)
   | costSubject
   | paidSubject

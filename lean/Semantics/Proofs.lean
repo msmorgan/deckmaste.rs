@@ -1,3 +1,4 @@
+import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Description
 import Semantics.Proofs.Refresh
 

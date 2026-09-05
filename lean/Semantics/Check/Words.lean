@@ -1064,6 +1064,14 @@ def supersDistinct : List Supertype → Bool
   | [] => true
   | s :: ss => !ss.elem s && supersDistinct ss
 
+/-- "Nth" counts from one [CR#401.7]: the Idris carried `IsSucc n` on the constructor. -/
+def Ordinal.ok : Ordinal → Bool
+  | .nth n => n != 0
+
+def OptOrdinal.ok : Option Ordinal → Bool
+  | none => true
+  | some o => o.ok
+
 /-! ## Static-ability sorts -/
 
 /-- What kind of continuous effect a static spec makes; the checker's classification of a
