@@ -246,8 +246,6 @@ mutual
     | cantPrevent (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan)
     | conditionally (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | onlyDuring (part : TurnPart) (whose : Option NounPhrase) (spec : StaticSpec)
-    /-- "doesn't lose the game for having 0 or less life" [CR#704.5a] -/
-    | noLossFromZeroLife (player : NounPhrase)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | triggersAdditionally (event : GameEvent) (quantity : Quantity)
     | entersRider (subject : NounPhrase) (rider : TokenRider)
@@ -268,6 +266,7 @@ mutual
     | payingInstead (cost : Cost)
 
   inductive DeonticRider where
+    | stateBased (cause : StateBasedCause)
     | noRider
     | play (from_ : Option ZoneExpr) (limit : Option PlayLimit) (timing : Option PlayTiming)
         (exclusive : Bool) (payment : PlayPayment)

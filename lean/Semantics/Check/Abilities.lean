@@ -483,7 +483,7 @@ def StaticSpec.notCarvedOut : StaticSpec → Bool
   | _ => true
 
 def DeonticRider.playRidden : DeonticRider → Bool
-  | .noRider => false
+  | .noRider | .stateBased _ => false
   | .play _ _ _ _ _ => true
 
 def deonticPatientOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (patient : DeonticPatient)
@@ -504,9 +504,14 @@ def Compulsion.permits : Compulsion → Bool
   | .permit => true
   | _ => false
 
+/-- The deed caused by a state-based condition [CR#704.5a]. -/
+def StateBasedCause.deed : StateBasedCause → CoreDeed
+  | .nonpositiveLife => .loseGame
+
 def deonticRiderOk (bs : Bindings) (ds : Deeds) (r : Role) (c : Compulsion) (pat : DeonticPatient)
     (at_ : Bool) : DeonticRider → Bool
   | .noRider => true
+  | .stateBased cause => ds.all (· == .core cause.deed)
   | .play from_ lim win exc _ =>
     match pat with
     | .counterpart m =>
@@ -1058,7 +1063,6 @@ mutual
     | .conditionally se c _ => c.intro (StaticSpec.intro bs se)
     | .alsoOffBattlefield se => StaticSpec.intro bs se
     | .doesntRemove se n => nomIntro (StaticSpec.intro bs se) n
-    | .noLossFromZeroLife who => nomIntro bs who
     | .visibility _ who what => what.intro (nomIntro bs who)
     | .triggersAdditionally _ _ => bs
     | .entersRider n rider => rider.intro (nomIntro bs n)
@@ -1302,7 +1306,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .damageRule _ _ _ op _ => op.numberSlots
   | .cantPrevent _ _ _ => []
   | .conditionally _ _ _ | .onlyDuring _ _ _ => []
-  | .noLossFromZeroLife _ | .visibility _ _ _ | .triggersAdditionally _ _ => []
+  | .visibility _ _ _ | .triggersAdditionally _ _ => []
   | .entersRider _ rider => rider.numberSlots
   | .entersChoice _ _ _ _ | .attachChoice _ _ _ | .andAlso _ _ => []
 

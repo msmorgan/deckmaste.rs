@@ -174,6 +174,12 @@ inductive CoreDeed where
   | put | return_ | gainControl | unlock | fullyUnlock
   deriving DecidableEq, Repr
 
+/-- A condition that causes a state-based action [CR#704.1]. -/
+inductive StateBasedCause where
+  /-- A player has 0 or less life [CR#704.5a]. -/
+  | nonpositiveLife
+  deriving DecidableEq, Repr
+
 /-- A deed: something a card's text says is done. Three sources define one, and only the middle
 one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the registry declares
 [CR#701.1], and the verb a keyword ability defines for itself [CR#702.122b,702.171a,702.26a]. -/

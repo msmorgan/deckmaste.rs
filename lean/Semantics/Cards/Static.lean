@@ -792,7 +792,9 @@ def revelation : Spelled := spelled <| .singleFaced
       text := [.static (.visibility .reveal (.playerGroup .allPlayers) .wholeHand)] } }
 
 /-- Phyrexian Unlife -/
-def phyrexianUnlifeImmunity : Ability := .static (.noLossFromZeroLife .you)
+def phyrexianUnlifeImmunity : Ability :=
+  .static (.deontic .you .forbid [.core .loseGame] .agent none .noPatient none
+    (.stateBased .nonpositiveLife))
 theorem okPhyrexianUnlifeImmunity : Ability.check [] phyrexianUnlifeImmunity = [] := by decide
 /-- Umbris, Fear Manifest -/
 def umbrisPump : Ability :=

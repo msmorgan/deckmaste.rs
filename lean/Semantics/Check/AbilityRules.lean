@@ -475,7 +475,7 @@ mutual
   termination_by structural p => p
 
   def DeonticRider.check (bs : Bindings) : DeonticRider → List Refusal
-    | .noRider => []
+    | .noRider | .stateBased _ => []
     | .play from_ _ _ _ payment => OptZoneExpr.check bs from_ ++ PlayPayment.check bs payment
   termination_by structural r => r
 
@@ -652,7 +652,6 @@ mutual
         refuse (markingOk marking c) .markingOk
     | .onlyDuring p w se =>
       OptNoun.check (some .player) bs w ++ StaticSpec.check bs se ++ refuse (windowOk p w) .windowOk
-    | .noLossFromZeroLife who => NounPhrase.check (some .player) bs who
     | .visibility v who what =>
       NounPhrase.check (some .player) bs who ++ VisibleThing.check (nomIntro bs who) what ++
         refuse (visibilityOk v what) .visibilityOk

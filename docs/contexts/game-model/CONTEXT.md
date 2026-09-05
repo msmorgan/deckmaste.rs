@@ -201,6 +201,12 @@ An Action that happens automatically whenever one of the conditions listed by
 [CR#704.1] is met, without using the stack. An Ability that watches for a game
 state is a Triggered Ability instead ([CR#704.1a]).
 
+**State-Based Cause**:
+A condition whose satisfaction causes a State-Based Action ([CR#704.1]).
+Having 0 or less life, for example, causes a Player to lose the game
+([CR#704.5a]); an exemption limited to that cause does not exempt the Player
+from losing for other reasons.
+
 **Priority**:
 The system determining which Player may cast spells, activate abilities, and
 take Special Actions at a given time ([CR#117.1]).

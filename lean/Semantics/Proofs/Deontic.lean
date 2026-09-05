@@ -19,6 +19,53 @@ def act (cost : Cost) (instruction : Instruction) : Ability :=
 /-- "you may play …" with no zone, limit, timing, or payment named. -/
 def playRider : DeonticRider := .play none none none false .itsOwnCost
 
+/-- A cause qualifier narrows the ordinary loss prohibition. -/
+theorem okStateBasedLossGate :
+    Ability.check [] (.static
+      (.deontic .you .forbid [.core .loseGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [] := by decide
+
+theorem okStateBasedLossForPlayerGroup :
+    Ability.check [] (.static
+      (.deontic (.playerGroup .yourOpponents) .forbid [.core .loseGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [] := by decide
+
+theorem badStateBasedLossOnCreature :
+    Ability.check [] (.static
+      (.deontic thisCreature .forbid [.core .loseGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.deedFits] := by decide
+
+theorem badTargetedStateBasedLossGate :
+    Ability.check [] (.static
+      (.deontic (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.nontarget] := by decide
+
+/-- Targets belong to the enclosing spell, not to a static ability. -/
+theorem okTargetedContinuousStateBasedLossGate :
+    Instruction.check [] (.continuously
+      (.deontic (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife)) (some .thisTurn)) = [] := by decide
+
+theorem badStateBasedCauseForLifeGain :
+    Ability.check [] (.static
+      (.deontic .you .forbid [.core .gainLife] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.deonticRiderOk] := by decide
+
+theorem badStateBasedCauseForMixedDeeds :
+    Ability.check [] (.static
+      (.deontic .you .forbid [.core .loseGame, .core .winGame] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.deonticRiderOk] := by decide
+
+theorem badStateBasedCauseWithoutDeed :
+    Ability.check [] (.static
+      (.deontic .you .forbid [] .agent none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.nonEmpty] := by decide
+
+theorem badStateBasedLossPatientRole :
+    Ability.check [] (.static
+      (.deontic .you .forbid [.core .loseGame] .patient none .noPatient none
+        (.stateBased .nonpositiveLife))) = [.deedFits] := by decide
+
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
     Instruction.check []
