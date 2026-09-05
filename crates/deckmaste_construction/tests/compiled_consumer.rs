@@ -445,7 +445,13 @@ mod declaration_noun_fixture {
     constructions! {
         morphology EnglishNoun { feature = Number; recipe = english_noun; }
         lexeme NounLexeme using EnglishNoun {
+            feature BareLocativeLicense = QualifiedOnly;
+            feature Relationality = NonRelational;
             Player = "player",
+            LocativeRelation = "location" {
+                feature BareLocativeLicense = BareAllowed;
+                feature Relationality = Relational;
+            },
             Artifact = "artifact" { Plural = "units", },
         }
         codec Noun {
@@ -512,10 +518,19 @@ mod declaration_noun_fixture {
             form an when head.onset is Vowel = "an" source noun(head);
             form a otherwise = "a" source noun(head);
         }
+        construction licensed_noun: LicensedNoun {
+            element LicensedNounValue { noun: lex Noun, }
+            require noun.bare_locative_license is BareAllowed;
+            require noun.relationality is Relational;
+            derive noun.number = Values::Singular;
+            derive number = noun.number;
+            form licensed_noun = noun(noun);
+        }
         root ConstantOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
         root ElsewhereOutputPair { punctuation = "."; eoi = true; standalone_render = true; }
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root InflectedArticle { punctuation = "."; eoi = true; standalone_render = true; }
+        root LicensedNoun { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     fn declaration(
@@ -1075,6 +1090,33 @@ mod declaration_noun_fixture {
             )
             .is_some(),
             "construction Number derives from output_source without constraining either noun role",
+        );
+    }
+
+    pub(crate) fn assert_noun_aggregate_feature_helpers_control_parse_outcomes() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let accepted = scan(&environment, &context, "Location", 0, 1);
+        assert_eq!(accepted.len(), 1, "the feature-bearing noun scans");
+        assert!(
+            build(
+                RuleId::LicensedNounLicensedNoun,
+                &[BuildValue::Leaf(accepted[0].value.clone())],
+                &context,
+            )
+            .is_some(),
+            "the member-declared noun features satisfy both aggregate helper requirements",
+        );
+        let rejected = scan(&environment, &context, "Player", 0, 1);
+        assert_eq!(rejected.len(), 1, "the default-valued noun scans");
+        assert!(
+            build(
+                RuleId::LicensedNounLicensedNoun,
+                &[BuildValue::Leaf(rejected[0].value.clone())],
+                &context,
+            )
+            .is_none(),
+            "a noun without the declared aggregate feature values is rejected",
         );
     }
 }
@@ -7653,6 +7695,11 @@ fn dynamic_declaration_noun_role_guards_are_independent() {
 #[test]
 fn construction_number_does_not_overconstrain_declaration_noun_roles() {
     declaration_noun_fixture::assert_construction_number_does_not_overconstrain_noun_roles();
+}
+
+#[test]
+fn noun_aggregate_feature_helpers_control_parse_outcomes() {
+    declaration_noun_fixture::assert_noun_aggregate_feature_helpers_control_parse_outcomes();
 }
 
 #[test]
