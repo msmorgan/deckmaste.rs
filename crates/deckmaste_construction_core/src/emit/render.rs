@@ -518,6 +518,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::ConcordClass,
         Feature::BareDurationLicense,
         Feature::Cardinality,
+        Feature::Quantification,
         Feature::FusedHeadLicense,
         Feature::Focus,
         Feature::PrepositionComplementKind,
@@ -535,6 +536,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 feature,
                 Feature::BareDurationLicense
                     | Feature::DeterminerNumber
+                    | Feature::Quantification
                     | Feature::FusedHeadLicense
                     | Feature::Focus
                     | Feature::PrepositionComplementKind
@@ -578,6 +580,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }
     for feature in [
         Feature::BareDurationLicense,
+        Feature::Quantification,
         Feature::FusedHeadLicense,
         Feature::Focus,
         Feature::PrepositionComplementKind,
@@ -1809,6 +1812,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::Quantification => quote! { Quantification },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
         Feature::Focus => quote! { Focus },
         Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
@@ -2157,6 +2161,7 @@ fn reserve_feature_callees(
         *source_feature,
         Feature::BareDurationLicense
             | Feature::BareLocativeComplement
+            | Feature::Quantification
             | Feature::FusedHeadLicense
             | Feature::PrepositionComplementKind
             | Feature::LocativeTemporalLicense
@@ -4158,6 +4163,9 @@ fn feature_expr(
                     Feature::DeterminerNumber => {
                         Err(internal("verb slot does not provide determiner number"))
                     }
+                    Feature::Quantification => {
+                        Err(internal("verb slot does not provide quantification"))
+                    }
                     Feature::FusedHeadLicense => {
                         Err(internal("verb slot does not provide fused-head license"))
                     }
@@ -4329,15 +4337,27 @@ fn feature_expr(
                     locals,
                 );
             }
-            if *source_feature == Feature::BareDurationLicense && field.is_zeroable() {
+            if field.is_zeroable()
+                && matches!(
+                    *source_feature,
+                    Feature::BareDurationLicense | Feature::Quantification
+                )
+            {
                 let wrapper = field.value_type();
                 let function = ident(&feature_helper(
                     feature_name(*source_feature),
                     field.terminal(),
                 ));
+                let absent = match source_feature {
+                    Feature::BareDurationLicense => {
+                        quote! { BareDurationLicense::MarkerRequired }
+                    }
+                    Feature::Quantification => quote! { Quantification::NonDistributive },
+                    _ => unreachable!("zeroable feature default is exhaustive"),
+                };
                 return Ok(quote! {
                     match #role_value {
-                        #wrapper::Zero => BareDurationLicense::MarkerRequired,
+                        #wrapper::Zero => #absent,
                         #wrapper::Headed(value) => #function(value),
                     }
                 });
@@ -4346,6 +4366,7 @@ fn feature_expr(
                 *source_feature,
                 Feature::BareDurationLicense
                     | Feature::BareLocativeComplement
+                    | Feature::Quantification
                     | Feature::FusedHeadLicense
                     | Feature::PrepositionComplementKind
                     | Feature::LocativeTemporalLicense
@@ -5174,6 +5195,7 @@ fn emit_feature_helper(
         Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::Quantification => quote! { Quantification },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
         Feature::Focus => quote! { Focus },
         Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
@@ -5793,6 +5815,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         FeatureValue::Other => quote! { PossessiveEnding::Other },
         FeatureValue::Participle => quote! { Participle::Participle },
+        FeatureValue::NonDistributive => quote! { Quantification::NonDistributive },
+        FeatureValue::Distributive => quote! { Quantification::Distributive },
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
@@ -6107,6 +6131,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Participle => "participle",
         Feature::PossessiveEnding => "possessive_ending",
         Feature::DeterminerNumber => "determiner_number",
+        Feature::Quantification => "quantification",
         Feature::FusedHeadLicense => "fused_head_license",
         Feature::Focus => "focus",
         Feature::PrepositionComplementKind => "preposition_complement_kind",
@@ -6167,6 +6192,7 @@ mod tests {
                     closed = [
                         Amount {
                             bare_duration_license = MarkerRequired;
+                            quantification = NonDistributive;
                             number_license = SingularOnly;
                             fused_head_license = NominalOnly;
                             nominal_license = CountNominal;

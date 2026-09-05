@@ -2692,6 +2692,7 @@ mod tests {
                     closed = [
                         Each {
                             bare_duration_license = BareDurationLicensed;
+                            quantification = Distributive;
                             number_license = SingularOnly;
                             fused_head_license = FusedHead;
                             nominal_license = CountNominal;

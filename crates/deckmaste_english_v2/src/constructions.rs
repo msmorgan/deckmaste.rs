@@ -955,6 +955,7 @@ constructions! {
                 IndefiniteArticle {
                     // Indefinite articles require an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
                     fused_head_license = NominalOnly;
@@ -966,6 +967,7 @@ constructions! {
                 DefiniteArticle {
                     // The definite article requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = AnyNominal;
                     fused_head_license = NominalOnly;
@@ -974,6 +976,7 @@ constructions! {
                 ProximalDemonstrative {
                     // Proximal demonstratives deictically license a bare duration.
                     bare_duration_license = BareDurationLicensed;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = AnyNominal;
                     fused_head_license = FusedHead;
@@ -985,6 +988,7 @@ constructions! {
                 DistalDemonstrative {
                     // Distal demonstratives deictically license a bare duration.
                     bare_duration_license = BareDurationLicensed;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = AnyNominal;
                     fused_head_license = FusedHead;
@@ -996,6 +1000,7 @@ constructions! {
                 Another {
                     // Additive singular determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
                     fused_head_license = FusedHead;
@@ -1004,6 +1009,7 @@ constructions! {
                 Each {
                     // Distributive determination licenses a bare duration.
                     bare_duration_license = BareDurationLicensed;
+                    quantification = Distributive;
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
                     fused_head_license = FusedHead;
@@ -1012,6 +1018,7 @@ constructions! {
                 All {
                     // Universal mass/plural determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = MassOrPluralCount;
                     fused_head_license = PluralPredeterminer;
@@ -1020,6 +1027,7 @@ constructions! {
                 Both {
                     // Dual determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = PluralOnly;
                     nominal_license = CountNominal;
                     fused_head_license = FusedHead;
@@ -1028,6 +1036,7 @@ constructions! {
                 No {
                     // Negative determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = AnyNominal;
                     fused_head_license = NominalOnly;
@@ -1036,6 +1045,7 @@ constructions! {
                 Any {
                     // Free-choice determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = Both;
                     nominal_license = AnyNominal;
                     fused_head_license = PartitiveOnly;
@@ -1044,6 +1054,7 @@ constructions! {
                 AnyOne {
                     // Partitive singular determination requires an overt temporal marker.
                     bare_duration_license = MarkerRequired;
+                    quantification = NonDistributive;
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
                     fused_head_license = NominalOnly;
@@ -2036,7 +2047,8 @@ constructions! {
         element PrepositionalPredicateAdjunct {
             adjunct: PrepositionalPhrase checked by predicate_preposition_is_licensed(
                 adjunct.preposition_complement_kind,
-                adjunct.locative_temporal_license
+                adjunct.locative_temporal_license,
+                adjunct.quantification
             ),
         }
         require adjunct.preposition_attachment is AdjunctCapable;
@@ -2394,6 +2406,7 @@ constructions! {
         derive relationality = value.relationality;
         derive locative_temporal_license = value.locative_temporal_license;
         derive focus = Values::Unfocused;
+        derive quantification = value.quantification;
         form object_nominal = value;
     }
     construction focused_object: Object {
@@ -2405,6 +2418,7 @@ constructions! {
         derive relationality = focus.relationality;
         derive locative_temporal_license = focus.locative_temporal_license;
         derive focus = Values::Focused;
+        derive quantification = focus.quantification;
         form focused_object = lex(adverb) focus;
     }
     construction bare_singular_coordination_object: Object {
@@ -2416,6 +2430,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive focus = Values::Unfocused;
+        derive quantification = Values::NonDistributive;
         form bare_singular_coordination_object = value;
     }
     construction object_pronoun: Object {
@@ -2438,6 +2453,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive focus = Values::Unfocused;
+        derive quantification = Values::NonDistributive;
         form object_pronoun = lex(word);
     }
     construction reflexive_object: Object {
@@ -2464,6 +2480,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive focus = Values::Unfocused;
+        derive quantification = Values::NonDistributive;
         form reflexive_object = lex(word);
     }
     construction noun_singular_head: Head {
@@ -2837,6 +2854,7 @@ constructions! {
         derive relationality = head.relationality;
         derive locative_temporal_license = head.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         derive head.number = Values::Singular;
         form bare_relational_reference = noun(head);
     }
@@ -2854,6 +2872,7 @@ constructions! {
         derive relationality = head.relationality;
         derive locative_temporal_license = head.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         derive head.number = Values::Singular;
         form modified_bare_relational_reference = first rest noun(head);
     }
@@ -2870,6 +2889,7 @@ constructions! {
         derive relationality = head.relationality;
         derive locative_temporal_license = head.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form participial_singular_reference = adjective head;
     }
     construction premodified_participial_singular_reference: UnqualifiedReference {
@@ -2888,6 +2908,7 @@ constructions! {
         derive relationality = head.relationality;
         derive locative_temporal_license = head.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form premodified_participial_singular_reference = first rest adjective head;
     }
     construction bare_coordination_member: CoordinationMember {
@@ -3085,6 +3106,7 @@ constructions! {
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = head.determiner_number;
+        derive quantification = head.quantification;
         derive nominal_license = head.nominal_license;
         derive fused_head_license = head.fused_head_license;
         derive bare_duration_license = head.bare_duration_license;
@@ -3096,6 +3118,7 @@ constructions! {
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::NominalOnly;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3111,6 +3134,7 @@ constructions! {
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = head.determiner_number;
+        derive quantification = head.quantification;
         derive nominal_license = head.nominal_license;
         derive fused_head_license = head.fused_head_license;
         derive bare_duration_license = head.bare_duration_license;
@@ -3123,6 +3147,7 @@ constructions! {
         derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = count.determiner_number;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3134,6 +3159,7 @@ constructions! {
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::MassOrPluralCount;
         derive fused_head_license = Values::NominalOnly;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3145,6 +3171,7 @@ constructions! {
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::MassOrPluralCount;
         derive fused_head_license = Values::NominalOnly;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3156,6 +3183,7 @@ constructions! {
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::MassOrPluralCount;
         derive fused_head_license = Values::NominalOnly;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3167,6 +3195,7 @@ constructions! {
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3179,6 +3208,7 @@ constructions! {
         derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = count.determiner_number;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3197,6 +3227,7 @@ constructions! {
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::NominalOnly;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3209,6 +3240,7 @@ constructions! {
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3220,6 +3252,7 @@ constructions! {
         derive concord_class = count.concord_class;
         derive number = count.number;
         derive determiner_number = Values::Both;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3234,6 +3267,7 @@ constructions! {
         derive concord_class = Values::Other;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
+        derive quantification = Values::NonDistributive;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive bare_duration_license = Values::MarkerRequired;
@@ -3250,6 +3284,7 @@ constructions! {
         derive relationality = kind.relationality;
         derive locative_temporal_license = kind.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form named_card_reference = "a" kind "named" identity(name);
     }
     construction definite_next_mass_quantity_reference: UnqualifiedReference {
@@ -3264,6 +3299,7 @@ constructions! {
         derive relationality = noun.relationality;
         derive locative_temporal_license = noun.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form definite_next_mass_quantity_reference = "the" "next" quantity noun;
     }
     construction that_many: CountReference {
@@ -3298,6 +3334,7 @@ constructions! {
         derive relationality = possessed.relationality;
         derive locative_temporal_license = possessed.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form demonstrative_possessive_reference = lex(demonstrative) possessor possessed;
     }
     construction possessed_reference: UnqualifiedReference {
@@ -3326,6 +3363,7 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form possessed_reference = lex(possessor) nominal;
     }
     construction possessed_coordination_reference: UnqualifiedReference {
@@ -3340,6 +3378,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form possessed_coordination_reference = lex(possessor) coordination;
     }
     construction genitive_determiner_reference: UnqualifiedReference {
@@ -3368,6 +3407,7 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form genitive_determiner_reference = possessor nominal;
     }
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
@@ -3382,6 +3422,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form genitive_determiner_coordination_reference = possessor coordination;
     }
     construction possessive_absolute_reference: UnqualifiedReference {
@@ -3403,6 +3444,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form possessive_absolute_reference = lex(word);
     }
     construction determined_nominal: UnqualifiedReference {
@@ -3422,6 +3464,7 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = det.bare_duration_license;
+        derive quantification = det.quantification;
         form determined_nominal = det nominal;
     }
     construction all_predetermined_nominal: UnqualifiedReference {
@@ -3444,6 +3487,7 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = det.quantification;
         form all_predetermined_nominal = predeterminer det nominal;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
@@ -3502,6 +3546,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form coordinated_noun_phrase = coordination;
     }
     construction locative_and_noun_phrase_coordination: LocativeNounPhraseCoordination {
@@ -3528,6 +3573,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form locative_coordinated_noun_phrase = coordination;
     }
     construction self_reference: UnqualifiedReference {
@@ -3539,6 +3585,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form self_reference = identity(spelling);
     }
     construction this_way: MannerReference {
@@ -3679,6 +3726,7 @@ constructions! {
         derive preposition_complement_kind = preposition.preposition_complement_kind;
         derive relationality = complement.relationality;
         derive locative_temporal_license = complement.locative_temporal_license;
+        derive quantification = complement.quantification;
         form prepositional_phrase = lex(preposition) complement;
     }
     // A determiner-less locative is licensed by the preposition class as well
@@ -3696,6 +3744,7 @@ constructions! {
         derive preposition_complement_kind = preposition.preposition_complement_kind;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form bare_locative_prepositional_phrase = lex(preposition) complement;
     }
     // H2 forbids a recursively nested PP complement, but Oracle text has a
@@ -3714,6 +3763,7 @@ constructions! {
         derive preposition_complement_kind = source_relation.preposition_complement_kind;
         derive relationality = complement.relationality;
         derive locative_temporal_license = complement.locative_temporal_license;
+        derive quantification = Values::NonDistributive;
         form from_among_prepositional_phrase =
             lex(source_relation) lex(selection_relation) complement;
     }
@@ -3727,6 +3777,7 @@ constructions! {
         require relation is Of;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = whole.locative_temporal_license;
+        derive quantification = Values::NonDistributive;
         form edge_of_phrase = lex(definiteness) lex(position) lex(relation) whole;
     }
     construction fixed_scalar_threshold: ScalarThreshold {
@@ -3808,6 +3859,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form scalar_measure_value = measure value;
     }
     construction single_scalar_degree_phrase: SingleScalarDegreePhrase {
@@ -3829,6 +3881,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form degree_measure = degree measure;
     }
     construction power_toughness_value: PowerToughnessValue {
@@ -3843,6 +3896,7 @@ constructions! {
         );
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form fixed_power_toughness when fixed.is_some() =
             characteristics fixed equality;
         form equal_power_toughness otherwise =
@@ -3913,6 +3967,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form unqualified_postmodified_reference = reference;
     }
     construction relative_qualified_reference: PostmodifiedReference {
@@ -3927,6 +3982,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form relative_qualified_reference = reference clause;
     }
     construction subject_relative_qualified_reference: PostmodifiedReference {
@@ -3942,6 +3998,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form subject_relative_qualified_reference = reference clause;
     }
     construction contracted_copular_relative_reference: PostmodifiedReference {
@@ -3962,6 +4019,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form contracted_copular_relative_reference =
             reference "that's" "a" nominal lex(relation) complement;
     }
@@ -3977,6 +4035,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form reduced_passive_qualified_reference = reference clause;
     }
     construction reduced_passive_adjunct_qualified_reference: PostmodifiedReference {
@@ -3992,6 +4051,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form reduced_passive_adjunct_qualified_reference = reference clause adjunct;
     }
     construction reduced_passive_prepositional_adjunct_qualified_reference: PostmodifiedReference {
@@ -4007,6 +4067,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form reduced_passive_prepositional_adjunct_qualified_reference = reference clause adjunct;
     }
     construction other_than_qualified_reference: PostmodifiedReference {
@@ -4021,6 +4082,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form other_than_qualified_reference = reference "other" "than" excluded;
     }
     // Low attachment: a prepositional phrase postmodifies the nearest
@@ -4048,6 +4110,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form prepositional_qualified_reference = reference modifier;
     }
     construction relational_qualified_reference: PostmodifiedReference {
@@ -4073,6 +4136,7 @@ constructions! {
         derive relationality = Values::SaturatedRelational;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form relational_qualified_reference = reference modifier;
     }
     construction qualified_noun_phrase: NounPhrase {
@@ -4084,6 +4148,7 @@ constructions! {
         derive relationality = reference.relationality;
         derive locative_temporal_license = reference.locative_temporal_license;
         derive bare_duration_license = reference.bare_duration_license;
+        derive quantification = reference.quantification;
         form qualified_noun_phrase = reference;
     }
     construction comparative_quantified_reference: NounPhrase {
@@ -4101,6 +4166,7 @@ constructions! {
         derive relationality = nominal.relationality;
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form comparative_quantified_reference = lex(quantifier) nominal "than" standard;
     }
     construction fused_determinative_reference: NounPhrase {
@@ -4113,6 +4179,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = head.bare_duration_license;
+        derive quantification = head.quantification;
         form fused_determinative_reference = head;
     }
     construction determinative_partitive: UnqualifiedReference {
@@ -4135,6 +4202,7 @@ constructions! {
         derive relationality = whole.relationality;
         derive locative_temporal_license = whole.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = head.quantification;
         form determinative_partitive = head lex(relation) whole;
     }
     construction positional_partitive: NounPhrase {
@@ -4152,6 +4220,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form positional_partitive = "the" lex(position) selection lex(relation) whole;
     }
     construction singular_common_noun_choice: CommonNounChoice {
@@ -4180,6 +4249,7 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
         derive bare_duration_license = Values::MarkerRequired;
+        derive quantification = Values::NonDistributive;
         form common_noun_choice_list = choices;
     }
     construction fused_color_nominal: Nominal {
@@ -4831,6 +4901,7 @@ constructions! {
         element QuotedAbilityValue { block: QuotedBlock, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form quoted_ability = sentence_initial(" \"") suffix(block, "\"");
     }
     construction granted_ability_lexical_verb_phrase: GrantedAbilityLexicalVerbPhrase {
@@ -4983,6 +5054,7 @@ constructions! {
         element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form bare_keyword_line_item = lex(keyword);
     }
     construction costed_keyword_line_item: CostedKeywordLineItem {
@@ -4992,6 +5064,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form costed_keyword_line_item = lex(keyword) cost;
     }
     construction keyword_mana_cost: KeywordManaCost {
@@ -5027,6 +5100,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form amount_keyword_line_item = lex(keyword) amount;
     }
     construction amount_cost_keyword_line_item: AmountCostKeywordLineItem {
@@ -5037,6 +5111,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form amount_cost_keyword_line_item = lex(keyword) amount cost;
     }
     construction prepositional_keyword_quality: PrepositionalKeywordQuality {
@@ -5067,6 +5142,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form qualified_keyword_line_item = lex(keyword) quality;
     }
     construction bound_quality_keyword_line_item: BoundQualityKeywordLineItem {
@@ -5077,6 +5153,7 @@ constructions! {
         derive quality.number = Values::Singular;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form bound_quality_keyword_line_item = right_adjacent(quality) lex(keyword);
     }
     construction quality_cost_keyword_line_item: QualityCostKeywordLineItem {
@@ -5089,6 +5166,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form quality_cost_keyword_line_item = lex(keyword) quality cost;
     }
     construction subject_keyword_line_item: SubjectKeywordLineItem {
@@ -5098,24 +5176,28 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form subject_keyword_line_item = lex(keyword) subject;
     }
     construction referenced_cost_keyword_ability: ReferencedCostKeywordAbility {
         element ReferencedCostKeywordAbilityValue { keyword: lex CostedKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_cost_keyword_ability = lex(keyword);
     }
     construction referenced_amount_keyword_ability: ReferencedAmountKeywordAbility {
         element ReferencedAmountKeywordAbilityValue { keyword: lex AmountKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_amount_keyword_ability = lex(keyword);
     }
     construction referenced_amount_cost_keyword_ability: ReferencedAmountCostKeywordAbility {
         element ReferencedAmountCostKeywordAbilityValue { keyword: lex AmountCostKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_amount_cost_keyword_ability = lex(keyword);
     }
     construction referenced_quality_keyword_ability: ReferencedQualityKeywordAbility {
@@ -5124,6 +5206,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_quality_keyword_ability = lex(keyword);
     }
     construction referenced_quality_cost_keyword_ability: ReferencedQualityCostKeywordAbility {
@@ -5132,12 +5215,14 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_quality_cost_keyword_ability = lex(keyword);
     }
     construction referenced_subject_keyword_ability: ReferencedSubjectKeywordAbility {
         element ReferencedSubjectKeywordAbilityValue { keyword: lex SubjectKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_subject_keyword_ability = lex(keyword);
     }
     construction referenced_ability_parameter_keyword_ability: ReferencedAbilityParameterKeywordAbility {
@@ -5146,12 +5231,14 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_ability_parameter_keyword_ability = lex(keyword);
     }
     construction referenced_condition_keyword_ability: ReferencedConditionKeywordAbility {
         element ReferencedConditionKeywordAbilityValue { keyword: lex ConditionKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_condition_keyword_ability = lex(keyword);
     }
     construction referenced_cost_power_toughness_keyword_ability: ReferencedCostPowerToughnessKeywordAbility {
@@ -5160,6 +5247,7 @@ constructions! {
         }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form referenced_cost_power_toughness_keyword_ability = lex(keyword);
     }
     construction ability_quoted_ability: AbilityQuotedAbility {
@@ -5180,6 +5268,7 @@ constructions! {
         require len(members) >= 2;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form and_ability_coordination = structural(" ") members;
     }
     construction or_ability_coordination: AbilityExpression {
@@ -5194,6 +5283,7 @@ constructions! {
         require len(members) >= 2;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form or_ability_coordination = structural(" ") members;
     }
     construction and_or_ability_coordination: AbilityExpression {
@@ -5208,6 +5298,7 @@ constructions! {
         require len(members) >= 2;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
+        derive quantification = Values::NonDistributive;
         form and_or_ability_coordination = structural(" ") members;
     }
     construction reference_keyword_subject: KeywordSubject {
@@ -5379,7 +5470,8 @@ fn nominal_nonrelational_preposition_is_licensed(
     complement_relationality: Relationality,
     complement_license: LocativeTemporalLicense,
 ) -> bool {
-    kind != PrepositionComplementKind::RelationalComplement
+    quantification_for_prepositional_phrase(modifier) != Quantification::Distributive
+        && kind != PrepositionComplementKind::RelationalComplement
         && nominal_preposition_is_licensed(
             modifier,
             relationality,
@@ -5697,14 +5789,18 @@ fn predicate_preposition_is_licensed(
     _adjunct: &PrepositionalPhrase,
     kind: PrepositionComplementKind,
     complement_license: LocativeTemporalLicense,
+    quantification: Quantification,
 ) -> bool {
-    !matches!(
-        kind,
-        PrepositionComplementKind::OnComplement | PrepositionComplementKind::TemporalComplement
-    ) || matches!(
-        complement_license,
-        LocativeTemporalLicense::TemporalLicensed | LocativeTemporalLicense::OfAndTemporalLicensed
-    )
+    quantification == Quantification::Distributive
+        || !matches!(
+            kind,
+            PrepositionComplementKind::OnComplement | PrepositionComplementKind::TemporalComplement
+        )
+        || matches!(
+            complement_license,
+            LocativeTemporalLicense::TemporalLicensed
+                | LocativeTemporalLicense::OfAndTemporalLicensed
+        )
 }
 
 fn predicate_adjunct_is_prepositional(adjunct: &PredicateAdjunct) -> bool {

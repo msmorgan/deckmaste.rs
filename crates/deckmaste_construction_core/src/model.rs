@@ -250,6 +250,7 @@ pub enum Feature {
     MannerAnaphorClass,
     ModifierLicense,
     DeterminerNumber,
+    Quantification,
     FusedHeadLicense,
     Focus,
     PrepositionComplementKind,
@@ -470,6 +471,7 @@ pub struct DeclarationDeterminativeClosedSource {
 pub struct DeclarationDeterminativeMemberSource {
     pub lemma: Ident,
     pub number_license_slots: Vec<GeneratedIdentSlot>,
+    pub quantification_slots: Vec<GeneratedIdentSlot>,
     pub fused_head_license_slots: Vec<GeneratedIdentSlot>,
     pub nominal_license_slots: Vec<GeneratedIdentSlot>,
     pub bare_duration_license_slots: Vec<GeneratedIdentSlot>,

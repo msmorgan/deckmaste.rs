@@ -809,6 +809,7 @@ pub(crate) struct DeclarationDeterminativePlan {
 pub(crate) struct ClosedDeterminativePlan {
     lemma: syn::Ident,
     number_license: crate::macro_def::DeterminativeNumberLicense,
+    quantification: crate::macro_def::DeterminativeQuantification,
     fused_head_license: crate::macro_def::DeterminativeFusedHeadLicense,
     nominal_license: crate::macro_def::DeterminativeNominalLicense,
     bare_duration_license: crate::macro_def::DeterminativeBareDurationLicense,
@@ -1921,7 +1922,9 @@ impl SemanticPlan {
                 codec.codec_name() == name
                     && matches!(
                         feature,
-                        Feature::BareDurationLicense | Feature::FusedHeadLicense
+                        Feature::BareDurationLicense
+                            | Feature::Quantification
+                            | Feature::FusedHeadLicense
                     )
             }
             TerminalPlan::Binding(_)
@@ -6442,6 +6445,15 @@ impl DeclarationDeterminativePlan {
                     "Both" => crate::macro_def::DeterminativeNumberLicense::Both,
                     _ => unreachable!("validated determiner number license is closed"),
                 };
+                let quantification = match identifier_key(&member.quantification_slots[0].value)
+                    .as_str()
+                {
+                    "NonDistributive" => {
+                        crate::macro_def::DeterminativeQuantification::NonDistributive
+                    }
+                    "Distributive" => crate::macro_def::DeterminativeQuantification::Distributive,
+                    _ => unreachable!("validated determinative quantification is closed"),
+                };
                 let nominal_license = match identifier_key(&member.nominal_license_slots[0].value)
                     .as_str()
                 {
@@ -6511,6 +6523,7 @@ impl DeclarationDeterminativePlan {
                 ClosedDeterminativePlan {
                     lemma: member.lemma.clone(),
                     number_license,
+                    quantification,
                     fused_head_license,
                     nominal_license,
                     bare_duration_license,
@@ -6556,6 +6569,9 @@ impl ClosedDeterminativePlan {
     }
     pub(crate) fn number_license(&self) -> crate::macro_def::DeterminativeNumberLicense {
         self.number_license
+    }
+    pub(crate) fn quantification(&self) -> crate::macro_def::DeterminativeQuantification {
+        self.quantification
     }
     pub(crate) fn fused_head_license(&self) -> crate::macro_def::DeterminativeFusedHeadLicense {
         self.fused_head_license

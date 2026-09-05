@@ -2766,6 +2766,13 @@ fn validate_determinative_member(
         errors,
     );
     validate_determinative_member_slot(
+        &member.quantification_slots,
+        &member.lemma,
+        "quantification",
+        &["NonDistributive", "Distributive"],
+        errors,
+    );
+    validate_determinative_member_slot(
         &member.fused_head_license_slots,
         &member.lemma,
         "fused_head_license",
@@ -2796,6 +2803,13 @@ fn validate_determinative_member(
         &["BareDurationLicensed", "MarkerRequired"],
         errors,
     );
+    validate_determinative_realizations(member, errors);
+}
+
+fn validate_determinative_realizations(
+    member: &crate::model::DeclarationDeterminativeMemberSource,
+    errors: &mut Option<syn::Error>,
+) {
     match member.realization_slots.as_slice() {
         [] => combine(
             errors,
@@ -5302,6 +5316,13 @@ fn generated_name_inventory(
                             true,
                         ),
                         (
+                            Feature::Quantification,
+                            ParsedFeature::Quantification,
+                            "quantification",
+                            "Quantification",
+                            true,
+                        ),
+                        (
                             Feature::FusedHeadLicense,
                             ParsedFeature::FusedHeadLicense,
                             "fused_head_license",
@@ -5506,6 +5527,7 @@ fn generated_name_inventory(
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
                         }
+                        ParsedFeature::Quantification => ("quantification", "Quantification"),
                         ParsedFeature::FusedHeadLicense => {
                             ("fused_head_license", "FusedHeadLicense")
                         }
@@ -6132,6 +6154,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::Quantification => ParsedFeature::Quantification,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::Focus => ParsedFeature::Focus,
         Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
@@ -6195,6 +6218,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::Quantification => ParsedFeature::Quantification,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::Focus => ParsedFeature::Focus,
         Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
@@ -6482,6 +6506,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::MannerAnaphorClass
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
+                | ParsedFeature::Quantification
                 | ParsedFeature::FusedHeadLicense
                 | ParsedFeature::Focus
                 | ParsedFeature::PrepositionComplementKind
@@ -10391,6 +10416,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Cardinality,
             ParsedFeature::ModifierLicense,
             ParsedFeature::DeterminerNumber,
+            ParsedFeature::Quantification,
             ParsedFeature::FusedHeadLicense,
             ParsedFeature::Focus,
             ParsedFeature::PrepositionComplementKind,
@@ -10438,6 +10464,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let terminal = identifier_key(&binding.name);
             providers.insert((terminal.clone(), ParsedFeature::BareDurationLicense));
             providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
+            providers.insert((terminal.clone(), ParsedFeature::Quantification));
             providers.insert((terminal.clone(), ParsedFeature::FusedHeadLicense));
             providers.insert((terminal, ParsedFeature::NominalLicense));
         }
@@ -10493,6 +10520,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 ParsedFeature::BareDurationLicense,
                 ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
+                ParsedFeature::Quantification,
                 ParsedFeature::FusedHeadLicense,
                 ParsedFeature::Focus,
                 ParsedFeature::LocativeTemporalLicense,
@@ -10539,6 +10567,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::Quantification => "quantification",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::Focus => "focus",
         ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
@@ -10993,6 +11022,7 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::BareDurationLicense
                     | ParsedFeature::DeterminerNumber
+                    | ParsedFeature::Quantification
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::Focus
                     | ParsedFeature::PrepositionComplementKind
@@ -11068,6 +11098,7 @@ fn validate_lowerable_feature_compositions(
                     feature:
                         ParsedFeature::BareDurationLicense
                         | ParsedFeature::DeterminerNumber
+                        | ParsedFeature::Quantification
                         | ParsedFeature::FusedHeadLicense
                         | ParsedFeature::Focus
                         | ParsedFeature::PrepositionComplementKind
@@ -11315,6 +11346,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::Quantification => "quantification",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::Focus => "focus",
         ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
@@ -11505,17 +11537,18 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn checked_fields_accept_feature_bearing_lexical_values() {
-        validate(quote! {
+    fn declaration_determinative_quantification_flows_through_the_generated_accessor() {
+        let expansion = crate::generate(quote! {
             codec DeterminativeHead {
                 generate declaration_determinative {
                     closed = [
-                        Each {
+                        Unit {
                             bare_duration_license = BareDurationLicensed;
+                            quantification = Distributive;
                             number_license = SingularOnly;
                             fused_head_license = FusedHead;
                             nominal_license = CountNominal;
-                            realizations = [{ surface = "each"; }];
+                            realizations = [{ surface = "unit"; }];
                         },
                     ];
                 }
@@ -11525,11 +11558,46 @@ pub(crate) mod tests {
                     head: lex DeterminativeHead
                         checked by determinative_is_fused(head.fused_head_license),
                 }
+                derive number = Values::Singular;
+                derive quantification = head.quantification;
                 form checked = lex(head);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("feature-bearing lexical field accepts a build-only check");
+        .expect("declared quantification generates a sealed accessor");
+        let emitted = expansion.tokens().to_string();
+        assert!(
+            emitted.contains("fn quantification_for_determinative_head"),
+            "{emitted}",
+        );
+        assert!(
+            emitted.contains("Quantification :: Distributive"),
+            "{emitted}"
+        );
+    }
+
+    #[test]
+    fn declaration_determinatives_require_quantification_metadata() {
+        let diagnostic = error(quote! {
+            codec DeterminativeHead {
+                generate declaration_determinative {
+                    closed = [
+                        Unit {
+                            bare_duration_license = BareDurationLicensed;
+                            number_license = SingularOnly;
+                            fused_head_license = FusedHead;
+                            nominal_license = CountNominal;
+                            realizations = [{ surface = "unit"; }];
+                        },
+                    ];
+                }
+            }
+        });
+        assert!(
+            diagnostic
+                .contains("declaration_determinative member requires one `quantification` field"),
+            "{diagnostic}",
+        );
     }
 
     #[test]
@@ -11539,6 +11607,7 @@ pub(crate) mod tests {
                 generate declaration_determinative {
                     closed = [
                         Each {
+                            quantification = Distributive;
                             number_license = SingularOnly;
                             fused_head_license = FusedHead;
                             nominal_license = CountNominal;
@@ -18062,7 +18131,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 155);
+        assert_eq!(expansion.plan().items().len(), 156);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18427,7 +18496,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 155);
+        assert_eq!(expansion.plan().items().len(), 156);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18569,7 +18638,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 155);
+        assert_eq!(emission.items().len(), 156);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

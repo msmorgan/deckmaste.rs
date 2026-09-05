@@ -2780,7 +2780,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 132);
+        assert_eq!(keys.len(), 133);
         assert_representative_concord_class_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,

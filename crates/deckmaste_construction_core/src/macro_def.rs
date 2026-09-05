@@ -358,6 +358,13 @@ pub enum DeterminativeNumberLicense {
     Both,
 }
 
+/// Whether a Determinative quantifies its Nominal distributively.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativeQuantification {
+    NonDistributive,
+    Distributive,
+}
+
 /// The kind of nominal selected by one Determinative realization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativeNominalLicense {

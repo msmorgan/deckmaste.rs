@@ -683,6 +683,7 @@ pub(crate) fn emit(
                 items.push(emit_declaration_determinative_fused_head_license_helper(
                     row,
                 ));
+                items.push(emit_declaration_determinative_quantification_helper(row));
                 items.push(emit_declaration_determinative_bare_duration_license_helper(
                     row,
                 ));
@@ -864,6 +865,41 @@ fn emit_declaration_determinative_fused_head_license_helper(
         },
         quote! {
             fn #function(value: impl ::std::borrow::Borrow<#ty>) -> FusedHeadLicense {
+                match ::std::borrow::Borrow::borrow(&value) {
+                    #ty::Closed(lemma) => match lemma { #(#members),* },
+                }
+            }
+        },
+        vec![determinative.origin().clone()],
+    )
+}
+
+fn emit_declaration_determinative_quantification_helper(
+    determinative: &crate::semantic::DeclarationDeterminativePlan,
+) -> GeneratedItem {
+    let function_name = feature_helper("quantification", determinative.codec_name());
+    let function = emitted_ident(&function_name, determinative.codec_ident().span());
+    let ty = determinative.codec_ident();
+    let lemma = determinative.lemma_ident();
+    let members = determinative.closed().iter().map(|member| {
+        let member_name = member.lemma();
+        let value = match member.quantification() {
+            crate::macro_def::DeterminativeQuantification::NonDistributive => {
+                quote! { Quantification::NonDistributive }
+            }
+            crate::macro_def::DeterminativeQuantification::Distributive => {
+                quote! { Quantification::Distributive }
+            }
+        };
+        quote! { #lemma::#member_name => #value }
+    });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: impl ::std::borrow::Borrow<#ty>) -> Quantification {
                 match ::std::borrow::Borrow::borrow(&value) {
                     #ty::Closed(lemma) => match lemma { #(#members),* },
                 }
@@ -1398,6 +1434,7 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::MannerAnaphorClass
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
+        | crate::Feature::Quantification
         | crate::Feature::FusedHeadLicense
         | crate::Feature::Focus
         | crate::Feature::PrepositionComplementKind

@@ -42,6 +42,7 @@ feature_inventory! {
     MannerAnaphorClass => "manner_anaphor_class",
     ModifierLicense => "modifier_license",
     DeterminerNumber => "determiner_number",
+    Quantification => "quantification",
     FusedHeadLicense => "fused_head_license",
     Focus => "focus",
     PrepositionComplementKind => "preposition_complement_kind",
@@ -90,6 +91,8 @@ pub(crate) enum FeatureValue {
     SingularOnly,
     PluralOnly,
     Both,
+    NonDistributive,
+    Distributive,
     NominalOnly,
     PartitiveOnly,
     FusedHead,
@@ -198,6 +201,7 @@ impl Feature {
                 FeatureValue::PluralOnly,
                 FeatureValue::Both,
             ],
+            Self::Quantification => &[FeatureValue::NonDistributive, FeatureValue::Distributive],
             Self::FusedHeadLicense => &[
                 FeatureValue::NominalOnly,
                 FeatureValue::PartitiveOnly,
@@ -296,6 +300,8 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Participle => "Participle",
+            Self::NonDistributive => "NonDistributive",
+            Self::Distributive => "Distributive",
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
@@ -504,6 +510,8 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Participle => "Participle",
+            Self::NonDistributive => "NonDistributive",
+            Self::Distributive => "Distributive",
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
@@ -626,6 +634,8 @@ pub(crate) fn lower_constant(
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
         (model::Feature::DeterminerNumber, "PluralOnly") => FeatureValue::PluralOnly,
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
+        (model::Feature::Quantification, "NonDistributive") => FeatureValue::NonDistributive,
+        (model::Feature::Quantification, "Distributive") => FeatureValue::Distributive,
         (model::Feature::FusedHeadLicense, "NominalOnly") => FeatureValue::NominalOnly,
         (model::Feature::FusedHeadLicense, "PartitiveOnly") => FeatureValue::PartitiveOnly,
         (model::Feature::FusedHeadLicense, "FusedHead") => FeatureValue::FusedHead,
@@ -768,6 +778,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a determiner-number value"),
             ));
         }
+        (model::Feature::Quantification, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a quantification value"),
+            ));
+        }
         (model::Feature::FusedHeadLicense, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -864,6 +880,7 @@ impl From<model::Feature> for Feature {
             model::Feature::MannerAnaphorClass => Self::MannerAnaphorClass,
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
+            model::Feature::Quantification => Self::Quantification,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
             model::Feature::Focus => Self::Focus,
             model::Feature::PrepositionComplementKind => Self::PrepositionComplementKind,

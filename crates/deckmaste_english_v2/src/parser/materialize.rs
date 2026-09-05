@@ -5033,6 +5033,49 @@ mod tests {
         }
     }
 
+    #[test]
+    fn distributive_measures_have_only_the_predicate_attachment() {
+        let witnesses = [
+            ("Flow of Ideas", "Draw a card for each Island you control."),
+            (
+                "Collective Unconscious",
+                "Draw a card for each creature you control.",
+            ),
+            (
+                "Animal Friend",
+                "Enchanted creature has \"Whenever this creature attacks, create a 1/1 green Squirrel creature token. Put a +1/+1 counter on that token for each Aura and Equipment attached to this creature other than Animal Friend.\"",
+            ),
+            (
+                "General Leo Cristophe",
+                "When General Leo Cristophe enters, return up to one target creature card with mana value 3 or less from your graveyard to the battlefield. Then put a +1/+1 counter on General Leo Cristophe for each creature you control.",
+            ),
+            (
+                "Context Card",
+                "Double the number of +1/+1 counters on each creature you control.",
+            ),
+        ];
+
+        for (card_name, text) in witnesses {
+            let candidates = ability_candidates(text, card_name, false);
+            assert!(
+                !candidates.is_empty(),
+                "the witness did not parse for {card_name}"
+            );
+            let environment = canonical_test_environment();
+            let parse_context = context(card_name);
+            for candidate in candidates {
+                assert_eq!(candidate.value.render(&parse_context, &environment), text);
+                assert!(
+                    super::ScopeProjection::of(&candidate.value)
+                        .mobiles()
+                        .iter()
+                        .any(|mobile| mobile.role == "adjunct"),
+                    "the measure did not attach to the Predicate for {card_name}",
+                );
+            }
+        }
+    }
+
     fn scope_witness(value: &crate::ast::Ability) -> ScopeWitnessVisitor {
         let mut visitor = ScopeWitnessVisitor::default();
         crate::constructions::GeneratedParseRoot::visit_scope(value, &mut visitor);

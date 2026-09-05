@@ -820,6 +820,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "manner_anaphor_class" => Some(Feature::MannerAnaphorClass),
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
+        "quantification" => Some(Feature::Quantification),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
         "focus" => Some(Feature::Focus),
         "preposition_complement_kind" => Some(Feature::PrepositionComplementKind),
@@ -848,6 +849,7 @@ fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
         .or_else(|| (ident == "MannerAnaphorClass").then_some(Feature::MannerAnaphorClass))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
         .or_else(|| (ident == "DeterminerNumber").then_some(Feature::DeterminerNumber))
+        .or_else(|| (ident == "Quantification").then_some(Feature::Quantification))
         .or_else(|| (ident == "NominalLicense").then_some(Feature::NominalLicense))
         .or_else(|| {
             (ident == "PrepositionComplementKind").then_some(Feature::PrepositionComplementKind)
@@ -1921,6 +1923,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                         let fields_input;
                         braced!(fields_input in input);
                         let mut number_license_slots = Vec::new();
+                        let mut quantification_slots = Vec::new();
                         let mut fused_head_license_slots = Vec::new();
                         let mut nominal_license_slots = Vec::new();
                         let mut bare_duration_license_slots = Vec::new();
@@ -1929,11 +1932,12 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                             let member_slot = fields_input.call(Ident::parse_any)?;
                             fields_input.parse::<Token![=]>()?;
                             match member_slot.to_string().as_str() {
-                                "number_license" | "fused_head_license" | "nominal_license" | "bare_duration_license" => {
+                                "number_license" | "quantification" | "fused_head_license" | "nominal_license" | "bare_duration_license" => {
                                     let value = fields_input.call(Ident::parse_any)?;
                                     let row = crate::model::GeneratedIdentSlot { slot: member_slot, value };
                                     match row.slot.to_string().as_str() {
                                         "number_license" => number_license_slots.push(row),
+                                        "quantification" => quantification_slots.push(row),
                                         "fused_head_license" => fused_head_license_slots.push(row),
                                         "nominal_license" => nominal_license_slots.push(row),
                                         "bare_duration_license" => bare_duration_license_slots.push(row),
@@ -1967,11 +1971,11 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                     })?.into_iter().collect();
                                     realization_slots.push(crate::model::DeclarationDeterminativeRealizationsSource { slot: member_slot, realizations });
                                 }
-                                _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `fused_head_license`, `nominal_license`, `bare_duration_license`, and `realizations` fields")),
+                                _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `quantification`, `fused_head_license`, `nominal_license`, `bare_duration_license`, and `realizations` fields")),
                             }
                             fields_input.parse::<Token![;]>()?;
                         }
-                        Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, fused_head_license_slots, nominal_license_slots, bare_duration_license_slots, realization_slots })
+                        Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, quantification_slots, fused_head_license_slots, nominal_license_slots, bare_duration_license_slots, realization_slots })
                     })?.into_iter().collect();
                     closed_slots
                         .push(crate::model::DeclarationDeterminativeClosedSource { slot, members });

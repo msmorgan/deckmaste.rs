@@ -1215,11 +1215,26 @@ fn resolve_constructor_feature(
                 proc_macro2::Span::call_site(),
             );
             let field = borrowed_field_expression(plan, construction, stored, locals)?;
-            if *feature == crate::feature::Feature::BareDurationLicense && stored.is_zeroable() {
+            if stored.is_zeroable()
+                && matches!(
+                    *feature,
+                    crate::feature::Feature::BareDurationLicense
+                        | crate::feature::Feature::Quantification
+                )
+            {
                 let wrapper = stored.value_type();
+                let absent = match feature {
+                    crate::feature::Feature::BareDurationLicense => {
+                        quote! { BareDurationLicense::MarkerRequired }
+                    }
+                    crate::feature::Feature::Quantification => {
+                        quote! { Quantification::NonDistributive }
+                    }
+                    _ => unreachable!("zeroable feature default is exhaustive"),
+                };
                 quote! {
                     match #field {
-                        #wrapper::Zero => BareDurationLicense::MarkerRequired,
+                        #wrapper::Zero => #absent,
                         #wrapper::Headed(value) => #function(value),
                     }
                 }
@@ -1303,6 +1318,10 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         crate::feature::FeatureValue::Other => quote! { PossessiveEnding::Other },
         crate::feature::FeatureValue::Participle => quote! { Participle::Participle },
+        crate::feature::FeatureValue::NonDistributive => {
+            quote! { Quantification::NonDistributive }
+        }
+        crate::feature::FeatureValue::Distributive => quote! { Quantification::Distributive },
         crate::feature::FeatureValue::Zero => quote! { Cardinality::Zero },
         crate::feature::FeatureValue::One => quote! { Cardinality::One },
         crate::feature::FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
@@ -2520,6 +2539,7 @@ mod tests {
                 "Properness",
                 "Relationality",
                 "DeterminerNumber",
+                "Quantification",
                 "FusedHeadLicense",
                 "Focus",
                 "BareDurationLicense",

@@ -262,6 +262,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum DeterminerNumber { SingularOnly, PluralOnly, Both } },
         ),
         named_type(
+            "Quantification",
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum Quantification { NonDistributive, Distributive } },
+        ),
+        named_type(
             FUSED_HEAD_LICENSE_TYPE,
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum FusedHeadLicense { NominalOnly, PartitiveOnly, FusedHead, PluralPredeterminer } },
         ),
@@ -1593,7 +1597,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
         let ty = codec.codec_ident();
-        quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense, bare_duration_license: BareDurationLicense }, }
+        quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, quantification: Quantification, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense, bare_duration_license: BareDurationLicense }, }
     });
     let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty())
         .then(|| quote! { DeclarationDeterminative(usize), });

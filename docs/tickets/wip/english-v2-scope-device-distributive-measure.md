@@ -79,3 +79,158 @@ exception-resolved / 15,040 parse failures / 0 unresolved ties.
 Terms the design needs that `docs/contexts/oracle-english/CONTEXT.md` does not
 define: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing, Mobility.
 Listed as gaps; none is coined into the tracked glossary by this ticket.
+
+## Landing record
+
+Measured on feature change `xzxxqoztlqkxunxvqnxlnnyyosttnqtm` at lock
+`covered` 20,002, against refreshed fork point
+`mrvowqkvwlnyskozzvuyutyxmvrqyols`. Wall clock: 2026-09-05 10:51 PDT to
+2026-09-05 12:18 PDT.
+
+### What landed and why
+
+- Declaration Determinatives now carry a sealed `Quantification` feature with
+  `NonDistributive` and `Distributive` values. The declaration parser,
+  validator, semantic plan, generated AST/build/scan/render/visit boundaries,
+  and zeroable Determiner default all carry that feature structurally. Only the
+  distributive vocabulary member declares `Distributive`; every other member
+  declares `NonDistributive`.
+- The existing Determinative-to-Prepositional-Phrase feature chain relays the
+  axis through generated category helpers. The Nominal-Postmodifier checker
+  reads that helper and refuses a distributive Complement. The existing
+  Predicate-site checker admits the same declared distributive value, so the
+  measure is realized through the phase 1--3 mobile role and admissible-site
+  machinery rather than a new syntax category or selection preference.
+- No AST Category, construction, selection exception, specificity tier,
+  dominance edge, per-preposition switch, census gate, or alternative-subtree
+  field was added. `parser/materialize.rs` production behavior is unchanged;
+  its new phase-4 witness test observes the attachment relation and retained
+  mobile role without dispatching on host construction identity. The phase-3
+  representative/nameable-host laws remain intact.
+- Files touched are the 16 construction-core feature/compiler sources under
+  `crates/deckmaste_construction_core/src`,
+  `crates/deckmaste_english_v2/src/constructions.rs`,
+  `crates/deckmaste_english_v2/src/parser/materialize.rs`, and this ticket.
+
+### PROVE
+
+- `cargo fmt --all` completed. The changed-path gate printed exactly
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  and the matching strict-clippy line. Principal positive artifacts were
+  `test result: ok. 44 passed`, `test result: ok. 422 passed`,
+  `test result: ok. 157 passed`, `test result: ok. 49 passed`,
+  `test result: ok. 32 passed`, `test result: ok. 112 passed`, and
+  `test result: ok. 468 passed; 1 ignored`; every other emitted suite also
+  reported `test result: ok`. Strict clippy completed with `-D warnings`.
+- With `DECKMASTE_COVERAGE_LOCK=report`, both `coverage --check --workers 8`
+  and `coverage --bless --workers 8` reported 32,641 total, 20,002 selected and
+  covered, 0 selected-uncovered, 12,639 parse failures, 0 unresolved ties, 0
+  internal failures, 0 exception uses, 0 roundtrip mismatches, and 0 ownership
+  failures. The report-mode lock delta was `+0/-0`; bless produced no
+  coverage-lock file diff. No identity stopped being covered, no identity was
+  newly covered, and therefore no wrong analysis or negative oracle became
+  covered.
+- Exact fork/feature ambiguity measurements both used
+  `--json --require-resolved --workers 8`. The fork reported 20,002 selected,
+  16,631 unique, 3,371 specificity-resolved, 0 exception-resolved, 0 unresolved
+  ties, and 12,639 parse failures. The feature reported 20,002 selected, 16,632
+  unique, 3,370 specificity-resolved, 0 exception-resolved, 0 unresolved ties,
+  and 12,639 parse failures. The temporary fork working copy was abandoned
+  automatically after returning to the feature change.
+- `roundtrip --require-clean --workers 8` reported 20,002 accepted, 20,002
+  clean, 0 mismatched, and 12,639 not accepted. Coverage traversal was balanced:
+  888,877 nonterminal nodes and visited constructions, 310,547 expected and
+  visited leaves, 0 traversal failures, 0 gap or overlap spans, 0 synthetic
+  claims, and 0 provenance-plan mismatches. `cargo xtask catalogs check`
+  reported `catalogs are up to date`. No citation-bearing source changed, so no
+  cite gate was applicable.
+- Phase-4 witnesses `Draw a card for each Island you control.`, `Draw a card
+  for each creature you control.`, Animal Friend, and General Leo Cristophe
+  have only the Predicate attachment before scope collapse, retain the declared
+  `adjunct` mobile role, and render byte-exactly. The added `Double the number
+  of +1/+1 counters on each creature you control.` regression witness proves
+  the same for the affected OnComplement family. The closure reran every
+  phase-1--3 materialization witness and fence; their asserted attachment sites,
+  packing, selected paths, leaf traversal, and rendered bytes did not move.
+- Production coverage emitted 23 permitted licensing checkers and 0 forbidden
+  checkers. The closure's production census test for word-naming checkers
+  passed. The new condition compares only the declared feature value; no guard,
+  comment, or branch names a word, lexeme, construction, preposition, or card.
+
+### DISCLOSE
+
+- Stable-identity comparison found exactly four changed selected paths. All
+  four are **correct** semantic corrections from a
+  `PrepositionalQualifiedReference` Nominal postmodifier to a
+  `PrepositionalPredicateAdjunctPredicate` Predicate attachment; 0 are merely
+  correct-but-recanonicalized, 0 are misselections, and 0 are wrong analyses:
+  - `364ea613fadd7a4311aaa2b9a8f3c2b04ea7f4c56ad8a24bfd618c4a968ba44e`
+    — Bristly Bill, Spine Sower; unique to unique.
+  - `4674784e7169c846af1f52d487825e7a2835fd4485abf77c5cfd480b39c695b3`
+    — Hulk, Strongest There Is; specificity-resolved to
+    specificity-resolved.
+  - `4aa5d66f3b1d0dad4f83e4628a6924f3a4cf46cc4ded06b53798a3d766d748c8`
+    — Kalonian Hydra; unique to unique.
+  - `a57f7c56e1477cba10157835e7c5591fae7acd249cfcc6d8ebac8ba9bcfb45f7`
+    — The Three Seasons; specificity-resolved to unique.
+- The first refreshed full ambiguity pass exposed three selected-to-failure
+  regressions: Bristly Bill, Spine Sower; Hulk, Strongest There Is; and Kalonian
+  Hydra. The existing Predicate-site license had excluded their distributive
+  OnComplement measure. The generic declared-feature admission and the added
+  regression witness resolved all three; the replacement exact comparison
+  above has no selected loss. This was a failed gate followed by a code change,
+  so the replacement full pass was authorized. A later behavior-preserving
+  clippy refactor changed source, so the final matched pair was taken again on
+  the exact recorded tree.
+- The changed-path gate needed correction rounds. Its first run passed all tests
+  and found `too_many_lines` in the extended Determinative validator; a helper
+  extraction fixed it. Its second run passed all tests and found
+  `too_many_arguments` in the extended Nominal-site checker; reading the
+  generated category-feature helper from the already supplied checked value
+  restored the original arity. An intermediate gate start then caught an
+  incorrect guessed method name before tests; a targeted `cargo check` verified
+  the generated free-helper name. The final complete changed-path test and
+  clippy gate is green. No lint suppression was added.
+- Deviations and additions: the Predicate-site checker now reads the declared
+  axis in addition to the ticket-letter Nominal-site elimination. This was
+  required to preserve the three correct distributive OnComplement analyses
+  surfaced by the first full pass and is the positive half of principle (iv),
+  not an ordering rule. The extra synthetic OnComplement row in the phase-4
+  witness test is beyond the named §G.5 set and permanently guards that
+  regression. No construction or test was deleted or ignored.
+- Assurance: 0 restored, 13 re-spelled, 0 ignored, 2 added, 0 removed. The
+  re-spellings add required declaration metadata to compiler fixtures and
+  advance their exact generated-inventory assertions; one existing accessor
+  test was sharpened to prove the new sealed axis. The two additions reject
+  missing declaration metadata and prove the phase-4 attachment witnesses.
+- The feature workspace was refreshed before final verification. The harmony
+  helper reported a clean workspace and no textual conflict; concurrent changes
+  were preserved. No STOP condition remains.
+- Glossary gaps: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing,
+  and Mobility remain absent from the routed Oracle-English glossary. This
+  ticket does not coin replacements.
+
+### REPORT
+
+- Inventory pins on `xzxxqoztlqkxunxvqnxlnnyyosttnqtm`, lock `covered`
+  20,002: 397 constructions, 23 permitted licensing checkers, 0 forbidden
+  checkers, 2 licensed vocabulary/lexicon homographs, 9 form-literal/vocabulary
+  overlaps, and longest form literal 11 bytes. This ticket adds 0 constructions.
+- Licensed homographs: `AttributiveAdjective::Untap` beside the declaration
+  keyword action of the same surface, and `TargetingMarker::Target` beside
+  `CommonNoun::Target`.
+- Form-literal/vocabulary overlaps: `additional` in `additional_cost`; `to` in
+  `up_to_quantifying_determiner`; `the` and `next` in
+  `definite_next_mass_quantity_reference`; `to` in
+  `scalar_less_than_or_equal_to`; `the` in `number_of_scalar_value`; `the` in
+  `greatest_scalar_value`; `other` in `other_than_qualified_reference`; and
+  `the` in `positional_partitive`.
+- OPEN-4 performance advisory, exact refreshed-tree pair run back-to-back with
+  8 workers: fork 138 s at 185,482 ns/B and host load 15/22/23; feature 189 s
+  at 245,400 ns/B and host load 26/25/24. Launch-side cargo/rustc process counts
+  were 11 and 2 respectively; the shared host was contended. The 16 s
+  quiet-host ceiling was exceeded and is reported, not gated.
+- Independent final report-mode coverage advisories, 8 workers: check 138 s at
+  161,820 ns/B and host load 24/24/21; bless 261 s at 276,839 ns/B and host
+  load 30/30/24. Final roundtrip was 137 s at 173,450 ns/B and host load
+  19/26/24. These figures are REPORT-only and were not fitted to.

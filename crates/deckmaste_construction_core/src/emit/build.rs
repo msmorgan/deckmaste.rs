@@ -1424,7 +1424,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, following_onset: _, number_license: _, fused_head_license: _, nominal_license: _, bare_duration_license: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, following_onset: _, number_license: _, quantification: _, fused_head_license: _, nominal_license: _, bare_duration_license: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -3040,6 +3040,9 @@ fn lower_terminal_role(
             let number_license = lowering
                 .binders
                 .allocate(&format!("{}_number_license", identifier_key(&role)));
+            let quantification = lowering
+                .binders
+                .allocate(&format!("{}_quantification", identifier_key(&role)));
             let fused_head_license = lowering
                 .binders
                 .allocate(&format!("{}_fused_head_license", identifier_key(&role)));
@@ -3061,6 +3064,10 @@ fn lower_terminal_role(
                 LocalFeatureValue::Bound(number_license.clone()),
             );
             lowering.role_features.insert(
+                (identifier_key(&role), Feature::Quantification),
+                LocalFeatureValue::Bound(quantification.clone()),
+            );
+            lowering.role_features.insert(
                 (identifier_key(&role), Feature::FusedHeadLicense),
                 LocalFeatureValue::Bound(fused_head_license.clone()),
             );
@@ -3072,7 +3079,7 @@ fn lower_terminal_role(
                 (identifier_key(&role), Feature::BareDurationLicense),
                 LocalFeatureValue::Bound(bare_duration_license.clone()),
             );
-            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, following_onset: #following_onset, number_license: #number_license, fused_head_license: #fused_head_license, nominal_license: #nominal_license, bare_duration_license: #bare_duration_license }) });
+            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, following_onset: #following_onset, number_license: #number_license, quantification: #quantification, fused_head_license: #fused_head_license, nominal_license: #nominal_license, bare_duration_license: #bare_duration_license }) });
             lowering
                 .field_values
                 .insert(identifier_key(&role), quote! { #value.clone() });
@@ -4260,6 +4267,7 @@ fn resolve_feature_place(
                 }
                 FeaturePlace::Construction(
                     Feature::DeterminerNumber
+                    | Feature::Quantification
                     | Feature::FusedHeadLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense,
@@ -4267,6 +4275,7 @@ fn resolve_feature_place(
                 | FeaturePlace::Role {
                     feature:
                         Feature::DeterminerNumber
+                        | Feature::Quantification
                         | Feature::FusedHeadLicense
                         | Feature::NominalForm
                         | Feature::NominalLicense,
@@ -4504,6 +4513,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
+        FeatureValue::NonDistributive => quote! { Quantification::NonDistributive },
+        FeatureValue::Distributive => quote! { Quantification::Distributive },
         FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
         FeatureValue::PartitiveOnly => quote! { FusedHeadLicense::PartitiveOnly },
         FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
@@ -4556,6 +4567,7 @@ mod tests {
                         closed = [
                             Article {
                                 bare_duration_license = MarkerRequired;
+                                quantification = NonDistributive;
                                 number_license = SingularOnly;
                                 fused_head_license = NominalOnly;
                                 nominal_license = CountNominal;
@@ -4566,6 +4578,7 @@ mod tests {
                             },
                             Unconditioned {
                                 bare_duration_license = MarkerRequired;
+                                quantification = NonDistributive;
                                 number_license = SingularOnly;
                                 fused_head_license = NominalOnly;
                                 nominal_license = CountNominal;
@@ -4745,6 +4758,7 @@ mod tests {
                         closed = [
                             Each {
                                 bare_duration_license = BareDurationLicensed;
+                                quantification = Distributive;
                                 number_license = SingularOnly;
                                 fused_head_license = FusedHead;
                                 nominal_license = CountNominal;

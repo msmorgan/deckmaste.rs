@@ -417,7 +417,11 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 crate::macro_def::DeterminativeBareDurationLicense::BareDurationLicensed => quote! { BareDurationLicense::BareDurationLicensed },
                 crate::macro_def::DeterminativeBareDurationLicense::MarkerRequired => quote! { BareDurationLicense::MarkerRequired },
             };
-            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal, bare_duration_license: #bare_duration_license }, owner: None }); } }
+            let quantification = match member.quantification() {
+                crate::macro_def::DeterminativeQuantification::NonDistributive => quote! { Quantification::NonDistributive },
+                crate::macro_def::DeterminativeQuantification::Distributive => quote! { Quantification::Distributive },
+            };
+            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, quantification: #quantification, fused_head_license: #fused_head, nominal_license: #nominal, bare_duration_license: #bare_duration_license }, owner: None }); } }
         }));
         {
             quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* matches } }
@@ -583,6 +587,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::MannerAnaphorClass
             | crate::feature::Feature::ModifierLicense
             | crate::feature::Feature::DeterminerNumber
+            | crate::feature::Feature::Quantification
             | crate::feature::Feature::FusedHeadLicense
             | crate::feature::Feature::Focus
             | crate::feature::Feature::PrepositionComplementKind
@@ -1110,6 +1115,7 @@ mod tests {
                 generate declaration_determinative {
                     closed = [Article {
                         bare_duration_license = MarkerRequired;
+                        quantification = NonDistributive;
                         number_license = SingularOnly;
                         fused_head_license = NominalOnly;
                         nominal_license = CountNominal;
