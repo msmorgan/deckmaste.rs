@@ -880,7 +880,7 @@ agencyOutfitterSearch =
   Sequentially
     [ Macros.may You
         (Sequentially
-           [ Macros.searchZonesOf You
+           [ Macros.searchZonesOf You (Macros.exactly 1)
                (Or [ Named (PrintedName "Magnifying Glass")
                    , Named (PrintedName "Thinking Cap") ])
            , Macros.putOntoBattlefield Macros.foundCard ])

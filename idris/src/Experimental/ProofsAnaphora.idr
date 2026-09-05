@@ -21,12 +21,12 @@ public export
 okChoosePlayerOrPlaneswalker : Instruction []
 okChoosePlayerOrPlaneswalker =
   Choose Nothing Nothing (Macros.a (Joined (HasType Planeswalker) AnyPlayer))
-         Openly
+         Openly Nothing
 
 ||| "Choose you."
 public export
 badChooseYou : Unspellable (Instruction []) (\ok =>
-  Choose Nothing Nothing You Openly {ch = ok})
+  Choose Nothing Nothing You Openly Nothing {ch = ok})
 badChooseYou Oh impossible
 
 public export
@@ -62,12 +62,12 @@ public export
 okAgentChoiceOfSome : Instruction []
 okAgentChoiceOfSome =
   Sequentially [Macros.lookAt (Macros.topSlice (Lit 4)),
-                Choose Nothing (Just You) (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly]
+                Choose Nothing (Just You) (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly Nothing]
 
 ||| "Look at the top four cards of your library. Choose one of them."
 public export
 badChooseSomeOf : Unspellable (Instruction []) (\ok =>
-  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing Nothing (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Openly {ch = ok}])
+  Sequentially [Macros.lookAt ((Macros.topSlice (Lit 4))), Choose Nothing Nothing (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Openly Nothing {ch = ok}])
 badChooseSomeOf Oh impossible
 
 ||| "Exile target creature."
@@ -129,14 +129,14 @@ badStateMatchLookback MkLookbackSubject impossible
 ||| "Choose a creature you control."
 public export
 okChooseIndefinite : Instruction []
-okChooseIndefinite = Choose Nothing Nothing (Macros.a Macros.creatureYouControl) Openly
+okChooseIndefinite = Choose Nothing Nothing (Macros.a Macros.creatureYouControl) Openly Nothing
 
 ||| "Choose the creature with the least toughness among creatures you control."
 public export
 badChooseDefinite : Unspellable (Instruction []) (\ok =>
   Choose Nothing Nothing (Macros.the (And [Macros.creature,
                          Superlative MinOf (StatAxis Toughness)
-                                     Macros.creatureYouControl])) Openly {ch = ok})
+                                     Macros.creatureYouControl])) Openly Nothing {ch = ok})
 badChooseDefinite Oh impossible
 
 ||| "This deals 1 damage to that permanent or player."
@@ -1816,9 +1816,37 @@ badSingularReadOfBarePlural : Unspellable (Instruction []) (\ok =>
                 Draw You (StatOf Power ((Macros.It OneOf) {ok}))])
 badSingularReadOfBarePlural Refl impossible
 
+||| "Destroy target creature. If this enchantment isn't a creature, it becomes
+||| an Angel creature until end of turn." The "it" reads the condition's own
+||| subject, which is all a condition publishes.
+public export
+okCondSubjectRead : Instruction []
+okCondSubjectRead =
+  Sequentially [ Macros.destroy (Macros.target Macros.creature)
+               , If (NotCond (Matches Macros.thisEnchantment Macros.creature))
+                    (Macros.becomes
+                       (Macros.itCondSubject
+                          (NotCond (Matches Macros.thisEnchantment Macros.creature)))
+                       (MkTypeLine [creatureType "Angel"] [Creature])
+                       (Just Macros.untilEndOfTurn))
+                    Nothing ]
+
+||| The same sentence with an unwindowed "it": the earlier clause's creature is
+||| still readable, so the pronoun is ambiguous. A condition's nouns do not
+||| join the read stack; "if … it …" reads the clause subject.
+public export
+badCondUnwindowedRead : Unspellable (Instruction []) (\ok =>
+  Sequentially [ Macros.destroy (Macros.target Macros.creature)
+               , If (NotCond (Matches Macros.thisEnchantment Macros.creature))
+                    (Macros.becomes ((Macros.It OneOf) {ok})
+                                    (MkTypeLine [creatureType "Angel"] [Creature])
+                                    (Just Macros.untilEndOfTurn))
+                    Nothing ])
+badCondUnwindowedRead Refl impossible
+
 public export
 badOwnEmptyDelta : Unspellable (Instruction []) (\ok =>
-  Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.anyTarget) {ok})
+  Macros.dealsDamageOwnPower This (Macros.target Macros.anyTarget) {ok})
 badOwnEmptyDelta Refl impossible
 
 ||| "Target creature gets +1/+1"

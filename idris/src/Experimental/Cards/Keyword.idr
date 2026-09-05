@@ -12,7 +12,13 @@ jump = Macros.gains (Macros.target Macros.creature) (Macros.keyword "Flying") (J
 
 gabrielAngelfire : Instruction []
 gabrielAngelfire =
-  Macros.gains Macros.thisCreature (Macros.keyword "Flying") (Just Macros.untilYourNextUpkeep)
+  Sequentially
+    [ Macros.choose
+        (Macros.a (Macros.qualityFrom AbilityQ
+                     (AbilitiesAmong [ TheKeyword "Flying", TheKeyword "FirstStrike"
+                                     , TheKeyword "Trample", TheKeywordWith "Rampage" 3 ])))
+    , Macros.gains Macros.thisCreature (ThatAbility TheChoice)
+                   (Just Macros.untilYourNextUpkeep) ]
 
 builtToSmash : Instruction []
 builtToSmash =
@@ -294,7 +300,7 @@ drachNyen =
                          , Modify (AttachHost Equipped (TypeW Creature)) Toughness (Up (Lit 0))
                          , DefinesLetter X
                              (StatOf Power
-                                (Macros.a (ExiledWith Macros.thisEquipment))) ])
+                                (Macros.the (ExiledWith Macros.thisEquipment))) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
@@ -998,7 +1004,9 @@ answeredPrayers =
        [ Macros.triggered When (Enters (Macros.a Macros.creatureYouControl) Nothing)
            (Sequentially [Macros.gainsLife You (Lit 1),
                           If (NotCond (Matches Macros.thisEnchantment Macros.creature))
-                             (Macros.becomesAs Macros.thisEnchantment
+                             (Macros.becomesAs
+                                (Macros.itCondSubject
+                                   (NotCond (Matches Macros.thisEnchantment Macros.creature)))
                                                (MkToken (Just (Lit 3 ** Lit 3)) []
                                                         (MkTypeLine [creatureType "Angel"] [Creature])
                                                         [Macros.keyword "Flying"] Nothing)
@@ -1476,7 +1484,7 @@ public export
 pirDistributive : Ability
 pirDistributive =
   Static (Intercepts
-            (Macros.manyBareCountersPutBy You
+            (Macros.bareCounterEvent CounterPut ManyCounters
                (Macros.a (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourTeam)])))
             [] Nothing
             (PutCounters (Plus ThatMuch (Lit 1)) ThoseKinds (Macros.That PermanentW OneOf))
@@ -2051,3 +2059,22 @@ zirdaCompanion =
   Macros.companion
     (EveryCardIs (And [Permanent, IsCard]) (HasAbilityOf AnyActivated))
 
+||| Deadpool, Trading Card
+public export
+deadpoolTradingCard : Card
+deadpoolTradingCard =
+  Macros.card "Deadpool, Trading Card"
+       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Red]) [Legendary]
+       (MkTypeLine [creatureType "Mutant", creatureType "Mercenary",
+                    creatureType "Hero"] [Creature])
+       [ Static (Intercepts (Enters Macros.thisCreature Nothing) [] Nothing
+                   (Macros.may You
+                      (Exchange (TextBoxes Macros.thisCreature
+                                   (Macros.a (And [Macros.creature, OtherThan This])))))
+                   NextTimeOnly Nothing)
+       , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
+                          (Macros.losesLife You (Lit 3))
+       , Macros.activated (Compound [Mana [Macros.generic 3],
+                                     Do (Macros.sacrifice You Macros.thisCreature)])
+                          (Draw (Macros.each Macros.otherPlayer) (Lit 1)) ]
+       (Just (5, 3))

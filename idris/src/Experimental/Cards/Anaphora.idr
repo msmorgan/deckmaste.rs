@@ -200,8 +200,9 @@ eradicateSearch =
   Sequentially [ Macros.exile (Macros.target (And [Macros.creature,
                                                    Not (ColorIs Black)]))
                , Macros.searchZonesOf (Macros.controllerOf (Macros.That CardW OneOf))
+                                      Macros.anyNumber
                                       (Named (SameNameAs (Macros.That CardW OneOf)))
-               , Macros.exile Macros.foundCard
+               , Macros.exile (Macros.ItVerbed "Search" ManyOf)
                , Shuffle (Macros.That PlayerW OneOf) ]
 
 ||| Deem Inferior
@@ -292,7 +293,10 @@ public export
 vedalkenSquirrelWhackerReroll : Instruction []
 vedalkenSquirrelWhackerReroll =
   Macros.ifWouldInstead (RollsDice You ManyDice (SidedDie 6) AnyResult)
-    (RollDice You ThatMuch ThoseDice)
+    (Sequentially
+       [ RollDice You ThatMuch ThoseDice
+       , Macros.may You (Exchange (Values (TheOutcome RollResult)
+                                          (StatOf Power Macros.thisCreature))) ])
     Nothing
 
 ||| Investigator's Journal's count
@@ -864,3 +868,31 @@ public export
 arcumDagssonSacrifice : Instruction []
 arcumDagssonSacrifice =
   ControllerSacrifices (Macros.target (And [Macros.artifact, Macros.creature]))
+
+||| Vaevictis Asmadi, the Dire
+public export
+vaevictisAsmadiTheDire : Card
+vaevictisAsmadiTheDire =
+  Macros.card "Vaevictis Asmadi, the Dire"
+       (Just [Macros.generic 3, Macros.pip Black, Macros.pip Red, Macros.pip Green])
+       [Legendary]
+       (MkTypeLine [creatureType "Elder", creatureType "Dragon"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
+           (Sequentially
+              [ ForEachOf (Macros.each AnyPlayer)
+                  (Macros.choose (Macros.target (And [Permanent,
+                                                      HasPossessor ControllerAx Macros.They])))
+              , Macros.sacrifice (Macros.That PlayerW ManyOf)
+                                 (Macros.That PermanentW ManyOf)
+              , ForEachOf (Macros.each (And [AnyPlayer,
+                                             HappenedTo (MkLookback (VerbedAct "Sacrifice")
+                                                           Lookback.ThisWay
+                                                           (Just (Involving (Macros.a Permanent))))]))
+                  (Sequentially
+                     [ Expose Reveal Macros.They
+                              (ExposedCards (LibrarySlice OnTop (Lit 1) Macros.They))
+                     , If (Macros.itsACard (And [Permanent, IsCard]))
+                          (Macros.move Macros.ItCard Macros.battlefieldZ)
+                          Nothing ]) ]) ]
+       (Just (6, 6))

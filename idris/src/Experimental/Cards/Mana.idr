@@ -1351,7 +1351,7 @@ chromeMoxMana : Ability
 chromeMoxMana =
   Macros.activated TapSymbol
     (AddMana You (Lit 1)
-             (AmongColorsOf (Macros.a (ExiledWith Macros.thisArtifact))) [])
+             (AmongColorsOf (Macros.the (ExiledWith Macros.thisArtifact))) [])
 
 ||| Fellwar Stone
 public export

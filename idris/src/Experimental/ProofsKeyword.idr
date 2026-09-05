@@ -478,3 +478,23 @@ public export
 badFatesealYourOwnLibrary : Unspellable (Instruction []) (\ok =>
   Macros.fateseal You You (Lit 2) {op = ok})
 badFatesealYourOwnLibrary Oh impossible
+
+||| "Choose flying or trample. This creature gains that ability until end of
+||| turn."
+public export
+okThatAbilityAfterChoice : Instruction []
+okThatAbilityAfterChoice =
+  Sequentially
+    [ Macros.choose
+        (Macros.a (Macros.qualityFrom AbilityQ
+                     (AbilitiesAmong [TheKeyword "Flying", TheKeyword "Trample"])))
+    , Macros.gains Macros.thisCreature (ThatAbility TheChoice)
+                   (Just Macros.untilEndOfTurn) ]
+
+||| "This creature gains that ability until end of turn", with no ability
+||| chosen anywhere in the text.
+public export
+badThatAbilityWithoutChoice : Unspellable (Instruction []) (\ok =>
+  Macros.gains Macros.thisCreature (ThatAbility TheChoice {ok})
+               (Just Macros.untilEndOfTurn))
+badThatAbilityWithoutChoice Refl impossible

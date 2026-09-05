@@ -790,13 +790,13 @@ okAgentChoosesSomeOf : Instruction []
 okAgentChoosesSomeOf =
   Sequentially [ Macros.lookAt (Macros.topSlice (Lit 4))
                , Choose Nothing (Just (Macros.a Opponent))
-                        (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly ]
+                        (Macros.someOf (Macros.exactly 1) (Macros.It ManyOf)) Openly Nothing ]
 
 public export
 badAgentChooseTheRest : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.lookAt ((Macros.topSlice (Lit 4)))
                , Move (Macros.someOf (Macros.exactly 1) ((Macros.It ManyOf))) Macros.handZ []
-               , Choose Nothing (Just (Macros.a Opponent)) (Macros.theRest Object) Openly {ch = ok} ])
+               , Choose Nothing (Just (Macros.a Opponent)) (Macros.theRest Object) Openly Nothing {ch = ok} ])
 badAgentChooseTheRest Oh impossible
 
 ||| "… two cards with the same name in your hand …"
@@ -1047,3 +1047,57 @@ public export
 badExchangeBattlefieldZone : Unspellable (Instruction []) (\ok =>
   Exchange (Zones Macros.handZ Macros.battlefieldZ {zs = ok}))
 badExchangeBattlefieldZone Oh impossible
+
+||| "the exiled card" — the definite reference is licensed by the link to the
+||| exiling ability printed on the same object [CR#607.2a], and still resolves
+||| when that ability exiled more than one card [CR#607.3].
+public export
+okTheExiledCard : Noun [] Object
+okTheExiledCard = Macros.the (ExiledWith This)
+
+||| "the card in exile" — the exile zone holds any number of cards, and nothing
+||| links the reference to one of them.
+public export
+badTheCardInExile : Unspellable (Noun [] Object) (\ok =>
+  Macros.the (InZone Macros.exileZ) {ok})
+badTheCardInExile Oh impossible
+
+||| "Exchange your life total with this creature's toughness." (Tree of
+||| Redemption) — two settable values [CR#701.12g].
+public export
+okExchangeTwoValues : Instruction []
+okExchangeTwoValues =
+  Exchange (Values (PlayerStatOf LifeTotal You)
+                   (StatOf Toughness Macros.thisCreature))
+
+||| "Exchange this creature's power with this creature's power." — each value
+||| would become equal to its own previous value [CR#701.12g].
+public export
+badExchangeValueWithItself : Unspellable (Instruction []) (\ok =>
+  Exchange (Values (StatOf Power Macros.thisCreature)
+                   (StatOf Power Macros.thisCreature) {nv = ok}))
+badExchangeValueWithItself Oh impossible
+
+||| "Exchange this creature's power with three." — a literal is not a value the
+||| game can set [CR#701.12g].
+public export
+badExchangeLiteralValue : Unspellable (Instruction []) (\ok =>
+  Exchange (Values (StatOf Power Macros.thisCreature) (Lit 3) {vb = ok}))
+badExchangeLiteralValue Oh impossible
+
+||| "Exchange the text boxes of this creature and another creature."
+||| [CR#701.12h]
+public export
+okExchangeTextBoxes : Instruction []
+okExchangeTextBoxes =
+  Exchange (TextBoxes Macros.thisCreature
+              (Macros.a (And [Macros.creature, OtherThan This])))
+
+||| "Exchange the text boxes of this creature and a creature card in your
+||| graveyard." — a text box is exchanged between permanents on the battlefield.
+public export
+badExchangeTextBoxInGraveyard : Unspellable (Instruction []) (\ok =>
+  Exchange (TextBoxes Macros.thisCreature
+              (Macros.a (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+              {bz = ok}))
+badExchangeTextBoxInGraveyard Oh impossible

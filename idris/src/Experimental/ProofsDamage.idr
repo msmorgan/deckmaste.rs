@@ -67,14 +67,14 @@ public export
 okThem : Instruction []
 okThem =
   Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature)
-                       Openly,
+                       Openly Nothing,
                 SetStatus Tapped (Macros.It ManyOf)]
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."
 public export
 badThemAmbig : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
-               Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
+               Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
                SetStatus Tapped ((Macros.It ManyOf) {ok})])
 badThemAmbig Refl impossible
 
@@ -598,9 +598,8 @@ badThatMuchAfterDeath Refl impossible
 public export
 okThatCreatureAfterDamage : Instruction []
 okThatCreatureAfterDamage =
-  Sequentially [ DealDamage Macros.thisCreature
-                            (StatOf Power Macros.thisCreature)
-                            (Macros.target Macros.creature)
+  Sequentially [ Macros.dealsDamageOwnPower Macros.thisCreature
+                                            (Macros.target Macros.creature)
                , DealDamage (Macros.That (TypeW Creature) OneOf)
                             (StatOf Power (Macros.It OneOf))
                             Macros.thisCreature ]

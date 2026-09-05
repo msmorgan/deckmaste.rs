@@ -218,6 +218,10 @@ mutual
     OpponentsOnly : ChoiceDomain PlayerC
     NumberBetween : (lo : Nat) -> (hi : Nat) ->
                     {auto 0 ok : So (lo <= hi)} -> ChoiceDomain (QSort Number)
+    AbilitiesAmong : (ks : List KeywordTerm) ->
+                     {auto 0 ne : NonEmpty ks} ->
+                     {auto 0 kn : So (allKnownKeywordTerms ks)} ->
+                     ChoiceDomain (QSort AbilityQ)
 
   public export
   data EventSource : Bindings -> Type where
@@ -390,8 +394,12 @@ mutual
     WithMostVotes : {k : Kind} ->
                     {auto 0 vt : countOutcomes VoteHeld bs = 1} ->
                     Predicate bs k
+    ||| "each player who chose the highest number": a plural choice, not a vote
+    ||| [CR#701.38c], so the gate counts the pluralised number choice.
     ChoseExtreme : (op : AggregateOp) ->
-                   {auto 0 ex : IsExtremal op} -> Predicate bs Player
+                   {auto 0 ex : IsExtremal op} ->
+                   {auto 0 nc : So (not (countManys (Quality Number) bs == Z))} ->
+                   Predicate bs Player
     CompareOver : {k : Kind} -> (dom : Predicate bs k) ->
                   {auto ph : Phrasal k} ->
                   (measure : Amount (bindFor TheD OneOf ph dom
@@ -705,6 +713,10 @@ mutual
   uniquifies WithMostVotes = False
   uniquifies (ChoseExtreme _) = False
   uniquifies (CombatRel AttackedBy _) = True
+  -- "the exiled card" is linked to the exiling ability printed on the same
+  -- object [CR#607.2a]; a singular reference still resolves when that ability
+  -- exiled several cards [CR#607.3].
+  uniquifies (ExiledWith _) = True
   uniquifies (CastBy _ rank) = isJust rank
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
@@ -1720,11 +1732,20 @@ mutual
     attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
   attackableKind _ _ = False
 
+  ||| The attacker of an attacked player, planeswalker or battle: a creature on
+  ||| the battlefield, or the attacking player themself [CR#506.2].
+  public export
+  combatPartyKind : (km : Kind) -> Maybe Zone -> Bool
+  combatPartyKind Player _ = True
+  combatPartyKind Object z = zoneIsB z Battlefield
+  combatPartyKind (a \/ b) z = combatPartyKind a z && combatPartyKind b z
+  combatPartyKind _ _ = False
+
   public export
   combatRelOk : CombatRelation -> (k : Kind) -> (km : Kind) ->
                 Maybe Zone -> HeadTy km -> Bool
   combatRelOk AttackerOf k km _ tys = k == Object && attackableKind km tys
-  combatRelOk AttackedBy _ km z _ = km == Object && zoneIsB z Battlefield
+  combatRelOk AttackedBy _ km z _ = combatPartyKind km z
   combatRelOk _ k km z _ =
     k == Object && km == Object && zoneIsB z Battlefield
 
@@ -2788,6 +2809,7 @@ nounIsAbility (Pro (Word AbilityCopyW) _ _) = True
 nounIsAbility (EachOf grp) = nounIsAbility grp
 nounIsAbility (NamesAgree _ grp) = nounIsAbility grp
 nounIsAbility (ResolvedPermanent n) = nounIsAbility n
+nounIsAbility (AsMarker AbilityMarker _) = True
 nounIsAbility (AsMarker _ n) = nounIsAbility n
 nounIsAbility (SomeOf _ _ grp) = nounIsAbility grp
 nounIsAbility _ = False

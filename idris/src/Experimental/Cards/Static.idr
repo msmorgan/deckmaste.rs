@@ -3,6 +3,7 @@ module Experimental.Cards.Static
 import Experimental
 import Experimental.Macros
 import Experimental.Cards.Choice
+import Experimental.Cards.Trigger
 
 %default total
 

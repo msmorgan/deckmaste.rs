@@ -363,6 +363,19 @@ okCouldBlockAttacker : Predicate [] Object
 okCouldBlockAttacker =
   CombatRel CouldBlock (Macros.allOf (And [Macros.creature, Attacking]))
 
+||| "player an opponent is attacking" — the attacker of an attacked player may
+||| be a player [CR#506.2].
+public export
+okAttackedByPlayer : Predicate [] Player
+okAttackedByPlayer = CombatRel AttackedBy Macros.anOpponent
+
+||| "player attacked by target creature card in your graveyard"
+public export
+badAttackedByGraveyardRelatum : Unspellable (Predicate [] Player) (\ok =>
+  CombatRel AttackedBy (Macros.target (And [Macros.creature,
+                                            InZone (Macros.graveyardOf You)])) {ok = ok})
+badAttackedByGraveyardRelatum Oh impossible
+
 ||| "creature that could block target creature card in your graveyard"
 public export
 badCouldBlockGraveyardRelatum : Unspellable (Predicate [] Object) (\ok =>

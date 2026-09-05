@@ -86,7 +86,8 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
             [ Blocks Macros.thisCreature Nothing
             , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
             Nothing [] Nothing Nothing Nothing
-            (DealDamage Macros.thisCreature (StatOf Power ((Macros.It OneOf) {ok = ok}))
+            (DealDamage Macros.thisCreature
+                        (StatOf Power ((Macros.That (TypeW Creature) OneOf) {ok = ok}))
                         (Macros.each Opponent)))
 badThreeArmHeaderReadback Refl impossible
 
@@ -229,7 +230,7 @@ badBarePluralDamageRecipient Oh impossible
 ||| "Choose any number of target creatures. Put a +1/+1 counter on them."
 public export
 badThemCounterRecipient : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing Nothing (Described (TargetDet Macros.anyNumber) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet Macros.anyNumber) Macros.creature) Openly Nothing,
                 PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) ((Macros.It ManyOf)) {pm = ok}])
 badThemCounterRecipient Oh impossible
 
@@ -553,3 +554,63 @@ public export
 badSameKindsSevenEach : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 7) (SameAs Macros.thisCreature) (Macros.target Macros.creature) {am = ok})
 badSameKindsSevenEach Oh impossible
+
+||| "If one or more counters would be put on a permanent your team controls,
+||| that many plus one of each of those kinds are put on that permanent
+||| instead." The replaced event names no agent.
+public export
+okAgentlessCounterReplacement : StaticSpec []
+okAgentlessCounterReplacement =
+  Intercepts (Macros.bareCounterEvent CounterPut ManyCounters
+                (Macros.a (And [Permanent,
+                                HasPossessor ControllerAx (PlayerGroup YourTeam)])))
+             [] Nothing
+             (PutCounters (Plus ThatMuch (Lit 1)) ThoseKinds
+                          (Macros.That PermanentW OneOf))
+             Repeatedly Nothing
+
+||| "one or more counters would be put on a permanent your team controls"
+public export
+okAgentlessCounterPutEvent : GameEvent []
+okAgentlessCounterPutEvent =
+  Macros.bareCounterEvent CounterPut ManyCounters
+    (Macros.a (And [Permanent, HasPossessor ControllerAx (PlayerGroup YourTeam)]))
+
+||| The same event claiming both a player who puts the counters and an effect
+||| that causes them: a counter-put event has one cause, not two.
+public export
+badCounterEventAgentAndEffect : Unspellable (GameEvent []) (\ok =>
+  CounterEvent CounterPut Nothing
+               (Macros.a (And [Permanent,
+                               HasPossessor ControllerAx (PlayerGroup YourTeam)]))
+               ManyCounters (Just You) True {cz = ok})
+badCounterEventAgentAndEffect Oh impossible
+
+||| "{T}: Exile a card from your hand and put four time counters on it. Then
+||| remove a time counter from each other card you own in exile." — "other" is
+||| anchored on the card this same ability exiled and granted to.
+public export
+okOtherThanExiledByThisAbility : Ability
+okOtherThanExiledByThisAbility =
+  Macros.activated
+    (Compound [TapSymbol,
+               Do (Macros.exile (Macros.a (And [Not Macros.land,
+                                                InZone (Macros.handOf You)])))])
+    (Sequentially
+       [ PutCounters (Lit 4) (PrintedKind (NamedCounter "Time"))
+                     (Macros.TheVerbed "Exile" CardW Attributive OneOf)
+       , RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (NamedCounter "Time")))
+                        (Macros.each (And [OtherThan (Macros.TheVerbed "Exile" CardW
+                                                                       Attributive OneOf),
+                                           HasPossessor OwnerAx You,
+                                           InZone Macros.exileZ])) ])
+
+||| The same last sentence with a bare "other": with nothing announced, there
+||| is no anchor for the complement to be other THAN.
+public export
+badBareOtherWithoutAnchor : Unspellable Ability (\ok =>
+  Macros.activated TapSymbol
+    (RemoveCounters (Just (Macros.exactly 1)) (Just (PrintedKind (NamedCounter "Time")))
+                    (Macros.each (And [Other, HasPossessor OwnerAx You,
+                                       InZone Macros.exileZ] {oa = ok}))))
+badBareOtherWithoutAnchor Oh impossible

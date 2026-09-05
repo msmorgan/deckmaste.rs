@@ -73,6 +73,7 @@ classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _ _) = True
 classAbilityOk SpellCard (ItalicHead _ ab) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard MayBeginOnBattlefield = False
+classAbilityOk _ (ThatAbility _) = False
 
 public export
 cardAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool

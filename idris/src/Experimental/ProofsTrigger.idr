@@ -306,3 +306,31 @@ badCrimeByAllPlayers : Unspellable Ability (\ok =>
   Triggered Whenever (CommitsCrime (Macros.allOf AnyPlayer) {sc = ok}) []
             Nothing [] Nothing Nothing Nothing (Draw You (Lit 1)))
 badCrimeByAllPlayers OneCriminal impossible
+
+||| "After you roll a die, you may remove a +1/+1 counter from this creature.
+||| If you do, increase or decrease the result by 1." (Xenosquirrels)
+public export
+okAfterRollShift : Ability
+okAfterRollShift =
+  Triggered After (RollsDice You OneDie AnyDie AnyResult) [] Nothing []
+            Nothing Nothing Nothing
+            (May You
+               (RemoveCounters (Just (Macros.exactly 1))
+                               (Just (PrintedKind Macros.plusOnePlusOne))
+                               Macros.thisCreature)
+               (Just (Macros.shiftResult (Lit 1)))
+               Nothing)
+
+||| The same body after a header that rolls no die: with no result announced
+||| there is nothing to increase or decrease.
+public export
+badShiftWithoutRoll : Unspellable Ability (\ok =>
+  Triggered After (Macros.attacks Macros.thisCreature) [] Nothing []
+            Nothing Nothing Nothing
+            (May You
+               (RemoveCounters (Just (Macros.exactly 1))
+                               (Just (PrintedKind Macros.plusOnePlusOne))
+                               Macros.thisCreature)
+               (Just (Macros.shiftResult (Lit 1) {ok}))
+               Nothing))
+badShiftWithoutRoll Refl impossible

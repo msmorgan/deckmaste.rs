@@ -109,6 +109,7 @@ data QualitySort : Type where
   Number : QualitySort
   CardTypeQ : QualitySort
   CounterKindQ : QualitySort
+  AbilityQ : QualitySort
 
 public export
 qualityIx : QualitySort -> Nat
@@ -117,7 +118,8 @@ qualityIx CardName = 1
 qualityIx Number = 2
 qualityIx CardTypeQ = 3
 qualityIx CounterKindQ = 4
-qualityIx (SubtypeQ t) = 5 + cardTypeIx t
+qualityIx AbilityQ = 5
+qualityIx (SubtypeQ t) = 6 + cardTypeIx t
 
 public export
 Eq QualitySort where
@@ -131,6 +133,7 @@ chosenQualityReadOk CardName = True
 chosenQualityReadOk Number = False
 chosenQualityReadOk CardTypeQ = True
 chosenQualityReadOk CounterKindQ = False
+chosenQualityReadOk AbilityQ = True
 
 public export
 ChosenQualityRead : QualitySort -> Type
@@ -1554,6 +1557,25 @@ sameBindings (b :: bs) (c :: cs) = sameBinding b c && sameBindings bs cs
 sameBindings [] (_ :: _) = False
 sameBindings (_ :: _) [] = False
 
+||| `out` re-places bindings of `outer` without touching the table: every
+||| binding keeps its determiner, kind and plurality, and only plural ones —
+||| one object per agent — may have moved [CR#701.21a].
+public export
+spentDistributively : Bindings -> Bindings -> Bool
+spentDistributively [] [] = True
+spentDistributively (a :: as) (b :: bs) =
+  sameDet a.det b.det && a.kind == b.kind && samePlur a.plur b.plur &&
+  (samePayload a.payload b.payload || not (isOne a.plur)) &&
+  spentDistributively as bs
+spentDistributively _ _ = False
+
+||| A distributive deed closes the partitives its own agents published, or
+||| re-places the plural bindings the same loop published.
+public export
+closesOwnParts : Bindings -> Bindings -> Bool
+closesOwnParts outer out =
+  sameBindings out (partsClosed outer) || spentDistributively outer out
+
 public export
 agreedField : (a -> a -> Bool) -> Maybe a -> Maybe a -> Maybe a
 agreedField f (Just x) (Just y) = if f x y then Just x else Nothing
@@ -2327,16 +2349,20 @@ public export
 data KeywordTerm : Type where
   TheKeyword : (k : KeywordLabel) -> KeywordTerm
   AnyKeywordIn : (c : KeywordFamily) -> KeywordTerm
+  ||| A keyword named with its number, as "rampage 3" is.
+  TheKeywordWith : (k : KeywordLabel) -> (n : Nat) -> KeywordTerm
 
 public export
 keywordTermIx : KeywordTerm -> Nat
 keywordTermIx (TheKeyword _) = 0
 keywordTermIx (AnyKeywordIn _) = 1
+keywordTermIx (TheKeywordWith _ _) = 2
 
 public export
 sameKeywordTerm : KeywordTerm -> KeywordTerm -> Bool
 sameKeywordTerm (TheKeyword a) (TheKeyword b) = a == b
 sameKeywordTerm (AnyKeywordIn a) (AnyKeywordIn b) = a == b
+sameKeywordTerm (TheKeywordWith a m) (TheKeywordWith b n) = a == b && m == n
 sameKeywordTerm _ _ = True
 
 public export
@@ -2347,11 +2373,18 @@ public export
 knownKeywordTerm : KeywordTerm -> Bool
 knownKeywordTerm (TheKeyword k) = knownKeyword k
 knownKeywordTerm (AnyKeywordIn c) = keywordFamilyOk c
+knownKeywordTerm (TheKeywordWith k _) = elem NumberParam (keywordParamShapes k)
+
+public export
+allKnownKeywordTerms : List KeywordTerm -> Bool
+allKnownKeywordTerms [] = True
+allKnownKeywordTerms (k :: ks) = knownKeywordTerm k && allKnownKeywordTerms ks
 
 public export
 keywordTermBare : KeywordTerm -> Bool
 keywordTermBare (TheKeyword k) = keywordParamless k
 keywordTermBare (AnyKeywordIn c) = keywordFamilyOk c
+keywordTermBare (TheKeywordWith _ _) = False
 
 public export
 keywordCounterOk : KeywordLabel -> Bool
@@ -2751,6 +2784,7 @@ ascribesAsType Sorcery = False
 
 public export
 data MarkerWord = TokenMarker | EmblemMarker | SpellMarker | PermanentMarker
+                | AbilityMarker
 
 public export
 markerWordIx : MarkerWord -> Nat
@@ -2758,6 +2792,7 @@ markerWordIx TokenMarker = 0
 markerWordIx EmblemMarker = 1
 markerWordIx SpellMarker = 2
 markerWordIx PermanentMarker = 3
+markerWordIx AbilityMarker = 4
 
 public export
 Eq MarkerWord where
@@ -2774,6 +2809,7 @@ markerZone TokenMarker = Battlefield
 markerZone EmblemMarker = Command
 markerZone SpellMarker = Stack
 markerZone PermanentMarker = Battlefield
+markerZone AbilityMarker = Stack
 
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool

@@ -45,7 +45,7 @@ pyriteSpellbomb = Macros.activated (Compound [Mana [Macros.pip Red], Do (Macros.
                                    (DealDamage ((Macros.It OneOf)) (Lit 2) (Macros.target Macros.anyTarget))
 
 karplusanYeti : Instruction []
-karplusanYeti = Sequentially [DealDamage Macros.thisCreature (StatOf Power Macros.thisCreature) (Macros.target Macros.creature),
+karplusanYeti = Sequentially [Macros.dealsDamageOwnPower Macros.thisCreature (Macros.target Macros.creature),
                               DealDamage (Macros.That (TypeW Creature) OneOf) (StatOf Power ((Macros.It OneOf))) Macros.thisCreature]
 
 suddenDemise : Instruction []
@@ -1593,11 +1593,12 @@ keeperOfTheFlame =
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated (Compound [Mana [Macros.pip Red], TapSymbol])
            (Sequentially
-              [ Macros.choose
+              [ Macros.chooseWhile
                   (Macros.target
                      (And [ Opponent
                           , Compare [PlayerStatAxis LifeTotal] Greater
                                     (PlayerStatOf LifeTotal You) ]))
+                  (WhileDoing (Activates You Macros.thisAbility))
               , DealDamage Macros.thisCreature (Lit 2) (Macros.That PlayerW OneOf) ]) ]
        (Just (1, 2))
 

@@ -479,3 +479,33 @@ goadedAttacksOther =
 public export
 whileScrying : Concurrent []
 whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing)
+
+||| "Creatures can't attack unless their controller pays {X} for each attacking
+||| creature they control." The gated cost sits at the deontic clause's own
+||| intro, which is where the payer is introduced.
+public export
+okGatedCostReadsPayer : StaticSpec [letterB X]
+okGatedCostReadsPayer =
+  Macros.deontic (Macros.allOf Macros.creature)
+    (GatedBy (Macros.scaledMana GenericUnit
+                (TimesOf (LetterVal X)
+                         (Macros.countOf (And [Macros.creature, Attacking,
+                                               HasPossessor ControllerAx They])))))
+    ["Attack"] Agent NoDeonticPatient
+
+||| "{X} for each attacking creature" — the same scaled cost with no read.
+public export
+okBareScaledCost : Cost [letterB X]
+okBareScaledCost =
+  Macros.scaledMana GenericUnit
+    (TimesOf (LetterVal X) (Macros.countOf (And [Macros.creature, Attacking])))
+
+||| The same cost written on its own: outside the clause there is no payer to
+||| read, and `Cost` carries no agent index of its own.
+public export
+badBareCostReadsPayer : Unspellable (Cost [letterB X]) (\ok =>
+  Macros.scaledMana GenericUnit
+    (TimesOf (LetterVal X)
+             (Macros.countOf (And [Macros.creature, Attacking,
+                                   HasPossessor ControllerAx (They {ok})]))))
+badBareCostReadsPayer Refl impossible

@@ -10,6 +10,10 @@ It : (pl : Plurality) -> {auto 0 ok : countReach Bare pl bs = 1} -> Noun bs Obje
 It pl = Pro Bare pl Whole
 
 public export
+ItCard : {auto 0 ok : countReach (AtSlot CardSlot) OneOf bs = 1} -> Noun bs Object
+ItCard = Pro (AtSlot CardSlot) OneOf Whole
+
+public export
 ItVerbed : (v : VerbLabel) -> (pl : Plurality) -> {auto 0 kn : KnownAct v} ->
            {auto 0 ok : countReach (Stamped v) pl bs = 1} -> Noun bs Object
 ItVerbed v pl = Pro (Stamped v) pl Whole
@@ -386,6 +390,10 @@ thisPermanent = AsMarker PermanentMarker This
 public export
 thisSpell : Noun bs Object
 thisSpell = AsMarker SpellMarker This
+
+public export
+thisAbility : Noun bs Object
+thisAbility = AsMarker AbilityMarker This
 
 public export
 thisEquipment : Noun bs Object
@@ -1500,10 +1508,13 @@ searchLibraryFor : (q : Quantity bs) -> (p : Predicate bs Object) ->
 searchLibraryFor q p = Search You (OneZone yourLibrary) q p {zf}
 
 public export
-searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
+searchZonesOf : (whose : Noun bs Player) -> (q : Quantity bs) ->
+                (p : Predicate bs Object) ->
+                {auto 0 nz : NonZeroQ q} ->
+                {auto 0 wf : WellFormedQ q} ->
                 {auto 0 zf : ZoneFree p} -> Instruction bs
-searchZonesOf whose p =
-  Search You (SomeZones (Just whose) [Graveyard, Hand, Library]) (exactly 1) p {zf}
+searchZonesOf whose q p =
+  Search You (SomeZones (Just whose) [Graveyard, Hand, Library]) q p {nz} {wf} {zf}
 
 public export
 searchLibraryOrGraveyard : (p : Predicate bs Object) ->
@@ -2035,7 +2046,7 @@ proliferate =
                           (counted Macros.anyNumber
                             (Joined (And [Permanent, HasCounters Nothing])
                                     (Compare {k = Player} [AnyCounterAxis Player] AtLeast (Lit 1))))
-                          Openly
+                          Openly Nothing
                       , PutCounters (Lit 1) OwnKinds (EachOf (Pro (Word JoinW) ManyOf Whole {ok = mj})) ])
 
 public export
@@ -2443,7 +2454,13 @@ public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : So (choiceClauseOk (the (Maybe (Noun bs Player)) Nothing) n)} ->
          Instruction bs
-choose n = Choose Nothing Nothing n Openly {ch}
+choose n = Choose Nothing Nothing n Openly Nothing {ch}
+
+public export
+chooseWhile : {k : Kind} -> (n : Noun bs k) -> (w : Concurrent bs) ->
+              {auto 0 ch : So (choiceClauseOk (the (Maybe (Noun bs Player)) Nothing) n)} ->
+              Instruction bs
+chooseWhile n w = Choose Nothing Nothing n Openly (Just w) {ch}
 
 public export
 armyYouControl : {bs : Bindings} -> Predicate bs Object
@@ -2484,13 +2501,13 @@ public export
 chooses : {k : Kind} -> (who : Noun bs Player) ->
           (n : Noun (Experimental.Phrase.agentIntro who) k) ->
           {auto 0 ch : So (choiceClauseOk (Just who) n)} -> Instruction bs
-chooses who n = Choose Nothing (Just who) n Openly {ch}
+chooses who n = Choose Nothing (Just who) n Openly Nothing {ch}
 
 public export
 secretlyChooses : {k : Kind} -> (who : Noun bs Player) ->
                   (n : Noun (Experimental.Phrase.agentIntro who) k) ->
                   {auto 0 ch : So (choiceClauseOk (Just who) n)} -> Instruction bs
-secretlyChooses who n = Choose Nothing (Just who) n Secretly {ch}
+secretlyChooses who n = Choose Nothing (Just who) n Secretly Nothing {ch}
 
 ||| "it" read against the prior clause; the antecedent instruction is the anchor.
 public export
@@ -2502,21 +2519,29 @@ itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
 itPrior prev = Pro Bare OneOf (Top (length (instrDelta prev))) {ok}
 
 public export
+itCondSubject : {bs : Bindings} -> (c : Condition bs) ->
+                {auto 0 ok : countReach Bare OneOf
+                               (view (Top (length (condDelta c)))
+                                     (condIntro c)) = 1} ->
+                Noun (condIntro c) Object
+itCondSubject c = Pro Bare OneOf (Top (length (condDelta c))) {ok}
+
+public export
 dealsDamageOwnPower : {bs : Bindings} -> {k : Kind} -> (src : Noun bs Object) ->
                       {auto 0 ok : countReach Bare OneOf
-                                     (view (Top (length (nounDelta src)))
-                                           (nomIntro src)) = 1} ->
+                                     (view (Top (length (selfSubjDelta src ++ nounDelta src)))
+                                           (selfSubjIntro src)) = 1} ->
                       {auto 0 ty : So (statHeadTysOk Power
                                         (soleAlt (optCT
                                           (tyOfReach Bare OneOf
-                                            (view (Top (length (nounDelta src)))
-                                                  (nomIntro src))))))} ->
+                                            (view (Top (length (selfSubjDelta src ++ nounDelta src)))
+                                                  (selfSubjIntro src))))))} ->
                       (to : Noun (nounDelta src ++ bs) k) ->
                       {auto 0 pm : PerMember to} ->
                       {auto 0 rk : DamageRecipient to} -> Instruction bs
 dealsDamageOwnPower src to =
   DealDamage src
-    (StatOf Power (Pro Bare OneOf (Top (length (nounDelta src))) {ok}) {ty})
+    (StatOf Power (Pro Bare OneOf (Top (length (selfSubjDelta src ++ nounDelta src))) {ok}) {ty})
     to {pm} {rk}
 
 public export

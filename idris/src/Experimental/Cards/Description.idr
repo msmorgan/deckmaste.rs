@@ -148,10 +148,16 @@ corruptedOpponents =
 
 ||| War Tax
 public export
-warTaxScaledPayment : Cost [letterB X]
+warTaxScaledPayment : Instruction [letterB X]
 warTaxScaledPayment =
-  Macros.scaledMana GenericUnit
-             (TimesOf (LetterVal X) (Macros.countOf (And [Macros.creature, Attacking])))
+  Continuously
+    (Macros.deontic (Macros.allOf Macros.creature)
+       (GatedBy (Macros.scaledMana GenericUnit
+                   (TimesOf (LetterVal X)
+                            (Macros.countOf (And [Macros.creature, Attacking,
+                                                  HasPossessor ControllerAx They])))))
+       ["Attack"] Agent NoDeonticPatient)
+    (Just ThisTurn)
 
 ||| Croaking Counterpart
 public export
@@ -550,12 +556,24 @@ berserkersFrenzyRoll =
 public export
 ironMastiffIgnore : Instruction []
 ironMastiffIgnore =
-  Sequentially [(Macros.rollDice You 1 20), IgnoreOutcomes (IgnoreAllBut HighestRoll)]
+  Sequentially [ RollDice You
+                          (Macros.countOf (And [AnyPlayer,
+                                                CombatRel AttackedBy TheAttackingPlayer]))
+                          (SidesOf 20)
+               , IgnoreOutcomes (IgnoreAllBut HighestRoll) ]
 
+||| Xenosquirrels
 public export
-xenosquirrelsShift : Instruction []
+xenosquirrelsShift : Ability
 xenosquirrelsShift =
-  Sequentially [(Macros.rollDice You 1 6), Macros.shiftResult (Lit 1)]
+  Triggered After (RollsDice You OneDie AnyDie AnyResult) [] Nothing []
+            Nothing Nothing Nothing
+            (May You
+               (RemoveCounters (Just (Macros.exactly 1))
+                               (Just (PrintedKind Macros.plusOnePlusOne))
+                               Macros.thisCreature)
+               (Just (Macros.shiftResult (Lit 1)))
+               Nothing)
 
 public export
 playersTopCardIsPlural : nounPlur Description.playersTopCardSlice = ManyOf

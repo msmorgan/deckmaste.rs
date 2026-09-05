@@ -3,6 +3,7 @@ module Experimental.Cards.Choice
 import Experimental
 import Experimental.Macros
 import Experimental.Cards.Anaphora
+import Experimental.Cards.Trigger
 
 %default total
 
@@ -187,8 +188,8 @@ phyrexianIngesterPump =
                           , Modify Macros.thisCreature Toughness (Up (LetterVal Y))
                   , DefinesLetter X
                       (StatOf Power
-                         (Macros.a (And [Macros.creature,
-                                         ExiledWith Macros.thisCreature])))
+                         (Macros.the (And [Macros.creature,
+                                           ExiledWith Macros.thisCreature])))
                   , DefinesLetter Y (StatOf Toughness (Macros.That CardW OneOf)) ])
 
 ||| Phyrexian Ingester
@@ -270,9 +271,12 @@ runeSnag =
 
 ||| Tahngarth, First Mate
 public export
-tahngarthChoosesDefender : Instruction []
+tahngarthChoosesDefender : Instruction (eventIntro Trigger.tahngarthHeader)
 tahngarthChoosesDefender =
-  Choose Nothing Nothing (Macros.a (Joined (HasType Planeswalker) AnyPlayer)) Openly
+  Choose Nothing Nothing
+         (Macros.a (And [Joined (HasType Planeswalker) AnyPlayer,
+                         CombatRel AttackedBy (Macros.That PlayerW OneOf)]))
+         Openly Nothing
 
 public export
 reefShaman : Card
@@ -854,7 +858,7 @@ forgottenLoreRepeat : Instruction []
 forgottenLoreRepeat =
   Sequentially
     [ Choose Nothing (Just (Macros.target Opponent))
-             (Macros.a (InZone (Macros.graveyardOf You))) Openly
+             (Macros.a (InZone (Macros.graveyardOf You))) Openly Nothing
     , (May You (Pay You (Mana [Macros.pip Green]) PaidOnce) (Just (Repeat AgainExcludingChosen)) Nothing) ]
 
 ||| Leyline of the Meek
@@ -1099,7 +1103,7 @@ memoricideSearch : Instruction []
 memoricideSearch =
   Sequentially [ Macros.choose (Macros.a (Macros.qualityFrom CardName
                                      (NameOfCard (Not Macros.land))))
-               , Macros.searchZonesOf (Macros.target AnyPlayer) (Named ChosenName)
+               , Macros.searchZonesOf (Macros.target AnyPlayer) (Macros.exactly 1) (Named ChosenName)
                , Shuffle (Macros.That PlayerW OneOf) ]
 
 ||| Lost Hours
@@ -1725,7 +1729,7 @@ discipleOfCaelusNin =
               [ Choose (Just You) (Just (Macros.each AnyPlayer))
                   (Macros.counted (Macros.upTo 5)
                      (And [Permanent, HasPossessor ControllerAx Macros.They]))
-                  Openly
+                  Openly Nothing
               , SetStatus PhasedOut
                   (Macros.allOf (And [Permanent, OtherThan Macros.thisCreature,
                                       NotChosen])) ])

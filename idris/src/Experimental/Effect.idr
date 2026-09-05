@@ -55,6 +55,27 @@ public export
 zoneSwapOk : Zone -> Zone -> Bool
 zoneSwapOk a b = isCardZone (Just a) && isCardZone (Just b) && a /= b
 
+||| The numerical values an exchange can set [CR#701.12g]: a life total, a
+||| power or toughness, or a rolled result.
+public export
+settableValue : {0 bs : Bindings} -> Amount bs -> Bool
+settableValue (PlayerStatOf LifeTotal _) = True
+settableValue (StatOf Power _) = True
+settableValue (StatOf Toughness _) = True
+settableValue (TheOutcome RollResult) = True
+settableValue _ = False
+
+||| Two halves naming one value: each would become equal to its own previous
+||| value, so the sentence states nothing.
+public export
+selfExchanged : {0 bs : Bindings} -> {0 cs : Bindings} ->
+                Amount bs -> Amount cs -> Bool
+selfExchanged (TheOutcome a) (TheOutcome b) = a == b
+selfExchanged (PlayerStatOf a You) (PlayerStatOf b You) = a == b
+selfExchanged (StatOf a (AsType t This _)) (StatOf b (AsType u This _)) =
+  a == b && t == u
+selfExchanged _ _ = False
+
 ||| [CR#701.12]: one instruction states both halves, so an exchange that can't
 ||| be completed in its entirety happens not at all [CR#701.12a]. The attachment
 ||| transfer [CR#701.12e] and the empty-zone case [CR#701.12f] are engine
@@ -71,6 +92,13 @@ data Exchanged : Bindings -> Type where
                 Exchanged bs
   Zones : (a : ZoneExpr bs) -> (b : ZoneExpr (zoneDelta a ++ bs)) ->
           {auto 0 zs : So (zoneSwapOk (zoneSort a) (zoneSort b))} -> Exchanged bs
+  Values : (a : Amount bs) -> (b : Amount (amtIntro a)) ->
+           {auto 0 va : So (settableValue a)} ->
+           {auto 0 vb : So (settableValue b)} ->
+           {auto 0 nv : So (not (selfExchanged a b))} -> Exchanged bs
+  TextBoxes : (a : Noun bs Object) -> (b : Noun (nomIntro a) Object) ->
+              {auto 0 az : ZoneIs (nounZone a) Battlefield} ->
+              {auto 0 bz : ZoneIs (nounZone b) Battlefield} -> Exchanged bs
 
 public export
 exchangedIntro : {bs : Bindings} -> Exchanged bs -> Bindings
@@ -78,6 +106,8 @@ exchangedIntro (LifeTotals parties) = nomIntro parties
 exchangedIntro (ControlOf a b) = nomIntro b
 exchangedIntro (CardsAcross a b) = nomIntro b
 exchangedIntro (Zones a b) = zoneDelta b ++ zoneDelta a ++ bs
+exchangedIntro (Values a b) = amtIntro b
+exchangedIntro (TextBoxes a b) = nomIntro b
 
 public export
 exchangedDeed : {0 bs : Bindings} -> Exchanged bs -> List Binding
@@ -90,6 +120,8 @@ exchangedCostOk (LifeTotals parties) = costNounOk parties
 exchangedCostOk (ControlOf a b) = costNounOk a && costNounOk b
 exchangedCostOk (CardsAcross a b) = costNounOk a && costNounOk b
 exchangedCostOk (Zones _ _) = True
+exchangedCostOk (Values _ _) = True
+exchangedCostOk (TextBoxes a b) = costNounOk a && costNounOk b
 
 public export
 data TokenQuality : Bindings -> Type where
@@ -514,7 +546,7 @@ public export
 data EachStackOk : (outer : Bindings) -> (out : Bindings) -> Type where
   EachOnlyAdds : {auto 0 ko : KeepsOuterOf outer out} -> EachStackOk outer out
   EachClosesOwnParts : {auto 0 ds : So (partsDistributed outer)} ->
-                       {auto 0 cp : out = partsClosed outer} ->
+                       {auto 0 cp : So (closesOwnParts outer out)} ->
                        EachStackOk outer out
 
 public export
@@ -628,6 +660,7 @@ deckComparable Color = True
 deckComparable (SubtypeQ _) = True
 deckComparable CardName = True
 deckComparable CardTypeQ = True
+deckComparable AbilityQ = True
 deckComparable Number = False
 deckComparable CounterKindQ = False
 
@@ -1255,8 +1288,8 @@ mutual
 
   public export
   data Instruction : Bindings -> Type where
-    DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
-                 (to : Noun (amtIntro amt) k) ->
+    DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (selfSubjIntro src)) ->
+                 (to : Noun (amtDelta amt ++ nomIntro src) k) ->
                  {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Instruction bs
     Fights : (a : Noun bs Object) ->
@@ -1326,9 +1359,12 @@ mutual
                         (piles : Nat) -> (faces : List PileFace) ->
                         {auto 0 ff : FacesFit faces piles} ->
                         {auto 0 pl : nounPlur grp = ManyOf} -> Instruction bs
+    ||| The `when` rider is the printed "as you activate this ability" — the
+    ||| announcement's timing, not a condition on what may be chosen.
     Choose : {k : Kind} -> (first : Maybe (Noun bs Player)) ->
              (by : Maybe (Noun bs Player)) ->
              (n : Noun (agentCtx by) k) -> (disc : Disclosure) ->
+             (when : Maybe (Concurrent bs)) ->
              {auto 0 od : So (choiceOrderOk first by)} ->
              {auto 0 ch : So (choiceClauseOk by n)} -> Instruction bs
     ChoicesRevealed : (s : HiddenSort) -> Instruction bs
@@ -1552,7 +1588,7 @@ mutual
   reflexEncloseUse (Expose _ _ _) = EncReflexive
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive
-  reflexEncloseUse (Choose _ _ _ _) = EncReflexive
+  reflexEncloseUse (Choose _ _ _ _ _) = EncReflexive
   reflexEncloseUse (Vote _ _ _ _) = EncReflexive
   reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
@@ -1646,7 +1682,7 @@ mutual
   costActionOk (Copy _ _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (CopyTargets copy _) = costNounOk copy
-  costActionOk (Choose _ _ n _) = costNounOk n
+  costActionOk (Choose _ _ n _ _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (Exchange what) = exchangedCostOk what
   costActionOk (ChangeLife _ _) = True
@@ -1899,7 +1935,7 @@ mutual
                                          (copyLandsIn src (nounZone what)))])
   instrProfile (ChooseNewTargets what) = sameIntro (nomIntro what) []
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
-  instrProfile (Choose _ by n _) = sameIntro (chooseIntro by n) []
+  instrProfile (Choose _ by n _ _) = sameIntro (chooseIntro by n) []
   instrProfile (ChoicesRevealed _) = sameIntro bs []
   instrProfile (Vote _ _ _ _) = sameIntro bs [outcomeB VoteHeld]
   instrProfile (Move what to _) =
@@ -2100,6 +2136,11 @@ mutual
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
     ItalicHead : (word : ItalicWord) -> (ab : AbilityAt bs) ->
                  {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs
+    ||| "that ability", read off an ability chosen earlier in the same text.
+    ThatAbility : (ref : ChoiceRef) ->
+                  {auto 0 ok : choiceRefOk ref
+                                 (countChoice (QSort AbilityQ) bs)} ->
+                  AbilityAt bs
 
   public export
   notWordHeaded : {0 bs : Bindings} -> AbilityAt bs -> Bool
@@ -2179,6 +2220,7 @@ mutual
   grantableAb MayBeginOnBattlefield = False
   grantableAb (AlsoForKeywords _ _) = False
   grantableAb (ItalicHead _ ab) = grantableAb ab
+  grantableAb (ThatAbility _) = True
 
   public export
   Grantable : AbilityAt bs -> Type
@@ -2194,6 +2236,7 @@ mutual
   emblemAbilityOk (ItalicHead _ ab) = emblemAbilityOk ab
   emblemAbilityOk (Spell _ _) = False
   emblemAbilityOk MayBeginOnBattlefield = False
+  emblemAbilityOk (ThatAbility _) = False
 
   public export
   emblemAbilitiesAll : List (AbilityAt []) -> Bool
@@ -2228,6 +2271,7 @@ mutual
   abRegime (ItalicHead _ ab) = abRegime ab
   abRegime (Spell _ _) = Nothing
   abRegime MayBeginOnBattlefield = Nothing
+  abRegime (ThatAbility _) = Nothing
 
   public export
   abFunctionsOnStack : {0 bs : Bindings} -> AbilityAt bs -> Bool
@@ -2239,6 +2283,7 @@ mutual
   abFunctionsOnStack (ItalicHead _ ab) = abFunctionsOnStack ab
   abFunctionsOnStack (Spell _ _) = False
   abFunctionsOnStack MayBeginOnBattlefield = False
+  abFunctionsOnStack (ThatAbility _) = False
 
   public export
   grantSubjectOk : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Bool
@@ -2503,8 +2548,8 @@ abilitiesHoldable (a :: as) = grantableAb a && abilitiesHoldable as
 mutual
   public export
   instrChoiceDelta : {0 bs : Bindings} -> Instruction bs -> List Binding
-  instrChoiceDelta (Choose {k} _ _ (Described (ADet _) _) _) = choiceDeltaAt k
-  instrChoiceDelta (Choose _ _ _ _) = []
+  instrChoiceDelta (Choose {k} _ _ (Described (ADet _) _) _ _) = choiceDeltaAt k
+  instrChoiceDelta (Choose _ _ _ _ _) = []
   instrChoiceDelta (Sequentially es) = instrsChoiceDelta es
   instrChoiceDelta (May _ body _ _) = instrChoiceDelta body
   instrChoiceDelta (IfDone body _ _) = instrChoiceDelta body
@@ -2549,6 +2594,7 @@ abIntro (AlsoForKeywords ab _) = abIntro ab
 abIntro (ItalicHead _ ab) = abIntro ab
 abIntro (Spell _ instr) = instrChoiceDelta instr ++ bs
 abIntro MayBeginOnBattlefield = bs
+abIntro (ThatAbility _) = bs
 
 namespace Text
   public export

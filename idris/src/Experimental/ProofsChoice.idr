@@ -38,13 +38,13 @@ badChosenNumberRead Oh impossible
 public export
 okSinglePower : Instruction []
 okSinglePower =
-  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly Nothing,
                 Macros.gainsLife You (StatOf Power (Macros.It OneOf))]
 
 ||| "Choose two target creatures. You gain life equal to their power."
 public export
 badGroupPower : Unspellable (Instruction []) (\ok =>
-  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
                 Macros.gainsLife You (StatOf Power ((Macros.It ManyOf)) {one = ok})])
 badGroupPower Refl impossible
 
@@ -52,37 +52,37 @@ badGroupPower Refl impossible
 public export
 okSingleOwner : Instruction []
 okSingleOwner =
-  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Macros.target Macros.creature) Openly Nothing,
                 Macros.losesLife (Macros.ownerOf (Macros.It OneOf)) (Lit 1)]
 
 ||| "Choose two target creatures. Their owners each lose 1 life."
 public export
 okGroupOwners : Instruction []
 okGroupOwners =
-  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly,
+  Sequentially [Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing,
                 Macros.losesLife (Macros.ownerOf (Macros.It ManyOf)) (Lit 1)]
 
 ||| "Choose target creature."
 public export
 okTargetCreature : Instruction []
-okTargetCreature = Choose Nothing Nothing (Macros.target Macros.creature) Openly
+okTargetCreature = Choose Nothing Nothing (Macros.target Macros.creature) Openly Nothing
 
 ||| "Choose target color."
 public export
 badTargetColor : Unspellable (Instruction []) (\ok =>
-  Choose Nothing Nothing (Macros.target (QualityNoun Color Nothing) {tk = ok}) Openly)
+  Choose Nothing Nothing (Macros.target (QualityNoun Color Nothing) {tk = ok}) Openly Nothing)
 badTargetColor ObjectTgt impossible
 
 ||| "Choose two target creatures."
 public export
 okTwoGroup : Instruction []
 okTwoGroup =
-  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly
+  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 2)) Macros.creature) Openly Nothing
 
 ||| "Choose zero target creatures."
 public export
 badZeroGroup : Unspellable (Instruction []) (\ok =>
-  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Openly)
+  Choose Nothing Nothing (Described (TargetDet (Macros.exactly 0)) Macros.creature {ok}) Openly Nothing)
 badZeroGroup (MaxAtLeastOne, _, _) impossible
 
 ||| "Choose up to one — Destroy target artifact; or destroy target enchantment."
@@ -350,6 +350,19 @@ okSharedGroupWithoutARest =
         (Macros.counted (Macros.upTo 1)
            (And [Macros.creature, HasPossessor ControllerAx Macros.They])) ]
 
+||| "For each player, choose target permanent that player controls. Those
+||| players sacrifice those permanents." — the plural deed re-places only the
+||| plural bindings the same loop published [CR#701.21a].
+public export
+okDistributedLoopParts : Instruction []
+okDistributedLoopParts =
+  Sequentially
+    [ ForEachOf (Macros.each AnyPlayer)
+        (Macros.choose (Macros.target (And [Permanent,
+                                            HasPossessor ControllerAx Macros.They])))
+    , Macros.sacrifice (Macros.That PlayerW ManyOf)
+                       (Macros.That PermanentW ManyOf) ]
+
 public export
 badDistributedRestOfSharedGroup : Unspellable (Instruction []) (\ok =>
   Sequentially
@@ -467,7 +480,7 @@ okChoiceStartingWithYou : Instruction []
 okChoiceStartingWithYou =
   Choose (Just You) (Just (Macros.each AnyPlayer))
     (Macros.a (And [Macros.creature, HasPossessor ControllerAx Macros.They]))
-    Openly
+    Openly Nothing
 
 ||| "Starting with you, target player chooses a creature." — one player makes
 ||| the choice, so there is no order for "starting with" to fix [CR#101.4]
@@ -475,7 +488,7 @@ okChoiceStartingWithYou =
 public export
 badOrderedSingularChooser : Unspellable (Instruction []) (\ok =>
   Choose (Just You) (Just (Macros.target AnyPlayer)) (Macros.a Macros.creature)
-         Openly {od = ok})
+         Openly Nothing {od = ok})
 badOrderedSingularChooser Oh impossible
 
 ||| "Choose a creature. If you chose a creature this way, draw a card."
@@ -580,3 +593,43 @@ public export
 eachPlayerOfferDropsTheGroup :
   countManys Player (mayCtx ProofsChoice.eachPlayerOffered) = 0
 eachPlayerOfferDropsTheGroup = Refl
+
+||| "Choose target opponent who has more life than you do as you activate this
+||| ability." — the rider times the announcement, not the comparison.
+public export
+okChoiceWithActivationRider : Instruction []
+okChoiceWithActivationRider =
+  Macros.chooseWhile
+    (Macros.target (And [ Opponent
+                        , Compare [PlayerStatAxis LifeTotal] Greater
+                                  (PlayerStatOf LifeTotal You) ]))
+    (WhileDoing (Activates You Macros.thisAbility))
+
+||| The same choice ridered on a death, which is not an event a choice can be
+||| made during.
+public export
+badChoiceRiderNotUnderway : Unspellable (Instruction []) (\ok =>
+  Macros.chooseWhile
+    (Macros.target (And [ Opponent
+                        , Compare [PlayerStatAxis LifeTotal] Greater
+                                  (PlayerStatOf LifeTotal You) ]))
+    (WhileDoing (Dies Macros.thisCreature) {up = ok}))
+badChoiceRiderNotUnderway Oh impossible
+
+||| "Each player secretly chooses a number. Then those numbers are revealed.
+||| Each player who chose the highest number loses that much life."
+||| (Menacing Ogre) — not a vote [CR#701.38c]; the gate is the plural choice.
+public export
+okChoseExtremeAfterNumbers : Instruction []
+okChoseExtremeAfterNumbers =
+  Sequentially
+    [ Macros.secretlyChooses (Macros.each AnyPlayer) (Macros.a (Macros.quality Number))
+    , ChoicesRevealed HiddenNumbers
+    , Macros.losesLife (Macros.each (And [AnyPlayer, ChoseExtreme MaxOf])) ThatMuch ]
+
+||| The same read with no number chosen anywhere in the text.
+public export
+badChoseExtremeWithoutChoice : Unspellable (Instruction []) (\ok =>
+  Macros.losesLife (Macros.each (And [AnyPlayer, ChoseExtreme MaxOf {nc = ok}]))
+                   (Lit 1))
+badChoseExtremeWithoutChoice Oh impossible

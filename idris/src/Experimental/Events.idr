@@ -309,8 +309,10 @@ tallyOk TallySum ev = eventHasMagnitude ev
 public export
 data ReplUse = Repeatedly | NextTimeOnly
 
+||| `After` is the dice template's word ("After you roll a die, …"); the
+||| body reads the event's outcome, which the header context already carries.
 public export
-data TriggerWord = When | Whenever | At
+data TriggerWord = When | Whenever | At | After
 
 public export
 lookbackSubjectOk : EventName -> Kind -> Bool
