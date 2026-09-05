@@ -424,33 +424,19 @@ def unless_ (player : NounPhrase) (instruction : Instruction) (cost : Cost) : In
 def itOrThem : Plurality → NounPhrase
   | .one => it
   | .many => them
-/-- The number of a noun phrase, as far as the syntax alone can tell. -/
-def nounPlurOf : NounPhrase → Plurality
-  | .described d _ =>
-    match d with
-    | .target (.range _ (some 1)) => .one
-    | .a _ => .one
-    | .the => .one
-    | .count (.range _ (some 1)) _ => .one
-    | _ => .many
-  | .pro _ plurality _ => plurality
-  | .eachOf _ | .both _ _ | .playerGroup _ | .oneEachOf _ _ => .many
-  | .librarySlice _ amount _ => amount.plur
-  | _ => .one
-
 /-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
 half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .andAlso none
-    [.modify subject .power power, .modify (itOrThem (nounPlurOf subject)) .toughness toughness]
+    [.modify subject .power power, .modify (itOrThem subject.plur) .toughness toughness]
 
 /-- The shared subject of a clause, read back as a pronoun that sees only what the subject
 itself announced. -/
 def ownSubject (subject : NounPhrase) : NounPhrase :=
-  .pro .bare (nounPlurOf subject) (.top (selfSubjIntro [] subject).length)
+  .pro .bare subject.plur (.top (selfSubjIntro [] subject).length)
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 def lookedCards (slice : NounPhrase) : NounPhrase :=
-  .pro .bare (nounPlurOf slice) (.top (NounPhrase.delta [] slice).length)
+  .pro .bare slice.plur (.top (NounPhrase.delta [] slice).length)
 /-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
 in any order and the rest on top in any order" -/
 def lookAndSort (looker whose : NounPhrase) (amount : Amount) : Instruction :=
