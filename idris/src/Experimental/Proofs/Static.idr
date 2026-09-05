@@ -1,4 +1,4 @@
-module Experimental.ProofsStatic
+module Experimental.Proofs.Static
 
 import Experimental
 import Experimental.Macros

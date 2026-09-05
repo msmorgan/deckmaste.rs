@@ -1,4 +1,4 @@
-module Experimental.ProofsDamage
+module Experimental.Proofs.Damage
 
 import Experimental
 import Experimental.Macros
@@ -432,7 +432,7 @@ okPreventedFromSourceAnnounced =
 public export
 okPreventedFromSourceInAClause : Instruction []
 okPreventedFromSourceInAClause =
-  Continuously ProofsDamage.okPreventedFromSourceAnnounced (Just ThisTurn)
+  Continuously Damage.okPreventedFromSourceAnnounced (Just ThisTurn)
 
 ||| "If damage from a red source is prevented this way, you gain 3 life."
 public export
@@ -454,7 +454,7 @@ okPreventedThisWayAnnounced =
 public export
 okPreventedThisWayInAClause : Instruction []
 okPreventedThisWayInAClause =
-  Continuously ProofsDamage.okPreventedThisWayAnnounced (Just ThisTurn)
+  Continuously Damage.okPreventedThisWayAnnounced (Just ThisTurn)
 
 public export
 badPreventedThisWayAfterDamage : Unspellable (Instruction []) (\ok =>

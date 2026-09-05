@@ -1,4 +1,4 @@
-module Experimental.ProofsAnaphora
+module Experimental.Proofs.Anaphora
 
 import Experimental
 import Experimental.Macros
@@ -179,7 +179,7 @@ afterAnyTargetDamage =
 ||| or player."
 public export
 okUnionAnaphorAfterAnyTarget :
-  Noun ProofsAnaphora.afterAnyTargetDamage (Object \/ Player)
+  Noun Anaphora.afterAnyTargetDamage (Object \/ Player)
 okUnionAnaphorAfterAnyTarget = Macros.That JoinW
 
 ||| "This deals 3 damage to any target. Counter that spell or ability."
@@ -187,7 +187,7 @@ okUnionAnaphorAfterAnyTarget = Macros.That JoinW
 ||| permanent-or-player read (`okUnionAnaphorAfterJoin`).
 public export
 badStackAnaphorOnPlayerUnion :
-  Unspellable (Noun ProofsAnaphora.afterAnyTargetDamage Object) (\ok =>
+  Unspellable (Noun Anaphora.afterAnyTargetDamage Object) (\ok =>
     Macros.That StackW {ok = ok})
 badStackAnaphorOnPlayerUnion Refl impossible
 
@@ -667,7 +667,7 @@ afterATwoDieRoll = instrIntro (the (Instruction []) (Macros.rollDice You 2 6))
 
 ||| "if you rolled doubles"
 public export
-okRolledDoublesAfterRoll : Condition ProofsAnaphora.afterATwoDieRoll
+okRolledDoublesAfterRoll : Condition Anaphora.afterATwoDieRoll
 okRolledDoublesAfterRoll = RolledDoubles
 
 ||| "If you rolled doubles, sacrifice this creature."
@@ -682,7 +682,7 @@ afterACoinFlip = instrIntro (the (Instruction []) (Macros.flipCoins You 1))
 
 ||| "a player whose coin comes up tails"
 public export
-okCoinCameUpOnPlayer : Predicate ProofsAnaphora.afterACoinFlip Player
+okCoinCameUpOnPlayer : Predicate Anaphora.afterACoinFlip Player
 okCoinCameUpOnPlayer = CoinCameUp Tails
 
 ||| "the damage whose coin comes up tails". Refused: only objects and players
@@ -690,7 +690,7 @@ okCoinCameUpOnPlayer = CoinCameUp Tails
 ||| (`okCoinCameUpOnPlayer`).
 public export
 badCoinCameUpOnOutcome :
-  Unspellable (Predicate ProofsAnaphora.afterACoinFlip Outcome) (\ok =>
+  Unspellable (Predicate Anaphora.afterACoinFlip Outcome) (\ok =>
     CoinCameUp Tails {rk = ok})
 badCoinCameUpOnOutcome Oh impossible
 
@@ -718,13 +718,13 @@ badPlanarResultTest Oh impossible
 
 ||| "Roll two d6. Ignore the lowest roll."
 public export
-okExtremeOverRolls : Instruction ProofsAnaphora.afterATwoDieRoll
+okExtremeOverRolls : Instruction Anaphora.afterATwoDieRoll
 okExtremeOverRolls = IgnoreOutcomes (IgnoreExtreme LowestRoll)
 
 ||| "If you would flip a coin, instead flip two coins and ignore the lower one."
 public export
 badExtremeOverFlips :
-  Unspellable (Instruction ProofsAnaphora.afterACoinFlip) (\ok =>
+  Unspellable (Instruction Anaphora.afterACoinFlip) (\ok =>
     IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
 badExtremeOverFlips Oh impossible
 
@@ -760,7 +760,7 @@ afterAnUpToChoice =
 
 ||| "Choose up to one creature. Destroy the rest."
 public export
-okRestAfterAPartition : Noun ProofsAnaphora.afterAnUpToChoice Object
+okRestAfterAPartition : Noun Anaphora.afterAnUpToChoice Object
 okRestAfterAPartition = Macros.theRest Object
 
 ||| "Destroy the rest."
@@ -790,7 +790,7 @@ afterALook =
 
 ||| "Look at the top card of your library. Put that card into your graveyard."
 public export
-okReadsLookedAtCard : Noun ProofsAnaphora.afterALook Object
+okReadsLookedAtCard : Noun Anaphora.afterALook Object
 okReadsLookedAtCard = Macros.That CardW
 
 public export
@@ -801,7 +801,7 @@ afterShuffledLook =
 
 public export
 badReadsShuffledLibraryCard :
-  Unspellable (Noun ProofsAnaphora.afterShuffledLook Object) (\ok => Macros.That CardW {ok})
+  Unspellable (Noun Anaphora.afterShuffledLook Object) (\ok => Macros.That CardW {ok})
 badReadsShuffledLibraryCard Refl impossible
 
 ||| "Whenever you scry, …"

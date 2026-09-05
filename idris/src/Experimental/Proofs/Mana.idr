@@ -1,4 +1,4 @@
-module Experimental.ProofsMana
+module Experimental.Proofs.Mana
 
 import Experimental
 import Experimental.Macros
@@ -466,7 +466,7 @@ afterAPlainLandTap =
 
 ||| "one mana of any type that land produced"
 public export
-okProducedByTapEvent : ProducedMana ProofsMana.afterALandTapForMana
+okProducedByTapEvent : ProducedMana Mana.afterALandTapForMana
 okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land))
 
 ||| "Whenever a player taps a land, add one mana of any type that land
@@ -474,7 +474,7 @@ okProducedByTapEvent = ProducedByEvent (Macros.That (TypeW Land))
 ||| [CR#106.12a].
 public export
 badProducedByPlainTap :
-  Unspellable (ProducedMana ProofsMana.afterAPlainLandTap) (\ok =>
+  Unspellable (ProducedMana Mana.afterAPlainLandTap) (\ok =>
     ProducedByEvent (Macros.That (TypeW Land)) {pm = ok})
 badProducedByPlainTap Refl impossible
 
@@ -491,7 +491,7 @@ afterManaAdded =
 
 ||| "You don't lose this mana as steps and phases end."
 public export
-okThisManaAfterAdd : StaticSpec ProofsMana.afterManaAdded
+okThisManaAfterAdd : StaticSpec Mana.afterManaAdded
 okThisManaAfterAdd = KeepsUnspentMana You ThisMana
 
 ||| "You don't lose this mana as steps and phases end"

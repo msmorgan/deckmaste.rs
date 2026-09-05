@@ -1,4 +1,4 @@
-module Experimental.ProofsFaces
+module Experimental.Proofs.Faces
 
 import Experimental
 import Experimental.Macros

@@ -77,7 +77,7 @@ def declarations(path):
 def main():
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
     failures = []
-    for path in sorted(glob.glob(os.path.join(root, 'src/Experimental/Proofs*.idr'))):
+    for path in sorted(glob.glob(os.path.join(root, 'src/Experimental/Proofs/*.idr'))):
         twin = None
         for line, name, pin, ty in declarations(path):
             if not pin:

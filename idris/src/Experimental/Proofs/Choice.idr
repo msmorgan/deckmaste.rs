@@ -1,4 +1,4 @@
-module Experimental.ProofsChoice
+module Experimental.Proofs.Choice
 
 import Experimental
 import Experimental.Macros
@@ -279,7 +279,7 @@ afterChoiceMade =
 
 ||| "Choose up to one creature. Destroy the rest."
 public export
-okChoiceRestStands : Noun ProofsChoice.afterChoiceMade Object
+okChoiceRestStands : Noun Choice.afterChoiceMade Object
 okChoiceRestStands = Macros.theRest Object
 
 public export
@@ -292,7 +292,7 @@ afterChoiceRestDisposed =
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."
 public export
 badChoiceRestDisposedTwice :
-  Unspellable (Noun ProofsChoice.afterChoiceRestDisposed Object) (\ok => Macros.theRest Object {ok})
+  Unspellable (Noun Choice.afterChoiceRestDisposed Object) (\ok => Macros.theRest Object {ok})
 badChoiceRestDisposedTwice Oh impossible
 
 ||| "Each player chooses up to one creature they control, then sacrifices the
@@ -318,20 +318,20 @@ afterDistributedChoice =
 ||| "Each player chooses up to one creature they control, then sacrifices the
 ||| rest."
 public export
-okDistributedRestStands : Noun ProofsChoice.afterDistributedChoice Object
+okDistributedRestStands : Noun Choice.afterDistributedChoice Object
 okDistributedRestStands = Macros.theRest Object
 
 public export
 afterDistributedRestSacrificed : Bindings
 afterDistributedRestSacrificed =
-  instrIntro (the (Instruction []) ProofsChoice.okDistributedRestOfOwnChoice)
+  instrIntro (the (Instruction []) Choice.okDistributedRestOfOwnChoice)
 
 ||| "Each player chooses up to one creature they control, then sacrifices the
 ||| rest, then sacrifices the rest." — the per-agent rest closes the partitives
 ||| it spent, so no rest stands to spend again.
 public export
 badDistributedRestDisposedTwice :
-  Unspellable (Noun ProofsChoice.afterDistributedRestSacrificed Object)
+  Unspellable (Noun Choice.afterDistributedRestSacrificed Object)
               (\ok => Macros.theRest Object {ok})
 badDistributedRestDisposedTwice Oh impossible
 
@@ -586,12 +586,12 @@ eachPlayerOffered = Macros.each AnyPlayer
 
 public export
 eachPlayerOfferBindsOneMember :
-  countOnes Player (mayCtx ProofsChoice.eachPlayerOffered) = 1
+  countOnes Player (mayCtx Choice.eachPlayerOffered) = 1
 eachPlayerOfferBindsOneMember = Refl
 
 public export
 eachPlayerOfferDropsTheGroup :
-  countManys Player (mayCtx ProofsChoice.eachPlayerOffered) = 0
+  countManys Player (mayCtx Choice.eachPlayerOffered) = 0
 eachPlayerOfferDropsTheGroup = Refl
 
 ||| "Choose target opponent who has more life than you do as you activate this

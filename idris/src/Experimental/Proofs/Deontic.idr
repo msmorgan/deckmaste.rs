@@ -1,4 +1,4 @@
-module Experimental.ProofsDeontic
+module Experimental.Proofs.Deontic
 
 import Experimental
 import Experimental.Macros
@@ -397,7 +397,7 @@ afterDamageDealt =
 
 ||| "This deals 4 damage to target creature. The damage can't be prevented."
 public export
-okTheDamageAnnounced : StaticSpec ProofsDeontic.afterDamageDealt
+okTheDamageAnnounced : StaticSpec Deontic.afterDamageDealt
 okTheDamageAnnounced = CantPrevent AnyDamage ThatDamage NoPreventionOnly
 
 ||| "The damage can't be prevented."

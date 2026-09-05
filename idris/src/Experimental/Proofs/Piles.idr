@@ -1,4 +1,4 @@
-module Experimental.ProofsPiles
+module Experimental.Proofs.Piles
 
 import Experimental
 import Experimental.Macros

@@ -1,4 +1,4 @@
-module Experimental.ProofsKeyword
+module Experimental.Proofs.Keyword
 
 import Experimental
 import Experimental.Macros

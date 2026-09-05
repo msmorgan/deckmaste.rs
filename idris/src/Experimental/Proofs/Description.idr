@@ -1,4 +1,4 @@
-module Experimental.ProofsDescription
+module Experimental.Proofs.Description
 
 import Experimental
 import Experimental.Macros
@@ -433,7 +433,7 @@ afterTopLook =
 
 ||| "Look at the top card of your library. Put that card into your graveyard."
 public export
-okReadsLookedAtLibraryCard : Noun ProofsDescription.afterTopLook Object
+okReadsLookedAtLibraryCard : Noun Description.afterTopLook Object
 okReadsLookedAtLibraryCard = Macros.That CardW
 
 public export
@@ -444,7 +444,7 @@ afterShuffledIntoLook =
 
 public export
 badReadsShuffledIntoLibraryCard :
-  Unspellable (Noun ProofsDescription.afterShuffledIntoLook Object) (\ok => Macros.That CardW {ok})
+  Unspellable (Noun Description.afterShuffledIntoLook Object) (\ok => Macros.That CardW {ok})
 badReadsShuffledIntoLibraryCard Refl impossible
 
 ||| "if you control four or more creatures"

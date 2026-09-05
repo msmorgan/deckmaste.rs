@@ -1,4 +1,4 @@
-module Experimental.ProofsCounters
+module Experimental.Proofs.Counters
 
 import Experimental
 import Experimental.Macros
@@ -450,7 +450,7 @@ afterCountersPut =
 
 ||| "Put that many counters of each of those kinds on this creature."
 public export
-okThoseKindsAfterCountersPut : Instruction ProofsCounters.afterCountersPut
+okThoseKindsAfterCountersPut : Instruction Counters.afterCountersPut
 okThoseKindsAfterCountersPut = PutCounters ThatMuch ThoseKinds This
 
 ||| "Put a counter of each of those kinds on target creature."

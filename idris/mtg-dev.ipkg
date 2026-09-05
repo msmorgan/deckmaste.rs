@@ -1,17 +1,17 @@
 -- mtg-dev.ipkg: fast inner loop for iterating on Experimental.* modules.
 --
 -- Same module set as mtg.ipkg (same sourcedir, same options), minus the
--- Experimental.Proofs* pin modules: deliberately-failing elaborations that
+-- Experimental.Proofs pin modules: deliberately-failing elaborations that
 -- dominate build time and only need checking once per round.
 --
 -- Iterate on dev, gate on full:
---   idris2 --build mtg-dev.ipkg      -- fast inner loop (no Proofs* checked)
+--   idris2 --build mtg-dev.ipkg      -- fast inner loop (no Proofs checked)
 --   ./scripts/build                  -- full gate (mtg.ipkg): every module
 --                                        built, 0 errors, 0 warnings
 --
 -- Both ipkgs share this directory's build/ (same sourcedir "src", no
 -- package-name-sensitive options), so a full build after a dev build only
--- re-elaborates the Proofs* modules plus whatever else you touched.
+-- re-elaborates the Proofs modules plus whatever else you touched.
 
 package mtg-dev
 

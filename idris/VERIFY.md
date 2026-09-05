@@ -39,7 +39,7 @@ fixtures, were deleted with it.)
 `src/Experimental/` is the semantics-v2 grammar workbench: `Words`, `Events`,
 `Phrase`, `Triggers`, `Effect` and `Card` (re-exported together as
 `Experimental`), `Macros` (spellings over the core constructors), `Cards` (the
-printed-card bench), `Unspellable`, and the `Proofs*` pin modules. Every
+printed-card bench), `Unspellable`, and the `Proofs` pin modules. Every
 module is `%default total`; a card term typechecks only if every
 `{auto 0 ok : …}` obligation on its constructors is met, so a type error is a
 refused sentence.
@@ -50,12 +50,10 @@ The bench and the pins are split by grammar family. `Experimental.Cards` is an
 `Choice`, `Static`, `Cost`, `Faces`, `Turn`, `Copy`, `Piles`, in that
 dependency order; a family module imports only families earlier in the list,
 and each ends with the witnesses that carry no family signal. The pins live in
-`Experimental.Proofs<Family>` over the same vocabulary plus `Zone`
-(`ProofsAnaphora`, `ProofsDescription`, `ProofsZone`, `ProofsDamage`,
-`ProofsTrigger`, `ProofsStatic`, `ProofsCounters`, `ProofsMana`,
-`ProofsKeyword`, `ProofsDeontic`, `ProofsChoice`, `ProofsTurn`, `ProofsFaces`,
-`ProofsPiles`), so a pin is found from the constructor it refutes. No pin
-module imports another.
+`Experimental.Proofs.<Family>` over the same vocabulary plus `Zone`
+(`Anaphora`, `Description`, `Zone`, `Damage`, `Trigger`, `Static`, `Counters`,
+`Mana`, `Keyword`, `Deontic`, `Choice`, `Turn`, `Faces`, `Piles`), so a pin is
+found from the constructor it refutes. No pin module imports another.
 
 A **pin** is a compiler-checked refusal: `Unspellable T (\ok => term)` states
 that the term's open obligation has no proof, and its body (`Oh impossible`,
@@ -79,12 +77,12 @@ unwritable. Where the refusal message carries the meaning, prefer a named
 
 The gates, from `idris/`:
 
-    idris2 --build mtg-dev.ipkg    # inner loop: everything but Proofs*
+    idris2 --build mtg-dev.ipkg    # inner loop: everything but Proofs
     ./scripts/build                # full gate: mtg.ipkg, every module,
                                    # no Error and no Warning lines
 
 Both share `build/`, so the full gate after a dev build re-elaborates only
-the `Proofs*` modules and what you touched. From the workspace root, the
+the `Proofs` modules and what you touched. From the workspace root, the
 citation gates then cover everything in the diff that cites the
 Comprehensive Rules: `cargo xtask cite check --list-noncompliant` (empty),
 `cargo xtask cite check` (0 stale), `cargo xtask cite bless` for newly cited

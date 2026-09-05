@@ -1,4 +1,4 @@
-module Experimental.ProofsTrigger
+module Experimental.Proofs.Trigger
 
 import Experimental
 import Experimental.Macros
@@ -181,7 +181,7 @@ afterLifePayment = eventAfter (the (GameEvent []) (PaysLife (Macros.a AnyPlayer)
 
 ||| "Whenever a player pays life, that player draws a card."
 public export
-okLifePaymentPayerReadback : Noun ProofsTrigger.afterLifePayment Player
+okLifePaymentPayerReadback : Noun Trigger.afterLifePayment Player
 okLifePaymentPayerReadback = Macros.That PlayerW
 
 public export
@@ -193,12 +193,12 @@ afterPassivePayment =
 ||| "Whenever this creature's cumulative upkeep is paid, that player …"
 public export
 badPassivePayerReadback :
-  Unspellable (Noun ProofsTrigger.afterPassivePayment Player) (\ok => Macros.That PlayerW {ok})
+  Unspellable (Noun Trigger.afterPassivePayment Player) (\ok => Macros.That PlayerW {ok})
 badPassivePayerReadback Refl impossible
 
 ||| "Whenever a player pays life, you gain that much life."
 public export
-okLifePaymentThatMuch : Amount ProofsTrigger.afterLifePayment
+okLifePaymentThatMuch : Amount Trigger.afterLifePayment
 okLifePaymentThatMuch = ThatMuch
 
 public export
@@ -209,7 +209,7 @@ afterKeywordCostPayment =
 
 public export
 badKeywordCostPaymentThatMuch :
-  Unspellable (Amount ProofsTrigger.afterKeywordCostPayment) (\ok => ThatMuch {ok})
+  Unspellable (Amount Trigger.afterKeywordCostPayment) (\ok => ThatMuch {ok})
 badKeywordCostPaymentThatMuch Refl impossible
 
 ||| "whenever one or more time counters are put on this enchantment"

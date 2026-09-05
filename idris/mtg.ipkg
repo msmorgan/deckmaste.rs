@@ -33,20 +33,21 @@ modules = Semantics
         , Experimental.Cards.Copy
         , Experimental.Cards.Piles
         , Experimental.Unspellable
-        , Experimental.ProofsAnaphora
-        , Experimental.ProofsDescription
-        , Experimental.ProofsZone
-        , Experimental.ProofsDamage
-        , Experimental.ProofsTrigger
-        , Experimental.ProofsStatic
-        , Experimental.ProofsCounters
-        , Experimental.ProofsMana
-        , Experimental.ProofsKeyword
-        , Experimental.ProofsDeontic
-        , Experimental.ProofsChoice
-        , Experimental.ProofsTurn
-        , Experimental.ProofsFaces
-        , Experimental.ProofsPiles
+        , Experimental.Proofs
+        , Experimental.Proofs.Anaphora
+        , Experimental.Proofs.Description
+        , Experimental.Proofs.Zone
+        , Experimental.Proofs.Damage
+        , Experimental.Proofs.Trigger
+        , Experimental.Proofs.Static
+        , Experimental.Proofs.Counters
+        , Experimental.Proofs.Mana
+        , Experimental.Proofs.Keyword
+        , Experimental.Proofs.Deontic
+        , Experimental.Proofs.Choice
+        , Experimental.Proofs.Turn
+        , Experimental.Proofs.Faces
+        , Experimental.Proofs.Piles
         , EmitTables
 
 sourcedir = "src"

@@ -1,4 +1,4 @@
-module Experimental.ProofsZone
+module Experimental.Proofs.Zone
 
 import Experimental
 import Experimental.Macros

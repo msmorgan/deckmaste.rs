@@ -1,4 +1,4 @@
-module Experimental.ProofsTurn
+module Experimental.Proofs.Turn
 
 import Experimental
 import Experimental.Macros
@@ -415,8 +415,8 @@ oneExtraTurn = instrIntro {bs = []} (ExtraTurn You (Lit 1))
 
 ||| "Take an extra turn after this one. Skip the draw step of that turn."
 public export
-okThatTurnAfterASingleTurn : Noun ProofsTurn.oneExtraTurn TurnRef
-okThatTurnAfterASingleTurn = Macros.thatTurn {bs = ProofsTurn.oneExtraTurn}
+okThatTurnAfterASingleTurn : Noun Turn.oneExtraTurn TurnRef
+okThatTurnAfterASingleTurn = Macros.thatTurn {bs = Turn.oneExtraTurn}
 
 public export
 twoExtraTurns : Bindings
