@@ -148,9 +148,8 @@ scanner split. `has_lexical_boundary`
 word boundary; a prefix reading survives only when an adjacency-marked
 continuation suppresses it, and that branch then dies without affecting the
 outcome. The real gap in every such case is that no lexeme spans the whole
-word. Verified on `colorless` 2026-09-05; the previous register's
-"scanner splits `color` + `less`" wording was a wrong diagnosis and is retired
-with it. Do not mint a scanner ticket on this evidence.
+word. Verified on `colorless` 2026-09-05. Do not mint a scanner ticket on this
+evidence.
 
 Top ten by first-failure attribution:
 

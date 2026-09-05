@@ -184,6 +184,7 @@ constructions! {
     vocab Color {
         Black = "black",
         Blue = "blue",
+        Colorless = "colorless",
         Green = "green",
         Monocolored = "monocolored",
         Multicolored = "multicolored",
