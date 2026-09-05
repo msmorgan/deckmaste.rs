@@ -7446,6 +7446,46 @@ mod tests {
     }
 
     #[test]
+    fn a_bound_suffix_without_the_sealed_feature_keeps_plain_space_suppression() {
+        let expansion = crate::generate(quote::quote! {
+            vocab OwnerWord { Invented = "invented", }
+            codec KeywordSuffix {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = Any;
+                    feature = Fixed;
+                }
+            }
+            construction owner: Owner {
+                element OwnerValue { word: lex OwnerWord, }
+                form owner = lex(word);
+            }
+            construction fused: Root {
+                element FusedValue { owner: Owner, suffix: lex KeywordSuffix, }
+                form fused = right_adjacent(owner) lex(suffix);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a bound suffix over an unsealed declaration term still emits");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !source.contains("bind_declared_suffix"),
+            "an unsealed right neighbour must not bind the preceding word: {source}"
+        );
+        assert!(
+            source.contains("writer . suppress_next_space ()"),
+            "{source}"
+        );
+    }
+
+    #[test]
     fn canonical_lexical_feature_lowering_requires_the_exact_writer() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

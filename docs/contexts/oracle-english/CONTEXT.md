@@ -224,5 +224,8 @@ Bound Keyword Surface.
 The surface a Keyword Ability contributes as a suffix bound to its Keyword
 Quality, so that quality and keyword are written as one word — *walk* in
 *islandwalk* and in *nonbasic landwalk* [CR#702.14a]. A declaration states it
-separately from that Keyword Ability's own free surface.
+separately from that Keyword Ability's own free surface. Quality and Bound
+Keyword Surface are cased together as the one word they form: capitalized only
+where that word begins a sentence or a keyword line — *Islandwalk*, *Snow
+swampwalk*, *Enchanted creature has mountainwalk.*
 _Avoid_: Prefix for the Keyword Quality it binds to

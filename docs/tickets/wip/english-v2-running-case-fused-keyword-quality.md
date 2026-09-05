@@ -49,9 +49,12 @@ corpus pass was the required fork-point ambiguity baseline.
   mechanism: when a right-adjacent declaration term is sealed as
   `BoundSuffix`, the scanner can read the quality's initial declaration surface
   in running position and the writer applies its existing `CasePosition` to the
-  bound orthographic word. The existing granted-ability host continues to own
-  `has`, `gains`, and `with`; no host, keyword construction, declaration row,
-  or per-type lowercase surface was added.
+  bound orthographic word. No host, keyword construction, declaration row, or
+  per-type lowercase surface was added: the 52 gains select under four
+  pre-existing hosts — `GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase`
+  (39, `has`/`gains`), `PrepositionalPhrasePrepositionalPhrase` (5, `with`),
+  `KeywordLineKeywordLine` (6, a lowercase item after a `;`-separated keyword),
+  and `BareKeywordLineItemBareKeywordLineItem` (1).
 - **Required analyses.** The stable-identity diff is 52
   `parse_failure -> selected` transitions, 0 losses, 0 identities present on
   only one side, and 0 changed selected paths among all 20,002 prior
@@ -107,8 +110,12 @@ corpus pass was the required fork-point ambiguity baseline.
   no-op, so the refreshed base did not move between fix and final gates.
 - **STOPs:** none. There is no tie, wrong newly covered analysis, newly covered
   negative oracle, unexplained loss, roundtrip mismatch, or word-naming guard.
-- **Glossary gaps:** none. The implementation uses the existing **Bound Keyword
-  Surface** and **Keyword Quality** terms.
+- **Glossary gaps:** one, closed by this landing. The **Bound Keyword Surface**
+  entry in `docs/contexts/oracle-english/CONTEXT.md` named the surface but
+  stated no case law for the word it forms, which is the whole subject of this
+  ticket; the entry now says quality and bound surface are cased together as
+  one word, capitalized only sentence- or line-initially. **Keyword Quality**
+  needed no change.
 
 #### Newly covered identities and selected analyses
 
@@ -198,8 +205,12 @@ quality used by the selected Bound Keyword Surfaces.
   `cargo xtask catalogs check` printed `catalogs are up to date`. Cite gates
   were not run because no citation changed.
 - Assurance counts: restored 0; re-spelled 1 existing witness; ignored 0;
-  added 3 tests; removed 0. The closure's one ignored test is pre-existing and
-  untouched.
+  added 4 tests (3 by the implementer, 1 rejection test added in review);
+  removed 0. The closure's one ignored test is pre-existing and untouched.
+  The re-spelled witness is justified: real Oracle prints the stacked form
+  lowercase (Legions of Lim-Dûl reads `Snow swampwalk`), so the retired
+  `Snow Swampwalk` spelling was never valid Oracle and is not a second valid
+  case to keep as a witness.
 - Performance advisory, workers 8. Coverage `--check`: 171,726 ms,
   **218,347 ns/B**, host load 18.80 / 21.98 / 14.48, with 0 visible
   `cargo`/`rustc` processes at launch. Coverage `--bless`: 199,775 ms,
@@ -208,4 +219,59 @@ quality used by the selected Bound Keyword Surfaces.
   176,489 ns/B, host load 19.59 / 20.50 / 17.54. Every pass exceeded the
   16,260 ms quiet-host ceiling under the reported load; this is advisory and
   was not fitted. The sandbox cannot observe sibling executor processes, so 0
-  is only the directly visible cargo/rustc count.
+  is only the directly visible cargo/rustc count. **True contention at the time
+  of these passes, supplied by the coordinator: 2 concurrent codex executors
+  plus 2 other Opus reviewers.** Review-side subset passes on the same tree
+  measured host load 41.85 / 27.66 / 20.29 (coverage) and 33.74 / 26.56 /
+  20.04 (ambiguity), consistent with that count.
+
+### Review corrections
+
+Reviewed on feature change `tttnptln` (lock `covered` 20,054), corrections
+committed above it.
+
+- **MEDIUM — the compiler Deviation had a positive test but no rejection
+  test.** `right_adjacent` occurs exactly once in the whole english_v2 grammar
+  (`bound_quality_keyword_line_item`), and that one use *is* declaration-backed,
+  so nothing anywhere held the `declared_bound_suffix` gate closed: flipping it
+  to always-true left every suite green. Added
+  `a_bound_suffix_without_the_sealed_feature_keeps_plain_space_suppression` in
+  `crates/deckmaste_construction_core/src/emit/render.rs` — the same grammar
+  with the declaration term sealed `Fixed` instead of `BoundSuffix` must emit
+  `writer.suppress_next_space()` and must not emit `bind_declared_suffix`. The
+  test was mutation-checked: with the gate forced true it fails.
+- **MEDIUM — the record misattributed the hosts.** It said the granted-ability
+  host owns `has`, `gains` and `with`. Measured on this tree, the 52 gains
+  select under four pre-existing hosts (39 / 5 / 6 / 1); `with` is a
+  `PrepositionalPhrase` host and 7 units select under keyword-line hosts. The
+  mechanism claim (no host added) is unchanged and holds. Record corrected.
+- **MEDIUM — a glossary gap was reported as none.** The **Bound Keyword
+  Surface** entry stated no case law for the word it forms. Amended in
+  `docs/contexts/oracle-english/CONTEXT.md`; the DISCLOSE line now names it.
+- **Contention stamp added** to the performance advisory (2 concurrent codex
+  executors plus 2 other Opus reviewers), which the implementer's sandbox could
+  not observe.
+
+#### Disclosed known limit (LOW, not fixed here)
+
+At a bound-suffix boundary the scanner still admits the **capitalized** quality
+surface in running position, because a land Subtype's running surface is itself
+capitalized: `Enchanted creature has Mountainwalk.` and the retired
+`Snow Swampwalk` both still parse and select the Bound Keyword Surface, and the
+writer then renders them lowercase, so the unit fails the ownership
+byte-exactness check rather than being refused at scan. That is the loud
+failure mode, not a silent one — `ownership_failure_units` is a structural law
+the coverage gate holds at zero — and the corpus has no such unit: the only two
+occurrences of a capitalized fused walk after a word (`with Islandwalk`,
+`with Plainswalk`) are inside rulings text, not oracle text, so `roundtrip
+--require-clean` is clean at 0 mismatched. Refusing the capitalized reading at
+that boundary is a tightening the ticket did not ask for (it asked to add the
+lowercase reading, not to remove the capitalized one) and it would move the
+102 pre-existing Bound Keyword Surface selections, so it is disclosed rather
+than done. Nothing is owed: no coverage is lost and no gate is weakened.
+
+#### Review gates
+
+Re-run after the corrections and after the final `kata refresh`; artifacts are
+pasted in
+`docs/memory/scratch/plan09-postmortem/english-v2-running-case-fused-keyword-quality-landing-review.md`.
