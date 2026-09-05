@@ -18,7 +18,12 @@ antecedent accessibility. Challenge these before declaring a migration slice
 ready; a restricted illustrative lexicon does not discharge them. The document
 section adds explicit questions about source whitespace, structured notation,
 inline reminders and frame metadata; audit those alongside quotation and
-keyword boundary interactions.
+keyword boundary interactions. The selection section adds three explicit
+correspondence obligations: derive comparison claims/regions from grammatical
+features, project actual frame-pair syntax to the checked right-periphery and
+anchor abstractions, and supply a nested-mobile grammatical witness for the
+joint-alternative law. Challenge scope keys with document embeddings and
+homographic lexical identities; equal text is not a packing criterion.
 
 Resolve design-blocking findings with model changes and updated witnesses or
 proofs. Record a short conclusion in the design document: represented scope,

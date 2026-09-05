@@ -22,7 +22,8 @@ value alone proves nothing about its grammaticality.
 
 The implemented dependency order is `English.Grammar` (shared syntax,
 features, lexical assumptions, grammatical and realization judgments), then
-`English.Witnesses` and `English.Composition`, imported by `English.lean`.
+`English.Witnesses`, `English.Composition`, `English.Documents`, and the
+selection/scope modules, imported by `English.lean`.
 One `Syntax` recursively contains phrases and clauses. The mutual
 `Judges` / `JudgeChildren` / `JudgeFrame` group checks their composition.
 Documents and selection consume this model; neither licensing nor realization
@@ -264,14 +265,103 @@ but the full numeral/notation inventory and tolerated source whitespace are
 still review questions. Selection can state textual claims through `Written`
 without assuming this is a complete transcription model.
 
-Selection owes an independent model of candidate sets, admissibility,
-preference, ties, and canonical packing with retained readings. Its named
-proofs must distinguish acyclicity from unique choice and unique choice from
-unique interpretation. It must explicitly state the fragment and lexical
-assumptions of each theorem. No global uniqueness theorem is promised.
+The selection model below distinguishes acyclicity, surviving analyses and
+canonical packages with retained readings. Its general laws are conditional
+on the supplied feature and scope classifications; no global uniqueness or
+classification-completeness theorem is claimed.
 
 The design review owes interaction witnesses and resolution of blocking open
 decisions. Migration design then maps this model to Rust, decides which
 machinery survives, and rewrites implementation slices with preserved
 regression obligations. Neither a scope table nor these Lean proofs establishes
 corpus completeness or correctness of the production implementation.
+
+## Selection and packing decisions and evidence
+
+The following finite inventory was fixed before implementation and is now
+checked in `English.Selection`, `English.SelectionWitnesses` and `English.Scope`:
+
+| Named obligation | Assumptions and claim |
+|---|---|
+| `selected_sound`, `selected_enumeration`, `selected_permutation` | An independently supplied admissibility judgment; selection ignores list order and multiplicity and retains only admitted members. Instantiation uses `Admissible` on the shared grammar. |
+| `preference_decreases`, `preference_asymmetric`, `preference_transitive`, `no_preference_cycle` | One coherent feature assignment per analysis and one comparison region. Frame-role claims precede identity claims; identity breaks equal frame-role claims. No lexical or construction names participate. |
+| `selected_exists` | A finite list containing an admitted analysis has a survivor under those preference rules. This does not assert uniqueness. |
+| `packing_exact`, `packing_enumeration`, `packing_unique`, `different_classes_separate` | A supplied scope-class key; each occupied class contains exactly its complete surviving trees. Keys require separate grammatical justification. Equality is extensional and disregards enumeration/proof identity. |
+| `modifier_scope_preserves`, `modifier_scope_unique` | Binary plural nominal coordination, licensed Adjective Phrase and closed heads; whole-coordination and first-conjunct modifier scope have the same surface and one exact package. The package retains two unequal trees. |
+| `acyclic_tie`, `same_surface_separate` | Concrete inhabited grammar counterexamples: acyclicity does not select one tree, and equal text alone does not justify packing. |
+| `cross_host_scope`, `nonfinal_boundary`, `anchor_shape_separate`, `joint_alternatives_exact` | Structural challenges for a mobile spanning hosts, right-peripheral attachment, nested versus flat anchors, and correlated mobile choices. Any abstraction from production frame-pair syntax is stated explicitly. |
+
+Feature assignment is an adapter obligation, not a theorem that the current
+lexicon already classifies every candidate. Qualification and distributive
+measure licensing belong in grammatical admissibility before preferences;
+this ticket does not invent verb-adjunct sites for those categories. The
+first-eligible-site restriction is represented independently of the preference
+ordering. Packing stores whole trees, not independently recombined mobile-site
+sets. No scope key is inferred merely from equal text or construction names.
+
+`Selected` retains admitted maximal analyses in a finite candidate list. The
+four-valued `Claims.rank` is a compact encoding of the two ordered principles:
+frame-role claims precede identity claims; identity resolves equal frame-role
+claims. It is not a tunable score. Comparisons require the same region.
+`frame_role_preempts` and `identity_preempts` prove those priorities;
+`ordered_principles_winner` checks all four feature combinations, and
+`inadmissible_cannot_suppress` checks that an inadmissible higher-ranked input
+cannot defeat an admitted one. The assignment of claims and comparison
+regions must reflect declared grammatical evidence. These laws do not prove
+that an arbitrary assignment is linguistically justified.
+
+`Packs` is a specification for a nonempty package: its readings must be
+exactly the survivors with its scope key. `pack` supplies such a relational
+normal form. `packing_unique` proves extensional uniqueness at a fixed key;
+`unpack_exact` proves both preservation and absence of invented analyses across
+all occupied classes. `packed_admissible` connects packages of selected shared
+`Syntax` trees back to their independent grammatical derivations and surfaces.
+No executable compactor, preferred tree, or canonical ordering of readings is
+required. A production representation must separately satisfy this contract.
+
+The generic modifier theorem covers any licensed Adjective Phrase and two
+closed plural Nominals with supplied realizations, not just the initial three
+lexemes. Whole-coordination and first-conjunct scope realize the same surface.
+`modifier_package_retains_both` exhibits two unequal admitted trees in one
+package; `acyclic_tie` certifies that neither is eliminated by the neutral
+policy. `homographs_admitted` and `same_surface_separate` give the opposite
+boundary: declared lexical identity can differ at identical text, and a
+scope key preserving that identity keeps the readings in different packages.
+Equal text alone is therefore insufficient grounds for packing.
+
+The inherited challenges have the following precise disposition:
+
+| Challenge | Checked result | Limit / next obligation |
+|---|---|---|
+| Cross-host scope | `CrossHost.cross_host_admitted` and `cross_host_scope` retain attachment outside an auxiliary, inside it over coordinated predicates, and on the final predicate. Each tree realizes the synthetic *can attack and attack during turns*, with the auxiliary expressed once. | This is a shared-Syntax witness for the structural Class C challenge, not a transcription or production test of the inherited named card. |
+| Conjunct boundary and frame opacity | `nonfinal_boundary` excludes entry into the first conjunct for every Coordinator; `frame_transparent` permits descent through a frame host, while `role_edge_opaque` stops at the declared-role edge. | `Host` is an explicit boundary abstraction, not a grammatical derivation or an implemented projection from `Syntax`. Review must supply/check that projection for actual frame-pair syntax. |
+| First eligible frame site | `first_eligible_unique`, `first_eligible_member`, `first_eligible_exists` and `first_eligible_skips` characterize the first eligible site in root-to-deeper right-periphery order. | Eligibility is a supplied grammatical predicate. A true frame-role claim must be backed by this judgment; deriving that evidence from every lexical frame is still an adapter obligation. |
+| Flat versus nested anchors | `anchor_shape_separate` prevents packing different ordered group arities/topologies, irrespective of site assignments. | `Anchors` abstracts the inherited frame-complement-pair challenge. It does not claim that the current grammar has modeled all such pairs or their production anchor projection. |
+| A mobile containing another mobile's scope region | `joint_alternatives_exact` retains a correlated pair of assignments and excludes both hybrids, even though separate projections would admit a hybrid. The generic `unpack_exact` law applies to complete `Syntax` trees as well. | The two-Boolean witness is a counterexample to independent recombination, not a full grammatical witness for Class D. Review must challenge joint assignments with an actual nested-mobile tree. |
+| Qualification/distributive licensing | `qualification_sites_excluded` and `measure_postmodifier_excluded` show that the modeled dependent categories cannot acquire the disallowed adjunct sites. | These are exclusions in the current category distribution. Full degree, scalar and distributive-measure constructions and the passive-temporal inventory are still composition/review obligations. |
+| Duplicate wrappers | Packages retain whole analyses; a scope key must preserve grammatical structure outside the justified alternation. | This ticket adds no duplicate grammar wrapper. A proof that all production wrapper duplicates have been consolidated belongs to migration; packing must not hide them. |
+
+The additional supporting public laws are `neutral_selected`,
+`preference_asymmetric`, `preference_transitive`, `packing_exists`,
+`unpack_exact`, and `packed_admissible`. Together with the named laws above,
+there are 39 public theorems and four private proof helpers. LSP axiom checks
+for all 39 public theorems use only `propext`, `Quot.sound`, and
+`Classical.choice` (each theorem uses a subset); the helpers are covered
+transitively by those declarations. The source scanner's `opaque` matches in
+`Scope.lean` are prose about role boundaries, not Lean opaque declarations.
+All earlier 74 theorem assertions are preserved unchanged, and the complete
+Lean target build passes with warnings treated as errors.
+
+The two rejected generalizations are resolved, rather than weakened silently:
+the modeled preference has a survivor on finite inhabited input, without
+asserting a unique reading; packing retains the exact joint relation, not the
+Cartesian product
+of projected choices. Scope-package uniqueness is proved for the stated
+modifier class, while the counterexamples remain checked declarations.
+
+**Less certain:** the right-periphery abstraction and the completeness of the
+scope keys are still the weakest correspondence boundary. The design review
+must connect these abstractions to actual frame-pair/nested-mobile grammar and
+challenge document embeddings before migration decisions. Neither package
+uniqueness nor the feature-order proofs justify assigning all equal-text trees
+to one class, nor do they establish Oracle adequacy or Rust correctness.
