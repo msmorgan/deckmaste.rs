@@ -83,9 +83,12 @@ Listed as gaps; none is coined into the tracked glossary by this ticket.
 ## Landing record
 
 Measured on feature change `xzxxqoztlqkxunxvqnxlnnyyosttnqtm` at lock
-`covered` 20,002, against refreshed fork point
-`mrvowqkvwlnyskozzvuyutyxmvrqyols`. Wall clock: 2026-09-05 10:51 PDT to
-2026-09-05 12:18 PDT.
+`covered` 20,002, against fork point `mrvowqkvwlnyskozzvuyutyxmvrqyols`. Wall
+clock: 2026-09-05 10:51 PDT to 2026-09-05 12:18 PDT. **That tree is superseded:**
+review refreshed the feature onto the scope-device-census landing before gating,
+which moved every corpus figure. The change ids are unchanged by the rebase, so
+`Review corrections` below carries the landed-tree numbers at lock `covered`
+20,054 and supersedes every figure in this section that it restates.
 
 ### What landed and why
 
@@ -234,3 +237,141 @@ Measured on feature change `xzxxqoztlqkxunxvqnxlnnyyosttnqtm` at lock
   161,820 ns/B and host load 24/24/21; bless 261 s at 276,839 ns/B and host
   load 30/30/24. Final roundtrip was 137 s at 173,450 ns/B and host load
   19/26/24. These figures are REPORT-only and were not fitted to.
+
+### Review corrections
+
+Reviewed and gated on the refreshed tree: feature change
+`xzxxqoztlqkxunxvqnxlnnyyosttnqtm` (rebased onto the scope-device-census
+landing) at lock `covered` 20,054, against fork point
+`mrvowqkvwlnyskozzvuyutyxmvrqyols` at the same lock. Both sides of every
+before/after pair were measured in this workspace with identical flags
+(`--json --require-resolved --workers 8`); the fork side was a temporary
+`jj new` working copy, abandoned afterwards. No code finding was raised, so no
+code change was made; the corrections below are to the record.
+
+Findings and fixes:
+
+- MEDIUM — the record was stamped on the pre-refresh tree. Restamped: the
+  landed-tree figures are in this section, and the header now says so.
+- MEDIUM — the contention stamp reported launch-side `cargo`/`rustc` process
+  counts, which a sandboxed `pgrep` cannot see past. Replaced with the true
+  count below.
+- MEDIUM — the glossary-gap list omitted the terms this landing itself coins.
+  `Quantification`, `Distributive` and `NonDistributive` are added to it below;
+  `docs/contexts/oracle-english/CONTEXT.md` defines `Determinative` ("marks a
+  Noun Phrase as definite, quantified, or otherwise determined") but has no
+  entry for the quantification axis or its values. Listed as a gap; nothing is
+  coined into the tracked glossary by this ticket.
+- MEDIUM — the record ran the closure gate without citing the ruling that
+  authorizes it. The Fences line "Gate scope: `cargo test --workspace`" is the
+  same legacy sentence the coordinator ruled on for this family on 2026-09-05
+  (recorded in `docs/tickets/done/english-v2-scope-device-census.md`): it is
+  superseded by the tracked reverse-dependency closure rule. Cited here; the
+  contradiction is ruled, not resolved by this landing.
+- LOW, observed and not fixed — the "absent value" for a zeroable feature is
+  now spelled twice, in `crates/deckmaste_construction_core/src/emit/ast.rs`
+  and `crates/deckmaste_construction_core/src/emit/render.rs`, each with an
+  `unreachable!` arm that a third zeroable feature would reach at codegen time
+  rather than failing to compile. The duplication is the pre-existing shape
+  (`BareDurationLicense` was already hardcoded in both); unifying it is
+  emitter churn better spent when a third zeroable feature arrives.
+- LOW, disclosed — the sharpened accessor re-spelling retired the test name
+  `checked_fields_accept_feature_bearing_lexical_values`. Its subject (a
+  build-only `checked by` on a feature-bearing lexical field) is preserved and
+  strengthened inside
+  `declaration_determinative_quantification_flows_through_the_generated_accessor`,
+  which runs `generate` rather than `validate`. It is a re-spelling, not a
+  removal; the assurance counts stand.
+
+Landed-tree PROVE:
+
+- `cargo fmt --all -- --check` clean. `cargo xtask gate --changed --clippy`
+  printed exactly
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  and the matching strict-clippy line; both ran green. Principal positive
+  artifacts: `test result: ok. 44 passed`, `test result: ok. 424 passed`,
+  `test result: ok. 158 passed`, `test result: ok. 49 passed`,
+  `test result: ok. 32 passed`, `test result: ok. 112 passed`, and
+  `test result: ok. 470 passed; 1 ignored` — the single ignored test is
+  pre-existing and this diff adds no `#[ignore]`. Strict clippy finished with
+  `-D warnings` and no diagnostic. The `environment.rs` load invariants and the
+  production word-naming census run inside that closure and passed.
+- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+  --workers 8`: 32,641 total, 20,054 selected and 20,054 covered, 0
+  selected-uncovered, 12,587 parse failures, 0 unresolved ties, 0 internal
+  failures, 0 exception uses, 0 roundtrip mismatches, 0 ownership failures.
+  The tracked lock's own `covered` is 20,054 and the working copy stayed
+  clean, so the covered SET is unchanged: lock delta `+0/-0`, no identity
+  newly covered and none dropped, and no bless was needed.
+- Structural laws: 890,919 nonterminal nodes and 890,919 visited
+  constructions, 311,251 expected and 311,251 visited leaves, 0 traversal and
+  0 leaf-traversal failures, 0 gap and 0 overlap spans, 0 synthetic claims, 0
+  provenance-plan mismatches. `roundtrip --require-clean --workers 8`: 20,054
+  parse accepted, 20,054 clean, 0 mismatched, 12,587 not accepted.
+  `cargo xtask catalogs check` reported `catalogs are up to date`. No
+  citation-bearing source changed, so the cite gates are not applicable.
+- No word-naming: 23 permitted licensing checkers, 0 forbidden. The two
+  checkers this landing touched read only declared feature values —
+  `nominal_nonrelational_preposition_is_licensed` compares the generated
+  category helper against `Quantification::Distributive`, and
+  `predicate_preposition_is_licensed` takes the declared value as a parameter.
+  Neither names a lexeme, construction, verb, noun, preposition or card, and
+  no comment or literal in the diff does either.
+
+Landed-tree DISCLOSE:
+
+- Selection census, matched flags: fork 20,054 selected / 16,680 unique /
+  3,374 specificity-resolved / 0 exception-resolved / 0 unresolved ties /
+  12,587 parse failures; feature 20,054 / 16,681 / 3,373 / 0 / 0 / 12,587. The
+  specificity share fell by one unit, so no construction pair needs naming.
+- Per-unit stable-identity comparison: 0 units went selected-to-failure, 0
+  went failure-to-selected, and exactly four selected paths changed — the same
+  four unit identities the implementer recorded. Each drops
+  `PostmodifiedReferencePrepositionalQualifiedReference` and gains
+  `PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate` with
+  `PredicateAdjunctPrepositionalPredicateAdjunct`; all four are correct
+  corrections, read against the printed Oracle text:
+  - Bristly Bill, Spine Sower (unique to unique) and Kalonian Hydra (unique to
+    unique) — "double the number of +1/+1 counters on each creature you
+    control"; the distributive measure multiplies the doubling per creature,
+    which the Nominal reading (one summed count) could not express.
+  - Hulk, Strongest There Is (specificity to specificity) — the same shape
+    over "each Gamma creature you control".
+  - The Three Seasons (specificity to unique) — "Choose three cards in each
+    graveyard"; three per graveyard, not three cards standing in every
+    graveyard.
+- No surface lost the Nominal attachment it needed: the elimination is a
+  declared-feature site rule, no construction arm was deleted, and the
+  zero-loss per-unit comparison above is the corpus proof.
+- Witnesses: the phase-4 test asserts that every raw derivation of "Draw a card
+  for each Island you control.", "Draw a card for each creature you control.",
+  the two `put ... for each ...` units, and the OnComplement regression row
+  keeps the `adjunct` mobile and renders byte-exactly. The phase-3 witness
+  `opacity_preserves_adjunct_and_frame_internal_scope_packing` is untouched by
+  this diff and green in the closure gate: it still asserts one derivation for
+  "Draw a card for each Island you control." with the Adjunct mobile intact.
+- Deviations and additions are as recorded above and unchanged by review; no
+  construction, test or gate was added or deleted during review.
+- Glossary gaps: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing,
+  Mobility, and — added by review — Quantification, Distributive,
+  NonDistributive.
+
+Landed-tree REPORT (provenance, never fitted to):
+
+- Lock `covered` 20,054; 397 constructions, of which this ticket adds 0; 23
+  permitted licensing checkers, 0 forbidden; 2 licensed vocabulary/lexicon
+  homographs; 9 form-literal/vocabulary overlaps; longest form literal 11
+  bytes. The homograph and overlap inventories are exactly the named lists
+  already recorded above and did not move.
+- Performance advisory, 8 workers, 24-core shared host, true contention 1
+  concurrent codex executor and 1 other Opus reviewer (the coordinator's
+  count; the implementer's launch-side process counts are a sandboxed-`pgrep`
+  artifact and are withdrawn): coverage check 117 s at 139,581 ns/B, host load
+  6/9/14; ambiguity on the feature 115 s at 139,814 ns/B, host load 4/7/12;
+  ambiguity on the fork 116 s at 146,662 ns/B, host load 4/6/11; roundtrip
+  109 s at 133,501 ns/B, host load 4/5/10. The 16 s quiet-host ceiling was
+  exceeded on every pass and is reported, not gated.
+- Trunk advanced once more after these gates with a ticket-only change
+  (`tickets: extend cross-host gates with the R7 witness-shape and
+  coordination-family items`). It reaches no crate and no declaration data, so
+  nothing was re-run for it.
