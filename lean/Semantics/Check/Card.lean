@@ -74,18 +74,28 @@ def chapterFrameOk (subs : List Subtype) (text : List Ability) : Bool := text.al
 
 def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
 
-def StaticSpec.definedSlots : StaticSpec → Option DefinedSlots
-  | .definesPt _ sl _ => some sl
-  | .conditionally se _ _ => se.definedSlots
-  | _ => none
+mutual
+  /-- The stat slots a static clause defines; a shared-subject clause ("its power is … and its
+  toughness is …") defines what its parts define. Idris stopped at the clause because its
+  printed `*` was explicit; here the absent slot is the star, so the definer must be found
+  wherever it sits. -/
+  def StaticSpec.definedSlots : StaticSpec → List DefinedSlots
+    | .definesPt _ sl _ => [sl]
+    | .conditionally se _ _ => se.definedSlots
+    | .andAlso _ parts => StaticSpec.definedSlotsAll parts
+    | _ => []
+  def StaticSpec.definedSlotsAll : List StaticSpec → List DefinedSlots
+    | [] => []
+    | se :: rest => se.definedSlots ++ StaticSpec.definedSlotsAll rest
+end
 
-def Ability.definesPt : Ability → Option DefinedSlots
+def Ability.definesPt : Ability → List DefinedSlots
   | .static se => se.definedSlots
   | .italicHead _ ab => ab.definesPt
-  | _ => none
+  | _ => []
 
 def textDefines (f : DefinedSlots → Bool) (text : List Ability) : Bool :=
-  text.any fun a => (a.definesPt).elim false f
+  text.any fun a => a.definesPt.any f
 
 /-- A power or toughness slot against the text that may define it: on a creature an absent slot
 is the printed `*` a characteristic-defining ability fills, and nothing else fills it

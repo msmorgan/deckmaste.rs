@@ -484,6 +484,9 @@ def eventCount (event : EventName) (who : NounPhrase) (lookback : Lookback) : Am
 def happenedInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
     (what : NounPhrase) : Condition :=
   .happened who (.mk event lookback (some (.involving what)))
+/-- "if <who> <event>ed <lookback>" -/
+def happened (event : EventName) (who : NounPhrase) (lookback : Lookback) : Condition :=
+  .happened who (.mk event lookback none)
 /-- "that <event>ed <lookback>" -/
 def happenedTo (event : EventName) (lookback : Lookback) : Predicate :=
   .happenedTo (.mk event lookback none)
@@ -500,6 +503,8 @@ def costWasPaid (which : PaidCostName) (window : Option Lookback) (subject : Nou
   .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
 /-- "the last chosen color" -/
 def theLastChosenColor : ColorTerm := .chosen .theLatestChoice
+/-- "the last chosen number" -/
+def theLastChosenNumber : Amount := .chosenNumber .theLatestChoice
 /-- "the amount by which the ceiling was not reached" -/
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "increase or decrease the result by N" -/
@@ -520,6 +525,16 @@ def deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (ro
 /-- "When <event>, <instruction>" as a delayed trigger. -/
 def delayed (event : GameEvent) (instruction : Instruction) : Instruction :=
   .delayed event [] none instruction
+/-- "there is an additional <part> [after <anchor>]" -/
+def additionalPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
+  .additionalPart none part anchor count none
+/-- "there is an additional <part> after this phase, followed by an additional <next>" -/
+def additionalPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
+    (next : TurnPart) : Instruction :=
+  .additionalPart none part anchor count (some next)
+/-- "<player> gets an additional <part>" -/
+def getsAdditionalPart (player : NounPhrase) (part : TurnPart) (count : Amount) : Instruction :=
+  .additionalPart (some player) part none count none
 /-- "<subject> can't attack [this turn]" -/
 def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid [.core .attack] .agent none .noPatient none .noRider)
@@ -643,6 +658,12 @@ def cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicat
 
 def leavesBattlefield (subject : NounPhrase) : GameEvent :=
   .leaves subject (some (.zones [battlefield]))
+/-- "at the beginning of <possessor>'s <part>" -/
+def beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor : NounPhrase) :
+    GameEvent :=
+  .beginningOf quantifier part (.byPlayer possessor)
+/-- "that turn's": the extra turn just granted, as a header possessor. -/
+def thatTurns : HeaderPossessor := .byTurn thatTurn
 def dealsCombatDamage (source : NounPhrase) (patient : NounPhrase) : GameEvent :=
   .dealsDamage .combatOnly source (some patient)
 def attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject none
@@ -663,6 +684,9 @@ def keyword (label : KeywordLabel) : Ability := .keyword label none none
 /-- An ability word in italics before an ability: "Will of the council — …" [CR#207.2c]. -/
 def abilityWord (word : AbilityWordLabel) (ability : Ability) : Ability :=
   .italicHead (.abilityWord word) ability
+/-- A flavor word in italics before an ability [CR#207.2d]. -/
+def flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability :=
+  .italicHead (.flavorWord word) ability
 /-- "Companion — <condition>" -/
 def companion (condition : DeckCondition) : Ability :=
   .keyword "Companion" (some (.deckCondition condition)) none
@@ -675,6 +699,9 @@ def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
 /-- "<keyword> <quality>", e.g. "protection from red" -/
 def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
   .keyword label (some (.quality quality)) none
+/-- "<keyword> <subject>", e.g. "enchant creature" -/
+def keywordSubject (label : KeywordLabel) (subject : Predicate) : Ability :=
+  .keyword label (some (.subject subject)) none
 /-- "<keyword> N", e.g. "bushido 2" -/
 def keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
   .keyword label (some (.number amount)) none
@@ -693,6 +720,12 @@ def itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   .entersChoice subject (.quality sort) none .openly
+/-- "As <subject> enters, choose a <quality> from <domain>." -/
+def entersChoosingFrom (subject : NounPhrase) (sort : QualitySort) (domain : ChoiceDomain) :
+    StaticSpec :=
+  .entersChoice subject (.quality sort) (some domain) .openly
+/-- "<subject> enters tapped" -/
+def entersTapped (subject : NounPhrase) : StaticSpec := .entersRider subject (.entersAs .tapped)
 /-- "<subject> enters with N <kind> counters on it" -/
 def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
