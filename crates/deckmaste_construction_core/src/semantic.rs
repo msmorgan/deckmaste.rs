@@ -586,7 +586,13 @@ pub(crate) struct ConstructionFieldPlan {
     accessor_mode: Option<AccessorMode>,
     zeroable: bool,
     mobile: bool,
-    field_check: Option<(syn::Path, Vec<(String, Feature)>)>,
+    field_check: Option<(syn::Path, Vec<FieldCheckArgumentPlan>)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum FieldCheckArgumentPlan {
+    Feature { role: String, feature: Feature },
+    VerbFrameRolePrepositions { role: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3048,13 +3054,15 @@ fn checked_field_category_feature_reads(
             let Some((_, arguments)) = field.field_check() else {
                 continue;
             };
-            for (role, feature) in arguments {
-                let source = construction.field(role)?;
-                if source.kind() == ConstructionFieldKind::Category {
-                    reads
-                        .entry(source.terminal().to_owned())
-                        .or_default()
-                        .insert(*feature);
+            for argument in arguments {
+                if let FieldCheckArgumentPlan::Feature { role, feature } = argument {
+                    let source = construction.field(role)?;
+                    if source.kind() == ConstructionFieldKind::Category {
+                        reads
+                            .entry(source.terminal().to_owned())
+                            .or_default()
+                            .insert(*feature);
+                    }
                 }
             }
         }
@@ -3426,13 +3434,28 @@ impl ConstructionPlan {
                     accessor_mode: None,
                     zeroable,
                     mobile: field.mobile,
-                    field_check: field.check.as_ref().map(|check| (
-                        check.function.clone(),
-                        check.arguments.iter().map(|argument| (
-                            identifier_key(&argument.role),
-                            Feature::from(argument.feature),
-                        )).collect(),
-                    )),
+                    field_check: field.check.as_ref().map(|check| {
+                        (
+                            check.function.clone(),
+                            check
+                                .arguments
+                                .iter()
+                                .map(|argument| match argument {
+                                    crate::model::FieldCheckArgument::Feature(argument) => {
+                                        FieldCheckArgumentPlan::Feature {
+                                            role: identifier_key(&argument.role),
+                                            feature: Feature::from(argument.feature),
+                                        }
+                                    }
+                                    crate::model::FieldCheckArgument::VerbFrameRolePrepositions {
+                                        role,
+                                    } => FieldCheckArgumentPlan::VerbFrameRolePrepositions {
+                                        role: identifier_key(role),
+                                    },
+                                })
+                                .collect(),
+                        )
+                    }),
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
@@ -4321,7 +4344,14 @@ impl ConstructionFieldPlan {
         self.mobile
     }
 
-    pub(crate) fn field_check(&self) -> Option<(&syn::Path, &[(String, Feature)])> {
+    pub(crate) fn is_optional(&self) -> bool {
+        matches!(
+            self.structural_kind(),
+            Some(StructuralFieldKindPlan::Optional(_))
+        )
+    }
+
+    pub(crate) fn field_check(&self) -> Option<(&syn::Path, &[FieldCheckArgumentPlan])> {
         self.field_check
             .as_ref()
             .map(|(function, arguments)| (function, arguments.as_slice()))

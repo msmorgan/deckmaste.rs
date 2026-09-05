@@ -35,6 +35,7 @@ use crate::model::FeatureSlot;
 use crate::model::FeatureValue;
 use crate::model::Field;
 use crate::model::FieldCheck;
+use crate::model::FieldCheckArgument;
 use crate::model::FieldKind;
 use crate::model::FixedSurfaceAtomSource;
 use crate::model::FixedSurfaceSource;
@@ -356,10 +357,14 @@ fn parse_field_check(
         let role = content.parse()?;
         content.parse::<Token![.]>()?;
         let feature = content.call(Ident::parse_any)?;
-        let label = legacy_label.unwrap_or("field-check");
-        let feature = feature_from_ident(&feature)
-            .ok_or_else(|| content.error(format!("unknown {label} feature")))?;
-        arguments.push(FeatureSlot { role, feature });
+        if feature == "verb_frame_role_prepositions" {
+            arguments.push(FieldCheckArgument::VerbFrameRolePrepositions { role });
+        } else {
+            let label = legacy_label.unwrap_or("field-check");
+            let feature = feature_from_ident(&feature)
+                .ok_or_else(|| content.error(format!("unknown {label} feature")))?;
+            arguments.push(FieldCheckArgument::Feature(FeatureSlot { role, feature }));
+        }
         if content.is_empty() {
             break;
         }
@@ -2645,7 +2650,7 @@ mod tests {
         assert_eq!(path(&check.function), "determinative_is_fused");
         assert!(matches!(
             check.arguments.as_slice(),
-            [crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense }]
+            [crate::FieldCheckArgument::Feature(crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense })]
                 if role == "head"
         ));
     }
@@ -2672,7 +2677,36 @@ mod tests {
         );
         assert!(matches!(
             field.check.as_ref().map(|check| check.arguments.as_slice()),
-            Some([crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense }])
+            Some([crate::FieldCheckArgument::Feature(crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense })])
+                if role == "head"
+        ));
+    }
+
+    #[test]
+    fn parses_checked_verb_frame_role_preposition_projection() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction checked: Root {
+                element Checked {
+                    head: lex FrameHead,
+                    object: Object checked by accepts_role_prepositions(
+                        head.verb_frame_role_prepositions
+                    ),
+                }
+                form checked = verb(head) object;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("checked Verb Frame projection parses");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("first declaration is a construction");
+        };
+        let check = construction.element.fields[1]
+            .check
+            .as_ref()
+            .expect("object carries its callback");
+        assert!(matches!(
+            check.arguments.as_slice(),
+            [crate::FieldCheckArgument::VerbFrameRolePrepositions { role }]
                 if role == "head"
         ));
     }

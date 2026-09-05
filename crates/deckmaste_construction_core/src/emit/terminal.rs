@@ -97,6 +97,10 @@ pub(crate) fn emit(
                         row,
                         origin.clone(),
                     ));
+                    items.push(emit_vocab_verb_frame_role_preposition_helper(
+                        row,
+                        origin.clone(),
+                    ));
                 }
                 if row
                     .feature_members(crate::feature::Feature::PrepositionAttachment)
@@ -351,7 +355,10 @@ pub(crate) fn emit(
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.codec_name()),
                     tokens,
-                    vec![origin],
+                    vec![origin.clone()],
+                ));
+                items.extend(emit_declaration_verb_role_prepositions_helper(
+                    validated, row, origin,
                 ));
             }
             TerminalPlan::ContextIdentity(row) => {
@@ -1029,6 +1036,97 @@ fn emit_vocab_preposition_complement_kind_helper(
         quote! { fn #function(value: #ty) -> PrepositionComplementKind { match value { #(#members),* } } },
         vec![origin],
     )
+}
+
+fn emit_vocab_verb_frame_role_preposition_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("verb_frame_role_preposition", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let terminal = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
+    let members = vocab.variants().iter().map(|variant| {
+        let member_name = identifier_key(variant.name());
+        let member = emitted_ident(&member_name, variant.name().span());
+        let member_name = syn::LitStr::new(&member_name, variant.name().span());
+        quote! {
+            #ty::#member => VerbFrameRolePreposition::new(#terminal, #member_name)
+        }
+    });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: #ty) -> VerbFrameRolePreposition {
+                match value { #(#members),* }
+            }
+        },
+        vec![origin],
+    )
+}
+
+fn emit_declaration_verb_role_prepositions_helper(
+    plan: &SemanticPlan,
+    verb: &crate::semantic::DeclarationVerbPlan,
+    origin: DeclarationKey,
+) -> [GeneratedItem; 2] {
+    let function_name = feature_helper("verb_frame_role_prepositions", verb.codec_name());
+    let function = emitted_ident(&function_name, verb.codec_ident().span());
+    let constant_name = format!("{function_name}_values").to_ascii_uppercase();
+    let constant = emitted_ident(&constant_name, verb.codec_ident().span());
+    let ty = verb.codec_ident();
+    let mut seen = std::collections::HashSet::new();
+    let prepositions = verb.frame_key().atoms().iter().filter_map(|atom| {
+        let (terminal, member) = match atom {
+            crate::semantic::VerbFrameAtom::Lex(terminal, member)
+            | crate::semantic::VerbFrameAtom::OptionalLex(terminal, member)
+            | crate::semantic::VerbFrameAtom::MarkedRole(terminal, member, _)
+            | crate::semantic::VerbFrameAtom::OptionalMarkedRole(terminal, member, _) => {
+                (terminal, member)
+            }
+            crate::semantic::VerbFrameAtom::Literal(_)
+            | crate::semantic::VerbFrameAtom::Amount
+            | crate::semantic::VerbFrameAtom::ObjectNounPhrase
+            | crate::semantic::VerbFrameAtom::PredicativeComplement
+            | crate::semantic::VerbFrameAtom::Role(_)
+            | crate::semantic::VerbFrameAtom::OptionalRole(_) => return None,
+        };
+        if !plan.terminal_has_feature(terminal, crate::feature::Feature::PrepositionComplementKind)
+            || !seen.insert((terminal.as_str(), member.as_str()))
+        {
+            return None;
+        }
+        let terminal = syn::LitStr::new(terminal, Span::call_site());
+        let member = syn::LitStr::new(member, Span::call_site());
+        Some(quote! { VerbFrameRolePreposition::new(#terminal, #member) })
+    });
+    [
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Constant,
+                name: constant_name,
+            },
+            quote! {
+            const #constant: &[VerbFrameRolePreposition] = &[#(#prepositions),*];
+            },
+            vec![origin.clone()],
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: function_name,
+            },
+            quote! {
+            fn #function(_value: &#ty) -> &'static [VerbFrameRolePreposition] {
+                #constant
+            }
+            },
+            vec![origin],
+        ),
+    ]
 }
 
 fn emit_lexeme_surface_helper(

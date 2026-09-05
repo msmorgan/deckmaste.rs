@@ -369,6 +369,7 @@ enum TerminalKind {
 struct TerminalInfo {
     kind: TerminalKind,
     codec_atom: Option<CodecAtomClass>,
+    declaration_verb: bool,
     concord_class_verb: bool,
     participle_verb: bool,
     variants: HashSet<String>,
@@ -4449,6 +4450,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind: TerminalKind::Vocab,
                     codec_atom: None,
+                    declaration_verb: false,
                     concord_class_verb: false,
                     participle_verb: false,
                     variants,
@@ -4494,6 +4496,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     codec_atom: noun_morphologies
                         .contains(&identifier_key(&lexeme.morphology))
                         .then_some(CodecAtomClass::Noun),
+                    declaration_verb: false,
                     concord_class_verb: false,
                     participle_verb: false,
                     variants,
@@ -4529,6 +4532,10 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind,
                     codec_atom: binding.codec_atom,
+                    declaration_verb: matches!(
+                        &binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+                    ),
                     concord_class_verb: matches!(
                         &binding.generated,
                         Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
@@ -6421,28 +6428,38 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             if let Some(check) = &field.check {
                 if !matches!(
                     &field.kind,
-                    FieldKind::Category(_) | FieldKind::Zeroable { .. } | FieldKind::Lex(_)
+                    FieldKind::Category(_)
+                        | FieldKind::Zeroable { .. }
+                        | FieldKind::Optional(_)
+                        | FieldKind::Lex(_)
                 ) {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             field.name.span(),
-                            "checked fields require a category, lexical, or zeroable category value",
+                            "checked fields require a category, lexical, zeroable category, or optional category value",
                         ),
                     );
                 }
                 for argument in &check.arguments {
-                    check_feature_role(
-                        &argument.role,
-                        argument.feature,
-                        &fields,
-                        symbols,
-                        &feature_providers,
-                        &local_vocab_providers,
-                        has_fixed_verb,
-                        &verb_operands,
-                        &mut errors,
-                    );
+                    match argument {
+                        crate::model::FieldCheckArgument::Feature(argument) => {
+                            check_feature_role(
+                                &argument.role,
+                                argument.feature,
+                                &fields,
+                                symbols,
+                                &feature_providers,
+                                &local_vocab_providers,
+                                has_fixed_verb,
+                                &verb_operands,
+                                &mut errors,
+                            );
+                        }
+                        crate::model::FieldCheckArgument::VerbFrameRolePrepositions { role } => {
+                            check_verb_frame_role_prepositions(role, &fields, symbols, &mut errors);
+                        }
+                    }
                 }
             }
         }
@@ -7195,6 +7212,42 @@ fn check_noun_role(
                 role.span(),
                 format!(
                     "noun atom role `{role}` requires a codec binding declaring `noun`{detail}"
+                ),
+            ),
+        );
+    }
+}
+
+fn check_verb_frame_role_prepositions(
+    role: &syn::Ident,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
+    errors: &mut Option<syn::Error>,
+) {
+    let Some(FieldKind::Lex(path)) = fields.get(&identifier_key(role)) else {
+        combine(
+            errors,
+            syn::Error::new(
+                role.span(),
+                format!(
+                    "verb-frame role-preposition projection requires a declaration-verb lexical role; `{role}` is not one"
+                ),
+            ),
+        );
+        return;
+    };
+    let terminal = path_name(path);
+    if !symbols
+        .terminals
+        .get(&terminal)
+        .is_some_and(|info| info.declaration_verb)
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                role.span(),
+                format!(
+                    "verb-frame role-preposition projection requires a declaration-verb codec; `{terminal}` is not one"
                 ),
             ),
         );
@@ -11261,6 +11314,33 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("feature-bearing lexical field accepts a build-only check");
+    }
+
+    #[test]
+    fn verb_frame_role_preposition_projection_requires_a_declared_verb_frame() {
+        let diagnostic = error(quote! {
+            vocab Head { Value = "value", }
+            construction object: Object {
+                element ObjectValue {}
+                form object = "object";
+            }
+            construction checked: Root {
+                element Checked {
+                    head: lex Head,
+                    object: Object checked by accepts_role_prepositions(
+                        head.verb_frame_role_prepositions
+                    ),
+                }
+                form checked = lex(head) object;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            diagnostic.contains(
+                "verb-frame role-preposition projection requires a declaration-verb codec"
+            ),
+            "{diagnostic}",
+        );
     }
 
     #[test]

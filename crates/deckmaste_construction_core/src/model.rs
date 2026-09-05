@@ -104,7 +104,13 @@ pub enum FieldKind {
 #[derive(Debug)]
 pub struct FieldCheck {
     pub function: Path,
-    pub arguments: Vec<FeatureSlot>,
+    pub arguments: Vec<FieldCheckArgument>,
+}
+
+#[derive(Debug)]
+pub enum FieldCheckArgument {
+    Feature(FeatureSlot),
+    VerbFrameRolePrepositions { role: Ident },
 }
 
 #[derive(Debug)]

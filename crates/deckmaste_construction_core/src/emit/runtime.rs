@@ -658,6 +658,30 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
 fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
     vec![
         named_type(
+            "VerbFrameRolePreposition",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+                pub(crate) struct VerbFrameRolePreposition {
+                    terminal: &'static str,
+                    member: &'static str,
+                }
+            },
+        ),
+        impl_item(
+            None,
+            "VerbFrameRolePreposition",
+            quote! {
+                impl VerbFrameRolePreposition {
+                    pub(crate) const fn new(
+                        terminal: &'static str,
+                        member: &'static str,
+                    ) -> Self {
+                        Self { terminal, member }
+                    }
+                }
+            },
+        ),
+        named_type(
             "VerbFrameClass",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

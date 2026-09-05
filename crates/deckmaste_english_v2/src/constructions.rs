@@ -1807,7 +1807,9 @@ constructions! {
     construction passive_movement_predicate: PassiveMovementPredicate {
         element PassiveMovementPredicateValue {
             head: lex MovementParticipleHead,
-            destination: FrameComplement,
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
             source: opt FrameComplement,
         }
         form passive_movement_predicate =
@@ -1831,7 +1833,9 @@ constructions! {
     construction declared_to_object_passive_predicate: DeclaredToObjectPassivePredicate {
         element DeclaredToObjectPassivePredicateValue {
             head: lex DeclaredToObjectParticipleHead,
-            complement: FrameComplement,
+            complement: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         form declared_to_object_passive_predicate =
             verb(head) lex(Preposition::To) complement;
@@ -1904,9 +1908,15 @@ constructions! {
     construction ordered_predicate: OrderedPredicate {
         element OrderedPredicateValue {
             head: lex OrderedVerb,
-            object: Object checked by object_has_no_selected_source_postmodifier(),
-            source: opt PrepositionalPhrase,
-            destination: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: opt PrepositionalPhrase checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
             order_relation: lex Preposition,
             determiner: lex ArbitraryDeterminer,
         }
@@ -2160,8 +2170,12 @@ constructions! {
         element ContractedPerfectObjectOnClause {
             subject: lex ContractedPerfectSubject,
             head: lex ObjectOnParticipleHead,
-            object: Object,
-            complement: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            complement: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         form contracted_perfect_object_on_clause =
             lex(subject) verb(head) object lex(Preposition::On) complement;
@@ -4213,7 +4227,9 @@ constructions! {
     construction declared_with_object_lexical_verb_phrase: WithObjectLexicalVerbPhrase {
         element DeclaredWithObjectLexicalVerbPhrase {
             head: lex WithObjectVerb,
-            object: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_with_object_lexical_verb_phrase = verb(head) lex(Preposition::With) object;
@@ -4221,8 +4237,12 @@ constructions! {
     construction declared_object_with_object_lexical_verb_phrase: ObjectWithObjectLexicalVerbPhrase {
         element DeclaredObjectWithObjectLexicalVerbPhrase {
             head: lex ObjectWithObjectVerb,
-            object: Object,
-            complement: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            complement: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_with_object_lexical_verb_phrase = verb(head) object lex(Preposition::With) complement;
@@ -4230,8 +4250,12 @@ constructions! {
     construction declared_object_for_object_lexical_verb_phrase: ObjectForObjectLexicalVerbPhrase {
         element DeclaredObjectForObjectLexicalVerbPhrase {
             head: lex ObjectForObjectVerb,
-            object: Object,
-            complement: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            complement: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_for_object_lexical_verb_phrase =
@@ -4240,8 +4264,12 @@ constructions! {
     construction declared_object_into_object_lexical_verb_phrase: ObjectIntoObjectLexicalVerbPhrase {
         element DeclaredObjectIntoObjectLexicalVerbPhrase {
             head: lex ObjectIntoObjectVerb,
-            object: Object,
-            destination: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_into_object_lexical_verb_phrase =
@@ -4335,9 +4363,15 @@ constructions! {
     construction declared_object_equality_to_predicate: VerbPhrase {
         element DeclaredObjectEqualityToPredicate {
             head: lex ObjectEqualityToVerb,
-            object: Object,
-            equality: ScalarEquality,
-            recipient: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            equality: ScalarEquality checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            recipient: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_equality_to_predicate =
@@ -4346,9 +4380,15 @@ constructions! {
     construction declared_object_to_equality_predicate: VerbPhrase {
         element DeclaredObjectToEqualityPredicate {
             head: lex ObjectToEqualityVerb,
-            object: Object,
-            recipient: Object,
-            equality: ScalarEquality,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            recipient: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            equality: ScalarEquality checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_to_equality_predicate =
@@ -4371,8 +4411,12 @@ constructions! {
     construction declared_object_from_predicate: VerbPhrase {
         element DeclaredObjectFromPredicate {
             head: lex ObjectFromVerb,
-            object: Object,
-            source: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_object_from_predicate =
@@ -4381,11 +4425,21 @@ constructions! {
     construction put_onto: VerbPhrase {
         element PutOnto {
             head: lex ObjectFromOntoResultControlVerb,
-            object: Object checked by object_has_no_selected_source_postmodifier(),
-            source: opt PrepositionalPhrase,
-            destination: FrameComplement,
-            result: opt PredicativeComplement,
-            control: opt Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: opt PrepositionalPhrase checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            result: opt PredicativeComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            control: opt Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
@@ -4395,11 +4449,21 @@ constructions! {
     construction put_onto_source_after: VerbPhrase {
         element PutOntoSourceAfter {
             head: lex ObjectFromOntoResultControlVerb,
-            object: Object,
-            destination: FrameComplement,
-            source: FrameComplement,
-            result: opt PredicativeComplement,
-            control: opt Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            result: opt PredicativeComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            control: opt Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form put_onto_source_after =
@@ -4408,9 +4472,15 @@ constructions! {
     construction put_on: VerbPhrase {
         element PutOn {
             head: lex ObjectFromOnVerb,
-            object: Object checked by object_has_no_selected_source_postmodifier(),
-            source: opt PrepositionalPhrase,
-            destination: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: opt PrepositionalPhrase checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
@@ -4419,8 +4489,12 @@ constructions! {
     construction put_to: VerbPhrase {
         element PutTo {
             head: lex ObjectToVerb,
-            object: Object,
-            destination: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form put_to = verb(head) object lex(Preposition::To) destination;
@@ -4428,11 +4502,21 @@ constructions! {
     construction return_to: VerbPhrase {
         element ReturnTo {
             head: lex ObjectFromToResultControlVerb,
-            object: Object checked by object_has_no_selected_source_postmodifier(),
-            source: opt PrepositionalPhrase,
-            destination: FrameComplement,
-            result: opt PredicativeComplement,
-            control: opt Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            source: opt PrepositionalPhrase checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            destination: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            result: opt PredicativeComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            control: opt Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
@@ -4447,8 +4531,12 @@ constructions! {
     construction declared_with_object_on_predicate: VerbPhrase {
         element DeclaredWithObjectOnPredicate {
             head: lex EnterWithCountersVerb,
-            object: Object,
-            recipient: FrameComplement,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            recipient: FrameComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_with_object_on_predicate =
@@ -4457,9 +4545,15 @@ constructions! {
     construction enter_location: VerbPhrase {
         element EnterLocation {
             head: lex EnterLocationVerb,
-            location: Object,
-            result: opt PredicativeComplement,
-            control: opt Object,
+            location: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            result: opt PredicativeComplement checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            control: opt Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form enter_location = verb(head) location result marked(Preposition::Under, control);
@@ -4467,21 +4561,32 @@ constructions! {
     construction enter_control: VerbPhrase {
         element EnterControl {
             head: lex EnterControlVerb,
-            control: Object,
+            control: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form enter_control = verb(head) marked(Preposition::Under, control);
     }
     construction look_at: VerbPhrase {
-        element LookAt { head: lex LookAtVerb, object: Object, }
+        element LookAt {
+            head: lex LookAtVerb,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+        }
         derive concord_class = head.concord_class;
         form look_at = verb(head) lex(Preposition::At) object;
     }
     construction declared_to_object_predicate: VerbPhrase {
         element DeclaredToObjectPredicate {
             head: lex ToObjectVerb,
-            object: Object,
-            complement: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
+            complement: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_to_object_predicate =
@@ -4490,7 +4595,9 @@ constructions! {
     construction declared_for_object_predicate: VerbPhrase {
         element DeclaredForObjectPredicate {
             head: lex ForObjectVerb,
-            object: Object,
+            object: Object checked by governed_material_has_no_selected_role_postmodifier(
+                head.verb_frame_role_prepositions
+            ),
         }
         derive concord_class = head.concord_class;
         form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
@@ -5087,53 +5194,85 @@ fn nominal_preposition_is_licensed(
     }
 }
 
-fn object_has_no_selected_source_postmodifier(object: &Object) -> bool {
-    right_edge_nominal_postmodifier_kind(object)
-        != Some(PrepositionComplementKind::SourceComplement)
+trait GovernedMaterial {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V);
 }
 
-fn right_edge_nominal_postmodifier_kind(object: &Object) -> Option<PrepositionComplementKind> {
-    let Object::ObjectNominal(NominalObject { value }) = object else {
-        return None;
-    };
-    right_edge_noun_phrase_postmodifier_kind(value)
-}
-
-fn right_edge_noun_phrase_postmodifier_kind(
-    noun_phrase: &NounPhrase,
-) -> Option<PrepositionComplementKind> {
-    match noun_phrase {
-        NounPhrase::LocativeCoordinatedNounPhrase(value) => match &value.coordination {
-            LocativeNounPhraseCoordination::LocativeAndNounPhraseCoordination(coordination) => {
-                coordination
-                    .members()
-                    .last()
-                    .and_then(right_edge_postmodified_reference_kind)
-            }
-        },
-        NounPhrase::QualifiedNounPhrase(value) => {
-            right_edge_postmodified_reference_kind(&value.reference)
-        }
-        NounPhrase::ComparativeQuantifiedReference(value) => {
-            right_edge_nominal_postmodifier_kind(&value.standard)
-        }
-        NounPhrase::PositionalPartitive(value) => {
-            right_edge_nominal_postmodifier_kind(&value.whole)
-        }
-        NounPhrase::FusedDeterminativeReference(_) | NounPhrase::CommonNounChoiceList(_) => None,
+impl<T: GovernedMaterial + ?Sized> GovernedMaterial for &T {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        (*self).walk_governed(visitor);
     }
 }
 
-fn right_edge_postmodified_reference_kind(
+impl GovernedMaterial for Object {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        walk_object(visitor, self);
+    }
+}
+
+impl GovernedMaterial for FrameComplement {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        walk_frame_complement(visitor, self);
+    }
+}
+
+impl GovernedMaterial for PrepositionalPhrase {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        walk_prepositional_phrase(visitor, self);
+    }
+}
+
+impl GovernedMaterial for PredicativeComplement {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        walk_predicative_complement(visitor, self);
+    }
+}
+
+impl GovernedMaterial for ScalarEquality {
+    fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
+        walk_scalar_equality(visitor, self);
+    }
+}
+
+fn governed_material_has_no_selected_role_postmodifier<T: GovernedMaterial + ?Sized>(
+    material: &T,
+    selected: &[VerbFrameRolePreposition],
+) -> bool {
+    let mut right_edge = RightEdgePostmodifier::default();
+    material.walk_governed(&mut right_edge);
+    right_edge
+        .preposition
+        .is_none_or(|preposition| !selected.contains(&preposition))
+}
+
+#[derive(Default)]
+struct RightEdgePostmodifier {
+    preposition: Option<VerbFrameRolePreposition>,
+}
+
+impl Visitor for RightEdgePostmodifier {
+    fn enter_leaf(&mut self, _terminal: &'static str) {
+        self.preposition = None;
+    }
+
+    fn visit_postmodified_reference(&mut self, reference: &PostmodifiedReference) {
+        walk_postmodified_reference(self, reference);
+        if let Some(preposition) = right_edge_postmodifier_preposition(reference) {
+            self.preposition = Some(preposition);
+        }
+    }
+}
+
+fn right_edge_postmodifier_preposition(
     reference: &PostmodifiedReference,
-) -> Option<PrepositionComplementKind> {
+) -> Option<VerbFrameRolePreposition> {
     match reference {
-        PostmodifiedReference::PrepositionalQualifiedReference(value) => Some(
-            preposition_complement_kind_for_prepositional_phrase(value.modifier()),
-        ),
-        PostmodifiedReference::RelationalQualifiedReference(value) => Some(
-            preposition_complement_kind_for_prepositional_phrase(value.modifier()),
-        ),
+        PostmodifiedReference::PrepositionalQualifiedReference(value) => {
+            Some(role_preposition_for_phrase(value.modifier()))
+        }
+        PostmodifiedReference::RelationalQualifiedReference(value) => {
+            Some(role_preposition_for_phrase(value.modifier()))
+        }
         PostmodifiedReference::UnqualifiedPostmodifiedReference(_)
         | PostmodifiedReference::RelativeQualifiedReference(_)
         | PostmodifiedReference::SubjectRelativeQualifiedReference(_)
@@ -5143,6 +5282,15 @@ fn right_edge_postmodified_reference_kind(
         | PostmodifiedReference::ReducedPassivePrepositionalAdjunctQualifiedReference(_)
         | PostmodifiedReference::OtherThanQualifiedReference(_) => None,
     }
+}
+
+fn role_preposition_for_phrase(phrase: &PrepositionalPhrase) -> VerbFrameRolePreposition {
+    let preposition = match phrase {
+        PrepositionalPhrase::PrepositionalPhrase(value) => value.preposition,
+        PrepositionalPhrase::BareLocativePrepositionalPhrase(value) => value.preposition(),
+        PrepositionalPhrase::FromAmongPrepositionalPhrase(value) => value.source_relation(),
+    };
+    verb_frame_role_preposition_for_preposition(preposition)
 }
 
 fn predicate_preposition_is_licensed(

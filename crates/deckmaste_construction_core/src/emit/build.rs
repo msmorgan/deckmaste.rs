@@ -28,6 +28,7 @@ use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
 use crate::semantic::ConcordClassAuthorityPlan;
 use crate::semantic::ConstructionPlan;
+use crate::semantic::FieldCheckArgumentPlan;
 use crate::semantic::FiniteDomainKindPlan;
 use crate::semantic::FiniteValuePlan;
 use crate::semantic::SemanticPlan;
@@ -269,9 +270,17 @@ fn emit_arm_from_plan(
         } else {
             quote! { &#value }
         };
-        lowering
-            .guards
-            .push(quote! { #function(#checked_value, #(#arguments),*) });
+        if field.is_optional() {
+            lowering.guards.push(quote! {
+                (#value).as_ref().as_ref().map_or(true, |checked| {
+                    #function(checked, #(#arguments),*)
+                })
+            });
+        } else {
+            lowering
+                .guards
+                .push(quote! { #function(#checked_value, #(#arguments),*) });
+        }
     }
     if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
         let guard_role = domain.role();
@@ -435,11 +444,31 @@ fn lower_checked_field_arguments(
     owner: &str,
     owner_value: &TokenStream,
     zeroable_owner: bool,
-    arguments: &[(String, Feature)],
+    arguments: &[FieldCheckArgumentPlan],
 ) -> syn::Result<Vec<TokenStream>> {
     arguments
         .iter()
-        .map(|(role, feature)| {
+        .map(|argument| {
+            let FieldCheckArgumentPlan::Feature { role, feature } = argument else {
+                let FieldCheckArgumentPlan::VerbFrameRolePrepositions { role } = argument else {
+                    unreachable!("sealed field-check argument changed variant")
+                };
+                let value = if role == owner {
+                    owner_value.clone()
+                } else {
+                    lowering
+                        .field_values
+                        .get(role)
+                        .cloned()
+                        .ok_or_else(|| internal("verb-frame projection has no lowered value"))?
+                };
+                let source = row.field(role)?;
+                let helper = ident(&feature_helper(
+                    "verb_frame_role_prepositions",
+                    source.terminal(),
+                ));
+                return Ok(quote! { #helper(&#value) });
+            };
             if let Some(value) = lowering
                 .role_features
                 .get(&(role.clone(), *feature))
@@ -4041,8 +4070,12 @@ fn feature_is_read(
         matches!(equation.value(), FeatureExpr::FromRole { role: source, feature: found } if identifier_key(source) == identifier_key(role) && *found == feature)
     }) || row.fields().iter().any(|field| {
         field.field_check().is_some_and(|(_, arguments)| {
-            arguments.iter().any(|(source, found)| {
-                source == &identifier_key(role) && *found == feature
+            arguments.iter().any(|argument| {
+                matches!(
+                    argument,
+                    FieldCheckArgumentPlan::Feature { role: source, feature: found }
+                        if source == &identifier_key(role) && *found == feature
+                )
             })
         })
     })
@@ -4418,6 +4451,101 @@ mod tests {
         ] {
             assert!(source.contains(required), "missing `{required}`: {source}");
         }
+    }
+
+    #[test]
+    fn checked_field_reads_declared_verb_frame_role_prepositions() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = ConcordClass; recipe = english_verb; }
+            lexeme CoreVerb using EnglishVerb { Act = "act", }
+            vocab Relation {
+                Selected = "selected" {
+                    feature PrepositionComplementKind = UnrestrictedComplement;
+                },
+            }
+            codec FramedVerb {
+                generate declaration_verb {
+                    closed = CoreVerb;
+                    position = Verb;
+                    tail = [ObjectNounPhrase, lex(Relation::Selected), object: Object];
+                    feature = ConcordClass;
+                }
+            }
+            construction object: Object {
+                element ObjectValue {}
+                form object = "object";
+            }
+            construction framed: Root {
+                element Framed {
+                    head: lex FramedVerb,
+                    direct_object: Object checked by accepts_role_prepositions(
+                        head.verb_frame_role_prepositions
+                    ),
+                    object: Object checked by accepts_role_prepositions(
+                        head.verb_frame_role_prepositions
+                    ),
+                }
+                derive head.concord_class = Values::Other;
+                form framed = verb(head) direct_object lex(Relation::Selected) object;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("Verb Frame projection fixture generates");
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        assert!(
+            source.contains("VerbFrameRolePreposition :: new (\"Relation\" , \"Selected\")"),
+            "the accessor is derived from the declared frame: {source}",
+        );
+        assert_eq!(
+            source
+                .matches("verb_frame_role_prepositions_for_framed_verb (& head . clone ())",)
+                .count(),
+            2,
+            "each governed field reads the same generated accessor: {source}",
+        );
+    }
+
+    #[test]
+    fn checked_optional_category_calls_the_guard_only_when_present() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction feature_child: FeatureChild {
+                    element FeatureChildValue {}
+                    derive number = Values::Plural;
+                    form feature_child = "child";
+                }
+                construction optional: Root {
+                    element Optional {
+                        feature: FeatureChild,
+                        maybe: opt FeatureChild checked by accepts_optional(feature.number),
+                    }
+                    form optional = feature maybe;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("checked optional category fixture parses"),
+        )
+        .expect("checked optional category fixture validates");
+        let source = super::emit(validated.semantic())
+            .expect("checked optional category fixture emits")
+            .remove(0)
+            .tokens
+            .to_string();
+
+        assert!(
+            source.contains("map_or (true"),
+            "absence is accepted: {source}"
+        );
+        assert!(
+            source.contains("accepts_optional (checked , * feature_number)"),
+            "a present value is checked: {source}",
+        );
     }
 
     #[test]

@@ -3590,6 +3590,7 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
 
     for text in [
         "Return target creature card from your graveyard to your hand.",
+        "Return target creature that controls a creature from your graveyard to your hand.",
         "Return target creature card to your hand.",
     ] {
         let analysis = parser.analyze(text, &context);
@@ -3601,6 +3602,23 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
             SelectionResolution::Unique,
             "{text:?}"
         );
+        let selected = &decision.candidates()[0];
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|construction| construction == "VerbPhraseReturnTo"),
+            "the selected source belongs to the Verb Frame: {text:?}: {selected:#?}",
+        );
+        if text.contains(" from ") {
+            assert!(
+                selected
+                    .construction_path()
+                    .iter()
+                    .all(|construction| !construction.ends_with("PrepositionalQualifiedReference")),
+                "the declared source must not remain a nominal Postmodifier: {text:?}: {selected:#?}",
+            );
+        }
     }
 
     let noun_modified = parser.analyze(
@@ -3617,6 +3635,22 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
             .construction_path()
             .iter()
             .any(|construction| construction.ends_with("PrepositionalQualifiedReference"))
+    );
+}
+
+#[test]
+fn frame_complement_preemption_removes_forge_devils_incoherent_bracketing() {
+    let parser = parser();
+    let context = context();
+
+    assert!(
+        parser
+            .parse(
+                "It deals 1 damage to target creature and 1 damage to you.",
+                &context,
+            )
+            .is_err(),
+        "the incoherent nominal-Postmodifier bracketing must not survive before frame-complement coordination lands",
     );
 }
 
