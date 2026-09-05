@@ -122,7 +122,7 @@ fn lower_cost_component(
                 bound.kind,
                 bound.cardinality,
                 bound.sort,
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             let (inner, inner_bound) = lower_cost_block_inner(&body.0);
             out.extend(inner.iter().cloned());
@@ -227,7 +227,7 @@ fn lower_action_cost(
         bound.kind,
         bound.cardinality,
         bound.sort,
-        crate::region::Site::Frame,
+        crate::region::Site::ExecutionFrame,
     );
     let lowered = deckmaste_core::Action::Composite {
         name: (*name).lower(),

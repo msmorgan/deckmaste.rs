@@ -91,8 +91,8 @@ Before releasing new rules text, check all of the following:
 
 1. Give each ordinary ability its own paragraph. Keep a modal header and all of
    its bullets together.
-2. Write spell effects and one-shot effects as imperatives; write static effects
-   as present-tense declarations.
+2. Write spell abilities and one-shot instructions as imperatives; write static
+   abilities as present-tense declarations.
 3. Write an activated ability as `[Cost]: [Effect.] [Activation instruction.]`.
 4. Begin each ordinary standalone triggered ability with **When**, **Whenever**,
    or **At**, then put a comma between its event and effect.

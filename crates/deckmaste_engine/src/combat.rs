@@ -1,5 +1,5 @@
 //! Combat-state registry ([CR#506]): which creatures are attacking, which
-//! blocks which, and which attackers are blocked. Combat designations live
+//! blocks which, and which attackers are blocked. Combat declarations live
 //! here — not as fields or tags on objects. Cleared at the end of the combat
 //! phase ([CR#511.3]).
 //!
@@ -85,7 +85,7 @@ pub fn any_first_or_double_striker(state: &GameState) -> bool {
     })
 }
 
-/// Tracks all combat designations for the current combat phase.
+/// Tracks all combat declarations for the current combat phase.
 ///
 /// - `attackers`: declared attackers, in declaration order.
 /// - `blocks`: blocker → the attacker it blocks.
@@ -197,7 +197,7 @@ impl CombatState {
         self.attack_target.retain(|_, &mut t| t != target);
     }
 
-    /// Clears all combat designations ([CR#511.3]).
+    /// Clears all combat declarations ([CR#511.3]).
     pub(crate) fn clear(&mut self) {
         self.attackers.clear();
         self.blocks.clear();

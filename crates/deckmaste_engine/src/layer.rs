@@ -415,7 +415,7 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
 struct ActiveEffect {
     timestamp: Timestamp,
     is_cda: bool,
-    /// Gates wrapped around this static effect ([CR#611.3a]). Every gate is
+    /// Gates wrapped around this Static Spec ([CR#611.3a]). Every gate is
     /// re-evaluated against the in-progress derived map before the effect is
     /// considered or applied; nested `Conditionally` wrappers are conjunctive.
     conditions: Vec<Condition>,
@@ -577,7 +577,7 @@ fn gather(
                 continue;
             };
             if let Some((conditions, scope, changes)) =
-                static_effect_scope(state, obj.id, effect, captures)
+                static_spec_scope(state, obj.id, effect, captures)
             {
                 let grant_runtimes = state.capture_grant_runtimes_in_created_region(
                     &changes,
@@ -710,7 +710,7 @@ fn gather(
 /// likewise `None` here — the layer gather only ever contributes `Modify`/
 /// `Each`-of-`Modify` effects; the rest are read by their own consumers
 /// (`legal.rs`, `cast.rs`, `trigger.rs`, …).
-fn static_effect_scope(
+fn static_spec_scope(
     state: &GameState,
     obj: ObjectId,
     region: &deckmaste_core::Region<StaticSpec>,
@@ -751,7 +751,7 @@ fn static_effect_scope(
         StaticSpec::Conditionally(condition, inner) => {
             let nested = deckmaste_core::Region::new(region.params.clone(), inner.as_ref().clone());
             let (mut conditions, scope, changes) =
-                static_effect_scope(state, obj, &nested, captures)?;
+                static_spec_scope(state, obj, &nested, captures)?;
             conditions.insert(0, condition.clone());
             Some((conditions, scope, changes))
         }

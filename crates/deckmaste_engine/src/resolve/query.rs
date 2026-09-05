@@ -257,7 +257,7 @@ impl GameState {
             // is a recorded seam — no canon consumer demands it yet (the
             // for-each-could-target family this exists for is itself
             // unauthored), and the decision machinery is only reachable from a
-            // binder that can surface a pending choice, which a bare selection
+            // binder that can surface a decision point, which a bare selection
             // read has no channel for.
             //
             // Degrades to the inner group's natural order rather than to the

@@ -1235,7 +1235,7 @@ mod tests {
         // Parse `AnyTarget` through the SEMANTIC macro registry, then lower —
         // the path production now takes (`semantics::TargetSpec` → `lower()`),
         // which erases the `Expanded` wrapper before the engine ever sees the
-        // value. `resolve::target_spec_filter` is the engine's own
+        // value. `resolve::target_spec_predicate` is the engine's own
         // TargetSpec→Predicate extraction — the path real targeting funnels
         // through — so the test exercises it rather than hand-unwrapping the
         // expansion.
@@ -1243,11 +1243,11 @@ mod tests {
         let semantic: deckmaste_semantics::TargetSpec =
             builtin().macros.read_str("AnyTarget").unwrap();
         let any_target: TargetSpec = semantic.lower();
-        let filter = crate::resolve::target_spec_filter(&any_target);
+        let predicate = crate::resolve::target_spec_predicate(&any_target);
         let (state, bear) = game_with_a_bear_on_the_field();
         let targets = candidates_region_with_activation(
             &state,
-            filter,
+            predicate,
             Some(state.objects.obj(bear).source),
             crate::ActivationId::NONE,
         );

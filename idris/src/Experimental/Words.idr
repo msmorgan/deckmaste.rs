@@ -549,7 +549,7 @@ plainAct : VerbLabel -> ActFacts
 plainAct v = MkActFacts v Nothing Nothing False [] False noRole noRole
                         Nothing Nothing Nothing False False False
 
-||| Keyword actions ([CR#701]) — one-shot verbs in effect position that confer
+||| Keyword actions ([CR#701]) — verbs in instruction position that confer
 ||| nothing, unlike the keyword abilities of `keywordFacts`: mill [CR#701.17],
 ||| scry [CR#701.22].
 public export
@@ -1200,30 +1200,30 @@ ignorableInScope bs =
   planarRollInScope bs
 
 public export
-outcomeIsQuantity : OutcomeSort -> Bool
-outcomeIsQuantity DamageDealt = True
-outcomeIsQuantity LifeGained = True
-outcomeIsQuantity LifeLost = True
-outcomeIsQuantity CountersPut = True
-outcomeIsQuantity DamagePrevented = True
-outcomeIsQuantity RollResult = True
-outcomeIsQuantity CoinFlipped = False
-outcomeIsQuantity DiceRolled = True
-outcomeIsQuantity PlanarRolled = False
-outcomeIsQuantity NamedNumber = True
-outcomeIsQuantity RepeatCount = True
-outcomeIsQuantity CountersRemoved = True
-outcomeIsQuantity ManaAdded = False
-outcomeIsQuantity ManaProduced = False
-outcomeIsQuantity CeilingShortfall = False
-outcomeIsQuantity VoteHeld = False
+outcomeIsAmount : OutcomeSort -> Bool
+outcomeIsAmount DamageDealt = True
+outcomeIsAmount LifeGained = True
+outcomeIsAmount LifeLost = True
+outcomeIsAmount CountersPut = True
+outcomeIsAmount DamagePrevented = True
+outcomeIsAmount RollResult = True
+outcomeIsAmount CoinFlipped = False
+outcomeIsAmount DiceRolled = True
+outcomeIsAmount PlanarRolled = False
+outcomeIsAmount NamedNumber = True
+outcomeIsAmount RepeatCount = True
+outcomeIsAmount CountersRemoved = True
+outcomeIsAmount ManaAdded = False
+outcomeIsAmount ManaProduced = False
+outcomeIsAmount CeilingShortfall = False
+outcomeIsAmount VoteHeld = False
 
 public export
-countQuantOutcomes : Bindings -> Nat
-countQuantOutcomes [] = Z
-countQuantOutcomes (MkBinding _ Outcome OneOf (OutcomeP s) :: bs) =
-  if outcomeIsQuantity s then S (countQuantOutcomes bs) else countQuantOutcomes bs
-countQuantOutcomes (_ :: bs) = countQuantOutcomes bs
+countAmountOutcomes : Bindings -> Nat
+countAmountOutcomes [] = Z
+countAmountOutcomes (MkBinding _ Outcome OneOf (OutcomeP s) :: bs) =
+  if outcomeIsAmount s then S (countAmountOutcomes bs) else countAmountOutcomes bs
+countAmountOutcomes (_ :: bs) = countAmountOutcomes bs
 
 public export
 countChoice : ChoiceSort -> Bindings -> Nat
@@ -2751,16 +2751,16 @@ data BasicLandType : Subtype -> Type where
   ForestBasic   : BasicLandType (landType "Forest")
 
 public export
-data TypeSpace = BasicLandSpace | LandSpace | CreatureSpace
+data SubtypeSpace = BasicLandSpace | LandSpace | CreatureSpace
 
 public export
-spaceHosted : TypeSpace -> Maybe CardType -> Bool
+spaceHosted : SubtypeSpace -> Maybe CardType -> Bool
 spaceHosted BasicLandSpace ty = tyIs Land ty
 spaceHosted LandSpace ty = tyIs Land ty
 spaceHosted CreatureSpace ty = tyIs Creature ty || tyIs Kindred ty
 
 public export
-SpaceHosted : TypeSpace -> Maybe CardType -> Type
+SpaceHosted : SubtypeSpace -> Maybe CardType -> Type
 SpaceHosted sp ty = So (spaceHosted sp ty)
 
 public export

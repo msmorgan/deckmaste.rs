@@ -620,7 +620,7 @@ mod tests {
         );
     }
 
-    /// `Distribute` is a region with two intrinsic parameters — the recipient
+    /// `Distribute` is a region with two engine-supplied parameters — the recipient
     /// and its allotted share ([CR#601.2d]). Re-spelled from
     /// `lowers_distribute` / `lowers_one_shot_effect_distribute`.
     #[test]
@@ -1717,12 +1717,12 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instruc
                 bound.kind,
                 bound.cardinality,
                 bound.sort,
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             instructions.extend(lower_instructions(std::sync::Arc::unwrap_or_clone(
                 with.body,
             )));
-            crate::region::remove_antecedent(bound.reference, crate::region::Site::Frame);
+            crate::region::remove_antecedent(bound.reference, crate::region::Site::ExecutionFrame);
             instructions
         }
         // [CR#118.8]: an additional cost is announced and paid with the
@@ -1859,7 +1859,7 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instruc
                 deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             let (params, body) = crate::region::in_child([], || {
                 lower_block(std::sync::Arc::unwrap_or_clone(reveal.body))
@@ -2012,7 +2012,7 @@ impl Lower for deckmaste_semantics::ChoosePile {
             deckmaste_core::Kind::Pile,
             crate::region::Cardinality::Many,
             Some(deckmaste_semantics::Sort::Pile),
-            crate::region::Site::Frame,
+            crate::region::Site::ExecutionFrame,
             || self.then.lower(),
         );
         deckmaste_core::ChoosePile {

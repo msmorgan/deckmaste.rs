@@ -2627,7 +2627,7 @@ impl GameState {
     /// creature's power" ([CR#702.134a]). Filters that never reference the
     /// carrier ignore it.
     ///
-    /// Delegates filter extraction to `resolve::target_spec_filter` so that
+    /// Delegates predicate extraction to `resolve::target_spec_predicate` so that
     /// announce-time and resolution-time `TargetSpec` handling stay in sync.
     /// That helper is a TOTAL match over all three `TargetSpec` variants
     /// (`Distinct` peels to its inner `Target`'s predicate, `Expanded` to the
@@ -2641,8 +2641,8 @@ impl GameState {
         carrier: Option<crate::object::ObjectSource>,
         activation: crate::ActivationId,
     ) -> Vec<ObjectId> {
-        let filter = crate::resolve::target_spec_filter(spec);
-        crate::target::candidates_region_with_activation(self, filter, carrier, activation)
+        let predicate = crate::resolve::target_spec_predicate(spec);
+        crate::target::candidates_region_with_activation(self, predicate, carrier, activation)
     }
 
     /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g,106.6]), honoring

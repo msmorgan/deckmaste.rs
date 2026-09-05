@@ -653,7 +653,7 @@ badUnnamedAdventure Oh impossible
 public export
 okCreatureFlipHalf : Card
 okCreatureFlipHalf =
-  FlipCard (Macros.frontFace "" (Just [Macros.pip Green])
+  Flip (Macros.frontFace "" (Just [Macros.pip Green])
                              (MkTypeLine [] [Creature] []) []
                              (Macros.printedBox (Just (1, 1))))
            (Macros.alternative "" Nothing (MkTypeLine [] [Creature] []) []
@@ -662,7 +662,7 @@ okCreatureFlipHalf =
 ||| a flip card whose upside-down half is an instant
 public export
 badSpellFlipHalf : Unspellable Card (\ok =>
-  FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) (MkTypeLine [] [Creature] []) []
+  Flip (Macros.frontFace "" (Just [Macros.pip Green]) (MkTypeLine [] [Creature] []) []
                              (Macros.printedBox (Just (1, 1))))
            (Macros.alternative "" Nothing (MkTypeLine [] [Instant] []) [] Nothing)
            {ah = ok})
@@ -672,7 +672,7 @@ failing "Mismatch between: CardFace and Characteristics"
   ||| a flip card's upside-down half spelled as a back face -- a flip card's back is the normal card back, so the half is alternative characteristics, not a second face [CR#710.1]
   badFaceAsFlipAlternative : Card
   badFaceAsFlipAlternative =
-    FlipCard (Macros.frontFace "" (Just [Macros.pip Green]) (MkTypeLine [] [Creature] []) []
+    Flip (Macros.frontFace "" (Just [Macros.pip Green]) (MkTypeLine [] [Creature] []) []
                                (Macros.printedBox (Just (1, 1))))
              (Macros.backFace "" (MkTypeLine [] [Creature] []) []
                               (Macros.printedBox (Just (2, 2))))

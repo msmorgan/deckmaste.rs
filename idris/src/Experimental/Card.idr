@@ -450,7 +450,7 @@ data Card : Type where
              {auto 0 ff : FaceLaws Front front} ->
              {auto 0 bf : FaceLaws Front back} -> Card
 
-  SplitCard : (left : CardFace) -> (right : CardFace) ->
+  Split : (left : CardFace) -> (right : CardFace) ->
               {auto 0 lf : FaceLaws Front left} ->
               {auto 0 rf : FaceLaws Front right} -> Card
 
@@ -466,7 +466,7 @@ data Card : Type where
                {auto 0 sf : CharacteristicsLaws Front adventure} ->
                {auto 0 ai : AdventureInset adventure.line} -> Card
 
-  FlipCard : (normal : CardFace) -> (alternative : Characteristics) ->
+  Flip : (normal : CardFace) -> (alternative : Characteristics) ->
              {auto 0 nf : FaceLaws Front normal} ->
              {auto 0 af : CharacteristicsLaws Back alternative} ->
              {auto 0 nh : FlipHalf normal.characteristics.line} ->

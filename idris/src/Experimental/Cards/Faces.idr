@@ -176,7 +176,7 @@ merfolkSecretkeeper =
 
 orochiEggwatcher : Card
 orochiEggwatcher =
-  FlipCard
+  Flip
     (Macros.frontFace "Orochi Eggwatcher" (Just [Macros.generic 2, Macros.pip Green])
             (MkTypeLine [] [Creature] [creatureType "Snake", creatureType "Shaman"])
             [ Macros.activated
@@ -235,7 +235,7 @@ manaClashFlip =
 public export
 akkiLavarunner : Card
 akkiLavarunner =
-  FlipCard
+  Flip
     (Macros.frontFace "Akki Lavarunner" (Just [Macros.generic 3, Macros.pip Red])
             (MkTypeLine [] [Creature] [creatureType "Goblin", creatureType "Warrior"])
             [ Macros.keyword "Haste"
@@ -252,7 +252,7 @@ akkiLavarunner =
 public export
 bushiTenderfoot : Card
 bushiTenderfoot =
-  FlipCard
+  Flip
     (Macros.frontFace "Bushi Tenderfoot" (Just [Macros.pip White])
             (MkTypeLine [] [Creature] [creatureType "Human", creatureType "Soldier"])
             [ Macros.triggered When
@@ -307,7 +307,7 @@ lensOfClarity =
 public export
 kitsuneMystic : Card
 kitsuneMystic =
-  FlipCard
+  Flip
     (Macros.frontFace "Kitsune Mystic" (Just [Macros.generic 3, Macros.pip White])
             (MkTypeLine [] [Creature] [creatureType "Fox", creatureType "Wizard"])
             [ kitsuneMysticFlip ]
@@ -325,10 +325,10 @@ kitsuneMystic =
 
 ||| Vesuvan Shapeshifter
 public export
-vesuvanShapeshifterCopySpan :
+vesuvanShapeshifterCopyDuration :
   Instruction [MkBinding AD Object OneOf
             (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
-vesuvanShapeshifterCopySpan =
+vesuvanShapeshifterCopyDuration =
   Continuously
     (BecomesCopy Macros.thisCreature (Macros.That (TypeW Creature))
        [ExceptAbility
@@ -501,7 +501,7 @@ meldThemInto =
 public export
 profitLoss : Card
 profitLoss =
-  SplitCard
+  Split
     (Macros.frontFace "Profit" (Just [Macros.generic 1, Macros.pip White])
             (MkTypeLine [] [Instant] [])
             [ Spell Nothing (Macros.gets (Macros.allOf Macros.creatureYouControl)

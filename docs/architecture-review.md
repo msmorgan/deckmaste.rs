@@ -67,7 +67,7 @@ convergence.
 
 **Status: RESOLVED FOR AMASS; ONGOING AS A DESIGN POLICY**
 
-Amass is now a composite `OneShotEffect` macro rather than a new engine
+Amass is now a composite `Instruction` macro rather than a new engine
 primitive. Its definition composes the existing condition, token creation,
 choice, counter, and continuous-modification vocabulary and is checked by a
 structural expansion test. Other keyword actions should continue to be assessed

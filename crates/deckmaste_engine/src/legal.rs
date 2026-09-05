@@ -788,7 +788,7 @@ pub(crate) fn cant_activate(
 /// look-through rules every static read needs (static-ability effect lists,
 /// keyword composites — flying's evasion `Cant` lives inside
 /// `Keyword(Composite)` — and `Each` wrappers at every level),
-/// calling `visit` on each static effect. The `ControlFlow` return lets a
+/// calling `visit` on each Static Spec. The `ControlFlow` return lets a
 /// caller short-circuit: [`object_has_static`] (the boolean "any" form) breaks
 /// on the first match, while the visit-each callers always
 /// [`Continue`](ControlFlow::Continue) to see every effect. The whole-walk
@@ -854,7 +854,7 @@ where
     }
 }
 
-/// The static-effect half of [`walk_abilities`], reachable on its own so an
+/// The Static Spec half of [`walk_abilities`], reachable on its own so an
 /// ability-free conferred rule ([`deckmaste_core::Property::Static`]) is read
 /// by exactly the same look-through as a card's own static ability.
 pub(crate) fn walk_static<B, F, G>(e: &StaticSpec, enter: &mut G, visit: &mut F) -> ControlFlow<B>
@@ -927,7 +927,7 @@ fn conferred_statics(
 }
 
 /// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
-/// static effect of `id` (no early exit). The visit-each callers
+/// Static Spec of `id` (no early exit). The visit-each callers
 /// (`attack_rows`/`block_rows`/`target_rows`/`may_cast_rows`) collect rows
 /// through this, leaving the `ControlFlow` plumbing to the one walker. Also
 /// the entry point for the [CR#704] SBA sweep, which collects the
@@ -1698,7 +1698,7 @@ mod tests {
         use OutcomeGateKind::CantLose;
         use OutcomeGateKind::CantWin;
         vec![
-            // [0] plain static effect.
+            // [0] plain Static Spec.
             static_ability(gate(CantLose)),
             // [0b] effect reached through an `Each` wrapper, as a sibling ability.
             static_ability(StaticSpec::Each(
@@ -1721,7 +1721,7 @@ mod tests {
         ]
     }
 
-    /// The visit-each form sees every static effect, descending through
+    /// The visit-each form sees every Static Spec, descending through
     /// `Each` distribution wrappers and keyword composites (nested included)
     /// at every level — in DFS order.
     #[test]

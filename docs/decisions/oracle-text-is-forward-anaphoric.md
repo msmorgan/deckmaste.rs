@@ -117,8 +117,8 @@ target in the effect and the condition reads it back; "If you control three
 artifacts, draw two cards instead" introduces in the condition and the
 consequent reads that. Under forward authoring the introduction site is the
 binding structure, so one constructor cannot type both arguments in each
-other's context and both orientations are core. `StaticEffect.Conditionally`
-and `StaticEffect.OnlyWhile` are the same pair for the static container.
+other's context and both orientations are core. `StaticSpec.Conditionally`
+and `StaticSpec.OnlyWhile` are the same pair for the static container.
 
 The `otherwise` arm of both is typed at `otherwiseCtx e` — the phrases the
 then-branch announced plus the quantity it wrote — which is a clause written
@@ -130,7 +130,7 @@ A letter is introduced by use. "Draw X cards, where X is N" writes X first and
 the definition second, and both are forward: the body's X is an introducing
 mention (`Amount.LetterVal`, which mints when the prefix holds no such letter),
 and "where X is" is a later predication on it (`Effect.Define` and its static
-twin `StaticEffect.DefinesLetter`, gated on an open letter in `bs` and
+twin `StaticSpec.DefinesLetter`, gated on an open letter in `bs` and
 re-marking it definite in place). No argument reads a later argument's mint;
 clause 4 holds.
 

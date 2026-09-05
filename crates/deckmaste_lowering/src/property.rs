@@ -157,7 +157,7 @@ fn conferred_body(p: &deckmaste_core::Property) -> Option<&deckmaste_core::Stati
     }
 }
 
-/// Whether a static effect is a deontic row, looking through the
+/// Whether a Static Spec is a deontic row, looking through the
 /// `Conditionally` gate that Creature's summoning-sickness pair ([CR#302.6])
 /// wears.
 fn is_deontic(spec: &deckmaste_core::StaticSpec) -> bool {

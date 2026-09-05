@@ -196,7 +196,7 @@ removed with them.
 A `[CR#701]` keyword action is a **native atomic verb** (an `Action` /
 `PlayerAction` variant) iff it is **irreducible** — it cannot be expressed as a
 composition of smaller game actions. If it *can* be decomposed, it is
-**composite**: a `OneShotEffect`-kind macro whose body is built from the atoms,
+**composite**: an `Instruction`-kind macro whose body is built from the atoms,
 exactly as `fight` became a macro over `DealDamage`
 (`docs/tickets/done/core-fight-primitive-to-macro.md`).
 
@@ -209,7 +209,7 @@ as "move it to its owner's graveyard" `[CR#701.8a]`, so destroy is
 regeneration) target the **named composite**, not a bespoke `Destroy` opcode.
 
 **The `Composite` name-tag.** A decomposed action is wrapped in
-`Action::Composite(KeywordAction, Box<OneShotEffect>)` (pairing the keyword-action
+`Action::Composite(KeywordAction, Box<Instruction>)` (pairing the keyword-action
 atom with its body and emitting the present-tense `Act` event) iff a trigger or
 interceptor must **name** the event ("whenever you scry…", "can't be
 destroyed"). Otherwise it desugars straight to
@@ -310,9 +310,9 @@ used only in composition.
 
 ## 14. Idris + soundness (actions)
 
-`Action::Composite(KeywordAction, Box<OneShotEffect>)` is the action-side twin
+`Action::Composite(KeywordAction, Box<Instruction>)` is the action-side twin
 of `KeywordAbility::Composite`; Idris `Composite : KeywordActionSpec ->
-OneShotEffect -> Action`. The committed atom vocabulary (the seven parameterized
+Instruction -> Action`. The committed atom vocabulary (the seven parameterized
 `KeywordAction` verbs — Scry, Surveil, Fateseal, Mill, Draw, Destroy, Fight) is
 minimal and **grows with card pressure**; an `Action::Composite` whose atom has
 no Idris `KeywordActionSpec` constructor (Fateseal today) is a re-emit **gap**

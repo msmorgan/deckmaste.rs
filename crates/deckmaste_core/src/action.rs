@@ -124,7 +124,8 @@ pub enum Arrangement {
 pub enum Action {
     /// Deal an amount of damage to the patient object or player ([CR#120.1]).
     /// Fields read in printed-sentence order: `source` deals `amount` to
-    /// `target` — `DealDamage(This, 3, It)` for Lightning Bolt. `source` is the
+    /// `patient` — `DealDamage(This, 3, It)` for Lightning Bolt. A patient is
+    /// not necessarily a [CR#115.1] target. `source` is the
     /// **dealer** — the object whose damage this is; it is **required** and
     /// always spelled (`This` for the ability's source object / the resolving
     /// spell, the implicit agent). An explicit non-`This` source expresses
@@ -559,10 +560,10 @@ impl Action {
     /// `DealDamage` from the implicit source (`This`) — the common case, where
     /// the dealer is the ability's source object / the resolving spell. The
     /// enum form spells `source` explicitly (`DealDamage(This, amount,
-    /// target)`); this ctor fills it in.
+    /// patient)`); this ctor fills it in.
     #[must_use]
-    pub fn deal_damage(target: Reference, amount: Count) -> Action {
-        Action::DealDamage(Reference::Reg(crate::RefId(0)), amount, target)
+    pub fn deal_damage(patient: Reference, amount: Count) -> Action {
+        Action::DealDamage(Reference::Reg(crate::RefId(0)), amount, patient)
     }
 
     /// `Move` to a plain zone — the common relocation (`Move(This,

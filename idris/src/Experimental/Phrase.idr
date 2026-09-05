@@ -1411,7 +1411,7 @@ mutual
                  {auto 0 qm : So (tallyOk op (lbEvent lb))} -> Amount bs
     TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) ->
               {auto 0 nz : So (amtNonZero per)} -> Amount bs
-    ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
+    ThatMuch : {auto 0 ok : countAmountOutcomes bs = 1} -> Amount bs
     ChosenNumber : (ref : ChoiceRef) ->
                    {auto 0 ok : choiceRefOk ref (countChoice (QSort Number) bs)} ->
                    Amount bs

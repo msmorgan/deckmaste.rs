@@ -150,8 +150,8 @@ badLeavesThenTap Oh impossible
 
 ||| "Target creature gets +3/+3 until end of turn."
 public export
-okUntilEndOfTurnSpan : Instruction []
-okUntilEndOfTurnSpan =
+okUntilEndOfTurnDuration : Instruction []
+okUntilEndOfTurnDuration =
   Macros.gets (Macros.target Macros.creature) (Up (Lit 3)) (Up (Lit 3))
               (Just Macros.untilEndOfTurn)
 

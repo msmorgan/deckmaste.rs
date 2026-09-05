@@ -29,7 +29,7 @@ pub(crate) enum Cardinality {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Site {
     Product,
-    Frame,
+    ExecutionFrame,
     Loop,
     Candidate,
     Allotment,
@@ -276,7 +276,7 @@ fn in_ability_region<T>(f: impl FnOnce(u32) -> T) -> T {
 }
 
 /// Push this ability region's declared linked-memory parameters ([CR#607.1]).
-/// They follow the intrinsic prefix and precede any capture, so the parameter
+/// They follow the engine-supplied prefix and precede any capture, so the parameter
 /// order stays a function of the region's kind plus its plan.
 fn declare_linked(context: &mut Context, ability: u32) {
     let cells = PLAN.with(|slot| {
@@ -382,7 +382,7 @@ fn context(kind: RegionKind, target_count: usize) -> Context {
             kind: Kind::Entity,
             cardinality: Cardinality::One,
             sort: None,
-            site: Site::Frame,
+            site: Site::ExecutionFrame,
             inherited: false,
         });
     }
@@ -434,7 +434,7 @@ pub(crate) fn is_active() -> bool {
 }
 
 /// Enter an ability region carried by a value built inside another region.
-/// Its intrinsic ABI remains its own (source/controller/event roles/targets),
+/// Its engine-supplied ABI remains its own (source/controller/event roles/targets),
 /// followed by explicit captures of the enclosing register file.
 pub(crate) fn in_carried_region<T>(
     kind: RegionKind,
@@ -494,18 +494,18 @@ fn remap(reference: RefId, captures: &[Option<RefId>]) -> Option<RefId> {
     captures.get(reference.0 as usize).copied().flatten()
 }
 
-/// Enter a nested region. Intrinsic parameters come first; outer registers
+/// Enter a nested region. Engine-supplied parameters come first; outer registers
 /// are captured in definition order. The stable ABI is more valuable here
 /// than minimizing a serialized capture list.
 pub(crate) fn in_child<T>(
-    intrinsic: impl IntoIterator<Item = (Kind, Provenance)>,
+    supplied: impl IntoIterator<Item = (Kind, Provenance)>,
     f: impl FnOnce() -> T,
 ) -> (Arc<[Param]>, T) {
     let parent = CONTEXTS
         .with(|contexts| contexts.borrow().last().cloned())
         .expect("nested core region outside an ability region");
     let mut params = Vec::new();
-    for (kind, provenance) in intrinsic {
+    for (kind, provenance) in supplied {
         push_param(&mut params, kind, provenance);
     }
     let captures: Vec<Option<RefId>> =
@@ -950,7 +950,7 @@ fn resolve(cardinality: Cardinality, want: Option<Sort>, prefer: Option<Site>) -
 pub(crate) fn it() -> Option<RefId> {
     resolve(Cardinality::One, None, Some(Site::Loop))
         .or_else(|| resolve(Cardinality::One, None, Some(Site::Candidate)))
-        .or_else(|| resolve(Cardinality::One, None, Some(Site::Frame)))
+        .or_else(|| resolve(Cardinality::One, None, Some(Site::ExecutionFrame)))
         .or_else(|| resolve(Cardinality::One, None, None))
         .or_else(|| resolve(Cardinality::Many, None, None))
         // The generated corpus still spells a lone announced target as `It`.
@@ -964,12 +964,12 @@ pub(crate) fn it() -> Option<RefId> {
         })
 }
 pub(crate) fn that(sort: Sort) -> Option<RefId> {
-    resolve(Cardinality::One, Some(sort), Some(Site::Frame))
+    resolve(Cardinality::One, Some(sort), Some(Site::ExecutionFrame))
         .or_else(|| resolve(Cardinality::One, Some(sort), None))
         // Semantic `That(Permanent)` also names a plural Choose binder in
         // costs such as "sacrifice three creatures". Core register kinds
         // preserve that cardinality even though the authored sort is singular.
-        .or_else(|| resolve(Cardinality::Many, Some(sort), Some(Site::Frame)))
+        .or_else(|| resolve(Cardinality::Many, Some(sort), Some(Site::ExecutionFrame)))
         .or_else(|| resolve(Cardinality::Many, Some(sort), None))
         // A lone announced target is also an unambiguous sorted antecedent.
         // The semantic corpus uses `That(Creature)` after naming Target(0)
@@ -982,7 +982,7 @@ pub(crate) fn that(sort: Sort) -> Option<RefId> {
         })
 }
 pub(crate) fn they(sort: Option<Sort>) -> Option<RefId> {
-    resolve(Cardinality::Many, sort, Some(Site::Frame))
+    resolve(Cardinality::Many, sort, Some(Site::ExecutionFrame))
         .or_else(|| resolve(Cardinality::Many, sort, None))
 }
 pub(crate) fn amount() -> Option<RefId> {
@@ -1181,11 +1181,11 @@ mod tests {
         assert_eq!(defs, [DefId(3), DefId(4), DefId(5)]);
     }
 
-    /// A nested region declares its own intrinsic parameters FIRST and then
+    /// A nested region declares its own engine-supplied parameters FIRST and then
     /// captures the enclosing register file in definition order (ADR law 7),
     /// so a body reads nothing it did not declare.
     #[test]
-    fn a_nested_region_declares_intrinsics_then_captures_the_enclosing_file() {
+    fn a_nested_region_declares_supplied_params_then_captures_the_enclosing_file() {
         let (_, inner) = super::in_region(RegionKind::Spell, 1, || {
             let (params, ()) = super::in_child([(Kind::Entity, Provenance::LoopElement)], || ());
             params
@@ -1231,7 +1231,7 @@ mod tests {
     }
 
     /// A carried body (a delayed trigger, a floating replacement) keeps its OWN
-    /// intrinsic ABI and takes the enclosing registers as explicit captures
+    /// engine-supplied ABI and takes the enclosing registers as explicit captures
     /// afterwards ([CR#603.7,603.12], ADR law 7).
     #[test]
     fn a_carried_region_keeps_its_own_abi_then_captures() {
@@ -1267,7 +1267,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 None,
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             let second = super::define(Kind::Entity);
             super::push_antecedent(
@@ -1275,7 +1275,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 None,
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             super::it()
         });
@@ -1293,7 +1293,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 None,
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             super::push_antecedent(RefId(0), Kind::Entity, Cardinality::One, None, Site::Loop);
             super::it()
@@ -1344,7 +1344,7 @@ mod tests {
                     Kind::Entity,
                     Cardinality::One,
                     Some(deckmaste_semantics::Sort::Card),
-                    Site::Frame,
+                    Site::ExecutionFrame,
                 );
             }
             super::that(deckmaste_semantics::Sort::Card)
@@ -1363,7 +1363,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Permanent),
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             let card = super::define(Kind::Entity);
             super::push_antecedent(
@@ -1371,7 +1371,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             super::that(deckmaste_semantics::Sort::Card)
         });
@@ -1389,7 +1389,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Player),
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             let card = super::define(Kind::Entity);
             super::push_antecedent(
@@ -1397,7 +1397,7 @@ mod tests {
                 Kind::Entity,
                 Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             super::that(deckmaste_semantics::Sort::Player)
         });
@@ -1419,7 +1419,7 @@ mod tests {
                 Kind::Entities,
                 Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
-                Site::Frame,
+                Site::ExecutionFrame,
             );
             (
                 super::they(Some(deckmaste_semantics::Sort::Card)),
@@ -1461,7 +1461,7 @@ mod tests {
                     Kind::Entity,
                     Cardinality::One,
                     None,
-                    Site::Frame,
+                    Site::ExecutionFrame,
                 );
             });
             let (params, ()) = super::in_child([], || ());
@@ -1492,7 +1492,7 @@ mod tests {
                     Kind::Entities,
                     Cardinality::One,
                     Some(deckmaste_semantics::Sort::Permanent),
-                    Site::Frame,
+                    Site::ExecutionFrame,
                 );
             });
             let (params, ()) = super::in_child([], || ());

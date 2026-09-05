@@ -303,8 +303,10 @@ Amounts and collections are not References.
 
 **Referent Sort** (project term):
 The domain classification required of an Entity denoted by a Reference or
-contained in a Selection, such as Player, Card, Spell, Permanent, or an Object
-of a particular Card Type.
+contained in a Selection. It is two axes, not one: the Entity domain — Player,
+Object, or either ([CR#102.1,109.1]) — optionally narrowed by an Object Class
+or a Card Type. A flat single list conflates them, because only an Object has
+an Object Class.
 
 **Selection** (project term):
 A semantic expression that denotes a collection of values from an explicit

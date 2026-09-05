@@ -1699,7 +1699,7 @@ mod tests {
         }
     }
 
-    /// A damage-prevention static effect prevents damage dealt to the creature.
+    /// A damage-prevention Static Spec prevents damage dealt to the creature.
     #[test]
     fn prevention_effect_prevents_damage() {
         use deckmaste_core::Predicate;
@@ -1730,7 +1730,7 @@ mod tests {
         );
     }
 
-    /// A damage-prevention static effect prevents next N damage.
+    /// A damage-prevention Static Spec prevents next N damage.
     #[test]
     fn prevention_effect_prevents_next_n_damage() {
         use deckmaste_core::Count;

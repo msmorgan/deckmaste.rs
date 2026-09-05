@@ -128,7 +128,7 @@ from the implementation and tests, not inferred solely from surviving P0 tags.
 | resolution Toll (price bites at resolution) | `Effect::Unless` (named the Toll node) | ✓ |
 | Only window refinement — activation timing | `ActivatedAbility.window` | ✓ grammar; InstantSpeed/SorcerySpeed evaluated, other windows engine-seam |
 | cast-permission window (flash-style May rows) | `DeonticAction::Cast { window }` | ✓ grammar; consumption engine-seam (cast guard) |
-| AsThough premises (scoped counterfactuals) | `StaticEffect::AsThough` (`SpendManaAsAnyColor` + macros) | partial — premises accrete; consumption engine-seam |
+| AsThough premises (scoped counterfactuals) | `StaticSpec::AsThough` (`SpendManaAsAnyColor` + macros) | partial — premises accrete; consumption engine-seam |
 | timing vs lookback windows, two types | `Timing` (speeds, DuringTurn, DuringStep) / `Lookback` (ThisTurn, ThisGame, LastTurn, ThisCombat, ThisStep, SinceYour) | ✓ |
 | skipped-window semantics ("the next" skips skipped) | — | MISSING — post-P0 grammar backlog (needs design dialogue) |
 | duration taxonomy (fixed / until-event / for-as-long-as / rest-of-game) | `Duration::{FixedUntil(TurnMarker), UntilEvent, ForAsLongAs, EndOfGame}` | ✓ — fixed-marker sweeps, event expiry, and predicate tracking are live |
@@ -179,7 +179,7 @@ from the implementation and tests, not inferred solely from surviving P0 tags.
 | loss SBAs: life ([CR#704.5a]) / empty draw ([CR#704.5b]) / poison ([CR#704.5c]) | `sba::sweep` + `LossReason` — all three LIVE; poison reads the player proxy's live counter map | ✓ |
 | effect outcomes: "loses" / "wins the game" ([CR#104.3e,104.2b]) | `PlayerAction::{LoseGame, WinGame}` riding `By(player, …)` | ✓ — resolve to first-class outcome events and honor outcome gates |
 | concession ([CR#104.3a] — unstoppable, pierces every gate) | `Action::Concede` — REAL and ENUMERATED at every choice boundary ("you can also concede"; runner filters); answers ANY pending decision; two-player terminal tested | ✓ (multiplayer leave-game cleanup [CR#800.4a] = loud seam) |
-| can't-lose / can't-win gates (U5 settled: precedence per check, not consumption) | `StaticEffect::OutcomeGate{who, gate}` over `OutcomeGateKind::{CantLose, CantWin}` | ✓ — evaluated for SBA losses and effect-driven wins/losses |
+| can't-lose / can't-win gates (U5 settled: precedence per check, not consumption) | `StaticSpec::OutcomeGate{who, gate}` over `OutcomeGateKind::{CantLose, CantWin}` | ✓ — evaluated for SBA losses and effect-driven wins/losses |
 | win∧lose → lose arbitration ([CR#104.3f]); same-result SBA batch replacement ([CR#704.7]) | doc-pinned on the gate/verbs | engine-seam (arrives with the outcome verbs) |
 | last-player-standing win / all-lose draw ([CR#104.2a,104.4a]) | `check_game_end` → `GameOutcome::{Win, Draw}` | ✓ |
 | mandatory-loop draw ([CR#104.4b]) | — | engine-seam, BLOCKED on UD-11 equality (no monitor = no trip point; note on `check_game_end`) |

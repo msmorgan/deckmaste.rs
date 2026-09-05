@@ -103,11 +103,11 @@ pub struct Param {
     pub provenance: Provenance,
 }
 
-/// The intrinsic parameters of an engine rule or cost scope.
+/// The engine-supplied parameters of an engine rule or cost scope.
 ///
 /// These scopes are closed regions even when they have no authored body of
 /// their own: source and controller are ordinary indexed inputs, not an
-/// out-of-band frame environment.
+/// out-of-band execution-frame environment.
 #[must_use]
 pub fn source_controller_params() -> Arc<[Param]> {
     Arc::from([
@@ -124,7 +124,7 @@ pub fn source_controller_params() -> Arc<[Param]> {
     ])
 }
 
-/// The intrinsic parameter prefix of a spell or activated-ability region.
+/// The engine-supplied parameter prefix of a spell or activated-ability region.
 ///
 /// # Panics
 ///

@@ -51,7 +51,7 @@ lazy reverse-index build reads the static table and turns every row into a
 slot-specific `WordMatch` for the same `Vocab` identity.
 
 When a table lemma also has a named `Vocab` variant, the named identity is used.
-Its explicit noun declension, verb form, countability, or initial-sound override
+Its explicit noun declension, inflectional form, countability, or initial-sound override
 wins; the table may add another regular part of speech that the named definition
 does not declare. This lets a word be promoted to or removed from the special
 registry later without changing the AST shape.

@@ -294,7 +294,7 @@ pub enum StaticSpec {
     /// this variant into a no-op here is a documented fizzle, never a
     /// panic.
     BecomesCopy(Reference, crate::CopySpec),
-    /// Distribute an inner static effect over a [`crate::Selection`] — "for
+    /// Distribute an inner Static Spec over a [`crate::Selection`] — "for
     /// each object in the selection, enter the body with that object in its
     /// declared [`Provenance::Candidate`](crate::Provenance::Candidate)
     /// parameter and apply the inner effect." The ONLY way a static reaches many
@@ -304,7 +304,7 @@ pub enum StaticSpec {
     /// -> StaticSpec`; the body reads its candidate by register.
     Each(crate::Selection, Arc<crate::Region<StaticSpec>>),
     /// A conditional static ([CR#611.3a]) — "as long as [condition],
-    /// [effect]." Wraps an inner static effect with a game-state predicate; the
+    /// [effect]." Wraps an inner Static Spec with a game-state condition; the
     /// effect applies only while the condition holds (re-checked continuously,
     /// never locked in). The `condition:` field of the deleted `StaticAbility`
     /// struct, now a composable effect wrapper. The layer engine rechecks the
@@ -350,7 +350,7 @@ pub enum StaticSpec {
     },
     /// A continuous modification to a player's numeric attribute ([CR#611]):
     /// extra land plays (Exploration = `ModifyPlayer(Ref(You),
-    /// Raise(LandPlaysPerTurn, 1))`, [CR#305.2]) or no maximum hand size
+    /// Up(LandPlaysPerTurn, 1))`, [CR#305.2]) or no maximum hand size
     /// (Reliquary Tower = `ModifyPlayer(Ref(You), NoMax(HandSizeLimit))`,
     /// [CR#402.2]). The object-modifying `Modify` touches objects only; this is
     /// its player-side twin. The `Reference` is the affected player ("you" by
@@ -548,18 +548,18 @@ pub enum PlayerAttr {
 /// A continuous modification to a player attribute, carried by
 /// [`StaticSpec::ModifyPlayer`] — the player-side twin of [`NumericOp`]
 /// ([CR#611]; players have no [CR#613] layers, so these apply directly).
-/// `SetTo`/`Raise`/`Lower` adjust a count-valued attribute (Exploration =
-/// `Raise(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =
+/// `Set`/`Up`/`Down` adjust a count-valued attribute (Exploration =
+/// `Up(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =
 /// `NoMax(HandSizeLimit)`, "no maximum hand size") — kept a dedicated op, not a
 /// `Maybe Count` value, since a player attribute reads as a count.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PlayerMod {
     /// Overwrite the attribute with a fixed value.
-    SetTo(PlayerAttr, Count),
+    Set(PlayerAttr, Count),
     /// "+N" the attribute.
-    Raise(PlayerAttr, Count),
+    Up(PlayerAttr, Count),
     /// "−N" the attribute.
-    Lower(PlayerAttr, Count),
+    Down(PlayerAttr, Count),
     /// Remove the attribute's maximum ("no maximum hand size").
     NoMax(PlayerAttr),
 }

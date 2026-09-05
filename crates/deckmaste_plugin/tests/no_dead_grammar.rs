@@ -431,7 +431,7 @@ fn accept_allowlist() -> Vec<(Node, &'static str)> {
             n("StaticEffect", "Conditionally"),
             "DEFERRED: the \"as long as [condition], [effect]\" wrapper \
             ([CR#611.3a]) is elaborated and rendered, but the engine gather is a \
-            documented unwired seam (`static_effect_scope` skips it) and no covered real card \
+            documented unwired seam (`static_spec_scope` skips it) and no covered real card \
             needs the qualifier over the graveyard/hand `from`-zone shape it replaces \
             (see `renders_graveyard_static_from_zone` for a synthetic exercise); buildable once \
             the gather seam is wired.",

@@ -608,25 +608,25 @@ mutual
 
   public export
   durationOk : {0 bs : Bindings} -> Duration bs -> Bool
-  durationOk (UntilEvent ev) = spanEventOk (eventName ev)
+  durationOk (UntilEvent ev) = durationEventOk (eventName ev)
   durationOk _ = True
 
   public export
-  spanIntro : {bs : Bindings} -> Duration bs -> Bindings
-  spanIntro ThisTurn = bs
-  spanIntro RestOfGame = bs
-  spanIntro (Until _) = bs
-  spanIntro (ForAsLongAs c) = condIntro c
-  spanIntro (UntilEvent ev) = eventIntro ev
-  spanIntro (DuringNextTurnOf who) = nomIntro who
+  durationIntro : {bs : Bindings} -> Duration bs -> Bindings
+  durationIntro ThisTurn = bs
+  durationIntro RestOfGame = bs
+  durationIntro (Until _) = bs
+  durationIntro (ForAsLongAs c) = condIntro c
+  durationIntro (UntilEvent ev) = eventIntro ev
+  durationIntro (DuringNextTurnOf who) = nomIntro who
 
   public export
-  SpanOk : Maybe (Duration bs) -> Type
-  SpanOk = OptOk (\d => So (durationOk d))
+  DurationOk : Maybe (Duration bs) -> Type
+  DurationOk = OptOk (\d => So (durationOk d))
 
   public export
-  DelaySpanOk : Maybe (Duration bs) -> Type
-  DelaySpanOk = SpanOk
+  DelayDurationOk : Maybe (Duration bs) -> Type
+  DelayDurationOk = DurationOk
 
   public export
   data TriggerWindow : Bindings -> Type where

@@ -1014,28 +1014,28 @@ countOutcomesIsFold s (MkBinding d Pile p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
 
 public export
-quantOutcome : Binding -> Bool
-quantOutcome (MkBinding _ Outcome OneOf (OutcomeP t)) = outcomeIsQuantity t
-quantOutcome (MkBinding _ _ _ _) = False
+amountOutcome : Binding -> Bool
+amountOutcome (MkBinding _ Outcome OneOf (OutcomeP t)) = outcomeIsAmount t
+amountOutcome (MkBinding _ _ _ _) = False
 
 public export
-countQuantOutcomesIsFold : (bs : Bindings) ->
-                           countQuantOutcomes bs = countBy quantOutcome bs
-countQuantOutcomesIsFold [] = Refl
-countQuantOutcomesIsFold (MkBinding d Outcome OneOf (OutcomeP t) :: bs)
-    with (outcomeIsQuantity t)
-  _ | True = cong S (countQuantOutcomesIsFold bs)
-  _ | False = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Outcome ManyOf (OutcomeP t) :: bs) =
-  countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Object p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Player p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d (Quality q) p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Gap p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d (LetterK l) p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d Pile p pay :: bs) = countQuantOutcomesIsFold bs
-countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomesIsFold bs
+countAmountOutcomesIsFold : (bs : Bindings) ->
+                           countAmountOutcomes bs = countBy amountOutcome bs
+countAmountOutcomesIsFold [] = Refl
+countAmountOutcomesIsFold (MkBinding d Outcome OneOf (OutcomeP t) :: bs)
+    with (outcomeIsAmount t)
+  _ | True = cong S (countAmountOutcomesIsFold bs)
+  _ | False = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d Outcome ManyOf (OutcomeP t) :: bs) =
+  countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d Object p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d Player p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d (Quality q) p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d Gap p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d (LetterK l) p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d Pile p pay :: bs) = countAmountOutcomesIsFold bs
+countAmountOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countAmountOutcomesIsFold bs
 
 public export
 countQualityIsCountOnes : (q : QualitySort) -> (bs : Bindings) ->
@@ -1511,15 +1511,15 @@ theRestGroupResolvesInPrefix bs gEq =
   countByWitness groupOne bs Z (trans (sym (countGroupsIsFold bs)) gEq)
 
 public export
-thatMuchReadsOnlyPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 -> Amount bs
+thatMuchReadsOnlyPrefix : (bs : Bindings) -> countAmountOutcomes bs = 1 -> Amount bs
 thatMuchReadsOnlyPrefix bs ok = ThatMuch {bs} {ok}
 
 public export
-thatMuchResolvesInPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 ->
-                           (b : Binding ** (Elem b bs, So (quantOutcome b)))
+thatMuchResolvesInPrefix : (bs : Bindings) -> countAmountOutcomes bs = 1 ->
+                           (b : Binding ** (Elem b bs, So (amountOutcome b)))
 thatMuchResolvesInPrefix bs ok =
-  countByWitness quantOutcome bs Z
-                 (trans (sym (countQuantOutcomesIsFold bs)) ok)
+  countByWitness amountOutcome bs Z
+                 (trans (sym (countAmountOutcomesIsFold bs)) ok)
 
 public export
 preventedThisWayReadsOnlyPrefix : (bs : Bindings) ->

@@ -593,8 +593,8 @@ okCantAttackLand =
 
 ||| "Target land can't attack.": a restriction is written with no duration.
 public export
-okCantAttackLandNoSpan : Instruction []
-okCantAttackLandNoSpan = Macros.cantAttack (Macros.target Macros.land) Nothing
+okCantAttackLandNoDuration : Instruction []
+okCantAttackLandNoDuration = Macros.cantAttack (Macros.target Macros.land) Nothing
 
 ||| "Target creature can't block this turn."
 public export

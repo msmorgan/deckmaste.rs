@@ -669,7 +669,7 @@ impl GameState {
                 }
                 // Route the granted static by shape. Characteristic
                 // modifications feed the hot layer pass via `changes` (see
-                // `gather`'s `static_effect_scope` in `layer.rs`); every other
+                // `gather`'s `static_spec_scope` in `layer.rs`); every other
                 // kind is a static ROW consulted by the legality/cost/
                 // can't-happen readers directly ([CR#613.11] — a resolved
                 // one-shot's restriction is not an ability of the object).

@@ -1,5 +1,5 @@
 ||| The semantics-target workbench: zone/predicate/noun/amount/condition/
-||| event/effect/ability constructions and the card record, re-exported here
+||| event/instruction/ability constructions and the card record, re-exported here
 ||| as a pure umbrella over the layered Experimental.* modules.
 module Experimental
 

@@ -372,7 +372,7 @@ pub struct GameImage {
     /// `FinalizeMark` snapshots it so a stale success for the same verb cannot
     /// satisfy a later aggregate.
     pub resolution_contained_act_serial: u64,
-    /// Combat-phase designations ([CR#506]): attackers, blocks, and
+    /// Combat-phase declarations ([CR#506]): attackers, blocks, and
     /// damage-assignment order. Cleared at end of combat ([CR#511.3]).
     pub combat: CombatState,
     /// [CR#510.1]: the in-flight combat-damage assignment — accumulated
@@ -425,7 +425,7 @@ pub struct GameImage {
     /// empty means a granted subtype carries no inherent rules. An `Ident`
     /// absent from this map applies as a minimal name-only `Subtype`.
     pub subtypes: std::collections::HashMap<deckmaste_core::Ident, deckmaste_core::Subtype>,
-    /// The type registry ([CR#300.1]) — `Ident → TypeDef`. The layer-4
+    /// The card-type registry ([CR#300.1]) — `Ident → TypeDef`. The layer-4
     /// `CardTypes(...)` modifications carry bare `Ident` names; this maps
     /// them back to full `TypeDef` structs (with `permanent_type`/`confers`).
     /// Populated from the loaded plugin's `types` at construction (like

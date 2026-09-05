@@ -180,7 +180,7 @@ record EventFacts where
   hasMagnitude : Bool
   interceptable : Bool
   countable : Bool
-  spannable : Bool
+  boundsDuration : Bool
   underway : Bool
 
 public export
@@ -287,8 +287,8 @@ triggerCountOk : EventName -> Bool
 triggerCountOk ev = countable (eventFactsOf ev)
 
 public export
-spanEventOk : EventName -> Bool
-spanEventOk ev = spannable (eventFactsOf ev)
+durationEventOk : EventName -> Bool
+durationEventOk ev = boundsDuration (eventFactsOf ev)
 
 public export
 eventUnderwayOk : EventName -> Bool

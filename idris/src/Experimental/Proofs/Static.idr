@@ -228,14 +228,14 @@ badSetLoyalty Oh impossible
 
 ||| "During target opponent's next turn, …"
 public export
-okSingularNextTurnSpan : Duration []
-okSingularNextTurnSpan = DuringNextTurnOf (Macros.target Opponent)
+okSingularNextTurnDuration : Duration []
+okSingularNextTurnDuration = DuringNextTurnOf (Macros.target Opponent)
 
 ||| "During each opponent's next turn, ..."
 public export
-badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
+badPluralNextTurnDuration : Unspellable (Duration []) (\ok =>
   DuringNextTurnOf (Macros.each Opponent) {one = ok})
-badPluralNextTurnSpan Refl impossible
+badPluralNextTurnDuration Refl impossible
 
 ||| "Target opponent skips all combat phases of their next turn."
 public export

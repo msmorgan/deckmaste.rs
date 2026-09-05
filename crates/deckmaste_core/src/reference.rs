@@ -113,7 +113,7 @@ mod tests {
 /// Object or one Player ([CR#109.1,102.1]) — the controller region parameter
 /// and the results of `ControllerOf` and `OwnerOf` resolve to players.
 /// Nothing else lives here: a group is a [`crate::Selection`], an amount a
-/// [`crate::Quantity`], a pile a pile-valued register, and a contextual
+/// [`crate::Count`], a pile a pile-valued register, and a contextual
 /// relation over a set (the sources of an object's marked damage,
 /// [CR#120.1]) a [`crate::Predicate`] atom. [`Reference::referent_domain`]
 /// states each constructor's domain.

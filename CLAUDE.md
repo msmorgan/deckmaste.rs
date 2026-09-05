@@ -69,6 +69,23 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   rewrite ADR.
 - Everything else is unaffected by the rewrite.
 
+## Terminology
+
+- Before terminology-sensitive work — naming a public type, variant, field or
+  function, writing an explanatory doc comment, or drafting a ticket, plan or
+  ADR — read the root **`CONTEXT-MAP.md`** and follow it to the owning
+  glossary: `docs/contexts/game-model/CONTEXT.md` for Magic and engine-semantic
+  concepts, `docs/contexts/oracle-english/CONTEXT.md` for grammar and
+  realization. Core, the engine and the Idris workbench use ONE Game Model term
+  per concept; Oracle English keeps its linguistic terms even where a spelling
+  (Object, Predicate) means something else in the Game Model. Honour each
+  entry's `_Avoid_` line.
+- Keep those documents current through the **`domain-modeling`** skill: when a
+  landing needs a term the owning glossary does not define, or implementation
+  evidence exposes a flaw in a definition, amend that glossary with its CR
+  citation as part of the landing. Never reword an entry to accommodate an
+  existing identifier — rename the identifier.
+
 ## CR citations
 
 - Cite Comprehensive Rules in the `[CR#…]` bracket format — e.g. `[CR#704.5g]`, a list `[CR#601.2g,106.4]` (comma-separated, no spaces), a range `[CR#601.2a..601.2b]`. Never write a bare `CR 704.5g` or a loose `704.5g` in prose; the checker flags both.

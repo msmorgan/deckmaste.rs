@@ -499,7 +499,7 @@ mod tests {
             .lower(),
             deckmaste_core::StaticSpec::ModifyPlayer(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
-                deckmaste_core::PlayerMod::SetTo(
+                deckmaste_core::PlayerMod::Set(
                     deckmaste_core::PlayerAttr::Life,
                     deckmaste_core::Count::Literal(0)
                 )
@@ -752,7 +752,7 @@ mod tests {
     fn lowers_player_mod_set_to() {
         assert_matches!(
             deckmaste_semantics::PlayerMod::SetTo(minimal_player_attr(), minimal_count()).lower(),
-            deckmaste_core::PlayerMod::SetTo(
+            deckmaste_core::PlayerMod::Set(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::Literal(0)
             )
@@ -763,7 +763,7 @@ mod tests {
     fn lowers_player_mod_raise() {
         assert_matches!(
             deckmaste_semantics::PlayerMod::Raise(minimal_player_attr(), minimal_count()).lower(),
-            deckmaste_core::PlayerMod::Raise(
+            deckmaste_core::PlayerMod::Up(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::Literal(0)
             )
@@ -774,7 +774,7 @@ mod tests {
     fn lowers_player_mod_lower() {
         assert_matches!(
             deckmaste_semantics::PlayerMod::Lower(minimal_player_attr(), minimal_count()).lower(),
-            deckmaste_core::PlayerMod::Lower(
+            deckmaste_core::PlayerMod::Down(
                 deckmaste_core::PlayerAttr::Life,
                 deckmaste_core::Count::Literal(0)
             )
@@ -1021,9 +1021,9 @@ impl Lower for deckmaste_semantics::PlayerMod {
     type Target = deckmaste_core::PlayerMod;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::SetTo(f0, f1) => deckmaste_core::PlayerMod::SetTo(f0.lower(), f1.lower()),
-            Self::Raise(f0, f1) => deckmaste_core::PlayerMod::Raise(f0.lower(), f1.lower()),
-            Self::Lower(f0, f1) => deckmaste_core::PlayerMod::Lower(f0.lower(), f1.lower()),
+            Self::SetTo(f0, f1) => deckmaste_core::PlayerMod::Set(f0.lower(), f1.lower()),
+            Self::Raise(f0, f1) => deckmaste_core::PlayerMod::Up(f0.lower(), f1.lower()),
+            Self::Lower(f0, f1) => deckmaste_core::PlayerMod::Down(f0.lower(), f1.lower()),
             Self::NoMax(f0) => deckmaste_core::PlayerMod::NoMax(f0.lower()),
         }
     }

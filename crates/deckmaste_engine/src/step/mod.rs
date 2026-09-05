@@ -2237,7 +2237,7 @@ impl GameState {
     /// not as a turn-based action — [CR#511.1] gives this step none).
     /// Clears the registry so a later combat phase (and any SBA/other
     /// reader) never sees stale (reminted/dead) attacker/blocker
-    /// designations.
+    /// declarations.
     fn end_of_combat(&mut self) -> Progress {
         self.combat.clear();
         // [CR#511.2]: "until end of combat" floating effects/shields end here.

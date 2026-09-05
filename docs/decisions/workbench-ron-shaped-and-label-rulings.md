@@ -74,7 +74,7 @@ record the divergence. Sweep: `workbench-ability-kind-fold`.
 
 ## 4. Clause order is not a slot
 
-`Effect.StaticEffect.Conditionally` and `Effect.Continuously` thread
+`Effect.StaticSpec.Conditionally` and `Effect.Continuously` thread
 static-first, fixed. The printed orders that put the condition first are
 spelled by the word-order macros (`throughout`, `onlyWhile`), which re-thread
 on the way in.

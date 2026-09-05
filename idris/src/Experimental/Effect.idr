@@ -125,7 +125,7 @@ exchangedCostOk (TextBoxes a b) = costNounOk a && costNounOk b
 
 public export
 data TokenQuality : Bindings -> Type where
-  WithEveryType : (space : TypeSpace) -> TokenQuality bs
+  WithEveryType : (space : SubtypeSpace) -> TokenQuality bs
   WithQuality : (q : Predicate bs Object) ->
                 {auto 0 qr : QualityRead q} -> TokenQuality bs
 
@@ -801,7 +801,7 @@ mutual
   public export
   data QualityPayload : Bindings -> Type where
     Bundle : (t : TokenChars bs) -> (ret : Maybe CardType) -> QualityPayload bs
-    EveryTypeOf : (space : TypeSpace) -> QualityPayload bs
+    EveryTypeOf : (space : SubtypeSpace) -> QualityPayload bs
     ChosenQuality : (q : Predicate bs Object) -> QualityPayload bs
     Colored : (cs : ColorSpec) -> QualityPayload bs
 
@@ -1342,7 +1342,7 @@ mutual
              Instruction bs
     GainsDesignation : {k : Kind} -> (n : Noun bs k) -> (d : Designation) ->
                        (w : GivingWarrant d) ->
-                       (span : Maybe (Duration (nomIntro n))) ->
+                       (duration : Maybe (Duration (nomIntro n))) ->
                        {auto 0 sc : designationScope d = HeldBy k} ->
                        {auto 0 zn : DesignationHolder d (nounZone n)} -> Instruction bs
     Unlock : (door : Door bs) ->
@@ -1437,8 +1437,8 @@ mutual
                    {auto 0 one : nounPlur whose = OneOf} -> Instruction bs
     Continuously : {0 bs : Bindings} ->
                    (se : StaticSpec bs) ->
-                   (span : Maybe (Duration (staticIntro se))) ->
-                   {auto 0 sp : SpanOk span} ->
+                   (duration : Maybe (Duration (staticIntro se))) ->
+                   {auto 0 sp : DurationOk duration} ->
                    {auto 0 cl : ClauseStatic se} -> Instruction bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) ->
@@ -1533,9 +1533,9 @@ mutual
             {auto 0 mf : ModesFit q (modeCount modes)} -> Instruction bs
     Delayed : (ev : GameEvent bs) ->
               (alts : List (GameEvent bs)) ->
-              (span : Maybe (Duration bs)) ->
+              (duration : Maybe (Duration bs)) ->
               Instruction (delayedCtx alts ev) ->
-              {auto 0 so : DelaySpanOk span} -> Instruction bs
+              {auto 0 so : DelayDurationOk duration} -> Instruction bs
     InsteadOf : (replaced : Instruction bs) -> (repl : Instruction (replacedCtx replaced)) ->
                 {auto 0 na : NotInstead replaced} ->
                 {auto 0 nb : NotInstead repl} -> Instruction bs

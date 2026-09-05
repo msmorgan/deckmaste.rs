@@ -3,6 +3,14 @@
 2026-06-06 (holes patched 2026-06-10; aligned to mtg-rules skill v1.7.0 on
 2026-06-11)
 
+> **Superseded vocabulary (2026-09-04).** Kept as the record of the June
+> design. Its value-kind names predate the
+> [Game Model glossary](contexts/game-model/CONTEXT.md): what this file calls
+> an `Effect` is now an **Instruction**, its `Quantity` in a value position is
+> an **Amount**, and its `Reference` covers what the glossary splits into
+> **Reference**, **Selection**, and **Amount**. The glossary, not this file,
+> carries the current names.
+
 What kinds of value does a complete card-encoding language need? This is the
 taxonomy of typed positions — the things `MacroKind` will eventually
 enumerate, the enums `deckmaste_core` will grow, and the vocabularies plugins

@@ -540,7 +540,7 @@ karnRestart = RestartsGame
 
 waxWane : Card
 waxWane =
-  SplitCard
+  Split
     (Macros.frontFace "Wax" (Just [Macros.pip Green]) (MkTypeLine [] [Instant] [])
             [ Spell Nothing (Macros.gets (Macros.target Macros.creature)
                                  (Up (Lit 2)) (Up (Lit 2))

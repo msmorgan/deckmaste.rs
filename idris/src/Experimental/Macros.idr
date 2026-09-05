@@ -864,7 +864,7 @@ sharedSubject : {bs : Bindings} -> {0 k : Nat} -> (n : Noun bs Object) ->
                 (parts : StaticParts k (selfSubjIntro n)) ->
                 {auto 0 ne : IsSucc k} ->
                 (d : Maybe (Duration (partsIntro parts))) ->
-                {auto 0 sp : SpanOk d} ->
+                {auto 0 sp : DurationOk d} ->
                 {auto 0 cl : ClauseStatic (AndAlso (Just n) parts {ne})} -> Instruction bs
 sharedSubject {bs} n parts d = Continuously {bs} (AndAlso (Just n) parts {ne}) d {sp} {cl}
 
@@ -981,7 +981,7 @@ gets : {bs : Bindings} -> (n : Noun bs Object) ->
                             (deltaDelta pow ++ selfSubjIntro n)) = 1} ->
        {auto 0 z2 : ZoneIs (nounZone (itsOther n pow {ok = rd})) Battlefield} ->
        (d : Maybe (Duration (staticIntro (getsPt n pow tou {ok} {rd} {z2})))) ->
-       {auto 0 sp : SpanOk d} -> Instruction bs
+       {auto 0 sp : DurationOk d} -> Instruction bs
 gets {bs} n pow tou d = Continuously {bs} (getsPt n pow tou {ok} {rd} {z2}) d {sp}
 
 public export
@@ -989,13 +989,13 @@ gains : {bs : Bindings} -> (n : Noun bs Object) -> (a : AbilityAt bs) ->
         {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
         (d : Maybe (Duration (staticIntro (Gains n a {ok} {gr})))) ->
-        {auto 0 sp : SpanOk d} -> Instruction bs
+        {auto 0 sp : DurationOk d} -> Instruction bs
 gains {bs} n a d = Continuously {bs} (Gains n a {ok} {gr}) d
 
 public export
 gainsHaste : {bs : Bindings} -> (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing Nothing) n} ->
-             {auto 0 sp : SpanOk d} -> Instruction bs
+             {auto 0 sp : DurationOk d} -> Instruction bs
 gainsHaste {bs} n d = gains {bs} n (KeywordAbility "Haste" Nothing Nothing) d
 
 public export
@@ -1105,18 +1105,18 @@ untapsDuring n w =
     {wk}
 
 public export
-cantAttack : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantAttack : {bs : Bindings} -> (n : Noun bs Object) -> (duration : Maybe (Duration (selfSubjIntro n))) ->
              {auto 0 dp : DeedFits ["Attack"] Agent Object (nounIsAbility n) (nounHeadTys n) (nounZone n)} ->
-             {auto 0 sp : SpanOk span} -> Instruction bs
-cantAttack {bs} n span =
-  Continuously {bs} (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+             {auto 0 sp : DurationOk duration} -> Instruction bs
+cantAttack {bs} n duration =
+  Continuously {bs} (Deontic n Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) duration {sp}
 
 public export
-cantBlock : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantBlock : {bs : Bindings} -> (n : Noun bs Object) -> (duration : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 dp : DeedFits ["Block"] Agent Object (nounIsAbility n) (nounHeadTys n) (nounZone n)} ->
-            {auto 0 sp : SpanOk span} -> Instruction bs
-cantBlock {bs} n span =
-  Continuously {bs} (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+            {auto 0 sp : DurationOk duration} -> Instruction bs
+cantBlock {bs} n duration =
+  Continuously {bs} (Deontic n Forbid ["Block"] Agent Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) duration {sp}
 
 public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
@@ -1193,15 +1193,15 @@ canBeTargetedAsThough what by p =
           NoDeonticRider {dp}
 
 public export
-cantBeBlocked : {bs : Bindings} -> (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
+cantBeBlocked : {bs : Bindings} -> (n : Noun bs Object) -> (duration : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 dp : DeedFits ["Block"] Patient Object (nounIsAbility n) (nounHeadTys n) (nounZone n)} ->
-                {auto 0 sp : SpanOk span} -> Instruction bs
-cantBeBlocked {bs} n span =
-  Continuously {bs} (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) span {sp}
+                {auto 0 sp : DurationOk duration} -> Instruction bs
+cantBeBlocked {bs} n duration =
+  Continuously {bs} (Deontic n Forbid ["Block"] Patient Nothing NoDeonticPatient Nothing NoDeonticRider {dp}) duration {sp}
 
 public export
 mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
-              (span : Maybe (Duration (selfSubjIntro n))) ->
+              (duration : Maybe (Duration (selfSubjIntro n))) ->
               {auto 0 dp : DeedFits ["Block"] Agent Object (nounIsAbility n) (nounHeadTys n) (nounZone n)} ->
               {auto 0 ok : countReach Bare OneOf
                              (view (Below (length (nounDelta n))) (nomIntro n)) = 1} ->
@@ -1209,13 +1209,13 @@ mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
                                  (DeonticCounterpart
                                     (Pro Bare OneOf (Below (length (nounDelta n))) {ok}))
                                  NoDeonticRider)} ->
-              {auto 0 sp : SpanOk span} -> Instruction bs
-mustBlockIt n span =
+              {auto 0 sp : DurationOk duration} -> Instruction bs
+mustBlockIt n duration =
   Continuously (Deontic n Require ["Block"] Agent Nothing
                   (DeonticCounterpart
                      (Pro Bare OneOf (Below (length (nounDelta n))) {ok}))
                   Nothing NoDeonticRider {dp} {pt})
-               span {sp}
+               duration {sp}
 
 
 public export
@@ -1232,7 +1232,7 @@ public export
 gainControl : {bs : Bindings} -> (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 zn : ZoneIs (nounZone what) Battlefield} ->
               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
-              {auto 0 sp : SpanOk d} -> Instruction bs
+              {auto 0 sp : DurationOk d} -> Instruction bs
 gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {sp}
 
 public export
@@ -1294,21 +1294,21 @@ public export
 becomesAs : {bs : Bindings} -> (n : Noun bs Object) -> (added : TokenChars bs) ->
             (d : Maybe (Duration (selfSubjIntro n))) ->
             {auto 0 ok : BecomesOk Adds n (Bundle added Nothing)} ->
-            {auto 0 sp : SpanOk d} -> Instruction bs
+            {auto 0 sp : DurationOk d} -> Instruction bs
 becomesAs {bs} n added d = Continuously {bs} (Becomes n Adds (Bundle added Nothing) {ok}) d {sp}
 
 public export
 becomes : {bs : Bindings} -> (n : Noun bs Object) -> (added : TypeLine) ->
           (d : Maybe (Duration (selfSubjIntro n))) ->
           {auto 0 ok : BecomesOk Adds n (Bundle (MkToken {bs} Nothing [] added [] Nothing) Nothing)} ->
-          {auto 0 sp : SpanOk d} -> Instruction bs
+          {auto 0 sp : DurationOk d} -> Instruction bs
 becomes {bs} n added d = becomesAs {bs} n (MkToken Nothing [] added [] Nothing) d {ok} {sp}
 
 public export
 becomesColor : {bs : Bindings} -> (n : Noun bs Object) -> (cs : ColorSpec) ->
                (d : Maybe (Duration (selfSubjIntro n))) ->
                {auto 0 ok : BecomesOk Sets n (Colored cs)} ->
-               {auto 0 sp : SpanOk d} -> Instruction bs
+               {auto 0 sp : DurationOk d} -> Instruction bs
 becomesColor {bs} n cs d = Continuously {bs} (Becomes n Sets (Colored cs) {ok}) d {sp}
 
 public export
@@ -1554,21 +1554,21 @@ public export
 ifWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Instruction (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
-                 {auto 0 sp : SpanOk d} -> Instruction bs
+                 {auto 0 sp : DurationOk d} -> Instruction bs
 ifWouldInstead {bs} ev repl d = Continuously {bs} (Intercepts ev [] Nothing repl Repeatedly Nothing {ok}) d {sp}
 
 public export
 nextTimeWouldInstead : {bs : Bindings} -> (ev : GameEvent bs) -> (repl : Instruction (eventIntro ev)) ->
                        (d : Maybe (Duration (eventIntro ev))) ->
                        {auto 0 ok : Interceptable ev} ->
-                       {auto 0 sp : SpanOk d} -> Instruction bs
+                       {auto 0 sp : DurationOk d} -> Instruction bs
 nextTimeWouldInstead {bs} ev repl d =
   Continuously {bs} (Intercepts ev [] Nothing repl NextTimeOnly Nothing {ok}) d {sp}
 
 public export
 preventAll : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
              (d : Maybe (Duration (scopeIntro scope))) ->
-             {auto 0 sp : SpanOk d} -> Instruction bs
+             {auto 0 sp : DurationOk d} -> Instruction bs
 preventAll {bs} kind scope d =
   Continuously {bs} (DamageRule kind Unattributed scope (Prevent CutAll Nothing) Repeatedly) d {sp}
 
@@ -1576,7 +1576,7 @@ public export
 preventNext : {bs : Bindings} -> (kind : DamageKind) -> (scope : DamageScope bs) ->
               (amt : Amount (scopeIntro scope)) ->
               (d : Maybe (Duration (amtIntro amt))) ->
-              {auto 0 sp : SpanOk d} -> Instruction bs
+              {auto 0 sp : DurationOk d} -> Instruction bs
 preventNext {bs} kind scope amt d =
   Continuously {bs} (DamageRule kind Unattributed scope (Prevent (Shield amt) Nothing) Repeatedly) d {sp}
 
@@ -1584,7 +1584,7 @@ public export
 preventAllBy : {bs : Bindings} -> (kind : DamageKind) -> (src : Noun bs Object) ->
                (scope : DamageScope (nomIntro src)) ->
                (d : Maybe (Duration (scopeIntro scope))) ->
-               {auto 0 sp : SpanOk d} -> Instruction bs
+               {auto 0 sp : DurationOk d} -> Instruction bs
 preventAllBy {bs} kind src scope d =
   Continuously {bs} (DamageRule kind (DealtBy src) scope (Prevent CutAll Nothing) Repeatedly) d {sp}
 
@@ -1705,7 +1705,7 @@ agentRef agent ok =
   Macros.agentSelfOrOwn agent (Experimental.Phrase.agentDelta agent)
                         (Experimental.Phrase.agentPlur agent) ok
 
-||| "[effect] unless [who] pays [cost]": the offer, in the order the card
+||| "[instruction] unless [who] pays [cost]": the offer, in the order the card
 ||| prints it [CR#118.12a].
 public export
 unless : {bs : Bindings} -> (who : Noun bs Player) ->
@@ -2622,10 +2622,10 @@ delayed : (ev : GameEvent bs) -> (instr : Instruction (delayedCtx [] ev)) -> Ins
 delayed ev instr = Delayed ev [] Nothing instr
 
 public export
-delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
+delayedWithin : (ev : GameEvent bs) -> (duration : Duration bs) ->
                 (instr : Instruction (delayedCtx [] ev)) ->
-                {auto 0 so : DelaySpanOk (Just span)} -> Instruction bs
-delayedWithin ev span instr = Delayed ev [] (Just span) instr {so}
+                {auto 0 so : DelayDurationOk (Just duration)} -> Instruction bs
+delayedWithin ev duration instr = Delayed ev [] (Just duration) instr {so}
 
 public export
 quality : (q : QualitySort) -> Predicate bs (Quality q)
@@ -2907,10 +2907,10 @@ onlyIfSo : {bs : Bindings} -> (se : StaticSpec bs) -> (c : Condition (staticIntr
 onlyIfSo {bs} se c = Conditionally {bs} se c IfSo
 
 public export
-throughout : {bs : Bindings} -> (se : StaticSpec bs) -> (span : Duration (staticIntro se)) ->
-             {auto 0 sp : SpanOk (Just span)} ->
+throughout : {bs : Bindings} -> (se : StaticSpec bs) -> (duration : Duration (staticIntro se)) ->
+             {auto 0 sp : DurationOk (Just duration)} ->
              {auto 0 cl : ClauseStatic se} -> Instruction bs
-throughout {bs} se span = Continuously {bs} se (Just span) {sp} {cl}
+throughout {bs} se duration = Continuously {bs} se (Just duration) {sp} {cl}
 
 public export
 fromTo : Nat -> Nat -> Quantity bs

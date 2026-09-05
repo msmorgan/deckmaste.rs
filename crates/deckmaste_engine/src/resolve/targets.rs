@@ -84,7 +84,7 @@ impl GameState {
         let mut any_target = false;
         let mut any_legal = false;
         for (spec, slot) in specs.iter().zip(&entry.targets) {
-            let filter = target_spec_filter(spec);
+            let predicate = target_spec_predicate(spec);
             for &chosen in slot {
                 any_target = true;
                 // A target that no longer exists (reminted on zone change) is
@@ -93,7 +93,7 @@ impl GameState {
                     && crate::target::matches_region_with_activation(
                         self,
                         chosen,
-                        filter,
+                        predicate,
                         carrier,
                         entry.activation,
                     )
@@ -116,14 +116,14 @@ impl GameState {
 /// This is the single authoritative site for TargetSpec→Predicate extraction;
 /// both `cast::legal_targets` (announce time) and `targets_still_legal`
 /// (resolution time) funnel through here so they stay in sync.
-pub(crate) fn target_spec_filter(
+pub(crate) fn target_spec_predicate(
     spec: &TargetSpec,
 ) -> &deckmaste_core::Region<deckmaste_core::Predicate> {
     match spec {
         TargetSpec::Target(_quantity, f) => f,
         // Distinctness lives in the SET checks, not the filter: peel to the
         // inner `Target`'s predicate ([CR#115.7e]).
-        TargetSpec::Distinct(_, inner) => target_spec_filter(inner),
+        TargetSpec::Distinct(_, inner) => target_spec_predicate(inner),
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
@@ -132,7 +132,7 @@ pub(crate) fn target_spec_filter(
 
 /// The [`Quantity`](deckmaste_core::Quantity) governing a slot's target count
 /// ([CR#601.2c]), peeling `Distinct`/`Expanded` to the leaf `Target` — the
-/// count twin of [`target_spec_filter`].
+/// count twin of [`target_spec_predicate`].
 pub(crate) fn target_spec_quantity(spec: &TargetSpec) -> &deckmaste_core::Quantity {
     match spec {
         TargetSpec::Target(q, _) => q,
@@ -205,7 +205,7 @@ pub(crate) fn announced_prefix_len(specs: &[TargetSpec]) -> usize {
     specs
         .iter()
         .map(|spec| {
-            target_spec_filter(spec)
+            target_spec_predicate(spec)
                 .params
                 .iter()
                 .filter(|param| {
@@ -399,7 +399,7 @@ mod target_set_tests {
     use super::announce_satisfiable;
     use super::distinct_siblings;
     use super::slot_count_bounds;
-    use super::target_spec_filter;
+    use super::target_spec_predicate;
     use super::validate_target_set;
     use crate::object::ObjectId;
 
@@ -429,12 +429,12 @@ mod target_set_tests {
         ObjectId::from_raw(n)
     }
 
-    /// `target_spec_filter` peels the `Distinct` wrapper to the inner
+    /// `target_spec_predicate` peels the `Distinct` wrapper to the inner
     /// `Target`'s predicate — no panic (that seam is closed).
     #[test]
     fn filter_peels_distinct_to_the_inner_predicate() {
         let spec = distinct(vec![0], t_one());
-        assert_eq!(&target_spec_filter(&spec).body, &creature());
+        assert_eq!(&target_spec_predicate(&spec).body, &creature());
         assert_eq!(distinct_siblings(&spec), &[0]);
         assert_eq!(distinct_siblings(&t_one()), &[] as &[usize]);
     }

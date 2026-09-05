@@ -318,7 +318,7 @@ mod tests {
                 deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 None,
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             deckmaste_semantics::Reference::It.lower()
         });
@@ -340,7 +340,7 @@ mod tests {
                 deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Card),
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             let player = crate::region::define(deckmaste_core::Kind::Entity);
             crate::region::push_antecedent(
@@ -348,7 +348,7 @@ mod tests {
                 deckmaste_core::Kind::Entity,
                 crate::region::Cardinality::One,
                 Some(deckmaste_semantics::Sort::Player),
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             deckmaste_semantics::Reference::That(deckmaste_semantics::Sort::Player).lower()
         });

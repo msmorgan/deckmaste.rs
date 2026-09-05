@@ -285,7 +285,7 @@ mod tests {
                 deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 None,
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             deckmaste_semantics::Selection::They.lower()
         });
@@ -306,7 +306,7 @@ mod tests {
                 deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Card),
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             let players = crate::region::define(deckmaste_core::Kind::Entities);
             crate::region::push_antecedent(
@@ -314,7 +314,7 @@ mod tests {
                 deckmaste_core::Kind::Entities,
                 crate::region::Cardinality::Many,
                 Some(deckmaste_semantics::Sort::Player),
-                crate::region::Site::Frame,
+                crate::region::Site::ExecutionFrame,
             );
             deckmaste_semantics::Selection::Them(deckmaste_semantics::Sort::Player).lower()
         });
