@@ -161,6 +161,8 @@ inductive Refusal where
   /-- A keyword whose parameter is a cost the controller pays takes a cost payable by you. -/
   | keywordCostPaidByYou (k : KeywordLabel)
   | deedFits
+  /-- The deed opens an opponent's library [CR#701.29a]. -/
+  | opponentsLibrary
   | deedRides
   | verbPatientOk
   | verbedVoiceOk

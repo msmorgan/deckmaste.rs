@@ -354,6 +354,7 @@ mutual
       OptNoun.check (some .player) bs subj ++ Instruction.check (agentCtx bs subj) e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk subj v) .enactAgentOk ++
         refuse (enactPatientZoneOk (agentCtx bs subj) v e) .zoneFits ++
+        refuse (enactLibraryOwnerOk v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .controllerSacrifices n =>
       NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular ++
@@ -384,7 +385,7 @@ mutual
         refuse (grp.plur == .many) .plural ++ refuse (keepsOuter bs' body) .keepsOuter
     | .forEachKindOf ax dom q body =>
       let bs' := kindValueIntro bs q dom
-      OptNoun.check (some .object) bs dom ++ refuse (ax.sort == some q) .kindAxisSort ++
+      OptNoun.check (some .object) bs dom ++ refuse (ax.ok && ax.sort == some q) .kindAxisSort ++
         refuse (kindDomainOk ax dom) .kindDomainOk ++ Instruction.check bs' body ++
         refuse (keepsOuter bs' body) .keepsOuter
     | .repeat_ rep => rep.check bs

@@ -2,6 +2,7 @@ import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Counters
 import Semantics.Proofs.Damage
 import Semantics.Proofs.Description
+import Semantics.Proofs.Keyword
 import Semantics.Proofs.Mana
 import Semantics.Proofs.Refresh
 import Semantics.Proofs.Static

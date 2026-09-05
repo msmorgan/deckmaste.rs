@@ -340,7 +340,8 @@ mutual
       let k := dom.kindOr .object
       refuse k.phrasal (.phrasal k) ++ Predicate.check k bs dom ++
         Amount.check (bindFor .the .one k dom :: (Predicate.delta bs dom ++ bs)) body
-    | .distinctCount _ dom => NounPhrase.check (some .object) bs dom
+    | .distinctCount ax dom =>
+      refuse ax.ok .kindAxisSort ++ NounPhrase.check (some .object) bs dom
     | .upTo b => Amount.check bs b
   termination_by structural a => a
 

@@ -229,6 +229,34 @@ def Instruction.enactPatient : Instruction → Option NounPhrase
   | .move n _ _ => some n
   | _ => none
 
+mutual
+  /-- Whether a player phrase can only name opponents: "an opponent", "your opponents", "each
+  opponent". -/
+  def Predicate.opponentOnly : Predicate → Bool
+    | .opponent => true
+    | .and ps => Predicate.anyOpponentOnly ps
+    | _ => false
+  def Predicate.anyOpponentOnly : List Predicate → Bool
+    | [] => false
+    | p :: ps => p.opponentOnly || Predicate.anyOpponentOnly ps
+end
+
+def NounPhrase.opponentOnly : NounPhrase → Bool
+  | .described _ p => p.opponentOnly
+  | .playerGroup .yourOpponents => true
+  | .eachOf g => g.opponentOnly
+  | _ => false
+
+/-- The library a look opens: the possessor of the slice looked at. -/
+def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
+  | .sequentially (.expose .lookAt _ (.cards (.librarySlice _ _ whose)) :: _) => some whose
+  | .expose .lookAt _ (.cards (.librarySlice _ _ whose)) => some whose
+  | _ => none
+
+/-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
+def enactLibraryOwnerOk (v : VerbLabel) (e : Instruction) : Bool :=
+  !actOpponentsLibrary v || e.lookedLibraryOwner.elim true NounPhrase.opponentOnly
+
 /-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
 battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
 The Idris carried this on each verb's macro. -/

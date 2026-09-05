@@ -113,6 +113,8 @@ def yourLibrary : ZoneExpr := libraryOf .you
 /-- "on the bottom of your library in <arrangement>" -/
 def onBottomIn (arrangement : Arrangement) : ZoneExpr :=
   .library (.oneEnd .bottom) (some arrangement) none .bare
+def onTopIn (arrangement : Arrangement) : ZoneExpr :=
+  .library (.oneEnd .top) (some arrangement) none .bare
 /-- "on the bottom of its owner's library" -/
 def onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
@@ -172,6 +174,8 @@ def partyRoles : List Predicate :=
 def anyTarget : Predicate :=
   .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
 
+/-- "cast by <player>" -/
+def castBy (player : NounPhrase) : Predicate := .castBy player none
 /-- "any other target" -/
 def anyOtherTarget : Predicate := .and [anyTarget, .other]
 
@@ -375,28 +379,51 @@ def agentRef : NounPhrase → NounPhrase
 def unless_ (player : NounPhrase) (instruction : Instruction) (cost : Cost) : Instruction :=
   .may player (.pay (agentRef player) cost .once) none (some instruction)
 
+/-- "it" or "them", by number. -/
+def itOrThem : Plurality → NounPhrase
+  | .one => it
+  | .many => them
+/-- The number of a noun phrase, as far as the syntax alone can tell. -/
+def nounPlurOf : NounPhrase → Plurality
+  | .described d _ =>
+    match d with
+    | .target (.range _ (some 1)) => .one
+    | .a _ => .one
+    | .the => .one
+    | .count (.range _ (some 1)) _ => .one
+    | _ => .many
+  | .pro _ plurality _ => plurality
+  | .eachOf _ | .both _ _ | .playerGroup _ | .oneEachOf _ _ => .many
+  | .librarySlice _ amount _ => amount.plur
+  | _ => .one
+
 /-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
 half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .andAlso none
     [.modify subject .power power, .modify (itOrThem (nounPlurOf subject)) .toughness toughness]
-where
-  itOrThem : Plurality → NounPhrase
-    | .one => it
-    | .many => them
-  /-- The number of a noun phrase, as far as the syntax alone can tell. -/
-  nounPlurOf : NounPhrase → Plurality
-    | .described d _ =>
-      match d with
-      | .target (.range _ (some 1)) => .one
-      | .a _ => .one
-      | .the => .one
-      | .count (.range _ (some 1)) _ => .one
-      | _ => .many
-    | .pro _ plurality _ => plurality
-    | .eachOf _ | .both _ _ | .playerGroup _ | .oneEachOf _ _ => .many
-    | _ => .one
 
+/-- The shared subject of a clause, read back as a pronoun that sees only what the subject
+itself announced. -/
+def ownSubject (subject : NounPhrase) : NounPhrase :=
+  .pro .bare (nounPlurOf subject) (.top (selfSubjIntro [] subject).length)
+/-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
+def lookedCards (slice : NounPhrase) : NounPhrase :=
+  .pro .bare (nounPlurOf slice) (.top (NounPhrase.delta [] slice).length)
+/-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
+in any order and the rest on top in any order" -/
+def lookAndSort (looker whose : NounPhrase) (amount : Amount) : Instruction :=
+  let slice : NounPhrase := .librarySlice .top amount whose
+  .sequentially
+    [ .expose .lookAt looker (.cards slice),
+      move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
+      move (theRest .object) (onTopIn .anyOrder) ]
+/-- "<agent> scries N" [CR#701.22a] -/
+def scry (agent : NounPhrase) (amount : Amount) : Instruction :=
+  .enact (some agent) "Scry" (lookAndSort (agentRef agent) (agentRef agent) amount)
+/-- "<agent> fateseals N" [CR#701.29a] -/
+def fateseal (agent whose : NounPhrase) (amount : Amount) : Instruction :=
+  .enact (some agent) "Fateseal" (lookAndSort (agentRef agent) whose amount)
 def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
   .continuously (getsPt subject power toughness) duration
@@ -467,6 +494,12 @@ def regenerates (subject : NounPhrase) : GameEvent :=
 /-! ## Abilities -/
 
 def keyword (label : KeywordLabel) : Ability := .keyword label none none
+/-- "Companion — <condition>" -/
+def companion (condition : DeckCondition) : Ability :=
+  .keyword "Companion" (some (.deckCondition condition)) none
+/-- "Pay N life" as a cost. -/
+def payLife (player : NounPhrase) (amount : Nat) : Cost :=
+  .perform (.changeLife player (.down (.lit amount)))
 /-- "<keyword> <cost>" -/
 def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label (some (.cost cost)) none

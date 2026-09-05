@@ -78,6 +78,12 @@ def KindAxis.sort : KindAxis → Option QualitySort
   | .counterKind => some .counterKind
   | .colorPair => none
 
+/-- A subtype axis scoped to basic or nonbasic types ranges over land types: the basic land
+types are five land types [CR#305.6], and no other card type's subtypes are partitioned so. -/
+def KindAxis.ok : KindAxis → Bool
+  | .subtype host scope => scope == .any || host == .land
+  | _ => true
+
 def KindAxis.closed : KindAxis → Bool
   | .cardType => true
   | .permanentType => true
@@ -151,6 +157,9 @@ structure ActFacts where
   rides : Bool := false
   plays : Bool := false
   bounded : Bool := false
+  /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
+  own library is a different deed. -/
+  opponentsLibrary : Bool := false
   deriving Repr, BEq
 
 private def playerAgent : DeedRole := ⟨[.player], [], true, none⟩
@@ -264,7 +273,7 @@ def actFacts : List ActFacts :=
     { label := "Exert", agentRole := playerAgent },
     { label := "Explore" },
     { label := "Face A Villainous Choice", agentRole := playerAgent },
-    { label := "Fateseal", stepwise := true, agentRole := playerAgent },
+    { label := "Fateseal", stepwise := true, agentRole := playerAgent, opponentsLibrary := true },
     { label := "Fight" },
     { label := "Forage", agentRole := playerAgent },
     { label := "Goad", agentRole := playerAgent },
@@ -311,6 +320,7 @@ def actDestOf (v : VerbLabel) : Option Zone := actFactsFor v >>= (·.dest)
 def actLociOf (v : VerbLabel) : List Zone := (actFactsFor v).elim [] (·.loci)
 def actNamesLocus (v : VerbLabel) : Bool := !(actLociOf v).isEmpty
 def actStepwiseOf (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.stepwise)
+def actOpponentsLibrary (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.opponentsLibrary)
 def actIntransitiveOf (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.intransitive)
 def actNamesParticiple (v : VerbLabel) : Bool := (participleOf v).isSome
 
