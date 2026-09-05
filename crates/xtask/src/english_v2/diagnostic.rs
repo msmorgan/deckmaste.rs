@@ -913,6 +913,7 @@ enum NonterminalKind {
     PrepositionalPredicateAdjunct,
     PrepositionalPredicateAdjunctHost,
     FrequencyPredicateAdjunct,
+    QualifiedFrequencyPredicateAdjunct,
     MannerPredicateAdjunct,
     BareLocativeProform,
     Ability,
@@ -1606,6 +1607,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::FrequencyPredicateAdjunct => {
             NonterminalKind::FrequencyPredicateAdjunct
+        }
+        NonterminalCategory::QualifiedFrequencyPredicateAdjunct => {
+            NonterminalKind::QualifiedFrequencyPredicateAdjunct
         }
         NonterminalCategory::MannerPredicateAdjunct => NonterminalKind::MannerPredicateAdjunct,
         NonterminalCategory::BareLocativeProform => NonterminalKind::BareLocativeProform,

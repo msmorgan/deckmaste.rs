@@ -1100,6 +1100,7 @@ constructions! {
         Purpose: PurposePredicateAdjunct,
         Duration: DurationPredicateAdjunct,
         Frequency: FrequencyPredicateAdjunct,
+        QualifiedFrequency: QualifiedFrequencyPredicateAdjunct,
         Manner: MannerPredicateAdjunct,
         Focus: FocusedPredicateAdjunct,
     }
@@ -2091,6 +2092,15 @@ constructions! {
         }
         derive focus = Values::Unfocused;
         form frequency_predicate_adjunct = frequency;
+    }
+    construction qualified_frequency_predicate_adjunct: PredicateAdjunct {
+        element QualifiedFrequencyPredicateAdjunct {
+            adverb: lex FrequencyAdverb,
+            qualification: PredicateAdjunct,
+        }
+        require qualification.focus is Unfocused;
+        derive focus = Values::Unfocused;
+        form qualified_frequency_predicate_adjunct = lex(adverb) qualification;
     }
     construction manner_predicate_adjunct: PredicateAdjunct {
         element MannerPredicateAdjunct {

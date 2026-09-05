@@ -206,7 +206,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Activate.ron",
-            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",frame_set:Custom(frames:[[],[ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Untap.ron",
@@ -4448,6 +4448,38 @@ fn cost_frames_select_their_complete_typed_paths() {
         "Draw only a card.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
+    }
+}
+
+#[test]
+fn qualified_frequency_adjuncts_compose_with_temporal_and_focus_syntax() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Draw a card once each turn.",
+        "Draw a card twice each turn.",
+        "Draw a card once during each of your turns.",
+        "Activate only once each turn.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .unwrap_or_else(|| panic!("{text:?} must have a selection decision: {analysis:#?}"));
+        let selected = decision
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {decision:#?}"));
+        let path = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == selected)
+            .expect("the selected ordinal names a candidate")
+            .construction_path();
+        assert!(
+            path.iter()
+                .any(|item| item == "PredicateAdjunctQualifiedFrequencyPredicateAdjunct"),
+            "{text:?} must use the qualified frequency member: {path:#?}",
+        );
     }
 }
 

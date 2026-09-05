@@ -523,6 +523,7 @@ pub use crate::constructions::walk_purpose_predicate_adjunct;
 pub use crate::constructions::walk_put_on;
 pub use crate::constructions::walk_put_onto;
 pub use crate::constructions::walk_put_to;
+pub use crate::constructions::walk_qualified_frequency_predicate_adjunct;
 pub use crate::constructions::walk_qualified_keyword_line_item;
 pub use crate::constructions::walk_qualified_keyword_line_item_value;
 pub use crate::constructions::walk_qualified_noun_phrase;

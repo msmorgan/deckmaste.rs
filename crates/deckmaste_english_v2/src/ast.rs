@@ -548,6 +548,7 @@ pub use crate::constructions::PurposePredicateAdjunct;
 pub use crate::constructions::PutOn;
 pub use crate::constructions::PutOnto;
 pub use crate::constructions::PutTo;
+pub use crate::constructions::QualifiedFrequencyPredicateAdjunct;
 pub use crate::constructions::QualifiedKeywordLineItem;
 pub use crate::constructions::QualifiedKeywordLineItemValue;
 pub use crate::constructions::QualifiedNounPhrase;
