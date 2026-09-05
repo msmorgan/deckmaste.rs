@@ -107,8 +107,7 @@ def ptSlotOk (creature : Bool) (defined : Bool) (slot : Option Amount) : Bool :=
 power and toughness, a planeswalker loyalty (the back face of a transforming one may leave it
 absent), a battle defense; loyalty and defense belong only to those types. -/
 def boxSuitsTypes (side : FaceSide) (tys : List CardType) (c : Characteristics) : Bool :=
-  (c.power.isSome == c.toughness.isSome) &&
-    (!tys.elem .planeswalker || c.loyalty.isSome || side == .back) &&
+  (!tys.elem .planeswalker || c.loyalty.isSome || side == .back) &&
     (c.loyalty.isNone || tys.elem .planeswalker) &&
     (!tys.elem .battle || c.defense.isSome) && (c.defense.isNone || tys.elem .battle)
 

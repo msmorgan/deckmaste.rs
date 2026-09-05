@@ -258,9 +258,15 @@ mutual
     | .hasType t => some t
     | .hasSubtype s => s.type
     | .and ps => Predicate.seedTyAll ps
-    | .or ps => Predicate.seedTyJoin ps
+    | .or ps => if Predicate.joins ps then Predicate.seedTyJoined ps else Predicate.seedTyJoin ps
     | .compareOver dom _ _ _ => dom.seedTy
     | _ => none
+
+  /-- Idris `seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)`: across kinds, the typed
+  half seeds the join ("target player or planeswalker" reads as a planeswalker). -/
+  def Predicate.seedTyJoined : List Predicate → Option CardType
+    | [] => none
+    | p :: ps => Payload.joinSeed p.seedTy (Predicate.seedTyJoined ps)
 
   def Predicate.seedTyAll : List Predicate → Option CardType
     | [] => none
