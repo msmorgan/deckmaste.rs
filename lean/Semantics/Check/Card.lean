@@ -53,7 +53,7 @@ def classAbilityOk : CardClass → Ability → Bool
   | .permanentCard, _ => true
   | .spellCard, .keyword k _ _ => keywordCardOk .spellCard k
   | .spellCard, .activated c _ _ _ _ _ => c.offBattlefield
-  | .spellCard, .triggered _ _ _ _ _ _ _ _ _ => true
+  | .spellCard, .triggered _ _ _ _ _ _ _ _ => true
   | .spellCard, .static se => se.onSpellCardOk
   | .spellCard, .alsoForKeywords ab _ => classAbilityOk .spellCard ab
   | .spellCard, .spell _ _ => true
@@ -65,7 +65,7 @@ def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))
 
 def chapterLineOk (subs : List Subtype) : Ability → Bool
-  | .triggered _ (.chapterMark _) _ _ _ _ _ _ _ => subs.elem (.of .enchantment "Saga")
+  | .triggered (.chapterMark _) _ _ _ _ _ _ _ => subs.elem (.of .enchantment "Saga")
   | .italicHead _ ab => chapterLineOk subs ab
   | .alsoForKeywords ab _ => chapterLineOk subs ab
   | _ => true
@@ -138,7 +138,7 @@ def jointBindings : List QualitySort → Bindings → Bindings
 
 def Ability.choiceDelta (bs : Bindings) : Ability → List Binding
   | .activated _ instr _ _ _ _ => instr.choiceDelta
-  | .triggered _ _ _ _ _ _ _ _ instr => instr.choiceDelta
+  | .triggered _ _ _ _ _ _ _ instr => instr.choiceDelta
   | .static se => se.choiceDelta bs
   | .alsoForKeywords ab _ => Ability.choiceDelta bs ab
   | .italicHead _ ab => Ability.choiceDelta bs ab

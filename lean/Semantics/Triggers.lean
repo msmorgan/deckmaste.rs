@@ -122,7 +122,6 @@ inductive Concurrent where
 
 /-- A second trigger header joined to the first with "or". -/
 structure JoinedHeader where
-  word : TriggerWord
   event : GameEvent
   alternatives : List GameEvent
   while_ : Option Concurrent

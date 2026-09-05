@@ -205,7 +205,7 @@ theorem namedAdditionalPartAnchor :
 
 /-- "When you unlock this door, draw N cards." -/
 def unlockDraw (amount : Nat) : Ability :=
-  triggered .when (.unlocksDoor .you .thisDoor) (draw .you (.lit amount))
+  when (.unlocksDoor .you .thisDoor) (draw .you (.lit amount))
 
 /-- "When you unlock this door, draw a card.": a door header belongs to a Room's shared line. -/
 theorem okDoorHeaderOnSharedLine :

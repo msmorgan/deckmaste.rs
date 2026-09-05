@@ -544,20 +544,20 @@ theorem badScaleToArtifact :
 /-- "Whenever this creature is dealt damage, it deals that much damage to any target." -/
 theorem okThatMuchAfterDamageEvent :
     Ability.check []
-      (triggered .whenever (.isDealtDamage .any thisCreature)
+      (whenever (.isDealtDamage .any thisCreature)
         (.dealDamage thisCreature .thatMuch (target anyTarget))) = [] := by
   decide
 
 theorem badPreventedThisWayAfterDamageEvent :
     Ability.check []
-      (triggered .whenever (.isDealtDamage .any thisCreature)
+      (whenever (.isDealtDamage .any thisCreature)
         (.dealDamage it preventedThisWay (target anyTarget)))
       = [.outcomeInScope .damagePrevented 0] := by
   decide
 
 theorem badThatMuchAfterDeath :
     Ability.check []
-      (triggered .whenever (.dies (a creature))
+      (whenever (.dies (a creature))
         (.dealDamage thisCreature .thatMuch (target anyTarget))) = [.quantOutcomeInScope 0] := by
   decide
 
@@ -573,7 +573,7 @@ theorem okThatCreatureAfterDamage :
 loses 1 life." -/
 theorem okThatCreatureAfterTargetedDamage :
     Ability.check []
-      (triggered .when (.dies thisCreature)
+      (when (.dies thisCreature)
         (.sequentially
           [ .dealDamage thisCreature (.lit 1) (target creature),
             losesLife (controllerOf (that (.type .creature))) (.lit 1) ])) = [] := by
@@ -581,7 +581,7 @@ theorem okThatCreatureAfterTargetedDamage :
 
 theorem badThatCreatureIsDamagedSelf :
     Ability.check []
-      (triggered .whenever (.isDealtDamage .any thisCreature)
+      (whenever (.isDealtDamage .any thisCreature)
         (.dealDamage (that (.type .creature)) .thatMuch (target anyTarget)))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide

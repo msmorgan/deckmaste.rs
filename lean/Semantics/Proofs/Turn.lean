@@ -140,25 +140,25 @@ theorem badTapGraveyard :
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okTriggerAtYourUpkeep :
     Ability.check []
-      (triggered .at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw .you (.lit 1))) = [] := by
+      (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "At the beginning of your turn, draw a card." -/
 theorem badTriggerAtYourTurn :
     Ability.check []
-      (triggered .at_ (.beginningOf .the .turn (.byPlayer .you)) (draw .you (.lit 1)))
+      (at_ (.beginningOf .the .turn (.byPlayer .you)) (draw .you (.lit 1)))
       = [.windowOk] := by
   decide
 
 /-- "Whenever a creature dies, tap it." -/
 theorem badTriggerTapsDeadCreature :
-    Ability.check [] (triggered .whenever (.dies (a creature)) (.setStatus .tapped it))
+    Ability.check [] (whenever (.dies (a creature)) (.setStatus .tapped it))
       = [.zoneIs .battlefield] := by
   decide
 
 /-- "Whenever a creature leaves the battlefield, tap it." -/
 theorem badLeavesThenTap :
-    Ability.check [] (triggered .whenever (leavesBattlefield (a creature)) (.setStatus .tapped it))
+    Ability.check [] (whenever (leavesBattlefield (a creature)) (.setStatus .tapped it))
       = [.zoneIs .battlefield] := by
   decide
 
@@ -295,7 +295,7 @@ theorem badDurationEndAnOpponent :
 theorem okTriggeredEmblem :
     Instruction.check []
       (.getsEmblem .you
-        [triggered .at_ (.beginningOf .the .endStep (.byPlayer .you)) (draw .you (.lit 1))])
+        [at_ (.beginningOf .the .endStep (.byPlayer .you)) (draw .you (.lit 1))])
       = [] := by
   decide
 
@@ -373,13 +373,13 @@ theorem badMixedDisjunctionActivated :
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okSingularPartPossessor :
     Ability.check []
-      (triggered .at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw .you (.lit 1))) = [] := by
+      (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "At the beginning of all players' upkeep, draw a card." [CR#102.1] -/
 theorem badPluralPartPossessor :
     Ability.check []
-      (triggered .at_ (.beginningOf .the .upkeep (.byPlayer (allOf .anyPlayer)))
+      (at_ (.beginningOf .the .upkeep (.byPlayer (allOf .anyPlayer)))
         (draw .you (.lit 1))) = [.windowOk] := by
   decide
 

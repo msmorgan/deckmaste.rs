@@ -67,7 +67,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
     types := [.creature], subtypes := [creatureType "Angel"],
     text :=
       [ keyword "Flying",
-        triggered .whenever
+        whenever
           (dealsCombatDamage thisCreature (a .anyPlayer))
           (.skipsNext (that .player) .combat (.lit 1)) ],
     power := stat 2, toughness := stat 4 }
@@ -81,8 +81,8 @@ def wormfangManta : Spelled := spelled <| .singleFaced
     subtypes := [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"],
     text :=
       [ keyword "Flying",
-        triggered .when (.enters thisCreature none) (.skipsNext .you .turn (.lit 1)),
-        triggered .when (leavesBattlefield thisCreature) (.extraTurn .you (.lit 1)) ],
+        when (.enters thisCreature none) (.skipsNext .you .turn (.lit 1)),
+        when (leavesBattlefield thisCreature) (.extraTurn .you (.lit 1)) ],
     power := stat 6, toughness := stat 1 }
 
 end Semantics.Cards

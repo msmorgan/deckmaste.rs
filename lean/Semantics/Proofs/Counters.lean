@@ -66,7 +66,7 @@ theorem badAttackingNoncreature :
 gets −1/−1 until end of turn." -/
 theorem okAltHeaderAgreeingReadback :
     Ability.check []
-      (.triggered .whenever (blocks thisCreature (some (a creature)))
+      (.triggered (blocks thisCreature (some (a creature)))
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
         (gets (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] := by
@@ -76,7 +76,7 @@ theorem okAltHeaderAgreeingReadback :
 toughness half's `it` reads back the same missing antecedent. -/
 theorem badAltHeaderMixedReadback :
     Ability.check []
-      (.triggered .whenever (blocks thisCreature none)
+      (.triggered (blocks thisCreature none)
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
         (gets (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
@@ -85,7 +85,7 @@ theorem badAltHeaderMixedReadback :
 
 theorem badThreeArmHeaderReadback :
     Ability.check []
-      (.triggered .whenever (attacks thisCreature)
+      (.triggered (attacks thisCreature)
         [blocks thisCreature none, .becomesTarget thisCreature (a spell)] none [] none none none
         (.dealDamage thisCreature (powerOf (that (.type .creature))) (each .opponent)))
       = [.anaphor (.word (.type .creature)) .one 0] := by
@@ -93,8 +93,8 @@ theorem badThreeArmHeaderReadback :
 
 theorem badJoinedHeaderReadback :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none
-        [⟨.whenever, .dies (a creatureYouControl), [], none, none⟩] none none none
+      (.triggered (.enters thisCreature none) [] none
+        [⟨.dies (a creatureYouControl), [], none, none⟩] none none none
         (.putCounters (.lit 1) p11 it)) = [.anaphor .bare .one 0] := by
   decide
 
@@ -293,14 +293,14 @@ theorem badCountersHeldByPlayer :
 /-- "When the last +1/+1 counter is removed from this creature, draw a card." -/
 theorem okLastBoostCounterRemoved :
     Ability.check []
-      (triggered .when (lastCounterRemoved plusOnePlusOne thisCreature) (draw .you (.lit 1)))
+      (when (lastCounterRemoved plusOnePlusOne thisCreature) (draw .you (.lit 1)))
       = [] := by
   decide
 
 /-- "When the last poison counter is removed from this creature, draw a card." -/
 theorem badLastPoisonCounterRemoved :
     Ability.check []
-      (triggered .when (lastCounterRemoved (.named "Poison") thisCreature) (draw .you (.lit 1)))
+      (when (lastCounterRemoved (.named "Poison") thisCreature) (draw .you (.lit 1)))
       = [.counterKindNamed .object] := by
   decide
 

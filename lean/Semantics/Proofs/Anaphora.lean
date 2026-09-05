@@ -81,21 +81,21 @@ theorem badMoveToStack :
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none [] none none
+      (.triggered (.enters thisCreature none) [] none [] none none
         (some (.happened (a creature) (.mk .death .thisTurn none))) (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "When this creature enters, if you died this turn, draw a card." -/
 theorem badLookbackPlayerDied :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none [] none none
+      (.triggered (.enters thisCreature none) [] none [] none none
         (some (.happened .you (.mk .death .thisTurn none))) (draw .you (.lit 1)))
       = [.lookbackSubject] := by
   decide
 
 theorem badLookbackObjectCast :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none [] none none
+      (.triggered (.enters thisCreature none) [] none [] none none
         (some (.happened (a creature) (.mk .spellCast .thisTurn none))) (draw .you (.lit 1)))
       = [.lookbackSubject] := by
   decide

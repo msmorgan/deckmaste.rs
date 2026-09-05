@@ -391,7 +391,7 @@ def artifactWith (text : List Ability) : Card :=
 
 /-- "Whenever a basic land is tapped for mana of the chosen color, draw a card." -/
 def drawOnTapForChosenColor : Ability :=
-  triggered .whenever
+  whenever
     (.tappedForMana none (a (.and [land, .hasSupertype .basic])) (some (.ofColor thatColor)))
     (draw .you (.lit 1))
 

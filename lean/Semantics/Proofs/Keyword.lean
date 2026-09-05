@@ -86,7 +86,7 @@ theorem badNestedCoordination :
 /-- "Whenever a creature enters, destroy that creature." -/
 theorem okThatCreatureAfterAntecedent :
     Ability.check []
-      (triggered .whenever (.enters (a creature) none) (destroy (that (.type .creature))))
+      (whenever (.enters (a creature) none) (destroy (that (.type .creature))))
       = [] := by
   decide
 
@@ -234,7 +234,7 @@ theorem badActionLimitOnActivated :
 /-- "I — while you control a creature, draw a card." -/
 theorem badChapterWhile :
     Ability.check []
-      (.triggered .when (.chapterMark [1]) []
+      (.triggered (.chapterMark [1]) []
         (some (.whileTrue (exists_ (.and [creature, .hasPossessor .controller .you])))) [] none
         none none (draw .you (.lit 1))) = [.chapterDefaults] := by
   decide
@@ -242,7 +242,7 @@ theorem badChapterWhile :
 /-- "I — and whenever you draw a card, draw a card." -/
 theorem badChapterJoin :
     Ability.check []
-      (.triggered .when (.chapterMark [1]) [] none [⟨.whenever, .draws .you, [], none, none⟩]
+      (.triggered (.chapterMark [1]) [] none [⟨.draws .you, [], none, none⟩]
         none none none (draw .you (.lit 1))) = [.chapterDefaults] := by
   decide
 

@@ -532,20 +532,29 @@ def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
 def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
   .keyword label (some (.quality quality)) none
 /-- "When <event>, if <condition>, <instruction>" -/
-def triggeredIf (word : TriggerWord) (event : GameEvent) (condition : Condition)
+def triggeredIf (event : GameEvent) (condition : Condition)
     (instruction : Instruction) : Ability :=
-  .triggered word event [] none [] none none (some condition) instruction
+  .triggered event [] none [] none none (some condition) instruction
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   .entersChoice subject (.quality sort) none .openly
 
-def triggered (word : TriggerWord) (event : GameEvent) (instruction : Instruction) : Ability :=
-  .triggered word event [] none [] none none none instruction
+def triggered (event : GameEvent) (instruction : Instruction) : Ability :=
+  .triggered event [] none [] none none none instruction
+/-- "When <event>, <instruction>" -/
+def when (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
+/-- "Whenever <event>, <instruction>" -/
+def whenever (event : GameEvent) (instruction : Instruction) : Ability :=
+  triggered event instruction
+/-- "At <event>, <instruction>" (`at` is a Lean keyword). -/
+def at_ (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
+/-- "After <event>, <instruction>": the dice template's word. -/
+def after (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
 
 /-- Renown N's reminder text: "When this creature deals combat damage to a player, if it isn't
 renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 def renownExpansion (count : Nat) : Ability :=
-  triggeredIf .when (dealsCombatDamage thisCreature (a .anyPlayer))
+  triggeredIf (dealsCombatDamage thisCreature (a .anyPlayer))
     (.not (.matches thisCreature (.hasDesignation "renowned" none)))
     (.sequentially
       [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
@@ -553,7 +562,7 @@ def renownExpansion (count : Nat) : Ability :=
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 def stormExpansion : Ability :=
-  triggered .when (.casts .you thisSpell none)
+  when (.casts .you thisSpell none)
     (.sequentially
       [ .copy .fromStack .you thisSpell
           (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn

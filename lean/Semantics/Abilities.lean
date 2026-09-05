@@ -427,7 +427,7 @@ mutual
     | keyword (keyword : KeywordLabel) (param : Option KeywordParam) (body : Option Ability)
     | activated (cost : Cost) (instruction : Instruction) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
-    | triggered (word : TriggerWord) (event : GameEvent) (alternatives : List GameEvent)
+    | triggered (event : GameEvent) (alternatives : List GameEvent)
         (while_ : Option Concurrent) (joins : List JoinedHeader) (timing : Option Timing)
         (limit : Option UsageLimit) (intervening : Option Condition) (instruction : Instruction)
     | static (spec : StaticSpec)

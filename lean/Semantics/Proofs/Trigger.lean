@@ -14,20 +14,20 @@ namespace Semantics.Proofs.Trigger
 
 /-- "Whenever you cast a spell, draw a card." -/
 theorem okCastsSingularComplement :
-    Ability.check [] (triggered .whenever (.casts .you (a spell) none) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.casts .you (a spell) none) (draw .you (.lit 1)))
       = [] := by
   decide
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check [] (triggered .whenever (.casts .you (allOf spell) none) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.casts .you (allOf spell) none) (draw .you (.lit 1)))
       = [.singular] := by
   decide
 
 /-- "Whenever this creature attacks while you're casting a spell, draw a card." -/
 theorem okWhileDoingCast :
     Ability.check []
-      (.triggered .whenever (attacks thisCreature) []
+      (.triggered (attacks thisCreature) []
         (some (.whileDoing (.casts .you (a spell) none))) [] none none none
         (draw .you (.lit 1))) = [] := by
   decide
@@ -35,25 +35,25 @@ theorem okWhileDoingCast :
 /-- "Whenever this creature attacks while a creature is dying, draw a card." -/
 theorem badWhileDoingMoment :
     Ability.check []
-      (.triggered .whenever (attacks thisCreature) [] (some (.whileDoing (.dies (a creature))))
+      (.triggered (attacks thisCreature) [] (some (.whileDoing (.dies (a creature))))
         [] none none none (draw .you (.lit 1))) = [.eventUnderway] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check [] (triggered .whenever (.dies (a creature)) (draw .you (.lit 1))) = [] := by
+    Ability.check [] (whenever (.dies (a creature)) (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "Whenever target creature dies, draw a card." -/
 theorem badTargetedDeathHeader :
-    Ability.check [] (triggered .whenever (.dies (target creature)) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.dies (target creature)) (draw .you (.lit 1)))
       = [.headerNontarget] := by
   decide
 
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
 theorem okThatCreatureAfterAttack :
     Ability.check []
-      (triggered .whenever (attacks (a creature))
+      (whenever (attacks (a creature))
         (gets (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [] := by
   decide
@@ -61,7 +61,7 @@ theorem okThatCreatureAfterAttack :
 /-- The Idris pin refutes the anaphor; the unresolved "that creature" has no zone either. -/
 theorem badThatCreatureIsSelf :
     Ability.check []
-      (triggered .whenever (attacks thisCreature)
+      (whenever (attacks thisCreature)
         (gets (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
   decide
@@ -102,14 +102,14 @@ theorem badGraveyardAttacker :
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check []
-      (.triggered .whenever (.enters (a creature) none) [] none []
+      (.triggered (.enters (a creature) none) [] none []
         (some (.duringPart .turn (some .you))) none none (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature enters during the turn, draw a card." -/
 theorem badHeaderBareTurnWindow :
     Ability.check []
-      (.triggered .whenever (.enters (a creature) none) [] none []
+      (.triggered (.enters (a creature) none) [] none []
         (some (.duringPart .turn none)) none none (draw .you (.lit 1))) = [.windowOk] := by
   decide
 
@@ -128,21 +128,21 @@ theorem badNonTokenCreationSubject :
 /-- "Whenever you draw a card, draw a card. This triggers only once each turn." -/
 theorem okTriggerLimitOffChapter :
     Ability.check []
-      (.triggered .whenever (.draws .you) [] none [] none (some .oncePerTurn) none
+      (.triggered (.draws .you) [] none [] none (some .oncePerTurn) none
         (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "I — Draw a card. This ability triggers only once each turn." -/
 theorem badChapterLimit :
     Ability.check []
-      (.triggered .when (.chapterMark [1]) [] none [] none (some .oncePerTurn) none
+      (.triggered (.chapterMark [1]) [] none [] none (some .oncePerTurn) none
         (draw .you (.lit 1))) = [.chapterDefaults] := by
   decide
 
 /-- "I — , if you control a creature, draw a card." -/
 theorem badChapterIntervening :
     Ability.check []
-      (.triggered .when (.chapterMark [1]) [] none [] none none
+      (.triggered (.chapterMark [1]) [] none [] none none
         (some (exists_ (.and [creature, .hasPossessor .controller .you]))) (draw .you (.lit 1)))
       = [.chapterDefaults] := by
   decide
@@ -260,7 +260,7 @@ theorem badExchangePluralParty :
 
 /-- "Whenever an opponent commits a crime, draw a card." -/
 theorem okCrimeBySinglePlayer :
-    Ability.check [] (triggered .whenever (.commitsCrime anOpponent) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.commitsCrime anOpponent) (draw .you (.lit 1)))
       = [] := by
   decide
 
@@ -269,7 +269,7 @@ an opponent controls, or a card in an opponent's graveyard [CR#700.13]; the whol
 no opponent, so such a crime has no opponent-owned object. One player at a time commits one
 (`okCrimeBySinglePlayer`). -/
 theorem badCrimeByAllPlayers :
-    Ability.check [] (triggered .whenever (.commitsCrime (allOf .anyPlayer)) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.commitsCrime (allOf .anyPlayer)) (draw .you (.lit 1)))
       = [.singular] := by
   decide
 
@@ -282,20 +282,20 @@ def rollShiftBody : Instruction :=
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
 increase or decrease the result by 1." (Xenosquirrels) -/
 theorem okAfterRollShift :
-    Ability.check [] (triggered .after (.rollsDice .you .one none .anyResult) rollShiftBody)
+    Ability.check [] (after (.rollsDice .you .one none .anyResult) rollShiftBody)
       = [] := by
   decide
 
 /-- The same body after a header that rolls no die: with no result announced there is nothing
 to increase or decrease. -/
 theorem badShiftWithoutRoll :
-    Ability.check [] (triggered .after (attacks thisCreature) rollShiftBody)
+    Ability.check [] (after (attacks thisCreature) rollShiftBody)
       = [.outcomeInScope .rollResult 0] := by
   decide
 
 /-- "0 — Draw a card.": chapter symbols start at I, which represents 1 [CR#714.2a]. -/
 theorem badChapterZero :
-    Ability.check [] (triggered .when (.chapterMark [0]) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark [0]) (draw .you (.lit 1)))
       = [.chapterMarks] := by
   decide
 

@@ -54,14 +54,6 @@ inductive ReplUse where
   | repeatedly | nextTimeOnly
   deriving DecidableEq, Repr
 
-/-- The word a triggered ability opens with. -/
-inductive TriggerWord where
-  | when | whenever | at_
-  /-- The dice template's word ("After you roll a die, …"); the body reads the event's outcome,
-  which the header context already carries. -/
-  | after
-  deriving DecidableEq, Repr
-
 inductive DamageKind where
   | any | combatOnly | noncombatOnly
   deriving DecidableEq, Repr

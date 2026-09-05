@@ -634,13 +634,13 @@ theorem badUntapCapGraveyardSet :
 /-- "if this creature is attacking" -/
 theorem okMatchesBattlefieldZone :
     Ability.check []
-      (.triggered .when (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
+      (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
         (some (.matches thisCreature attacking)) (draw .you (.lit 1))) = [] := by
   decide
 
 theorem badExileCheckOnSortedSelf :
     Ability.check []
-      (.triggered .when (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
+      (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
         (some (.matches thisCreature (.inZone exileZone))) (draw .you (.lit 1))) = [.zoneFits] := by
   decide
 
@@ -659,14 +659,14 @@ theorem badUnlicensedDifference :
 to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none [] none none
+      (.triggered (.enters thisCreature none) [] none [] none none
         (some (.compareAmt (countOf creatureYouControl) .less (.lit 7)))
         (draw .you .theDifference)) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check []
-      (.triggered .when (.enters thisCreature none) [] none [] none none
+      (.triggered (.enters thisCreature none) [] none [] none none
         (some (exists_ creatureYouControl)) (draw .you .theDifference)) = [.gapInScope 0] := by
   decide
 

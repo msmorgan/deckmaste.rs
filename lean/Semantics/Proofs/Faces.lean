@@ -146,7 +146,7 @@ theorem badCardDuplicateType :
 
 theorem turnedFaceDownHeader :
     Ability.check []
-      (triggered .whenever (.statusEvent (a permanent) .faceDown) (draw .you (.lit 1))) = [] := by
+      (whenever (.statusEvent (a permanent) .faceDown) (draw .you (.lit 1))) = [] := by
   decide
 
 /-- "Target creature doesn't untap during its controller's next untap step." -/
@@ -413,16 +413,16 @@ theorem okChapterOnSaga :
         { name := some "", cost := some [pip .white], types := [.enchantment],
           subtypes := [enchantmentType "Saga"],
           text :=
-            [ triggered .when (.chapterMark [1]) (draw .you (.lit 1)),
-              triggered .when (.chapterMark [2]) (draw .you (.lit 1)),
-              triggered .when (.chapterMark [3]) (draw .you (.lit 1)) ] }) = [] := by
+            [ when (.chapterMark [1]) (draw .you (.lit 1)),
+              when (.chapterMark [2]) (draw .you (.lit 1)),
+              when (.chapterMark [3]) (draw .you (.lit 1)) ] }) = [] := by
   decide
 
 theorem badChapterOnNonSaga :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.enchantment],
-          text := [triggered .when (.chapterMark [1]) (draw .you (.lit 1))] })
+          text := [when (.chapterMark [1]) (draw .you (.lit 1))] })
       = [.chapterFrame] := by
   decide
 
@@ -732,7 +732,7 @@ theorem badDoorOfBareThis :
 
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/
 def doorDamage (amount : Nat) : Ability :=
-  triggered .when (.unlocksDoor .you .thisDoor)
+  when (.unlocksDoor .you .thisDoor)
     (.dealDamage thisRoom (.lit amount) (each .opponent))
 
 /-- "When you unlock this door, this Room deals 1 damage to each opponent.": a door header
@@ -811,17 +811,17 @@ theorem badUntapNextAmbiguousIt :
 
 /-- "I — Draw a card." -/
 theorem okChapterMark :
-    Ability.check [] (triggered .when (.chapterMark [1]) (draw .you (.lit 1))) = [] := by decide
+    Ability.check [] (when (.chapterMark [1]) (draw .you (.lit 1))) = [] := by decide
 
 /-- "— Draw a card." -/
 theorem badEmptyChapterMark :
-    Ability.check [] (triggered .when (.chapterMark []) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark []) (draw .you (.lit 1)))
       = [.chapterMarks] := by
   decide
 
 /-- "II, II — Draw a card." -/
 theorem badRepeatedChapterMark :
-    Ability.check [] (triggered .when (.chapterMark [2, 2]) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark [2, 2]) (draw .you (.lit 1)))
       = [.chapterMarks] := by
   decide
 
@@ -912,7 +912,7 @@ Storm counts the spells cast earlier in the turn [CR#702.40a], not every spell c
 it. -/
 theorem stormCountsEarlierThisTurn :
     stormExpansion =
-      triggered .when (.casts .you thisSpell none)
+      when (.casts .you thisSpell none)
         (.sequentially
           [ .copy .fromStack .you thisSpell
               (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn

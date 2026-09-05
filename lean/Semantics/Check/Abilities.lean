@@ -418,7 +418,7 @@ def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
   said ≥ 2
 
 def Ability.grantable : Ability → Bool
-  | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ _ | .static _ => true
+  | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ | .static _ => true
   | .italicHead _ ab => ab.grantable
   | .thatAbility _ => true
   | _ => false
@@ -543,7 +543,7 @@ def Ability.notWordHeaded : Ability → Bool
 
 def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
   | none => true
-  | some (.triggered _ ev _ _ _ _ _ _ _) => keywordBodied k && keywordStackRegime k == bodyEventRegime ev
+  | some (.triggered ev _ _ _ _ _ _ _) => keywordBodied k && keywordStackRegime k == bodyEventRegime ev
   | some _ => false
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
@@ -562,7 +562,7 @@ def Instruction.keyword : Instruction → Option KeywordLabel
 
 def Ability.lineKeyword : Ability → Option KeywordLabel
   | .static se => se.keyword
-  | .triggered _ _ _ _ _ _ _ _ instr => instr.keyword
+  | .triggered _ _ _ _ _ _ _ instr => instr.keyword
   | _ => none
 
 def Ability.keywordExtendable (ab : Ability) : Bool := ab.lineKeyword.isSome
@@ -573,7 +573,7 @@ def keywordListOk (ab : Ability) (ks : List KeywordTerm) : Bool :=
   | some base => !ks.isEmpty && allTermsBare ks && distinctTerms ks && !ks.elem (.the base)
 
 def Ability.emblemOk : Ability → Bool
-  | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ _ | .static _ => true
+  | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ | .static _ => true
   | .italicHead _ ab => ab.emblemOk
   | _ => false
 
@@ -1111,7 +1111,7 @@ def Instruction.namesThisDoor : Instruction → Bool
 
 def Ability.namesThisDoor : Ability → Bool
   | .activated _ instr _ _ _ _ => instr.namesThisDoor
-  | .triggered _ ev alts while_ joins _ _ _ instr =>
+  | .triggered ev alts while_ joins _ _ _ instr =>
     ev.namesThisDoor || alts.any GameEvent.namesThisDoor || Concurrent.namesThisDoor while_ ||
       joins.any JoinedHeader.namesThisDoor || instr.namesThisDoor
   | .spell _ instr => instr.namesThisDoor
@@ -1158,7 +1158,7 @@ end
 def Ability.intro (bs : Bindings) : Ability → Bindings
   | .keyword _ _ _ => bs
   | .activated _ instr _ _ _ _ => instr.choiceDelta ++ bs
-  | .triggered _ _ _ _ _ _ _ _ instr => instr.choiceDelta ++ bs
+  | .triggered _ _ _ _ _ _ _ instr => instr.choiceDelta ++ bs
   | .static se => se.choiceDelta bs ++ bs
   | .alsoForKeywords ab _ => Ability.intro bs ab
   | .italicHead _ ab => Ability.intro bs ab

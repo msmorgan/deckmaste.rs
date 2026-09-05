@@ -723,7 +723,7 @@ mutual
         refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
         OptTiming.check bs window ++ refuse (untriggeredLimitOk limit) .untriggeredLimit ++
         OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
-    | .triggered _word ev alts while_ joins window limit intervening instr =>
+    | .triggered ev alts while_ joins window limit intervening instr =>
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
       headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++

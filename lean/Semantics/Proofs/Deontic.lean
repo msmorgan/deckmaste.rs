@@ -265,7 +265,7 @@ theorem badUnlessOnPositive :
 and again for the event it is read as. -/
 theorem badUnflipEvent :
     Ability.check []
-      (triggered .whenever (.statusEvent (a permanent) .unflipped) (draw .you (.lit 1)))
+      (whenever (.statusEvent (a permanent) .unflipped) (draw .you (.lit 1)))
       = [.statusMarkable, .statusMarkable] := by
   decide
 
@@ -451,7 +451,7 @@ theorem distributedDeedRiderReadsBackPlural :
 /-- "... dealt damage, they lose half their life, rounded up." -/
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check []
-      (triggered .whenever (.isDealtDamage .any (.attachHost .enchanted .player))
+      (whenever (.isDealtDamage .any (.attachHost .enchanted .player))
         (losesLife they (.half .up (lifeTotalOf they)))) = [] := by
   decide
 
