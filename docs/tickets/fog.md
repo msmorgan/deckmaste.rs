@@ -17,10 +17,11 @@ sharpen it.
 
 ## english-v2
 
-Seven entries below. Six are families demoted from `planned/` on 2026-09-03:
+Eight entries below. Six are families demoted from `planned/` on 2026-09-03:
 they were pinned as a nine-deep serial chain of near-identical tickets whose
 bodies all deferred their design to the same audit, which is not a pinned shape.
-The seventh records gaps neither grammar ever had.
+The seventh records gaps neither grammar ever had; the eighth is residue routed
+from a landing.
 
 The design source for the six is the Plan 09 v1/v2 taxonomy audit (its "v1
 taxonomy decisions v2 should ADOPT" table, rows A6–A11). Each entry restates
@@ -227,6 +228,47 @@ Coordination families generally: v1's coordination modules are a phenomenon
 checklist, never code or vocabulary to import.
 
 Hangs on: nothing; this is the live frontier.
+
+### Bare temporal adjunct inside a passive predicate
+
+Routed here from `english-v2-bare-duration-adjunct-licence` (2026-09-05). That
+landing made a marker-less Duration Phrase read the determinative's declared
+`bare_duration_license`, which correctly retired the zero-determined `step`
+reading of `if you've been attacked this step`. The surviving selected reading
+is still wrong: `this step` is analysed as the passive predicate's object
+(`ObjectObjectNominal -> NounPhraseQualifiedNounPhrase ->
+UnqualifiedReferenceDeterminedNominal`) rather than as a temporal adjunct of the
+passive. Eleven identities select it, all with the same clause, all still
+covered:
+
+- `a52b2536e676ecd15985cf16dee330001ed00c2a8c30a6451582e310cc41912a` — Assassin's Blade
+- `92be245709b1c7dd6d33fc2b3e4bd385d9120613e84a8339879ebb78d6d933af` — Champion's Victory
+- `9c974195f93b89e654ea0152acaabd1c5df3e42e8a87b8f835090b064a24c409` — Defiant Stand
+- `cd8a16b89dd6347cc571f3413c667fe443f44f07d62f5509437a52257df47485` — Eightfold Maze
+- `7481f5103edbf11abf8bd08ea38ccfc8930d9ca8d27ada55eda758525afc4487` — Just Fate
+- `43f14e90b11f20a925d3d3f6cf43167d284bbb0d58e9c58abebe239c6a785680` — Kongming's Contraptions
+- `a884c45e1a179a5399b24a3b80eea671122c261def8e0604016a40255a764f1b` — Rally the Troops
+- `eedeb6537edb2f7be63bd5a941564e72c587fccc23a27ed75f19b6793f6cbda2` — Remove
+- `e310d19a800a04135b8ebd394e11b323d52f39f854e90b12e358ec818d6dd8b7` — Scorching Winds
+- `16537b37e03639380fe8b773503a0076ff4ef349be46d69b24c4be0d695b5f3e` — Treetop Defense
+- `3f0d55ab5f9a6fc1be0ebeb6b647f38635e324b4a80bc9ee30bf927e45622d32` — Warrior's Stand
+
+The same landing's synthetic probe `Cast this spell next turn.` shows the
+general shape: a nominal-object candidate outranks the adjunct candidate on
+specificity, so a temporal phrase after a predicate is preferentially swallowed
+as an object. No corpus identity turns on the `next` case — every corpus
+occurrence of `next` is preceded by a determiner or possessive — so the
+prospective-deictic determinative the landing had added was removed at review as
+unreachable vocabulary; whether `next` should be a Determinative at all belongs
+to the lexical-inventory family, not here.
+
+Two decisions it waits on: whether the passive predicate declares an adjunct
+position of its own, and how the object/adjunct preference is expressed once it
+does.
+
+Hangs on: `english-v2-grammatical-relations` (the object/adjunct distinction it
+needs) and the attachment device parked under
+`english-v2-attachment-class-declared`.
 
 ### Shared gaps (neither v1 nor v2 covers)
 

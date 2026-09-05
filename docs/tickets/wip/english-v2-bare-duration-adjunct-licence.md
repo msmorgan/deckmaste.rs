@@ -33,9 +33,9 @@ PROVE. `BareDurationLicense = {BareDurationLicensed, MarkerRequired}` is now a
 declared Determinative feature carried through the generated parser, AST,
 renderer, scanner, and feature-projection machinery. Every closed
 `DeterminativeHead` row declares it exactly once and gives its linguistic
-reason: the proximal and distal demonstratives, prospective-deictic `Next`,
-and distributive `Each` are licensed; the article, quantifying, negative, and
-partitive rows require a marker. `PossessiveDeterminerPronoun` declares
+reason: the proximal and distal demonstratives and the distributive row are
+licensed; the article, quantifying, negative, and partitive rows require a
+marker. `PossessiveDeterminerPronoun` declares
 `MarkerRequired`. The generic zero-determiner projection also yields
 `MarkerRequired`, so a bare noun cannot acquire the licence by omission.
 `determined_nominal` reads the headed determinative's value, and the existing
@@ -109,19 +109,19 @@ pre-existing gap in the passive predicate's object/adjunct analysis, not a new
 coverage gain, and this landing does not conceal it as a correctness gain.
 
 One further synthetic probe is important to the coordinator pin: `Cast this
-spell next turn.` contains the newly licensed
-`DurationPredicateAdjunct -> FixedDurationPhrase -> DeterminedNominal(Next,
-turn)` candidate, but the unchanged malformed nominal-object candidate remains
-more specific and is selected. Removing the pre-existing attributive `Next`
-would retire 28 covered `the next ...` analyses, so this landing retains it
-with an explicit homograph licence. This is not a tie, no corpus identity
-changes because of it, and the declared Determinative feature reaches the
-duration host as required; repairing the independent nominal attachment and
-specificity problem is outside this ticket.
+spell next turn.` is preferentially analysed by an unchanged malformed
+nominal-object candidate rather than as a duration adjunct. That preference is
+pre-existing, it is not a tie, and no corpus identity turns on it; repairing the
+nominal attachment and specificity problem is outside this ticket and is routed
+to `docs/tickets/fog.md`.
 
-No construction was added or deleted. Deviations and additions: none beyond
-the ticket's letter; the generated-core feature support and its validation
-test are required to make the pinned property declared and load-bearing.
+No construction was added or deleted. Deviations and additions: as landed,
+one addition beyond the ticket's letter — a `Next` closed `DeterminativeHead`
+row with a `HomographLicense` override on the attributive `next` — which the
+review removed (see the review corrections below); after that removal there is
+nothing beyond the ticket's letter. The generated-core feature support and its
+validation test are required to make the pinned property declared and
+load-bearing.
 Assurance counts: restored 0; re-spelled 9 (the two prior duration-host
 assertions and seven generated-inventory expectations); ignored with blockers
 0; added 5 (four additional focused/unfocused sentence witnesses and one
@@ -169,3 +169,117 @@ Ambiguity `--require-resolved` reports 19,469 selected, 15,428 unique, 4,041
 specificity-resolved, 0 unresolved ties, and 0 internal failures. Roundtrip
 `--require-clean` reports 19,469 accepted / 19,469 clean / 0 mismatched. No
 citation changed, so the citation gates were not in scope.
+
+### Review corrections
+
+Re-measured by the landing reviewer. The removal in finding 1 was verified on
+the first refreshed tree, lock covered 19,469, where it is byte-neutral; the
+gate figures at the end of this section are stamped on the integrated tree
+after a second `kata refresh` took in `english-v2-frequency-adverbial-family`,
+lock covered 19,564.
+
+1. MEDIUM — addition beyond the ticket's letter, recorded as "none". The
+   landing added a `Next` closed `DeterminativeHead` row (surface `next`,
+   `bare_duration_license = BareDurationLicensed`) and a
+   `HomographLicense = Licensed` override on `AttributiveAdjective::Next`.
+   The ticket asks only that the licence be declared on the Determinative
+   vocabulary; a new determinative lemma is lexical-inventory work. Two facts
+   settle it: the environment reports two licensed vocab/lexicon homographs
+   (`Untap`, `Target`) both before and after, so the override governed nothing
+   — determinative surfaces never enter `LEXICON_SURFACES`, which carries noun
+   and verb lexemes only; and every corpus occurrence of `next` is preceded by
+   a determiner or possessive, so the row was unreachable. Its one measurable
+   corpus effect was to change Decorated Griffin's parse-failure diagnostic
+   from `parse failed at bytes 84..85` to a `fused_determinative_reference`
+   invariant rejection — a worse diagnostic on a unit that fails either way.
+   Fix: both removed. Coverage, census, roundtrip, and the homograph and
+   overlap inventories are byte-identical across the removal.
+
+2. MEDIUM — ledger residue not routed. The surviving `this step` reading and
+   the `next turn` attachment preference were disclosed but owned by nobody.
+   Fix: `docs/tickets/fog.md` gains "Bare temporal adjunct inside a passive
+   predicate", carrying the eleven identities and hanging on
+   `english-v2-grammatical-relations` and the attachment device parked under
+   `english-v2-attachment-class-declared`.
+
+3. Not a finding, checked and retracted — gate scope. The landing's closure
+   gate `cargo test -p deckmaste_construction_core -p deckmaste_construction
+   -p deckmaste_english_v2 -p xtask` is exactly what `cargo xtask gate
+   --changed` prints for this diff and is what the current CLAUDE.md requires
+   for an `emit/` diff; the older "any `emit/` diff gates on `cargo test
+   --workspace`" wording has been replaced by the reverse-dependency closure,
+   which explicitly excludes the whole workspace. The reviewer ran the
+   workspace suite anyway, before and after the review edits, and it is green
+   either way; the closure line is the gate of record.
+
+4. LOW, not fixed — the zero-determiner projection `Zero => MarkerRequired`
+   is hard-coded per feature in two emitters (`emit/ast.rs`, `emit/render.rs`)
+   rather than declared, so the one value that drives this landing's only
+   corpus effect lives in the generic compiler. It follows the existing
+   per-feature branches there (`Feature::PossessiveEnding`, `Feature::Onset`),
+   so it is idiomatic rather than a parallel mechanism, and moving it into the
+   declaration language is a DSL change this ticket does not pin.
+
+Not findings, checked: `BareDurationLicense` is one more axis on the existing
+declared-feature seam, declared beside `BareLocativeLicense` in
+`feature_inventory!` and emitted through the same
+`emit_vocab_*_license_helper` and `declaration_determinative` member-slot
+machinery as `NominalLicense`, `FusedHeadLicense`, and `DeterminerNumber`; it
+could not have been a value on `NominalLicense`, whose domain
+(`AnyNominal`/`CountNominal`/`LicensedBareSingularNoun`/
+`LicensedMassOrPluralCount`) is orthogonal — a determinative carries both
+values at once, so folding them would need their cross product. The eleven
+path changes are not correct-to-wrong: the new requirement can only remove
+candidates, and the candidate it removed was the zero-determined
+`FixedDurationPhrase(step)` the ticket names as the defect. Coverage's lock in
+report mode printed no newly covered and no no-longer-covered identity, so no
+identity was lost. Focus transparency is asserted in both directions by the
+witnesses.
+
+Gates on the final tree, foreground, `--workers 8`,
+`DECKMASTE_COVERAGE_LOCK=report`. All figures below are stamped on change
+`ropxyotm` as integrated, lock covered 19,564 — the second refresh took in
+`english-v2-frequency-adverbial-family`, which raised coverage by 95 and moved
+every corpus figure above.
+
+`cargo fmt --all` clean. Strict all-target Clippy for
+`deckmaste_construction_core` and `deckmaste_english_v2` without warnings. The
+closure gate `cargo xtask gate --changed --run` printed and ran `cargo test -p
+deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2
+-p xtask`; re-run with `--no-fail-fast`, 38 suites pass (`test result: ok. 418
+passed; 0 failed` for the core library, `44 passed; 0 failed` for the
+construction consumer, `146 passed; 0 failed` for the english_v2 library, `111
+passed; 0 failed` for `predicate_grammar.rs`, `468 passed; 0 failed; 1 ignored`
+for the xtask library) and exactly one fails:
+`builtin_v2_keyword_ability_nursery_is_complete_and_normalized`. That failure
+is not this landing's. It compares the 195 tracked nursery stubs under
+`plugins/builtin_v2/macros/stubs/keyword_abilities/` against
+`data/gen/catalogs/keyword-abilities.txt`, which is gitignored shared state
+symlinked from the coordinator checkout and was regenerated by a concurrent
+workspace at 07:09 with five new heads (`Forestwalk`, `Islandwalk`,
+`Mountainwalk`, `Plainswalk`, `Swampwalk`) that have no stub yet. Neither input
+is touched by this diff, the same closure gate was green on this tree twenty
+minutes earlier, and the drift is reported to the coordinator rather than
+worked around here.
+
+Coverage `--check` reports 32,641 total, 19,564 selected and covered, 0
+selected-uncovered, 13,077 parse failures, 0 unresolved ties, 0 internal
+failures, 0 ownership failures, 0 gap and 0 overlap spans, 0 provenance-plan
+mismatches, and a +0/-0 lock delta with the lock file byte unchanged; 2
+licensed vocab/lexicon homographs (`AttributiveAdjective::Untap` beside the
+declared keyword action `Untap`, `TargetingMarker::Target` beside
+`CommonNoun::Target`), 9 form-literal/vocabulary overlaps, and 21 permitted /
+0 forbidden licensing checkers. Ambiguity `--require-resolved` reports 19,564
+selected / 15,510 unique / 4,054 specificity-resolved / 0 unresolved ties / 0
+internal failures. Roundtrip `--require-clean` reports 19,564 accepted /
+19,564 clean / 0 mismatched. `cargo xtask cite check --list-noncompliant` is
+empty and `cargo xtask cite check` reports 0 stale over 14,484 citations; no
+citation changed.
+
+Performance advisory, reviewer's own runs on the integrated tree, 8 workers,
+against the 16,260 ms quiet-host ceiling: coverage 108,057 ms at 124,032 ns/B,
+host load 20.12 / 17.79 / 14.32; ambiguity 116,262 ms at 152,117 ns/B, host
+load 20.18 / 19.03 / 15.32; roundtrip 122,652 ms at 153,961 ns/B, host load
+25.12 / 22.45 / 17.13. Every gate exceeds the ceiling under load and is
+reported, not fitted. True contention during these runs: four concurrent
+feature executors plus two concurrent landing reviews.

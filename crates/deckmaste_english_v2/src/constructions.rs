@@ -128,7 +128,7 @@ constructions! {
         Main = "main",
         Maximum = "maximum",
         New = "new",
-        Next = "next" { feature HomographLicense = Licensed; },
+        Next = "next",
         Other = "other",
         Postcombat = "postcombat",
         Precombat = "precombat",
@@ -984,14 +984,6 @@ constructions! {
                         { surface = "that"; phrase_number = Singular; },
                         { surface = "those"; phrase_number = Plural; },
                     ];
-                },
-                Next {
-                    // Prospective deixis licenses a bare duration.
-                    bare_duration_license = BareDurationLicensed;
-                    number_license = SingularOnly;
-                    nominal_license = CountNominal;
-                    fused_head_license = NominalOnly;
-                    realizations = [{ surface = "next"; }];
                 },
                 Another {
                     // Additive singular determination requires an overt temporal marker.
