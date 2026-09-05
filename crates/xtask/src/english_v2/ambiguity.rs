@@ -417,7 +417,7 @@ impl AmbiguityReport {
         let summary = AmbiguitySummary::from_rows(&rows)?;
         summary.validate()?;
         Ok(Self {
-            schema_version: 1,
+            schema_version: 2,
             source_fingerprint,
             rows,
             summary,
@@ -788,7 +788,7 @@ mod tests {
         let report = complete_fixture_report();
         let rows = report.rows();
 
-        assert_eq!(report.schema_version(), 1);
+        assert_eq!(report.schema_version(), 2);
         assert_eq!(report.source_fingerprint(), "f".repeat(64));
         assert_eq!(
             rows.iter().map(AmbiguityRow::status).collect::<Vec<_>>(),
@@ -830,7 +830,7 @@ mod tests {
         render_report(&report, true, &mut output).unwrap();
 
         let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
-        assert_eq!(json["schema_version"], 1);
+        assert_eq!(json["schema_version"], 2);
         assert_eq!(json["rows"].as_array().unwrap().len(), 6);
         assert_eq!(
             json["rows"][1]["decision"]["comparisons"]

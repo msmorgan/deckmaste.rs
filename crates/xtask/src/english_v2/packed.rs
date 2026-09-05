@@ -144,3 +144,30 @@ pub(super) fn fixture() -> PackedSite {
         ]],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn human_display_lists_one_site_path_per_line_under_its_mobile() {
+        let mut output = Vec::new();
+        write_human(&[fixture()], &mut output).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            concat!(
+                "packed:\n",
+                "  mobile construction_path=[\"Fixture\"] role=\"mobile\"\n",
+                "    site_path=[{\"role\":{\"name\":\"host\"}},\
+{\"conjunct\":{\"name\":\"members\",\"ordinal\":1}}]\n",
+            )
+        );
+    }
+
+    #[test]
+    fn human_display_writes_nothing_when_no_slot_is_populated() {
+        let mut output = Vec::new();
+        write_human(&[], &mut output).unwrap();
+        assert!(output.is_empty());
+    }
+}
