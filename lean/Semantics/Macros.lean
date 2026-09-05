@@ -109,6 +109,8 @@ def yourLibrary : ZoneExpr := libraryOf .you
 /-- "on the bottom of your library in <arrangement>" -/
 def onBottomIn (arrangement : Arrangement) : ZoneExpr :=
   .library (.oneEnd .bottom) (some arrangement) none .bare
+/-- "on the bottom of its owner's library" -/
+def onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 def graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
@@ -141,6 +143,9 @@ def blocking : Predicate := .inCombat .blockerOf none
 def blocked : Predicate := .inCombat .blockedBy none
 def unblocked : Predicate := .not blocked
 def creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
+def creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
+/-- "source": the object dealing the damage under discussion. -/
+def source : Predicate := .isSource
 def emblem : Predicate := .isEmblem
 /-- "the chosen player" -/
 def chosenPlayer : Predicate := .chosenPlayer .theChoice
@@ -163,6 +168,9 @@ def partyRoles : List Predicate :=
 def anyTarget : Predicate :=
   .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
 
+/-- "any other target" -/
+def anyOtherTarget : Predicate := .and [anyTarget, .other]
+
 /-- "a color", "a creature type": a quality noun. -/
 def quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
@@ -182,6 +190,8 @@ def spellType (label : String) : Subtype := .spell label
 def anOpponent : NounPhrase := a .opponent
 def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
+def thisLand : NounPhrase := .asType .land .this none
+def thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
 def thisAbility : NounPhrase := .asMarker .ability .this
 def thisEnchantment : NounPhrase := .asType .enchantment .this none
 def thisAura : NounPhrase := .asType .enchantment .this (some (enchantmentType "Aura"))
@@ -192,6 +202,8 @@ def theRest (kind : Kind) : NounPhrase := .theRest kind .many
 /-- "N of <group>" -/
 def someOf (quantity : Quantity) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) none group
+/-- "among <group>": the whole of a group, sliced. -/
+def among (group : NounPhrase) : NounPhrase := .someOf .whole none group
 /-- "you and <subject>" -/
 def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
 def theDefendingPlayer : NounPhrase := .combatPlayer .defending
@@ -326,6 +338,10 @@ def colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
 def coloredManaSpentToCast (spell : NounPhrase) : Condition :=
   .compareAmt (colorsSpentToCast spell) .atLeast (.lit 1)
 
+/-- "between N and M" -/
+def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
+/-- "the amount by which the ceiling was not reached" -/
+def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "<subject> can't attack [this turn]" -/
 def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid ["Attack"] .agent none .noPatient none .noRider) duration
@@ -397,6 +413,9 @@ def gainControl (player : NounPhrase) (subject : NounPhrase) (duration : Option 
 /-- "<subject> can't be <deed>ed" -/
 def objectCant (deed : VerbLabel) (subject : NounPhrase) : StaticSpec :=
   .deontic subject .forbid [deed] .patient none .noPatient none .noRider
+/-- "<n> doesn't untap during [<whose>] untap step" -/
+def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  .onlyDuring .untapStep whose (objectCant "Untap" subject)
 /-- "<player> can't <deed> more than N <p>" -/
 def cantMoreThan (player : NounPhrase) (deed : VerbLabel) (bound : Nat) (p : Predicate) :
     StaticSpec :=
