@@ -121,35 +121,32 @@ fn expected_stubs(args: &FlavorWordsArgs) -> anyhow::Result<BTreeMap<String, Vec
 fn authored_onset_overrides(
     surfaces: &BTreeSet<&str>,
 ) -> anyhow::Result<BTreeMap<&'static str, Onset>> {
+    ensure_onset_override_inventory(surfaces, AUTHORED_ONSET_OVERRIDES)
+}
+
+fn ensure_onset_override_inventory(
+    surfaces: &BTreeSet<&str>,
+    authored: &[(&'static str, Onset)],
+) -> anyhow::Result<BTreeMap<&'static str, Onset>> {
     let mut overrides = BTreeMap::new();
-    for &(surface, onset) in AUTHORED_ONSET_OVERRIDES {
+    for &(surface, onset) in authored {
         ensure!(
             overrides.insert(surface, onset).is_none(),
             "flavor-word onset override inventory contains duplicate surface {surface:?}",
         );
     }
 
-    let stale = overrides
-        .keys()
-        .filter(|surface| !surfaces.contains(**surface))
-        .copied()
-        .collect::<Vec<_>>();
-    ensure!(
-        stale.is_empty(),
-        "flavor-word onset override inventory contains surfaces absent from the census: {stale:?}",
-    );
-
-    let missing = surfaces
+    let derived_exceptional = surfaces
         .iter()
         .filter(|surface| {
             deckmaste_construction_core::macro_def::normalize_surface_onset(surface, None).is_none()
-                && !overrides.contains_key(**surface)
         })
         .copied()
-        .collect::<Vec<_>>();
+        .collect::<BTreeSet<_>>();
+    let reviewed_exceptional = overrides.keys().copied().collect::<BTreeSet<_>>();
     ensure!(
-        missing.is_empty(),
-        "flavor-word surfaces require authored onset overrides: {missing:?}",
+        derived_exceptional == reviewed_exceptional,
+        "flavor-word onset override inventory differs from census exceptions: derived {derived_exceptional:?}, reviewed {reviewed_exceptional:?}",
     );
 
     Ok(overrides)
@@ -314,6 +311,43 @@ mod tests {
                 .to_string()
                 .contains("has no classifiable onset or authored override")
         );
+    }
+
+    #[test]
+    fn onset_override_inventory_rejects_a_missing_exception() {
+        let surfaces = BTreeSet::from(["∞"]);
+
+        let error = ensure_onset_override_inventory(&surfaces, &[]).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("inventory differs from census exceptions")
+        );
+    }
+
+    #[test]
+    fn onset_override_inventory_rejects_a_stale_exception() {
+        let surfaces = BTreeSet::new();
+
+        let error = ensure_onset_override_inventory(&surfaces, &[("∞", Onset::Vowel)]).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("inventory differs from census exceptions")
+        );
+    }
+
+    #[test]
+    fn onset_override_inventory_rejects_a_duplicate_exception() {
+        let surfaces = BTreeSet::from(["∞"]);
+
+        let error =
+            ensure_onset_override_inventory(&surfaces, &[("∞", Onset::Vowel), ("∞", Onset::Vowel)])
+                .unwrap_err();
+
+        assert!(error.to_string().contains("contains duplicate surface"));
     }
 
     #[test]
