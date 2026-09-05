@@ -1,4 +1,5 @@
 import Semantics.Proofs.Anaphora
+import Semantics.Proofs.Choice
 import Semantics.Proofs.Counters
 import Semantics.Proofs.Damage
 import Semantics.Proofs.Deontic

@@ -978,6 +978,11 @@ def Kind.qualityParam : Kind → Bool
   | .player => true
   | _ => false
 
+/-- Modes are costed all together or not at all: a spell whose modes carry costs is a spree,
+and every one of its modes has a cost [CR#702.172a]. -/
+def modesCostedUniformly {α β : Type} (modes : List (Option α × β)) : Bool :=
+  modes.all (·.1.isSome) || modes.all (·.1.isNone)
+
 /-! ## Mana -/
 
 def halvesDistinct : SimpleManaSymbol → Color → Bool

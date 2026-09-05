@@ -397,7 +397,8 @@ mutual
     | .modal q modes =>
       Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
         refuse (atLeastTwo modes.length) .atLeastTwo ++
-        refuse (q.modesFit modes.length) .modesFit ++ Instruction.checkModes bs modes
+        refuse (q.modesFit modes.length) .modesFit ++
+        refuse (modesCostedUniformly modes) .modesCosted ++ Instruction.checkModes bs modes
     | .delayed ev alts span body =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptDuration.check bs span ++
         Instruction.check (delayedCtx bs alts ev) body ++ refuse (durationOk span) .durationOk

@@ -212,6 +212,9 @@ def someOf (quantity : Quantity) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) none group
 /-- "among <group>": the whole of a group, sliced. -/
 def among (group : NounPhrase) : NounPhrase := .someOf .whole none group
+/-- "N <p> from among <group>" -/
+def fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounPhrase :=
+  .someOf (.counted quantity) (some p) group
 /-- "you and <subject>" -/
 def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
 def theDefendingPlayer : NounPhrase := .combatPlayer .defending
@@ -324,6 +327,13 @@ def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
   .flipCoins player (.count (.lit count))
 /-- "<decider> may <body>" -/
 def may (decider : NounPhrase) (body : Instruction) : Instruction := .may decider body none none
+/-- "the chosen number" -/
+def chosenNumber : Amount := .chosenNumber .theChoice
+/-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
+def spree (modes : List (Option Cost × Instruction)) : Instruction := .modal (atLeast 1) modes
+/-- "<voters> vote for <ballot>" -/
+def vote (voters : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
+  .vote none voters disclosure ballot
 /-- "Choose N — <modes>", no mode costing anything. -/
 def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
   .modal quantity (modes.map (none, ·))
@@ -359,6 +369,14 @@ def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "increase or decrease the result by N" -/
 def shiftResult (amount : Amount) : Instruction := .shiftResult none amount
+/-- "<player> may play N additional lands" -/
+def mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
+  .deontic player .permit ["Play"] .agent (some (.additional quantity)) (.counterpart (allOf land))
+    none .noRider
+/-- "<player> may <deed> <what> [as though …] [rider]" -/
+def mayPlayDeed (deed : VerbLabel) (player what : NounPhrase) (asThough : Option AsThough)
+    (rider : DeonticRider) : StaticSpec :=
+  .deontic player .permit [deed] .agent none (.counterpart what) asThough rider
 /-- A deontic clause with no bound, premise, or rider. -/
 def deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
     (patient : DeonticPatient) : StaticSpec :=

@@ -143,6 +143,8 @@ inductive Refusal where
   | durationPossessor
   | quantLiteral
   | modesFit
+  /-- Every mode is costed, or none is [CR#702.172a]. -/
+  | modesCosted
   | facesFit
   | chapterMarks
   | distinct
