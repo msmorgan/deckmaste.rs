@@ -756,7 +756,7 @@ theorem generalManaSymbolMatcher :
     Predicate.check .object [] (.manaCostHas (.simple (.specific (.of .red)))) = [] := by decide
 
 theorem playerItRead :
-    NounPhrase.check (some .player) [⟨.a, .player, .one, .player false⟩] they = [] := by decide
+    NounPhrase.check (some .player) [⟨.a, .one, .player false⟩] they = [] := by decide
 
 theorem delayedDoorTraversal :
     Instruction.namesThisDoor (delayed (.unlocksDoor .you .thisDoor) (draw .you (.lit 1)))

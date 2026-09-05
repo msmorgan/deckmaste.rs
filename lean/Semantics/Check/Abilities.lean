@@ -152,7 +152,7 @@ def CostShift.delta (bs : Bindings) : CostShift → List Binding
   | .more a => Amount.delta bs a
   | .run _ _ _ => []
 
-def gatePayer : Binding := ⟨.the, .player, .one, .player false⟩
+def gatePayer : Binding := ⟨.the, .one, .player false⟩
 
 def CountBound.delta (bs : Bindings) : CountBound → List Binding
   | .moreThan k => Amount.delta bs k
@@ -865,8 +865,8 @@ mutual
       sameIntro (nomIntro (Amount.delta (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
     | .controllerSacrifices n =>
-      ⟨⟨.the, .player, .one, .player false⟩ :: selfSubjIntro bs n,
-       ⟨.the, .player, .one, .player false⟩ ::
+      ⟨⟨.the, .one, .player false⟩ :: selfSubjIntro bs n,
+       ⟨.the, .one, .player false⟩ ::
          moveIntro bs (some (deedLabel .sacrificing)) n (some .graveyard),
        none, []⟩
     | .distribute v amt among =>
@@ -902,13 +902,13 @@ mutual
     | .separateIntoPiles who grp piles faces =>
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
-       [⟨.the, .pile, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
+       [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
     | .counterSpell what => sameIntro (nomIntro bs what) []
     | .copy src agent what times _ =>
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
-        [⟨.the, k, outputPlur what.plur times.plur,
+        [⟨.the, outputPlur what.plur times.plur,
           copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
@@ -929,7 +929,7 @@ mutual
     | .search who sc q p =>
       let bs' := nomIntro bs who
       sameIntro (Quantity.delta bs' q ++ Predicate.delta bs' p ++ sc.delta bs' ++ bs')
-        [⟨.a, .object, q.plur,
+        [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none⟩]
     | .shuffle whose => ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
@@ -944,7 +944,7 @@ mutual
     | .create agent count spec _ =>
       let bs' := Amount.intro (nomIntro bs agent) count
       sameIntro (spec.delta bs' ++ bs')
-        [⟨.a, .object, outputPlur agent.plur count.plur,
+        [⟨.a, outputPlur agent.plur count.plur,
           .object (spec.headTy bs') (some .battlefield) none (some .token) none⟩]
     | .getsEmblem who _ => sameIntro (nomIntro bs who) []
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []

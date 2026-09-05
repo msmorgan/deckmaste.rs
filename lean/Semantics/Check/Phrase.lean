@@ -684,17 +684,22 @@ def Predicate.negatable : Predicate → Bool
 /-- The binding a described phrase introduces, at kind `k`. -/
 def bindFor (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
   | .object, p =>
-    if p.seedsAbility then ⟨det, .object, plur, .ability none⟩
-    else ⟨det, .object, plur,
+    if p.seedsAbility then ⟨det, plur, .ability none⟩
+    else ⟨det, plur,
       .object p.seedTy (some (zoneOr .battlefield p.seedZone)) none
         (if p.seedsToken then some .token else none) none⟩
-  | .player, _ => ⟨det, .player, plur, .player false⟩
-  | .quality q, _ => ⟨det, .quality q, plur, .quality q⟩
-  | k@(.join _ _), p => ⟨det, k, plur, joinHalfPayload k p.seedTys⟩
-  | k, _ => ⟨det, k, plur, .gap⟩
+  | .player, _ => ⟨det, plur, .player false⟩
+  | .quality q, _ => ⟨det, plur, .quality q⟩
+  | k@(.join _ _), p => ⟨det, plur, joinHalfPayload k p.seedTys⟩
+  | .letter l, _ => ⟨det, plur, .letter l⟩
+  | .turnRef, _ => ⟨det, plur, .turnRef⟩
+  | .pile, _ => ⟨det, plur, .pile none none none⟩
+  -- No predicate fixes an outcome sort, so an outcome-kinded described phrase has nothing to
+  -- bind; keep it a gap, same as the truly kindless case.
+  | .outcome, _ | .gap, _ => ⟨det, plur, .gap⟩
 
 def chosenBind (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
-  | .player, _ => ⟨det, .player, plur, .player true⟩
+  | .player, _ => ⟨det, plur, .player true⟩
   | k, p => bindFor det plur k p
 
 def Predicate.qualityReadOk : Predicate → Bool
@@ -1029,23 +1034,23 @@ mutual
     | .both l r => NounPhrase.delta (NounPhrase.delta bs l ++ bs) r ++ NounPhrase.delta bs l
     | .eitherOf l r => NounPhrase.delta bs l ++ NounPhrase.delta bs r
     | .librarySlice _ amt whose =>
-      ⟨.the, .object, outputPlur whose.plur amt.plur,
+      ⟨.the, outputPlur whose.plur amt.plur,
         .object none (some .library) none none amt.exact⟩ :: NounPhrase.delta bs whose
     | .namesAgree _ g => NounPhrase.delta bs g
     | .someOf q d g =>
-      ⟨.part, .object, q.plur, .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact⟩
+      ⟨.part, q.plur, .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact⟩
         :: (SliceCount.delta bs q ++ OptPredicate.delta bs d ++ NounPhrase.delta bs g)
     | .pileOf q none =>
-      ⟨.part, .pile, q.plur,
+      ⟨.part, q.plur,
         .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩
         :: SliceCount.delta bs q
     | .pileOf q (some by_) =>
-      ⟨.part, .pile, q.plur,
+      ⟨.part, q.plur,
         .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩
         :: (SliceCount.delta bs q ++ NounPhrase.delta bs by_)
-    | .possessorOf _ n => ⟨.the, .player, n.plur, .player false⟩ :: (NounPhrase.selfSubjDelta n ++ NounPhrase.delta bs n)
+    | .possessorOf _ n => ⟨.the, n.plur, .player false⟩ :: (NounPhrase.selfSubjDelta n ++ NounPhrase.delta bs n)
     | .oneEachOf roles pool =>
-      ⟨.bare, .object, .many, .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none⟩
+      ⟨.bare, .many, .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none⟩
         :: (Predicate.deltaAll bs roles ++ NounPhrase.delta bs pool)
   termination_by structural x => x
 
@@ -1189,12 +1194,12 @@ mutual
 
   def NounPhrase.selfSubjDelta : NounPhrase → List Binding
     | .asType t .this _ =>
-      [⟨.self, .object, .one, .object (some t) (some .battlefield) none none none⟩]
+      [⟨.self, .one, .object (some t) (some .battlefield) none none none⟩]
     | .attachHost _ (.type t) =>
-      [⟨.the, .object, .one, .object (some t) (some .battlefield) none none none⟩]
+      [⟨.the, .one, .object (some t) (some .battlefield) none none none⟩]
     | .attachHost _ .permanent =>
-      [⟨.the, .object, .one, .object none (some .battlefield) none none none⟩]
-    | .attachHost _ .player => [⟨.the, .player, .one, .player false⟩]
+      [⟨.the, .one, .object none (some .battlefield) none none none⟩]
+    | .attachHost _ .player => [⟨.the, .one, .player false⟩]
     | _ => []
 
 
@@ -1513,7 +1518,7 @@ def subjCtx (bs : Bindings) : Option NounPhrase → Bindings
   | some n => selfSubjIntro bs n
 
 def elemIntro (bs : Bindings) (k : Kind) (g : NounPhrase) : Bindings :=
-  ⟨.the, k, .one, elemPayload k g.isAbility (NounPhrase.ty bs g) (NounPhrase.zone bs g) (NounPhrase.prov bs g)⟩
+  ⟨.the, .one, elemPayload k g.isAbility (NounPhrase.ty bs g) (NounPhrase.zone bs g) (NounPhrase.prov bs g)⟩
     :: nomIntro bs g
 
 def Condition.negated : Condition → Bool
@@ -1527,7 +1532,7 @@ def markingOk : CondMarking → Condition → Bool
 
 def dropGaps : List Binding → List Binding
   | [] => []
-  | ⟨_, .gap, _, .gap⟩ :: bs => dropGaps bs
+  | ⟨_, _, .gap⟩ :: bs => dropGaps bs
   | b :: bs => b :: dropGaps bs
 
 mutual
@@ -1622,31 +1627,31 @@ def moveIntro (bs : Bindings) (p : Option VerbLabel) (n : NounPhrase) (z : Optio
   | .both _ _ | .eitherOf _ _ => nomIntro bs n
   | .theRest k _ => groupSpent k bs
   | .pro r pl w => overWindow (setZoneReach r pl p z) w bs
-  | .this => ⟨.self, .object, .one, .object none z (mkStamp p none z.isSome) none none⟩ :: bs
+  | .this => ⟨.self, .one, .object none z (mkStamp p none z.isSome) none none⟩ :: bs
   | .attachHost _ (.type t) =>
-    ⟨.the, .object, .one,
+    ⟨.the, .one,
       .object (some t) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩ :: bs
   | .attachHost _ .permanent =>
-    ⟨.the, .object, .one,
+    ⟨.the, .one,
       .object none z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩ :: bs
-  | .attachHost _ .player => ⟨.the, .player, .one, .player false⟩ :: bs
+  | .attachHost _ .player => ⟨.the, .one, .player false⟩ :: bs
   | .attachHost _ _ => bs
   | .asType t .this _ =>
-    ⟨.self, .object, .one,
+    ⟨.self, .one,
       .object (some t) z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .asType t _ _ =>
-    ⟨.the, .object, .one,
+    ⟨.the, .one,
       .object (some t) z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .resolvedPermanent m =>
-    ⟨.the, .object, m.plur,
+    ⟨.the, m.plur,
       .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩
       :: bs
   | .asMarker _ .this =>
-    ⟨.self, .object, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.self, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .asMarker _ _ =>
-    ⟨.the, .object, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.the, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .theGrantor m =>
-    ⟨.the, .object, .one,
+    ⟨.the, .one,
       .object none z (mkStamp p m.grantorOrigin (z != some m.zone)) none none⟩ :: bs
   | .you | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)

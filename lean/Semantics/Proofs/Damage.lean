@@ -200,7 +200,7 @@ theorem okStructuredDisjunction :
 /-- "other creature or land" -/
 theorem badOtherInOr :
     Predicate.check .object
-      [⟨.target, .object, .one, .object (some .creature) (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object (some .creature) (some .battlefield) none none none⟩]
       (.or [.and [creature, .other], land]) = [.coordinableDisjuncts] := by
   decide
 
@@ -622,7 +622,7 @@ theorem badLastChosenWrongSort :
 
 /-- "sources of the last chosen color", a colour choice standing -/
 theorem okLastChosenColorRead :
-    Predicate.check .object [⟨.a, .quality .color, .one, .quality .color⟩] (ofTheLastChosen .color)
+    Predicate.check .object [⟨.a, .one, .quality .color⟩] (ofTheLastChosen .color)
       = [] := by
   decide
 

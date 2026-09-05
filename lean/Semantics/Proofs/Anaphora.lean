@@ -816,20 +816,20 @@ theorem noTokenAsThoseWithoutAntecedent : countTokenSpecs [] = 0 := by decide
 
 theorem oneTokenIsOneSpec :
     countTokenSpecs
-      [⟨.a, .object, .one, .object (some .creature) (some .battlefield) none (some .token) none⟩]
+      [⟨.a, .one, .object (some .creature) (some .battlefield) none (some .token) none⟩]
       = 1 := by
   decide
 
 theorem manyTokensAreOneSpec :
     countTokenSpecs
-      [⟨.a, .object, .many, .object (some .creature) (some .battlefield) none (some .token) none⟩]
+      [⟨.a, .many, .object (some .creature) (some .battlefield) none (some .token) none⟩]
       = 1 := by
   decide
 
 /-- A non-token object leaves no definition whatever its plurality. -/
 theorem oneNonTokenIsNoSpec :
     countTokenSpecs
-      [⟨.the, .object, .one, .object (some .creature) (some .battlefield) none none none⟩] = 0 := by
+      [⟨.the, .one, .object (some .creature) (some .battlefield) none none none⟩] = 0 := by
   decide
 
 /-- "where X is ..." -/
