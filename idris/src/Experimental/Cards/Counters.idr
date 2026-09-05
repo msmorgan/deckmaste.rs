@@ -58,7 +58,7 @@ ashnodsTransmogrant =
 
 azulaAlwaysLies : Instruction []
 azulaAlwaysLies =
-  Macros.chooseModes (Macros.oneThrough 2) [Macros.gets (Macros.target Macros.creature) (PtDown (Lit 1)) (PtDown (Lit 1)) (Just Macros.untilEndOfTurn),
+  Macros.chooseModes (Macros.oneThrough 2) [Macros.gets (Macros.target Macros.creature) (Down (Lit 1)) (Down (Lit 1)) (Just Macros.untilEndOfTurn),
                    PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)]
 
 bellowingAegisaur : Instruction []
@@ -274,8 +274,8 @@ chainsaw =
        , Macros.triggered Whenever
                           (Dies (Macros.counted (Macros.atLeast 1) Macros.creature))
                           (PutCounters (Lit 1) (PrintedKind (NamedCounter "Rev")) Macros.thisEquipment)
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
-                                (PtUp (LetterVal X)) (PtUp (Lit 0))
+       , Static (AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (LetterVal X))
+                                 , Modify (AttachHost Equipped (TypeW Creature)) Toughness (Up (Lit 0))
                          , DefinesLetter X (CountersOn (NamedCounter "Rev") Macros.thisEquipment) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing

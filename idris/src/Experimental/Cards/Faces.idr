@@ -193,7 +193,7 @@ orochiEggwatcher =
                    (Compound [ Mana [Macros.pip Green]
                              , Do (Macros.sacrifice You (Macros.a Macros.creature)) ])
                    (Macros.gets (Macros.target Macros.creature)
-                                (PtUp (Lit 3)) (PtUp (Lit 3))
+                                (Up (Lit 3)) (Up (Lit 3))
                                 (Just Macros.untilEndOfTurn)) ]
                (Macros.printedBox (Just (3, 3))))
 
@@ -345,8 +345,8 @@ arlinnKord =
             [Legendary] (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
             [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                 (Continuously
-                   (AndAlso Nothing [ Gets Adds (Described (TargetDet (Macros.upTo 1)) Macros.creature)
-                                   (PtUp (Lit 2)) (PtUp (Lit 2))
+                   (AndAlso Nothing [ Modify (Described (TargetDet (Macros.upTo 1)) Macros.creature) Power (Up (Lit 2))
+                                    , Modify (Macros.itsOther (Described (TargetDet (Macros.upTo 1)) Macros.creature) (Up (Lit 2))) Toughness (Up (Lit 2))
                             , Gains ((Macros.It OneOf)) (Macros.keyword "Vigilance")
                             , Gains ((Macros.It OneOf)) (Macros.keyword "Haste") ])
                    (Just Macros.untilEndOfTurn))
@@ -360,8 +360,8 @@ arlinnKord =
                (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker])
                [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                    (Continuously
-                      (AndAlso Nothing [ Gets Adds (Macros.allOf Macros.creatureYouControl)
-                                      (PtUp (Lit 1)) (PtUp (Lit 1))
+                      (AndAlso Nothing [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 1))
+                                       , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 1))) Toughness (Up (Lit 1))
                                , Gains ((Macros.It ManyOf)) (Macros.keyword "Trample") ])
                       (Just Macros.untilEndOfTurn))
                , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
@@ -384,8 +384,8 @@ neglectedHeirloom =
   Transforming
     (Macros.frontFace "Neglected Heirloom" (Just [Macros.generic 1]) []
             (MkTypeLine [artifactType "Equipment"] [Artifact])
-            [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                           (PtUp (Lit 1)) (PtUp (Lit 1)))
+            [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                           (Up (Lit 1)) (Up (Lit 1)))
             , Macros.triggered When
                 (VerbedEvent Nothing "Transform"
                   (Just (AttachHost Equipped (TypeW Creature))) Nothing)
@@ -394,8 +394,8 @@ neglectedHeirloom =
             Nothing)
     (Macros.backFace "Ashmouth Blade" []
                (MkTypeLine [artifactType "Equipment"] [Artifact])
-               [ Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
-                                        (PtUp (Lit 3)) (PtUp (Lit 3))
+               [ Static (AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 3))
+                                         , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 3))) Toughness (Up (Lit 3))
                                  , Gains ((Macros.It OneOf)) (Macros.keyword "FirstStrike") ])
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
                Nothing)
@@ -412,8 +412,8 @@ harvestHand =
             (Macros.printedBox (Just (2, 2))))
     (Macros.backFace "Scrounged Scythe" []
                (MkTypeLine [artifactType "Equipment"] [Artifact])
-               [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                              (PtUp (Lit 1)) (PtUp (Lit 1)))
+               [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                              (Up (Lit 1)) (Up (Lit 1)))
                , Static (Macros.onlyWhile
                            (Gains (AttachHost Equipped (TypeW Creature))
                                   (Macros.keyword "Menace"))
@@ -447,8 +447,8 @@ chitteringHostOnScavengers =
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
                 (Continuously
-                   (AndAlso Nothing [ Gets Adds (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
-                                   (PtUp (Lit 1)) (PtUp (Lit 0))
+                   (AndAlso Nothing [ Modify (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) Power (Up (Lit 1))
+                                    , Modify (Macros.itsOther (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (Up (Lit 1))) Toughness (Up (Lit 0))
                             , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
@@ -463,8 +463,8 @@ chitteringHostOnGrafRats =
             , Macros.keyword "Menace"
             , Macros.triggered When (Enters Macros.thisCreature Nothing)
                 (Continuously
-                   (AndAlso Nothing [ Gets Adds (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
-                                   (PtUp (Lit 1)) (PtUp (Lit 0))
+                   (AndAlso Nothing [ Modify (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) Power (Up (Lit 1))
+                                    , Modify (Macros.itsOther (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (Up (Lit 1))) Toughness (Up (Lit 0))
                             , Gains ((Macros.It ManyOf)) (Macros.keyword "Menace") ])
                    (Just Macros.untilEndOfTurn)) ]
             (Macros.printedBox (Just (5, 6)))
@@ -505,7 +505,7 @@ profitLoss =
     (Macros.frontFace "Profit" (Just [Macros.generic 1, Macros.pip White]) []
             (MkTypeLine [] [Instant])
             [ Spell Nothing (Macros.gets (Macros.allOf Macros.creatureYouControl)
-                                 (PtUp (Lit 1)) (PtUp (Lit 1))
+                                 (Up (Lit 1)) (Up (Lit 1))
                                  (Just Macros.untilEndOfTurn))
             , Macros.keyword "Fuse" ]
             Nothing)
@@ -513,7 +513,7 @@ profitLoss =
             (MkTypeLine [] [Instant])
             [ Spell Nothing (Macros.gets
                        (Macros.allOf Macros.creatureYourOpponentsControl)
-                       (PtDown (Lit 1)) (PtDown (Lit 1))
+                       (Down (Lit 1)) (Down (Lit 1))
                        (Just Macros.untilEndOfTurn))
             , Macros.keyword "Fuse" ]
             Nothing)
@@ -665,7 +665,8 @@ garrukRelentless =
                           (AndAlso Nothing
                              [ Gains (Macros.allOf Macros.creatureYouControl)
                                      (Macros.keyword "Trample")
-                             , Gets Adds (Macros.It ManyOf) (PtUp (LetterVal X)) (PtUp (LetterVal X)) ])
+                             , Modify (Macros.It ManyOf) Power (Up (LetterVal X))
+                             , Modify (Macros.It ManyOf) Toughness (Up (LetterVal X)) ])
                           (Just Macros.untilEndOfTurn)
                       , Define X (Macros.countOf (And [Macros.creature,
                                                 InZone (Macros.graveyardOf You)])) ]) ]
@@ -710,7 +711,7 @@ karganDragonlord =
            [ Macros.keyword "Flying"
            , Macros.keyword "Trample"
            , Macros.activated (Mana [Macros.pip Red])
-               (Macros.gets Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 0))
+               (Macros.gets Macros.thisCreature (Up (Lit 1)) (Up (Lit 0))
                             (Just Macros.untilEndOfTurn)) ] ]
 
 ||| Arcane Proxy

@@ -1812,7 +1812,7 @@ badItAcrossOwnSlot Refl impossible
 public export
 badSingularReadOfBarePlural : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.gets (Macros.bare Macros.creatureYouControl)
-                            (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn),
+                            (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn),
                 Draw You (StatOf Power ((Macros.It OneOf) {ok}))])
 badSingularReadOfBarePlural Refl impossible
 
@@ -1826,10 +1826,10 @@ public export
 okOwnReadsOneInDelta : Instruction []
 okOwnReadsOneInDelta =
   Macros.sharedSubject (Macros.target Macros.creature)
-    [ Gets Adds (Pro Bare OneOf
+    [ Modify (Pro Bare OneOf
                      (Top (length (nounDelta {k = Object}
-                                             (Macros.target {bs = []} Macros.creature)))))
-           (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+                                             (Macros.target {bs = []} Macros.creature))))) Power (Up (Lit 1))
+    , Modify (Pro Bare OneOf (Top (length (nounDelta {k = Object} (Macros.target {bs = []} Macros.creature))))) Toughness (Up (Lit 1)) ]
     Nothing
 
 public export
@@ -1838,13 +1838,13 @@ badSharedSubjectTwoInDelta : Unspellable (Instruction []) (\ok =>
                              (Macros.target
                                {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
                                Macros.artifact))
-    [ Gets Adds (Pro Bare OneOf
+    [ Modify (Pro Bare OneOf
                     (Top (length (nounDelta {k = Object}
                        (Both (Macros.target {bs = []} Macros.creature)
                              (Macros.target
                                {bs = nomIntro (Macros.target {bs = []} Macros.creature)}
-                               Macros.artifact))))) {ok})
-           (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+                               Macros.artifact))))) {ok}) Power (Up (Lit 1))
+    , Modify (Pro Bare OneOf (Top (length (nounDelta {k = Object} (Both (Macros.target {bs = []} Macros.creature) (Macros.target {bs = nomIntro (Macros.target {bs = []} Macros.creature)} Macros.artifact))))) {ok}) Toughness (Up (Lit 1)) ]
     Nothing)
 badSharedSubjectTwoInDelta Refl impossible
 
@@ -2097,8 +2097,8 @@ defineIntroIsRemark bs l amt ok = Refl
 
 public export
 twinShiftMintsOneLetter :
-  countLetter X (staticIntro (Gets Adds {bs = []} Macros.thisCreature
-                                   (PtDown (LetterVal X)) (PtDown (LetterVal X)))) = 1
+  countLetter X (staticIntro (Macros.getsPt {bs = []} Macros.thisCreature
+                                   (Down (LetterVal X)) (Down (LetterVal X)))) = 1
 twinShiftMintsOneLetter = Refl
 
 public export

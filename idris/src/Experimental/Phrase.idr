@@ -1756,16 +1756,12 @@ mutual
   boundEq _ _ = False
 
   public export
-  data LifeOp : Bindings -> Type where
-    LifeUp : Amount bs -> LifeOp bs
-    LifeDown : Amount bs -> LifeOp bs
-    Set : Amount bs -> LifeOp bs
+  deltaIntro : {bs : Bindings} -> Delta (Amount bs) -> Bindings
+  deltaIntro d = amtIntro (deltaAmount d)
 
   public export
-  lifeIntro : {bs : Bindings} -> LifeOp bs -> Bindings
-  lifeIntro (LifeUp a) = amtIntro a
-  lifeIntro (LifeDown a) = amtIntro a
-  lifeIntro (Set a) = amtIntro a
+  deltaDelta : {bs : Bindings} -> Delta (Amount bs) -> List Binding
+  deltaDelta d = amtDelta (deltaAmount d)
 
   public export
   data FlipScope : Bindings -> Type where

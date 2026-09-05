@@ -260,8 +260,8 @@ lionHeart =
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.triggered When (Enters Macros.thisEquipment Nothing)
                           (DealDamage ((Macros.It OneOf)) (Lit 2) (Macros.target Macros.anyTarget))
-       , Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 2)) (PtUp (Lit 1)))
+       , Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 2)) (Up (Lit 1)))
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
@@ -371,7 +371,7 @@ thunderstaff =
                                  (Matches Macros.thisArtifact Macros.untapped))
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
                           (Macros.gets (Macros.allOf (And [Macros.creature, Attacking]))
-                                (PtUp (Lit 1)) (PtUp (Lit 0))
+                                (Up (Lit 1)) (Up (Lit 0))
                                 (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -393,8 +393,8 @@ gideonAllyOfZendikar =
        , Macros.activated (LoyaltySymbol LoyaltyZero)
                           (Macros.create (Lit 1) (Macros.creatureTok 2 2 [White] [creatureType "Knight", creatureType "Ally"]))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
-                          (GetsEmblem You [Static (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                                                 (PtUp (Lit 1)) (PtUp (Lit 1)))]) ]
+                          (GetsEmblem You [Static (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                                                 (Up (Lit 1)) (Up (Lit 1)))]) ]
        (Macros.loyaltyBox 4)
 
 public export
@@ -983,8 +983,8 @@ public export
 savageSwipeLine : Instruction []
 savageSwipeLine =
   Sequentially
-    [ OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
-                          (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
+    [ OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (Up (Lit 2))
+                          (Up (Lit 2)) (Just Macros.untilEndOfTurn))
              (CompareAmt (StatOf Power ((Macros.It OneOf))) Eq (Lit 2)) Nothing
     , Fights ((Macros.It OneOf)) (Macros.target Macros.creatureYouDontControl) ]
 
@@ -998,8 +998,8 @@ infernoOfTheStarMounts =
        , Macros.keyword "Flying"
        , Macros.keyword "Haste"
        , Macros.activated (Mana [Macros.pip Red])
-                          (ThisWay (Macros.gets Macros.thisCreature (PtUp (Lit 1))
-                                         (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
+                          (ThisWay (Macros.gets Macros.thisCreature (Up (Lit 1))
+                                         (Up (Lit 0)) (Just Macros.untilEndOfTurn))
                             (StatBecomes ((Macros.It OneOf)) Power (Lit 20))
                             (DealDamage ((Macros.It OneOf)) (Lit 20) (Macros.target Macros.anyTarget))) ]
        (Just (6, 6))

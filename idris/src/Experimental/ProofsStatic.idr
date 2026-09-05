@@ -13,14 +13,14 @@ import Experimental.Unspellable
 public export
 okGetsBattlefieldSubject : Ability
 okGetsBattlefieldSubject =
-  Static (Macros.onlyWhile (Gets Adds Macros.thisCreature (PtUp (Lit 2))
-                                 (PtUp (Lit 0)))
+  Static (Macros.onlyWhile (Macros.getsPt Macros.thisCreature (Up (Lit 2))
+                                 (Up (Lit 0)))
                            (Matches Macros.thisCreature Attacking))
 
 ||| "That creature gets +2/+0 as long as this creature is attacking."
 public export
 badThatCreatureIsCondSubject : Unspellable Ability (\ok =>
-  Static (Macros.onlyWhile (Gets Adds (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+  Static (Macros.onlyWhile (Macros.getsPt (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
                                  {ok = Builtin.snd ok})
                            (Matches Macros.thisCreature Attacking)))
 badThatCreatureIsCondSubject (Refl, _) impossible
@@ -29,19 +29,19 @@ badThatCreatureIsCondSubject (Refl, _) impossible
 public export
 okEquippedCreature : Ability
 okEquippedCreature =
-  Static (Gets Adds (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 1))
-               (PtUp (Lit 1)))
+  Static (Macros.getsPt (AttachHost Equipped (TypeW Creature)) (Up (Lit 1))
+               (Up (Lit 1)))
 
 ||| "Equipped land gets +1/+1."
 public export
 badEquippedLand : Unspellable Ability (\ok =>
-  Static (Gets Adds (AttachHost Equipped (TypeW Land) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+  Static (Macros.getsPt (AttachHost Equipped (TypeW Land) {ok = ok}) (Up (Lit 1)) (Up (Lit 1))))
 badEquippedLand Oh impossible
 
 ||| "Fortified creature gets +1/+1."
 public export
 badFortifiedCreature : Unspellable Ability (\ok =>
-  Static (Gets Adds (AttachHost Fortified (TypeW Creature) {ok = ok}) (PtUp (Lit 1)) (PtUp (Lit 1))))
+  Static (Macros.getsPt (AttachHost Fortified (TypeW Creature) {ok = ok}) (Up (Lit 1)) (Up (Lit 1))))
 badFortifiedCreature Oh impossible
 
 ||| "You can't lose the game."
@@ -59,13 +59,14 @@ badTargetedOutcomeGate Oh impossible
 public export
 okSingleStaticXRider : StaticSpec []
 okSingleStaticXRider =
-  AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X))
-                         (PtUp (Lit 0))
+  AndAlso Nothing [ Modify Macros.thisCreature Power (Up (LetterVal X))
+                  , Modify Macros.thisCreature Toughness (Up (Lit 0))
                   , DefinesLetter X (Macros.countOf Macros.creatureYouControl) ]
 
 public export
 badDoubleStaticRider : Unspellable (StaticSpec []) (\ok =>
-  AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
+  AndAlso Nothing [ Modify Macros.thisCreature Power (Up (LetterVal X))
+          , Modify Macros.thisCreature Toughness (Up (Lit 0))
           , DefinesLetter X (Macros.countOf Macros.creatureYouControl)
           , DefinesLetter X (Macros.countOf Macros.creature) {ok} ])
 badDoubleStaticRider Oh impossible
@@ -88,8 +89,8 @@ public export
 okContinuousClause : Instruction []
 okContinuousClause =
   Continuously
-               (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                     (PtUp (Lit 1)) (PtUp (Lit 1)))
+               (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                     (Up (Lit 1)) (Up (Lit 1)))
                (Just Macros.untilEndOfTurn)
 
 public export
@@ -129,12 +130,11 @@ badStillAnInstant : Unspellable (StaticSpec []) (\ok =>
   Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) (Just Instant)) {ok = ok})
 badStillAnInstant Oh impossible
 
-||| "Target creature gets +1/+1."
+||| "Target creature gets +1/+0."
 public export
 okSingletonCoordination : StaticSpec []
 okSingletonCoordination =
-  AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
-                         (PtUp (Lit 1)) (PtUp (Lit 1)) ]
+  AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 1)) ]
 
 ||| a coordination of no statements
 public export
@@ -206,23 +206,25 @@ badBecomesBlockingPlaneswalker : Unspellable (Instruction []) (\ok =>
                   (Macros.target (HasType Planeswalker)) {dw = ok})
 badBecomesBlockingPlaneswalker Oh impossible
 
-||| "this creature gets +1/+1"
+||| "this creature gets +1/+0"
 public export
 okAddPtUpward : StaticSpec []
 okAddPtUpward =
-  Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
+  Modify Macros.thisCreature Power (Up (Lit 1))
 
-||| "this creature has base power and toughness -1/-1"
+||| "this creature's mana value is 2 more than it was"; a mana value is read off
+||| the mana cost [CR#202.3], not modified in the layer that spells "gets".
 public export
-badSetBasePtDownward : Unspellable (StaticSpec []) (\ok =>
-  Gets Sets Macros.thisCreature (PtDown (Lit 1)) (PtDown (Lit 1)) {lo = ok})
-badSetBasePtDownward Oh impossible
+badModifyManaValue : Unspellable (StaticSpec []) (\ok =>
+  Modify Macros.thisCreature ManaValue (Up (Lit 2)) {ms = ok})
+badModifyManaValue Oh impossible
 
-||| "this creature loses 1/1"
+||| "this planeswalker's loyalty becomes 3"; loyalty is the number of loyalty
+||| counters on it [CR#306.5c], so a loyalty change belongs to the counter lane.
 public export
-badLosePtOp : Unspellable (StaticSpec []) (\ok =>
-  Gets Loses Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1)) {lo = ok})
-badLosePtOp Oh impossible
+badSetLoyalty : Unspellable (StaticSpec []) (\ok =>
+  Modify Macros.thisPlaneswalker Loyalty (Set (Lit 3)) {ms = ok})
+badSetLoyalty Oh impossible
 
 ||| "During target opponent's next turn, …"
 public export

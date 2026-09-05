@@ -16,7 +16,7 @@ gabrielAngelfire =
 
 builtToSmash : Instruction []
 builtToSmash =
-  Sequentially [Macros.gets (Macros.target (And [Macros.creature, Attacking])) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn),
+  Sequentially [Macros.gets (Macros.target (And [Macros.creature, Attacking])) (Up (Lit 3)) (Up (Lit 3)) (Just Macros.untilEndOfTurn),
                 If (Macros.itsA (And [Macros.artifact, Macros.creature]))
                    (Macros.gains ((Macros.It OneOf)) (Macros.keyword "Trample") (Just Macros.untilEndOfTurn))
                    Nothing]
@@ -120,9 +120,9 @@ smogElemental =
        (Just [Macros.generic 4, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
                                    HasPossessor ControllerAx (PlayerGroup YourOpponents)]))
-                      (PtDown (Lit 1)) (PtDown (Lit 1))) ]
+                      (Down (Lit 1)) (Down (Lit 1))) ]
        (Just (3, 3))
 
 exquisiteArchangel : Card
@@ -133,7 +133,7 @@ exquisiteArchangel =
        [ Macros.keyword "Flying"
        , Static (Intercepts (LosesGame You) [] Nothing
                             (Sequentially [Macros.exile Macros.thisCreature,
-                                           Macros.lifeTotalBecomes You (PlayerStatOf StartingLifeTotal You)])
+                                           Macros.lifeBecomes You (PlayerStatOf StartingLifeTotal You)])
                             Repeatedly Nothing) ]
        (Just (5, 5))
 
@@ -142,9 +142,9 @@ adelbertSteiner =
   Macros.card "Adelbert Steiner" (Just [Macros.generic 1, Macros.pip White])
        [Legendary] (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
        [ Macros.keyword "Lifelink"
-       , Static (Gets Adds Macros.thisCreature
-               (PtUp (Macros.forEach 1 (And [HasSubtype (artifactType "Equipment"), HasPossessor ControllerAx You])))
-               (PtUp (Macros.forEach 1 (And [HasSubtype (artifactType "Equipment"), HasPossessor ControllerAx You])))) ]
+       , Static (Macros.getsPt Macros.thisCreature
+               (Up (Macros.forEach 1 (And [HasSubtype (artifactType "Equipment"), HasPossessor ControllerAx You])))
+               (Up (Macros.forEach 1 (And [HasSubtype (artifactType "Equipment"), HasPossessor ControllerAx You])))) ]
        (Just (2, 1))
 
 inspiringStatuary : Card
@@ -255,7 +255,7 @@ consulsLieutenant =
                             (Macros.gets (Macros.allOf (And [Macros.creature, Attacking,
                                                       HasPossessor ControllerAx You,
                                                       OtherThan Macros.thisCreature]))
-                                         (PtUp (Lit 1)) (PtUp (Lit 1))
+                                         (Up (Lit 1)) (Up (Lit 1))
                                          (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
 
@@ -290,8 +290,8 @@ drachNyen =
                           (Macros.exile (Described (TargetDet (Macros.upTo 1)) Macros.creature))
        , Static (AndAlso Nothing [ Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keyword "Menace")
-                         , Gets Adds (AttachHost Equipped (TypeW Creature))
-                                (PtUp (LetterVal X)) (PtUp (Lit 0))
+                         , Modify (AttachHost Equipped (TypeW Creature)) Power (Up (LetterVal X))
+                         , Modify (AttachHost Equipped (TypeW Creature)) Toughness (Up (Lit 0))
                          , DefinesLetter X
                              (StatOf Power
                                 (Macros.a (ExiledWith Macros.thisEquipment))) ])
@@ -377,8 +377,8 @@ awakenTheBear =
   Macros.card "Awaken the Bear" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Continuously
-                  (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
-                                  (PtUp (Lit 3)) (PtUp (Lit 3))
+                  (AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 3))
+                                   , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 3))) Toughness (Up (Lit 3))
                            , Gains ((Macros.It OneOf)) (Macros.keyword "Trample") ])
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -387,8 +387,8 @@ spidersilkArmor : Card
 spidersilkArmor =
   Macros.card "Spidersilk Armor" (Just [Macros.generic 2, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (AndAlso Nothing [ Gets Adds (Macros.allOf Macros.creatureYouControl)
-                                (PtUp (Lit 0)) (PtUp (Lit 1))
+       [ Static (AndAlso Nothing [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 0))
+                                 , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 0))) Toughness (Up (Lit 1))
                          , Gains ((Macros.It ManyOf)) (Macros.keyword "Reach") ]) ]
        Nothing
 
@@ -397,8 +397,8 @@ arcaneFlight =
   Macros.card "Arcane Flight" (Just [Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
-                                (PtUp (Lit 1)) (PtUp (Lit 1))
+       , Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 1))
+                                 , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 1))
                          , Gains ((Macros.It OneOf)) (Macros.keyword "Flying") ]) ]
        Nothing
 
@@ -406,8 +406,8 @@ bootsOfSpeed : Card
 bootsOfSpeed =
   Macros.card "Boots of Speed" (Just [Macros.pip Red]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
-       [ Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
-                                (PtUp (Lit 1)) (PtUp (Lit 0))
+       [ Static (AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 1))
+                                 , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 0))
                          , Gains ((Macros.It OneOf)) (Macros.keyword "Haste") ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
@@ -420,7 +420,8 @@ frogify =
        , Static (AndAlso Nothing [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing [Blue]
                                                 (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing) Nothing)
-                         , Macros.hasBasePt ((Macros.It OneOf)) (Lit 1) (Lit 1) ]) ]
+                         , Modify ((Macros.It OneOf)) Power (Set (Lit 1))
+                         , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 1))) Toughness (Set (Lit 1)) ]) ]
        Nothing
 
 darksteelMutation : Card
@@ -431,7 +432,8 @@ darksteelMutation =
        , Static (AndAlso Nothing [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
                                              (MkTypeLine [creatureType "Insect"] [Artifact, Creature])
                                              [] Nothing) Nothing)
-                         , Macros.hasBasePt ((Macros.It OneOf)) (Lit 0) (Lit 1)
+                         , Modify ((Macros.It OneOf)) Power (Set (Lit 0))
+                         , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 0))) Toughness (Set (Lit 1))
                          , Gains ((Macros.It OneOf)) (Macros.keyword "Indestructible")
                          , LosesAllAbilities ((Macros.It OneOf)) Nothing ]) ]
        Nothing
@@ -445,7 +447,8 @@ kenrithsTransformation =
        , Static (AndAlso Nothing [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing [Green]
                                                 (MkTypeLine [creatureType "Elk"] [Creature]) [] Nothing) Nothing)
-                         , Macros.hasBasePt ((Macros.It OneOf)) (Lit 3) (Lit 3) ]) ]
+                         , Modify ((Macros.It OneOf)) Power (Set (Lit 3))
+                         , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 3))) Toughness (Set (Lit 3)) ]) ]
        Nothing
 
 amphibianDownpour : Card
@@ -458,7 +461,8 @@ amphibianDownpour =
        , Static (AndAlso Nothing [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature)) Nothing
                          , Becomes ((Macros.It OneOf)) Sets (Bundle (MkToken Nothing [Blue]
                                                 (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing) Nothing)
-                         , Macros.hasBasePt ((Macros.It OneOf)) (Lit 1) (Lit 1) ]) ]
+                         , Modify ((Macros.It OneOf)) Power (Set (Lit 1))
+                         , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 1))) Toughness (Set (Lit 1)) ]) ]
        Nothing
 
 lignify : Card
@@ -468,7 +472,8 @@ lignify =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso Nothing [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Treefolk"] [])
                                              [] Nothing) Nothing)
-                         , Macros.hasBasePt ((Macros.It OneOf)) (Lit 0) (Lit 4)
+                         , Modify ((Macros.It OneOf)) Power (Set (Lit 0))
+                         , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 0))) Toughness (Set (Lit 4))
                          , LosesAllAbilities ((Macros.It OneOf)) Nothing ]) ]
        Nothing
 
@@ -529,7 +534,7 @@ chandrasSpitfire =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
                           (IsDealtDamage NoncombatOnly (Macros.a Opponent))
-                          (Macros.gets Macros.thisCreature (PtUp (Lit 3)) (PtUp (Lit 0))
+                          (Macros.gets Macros.thisCreature (Up (Lit 3)) (Up (Lit 0))
                                        (Just Macros.untilEndOfTurn)) ]
        (Just (1, 3))
 
@@ -594,8 +599,8 @@ sanctuaryBlade =
   Macros.card "Sanctuary Blade" (Just [Macros.generic 2]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (Macros.attachChoosing Macros.thisEquipment Color)
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Equipped (TypeW Creature))
-                                (PtUp (Lit 2)) (PtUp (Lit 0))
+       , Static (AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 2))
+                                 , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 2))) Toughness (Up (Lit 0))
                          , Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keywordQuality "Protection"
                                     (Macros.ofTheLastChosen Color)) ])
@@ -609,8 +614,8 @@ sinisterStrength =
   Macros.card "Sinister Strength" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
-                                (PtUp (Lit 3)) (PtUp (Lit 1))
+       , Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 3))
+                                 , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 3))) Toughness (Up (Lit 1))
                          , Becomes ((Macros.It OneOf)) Sets (Colored (SomeColors [Black])) ]) ]
        Nothing
 
@@ -635,8 +640,8 @@ ghoulflesh =
   Macros.card "Ghoulflesh" (Just [Macros.pip Black]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
-                                (PtDown (Lit 1)) (PtDown (Lit 1))
+       , Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Down (Lit 1))
+                                 , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Down (Lit 1))) Toughness (Down (Lit 1))
                          , Becomes ((Macros.It OneOf)) Adds (Bundle (MkToken Nothing [Black]
                                                 (MkTypeLine [creatureType "Zombie"] [])
                                                 [] Nothing) Nothing) ]) ]
@@ -646,7 +651,8 @@ ghoulflesh =
 public export
 bladeOfTheOniStatic : StaticSpec []
 bladeOfTheOniStatic =
-  AndAlso Nothing [ Macros.hasBasePt (AttachHost Equipped (TypeW Creature)) (Lit 5) (Lit 5)
+  AndAlso Nothing [ Modify (AttachHost Equipped (TypeW Creature)) Power (Set (Lit 5))
+                  , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Set (Lit 5))) Toughness (Set (Lit 5))
           , Gains ((Macros.It OneOf)) (Macros.keyword "Menace")
           , Becomes ((Macros.It OneOf)) Adds (Bundle (MkToken Nothing [Black]
                                  (MkTypeLine [creatureType "Demon"] []) [] Nothing) Nothing) ]
@@ -664,7 +670,7 @@ historyOfBenalia =
                        [Macros.keyword "Vigilance"] Nothing))
        , Macros.triggered When (ChapterMark [ChapterIII])
            (Macros.gets (Macros.allOf (And [HasSubtype (creatureType "Knight"), HasPossessor ControllerAx You]))
-                        (PtUp (Lit 2)) (PtUp (Lit 1))
+                        (Up (Lit 2)) (Up (Lit 1))
                         (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -710,8 +716,8 @@ amorphousAxe =
   Macros.card "Amorphous Axe" (Just [Macros.generic 2]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (AndAlso Nothing
-           [ Gets Adds (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 3))
-                  (PtUp (Lit 0))
+           [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 3))
+           , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 3))) Toughness (Up (Lit 0))
            , Becomes (AttachHost Equipped (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
        Nothing
@@ -722,8 +728,8 @@ runedStalactite =
   Macros.card "Runed Stalactite" (Just [Macros.generic 1]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (AndAlso Nothing
-           [ Gets Adds (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 1))
-                  (PtUp (Lit 1))
+           [ Modify (AttachHost Equipped (TypeW Creature)) Power (Up (Lit 1))
+           , Modify (Macros.itsOther (AttachHost Equipped (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 1))
            , Becomes (AttachHost Equipped (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
@@ -735,8 +741,8 @@ arachnoform =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso Nothing
-           [ Gets Adds (AttachHost Enchanted (TypeW Creature)) (PtUp (Lit 2))
-                  (PtUp (Lit 2))
+           [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 2))
+           , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 2))) Toughness (Up (Lit 2))
            , Gains (AttachHost Enchanted (TypeW Creature)) (Macros.keyword "Reach")
            , Becomes (AttachHost Enchanted (TypeW Creature)) Adds (EveryTypeOf CreatureSpace) ]) ]
        Nothing
@@ -760,9 +766,9 @@ curseOfConformity =
        (MkTypeLine [enchantmentType "Aura", enchantmentType "Curse"] [Enchantment])
        [ Macros.keywordSubject "Enchant" AnyPlayer
        , Static (AndAlso Nothing
-           [ Macros.hasBasePt (Macros.allOf (And [Macros.creature, Not (HasSupertype Legendary),
-                                    HasPossessor ControllerAx (AttachHost Enchanted PlayerW)]))
-                       (Lit 3) (Lit 3)
+           [ Modify (Macros.allOf (And [Macros.creature, Not (HasSupertype Legendary),
+                                    HasPossessor ControllerAx (AttachHost Enchanted PlayerW)])) Power (Set (Lit 3))
+           , Modify (Macros.itsOther (Macros.allOf (And [Macros.creature, Not (HasSupertype Legendary), HasPossessor ControllerAx (AttachHost Enchanted PlayerW)])) (Set (Lit 3))) Toughness (Set (Lit 3))
            , Becomes ((Macros.It ManyOf)) Loses (EveryTypeOf CreatureSpace) ]) ]
        Nothing
 
@@ -812,7 +818,8 @@ vipersKiss =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (AndAlso Nothing
-           [ Gets Adds (AttachHost Enchanted (TypeW Creature)) (PtDown (Lit 1)) (PtDown (Lit 1))
+           [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Down (Lit 1))
+           , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Down (Lit 1))) Toughness (Down (Lit 1))
            , Macros.objectCant "Activate"
                (Macros.allOf (And [AbilityHead AnyActivated, AbilityOf ((Macros.It OneOf))])) ]) ]
        Nothing
@@ -932,7 +939,7 @@ brightspearZealot =
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.keyword "Vigilance"
        , Static (Macros.onlyWhile
-           (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)))
+           (Macros.getsPt Macros.thisCreature (Up (Lit 2)) (Up (Lit 0)))
            (CompareAmt (Macros.eventCountInvolving SpellCast
                                                    You
                                                    Lookback.ThisTurn
@@ -951,8 +958,8 @@ deepwayNavigator =
               (Macros.each (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You,
                           OtherThan Macros.thisCreature])))
        , Static (Macros.onlyWhile
-           (Gets Adds (Macros.allOf (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You]))
-                 (PtUp (Lit 1)) (PtUp (Lit 0)))
+           (Macros.getsPt (Macros.allOf (And [HasSubtype (creatureType "Merfolk"), HasPossessor ControllerAx You]))
+                 (Up (Lit 1)) (Up (Lit 0)))
            (Macros.happenedInvolving AttackDeclaration
                                      You
                                      Lookback.ThisTurn
@@ -1202,10 +1209,10 @@ borrowedMalevolence =
        [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
        , Spell Nothing (Macros.chooseModes (Range (Just 1) (Just 2))
                   [ Macros.gets (Macros.target Macros.creature)
-                                (PtUp (Lit 1)) (PtUp (Lit 1))
+                                (Up (Lit 1)) (Up (Lit 1))
                                 (Just Macros.untilEndOfTurn)
                   , Macros.gets (Macros.target Macros.creature)
-                                (PtDown (Lit 1)) (PtDown (Lit 1))
+                                (Down (Lit 1)) (Down (Lit 1))
                                 (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -1336,7 +1343,7 @@ predatoryWurm =
        (MkTypeLine [creatureType "Wurm"] [Creature])
        [ Macros.keyword "Vigilance"
        , Static (Macros.onlyWhile
-                   (Gets Adds Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))
+                   (Macros.getsPt Macros.thisCreature (Up (Lit 2)) (Up (Lit 2)))
                    (Macros.exists (And [HasSubtype (planeswalkerType "Garruk"), HasPossessor ControllerAx You]))) ]
        (Just (4, 4))
 
@@ -1368,7 +1375,8 @@ aimHigh =
        [ Spell Nothing (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
                   , Continuously
-                      (AndAlso Nothing [ Gets Adds (Macros.ItVerbed "Untap" OneOf) (PtUp (Lit 2)) (PtUp (Lit 2))
+                      (AndAlso Nothing [ Modify (Macros.ItVerbed "Untap" OneOf) Power (Up (Lit 2))
+                                       , Modify (Macros.ItVerbed "Untap" OneOf) Toughness (Up (Lit 2))
                                , Gains (Macros.ItVerbed "Untap" OneOf) (Macros.keyword "Reach") ])
                       (Just Macros.untilEndOfTurn) ]) ]
        Nothing
@@ -1629,8 +1637,8 @@ ancestralBlade =
                            (MkTypeLine [creatureType "Soldier"] [Creature])
                            [] Nothing)
               , AttachTo Macros.thisEquipment Macros.itAsToken ])
-       , Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       , Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 1)) (Up (Lit 1)))
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
 
@@ -1640,8 +1648,8 @@ steelclawLance : Card
 steelclawLance =
   Macros.card "Steelclaw Lance" (Just [Macros.pip Black, Macros.pip Red]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
-       [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 2)) (PtUp (Lit 2)))
+       [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 2)) (Up (Lit 2)))
        , Macros.keywordQualityCosting "Equip"
            (HasSubtype (creatureType "Knight")) (Mana [Macros.generic 1])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
@@ -1682,8 +1690,8 @@ enormousEnergyBlade =
   Macros.card "Enormous Energy Blade"
        (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
-       [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 4)) (PtUp (Lit 0)))
+       [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 4)) (Up (Lit 0)))
        , Macros.triggered Whenever
            (BecomesAttached Macros.thisEquipment (Macros.a Macros.creature))
            (Macros.tap (Macros.That (TypeW Creature) OneOf))
@@ -1696,8 +1704,8 @@ graftedWargear : Card
 graftedWargear =
   Macros.card "Grafted Wargear" (Just [Macros.generic 3]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
-       [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 3)) (PtUp (Lit 2)))
+       [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 3)) (Up (Lit 2)))
        , Macros.triggered Whenever
            (BecomesUnattached Macros.thisEquipment (Macros.a Permanent))
            (Macros.sacrifice You (Macros.That PermanentW OneOf))
@@ -1785,9 +1793,9 @@ earthenGoo =
        [ Macros.keyword "Trample"
        , Macros.cumulativeUpkeep
            (EitherCost (Mana [Macros.pip Red]) (Mana [Macros.pip Green]))
-       , Static (Gets Adds Macros.thisCreature
-                   (PtUp (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))
-                   (PtUp (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))) ]
+       , Static (Macros.getsPt Macros.thisCreature
+                   (Up (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))
+                   (Up (Macros.times 1 (CountersOn (NamedCounter "Age") ((Macros.It OneOf)))))) ]
        (Just (2, 2))
 
 ||| Mutagen Connoisseur
@@ -1799,10 +1807,10 @@ mutagenConnoisseur =
        (MkTypeLine [creatureType "Vedalken", creatureType "Mutant"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.keyword "Vigilance"
-       , Static (Gets Adds Macros.thisCreature
-                      (PtUp (Macros.forEach 1
+       , Static (Macros.getsPt Macros.thisCreature
+                      (Up (Macros.forEach 1
                                (And [IsTransformed, HasPossessor ControllerAx You])))
-                      (PtUp (Lit 0))) ]
+                      (Up (Lit 0))) ]
        (Just (0, 5))
 
 ||| Bedrock Tortoise
@@ -1824,7 +1832,8 @@ battlegateMimic =
            (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
                                       ColorIs White])) Nothing)
            (Continuously
-              (AndAlso Nothing [ Macros.hasBasePt Macros.thisCreature (Lit 4) (Lit 2)
+              (AndAlso Nothing [ Modify Macros.thisCreature Power (Set (Lit 4))
+                               , Modify (Macros.itsOther Macros.thisCreature (Set (Lit 4))) Toughness (Set (Lit 2))
                        , Gains Macros.thisCreature
                                (Macros.keyword "FirstStrike") ])
               (Just Macros.untilEndOfTurn)) ]
@@ -1920,8 +1929,8 @@ seraphicGreatsword =
   Macros.card "Seraphic Greatsword"
        (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [artifactType "Equipment"] [Artifact])
-       [ Static (Gets Adds (AttachHost Equipped (TypeW Creature))
-                      (PtUp (Lit 2)) (PtUp (Lit 2)))
+       [ Static (Macros.getsPt (AttachHost Equipped (TypeW Creature))
+                      (Up (Lit 2)) (Up (Lit 2)))
        , Macros.triggered Whenever
            (Macros.attacksPlayer (AttachHost Equipped (TypeW Creature))
               (Macros.the (And [AnyPlayer,
@@ -1936,7 +1945,7 @@ seraphicGreatsword =
        Nothing
 
 giantGrowth : Instruction []
-giantGrowth = Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn)
+giantGrowth = Macros.gets (Macros.target Macros.creature) (Up (Lit 3)) (Up (Lit 3)) (Just Macros.untilEndOfTurn)
 
 amassZombiesTwo : Instruction []
 amassZombiesTwo = Macros.amass "Zombie" 2

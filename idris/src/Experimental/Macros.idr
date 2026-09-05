@@ -439,11 +439,6 @@ public export
 land : Predicate bs Object
 land = HasType Land
 
-public export
-hasBasePt : (n : Noun bs Object) -> (pow : Amount (selfSubjIntro n)) ->
-            (tou : Amount (amtIntro pow)) ->
-            {auto 0 ok : ZoneIs (nounZone n) Battlefield} -> StaticSpec bs
-hasBasePt n pow tou = Gets Sets n (PtUp pow) (PtUp tou) {ok}
 
 public export
 unblocked : Predicate bs Object
@@ -911,13 +906,68 @@ entersWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
 entersWithCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fresh) {zn}
 
+||| The bindings a modification's subject introduced, or the whole context when
+||| the subject was itself a read and introduced none.
 public export
-gets : {bs : Bindings} -> (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
-       (tou : PtShift (shiftIntro pow)) ->
+sameWindow : Nat -> Window
+sameWindow Z = Whole
+sameWindow (S k) = Top (S k)
+
+||| The subject of the modification just written, read again for its other
+||| characteristic: a window over exactly what that modification introduced.
+public export
+itsOther : {bs : Bindings} -> (n : Noun bs Object) ->
+           (d : Delta (Amount (selfSubjIntro n))) ->
+           {auto 0 ok : countReach Bare (nounPlur n)
+                          (view (sameWindow (length (deltaDelta d ++ selfSubjDelta n
+                                                                  ++ nounDelta n)))
+                                (deltaDelta d ++ selfSubjIntro n)) = 1} ->
+           Noun (deltaDelta d ++ selfSubjIntro n) Object
+itsOther n d =
+  Pro Bare (nounPlur n)
+      (sameWindow (length (deltaDelta d ++ selfSubjDelta n ++ nounDelta n))) {ok}
+
+public export
+getsPt : {bs : Bindings} -> (n : Noun bs Object) ->
+         (pow : Delta (Amount (selfSubjIntro n))) ->
+         (tou : Delta (Amount (deltaDelta pow ++ selfSubjIntro n))) ->
+         {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
+         {auto 0 rd : countReach Bare (nounPlur n)
+                        (view (sameWindow (length (deltaDelta pow ++ selfSubjDelta n
+                                                                  ++ nounDelta n)))
+                              (deltaDelta pow ++ selfSubjIntro n)) = 1} ->
+         {auto 0 z2 : ZoneIs (nounZone (itsOther n pow {ok = rd})) Battlefield} ->
+         StaticSpec bs
+getsPt n pow tou =
+  AndAlso Nothing [ Modify n Power pow {ok}
+                  , Modify (itsOther n pow {ok = rd}) Toughness tou {ok = z2} ]
+
+public export
+getsBase : {bs : Bindings} -> (n : Noun bs Object) ->
+           (pow : Amount (selfSubjIntro n)) ->
+           (tou : Amount (amtDelta pow ++ selfSubjIntro n)) ->
+           {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
+           {auto 0 rd : countReach Bare (nounPlur n)
+                          (view (sameWindow (length (amtDelta pow ++ selfSubjDelta n
+                                                                  ++ nounDelta n)))
+                                (amtDelta pow ++ selfSubjIntro n)) = 1} ->
+           {auto 0 z2 : ZoneIs (nounZone (itsOther n (Set pow) {ok = rd})) Battlefield} ->
+           StaticSpec bs
+getsBase n pow tou = getsPt n (Set pow) (Set tou) {ok} {rd} {z2}
+
+public export
+gets : {bs : Bindings} -> (n : Noun bs Object) ->
+       (pow : Delta (Amount (selfSubjIntro n))) ->
+       (tou : Delta (Amount (deltaDelta pow ++ selfSubjIntro n))) ->
        {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-       (d : Maybe (Duration (staticIntro (Gets Adds n pow tou {ok})))) ->
+       {auto 0 rd : countReach Bare (nounPlur n)
+                      (view (sameWindow (length (deltaDelta pow ++ selfSubjDelta n
+                                                                ++ nounDelta n)))
+                            (deltaDelta pow ++ selfSubjIntro n)) = 1} ->
+       {auto 0 z2 : ZoneIs (nounZone (itsOther n pow {ok = rd})) Battlefield} ->
+       (d : Maybe (Duration (staticIntro (getsPt n pow tou {ok} {rd} {z2})))) ->
        {auto 0 sp : SpanOk d} -> Instruction bs
-gets {bs} n pow tou d = Continuously {bs} (Gets Adds n pow tou {ok}) d {sp}
+gets {bs} n pow tou d = Continuously {bs} (getsPt n pow tou {ok} {rd} {z2}) d {sp}
 
 public export
 gains : {bs : Bindings} -> (n : Noun bs Object) -> (a : AbilityAt bs) ->
@@ -1172,11 +1222,11 @@ gainControl {bs} who what d = Continuously {bs} (GainsControl who what {zn}) d {
 
 public export
 losesLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
-losesLife who amt = ChangeLife who (LifeDown amt)
+losesLife who amt = ChangeLife who (Down amt)
 
 public export
 gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
-gainsLife who amt = ChangeLife who (LifeUp amt)
+gainsLife who amt = ChangeLife who (Up amt)
 
 
 public export
@@ -1478,8 +1528,8 @@ shuffle : Instruction bs
 shuffle = Shuffle You
 
 public export
-lifeTotalBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
-lifeTotalBecomes who a = ChangeLife who (Set a)
+lifeBecomes : (who : Noun bs Player) -> Amount (nomIntro who) -> Instruction bs
+lifeBecomes who a = ChangeLife who (Set a)
 
 
 public export
@@ -1576,7 +1626,7 @@ phyrexianPip c = Phyrexian c Nothing
 
 public export
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
-payLife who n = Do (ChangeLife who (LifeDown (Lit n)))
+payLife who n = Do (ChangeLife who (Down (Lit n)))
 
 public export
 mayWhen : (decider : Noun bs Player) -> (body : Instruction (agentIntro decider)) ->

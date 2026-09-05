@@ -2728,20 +2728,33 @@ ascriptionOk : CardType -> Maybe Subtype -> Bool
 ascriptionOk t Nothing = ascribesAsType t
 ascriptionOk t (Just s) = ascribesAsType t && subtypeFits s t
 
-namespace Counter
-  public export
-  data Delta : Type where
-    Up : Nat -> Delta
-    Down : Nat -> Delta
+public export
+data Delta : Type -> Type where
+  Up : a -> Delta a
+  Down : a -> Delta a
+  Set : a -> Delta a
 
-  public export
-  deltaIx : Delta -> (Nat, Nat)
-  deltaIx (Up n) = (0, n)
-  deltaIx (Down n) = (1, n)
+public export
+deltaAmount : Delta a -> a
+deltaAmount (Up x) = x
+deltaAmount (Down x) = x
+deltaAmount (Set x) = x
 
-  public export
-  Eq Delta where
-    (==) a b = deltaIx a == deltaIx b
+public export
+deltaIx : Delta a -> Nat
+deltaIx (Up _) = 0
+deltaIx (Down _) = 1
+deltaIx (Set _) = 2
+
+public export
+Eq a => Eq (Delta a) where
+  (==) x y = deltaIx x == deltaIx y && deltaAmount x == deltaAmount y
+
+-- A counter only adds to or subtracts from power and toughness [CR#122.1a].
+public export
+counterShift : Delta Nat -> Bool
+counterShift (Set _) = False
+counterShift _ = True
 
 public export
 data Supertype = Legendary | Basic | Snow | Ongoing | World
@@ -3102,7 +3115,9 @@ knownCounter l = isJust (counterFactsFor l)
 
 public export
 data CounterKind : Type where
-  BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
+  BoostCounter : (pow : Delta Nat) -> (tou : Delta Nat) ->
+                 {auto 0 ok : So (counterShift pow && counterShift tou)} ->
+                 CounterKind
   KeywordCounter : (k : KeywordLabel) ->
                    {auto 0 ok : KeywordCounterEligible k} -> CounterKind
   NamedCounter : (label : String) ->

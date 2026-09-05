@@ -40,7 +40,7 @@ badSpellAbilityOnPermanent MkCharacteristicsLaws impossible
 public export
 badStaticOnSorcery : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
-       [Static (Gets Adds (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1)))] Nothing {fl = ok})
+       [Static (Macros.getsPt (Macros.allOf Macros.creatureYouControl) (Up (Lit 1)) (Up (Lit 1)))] Nothing {fl = ok})
 badStaticOnSorcery MkCharacteristicsLaws impossible
 
 ||| "Cast this spell only during the declare attackers step. Draw a card."
@@ -436,10 +436,10 @@ okEscalateWithModes =
        [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
        , Spell Nothing (Macros.chooseModes (Range (Just 1) (Just 2))
                   [ Macros.gets (Macros.target Macros.creature)
-                                (PtUp (Lit 1)) (PtUp (Lit 1))
+                                (Up (Lit 1)) (Up (Lit 1))
                                 (Just Macros.untilEndOfTurn)
                   , Macros.gets (Macros.target Macros.creature)
-                                (PtDown (Lit 1)) (PtDown (Lit 1))
+                                (Down (Lit 1)) (Down (Lit 1))
                                 (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -806,7 +806,7 @@ distributiveGroupSurvives : Instruction []
 distributiveGroupSurvives =
   Sequentially
     [ Enact (Just (Macros.each Opponent)) "Shuffle" (Shuffle They)
-    , ChangeLife (Macros.That PlayerW ManyOf) (LifeDown (Lit 1))
+    , ChangeLife (Macros.That PlayerW ManyOf) (Down (Lit 1))
     ]
 
 public export

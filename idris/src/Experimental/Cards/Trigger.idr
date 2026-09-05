@@ -87,18 +87,18 @@ netcasterSpider =
   Macros.triggered Whenever
                    (Blocks Macros.thisCreature
                     (Just (Macros.a (And [Macros.creature, HasKeyword (TheKeyword "Flying")]))))
-                   (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
+                   (Macros.gets Macros.thisCreature (Up (Lit 2)) (Up (Lit 0)) (Just Macros.untilEndOfTurn))
 
 viashinoWeaponsmith : Ability
 viashinoWeaponsmith =
   Macros.triggered Whenever
                    (BecomesBlocked Macros.thisCreature (Just (Macros.a Macros.creature)))
-                   (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
+                   (Macros.gets Macros.thisCreature (Up (Lit 2)) (Up (Lit 2)) (Just Macros.untilEndOfTurn))
 
 somberwaldAlpha : Ability
 somberwaldAlpha =
   Macros.triggered Whenever (BecomesBlocked (Macros.a Macros.creatureYouControl) Nothing)
-                   (Macros.gets ((Macros.It OneOf)) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn))
+                   (Macros.gets ((Macros.It OneOf)) (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn))
 
 vertigoSpawn : Ability
 vertigoSpawn =
@@ -112,7 +112,7 @@ orneryDilophosaur =
                      (Macros.attacks Macros.thisCreature)
                      (Macros.exists (And [Macros.creature, HasPossessor ControllerAx You,
                                    Compare [StatAxis Power] AtLeast (Lit 4)]))
-                     (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
+                     (Macros.gets Macros.thisCreature (Up (Lit 2)) (Up (Lit 2)) (Just Macros.untilEndOfTurn))
 
 incisorGlider : Ability
 incisorGlider =
@@ -121,7 +121,7 @@ incisorGlider =
                      (CompareAmt (CountersOn (NamedCounter "Poison") (Macros.a Opponent))
                                  AtLeast (Lit 3))
                      (Macros.gets (Macros.allOf Macros.creatureYouControl)
-                                  (PtUp (Lit 1)) (PtUp (Lit 1))
+                                  (Up (Lit 1)) (Up (Lit 1))
                                   (Just Macros.untilEndOfTurn))
 
 stormFleetSpy : Ability
@@ -159,12 +159,12 @@ firmamentSage = Macros.triggered Whenever DayNightShift (Draw You (Lit 1))
 deeprootWarrior : Ability
 deeprootWarrior =
   Macros.triggered Whenever (BecomesBlocked Macros.thisCreature Nothing)
-                   (Macros.gets ((Macros.It OneOf)) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn))
+                   (Macros.gets ((Macros.It OneOf)) (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn))
 
 borderlandMarauder : Ability
 borderlandMarauder =
   Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
-                   (Macros.gets ((Macros.It OneOf)) (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
+                   (Macros.gets ((Macros.It OneOf)) (Up (Lit 2)) (Up (Lit 0)) (Just Macros.untilEndOfTurn))
 
 lichsMasteryLoss : Ability
 lichsMasteryLoss =
@@ -181,7 +181,7 @@ elderscaleWurm =
   Macros.triggeredIf When
                      (Enters Macros.thisCreature Nothing)
                      (CompareAmt (PlayerStatOf LifeTotal You) Less (Lit 7))
-                     (Macros.lifeTotalBecomes You (Lit 7))
+                     (Macros.lifeBecomes You (Lit 7))
 
 ||| Krang, Master Mind
 krang : Ability
@@ -196,8 +196,8 @@ carrionGrub : Card
 carrionGrub =
   Macros.card "Carrion Grub" (Just [Macros.generic 3, Macros.pip Black]) []
        (MkTypeLine [creatureType "Insect"] [Creature])
-       [ Static (AndAlso Nothing [ Gets Adds Macros.thisCreature
-                                (PtUp (LetterVal X)) (PtUp (Lit 0))
+       [ Static (AndAlso Nothing [ Modify Macros.thisCreature Power (Up (LetterVal X))
+                                 , Modify Macros.thisCreature Toughness (Up (Lit 0))
                          , DefinesLetter X
                              (Macros.aggregate MaxOf (StatAxis Power)
                                         (And [Macros.creature,
@@ -269,7 +269,7 @@ chubToad =
        [ Macros.triggeredOr Whenever
                             (Blocks Macros.thisCreature Nothing)
                             [BecomesBlocked Macros.thisCreature Nothing]
-                            (Macros.gets ((Macros.It OneOf)) (PtUp (Lit 2)) (PtUp (Lit 2))
+                            (Macros.gets ((Macros.It OneOf)) (Up (Lit 2)) (Up (Lit 2))
                                          (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
@@ -566,7 +566,7 @@ steppeLynx : Ability
 steppeLynx =
   Macros.abilityWord "landfall"
     (Macros.triggered Whenever (Enters (Macros.a (And [Macros.land, HasPossessor ControllerAx You])) Nothing)
-                      (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2))
+                      (Macros.gets Macros.thisCreature (Up (Lit 2)) (Up (Lit 2))
                             (Just Macros.untilEndOfTurn)))
 
 ||| Owlbear
@@ -744,11 +744,11 @@ commandersInsignia =
   Macros.card "Commander's Insignia"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                      (PtUp (Macros.eventCountFrom SpellCast You
+       [ Static (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                      (Up (Macros.eventCountFrom SpellCast You
                                Lookback.ThisGame Macros.yourCommander
                                (FromZone [Macros.commandZ])))
-                      (PtUp (Macros.eventCountFrom SpellCast You
+                      (Up (Macros.eventCountFrom SpellCast You
                                Lookback.ThisGame Macros.yourCommander
                                (FromZone [Macros.commandZ])))) ]
        Nothing
@@ -914,9 +914,9 @@ bioplasm =
               [ Macros.exile (Macros.topSlice (Lit 1))
               , If Anaphora.bioplasmCardTest
                    (Macros.gets Macros.thisCreature
-                        (PtUp (StatOf Power
+                        (Up (StatOf Power
                                  (Macros.TheVerbed "Exile" (TypedCardW Creature) Attributive OneOf)))
-                        (PtUp (StatOf Toughness (Macros.ItVerbed "Exile" OneOf)))
+                        (Up (StatOf Toughness (Macros.ItVerbed "Exile" OneOf)))
                         (Just ThisTurn))
                    Nothing ]) ]
        (Just (4, 4))
@@ -982,7 +982,7 @@ seasonedWarrenguard =
        [ Macros.triggeredWhile Whenever
            (Macros.attacks Macros.thisCreature)
            (WhileTrue (Macros.exists (And [IsToken, HasPossessor ControllerAx You])))
-           (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0))
+           (Macros.gets Macros.thisCreature (Up (Lit 2)) (Up (Lit 0))
                         (Just Macros.untilEndOfTurn)) ]
        (Just (1, 2))
 
@@ -998,7 +998,7 @@ brazenBlademaster =
            (WhileTrue
               (CompareAmt (Macros.countOf (And [Macros.artifact, HasPossessor ControllerAx You]))
                           AtLeast (Lit 2)))
-           (Macros.gets ((Macros.It OneOf)) (PtUp (Lit 2)) (PtUp (Lit 1))
+           (Macros.gets ((Macros.It OneOf)) (Up (Lit 2)) (Up (Lit 1))
                         (Just Macros.untilEndOfTurn)) ]
        (Just (2, 3))
 
@@ -1058,8 +1058,8 @@ stoneHavenOutfitter =
   Macros.card "Stone Haven Outfitter" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [creatureType "Kor", creatureType "Artificer",
                     creatureType "Ally"] [Creature])
-       [ Static (Gets Adds (Macros.allOf (And [Macros.creatureYouControl, IsAttached Equipped]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       [ Static (Macros.getsPt (Macros.allOf (And [Macros.creatureYouControl, IsAttached Equipped]))
+                      (Up (Lit 1)) (Up (Lit 1)))
        , Macros.triggered Whenever
            (Dies (Macros.a (And [Macros.creatureYouControl, IsAttached Equipped])))
            ((Draw You (Lit 1))) ]
@@ -1160,7 +1160,7 @@ jeskaiAscendancyPump =
     (Casts You (Macros.a (And [Macros.spell, Not Macros.creature])) Nothing)
     (Sequentially
        [ Macros.gets (Macros.bare Macros.creatureYouControl)
-                     (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)
+                     (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn)
        , Macros.untap (Macros.That (TypeW Creature) ManyOf) ])
 
 herosDemise : Instruction []
@@ -1172,7 +1172,7 @@ repayInKind =
   Macros.card "Repay in Kind"
        (Just [Macros.generic 5, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
-       [ Spell Nothing (Macros.lifeTotalBecomes (Macros.each AnyPlayer)
+       [ Spell Nothing (Macros.lifeBecomes (Macros.each AnyPlayer)
                   (Macros.aggregate MinOf (PlayerStatAxis LifeTotal) AnyPlayer)) ]
        Nothing
 

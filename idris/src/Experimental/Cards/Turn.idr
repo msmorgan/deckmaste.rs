@@ -414,8 +414,8 @@ centaurOfAttention =
                           (Macros.may You
                              (RerollStored You Macros.anyNumber
                                            Macros.thisCreature))
-       , Static (AndAlso Nothing [ Gets Adds Macros.thisCreature
-                                (PtUp (LetterVal X)) (PtUp (LetterVal X))
+       , Static (AndAlso Nothing [ Modify Macros.thisCreature Power (Up (LetterVal X))
+                                 , Modify Macros.thisCreature Toughness (Up (LetterVal X))
                          , DefinesLetter X
                              (GreatestStoredMatch Macros.thisCreature) ]) ]
        (Just (3, 3))
@@ -509,9 +509,9 @@ beckoningWillOWisp =
        , Macros.flavorWord "Lure the Unwary"
            (Macros.triggered At (BeginningOf ThePart Combat (ByPlayer You))
               (Macros.choose (Macros.a Opponent)))
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature,
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    CombatRel AttackerOf (Macros.the Macros.chosenPlayer)]))
-                      (PtUp (Lit 1)) (PtUp (Lit 0))) ]
+                      (Up (Lit 1)) (Up (Lit 0))) ]
        (Just (1, 3))
 
 ||| Triarch Stalker
@@ -543,7 +543,7 @@ waxWane =
   SplitCard
     (Macros.frontFace "Wax" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
             [ Spell Nothing (Macros.gets (Macros.target Macros.creature)
-                                 (PtUp (Lit 2)) (PtUp (Lit 2))
+                                 (Up (Lit 2)) (Up (Lit 2))
                                  (Just Macros.untilEndOfTurn)) ]
             Nothing)
     (Macros.frontFace "Wane" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
@@ -592,7 +592,7 @@ bloodFrenzy =
            (Sequentially
               [ Macros.gets (Macros.target (And [Macros.creature,
                                                  Or [Attacking, Blocking]]))
-                            (PtUp (Lit 4)) (PtUp (Lit 0))
+                            (Up (Lit 4)) (Up (Lit 0))
                             (Just Macros.untilEndOfTurn)
               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)
                   (Macros.destroy (Macros.That (TypeW Creature) OneOf)) ]) ]
@@ -609,8 +609,8 @@ berserk =
               [ Macros.sharedSubject (Macros.target Macros.creature)
                   [ Gains (Macros.ownSubject (Macros.target Macros.creature))
                           (Macros.keyword "Trample")
-                  , Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
-                         (PtUp (LetterVal X)) (PtUp (Lit 0))
+                  , Modify (Macros.ownSubject (Macros.target Macros.creature)) Power (Up (LetterVal X))
+                  , Modify ((Macros.It OneOf)) Toughness (Up (Lit 0))
                   , DefinesLetter X (StatOf Power (Macros.It OneOf)) ]
                   (Just Macros.untilEndOfTurn)
               , Macros.delayed (BeginningOf ThePart EndStep NoPossessor)

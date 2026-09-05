@@ -240,7 +240,7 @@ mutual
   someWritten (_ :: _) = True
 
   public export
-  data CharOp = Adds | Sets | Loses
+  data QualityOp = Adds | Sets | Loses
 
   public export
   data QualityPayload : Bindings -> Type where
@@ -257,7 +257,7 @@ mutual
       && (lineNonEmpty t.line || someWritten t.supers)
 
   public export
-  bundleOk : {0 bs : Bindings} -> CharOp -> Maybe CardType -> Maybe Zone ->
+  bundleOk : {0 bs : Bindings} -> QualityOp -> Maybe CardType -> Maybe Zone ->
              TokenChars bs -> Maybe CardType -> Bool
   bundleOk Adds ty z t ret =
     (addsSomething ty t.line || someWritten t.supers) && addedFits ty t.line
@@ -272,13 +272,13 @@ mutual
       && isNothing ret
 
   public export
-  colorOpOk : CharOp -> ColorSpec -> Bool
+  colorOpOk : QualityOp -> ColorSpec -> Bool
   colorOpOk Sets _ = True
   colorOpOk _ (SomeColors []) = False
   colorOpOk _ _ = True
 
   public export
-  becomesOk : {bs : Bindings} -> CharOp -> Noun bs Object -> QualityPayload bs -> Bool
+  becomesOk : {bs : Bindings} -> QualityOp -> Noun bs Object -> QualityPayload bs -> Bool
   becomesOk op n (Bundle t ret) = bundleOk op (nounTy n) (nounZone n) t ret
   becomesOk op n (EveryTypeOf space) =
     zoneIsB (nounZone n) Battlefield && spaceHosted space (nounTy n)
@@ -286,11 +286,11 @@ mutual
   becomesOk op n (Colored cs) = colorSpecOk cs && colorOpOk op cs
 
   public export
-  BecomesOk : {bs : Bindings} -> CharOp -> Noun bs Object -> QualityPayload bs -> Type
+  BecomesOk : {bs : Bindings} -> QualityOp -> Noun bs Object -> QualityPayload bs -> Type
   BecomesOk op n q = So (becomesOk op n q)
 
   public export
-  becomesKind : {0 bs : Bindings} -> CharOp -> QualityPayload bs -> StaticKind
+  becomesKind : {0 bs : Bindings} -> QualityOp -> QualityPayload bs -> StaticKind
   becomesKind _ (Colored _) = ColorSet
   becomesKind Adds _ = TypeAddition
   becomesKind Sets _ = TypeSet
@@ -335,51 +335,29 @@ mutual
   specDelta TokenAsThose = []
   specDelta (TokenCopyOf _ _) = []
 
+  -- Layer 7 modifies power and toughness [CR#613.4c]; loyalty is counters
+  -- [CR#306.5c] and mana value is read off the mana cost [CR#202.3].
   public export
-  data PtShift : Bindings -> Type where
-    PtUp : (amt : Amount bs) -> PtShift bs
-    PtDown : (amt : Amount bs) -> PtShift bs
+  modifyStatOk : Stat -> Bool
+  modifyStatOk Power = True
+  modifyStatOk Toughness = True
+  modifyStatOk ManaValue = False
+  modifyStatOk Loyalty = False
 
   public export
-  shiftAmount : {0 bs : Bindings} -> PtShift bs -> Amount bs
-  shiftAmount (PtUp a) = a
-  shiftAmount (PtDown a) = a
+  ModifyStat : Stat -> Type
+  ModifyStat st = So (modifyStatOk st)
 
+  -- A set value applies a sublayer earlier than a modification [CR#613.4b].
   public export
-  shiftRises : {0 bs : Bindings} -> PtShift bs -> Bool
-  shiftRises (PtUp _) = True
-  shiftRises (PtDown _) = False
-
-  public export
-  shiftDelta : {bs : Bindings} -> PtShift bs -> List Binding
-  shiftDelta s = amtDelta (shiftAmount s)
-
-  -- Only modifications are signed; no layer subtracts a characteristic [CR#613.4b,613.4c].
-  public export
-  ptOpOk : {0 b1 : Bindings} -> {0 b2 : Bindings} ->
-           CharOp -> PtShift b1 -> PtShift b2 -> Bool
-  ptOpOk Adds _ _ = True
-  ptOpOk Sets p t = shiftRises p && shiftRises t
-  ptOpOk Loses _ _ = False
-
-  public export
-  ptOpKind : CharOp -> StaticKind
-  ptOpKind Adds = PtDelta
-  ptOpKind Sets = BasePtSet
-  ptOpKind Loses = PtDelta
-
-  public export
-  shiftIntro : {bs : Bindings} -> PtShift bs -> Bindings
-  shiftIntro s = amtIntro (shiftAmount s)
+  deltaKind : {0 bs : Bindings} -> Delta (Amount bs) -> StaticKind
+  deltaKind (Set _) = BasePtSet
+  deltaKind _ = PtDelta
 
   public export
   writtenZero : {0 bs : Bindings} -> Amount bs -> Bool
   writtenZero (Lit Z) = True
   writtenZero _ = False
-
-  public export
-  sameDirection : {0 bs : Bindings} -> PtShift bs -> PtShift bs -> Bool
-  sameDirection p t = if shiftRises p then shiftRises t else not (shiftRises t)
 
   public export
   data CostShift : Bindings -> Type where
@@ -398,12 +376,11 @@ mutual
   namespace Static
     public export
     data StaticSpec : Bindings -> Type where
-      Gets : (op : CharOp) -> (n : Noun bs Object) ->
-             (pow : PtShift (selfSubjIntro n)) ->
-             (tou : PtShift (shiftIntro pow)) ->
-             {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
-             {auto 0 lo : So (ptOpOk op pow tou)} ->
-             StaticSpec bs
+      Modify : (n : Noun bs Object) -> (what : Stat) ->
+               (d : Delta (Amount (selfSubjIntro n))) ->
+               {auto 0 ok : ZoneIs (nounZone n) Battlefield} ->
+               {auto 0 ms : ModifyStat what} ->
+               StaticSpec bs
       DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
                   (amt : Amount (selfSubjIntro n)) ->
                   {auto 0 sd : SelfDefined n} ->
@@ -452,7 +429,7 @@ mutual
       KeepsUnspentMana : (who : Noun bs Player) ->
                          (what : ManaHeld (nomIntro who)) -> StaticSpec bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticSpec bs
-      Becomes : (n : Noun bs Object) -> (op : CharOp) -> (q : QualityPayload bs) ->
+      Becomes : (n : Noun bs Object) -> (op : QualityOp) -> (q : QualityPayload bs) ->
                 {auto 0 ok : BecomesOk op n q} -> StaticSpec bs
       AlsoOffBattlefield : (se : StaticSpec bs) ->
                            {auto 0 nx : NotExtended se} -> StaticSpec bs
@@ -823,7 +800,7 @@ mutual
   public export
   staticKind : {0 bs : Bindings} -> StaticSpec bs -> StaticKind
   staticKind (DefinesLetter _ _) = LetterDefinition
-  staticKind (Gets op _ _ _) = ptOpKind op
+  staticKind (Modify _ _ d) = deltaKind d
   staticKind (DefinesPt _ _ _) = PtDefinition
   staticKind (SwitchesPt _) = PtSwitch
   staticKind (Costs _ _) = CostModification
@@ -858,7 +835,7 @@ mutual
   public export
   staticIntro : {bs : Bindings} -> StaticSpec bs -> Bindings
   staticIntro (DefinesLetter l amt) = defineLetter l (amtIntro amt)
-  staticIntro (Gets _ n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
+  staticIntro (Modify n _ d) = deltaDelta d ++ selfSubjIntro n
   staticIntro (DefinesPt n _ amt) =
     outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
   staticIntro (SwitchesPt n) = selfSubjIntro n
@@ -1219,7 +1196,8 @@ mutual
                   (whom : Noun (nomIntro copy) kt) ->
                   {auto 0 cp : Copiable copy} ->
                   {auto 0 tk : Targetable kt} -> Instruction bs
-    ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Instruction bs
+    ChangeLife : (who : Noun bs Player) ->
+                 (d : Delta (Amount (nomIntro who))) -> Instruction bs
     Exchange : (what : Exchanged bs) -> Instruction bs
     AddMana : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
               (prod : ProducedMana (amtIntro amt)) ->
@@ -1866,9 +1844,11 @@ mutual
                  Nothing
                  ([])
   instrProfile (Exchange what) = sameIntro (exchangedIntro what) (exchangedDeed what)
-  instrProfile (ChangeLife who (LifeUp a)) = sameIntro (lifeIntro (LifeUp a)) [outcomeB LifeGained]
-  instrProfile (ChangeLife who (LifeDown a)) = sameIntro (lifeIntro (LifeDown a)) [outcomeB LifeLost]
-  instrProfile (ChangeLife who (Set a)) = sameIntro (lifeIntro (Set a)) []
+  -- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the
+  -- gain or loss to follow from the new total [CR#119.5].
+  instrProfile (ChangeLife who (Up a)) = sameIntro (deltaIntro (Up a)) [outcomeB LifeGained]
+  instrProfile (ChangeLife who (Down a)) = sameIntro (deltaIntro (Down a)) [outcomeB LifeLost]
+  instrProfile (ChangeLife who (Set a)) = sameIntro (deltaIntro (Set a)) []
   instrProfile (AddMana who amt _ _) = sameIntro (amtIntro amt) [outcomeB ManaAdded]
   instrProfile (Draw who amt) = sameIntro (amtIntro amt) []
   instrProfile (Expose v who what) = sameIntro (exposedIntro what) []
@@ -2539,8 +2519,8 @@ mutual
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
   -- A life payment targets its payer; granting life may target anyone [CR#119.4].
-  costPaidByYou (Do (ChangeLife who (LifeDown _))) = nounIsYou who
-  costPaidByYou (Do (ChangeLife _ (LifeUp _))) = True
+  costPaidByYou (Do (ChangeLife who (Down _))) = nounIsYou who
+  costPaidByYou (Do (ChangeLife _ _)) = True
   costPaidByYou (Do (Enact (Just subj) _ _)) = nounIsYou subj
   costPaidByYou (Do _) = True
   costPaidByYou (Compound cs) = costsPaidByYou cs

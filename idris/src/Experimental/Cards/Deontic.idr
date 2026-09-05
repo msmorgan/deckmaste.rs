@@ -243,8 +243,8 @@ aetherTunnel =
   Macros.card "Aether Tunnel" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
-                                (PtUp (Lit 1)) (PtUp (Lit 0))
+       , Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 1))
+                                 , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 0))
                          , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Patient NoDeonticPatient ]) ]
        Nothing
 
@@ -831,7 +831,7 @@ public export
 distortionStrikeLine : Instruction []
 distortionStrikeLine =
   Sequentially
-    [ Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 0))
+    [ Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 0))
                   (Just Macros.untilEndOfTurn)
     , Continuously
         (Macros.deontic (Macros.That (TypeW Creature) OneOf) Forbid ["Block"]
@@ -849,7 +849,8 @@ retroMutation =
        , Static (AndAlso Nothing
            [ Becomes (AttachHost Enchanted (TypeW Creature)) Sets (Bundle (MkToken Nothing []
                                (MkTypeLine [creatureType "Turtle"] []) [] Nothing) Nothing)
-           , Macros.hasBasePt ((Macros.It OneOf)) (Lit 0) (Lit 1)
+           , Modify ((Macros.It OneOf)) Power (Set (Lit 0))
+           , Modify (Macros.itsOther ((Macros.It OneOf)) (Set (Lit 0))) Toughness (Set (Lit 1))
            , Deontic ((Macros.It OneOf)) Forbid ["Attack"] Agent Nothing NoDeonticPatient Nothing
                       NoDeonticRider
            , LosesAllAbilities ((Macros.It OneOf)) Nothing ]) ]

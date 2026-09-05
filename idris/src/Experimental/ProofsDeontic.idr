@@ -83,7 +83,7 @@ okDeedAsCost =
 ||| "Creatures you control get +1/+1 until end of turn:"
 public export
 badContinuousAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.gets (Macros.allOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
+  Activated (Do (Macros.gets (Macros.allOf Macros.creatureYouControl) (Up (Lit 1)) (Up (Lit 1))
                              (Just Macros.untilEndOfTurn)) {ok})
             (Draw You (Lit 1)) Nothing Nothing Nothing Nothing)
 badContinuousAsCost Oh impossible
@@ -369,8 +369,8 @@ okEnchantedCreatureCantBlock =
 public export
 okCoordinatedLandHostBlocks : Ability
 okCoordinatedLandHostBlocks =
-  Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Land))
-                         (PtUp (Lit 1)) (PtUp (Lit 1))
+  Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Land)) Power (Up (Lit 1))
+                          , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Land)) (Up (Lit 1))) Toughness (Up (Lit 1))
                   , Macros.deontic ((Macros.It OneOf)) Forbid ["Block"] Agent NoDeonticPatient ])
 
 ||| "This deals 4 damage to target creature. The damage can't be prevented."
@@ -384,7 +384,7 @@ okTheDamageAfterDealing =
 ||| "You gain 3 life. The damage can't be prevented."
 public export
 badTheDamageAfterLifeGain : Unspellable (Instruction []) (\ok =>
-  Sequentially [ ChangeLife You (LifeUp (Lit 3))
+  Sequentially [ ChangeLife You (Up (Lit 3))
                , Continuously
                    (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
 badTheDamageAfterLifeGain Oh impossible

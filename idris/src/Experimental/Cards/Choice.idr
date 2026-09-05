@@ -138,8 +138,8 @@ raffinesGuidance =
   Macros.card "Raffine's Guidance" (Just [Macros.pip White]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
-       , Static (Gets Adds (AttachHost Enchanted (TypeW Creature))
-                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       , Static (Macros.getsPt (AttachHost Enchanted (TypeW Creature))
+                      (Up (Lit 1)) (Up (Lit 1)))
        , Static ((Macros.mayPlayDeed "Cast" You This Nothing (PlayRider (Just (Macros.graveyardOf You)) Nothing Nothing False (PayingInstead (Mana [Macros.generic 2, Macros.pip White]))))) ]
        Nothing
 
@@ -183,7 +183,8 @@ ashnodsBattleGear = Static (Macros.mayDeclineUntap Macros.thisArtifact (Just You
 ||| Phyrexian Ingester
 phyrexianIngesterPump : Ability
 phyrexianIngesterPump =
-  Static (AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (LetterVal X)) (PtUp (LetterVal Y))
+  Static (AndAlso Nothing [ Modify Macros.thisCreature Power (Up (LetterVal X))
+                          , Modify Macros.thisCreature Toughness (Up (LetterVal Y))
                   , DefinesLetter X
                       (StatOf Power
                          (Macros.a (And [Macros.creature,
@@ -317,7 +318,7 @@ cripplingFear =
                   [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Macros.gets (Macros.allOf (And [Macros.creature,
                                              Not (Macros.ofChosen (SubtypeQ Creature))]))
-                                (PtDown (Lit 3)) (PtDown (Lit 3))
+                                (Down (Lit 3)) (Down (Lit 3))
                                 (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -385,10 +386,10 @@ adaptiveAutomaton =
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
        , Static (Becomes Macros.thisCreature Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature))))
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You,
                                    OtherThan Macros.thisCreature,
                                    Macros.ofChosen (SubtypeQ Creature)]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+                      (Up (Lit 1)) (Up (Lit 1))) ]
        (Just (2, 2))
 
 public export
@@ -505,10 +506,10 @@ nyxathid =
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Static (Macros.entersChoosingPlayer Macros.thisCreature
                                              (Just OpponentsOnly))
-       , Static (Gets Adds Macros.thisCreature
-                      (PtDown (Macros.countOf (InZone (Macros.handOf
+       , Static (Macros.getsPt Macros.thisCreature
+                      (Down (Macros.countOf (InZone (Macros.handOf
                                  (Macros.the Macros.chosenPlayer)))))
-                      (PtDown (Macros.countOf (InZone (Macros.handOf
+                      (Down (Macros.countOf (InZone (Macros.handOf
                                  (Macros.the Macros.chosenPlayer)))))) ]
        (Just (7, 7))
 
@@ -573,7 +574,7 @@ foundingOfOmashu =
            ((May You ((Macros.discard You (Macros.a (InZone Macros.handZ)))) (Just (Draw You (Lit 1))) Nothing))
        , Macros.triggered When (ChapterMark [ChapterIII])
            (Macros.gets (Macros.allOf Macros.creatureYouControl)
-                        (PtUp (Lit 1)) (PtUp (Lit 0))
+                        (Up (Lit 1)) (Up (Lit 0))
                         (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -864,8 +865,8 @@ leylineOfTheMeek =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ MayBeginOnBattlefield
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature, IsToken]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature, IsToken]))
+                      (Up (Lit 1)) (Up (Lit 1))) ]
        Nothing
 
 ||| Leyline of Vitality
@@ -876,8 +877,8 @@ leylineOfVitality =
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
        [ MayBeginOnBattlefield
-       , Static (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                      (PtUp (Lit 0)) (PtUp (Lit 1)))
+       , Static (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                      (Up (Lit 0)) (Up (Lit 1)))
        , Macros.triggered Whenever
            (Enters (Macros.a Macros.creatureYouControl) Nothing)
            (Macros.may You (Macros.gainsLife You (Lit 1))) ]
@@ -951,7 +952,7 @@ gandalfWhiteRider =
        , Macros.triggered Whenever (Casts You (Macros.a Macros.spell) Nothing)
                           (Sequentially
                       [ Macros.gets (Macros.each Macros.creatureYouControl)
-                                    (PtUp (Lit 1)) (PtUp (Lit 0))
+                                    (Up (Lit 1)) (Up (Lit 0))
                                     (Just Macros.untilEndOfTurn)
                       , Macros.scry You (Lit 1) ])
        , Macros.triggered When (Dies Macros.thisCreature)
@@ -1567,7 +1568,7 @@ collectiveUnconscious : Instruction []
 collectiveUnconscious = Draw You (Macros.forEach 1 Macros.creatureYouControl)
 
 killiansConfidence : Instruction []
-killiansConfidence = Sequentially [Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn),
+killiansConfidence = Sequentially [Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn),
                                    (Draw You (Lit 1))]
 
 scatheZombies : Card

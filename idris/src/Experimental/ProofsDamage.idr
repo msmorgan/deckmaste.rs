@@ -40,7 +40,7 @@ public export
 okIt : Instruction []
 okIt =
   Sequentially [SetStatus Tapped (Macros.target Macros.creature),
-                Macros.gets (Macros.It OneOf) (PtDown (Lit 1)) (PtDown (Lit 1))
+                Macros.gets (Macros.It OneOf) (Down (Lit 1)) (Down (Lit 1))
                             (Just Macros.untilEndOfTurn)]
 
 ||| "Target creature fights target creature. Tap it."
@@ -459,13 +459,13 @@ okPreventedThisWayInAClause =
 public export
 badPreventedThisWayAfterDamage : Unspellable (Instruction []) (\ok =>
   Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.creature)
-               , ChangeLife You (LifeUp (Macros.preventedThisWay {ok})) ])
+               , ChangeLife You (Up (Macros.preventedThisWay {ok})) ])
 badPreventedThisWayAfterDamage Refl impossible
 
 ||| "You gain life equal to the damage prevented this way."
 public export
 badPreventedThisWayUnannounced : Unspellable (Instruction []) (\ok =>
-  ChangeLife You (LifeUp (Macros.preventedThisWay {ok})))
+  ChangeLife You (Up (Macros.preventedThisWay {ok})))
 badPreventedThisWayUnannounced Refl impossible
 
 ||| "… They gain 2 life for each card less than two they drew this way."
@@ -790,12 +790,12 @@ badDestroySource Oh impossible
 public export
 okGetsCreature : Instruction []
 okGetsCreature =
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1))
+  Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 1))
               (Just Macros.untilEndOfTurn)
 
 ||| "Target source gets +1/+1 until end of turn." [CR#609.7a]
 public export
 badGetsSource : Unspellable (Instruction []) (\ok =>
-  Macros.gets (Macros.target Macros.source) (PtUp (Lit 1)) (PtUp (Lit 1)) {ok}
+  Macros.gets (Macros.target Macros.source) (Up (Lit 1)) (Up (Lit 1)) {ok}
               (Just Macros.untilEndOfTurn))
 badGetsSource Oh impossible

@@ -9,7 +9,7 @@ import Experimental.Macros
 glyphOfDestruction : Instruction []
 glyphOfDestruction =
   Macros.gets (Macros.target (And [Blocking, HasSubtype (creatureType "Wall"),
-                                   HasPossessor ControllerAx You])) (PtUp (Lit 10)) (PtUp (Lit 0)) (Just Macros.untilEndOfCombat)
+                                   HasPossessor ControllerAx You])) (Up (Lit 10)) (Up (Lit 0)) (Just Macros.untilEndOfCombat)
 
 rawNonattacking : Predicate [] Object
 rawNonattacking = And [Macros.creature, Not Attacking, Not Blocking]
@@ -49,7 +49,7 @@ unholyAnnex =
 
 warScreecher : Instruction []
 warScreecher =
-  Macros.gets (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)
+  Macros.gets (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature)) (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn)
 
 mindFlayer : Instruction []
 mindFlayer =
@@ -125,7 +125,7 @@ nightmarishEnd =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.gets (Macros.target Macros.creature)
-                                (PtDown (LetterVal X)) (PtDown (LetterVal X))
+                                (Down (LetterVal X)) (Down (LetterVal X))
                                 (Just Macros.untilEndOfTurn)
                   , Define X (Macros.countOf (InZone (Macros.handOf You))) ]) ]
        Nothing
@@ -196,7 +196,7 @@ defensiveManeuvers =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
-                            (PtUp (Lit 0)) (PtUp (Lit 4))
+                            (Up (Lit 0)) (Up (Lit 4))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -208,7 +208,7 @@ witchsVengeance =
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
-                            (PtDown (Lit 3)) (PtDown (Lit 3))
+                            (Down (Lit 3)) (Down (Lit 3))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -249,7 +249,7 @@ hazardousConditions =
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green]) []
        (MkTypeLine [] [Sorcery])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))
-                            (PtDown (Lit 2)) (PtDown (Lit 2))
+                            (Down (Lit 2)) (Down (Lit 2))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -539,7 +539,7 @@ ancestralRecall : Instruction []
 ancestralRecall = Draw (Macros.target AnyPlayer) (Lit 3)
 
 lifeTotalBecomesOne : Instruction []
-lifeTotalBecomesOne = Macros.lifeTotalBecomes (Macros.target AnyPlayer) (Lit 1)
+lifeTotalBecomesOne = Macros.lifeBecomes (Macros.target AnyPlayer) (Lit 1)
 
 ||| Berserker's Frenzy's roll
 public export
@@ -582,7 +582,7 @@ permanentCardIsPlaceless = Refl
 public export
 archpriestOfIonaPower : Ability
 archpriestOfIonaPower =
-  Static (Macros.hasBasePt Macros.thisCreature Macros.partySize (Lit 2))
+  Static (DefinesPt Macros.thisCreature PowerAlone Macros.partySize)
 
 ||| Archpriest of Iona
 public export
@@ -590,7 +590,7 @@ archpriestOfIonaFullParty : Ability
 archpriestOfIonaFullParty =
   Macros.triggeredIf At (BeginningOf ThePart Combat (ByPlayer You)) Macros.fullParty
     (Sequentially
-       [ Macros.gets (Macros.target Macros.creature) (PtUp (Lit 1)) (PtUp (Lit 1))
+       [ Macros.gets (Macros.target Macros.creature) (Up (Lit 1)) (Up (Lit 1))
                      (Just Macros.untilEndOfTurn)
        , Macros.gains ((Macros.It OneOf)) (Macros.keyword "Flying")
                       (Just Macros.untilEndOfTurn) ])
@@ -620,7 +620,7 @@ atKnifepointCrime =
                         (MkTypeLine [creatureType "Mercenary"] [Creature])
                         [ Macros.activatedOnlyDuring TapSymbol
                             (Macros.gets (Macros.target Macros.creatureYouControl)
-                                         (PtUp (Lit 1)) (PtUp (Lit 0))
+                                         (Up (Lit 1)) (Up (Lit 0))
                                          (Just Macros.untilEndOfTurn))
                             AsSorcery ]
                         Nothing))

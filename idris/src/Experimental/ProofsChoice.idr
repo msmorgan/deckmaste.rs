@@ -392,14 +392,14 @@ badMemberInComparisonBound Refl impossible
 public export
 okGetsBattlefield : Instruction []
 okGetsBattlefield =
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3))
+  Macros.gets (Macros.target Macros.creature) (Up (Lit 3)) (Up (Lit 3))
               (Just Macros.untilEndOfTurn)
 
 ||| "Destroy target creature. It gets +3/+3 until end of turn."
 public export
 badGetsGraveyard : Unspellable (Instruction []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                Macros.gets ((Macros.It OneOf)) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
+                Macros.gets ((Macros.It OneOf)) (Up (Lit 3)) (Up (Lit 3)) (Just Macros.untilEndOfTurn) {ok}])
 badGetsGraveyard Oh impossible
 
 ||| "Choose a creature. This deals 3 damage to each creature not chosen this

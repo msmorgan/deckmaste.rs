@@ -662,7 +662,7 @@ bileBlight =
                           (Macros.allOf (And [ Macros.creature
                                       , Named (SameNameAs (Macros.That (TypeW Creature) OneOf))
                                       , OtherThan (Macros.That (TypeW Creature) OneOf) ])))
-                  (PtDown (Lit 3)) (PtDown (Lit 3))
+                  (Down (Lit 3)) (Down (Lit 3))
                   (Just Macros.untilEndOfTurn)) ]
        Nothing
 

@@ -66,16 +66,16 @@ badBattlefieldConvoke Oh impossible
 public export
 okFlatCoordination : StaticSpec []
 okFlatCoordination =
-  AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
-                         (PtUp (Lit 1)) (PtUp (Lit 1))
+  AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 1))
+                  , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 1))) Toughness (Up (Lit 1))
                   , Gains (Macros.It OneOf) (KeywordAbility "Flying" Nothing Nothing)
                   , Gains (Macros.It OneOf) (KeywordAbility "Trample" Nothing Nothing) ]
 
 ||| "Target creature gets +1/+1 and gains flying and gains trample."
 public export
 badNestedCoordination : Unspellable (StaticSpec []) (\ok =>
-  AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Gets Adds (Macros.target Macros.creature)
-                                      (PtUp (Lit 1)) (PtUp (Lit 1))
+  AndAlso Nothing (Coord.(::) (AndAlso Nothing [ Modify (Macros.target Macros.creature) Power (Up (Lit 1))
+                                               , Modify (Macros.itsOther (Macros.target Macros.creature) (Up (Lit 1))) Toughness (Up (Lit 1))
                                , Gains ((Macros.It OneOf)) (KeywordAbility "Flying" Nothing Nothing) ])
                       {nc = ok}
                       (Coord.(::) (Gains ((Macros.It OneOf)) (KeywordAbility "Trample" Nothing Nothing)) Coord.Nil)))
@@ -92,7 +92,8 @@ okThatCreatureAfterAntecedent =
 ||| "This creature gets +1/+1 and that creature has flying."
 public export
 badThatCreatureIsStaticSubject : Unspellable Ability (\ok =>
-  Static (AndAlso Nothing [ Gets Adds Macros.thisCreature (PtUp (Lit 1)) (PtUp (Lit 1))
+  Static (AndAlso Nothing [ Modify Macros.thisCreature Power (Up (Lit 1))
+                          , Modify (Macros.itsOther Macros.thisCreature (Up (Lit 1))) Toughness (Up (Lit 1))
                   , Gains (Macros.That (TypeW Creature) OneOf {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badThatCreatureIsStaticSubject Refl impossible
 
@@ -101,15 +102,15 @@ public export
 okCoordinatedPlural : Ability
 okCoordinatedPlural =
   Static (AndAlso Nothing
-            [ Gets Adds (Macros.allOf Macros.creatureYouControl)
-                   (PtUp (Lit 1)) (PtUp (Lit 1))
+            [ Modify (Macros.allOf Macros.creatureYouControl) Power (Up (Lit 1))
+            , Modify (Macros.itsOther (Macros.allOf Macros.creatureYouControl) (Up (Lit 1))) Toughness (Up (Lit 1))
             , Gains (Macros.It ManyOf) (KeywordAbility "Flying" Nothing Nothing) ])
 
 ||| "Enchanted creature gets +1/+1 and they have flying."
 public export
 badCoordinatedHostPlural : Unspellable Ability (\ok =>
-  Static (AndAlso Nothing [ Gets Adds (AttachHost Enchanted (TypeW Creature))
-                         (PtUp (Lit 1)) (PtUp (Lit 1))
+  Static (AndAlso Nothing [ Modify (AttachHost Enchanted (TypeW Creature)) Power (Up (Lit 1))
+                          , Modify (Macros.itsOther (AttachHost Enchanted (TypeW Creature)) (Up (Lit 1))) Toughness (Up (Lit 1))
                   , Gains ((Macros.It ManyOf) {ok = ok}) (KeywordAbility "Flying" Nothing Nothing) ]))
 badCoordinatedHostPlural Refl impossible
 
@@ -162,17 +163,17 @@ okReaderAfterChooser : Card
 okReaderAfterChooser =
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature,
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature)]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+                      (Up (Lit 1)) (Up (Lit 1))) ]
        Nothing
 
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (Gets Adds (Macros.allOf (And [Macros.creature,
+       [ Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+                      (Up (Lit 1)) (Up (Lit 1)))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)
 badReaderBeforeChooser Refl impossible
@@ -182,9 +183,9 @@ badTwoChoosersOneSortRead : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature,
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+                      (Up (Lit 1)) (Up (Lit 1))) ]
        Nothing)
 badTwoChoosersOneSortRead Refl impossible
 
@@ -192,9 +193,9 @@ public export
 badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
-       , Static (Gets Adds (Macros.allOf (And [Macros.creature,
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
-                      (PtUp (Lit 1)) (PtUp (Lit 1))) ]
+                      (Up (Lit 1)) (Up (Lit 1))) ]
        Nothing)
 badChosenReadWrongSort Refl impossible
 
@@ -260,8 +261,8 @@ okKeywordListOverGrant =
 ||| "Creatures you control get +1/+1. The same is true for menace and trample."
 public export
 badKeywordListOnPlainLine : Unspellable Ability (\ok =>
-  AlsoForKeywords (Static (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                                (PtUp (Lit 1)) (PtUp (Lit 1))))
+  AlsoForKeywords (Static (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                                (Up (Lit 1)) (Up (Lit 1))))
                   [TheKeyword "Menace", TheKeyword "Trample"]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
 badKeywordListOnPlainLine (Oh, _) impossible
@@ -354,8 +355,8 @@ sharedSubjectSurvivesSecondSingular : Instruction []
 sharedSubjectSurvivesSecondSingular =
   Sequentially [Macros.exile (Macros.target Macros.artifact),
                 Macros.sharedSubject (Macros.target Macros.creature)
-                  [ Gets Adds (Macros.ownSubject (Macros.target Macros.creature))
-                         (PtUp (Lit 1)) (PtUp (Lit 1))
+                  [ Modify (Macros.ownSubject (Macros.target Macros.creature)) Power (Up (Lit 1))
+                  , Modify (Macros.ownSubject (Macros.target Macros.creature)) Toughness (Up (Lit 1))
                   , Gains (Macros.ownSubject (Macros.target Macros.creature))
                           (Macros.keyword "Flying") ]
                   (Just Macros.untilEndOfTurn)]

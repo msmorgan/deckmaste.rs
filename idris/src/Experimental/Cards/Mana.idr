@@ -75,7 +75,7 @@ acceleratedMutation =
        (MkTypeLine [] [Instant])
        [ Spell Nothing (Sequentially
                   [ Macros.gets (Macros.target Macros.creature)
-                                (PtUp (LetterVal X)) (PtUp (LetterVal X))
+                                (Up (LetterVal X)) (Up (LetterVal X))
                                 (Just Macros.untilEndOfTurn)
                   , Define X (Macros.aggregate MaxOf (StatAxis ManaValue)
                                  (And [Permanent, HasPossessor ControllerAx You])) ]) ]
@@ -156,7 +156,7 @@ mishrasFactory =
                       (Just Macros.untilEndOfTurn))
        , Macros.activated TapSymbol
                           (Macros.gets (Macros.target (And [Macros.creature, HasSubtype (creatureType "AssemblyWorker")]))
-                                (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)) ]
+                                (Up (Lit 1)) (Up (Lit 1)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 ||| Mutavault
@@ -228,9 +228,9 @@ saheeliFiligreeMaster =
                       , Macros.gainsHaste ((Macros.It ManyOf)) (Just Macros.untilEndOfTurn) ])
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
                           (GetsEmblem You
-                      [ Static (Gets Adds (Macros.allOf (And [Macros.artifact, Macros.creature,
+                      [ Static (Macros.getsPt (Macros.allOf (And [Macros.artifact, Macros.creature,
                                                   HasPossessor ControllerAx You]))
-                                     (PtUp (Lit 1)) (PtUp (Lit 1)))
+                                     (Up (Lit 1)) (Up (Lit 1)))
                       , Static (Costs (Macros.allOf (And [Macros.artifact, Macros.spell,
                                                          Macros.castBy You]))
                                             (CostLess (Lit 1) Nothing)) ]) ]
@@ -576,8 +576,8 @@ blazingShoal =
                    (Macros.a (And [ColorIs Red,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (PtUp (LetterVal X))
-                            (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)) ]
+       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (Up (LetterVal X))
+                            (Up (Lit 0)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 public export
@@ -590,8 +590,8 @@ sickeningShoal =
                    (Macros.a (And [ColorIs Black,
                                    Compare [StatAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
-       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (PtDown (LetterVal X))
-                            (PtDown (LetterVal X)) (Just Macros.untilEndOfTurn)) ]
+       , Spell Nothing (Macros.gets (Macros.target Macros.creature) (Down (LetterVal X))
+                            (Down (LetterVal X)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 public export
@@ -1108,7 +1108,7 @@ heartOfYavimaya =
                           (AddMana You (Lit 1) (Runs [[OfColor Green]]) [])
        , Macros.activated TapSymbol
                           (Macros.gets (Macros.target Macros.creature)
-                             (PtUp (Lit 1)) (PtUp (Lit 1))
+                             (Up (Lit 1)) (Up (Lit 1))
                              (Just Macros.untilEndOfTurn)) ]
        Nothing
 

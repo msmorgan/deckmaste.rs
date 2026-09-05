@@ -60,13 +60,13 @@ okThatCreatureAfterAttack : Ability
 okThatCreatureAfterAttack =
   Triggered Whenever (Attacks (Macros.a Macros.creature) NoDefender)
             [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf) (PtUp (Lit 2)) (PtUp (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf) (Up (Lit 2)) (Up (Lit 0))
                          (Just Macros.untilEndOfTurn))
 
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
   Triggered Whenever (Attacks Macros.thisCreature NoDefender) [] Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtUp (Lit 2)) (PtUp (Lit 0))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Up (Lit 2)) (Up (Lit 0))
                          {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf (Refl, _) impossible
 

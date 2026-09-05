@@ -291,8 +291,8 @@ badAddedCostLoyaltySymbol AddedPaymentWritten impossible
 public export
 okContinuousPumpClause : Instruction []
 okContinuousPumpClause =
-  Continuously (Gets Adds (Macros.allOf Macros.creatureYouControl)
-                     (PtUp (Lit 1)) (PtUp (Lit 1)))
+  Continuously (Macros.getsPt (Macros.allOf Macros.creatureYouControl)
+                     (Up (Lit 1)) (Up (Lit 1)))
                (Just Macros.untilEndOfTurn)
 
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost"

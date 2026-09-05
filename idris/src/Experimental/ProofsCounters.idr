@@ -67,8 +67,8 @@ okAltHeaderAgreeingReadback =
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf) (PtDown (Lit 1))
-                         (PtDown (Lit 1)) (Just Macros.untilEndOfTurn))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf) (Down (Lit 1))
+                         (Down (Lit 1)) (Just Macros.untilEndOfTurn))
 
 public export
 badAltHeaderMixedReadback : Unspellable Ability (\ok =>
@@ -76,8 +76,8 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
             Nothing [] Nothing Nothing Nothing
-            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (PtDown (Lit 1))
-                         (PtDown (Lit 1)) {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
+            (Macros.gets (Macros.That (TypeW Creature) OneOf {ok = Builtin.fst ok}) (Down (Lit 1))
+                         (Down (Lit 1)) {ok = Builtin.snd ok} (Just Macros.untilEndOfTurn)))
 badAltHeaderMixedReadback (Refl, _) impossible
 
 public export
@@ -266,6 +266,18 @@ public export
 badGetsBoostCounter : Unspellable (Instruction []) (\ok =>
   PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) You {sc = ok})
 badGetsBoostCounter Oh impossible
+
+||| "a +1/+1 counter" — a counter kind adds to or subtracts from power and
+||| toughness [CR#122.1a]; it never sets either to a number.
+public export
+okBoostCounterKind : CounterKind
+okBoostCounterKind = BoostCounter (Up 1) (Up 1)
+
+||| "a 1/1 counter"
+public export
+badSetBoostCounter : Unspellable CounterKind (\ok =>
+  BoostCounter (Set 1) (Up 1) {ok})
+badSetBoostCounter Oh impossible
 
 ||| "Each opponent loses all poison counters."
 public export

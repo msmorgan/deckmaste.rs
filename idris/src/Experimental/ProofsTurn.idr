@@ -152,13 +152,13 @@ badLeavesThenTap Oh impossible
 public export
 okUntilEndOfTurnSpan : Instruction []
 okUntilEndOfTurnSpan =
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3))
+  Macros.gets (Macros.target Macros.creature) (Up (Lit 3)) (Up (Lit 3))
               (Just Macros.untilEndOfTurn)
 
 ||| "Target creature gets +3/+3 until the beginning of your next upkeep."
 public export
 badUntilBeginningOfUpkeep : Unspellable (Instruction []) (\ok =>
-  Macros.gets (Macros.target Macros.creature) (PtUp (Lit 3)) (PtUp (Lit 3)) (Just (UntilEvent (BeginningOf ThePart Upkeep (ByPlayer You)))) {sp = ok})
+  Macros.gets (Macros.target Macros.creature) (Up (Lit 3)) (Up (Lit 3)) (Just (UntilEvent (BeginningOf ThePart Upkeep (ByPlayer You)))) {sp = ok})
 badUntilBeginningOfUpkeep (Present {ok = Oh}) impossible
 
 ||| "Sacrifice a creature. When you do, draw a card."
