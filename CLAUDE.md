@@ -1,5 +1,12 @@
 # CLAUDE.md
 
+## Scope
+
+- **Vintage-playable Magic only.** The grammar, the model, and the workbenches cover the cards
+  and rules of normal Magic: whatever is legal in Vintage. Un-sets, Conspiracy, Planechase
+  (planes, phenomena), Archenemy (schemes), Vanguard, and ante are out of scope, permanently.
+  Do not ask whether they are supported, and do not model, enumerate, or reserve room for them.
+
 ## Version control
 
 - This repo uses **jj** (Jujutsu), not git. For any jj behaviour not covered here or by the session's injected jj guidance, load **`/jj-sensei:knowledge`** (authoritative, version-matched command help) or **`/jj-sensei:wisdom`** (history-shaping idioms: splitting, revset selection, placement) rather than inferring from git. Never refer to changes by git commit-ish. Never add `Co-Authored-By:` trailers; keep jj descriptions brief.
