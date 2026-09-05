@@ -2480,6 +2480,18 @@ vote : (voters : Noun bs Player) -> (disc : Disclosure) ->
        (ballot : Ballot (nomIntro voters)) -> Instruction bs
 vote voters disc ballot = Vote Nothing voters disc ballot
 
+||| "Starting with you, each player votes for ..." names the player the vote
+||| proceeds from in turn order [CR#701.38a].
+public export
+voteStartingWith : (first : Noun bs Player) ->
+                   (voters : Noun (nomIntro first) Player) ->
+                   (disc : Disclosure) ->
+                   (ballot : Ballot (nomIntro voters)) ->
+                   {auto 0 od : So (choiceOrderOk (Just first) (Just voters))} ->
+                   Instruction bs
+voteStartingWith first voters disc ballot =
+  Vote (Just first) voters disc ballot {od}
+
 public export
 shiftResult : (amt : Amount bs) ->
               {auto 0 ok : countOutcomes RollResult bs = 1} -> Instruction bs

@@ -1194,7 +1194,8 @@ mutual
     Vote : (first : Maybe (Noun bs Player)) ->
            (voters : Noun (agentIntro first) Player) ->
            (disc : Disclosure) ->
-           (ballot : Ballot (nomIntro voters)) -> Instruction bs
+           (ballot : Ballot (nomIntro voters)) ->
+           {auto 0 od : So (choiceOrderOk first (Just voters))} -> Instruction bs
     Move : {k : Kind} -> (what : Noun bs k) -> (to : ZoneExpr (nomIntro what)) ->
            (riders : List (TokenRider (nomIntro what))) ->
            {auto 0 mk : Movable what} ->
@@ -1858,7 +1859,7 @@ mutual
   instrProfile (CopyTargets copy whom) = sameIntro (nomIntro whom) []
   instrProfile (Choose _ by n _) = sameIntro (chooseIntro by n) []
   instrProfile (ChoicesRevealed _) = sameIntro bs []
-  instrProfile (Vote _ _ _ _) = sameIntro bs []
+  instrProfile (Vote _ _ _ _) = sameIntro bs [outcomeB VoteHeld]
   instrProfile (Move what to _) =
     MkInstrProfile (nomIntro what)
                  (afterMoveTo to (moveIntro Nothing what (Just (zoneSort to))))

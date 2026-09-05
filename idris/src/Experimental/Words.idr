@@ -348,6 +348,7 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | ManaAdded
                  | ManaProduced
                  | CeilingShortfall
+                 | VoteHeld
 
 public export
 outcomeComparable : OutcomeSort -> Bool
@@ -1032,6 +1033,7 @@ outcomeSortIx CountersRemoved = 11
 outcomeSortIx ManaAdded = 12
 outcomeSortIx ManaProduced = 13
 outcomeSortIx CeilingShortfall = 14
+outcomeSortIx VoteHeld = 15
 
 public export
 Eq OutcomeSort where
@@ -1159,6 +1161,7 @@ outcomeIsQuantity CountersRemoved = True
 outcomeIsQuantity ManaAdded = False
 outcomeIsQuantity ManaProduced = False
 outcomeIsQuantity CeilingShortfall = False
+outcomeIsQuantity VoteHeld = False
 
 public export
 countQuantOutcomes : Bindings -> Nat

@@ -304,7 +304,11 @@ mutual
                   {auto 0 ex : IsExtremal op} ->
                   {auto 0 sc : projScope ax = k} ->
                   Predicate bs k
-    WithMostVotes : {k : Kind} -> Predicate bs k
+    ||| A vote stands only where a spell or ability instructed players to
+    ||| vote [CR#701.38a].
+    WithMostVotes : {k : Kind} ->
+                    {auto 0 vt : countOutcomes VoteHeld bs = 1} ->
+                    Predicate bs k
     ChoseExtreme : (op : AggregateOp) ->
                    {auto 0 ex : IsExtremal op} -> Predicate bs Player
     CompareOver : {k : Kind} -> (dom : Predicate bs k) ->
@@ -1618,7 +1622,8 @@ mutual
     ChosenNumber : (ref : ChoiceRef) ->
                    {auto 0 ok : choiceRefOk ref (countChoice (QSort Number) bs)} ->
                    Amount bs
-    VotesFor : (l : VoteLabel) -> Amount bs
+    VotesFor : (l : VoteLabel) ->
+               {auto 0 vt : countOutcomes VoteHeld bs = 1} -> Amount bs
     TheOutcome : (s : OutcomeSort) -> {auto 0 ok : countOutcomes s bs = 1} ->
                  Amount bs
     CoinsShowing : (face : CoinFace) ->
@@ -2020,8 +2025,8 @@ mutual
   ||| make their choices, so it says nothing unless several players choose
   ||| [CR#101.4].
   public export
-  choiceOrderOk : {bs : Bindings} -> Maybe (Noun bs Player) ->
-                  Maybe (Noun bs Player) -> Bool
+  choiceOrderOk : {bs : Bindings} -> {cs : Bindings} -> Maybe (Noun bs Player) ->
+                  Maybe (Noun cs Player) -> Bool
   choiceOrderOk Nothing _ = True
   choiceOrderOk (Just _) Nothing = False
   choiceOrderOk (Just _) (Just by) = not (isOne (nounPlur by))
@@ -2250,7 +2255,8 @@ mutual
                  {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
     FlipFace : (face : CoinFace) ->
                {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
-    VoteLead : (l : VoteLabel) -> (orTied : Bool) -> Condition bs
+    VoteLead : (l : VoteLabel) -> (orTied : Bool) ->
+               {auto 0 vt : countOutcomes VoteHeld bs = 1} -> Condition bs
     AnyResultIs : (r : Comparator) -> (bound : Amount bs) ->
                   {auto 0 ok : countOutcomes RollResult bs = 1} ->
                   Condition bs

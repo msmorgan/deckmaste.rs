@@ -50,7 +50,8 @@ tyrantsChoice =
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
-              [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["death", "torture"])
+              [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
+                     (ByLabel ["death", "torture"])
               , Macros.ifThen (VoteLead "death" False)
                   (Macros.sacrifice (Macros.each Opponent)
                                     (Macros.aTheirChoice Macros.creature))
@@ -67,7 +68,7 @@ councilsJudgment =
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
-              [ Macros.vote (Macros.each AnyPlayer) Openly
+              [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
                      (ByCandidate (Macros.a (And [ Permanent
                                                  , Not Macros.land
                                                  , Not (HasPossessor ControllerAx You) ])))
@@ -84,7 +85,8 @@ orchardElemental =
        [ Macros.abilityWord "council's dilemma"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
               (Sequentially
-                 [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["sprout", "harvest"])
+                 [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
+                        (ByLabel ["sprout", "harvest"])
                  , PutCounters (Macros.times 2 (VotesFor "sprout"))
                                (PrintedKind Macros.plusOnePlusOne)
                                Macros.thisCreature
@@ -100,7 +102,8 @@ pleaForPower =
        (MkTypeLine [] [Sorcery])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
-              [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["time", "knowledge"])
+              [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
+                     (ByLabel ["time", "knowledge"])
               , Macros.ifThen (VoteLead "time" False) (ExtraTurn You (Lit 1))
               , Macros.ifThen (VoteLead "knowledge" True)
                               (Draw You (Lit 3)) ])) ]
@@ -115,7 +118,8 @@ coercivePortal =
        [ Macros.abilityWord "will of the council"
            (Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
               (Sequentially
-                 [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["carnage", "homage"])
+                 [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
+                        (ByLabel ["carnage", "homage"])
                  , Macros.ifThen (VoteLead "carnage" False)
                      (Sequentially
                         [ Macros.sacrifice You Macros.thisArtifact
@@ -136,7 +140,7 @@ custodiSquire =
        , Macros.abilityWord "will of the council"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
               (Sequentially
-                 [ Macros.vote (Macros.each AnyPlayer) Openly
+                 [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
                         (ByCandidate
                            (Macros.a (And [ Or [ Macros.artifact
                                                , Macros.creature
@@ -156,7 +160,7 @@ lieutenantsOfTheGuard =
        [ Macros.abilityWord "council's dilemma"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
               (Sequentially
-                 [ Macros.vote (Macros.each AnyPlayer) Openly
+                 [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
                         (ByLabel ["strength", "numbers"])
                  , PutCounters (VotesFor "strength")
                                (PrintedKind Macros.plusOnePlusOne)

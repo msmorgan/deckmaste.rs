@@ -174,6 +174,50 @@ voteStartingWithSpecifiedPlayer =
   Vote (Just Macros.anOpponent) (Macros.each AnyPlayer) Openly
        (ByLabel ["alpha", "beta"])
 
+||| "Starting with you, target player votes for alpha or beta." -- one player
+||| votes, so there is no order for the vote to proceed in [CR#701.38a]
+||| (`voteStartingWithSpecifiedPlayer` is the same order over every player).
+public export
+badOrderedSingularVoter : Unspellable (Instruction []) (\ok =>
+  Vote (Just You) (Macros.target AnyPlayer) Openly (ByLabel ["alpha", "beta"])
+       {od = ok})
+badOrderedSingularVoter Oh impossible
+
+||| "Each player votes for alpha or beta. You draw a card for each alpha vote.
+||| If beta gets more votes or the vote is tied, exile each permanent with the
+||| most votes."
+public export
+okVoteReadsAfterVote : Instruction []
+okVoteReadsAfterVote =
+  Sequentially
+    [ Macros.vote (Macros.each AnyPlayer) Openly (ByLabel ["alpha", "beta"])
+    , Draw You (VotesFor "alpha")
+    , Macros.ifThen (VoteLead "beta" True)
+        (Macros.exile (Macros.allOf (And [Permanent, WithMostVotes]))) ]
+
+||| "You draw a card for each alpha vote." -- no spell or ability instructed
+||| the players to vote, so there are no votes to count [CR#701.38a]
+||| (`okVoteReadsAfterVote` is the same read after a vote).
+public export
+badVotesForWithoutVote : Unspellable (Instruction []) (\ok =>
+  Draw You (VotesFor "alpha" {vt = ok}))
+badVotesForWithoutVote Refl impossible
+
+||| "If beta gets more votes, draw a card." -- the same missing vote
+||| [CR#701.38a] (`okVoteReadsAfterVote` is the same condition after a vote).
+public export
+badVoteLeadWithoutVote : Unspellable (Instruction []) (\ok =>
+  Macros.ifThen (VoteLead "beta" True {vt = ok}) (Draw You (Lit 1)))
+badVoteLeadWithoutVote Refl impossible
+
+||| "Exile each permanent with the most votes." -- the same missing vote
+||| [CR#701.38a] (`okVoteReadsAfterVote` exiles by the same predicate after a
+||| vote).
+public export
+badWithMostVotesWithoutVote : Unspellable (Instruction []) (\ok =>
+  Macros.exile (Macros.allOf (And [Permanent, WithMostVotes {vt = ok}])))
+badWithMostVotesWithoutVote Refl impossible
+
 public export
 oneWayResultShift : Instruction []
 oneWayResultShift =
