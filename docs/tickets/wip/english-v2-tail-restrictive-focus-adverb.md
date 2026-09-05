@@ -60,10 +60,15 @@ Pinned shape.
   same `lex(...)` spelling. After the landing `grep -c '"only"'
   crates/deckmaste_english_v2/src/constructions.rs` is 0.
 - **One Focus construction per category the adverb can attach in, never one per
-  attested focus surface.** The focus is the general category that follows the
-  adverb: a `PredicateAdjunct` (which already carries the `Prepositional`,
-  `Purpose`, `Duration`, `Frequency` and `Manner` arms — `constructions.rs:1094`),
-  an `Object`, and a `BarePredicate`. Each Focus construction is
+  attested focus surface.** 2026-09-05 coordinator ruling: the following
+  three-item enumeration **was** incomplete census-derived prose, not a fence:
+  `PredicateAdjunct`, `Object`, and `BarePredicate`. The governing principle is
+  the complete grammar-derived set: every category that restrictive *only* can
+  precede in Oracle English, including `ClauseAttachment` for conditional and
+  temporal tails, plus every further corpus-attested category (and every
+  grammatical zero-witness category). List each category and witness in the
+  landing record; attestation remains provenance, never admissibility. Each
+  Focus construction is
   `lex(adverb) <focus>` and is a member of the same sum its focus is a member
   of, so the focused phrase attaches exactly where the unfocused phrase already
   attaches — through `predicate_adjunct_predicate` /
@@ -175,7 +180,7 @@ Work stopped on 2026-09-05 00:55:31 -07:00 before implementation or corpus
 gates. The claimed tree has no production, test, glossary, or coverage-lock
 changes.
 
-### STOP: pinned-shape contradiction
+### STOP: original pinned-shape contradiction (superseded)
 
 The pinned shape permits exactly three Focus constructions, each spelling
 `lex(adverb) <focus>` where `<focus>` is `PredicateAdjunct`, `Object`, or
@@ -211,3 +216,27 @@ lines 67--82 and 136--141 above provide the conflicting pin and witnesses.
 - Decision wanted: reconcile the permitted focus category for a conditional
   tail with the three-construction pin, then re-issue the ticket with one
   authoritative shape.
+
+### STOP: coordinator-ruling category-shape contradiction (2026-09-05)
+
+The coordinator correctly removed the census-derived three-category fence, but
+its named `ClauseAttachment` route cannot satisfy the governing shape either.
+`ClauseAttachment` is not a tail constituent in the current grammar: its
+postposed conditional construction has the form `body "if" condition`, and its
+other postposed temporal forms likewise contain their host before their tail.
+Consequently `lex(adverb) ClauseAttachment` can only spell `only <body> if
+<condition>`; it cannot spell the required `<body> only if <condition>`.
+
+Making that acceptance witness select requires a declared tail category (or a
+refactor that separates a ClauseAttachment host from its tail) before a Focus
+construction can be `lex(adverb) <focus>`. Adding a construction that names
+the conditional surface, or giving a Focus construction a host-plus-tail
+reordered form, violates the ruling's stated generic shape. The same issue
+applies to `only as long as …`. This is a ticket-versus-ruling/code-shape
+contradiction; work remains stopped until the coordinator names the permitted
+tail seam or changes the required construction law.
+
+Evidence: `constructions.rs` lines 1485--1492 define the only postposed `if`
+routes; the Focus law above requires `lex(adverb) <focus>`; and the acceptance
+witnesses require the reverse host/tail order. No production or test change was
+made after the no-op refresh.
