@@ -124,6 +124,8 @@ fn authored_onset_overrides(
     ensure_onset_override_inventory(surfaces, AUTHORED_ONSET_OVERRIDES)
 }
 
+/// Mirrors `super::ensure_card_name_onset_override_inventory`: one two-way
+/// closure rule for both authored override inventories.
 fn ensure_onset_override_inventory(
     surfaces: &BTreeSet<&str>,
     authored: &[(&'static str, Onset)],
@@ -331,6 +333,20 @@ mod tests {
         let surfaces = BTreeSet::new();
 
         let error = ensure_onset_override_inventory(&surfaces, &[("∞", Onset::Vowel)]).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("inventory differs from census exceptions")
+        );
+    }
+
+    #[test]
+    fn onset_override_inventory_rejects_an_override_on_a_classifiable_surface() {
+        let surfaces = BTreeSet::from(["Aerial Blast"]);
+
+        let error = ensure_onset_override_inventory(&surfaces, &[("Aerial Blast", Onset::Vowel)])
+            .unwrap_err();
 
         assert!(
             error

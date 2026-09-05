@@ -628,10 +628,9 @@ per-surface onset-override inventory. A new unreviewed surface and a stale
 override both fail loudly; Unicode class, punctuation prefix, and other
 spelling-wide fallbacks are not onset authority.
 
-## Amendment: onset-override inventory scope (2026-09-04)
-
-The two-way onset-override closure applies to both authored override
-inventories: card-name rows and flavor-word rows.
+**Onset-override inventory scope amendment (2026-09-04):** the two-way
+onset-override closure applies to both authored override inventories:
+card-name rows and flavor-word rows.
 
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
