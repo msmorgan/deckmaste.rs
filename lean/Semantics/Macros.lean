@@ -25,9 +25,15 @@ def it : NounPhrase := .pro .bare .one .whole
 def them : NounPhrase := .pro .bare .many .whole
 /-- "that card": the card slot's occupant. -/
 def itCard : NounPhrase := .pro (.atSlot .card) .one .whole
+/-- "that token": the token just created. -/
+def itAsToken : NounPhrase := .pro .tokenBorn .one .whole
 
 /-- "it", stamped by the verb that produced it: "the exiled card". -/
 def itVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .one .whole
+/-- "it": the object the previous instruction introduced, read through a window over exactly
+what that instruction announced. -/
+def itPrior (prev : Instruction) : NounPhrase :=
+  .pro .bare .one (.top (Instruction.intro [] prev).length)
 /-- "them", stamped by the verb that produced them: "the destroyed creatures". -/
 def themVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .many .whole
 /-- "that turn" -/
@@ -105,6 +111,8 @@ def exists_ (p : Predicate) : Condition := .exists_ (bare p)
 def itsACard (p : Predicate) : Condition := .matches itCard p
 /-- "if it's a <p>" -/
 def itsA (p : Predicate) : Condition := .matches it p
+/-- "if it isn't a <p>" -/
+def itIsntA (p : Predicate) : Condition := .not (itsA p)
 
 /-- "the number of …s" -/
 def countOf (p : Predicate) : Amount := .countOf (bare p)
@@ -177,6 +185,8 @@ def permanentCard : Predicate :=
           .hasType .land, .hasType .planeswalker ] ]
 /-- "colorless": an object of no color [CR#105.2c]. -/
 def colorless : Predicate := .colorCount .eq 0
+/-- "multicolored": an object of two or more colors [CR#105.2b]. -/
+def multicolored : Predicate := .colorCount .atLeast 2
 /-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
 def historic : Predicate :=
   .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype (.of .enchantment "Saga")]
@@ -249,6 +259,9 @@ def outlaw : Predicate :=
         .hasSubtype (creatureType "Pirate"), .hasSubtype (creatureType "Rogue"),
         .hasSubtype (creatureType "Warlock") ]
 def outlawYouControl : Predicate := .and [outlaw, .hasPossessor .controller .you]
+/-- "an Army you control" -/
+def armyYouControl : Predicate :=
+  .and [.hasSubtype (creatureType "Army"), creature, .hasPossessor .controller .you]
 
 /-! ## Nouns -/
 
@@ -361,6 +374,7 @@ def forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) (countOf p)
 
 def plusOnePlusOne : CounterKind := .boost (.up 1) (.up 1)
 def flyingCounter : CounterKind := .keyword "Flying"
+def minusOneMinusOne : CounterKind := .boost (.down 1) (.down 1)
 
 /-! ## Instructions -/
 
@@ -387,6 +401,10 @@ def returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 def returnToBattlefieldTransformed (subject controller : NounPhrase) : Instruction :=
   returnTo subject battlefield [.entersTransformed, .under controller]
+/-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
+def returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
+    (kind : CounterKind) : Instruction :=
+  .move subject battlefield [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
 def transform (subject : NounPhrase) : Instruction :=
   .enact none (.action "Transform") (.turnOver subject)
@@ -443,6 +461,8 @@ def lifeBecomes (player : NounPhrase) (amount : Amount) : Instruction :=
 def draw (player : NounPhrase) (amount : Amount) : Instruction := .draw player amount
 
 def lookAt (cards : NounPhrase) : Instruction := .expose .lookAt .you (.cards cards)
+/-- "look at <player>'s hand" -/
+def lookAtHandOf (player : NounPhrase) : Instruction := .expose .lookAt .you (.zone (handOf player))
 def revealCards (cards : NounPhrase) : Instruction := .expose .reveal .you (.cards cards)
 /-- "the card found by a search" -/
 def foundCard : NounPhrase := itVerbed (.action "Search")
@@ -511,6 +531,9 @@ def creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List
 /-- "create N <token>" -/
 def create (count : Amount) (token : CharacteristicBundle) : Instruction :=
   .create .you count (.written token) []
+/-- "create N <token> tapped and attacking" -/
+def createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Instruction :=
+  .create .you count (.written token) [.entersAs .tapped, .entersAttacking none]
 
 /-- "for each color of mana spent to cast <n>" -/
 def colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
@@ -578,6 +601,8 @@ def theLastChosenColor : ColorTerm := .chosen .theLatestChoice
 def theLastChosenNumber : Amount := .chosenNumber .theLatestChoice
 /-- "the amount by which the ceiling was not reached" -/
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
+/-- "the number of counters removed this way" -/
+def removedThisWay : Amount := .theOutcome .countersRemoved
 /-- "increase or decrease the result by N" -/
 def shiftResult (amount : Amount) : Instruction := .shiftResult none amount
 /-- "<player> may play N additional lands" -/
@@ -628,10 +653,27 @@ def cantBlock (subject : NounPhrase) (duration : Option Duration) : Instruction 
 def cantBeBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid [.core .block] .patient none .noPatient none .noRider)
     duration
+/-- "<subject> blocks it this turn if able": the object the sentence just named. -/
+def mustBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .continuously
+    (.deontic subject .require [.core .block] .agent none
+      (.counterpart (.pro .bare .one (.below (NounPhrase.introduced [] subject).length))) none
+      .noRider)
+    duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
 def dealsDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Instruction :=
   .distribute (.damage source) amount among
+/-- "distribute N <kind> counters among <among>" -/
+def distributeCounters (amount : Amount) (kind : CounterKind) (among : NounPhrase) : Instruction :=
+  .distribute (.counters kind) amount among
+/-- "remove <q> <kind> counters from <from>" -/
+def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from_ : NounPhrase) :
+    Instruction :=
+  .removeCounters (some quantity) kind from_
+/-- "<who> loses all [<kind>] counters" -/
+def losesAllCounters (who : NounPhrase) (kind : Option CounterKindSource) : Instruction :=
+  .losesCounters who kind none
 
 /-- The agent re-read after its own clause: "you" stays "you", anyone else is "they". -/
 def agentRef : NounPhrase → NounPhrase
@@ -711,6 +753,23 @@ def proliferate : Instruction :=
                    .compare [.anyCounter .player] .atLeast (.lit 1) ]))
           .openly none,
         .putCounters (.lit 1) .own (.eachOf (those .join)) ])
+/-- "amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't control an Army,
+create a 0/0 black <subtype> Army creature token. Choose an Army you control. Put N +1/+1
+counters on it. It's a <subtype> in addition to its other types." -/
+def amass (subtype : String) (count : Nat) : Instruction :=
+  .sequentially
+    [ .if_ (.not (exists_ armyYouControl))
+        (create (.lit 1)
+          (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
+        none,
+      choose (a armyYouControl),
+      .putCounters (.lit count) (.printed plusOnePlusOne) (that (.type .creature)),
+      .if_ (itIsntA (.hasSubtype (creatureType subtype)))
+        (.continuously
+          (.becomes it .adds
+            (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
+          none)
+        none ]
 def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
   .continuously (getsPt subject power toughness) duration
@@ -763,6 +822,9 @@ def onlyUnless (spec : StaticSpec) (condition : Condition) : StaticSpec :=
 /-- "<who> can't <deed> <what>" -/
 def cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
   .deontic who .forbid [deed] .agent none (.counterpart what) none .noRider
+/-- "<n> can <deed> as though it didn't have <p>" -/
+def canDoAsThough (n : NounPhrase) (deed : Deed) (p : Predicate) : StaticSpec :=
+  .deontic n .permit [deed] .agent none .noPatient (some (.of p)) .noRider
 /-- "<what> can't be the target of <by>" -/
 def cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
   .deontic what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider
@@ -829,6 +891,20 @@ def counterEvent (move : CounterMove) (kind : CounterKind) (batch : CounterBatch
 def bareCounterEvent (move : CounterMove) (batch : CounterBatch) (subject : NounPhrase) :
     GameEvent :=
   .counterEvent move none subject batch none false
+/-- "the last <kind> counter is removed from <subject> by <who>" -/
+def lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) : GameEvent :=
+  .counterEvent .removed (some kind) subject .last (some who) false
+/-- "one or more counters are put on <subject> by an effect" -/
+def manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
+  .counterEvent .put none subject .many none true
+/-- "<who> puts one or more counters on <subject>" -/
+def manyBareCountersPutBy (who subject : NounPhrase) : GameEvent :=
+  .counterEvent .put none subject .many (some who) false
+/-- "one or more tokens would be created" -/
+def tokensCreated (tokens : NounPhrase) : GameEvent := .tokensCreated tokens false none none
+/-- "you roll a die and the result is <q>" -/
+def youRollResultIn (quantity : Quantity) : GameEvent :=
+  .rollsDice .you .one none (.resultIn quantity)
 /-- "you roll a die and the natural result is the highest" -/
 def youRollHighestNatural : GameEvent := .rollsDice .you .one none .highestNatural
 /-- "one or more tokens would be created under <under>'s control by an effect" -/
@@ -872,6 +948,12 @@ def keywordSubject (label : KeywordLabel) (subject : Predicate) : Ability :=
 /-- "<keyword> N", e.g. "bushido 2" -/
 def keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
   .keyword label (some (.number amount)) none
+/-- "<keyword> <quality> <cost>", e.g. "plainscycling {2}" [CR#702.29e] -/
+def keywordQualityCosting (label : KeywordLabel) (quality : Predicate) (cost : Cost) : Ability :=
+  .keyword label (some (.qualityCost quality cost)) none
+/-- "<keyword> N—<cost>", e.g. "suspend 4—{1}{U}" -/
+def keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) : Ability :=
+  .keyword label (some (.numberCost amount cost)) none
 /-- "Level up [cost]" [CR#702.87a] -/
 def levelUp (cost : Cost) : Ability := keywordCosting "LevelUp" cost
 /-- "When <event>, if <condition>, <instruction>" -/
@@ -967,6 +1049,11 @@ def stormExpansion : Ability :=
             (a (.and [spell, .otherThan thisSpell])))
           [],
         may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
+/-- "Storm" with its reminder text. -/
+def storm : Ability := .keyword "Storm" none (some stormExpansion)
+/-- "Renown N" with its reminder text. -/
+def renown (count : Nat) : Ability :=
+  .keyword "Renown" (some (.number (.lit count))) (some (renownExpansion count))
 /-- Cumulative upkeep's reminder text: "At the beginning of your upkeep, if this permanent is
 on the battlefield, put an age counter on it. Then you may pay [cost] for each age counter on
 it. If you don't, sacrifice it." [CR#702.24a] -/
