@@ -313,6 +313,11 @@ pub enum StaticSpec {
     Conditionally(Condition, Arc<StaticSpec>),
     /// A deontic clause ([CR#101.2,601.3]).
     Deontic(Deontic),
+    /// `who` plays the named rules [`Role`] — a quality of the object
+    /// ([CR#113.12]), neither an ability nor a characteristic. The role is the
+    /// primitive; the permissions, restrictions and damage semantics that come
+    /// with it are DERIVED from this row, never its witness.
+    Role { who: Predicate, role: Role },
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Predicate, change: CostChange },
     /// A declared OPTIONAL cost on this object's own casting
@@ -457,6 +462,18 @@ pub enum StaticSpec {
     /// engine step, so the "while on the stack" lifetime ([CR#702.51a]) needs
     /// no separate is-active predicate.
     PayPips(PipClass, PayAct),
+}
+
+/// A bundled rules-domain membership an object plays ([Game Model glossary]),
+/// conferred by [`StaticSpec::Role`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum Role {
+    /// The creature-like combat role: power governs combat and fight damage
+    /// ([CR#510.1a,701.14a]), damage is marked on it and compared with its
+    /// toughness ([CR#120.3e,704.5g]), it is in the attacking and blocking domains
+    /// ([CR#508.1a,509.1a]), and the summoning-sickness rule applies to its
+    /// attacks and its tap/untap-symbol activations ([CR#302.6]).
+    Combatant,
 }
 
 /// Which outcome a [`StaticSpec::OutcomeGate`] suppresses.

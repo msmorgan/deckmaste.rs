@@ -53,6 +53,110 @@ fn ability_conferral(ability: std::sync::Arc<deckmaste_core::Ability>) -> deckma
     deckmaste_core::Property::Ability(ability)
 }
 
+/// The v1 adapter for the Combatant role. v1's vocabulary has no role row, so
+/// a v1 Card Type or Subtype spells the creature-like combat role the only way
+/// it can — the self `May(Attack)` and `May(Block)` grants ([CR#508.1a,509.1a])
+/// with the summoning-sickness `Cant` pair that rides along ([CR#302.6]). Core
+/// takes the role itself ([CR#113.12]: the type states a quality of the object)
+/// and DERIVES those four rules from it, so the bundle collapses to one
+/// `Role(Combatant)` conferral, held while the bearer is a permanent
+/// ([CR#110.1]). The whole v1 authoring path deletes at cutover, where the role
+/// is written directly.
+///
+/// Absent the pair, every conferral passes through untouched: one grant alone
+/// is an action permission and no role.
+pub(crate) fn conferrals(
+    confers: std::sync::Arc<[deckmaste_core::Property]>,
+) -> std::sync::Arc<[deckmaste_core::Property]> {
+    if !(confers.iter().any(may_attack_grant) && confers.iter().any(may_block_grant)) {
+        return confers;
+    }
+    std::iter::once(combatant_role())
+        .chain(
+            confers
+                .iter()
+                .filter(|p| !may_attack_grant(p) && !may_block_grant(p) && !sickness_row(p))
+                .cloned(),
+        )
+        .collect()
+}
+
+/// One `Role(Combatant)` conferral, gated on the bearer being a permanent
+/// ([CR#110.1]) — the shape a v2 Card Type declaration writes directly.
+fn combatant_role() -> deckmaste_core::Property {
+    use deckmaste_core::Predicate;
+    use deckmaste_core::Reference;
+    deckmaste_core::Property::Static(std::sync::Arc::new(deckmaste_core::Region::candidate(
+        deckmaste_core::StaticSpec::Conditionally(
+            deckmaste_core::Condition::Matches(
+                Reference::source_parameter(),
+                Predicate::Class(deckmaste_core::ObjectClass::Permanent),
+            ),
+            std::sync::Arc::new(deckmaste_core::StaticSpec::Role {
+                who: Predicate::Ref(Reference::source_parameter()),
+                role: deckmaste_core::Role::Combatant,
+            }),
+        ),
+    )))
+}
+
+/// Whether `p` is the v1 bundle's self `May(Attack)` grant.
+fn may_attack_grant(p: &deckmaste_core::Property) -> bool {
+    matches!(
+        conferred_body(p),
+        Some(deckmaste_core::StaticSpec::Deontic(deckmaste_core::Deontic::May(
+            deckmaste_core::DeonticAction::Attack { by, .. },
+        ))) if *by == self_ref()
+    )
+}
+
+/// Whether `p` is the v1 bundle's self `May(Block)` grant.
+fn may_block_grant(p: &deckmaste_core::Property) -> bool {
+    matches!(
+        conferred_body(p),
+        Some(deckmaste_core::StaticSpec::Deontic(deckmaste_core::Deontic::May(
+            deckmaste_core::DeonticAction::Block { by, .. },
+        ))) if *by == self_ref()
+    )
+}
+
+/// The conferral's bearer, as a row predicate.
+fn self_ref() -> deckmaste_core::Predicate {
+    deckmaste_core::Predicate::Ref(deckmaste_core::Reference::source_parameter())
+}
+
+/// Whether `p` is one of the summoning-sickness restrictions the role derives
+/// ([CR#302.6]): a gated self `Cant(Attack)`, or a gated self `Cant(Activate)`
+/// scoped to a tap cost ([CR#602.5a]).
+fn sickness_row(p: &deckmaste_core::Property) -> bool {
+    use deckmaste_core::Deontic;
+    use deckmaste_core::DeonticAction;
+    use deckmaste_core::StaticSpec;
+    let Some(StaticSpec::Conditionally(_, inner)) = conferred_body(p) else {
+        return false;
+    };
+    let this = self_ref();
+    match inner.as_ref() {
+        StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack { by, .. })) => *by == this,
+        StaticSpec::Deontic(Deontic::Cant(DeonticAction::Activate { what, cost, .. })) => {
+            *what == this && cost.is_some()
+        }
+        _ => false,
+    }
+}
+
+/// The static a conferral carries, whichever flavor it landed on.
+fn conferred_body(p: &deckmaste_core::Property) -> Option<&deckmaste_core::StaticSpec> {
+    match p {
+        deckmaste_core::Property::Static(region) => Some(&region.body),
+        deckmaste_core::Property::Ability(a) => match a.as_ref() {
+            deckmaste_core::Ability::Static(region) => Some(&region.body),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// Whether a static effect is a deontic row, looking through the
 /// `Conditionally` gate that Creature's summoning-sickness pair ([CR#302.6])
 /// wears.
@@ -104,6 +208,101 @@ mod tests {
             super::ability_conferral(std::sync::Arc::new(rule)),
             deckmaste_core::Property::Static(_)
         );
+    }
+
+    /// The v1 combat bundle collapses to one `Role(Combatant)` conferral: core
+    /// derives the permissions and the summoning-sickness pair from the role
+    /// ([CR#113.12,302.6,508.1a,509.1a]), so carrying them beside it would say
+    /// the same thing twice.
+    #[test]
+    fn the_v1_combat_bundle_collapses_to_the_combatant_role() {
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Property;
+        use deckmaste_core::Reference;
+        use deckmaste_core::Role;
+        use deckmaste_core::StaticSpec;
+
+        let this = || Predicate::Ref(Reference::source_parameter());
+        let rule = |s: StaticSpec| {
+            Property::Ability(std::sync::Arc::new(deckmaste_core::Ability::r#static(s)))
+        };
+        let sick = || {
+            deckmaste_core::Condition::Matches(
+                Reference::source_parameter(),
+                Predicate::State(deckmaste_core::StatePredicate::SummoningSick),
+            )
+        };
+        let bundle: std::sync::Arc<[Property]> = vec![
+            rule(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
+                by: this(),
+                on: Predicate::Any,
+            }))),
+            rule(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
+                by: this(),
+                on: Predicate::Any,
+                count: None,
+            }))),
+            rule(StaticSpec::Conditionally(
+                sick(),
+                std::sync::Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                    by: this(),
+                    on: Predicate::Any,
+                }))),
+            )),
+            rule(StaticSpec::Conditionally(
+                sick(),
+                std::sync::Arc::new(StaticSpec::Deontic(Deontic::Cant(
+                    DeonticAction::Activate {
+                        what: this(),
+                        by: Predicate::Any,
+                        cost: Some(deckmaste_core::CostPredicate::IncludesTapSymbol),
+                    },
+                ))),
+            )),
+        ]
+        .into();
+
+        let lowered = super::conferrals(bundle);
+        assert_eq!(lowered.len(), 1, "four rows in, one role out");
+        let Property::Static(region) = &lowered[0] else {
+            panic!("the role is an ability-free rule ([CR#113.12])")
+        };
+        let StaticSpec::Conditionally(_, inner) = &region.body else {
+            panic!("the role is held while the bearer is a permanent ([CR#110.1])")
+        };
+        assert_matches!(
+            inner.as_ref(),
+            StaticSpec::Role {
+                role: Role::Combatant,
+                ..
+            }
+        );
+    }
+
+    /// One grant alone is an action permission, not the role: the bundle rule
+    /// fires on the pair or not at all.
+    #[test]
+    fn a_lone_block_grant_is_left_as_it_is() {
+        use deckmaste_core::Deontic;
+        use deckmaste_core::DeonticAction;
+        use deckmaste_core::Predicate;
+        use deckmaste_core::Property;
+        use deckmaste_core::Reference;
+        use deckmaste_core::StaticSpec;
+
+        let lone: std::sync::Arc<[Property]> = vec![Property::Static(std::sync::Arc::new(
+            deckmaste_core::Region::candidate(StaticSpec::Deontic(Deontic::May(
+                DeonticAction::Block {
+                    by: Predicate::Ref(Reference::source_parameter()),
+                    on: Predicate::Any,
+                    count: None,
+                },
+            ))),
+        ))]
+        .into();
+        assert_eq!(super::conferrals(std::sync::Arc::clone(&lone)), lone);
     }
 
     #[test]

@@ -43,15 +43,9 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
             name:"Creature",
             permanent_type:true,
             confers:[
-                Static(May(Attack(by:Ref(This)))),
-                Static(May(Block(by:Ref(This)))),
                 Static(Conditionally(
-                    And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
-                    Cant(Attack(by:Ref(This)))
-                )),
-                Static(Conditionally(
-                    And([Matches(This,SummoningSick),Not(Matches(This,Has(Haste)))]),
-                    Cant(Activate(what:Ref(This),cost:IncludesTapSymbol))
+                    Matches(This,Permanent),
+                    Role(who:Ref(This),role:Combatant)
                 ))
             ]
         )"#,

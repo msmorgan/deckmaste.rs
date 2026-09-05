@@ -79,6 +79,7 @@ pub use continuous::PayAct;
 pub use continuous::PipClass;
 pub use continuous::PlayerAttr;
 pub use continuous::PlayerMod;
+pub use continuous::Role;
 pub use continuous::StaticSpec;
 
 mod cost;

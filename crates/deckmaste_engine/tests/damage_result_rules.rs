@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use deckmaste_card::CardFace;
 use deckmaste_card::Characteristics;
-use deckmaste_core::CharacteristicPredicate;
 use deckmaste_core::CounterRef;
 use deckmaste_core::DamageResultRule;
 use deckmaste_core::Ident;
@@ -47,69 +46,30 @@ fn walker_card() -> deckmaste_card::Card {
     }))
 }
 
-/// A `Creature` `TypeDef` carrying the combat confers inline — the production
-/// shape a plugin-loaded `Creature.ron` attaches, which a bare
-/// `Type::Creature.def()` does NOT (empty confers by design). Combat-damage
-/// marking now keys on the `May(Attack)` grant (a COMBATANT), so a creature
-/// fixture asserting marked damage must confer it. Mirror of legal.rs's
-/// `creature_typedef`.
+/// A `Creature` `TypeDef` carrying its conferral inline — the production shape
+/// a plugin-loaded `Creature.ron` attaches, which a bare `Type::Creature.def()`
+/// does NOT (empty confers by design). Combat-damage marking keys on the
+/// Combatant role ([CR#113.12,120.3e]), so a creature fixture asserting marked
+/// damage must confer it. Mirror of legal.rs's `creature_typedef`.
 fn combatant_creature_def() -> deckmaste_core::TypeDef {
-    use deckmaste_core::Ability;
     use deckmaste_core::Condition;
-    use deckmaste_core::CostPredicate;
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
     use deckmaste_core::Property;
-    use deckmaste_core::Reference;
-    use deckmaste_core::StatePredicate;
     use deckmaste_core::StaticSpec;
-    let sick_not_hasty = || {
-        Condition::And(
-            vec![
-                Condition::Matches(
-                    Reference::Reg(deckmaste_core::RefId(0)),
-                    Predicate::State(StatePredicate::SummoningSick),
-                ),
-                Condition::Not(Arc::new(Condition::Matches(
-                    Reference::Reg(deckmaste_core::RefId(0)),
-                    Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
-                ))),
-            ]
-            .into(),
-        )
-    };
-    let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
     deckmaste_core::TypeDef {
         name: "Creature".into(),
         permanent_type: true,
-        confers: vec![
-            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
-                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                on: Predicate::Any,
-            }))),
-            ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
-                by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                on: Predicate::Any,
-                count: None,
-            }))),
-            ability(StaticSpec::Conditionally(
-                sick_not_hasty(),
-                Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
-                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                    on: Predicate::Any,
-                }))),
+        confers: vec![Property::Static(Arc::new(
+            deckmaste_core::Region::candidate(StaticSpec::Conditionally(
+                Condition::Matches(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    Predicate::Class(deckmaste_core::ObjectClass::Permanent),
+                ),
+                Arc::new(StaticSpec::Role {
+                    who: Predicate::Ref(deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))),
+                    role: deckmaste_core::Role::Combatant,
+                }),
             )),
-            ability(StaticSpec::Conditionally(
-                sick_not_hasty(),
-                Arc::new(StaticSpec::Deontic(Deontic::Cant(
-                    DeonticAction::Activate {
-                        what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        by: Predicate::Any,
-                        cost: Some(CostPredicate::IncludesTapSymbol),
-                    },
-                ))),
-            )),
-        ]
+        ))]
         .into(),
     }
 }

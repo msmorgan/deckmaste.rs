@@ -5,6 +5,7 @@
 
 use std::cell::Cell;
 use std::ops::ControlFlow;
+use std::sync::LazyLock;
 
 use deckmaste_core::Ability;
 use deckmaste_core::AsThough;
@@ -14,6 +15,7 @@ use deckmaste_core::Deontic;
 use deckmaste_core::DeonticAction;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::Predicate;
+use deckmaste_core::Role;
 use deckmaste_core::StaticSpec;
 use deckmaste_core::Type;
 
@@ -262,9 +264,9 @@ pub fn legal_actions(state: &GameState, player: PlayerId) -> Vec<Action> {
 
 /// [CR#508.1a]: the permanents `player` could declare as attackers —
 /// battlefield permanents they control that are untapped and carry the
-/// `May(Attack)` grant (their `Creature` type's default-deny combat capability,
-/// read from the derived layer view so animated creatures are included), minus
-/// any matching `Cant(Attack)` row. Summoning sickness is itself a conferred
+/// `May(Attack)` grant (derived from the Combatant role, read off the derived
+/// layer view so animated creatures are included), minus
+/// any matching `Cant(Attack)` row. Summoning sickness is itself a role-derived
 /// `Cant(Attack)` ([CR#302.6,702.10b] — gated on `SummoningSick && !Haste`), so
 /// it is subtracted here, not checked literally. Must(Attack) requirements
 /// ([CR#508.1d]) are a declaration-time seam.
@@ -305,9 +307,9 @@ pub fn legal_attackers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
             let obj = state.objects.obj(id);
             // Derived controller ([CR#613.1b]): a stolen creature attacks for
             // its new controller, not its owner. `attackable` reads the
-            // `May(Attack)` grant (default-deny combat capability); summoning
-            // sickness is now a conferred `Cant(Attack)` in `rows` below, not a
-            // literal `!summoning_sick` check ([CR#302.6,508.1a]).
+            // `May(Attack)` grant; summoning sickness is a role-derived
+            // `Cant(Attack)` in `rows` below, not a literal `!summoning_sick`
+            // check ([CR#302.6,508.1a]).
             view.controller(id) == player
                 && !obj.tapped
                 && attackable(state, &view, id)
@@ -369,9 +371,9 @@ fn cant_attack_rows(
 
 /// Every `May(Attack)` GRANT in the derived view — the permission side of
 /// attack eligibility under default-deny ([CR#508.1a]): declaring a permanent
-/// as an attacker is a capability nothing has by default; a card's `Creature`
-/// type CONFERS `May(Attack(by: Ref(This)))`. Mirror of `cant_attack_rows` on
-/// the `May` polarity.
+/// as an attacker is a capability nothing has by default. A Combatant derives
+/// the grant from its role; an effect may also grant a bare row to something
+/// that plays no role. Mirror of `cant_attack_rows` on the `May` polarity.
 #[must_use]
 fn may_attack_rows(
     state: &GameState,
@@ -381,11 +383,10 @@ fn may_attack_rows(
 }
 
 /// [CR#508.1a]: whether `id` is an attacker CANDIDATE under default-deny — some
-/// conferred `May(Attack)` grant names it as an attacker (its `Creature` type's
-/// grant, keyed on `by`). This is grant PRESENCE, not net eligibility: the
-/// tapped / summoning-sick / `Cant(Attack)` subtractions are applied by
-/// `legal_attackers`. `is_combatant` is the identically-computed combat-damage
-/// twin ([CR#120.3e]).
+/// `May(Attack)` grant names it as an attacker, keyed on `by`: the one its
+/// Combatant role derives, or a bare row an effect granted it. This is grant
+/// PRESENCE, not net eligibility: the tapped / summoning-sick / `Cant(Attack)`
+/// subtractions are applied by `legal_attackers`.
 #[must_use]
 pub(crate) fn attackable(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
     may_attack_rows(state, view)
@@ -393,18 +394,98 @@ pub(crate) fn attackable(state: &GameState, view: &LayeredView, id: ObjectId) ->
         .any(|(carrier, by, _on)| state.filter_matches_live(by, id, *carrier))
 }
 
-/// [CR#120.3e,120.3c]: whether `id` is a COMBATANT — it carries the
-/// `May(Attack)` grant (its `Creature` type confers it). Combat damage is
-/// MARKED on a combatant ([CR#120.3e]); a non-combatant permanent is not
-/// marked (a planeswalker instead loses loyalty, [CR#120.3c]). This is grant
-/// PRESENCE, not net attack eligibility: a
-/// creature forbidden to attack (a `Cant(Attack)` row) is still a combatant
-/// whose damage is marked. Same read as [`attackable`], under the
-/// damage-marking rule rather than the declaration rule.
+/// Whether `id` plays the Combatant role ([CR#113.12]: the `Creature` card
+/// type states that quality of a permanent it is on) — some `Role(Combatant)`
+/// conferral of its DERIVED types and subtypes names it, so a type gained or
+/// lost at layer 4 gains or loses the role with it, and a second current
+/// source keeps it. A source that makes another permanent a Combatant gives it
+/// the creature type; the registry conferral is the one channel.
+///
+/// The role is the primitive, not a witness read off one of its consequences:
+/// ordinary attack and block permission and the summoning-sickness pair are
+/// DERIVED from it ([`COMBATANT_RULES`]), and combat damage is marked on it
+/// ([CR#120.3e]; a non-combatant permanent is not marked — a planeswalker
+/// loses loyalty instead, [CR#120.3c]). A creature forbidden to attack, or one
+/// granted a bare `May(Attack)` row and nothing else, is respectively still
+/// and not yet a Combatant.
 #[must_use]
 pub(crate) fn is_combatant(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
-    attackable(state, view, id)
+    let carrier = state.objects.obj(id).source;
+    let controller = state.objects.obj(id).controller;
+    let frame = state.frame(id, controller);
+    let mut enter = |cond: &deckmaste_core::Condition| state.condition_holds(cond, &frame);
+    conferred_statics(view, id).any(|spec| {
+        walk_static(&spec.body, &mut enter, &mut |e: &StaticSpec| {
+            if let StaticSpec::Role {
+                who,
+                role: Role::Combatant,
+            } = e
+                && state.filter_matches_live(who, id, carrier)
+            {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        })
+        .is_break()
+    })
 }
+
+/// The rules a Combatant plays by, DERIVED from the role wherever it is held:
+/// the default-deny attack and block permissions ([CR#508.1a,509.1a]) and the
+/// summoning-sickness `Cant` pair — can't attack, and can't activate an
+/// ability whose cost includes `{T}`/`{Q}` — gated on being sick without haste
+/// ([CR#302.6,602.5a,702.10b]). [`for_each_static`] splices them onto a
+/// role-holder, so every deontic collector reads them exactly as it reads a
+/// conferred or printed row.
+static COMBATANT_RULES: LazyLock<[StaticSpec; 4]> = LazyLock::new(|| {
+    let this = || Predicate::Ref(deckmaste_core::Reference::source_parameter());
+    let sick_without_haste = || {
+        deckmaste_core::Condition::And(
+            vec![
+                deckmaste_core::Condition::Matches(
+                    deckmaste_core::Reference::source_parameter(),
+                    Predicate::State(deckmaste_core::StatePredicate::SummoningSick),
+                ),
+                deckmaste_core::Condition::Not(std::sync::Arc::new(
+                    deckmaste_core::Condition::Matches(
+                        deckmaste_core::Reference::source_parameter(),
+                        Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
+                    ),
+                )),
+            ]
+            .into(),
+        )
+    };
+    [
+        StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
+            by: this(),
+            on: Predicate::Any,
+        })),
+        StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
+            by: this(),
+            on: Predicate::Any,
+            count: None,
+        })),
+        StaticSpec::Conditionally(
+            sick_without_haste(),
+            std::sync::Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                by: this(),
+                on: Predicate::Any,
+            }))),
+        ),
+        StaticSpec::Conditionally(
+            sick_without_haste(),
+            std::sync::Arc::new(StaticSpec::Deontic(Deontic::Cant(
+                DeonticAction::Activate {
+                    what: this(),
+                    by: Predicate::Any,
+                    cost: Some(deckmaste_core::CostPredicate::IncludesTapSymbol),
+                },
+            ))),
+        ),
+    ]
+});
 
 /// Every `Must(Attack)` row in the derived view — attack requirements
 /// ([CR#508.1d]: "attacks if able" effects, goad).
@@ -418,9 +499,9 @@ pub(crate) fn must_attack_rows(
 
 /// [CR#509.1a]: the permanents `player` could declare as blockers —
 /// battlefield permanents they control that are untapped and carry the
-/// `May(Block)` grant (their `Creature` type's default-deny combat capability,
-/// read from the derived layer view so animated creatures can block). No
-/// summoning-sickness check: a summoning-sick creature can block.
+/// `May(Block)` grant (derived from the Combatant role, read off the derived
+/// layer view so animated creatures can block). No summoning-sickness check:
+/// a summoning-sick creature can block, so the role derives no `Cant(Block)`.
 #[must_use]
 pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let view = state.layers();
@@ -460,8 +541,7 @@ pub fn legal_blockers(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
         .filter(|&id| {
             let obj = state.objects.obj(id);
             // Derived controller ([CR#613.1b]): a stolen creature blocks for
-            // its new controller. `blockable` reads the
-            // `May(Block)` grant (default-deny combat capability).
+            // its new controller. `blockable` reads the `May(Block)` grant.
             view.controller(id) == player && !obj.tapped && blockable(state, &view, id)
         })
         .filter(|&id| {
@@ -521,18 +601,20 @@ pub(crate) fn cant_block_rows(state: &GameState, view: &LayeredView) -> Vec<Bloc
 
 /// Every `May(Block)` GRANT in the derived view — the permission side of block
 /// eligibility under default-deny ([CR#509.1a]): declaring a permanent as a
-/// blocker is a capability nothing has by default; a card's `Creature` type
-/// CONFERS `May(Block(by: Ref(This)))`. Mirror of `cant_block_rows` on the
-/// `May` polarity.
+/// blocker is a capability nothing has by default. A Combatant derives the
+/// grant from its role; an effect may also grant a bare row — "may block as
+/// though it were a 1/1 creature" — to something that plays no role
+/// ([CR#609.4]). Mirror of `cant_block_rows` on the `May` polarity.
 #[must_use]
 fn may_block_rows(state: &GameState, view: &LayeredView) -> Vec<BlockRow> {
     block_rows(state, view, may_action)
 }
 
 /// [CR#509.1a]: whether `id` is a blocker CANDIDATE under default-deny — some
-/// conferred `May(Block)` grant names it as a blocker (its `Creature` type's
-/// grant, keyed on `by`). Grant PRESENCE, not net eligibility: the tapped /
-/// `Cant(Block)` subtractions are applied by `legal_blockers`.
+/// `May(Block)` grant names it as a blocker, keyed on `by`: the one its
+/// Combatant role derives, or a bare row an effect granted it. Grant PRESENCE,
+/// not net eligibility: the tapped / `Cant(Block)` subtractions are applied by
+/// `legal_blockers`.
 #[must_use]
 pub(crate) fn blockable(state: &GameState, view: &LayeredView, id: ObjectId) -> bool {
     may_block_rows(state, view)
@@ -817,26 +899,31 @@ where
     F: FnMut(&StaticSpec) -> ControlFlow<B>,
     G: FnMut(&deckmaste_core::Condition) -> bool,
 {
+    walk_abilities(&view.get(id).abilities, enter_conditional, visit)?;
+    for spec in conferred_statics(view, id) {
+        walk_static(&spec.body, enter_conditional, visit)?;
+    }
+    ControlFlow::Continue(())
+}
+
+/// The ability-free type/subtype rules on `id`'s derived view
+/// ([`deckmaste_core::Property::Static`]) — Land's `May(Play)` ([CR#305.9]),
+/// Creature's Combatant conferral ([CR#113.12]), the Equipment/Fortification
+/// legal-host rule ([CR#301.5,301.6]). Read off the DERIVED types/subtypes, so
+/// a layer-4 grant contributes exactly like a printed type does, and no
+/// layer-6 ability removal can reach them (they are qualities of the object,
+/// not abilities).
+fn conferred_statics(
+    view: &LayeredView,
+    id: ObjectId,
+) -> impl Iterator<Item = &std::sync::Arc<deckmaste_core::Region<StaticSpec>>> {
     let derived = view.get(id);
-    walk_abilities(&derived.abilities, enter_conditional, visit)?;
-    // The ability-free type/subtype rules ([`Property::Static`]) — Land's
-    // `May(Play)` ([CR#305.9]), Creature's combat permissions
-    // ([CR#508.1a,509.1a]), the Equipment/Fortification legal-host rule
-    // ([CR#301.5,301.6]).
-    // Read off the DERIVED types/subtypes, so a layer-4 grant contributes
-    // exactly like a printed type does, and no layer-6 ability removal can
-    // reach them ([CR#113.12] — they are qualities of the object, not
-    // abilities).
-    for spec in derived
+    derived
         .card_types
         .iter()
         .flat_map(|t| t.confers.iter())
         .chain(derived.subtypes.iter().flat_map(|s| s.confers.iter()))
         .filter_map(deckmaste_core::Property::conferred_static)
-    {
-        walk_static(&spec.body, enter_conditional, visit)?;
-    }
-    ControlFlow::Continue(())
 }
 
 /// The non-short-circuiting view over [`statics_on`]: runs `visit` on every
@@ -870,6 +957,14 @@ pub(crate) fn for_each_static<F: FnMut(&StaticSpec)>(
         visit(e);
         ControlFlow::<()>::Continue(())
     });
+    if is_combatant(state, view, id) {
+        for spec in &*COMBATANT_RULES {
+            let _ = walk_static(spec, &mut enter, &mut |e| {
+                visit(e);
+                ControlFlow::<()>::Continue(())
+            });
+        }
+    }
 }
 
 /// The carrier of the first POINT-WISE `Cant(Block)` row forbidding
@@ -2655,68 +2750,31 @@ mod tests {
         );
     }
 
-    // --- combatant capability (May(Attack)/May(Block) type confer) ----------
+    // --- the Combatant role (Creature type confer) --------------------------
 
-    /// A `Creature` `TypeDef` carrying the four combat confers inline — the two
-    /// `May(Attack)`/`May(Block)` grants and the summoning-sickness `Cant`-pair
-    /// (attack + tap-activate), each `Cant` gated `Conditionally` on
-    /// `SummoningSick && !Has(Haste)`. In real games the plugin registry
-    /// attaches these via `Creature.ron`; a bare `Type::Creature.def()` has
-    /// EMPTY confers (decision 6), so fixtures exercising the combat capability
-    /// build the confers here (mirrors `land_typedef`).
+    /// A `Creature` `TypeDef` carrying its one conferral inline: the Combatant
+    /// role, held while the bearer is a permanent ([CR#110.1,113.12]). In real
+    /// games the plugin registry attaches it via `Creature.ron`; a bare
+    /// `Type::Creature.def()` has EMPTY confers (decision 6), so fixtures
+    /// exercising combat build the confer here (mirrors `land_typedef`).
     fn creature_typedef() -> deckmaste_core::TypeDef {
-        use deckmaste_core::CharacteristicPredicate;
         use deckmaste_core::Condition;
-        use deckmaste_core::CostPredicate;
         use deckmaste_core::Property;
-        use deckmaste_core::StatePredicate;
-        let sick_not_hasty = || {
-            Condition::And(
-                vec![
-                    Condition::Matches(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Predicate::State(StatePredicate::SummoningSick),
-                    ),
-                    Condition::Not(Arc::new(Condition::Matches(
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                        Predicate::Characteristic(CharacteristicPredicate::Has("Haste".into())),
-                    ))),
-                ]
-                .into(),
-            )
-        };
-        let ability = |s: StaticSpec| Property::Ability(Arc::new(Ability::r#static(s)));
         deckmaste_core::TypeDef {
             name: "Creature".into(),
             permanent_type: true,
-            confers: vec![
-                ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Attack {
-                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                    on: Predicate::Any,
-                }))),
-                ability(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
-                    by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                    on: Predicate::Any,
-                    count: None,
-                }))),
-                ability(StaticSpec::Conditionally(
-                    sick_not_hasty(),
-                    Arc::new(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
-                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                        on: Predicate::Any,
-                    }))),
+            confers: vec![Property::Static(Arc::new(
+                deckmaste_core::Region::candidate(StaticSpec::Conditionally(
+                    Condition::Matches(
+                        Reference::Reg(deckmaste_core::RefId(0)),
+                        Predicate::Class(deckmaste_core::ObjectClass::Permanent),
+                    ),
+                    Arc::new(StaticSpec::Role {
+                        who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                        role: deckmaste_core::Role::Combatant,
+                    }),
                 )),
-                ability(StaticSpec::Conditionally(
-                    sick_not_hasty(),
-                    Arc::new(StaticSpec::Deontic(Deontic::Cant(
-                        DeonticAction::Activate {
-                            what: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
-                            by: Predicate::Any,
-                            cost: Some(CostPredicate::IncludesTapSymbol),
-                        },
-                    ))),
-                )),
-            ]
+            ))]
             .into(),
         }
     }
@@ -2840,14 +2898,13 @@ mod tests {
         );
     }
 
-    /// [CR#120.3e]: `is_combatant` reads GRANT PRESENCE, not net attack
-    /// eligibility. A conferred creature carrying an extra plain `Cant(Attack)`
-    /// still HAS the `May(Attack)` grant, so `is_combatant` is true — its
-    /// combat damage is marked ([CR#120.3e]; [CR#120.3d] is the wither/infect
-    /// counters result, not marking) — even though the `Cant`
+    /// [CR#120.3e]: the role is not a permission. A conferred creature
+    /// carrying an extra plain `Cant(Attack)` still PLAYS the Combatant role,
+    /// so its combat damage is marked ([CR#120.3e]; [CR#120.3d] is the
+    /// wither/infect counters result, not marking) — even though the `Cant`
     /// removes it from `legal_attackers`.
     #[test]
-    fn is_combatant_reads_grant_presence_not_net_eligibility() {
+    fn a_creature_forbidden_to_attack_still_plays_the_role() {
         let mut state = game();
         let bear = conferred_creature_full(
             &mut state,
@@ -2863,7 +2920,7 @@ mod tests {
         let view = state.layers();
         assert!(
             super::is_combatant(&state, &view, bear),
-            "the May(Attack) grant is present ⇒ a combatant whose damage is marked"
+            "the role is held ⇒ a combatant whose damage is marked"
         );
         assert!(
             !super::legal_attackers(&state, PlayerId(0)).contains(&bear),
@@ -2920,6 +2977,152 @@ mod tests {
         assert!(
             !super::cant_activate(&hasty_state, &hasty_view, hasty, PlayerId(0), true, false),
             "Haste lifts summoning sickness — a hasty sick creature taps ([CR#702.10c])"
+        );
+    }
+
+    /// A Combatant restricted from attacking AND from blocking is still a
+    /// Combatant: a restriction settles a particular action, never the role
+    /// ([CR#113.12] — the type states the quality regardless).
+    #[test]
+    fn a_creature_barred_from_both_actions_still_plays_the_role() {
+        let this = || Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)));
+        let mut state = game();
+        let bear = conferred_creature_full(
+            &mut state,
+            "Barred Bear",
+            false,
+            vec![
+                Ability::r#static(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Attack {
+                    by: this(),
+                    on: Predicate::Any,
+                }))),
+                Ability::r#static(StaticSpec::Deontic(Deontic::Cant(DeonticAction::Block {
+                    by: this(),
+                    on: Predicate::Any,
+                    count: None,
+                }))),
+            ],
+        );
+        let view = state.layers();
+        assert!(
+            super::is_combatant(&state, &view, bear),
+            "restricted from both actions, still a Combatant whose damage is marked"
+        );
+        assert!(!super::legal_attackers(&state, PlayerId(0)).contains(&bear));
+        assert!(!super::legal_blockers(&state, PlayerId(0)).contains(&bear));
+    }
+
+    /// [CR#702.3b]: defender is a standing `Cant(Attack)` row, so a creature
+    /// with it can never attack — and is a Combatant all the same.
+    #[test]
+    fn defender_bars_the_attack_but_not_the_role() {
+        let mut state = game();
+        let wall = conferred_creature_full(
+            &mut state,
+            "Wall of Wood",
+            false,
+            vec![Ability::Keyword(KeywordAbility::Composite {
+                name: "Defender".into(),
+                abilities: vec![Ability::r#static(StaticSpec::Deontic(Deontic::Cant(
+                    DeonticAction::Attack {
+                        by: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                        on: Predicate::Any,
+                    },
+                )))],
+            })],
+        );
+        let view = state.layers();
+        assert!(
+            super::is_combatant(&state, &view, wall),
+            "defender forbids the attack, it does not revoke the role"
+        );
+        assert!(!super::legal_attackers(&state, PlayerId(0)).contains(&wall));
+        assert!(
+            super::blockable(&state, &view, wall),
+            "the role still derives the block permission ([CR#509.1a])"
+        );
+    }
+
+    /// The registry is the source of truth, not the `Creature` type: a
+    /// noncreature permanent whose SUBTYPE confers the role plays it, with the
+    /// combat permissions ([CR#508.1a,509.1a]) derived exactly as a creature's
+    /// are. This is the "unless another current source confers it" half of
+    /// losing the creature type.
+    #[test]
+    fn a_subtype_conferral_gives_a_noncreature_the_role() {
+        let mut state = game();
+        let vehicle = obj_on_field_with_subtype(
+            &mut state,
+            "Crewed Hull",
+            vec![Type::Artifact],
+            "Vehicle",
+            vec![deckmaste_core::Property::Static(Arc::new(
+                deckmaste_core::Region::candidate(StaticSpec::Role {
+                    who: Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0))),
+                    role: deckmaste_core::Role::Combatant,
+                }),
+            ))],
+        );
+        let view = state.layers();
+        assert!(
+            super::is_combatant(&state, &view, vehicle),
+            "a subtype conferral carries the role with no `Creature` type"
+        );
+        assert!(super::attackable(&state, &view, vehicle));
+        assert!(super::blockable(&state, &view, vehicle));
+    }
+
+    /// [CR#609.4]: an effect that lets a noncreature permanent block as though
+    /// it were a 1/1 creature grants the block permission and nothing else.
+    /// The permanent does not play the role, so its `{T}` ability is not
+    /// summoning-sick ([CR#302.6] applies to Combatants) and its damage is not
+    /// marked. The `May(Attack)` mirror is the same story.
+    #[test]
+    fn a_bare_combat_permission_confers_no_role() {
+        let this = || Predicate::Ref(Reference::Reg(deckmaste_core::RefId(0)));
+        let mut state = game();
+        let totem = obj_on_field(
+            &mut state,
+            "Blocking Totem",
+            vec![Type::Artifact],
+            vec![
+                Ability::r#static(StaticSpec::Deontic(Deontic::May(DeonticAction::Block {
+                    by: this(),
+                    on: Predicate::Any,
+                    count: None,
+                }))),
+                non_mana_ability(vec![deckmaste_core::CostComponent::Tap]),
+            ],
+        );
+        state.objects.obj_mut(totem).summoning_sick = true;
+        let archer = obj_on_field(
+            &mut state,
+            "Granted Archer",
+            vec![Type::Artifact],
+            vec![Ability::r#static(StaticSpec::Deontic(Deontic::May(
+                DeonticAction::Attack {
+                    by: this(),
+                    on: Predicate::Any,
+                },
+            )))],
+        );
+        let view = state.layers();
+        assert!(
+            super::blockable(&state, &view, totem),
+            "the scoped permission makes it a legal blocker ([CR#609.4])"
+        );
+        assert!(
+            !super::is_combatant(&state, &view, totem),
+            "blocking as though it were a creature is not playing the role"
+        );
+        assert!(
+            !super::cant_activate(&state, &view, totem, PlayerId(0), true, false),
+            "no role ⇒ no summoning-sickness restriction on its {{T}} ability ([CR#302.6])"
+        );
+        assert!(super::attackable(&state, &view, archer));
+        assert!(
+            !super::is_combatant(&state, &view, archer),
+            "a bare attack permission is not the role either"
         );
     }
 

@@ -40,10 +40,9 @@ impl EventApply for DamageDealt {
                 // IN ADDITION (a creature-planeswalker is marked AND loses
                 // loyalty), no longer mutually exclusive.
 
-                // [CR#120.3e,120.3c]: a COMBATANT (a permanent carrying
-                // the `May(Attack)` grant — its `Creature` type's
-                // default-deny combat capability, grant-presence not net
-                // eligibility) has its damage marked, tagged with the
+                // [CR#120.3e,120.3c]: a COMBATANT (a permanent PLAYING the
+                // role, not one that merely holds some combat
+                // permission) has its damage marked, tagged with the
                 // source's identity and abilities AS THEY ARE NOW — the
                 // deal-time snapshot the lethal-damage SBA's deathtouch
                 // clause reads ([CR#704.5h]), correct even if the source

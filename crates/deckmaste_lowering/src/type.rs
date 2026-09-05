@@ -41,7 +41,7 @@ impl Lower for deckmaste_semantics::Subtype {
         deckmaste_core::Subtype {
             name: self.name.lower(),
             types: self.types.lower(),
-            confers: self.confers.lower(),
+            confers: crate::property::conferrals(self.confers.lower()),
         }
     }
 }
@@ -52,7 +52,7 @@ impl Lower for deckmaste_semantics::TypeDef {
         deckmaste_core::TypeDef {
             name: self.name.lower(),
             permanent_type: self.permanent.lower(),
-            confers: self.confers.lower(),
+            confers: crate::property::conferrals(self.confers.lower()),
         }
     }
 }

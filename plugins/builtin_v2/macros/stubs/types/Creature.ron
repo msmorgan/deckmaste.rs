@@ -1,8 +1,8 @@
-// Creature ([CR#300.1]) — combat capability ([CR#508.1a,509.1a]) and
-// summoning sickness ([CR#302.6], gated on lacking haste [CR#702.10b]) are
-// qualities of a creature, not abilities of it ([CR#113.12]), so they are
-// conferred ability-free: a creature that loses all abilities can still
-// attack.
+// Creature ([CR#300.1]) — a permanent with this type plays the Combatant role
+// ([CR#110.1]). The role is a quality of the object, not an ability of it
+// ([CR#113.12]), so it is conferred ability-free; combat permission
+// ([CR#508.1a,509.1a]), summoning sickness ([CR#302.6]) and creature damage
+// marking ([CR#120.3e]) are derived from it.
 Type(
     name: "Creature",
     spelling: "creature",
@@ -12,21 +12,9 @@ Type(
         name: "Creature",
         permanent_type: true,
         confers: [
-            Static(May(Attack(by: Ref(This)))),
-            Static(May(Block(by: Ref(This)))),
             Static(Conditionally(
-                And([
-                    Matches(This, SummoningSick),
-                    Not(Matches(This, Has(Haste))),
-                ]),
-                Cant(Attack(by: Ref(This))),
-            )),
-            Static(Conditionally(
-                And([
-                    Matches(This, SummoningSick),
-                    Not(Matches(This, Has(Haste))),
-                ]),
-                Cant(Activate(what: Ref(This), cost: IncludesTapSymbol)),
+                Matches(This, Permanent),
+                Role(who: Ref(This), role: Combatant),
             )),
         ],
     ),

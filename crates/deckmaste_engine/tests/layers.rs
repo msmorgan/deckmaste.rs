@@ -607,15 +607,22 @@ fn animated_enchantment_can_attack() {
     );
 }
 
-/// How many `May(Attack(by: Ref(This)))` rules the object's DERIVED card types
-/// confer ([CR#508.1a]). The Creature type's combat permission is a quality of
-/// the object, not an ability ([CR#113.12]), so it lives in the type's
-/// ability-free `Property::Static` confers rather than in the ability list.
-fn conferred_may_attack_rows(state: &deckmaste_engine::GameState, id: ObjectId) -> usize {
-    use deckmaste_core::Deontic;
-    use deckmaste_core::DeonticAction;
+/// How many Combatant role conferrals the object's DERIVED card types carry
+/// ([CR#113.12]). The role is a quality of the object, not an ability, so it
+/// lives in the type's ability-free `Property::Static` confers rather than in
+/// the ability list; the permanent gate it wears is looked through here.
+fn conferred_combatant_rows(state: &deckmaste_engine::GameState, id: ObjectId) -> usize {
     use deckmaste_core::Property;
+    use deckmaste_core::Role;
     use deckmaste_core::StaticSpec;
+
+    fn is_role(spec: &StaticSpec) -> bool {
+        match spec {
+            StaticSpec::Conditionally(_, inner) => is_role(inner),
+            StaticSpec::Role { role, .. } => *role == Role::Combatant,
+            _ => false,
+        }
+    }
 
     state
         .layers()
@@ -623,22 +630,18 @@ fn conferred_may_attack_rows(state: &deckmaste_engine::GameState, id: ObjectId) 
         .card_types
         .iter()
         .flat_map(|t| t.confers.iter())
-        .filter(|p| {
-            matches!(p, Property::Static(s)
-                if matches!(&s.body, StaticSpec::Deontic(Deontic::May(DeonticAction::Attack { .. }))))
-        })
+        .filter(|p| matches!(p, Property::Static(s) if is_role(&s.body)))
         .count()
 }
 
 /// [CR#305.6,611.3]: a permanent that LOSES its `Creature` type via a layer-4
-/// effect is NOT a combatant — the mirror image of
-/// `animated_enchantment_can_attack`. Because conferral is now recomputed from
+/// effect stops playing the Combatant role — the mirror image of
+/// `animated_enchantment_can_attack`. Because conferral is recomputed from
 /// the object's CURRENT `card_types` every pass (not cached once at push and
-/// frozen), the `Creature` type's `May(Attack)` grant disappears the moment
-/// the type does: a permanent turned into a non-creature stops reading as a
-/// combatant.
+/// frozen), the role disappears the moment the type does, and with it the
+/// attack permission the role derives.
 #[test]
-fn losing_creature_type_removes_the_attack_grant() {
+fn losing_creature_type_removes_the_combatant_role() {
     use deckmaste_core::CollectionOp;
     use deckmaste_core::Duration;
     use deckmaste_core::Modification;
@@ -689,16 +692,16 @@ fn losing_creature_type_removes_the_attack_grant() {
     );
     drop(view);
     assert_eq!(
-        conferred_may_attack_rows(&state, bear),
+        conferred_combatant_rows(&state, bear),
         0,
-        "the Creature type's May(Attack) rule is gone, not stuck from a \
+        "the Creature type's Combatant conferral is gone, not stuck from a \
          frozen cache — conferral is recomputed from CURRENT card_types every \
          pass, not cached once at push ([CR#305.6,611.3])"
     );
 }
 
 /// [CR#305.6,611.3]: guards against doubling — a PRINTED creature's
-/// `Creature`-type-conferred `May(Attack)` grant appears exactly once, not
+/// `Creature`-type-conferred Combatant role appears exactly once, not
 /// twice. The base (`printed_of_face`) carries NO type/subtype confer, so the
 /// layer-4 fold (`fold_conferred_abilities`) is the ONLY path that pushes it,
 /// and it pushes exactly once per pass (the fixpoint reseeds base fresh each
@@ -711,11 +714,11 @@ fn printed_creature_grant_is_not_doubled_by_the_fold() {
     let bear = force_onto_battlefield(&mut state, PlayerId(0), "Grizzly Bears");
 
     assert_eq!(
-        conferred_may_attack_rows(&state, bear),
+        conferred_combatant_rows(&state, bear),
         1,
-        "the Creature type's May(Attack) rule appears exactly once: the \
+        "the Creature type's Combatant conferral appears exactly once: the \
          derived card-type list carries `Creature` once per fixpoint pass, so \
-         the rule is read once ([CR#305.6,611.3])"
+         the role is read once ([CR#305.6,611.3])"
     );
 }
 
