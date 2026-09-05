@@ -217,7 +217,7 @@ lines 67--82 and 136--141 above provide the conflicting pin and witnesses.
   tail with the three-construction pin, then re-issue the ticket with one
   authoritative shape.
 
-### STOP: coordinator-ruling category-shape contradiction (2026-09-05)
+### STOP: coordinator-ruling category-shape contradiction (superseded 2026-09-05)
 
 The coordinator correctly removed the census-derived three-category fence, but
 its named `ClauseAttachment` route cannot satisfy the governing shape either.
@@ -240,3 +240,76 @@ Evidence: `constructions.rs` lines 1485--1492 define the only postposed `if`
 routes; the Focus law above requires `lex(adverb) <focus>`; and the acceptance
 witnesses require the reverse host/tail order. No production or test change was
 made after the no-op refresh.
+
+The coordinator resolved this STOP later on 2026-09-05 by authorizing the
+minimal general `ClauseTail` seam: factor every existing subordinate or adjunct
+tail from its attachment host, make preposed and postposed attachment operate on
+that constituent, and focus the tail itself. The ruling also required this
+landing to preserve every currently covered selection except the intended focus
+gains and to stop on any negative oracle newly covered.
+
+### STOP: unrestricted Predicate Adjunct focus covers a negative oracle (2026-09-05)
+
+The authorized `ClauseTail` seam was implemented in a scratch working-copy
+revision together with `FocusAdverb`, the Predicate Adjunct, Object, Bare
+Predicate, and position-preserving Clause Tail focus constructions, the
+Object-less *Activate* frame, and deletion of the five bespoke restriction
+constructions. The first general tail draft exposed two analyses for an
+ordinary postposed Predicate Adjunct: the existing
+`predicate_adjunct_predicate` route and the new postposed Clause Tail route.
+For example, the existing modal assurance
+`Choose three. You may choose the same mode more than once.` materialized two
+semantic candidates instead of one.
+
+Representing the grammar's existing preposed/postposed tail inventories as
+structural sums removed that rivalry without a dominance edge, exception, or
+word-naming guard. A general mixed Clause Tail coordination also re-spelled
+`Cast this spell only during your turn and only if you control a snow land.`,
+and a nonrecursive Clause Tail body preserved the existing attachment
+reciprocals. At that point the targeted Predicate grammar suite was 105 passed
+and four failed; two failures were assertions whose former negative surfaces
+are intended Object-focus gains, and one was a construction-path assertion to
+re-spell. The remaining failure is a STOP:
+
+- `Cast this spell only your turn.` is an existing negative oracle in
+  `cost_frame_reciprocals_reject_crossed_boundaries`, but it newly selects.
+  Its selected analysis is the ordinary Cast predicate followed by
+  `FocusedPredicateAdjunct(Only, DurationPredicateAdjunct(FixedDurationPhrase(
+  your turn)))` through the general predicate-adjunct host. The unfocused
+  duration constituent is already admitted by the grammar; the new general
+  Focus construction therefore admits it exactly as pinned.
+
+That reading is not grammatical Oracle English: the temporal adjunct requires
+the preposition in *during your turn* (or the demonstrative in *this turn*).
+Preventing the new selection requires narrowing the Predicate Adjunct focus
+domain, excluding the Duration member, or adding a check that recognizes this
+surface. The ticket expressly rules out a closed list of adjunct classes, a
+narrowed form, and any word- or construction-naming `require` / `checked by`.
+Reclassifying the asserted negative as positive would contradict the ruling's
+"wrong or negative newly covered analysis is a STOP" condition. There is no
+authorized implementation that both keeps the category-general Focus law and
+keeps this negative oracle negative.
+
+The scratch implementation was restored in full. No production, declaration
+data, test, glossary, subordinate-clause ticket, or coverage-lock change is
+retained in this STOP commit.
+
+### DISCLOSE / REPORT after the Clause Tail ruling
+
+- Assurance: restored 0; re-spelled 0; ignored 0; added 0; removed 0.
+- Deviations and additions: none retained.
+- Glossary gap: `ClauseTail` remains unlanded; the authorized project term and
+  Adverb / Adverb Phrase / Focus entries remain deferred with the STOP.
+- Coverage, construction count, corpus selection census, ambiguity diff,
+  roundtrip, and performance: not measured. The mandatory refreshed landing
+  gates were not run because a targeted assurance produced a wrong newly
+  covered negative before refresh.
+- Targeted evidence: the position-preserving draft made all 49
+  `ability_logic` tests green before the nonrecursive condition refinement; the
+  refined Predicate grammar run reached 105 passed / 4 failed and identified
+  the negative selection above. These scratch results are diagnostic evidence,
+  not landing-gate artifacts.
+- Decision wanted: authorize a grammar distinction between temporal adjuncts
+  that may and may not be focused without a lexical/construction guard, or
+  explicitly reclassify `Cast this spell only your turn.` and amend the
+  negative-oracle STOP rule. The current letter authorizes neither choice.
