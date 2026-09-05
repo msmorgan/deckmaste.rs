@@ -89,10 +89,10 @@ myrkulsEdict = Sequentially [Macros.choose (Macros.a Opponent),
 
 
 moltingHarpy : Instruction []
-moltingHarpy = (May You (Pay You (Mana [Macros.generic 2]) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))
+moltingHarpy = (Macros.unless You (Macros.sacrifice You Macros.thisCreature) (Mana [Macros.generic 2]))
 
 carnophage : Instruction []
-carnophage = (May You (Pay You (Macros.payLife You 1) PaidOnce) Nothing (Just (SetStatus Tapped Macros.thisCreature)))
+carnophage = (Macros.unless You (SetStatus Tapped Macros.thisCreature) (Macros.payLife You 1))
 
 solitaryConfinement : Instruction []
 solitaryConfinement = (May You ((Macros.discard You (Macros.a (InZone Macros.handZ)))) Nothing (Just (Macros.sacrifice You Macros.thisEnchantment)))
@@ -258,12 +258,13 @@ runeSnag : Card
 runeSnag =
   Macros.card "Rune Snag" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Compound [Mana [Macros.generic 2],
+       [ Spell Nothing ((Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                       (CounterSpell ((Macros.It OneOf)))
+                       (Compound [Mana [Macros.generic 2],
                                        Macros.scaledMana GenericUnit
                                          (Macros.times 2 (Macros.countOf
                                             (And [Named (PrintedName "Rune Snag"),
-                                                  InZone Macros.graveyardZ])))])
-                       PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
+                                                  InZone Macros.graveyardZ])))]))) ]
        Nothing
 
 ||| Tahngarth, First Mate
@@ -936,8 +937,8 @@ rhysticStudy =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (Casts Macros.anOpponent (Macros.a Macros.spell) Nothing)
-           (Unless (Macros.may You (Draw You (Lit 1)))
-                          (Macros.That PlayerW OneOf)
+           (Macros.unless (Macros.That PlayerW OneOf)
+                          (Macros.may You (Draw You (Lit 1)))
                           (Mana [Macros.generic 1])) ]
        Nothing
 
@@ -976,8 +977,10 @@ override : Card
 override =
   Macros.card "Override" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
-                                            (And [Macros.artifact, HasPossessor ControllerAx You]))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
+       [ Spell Nothing ((Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                       (CounterSpell ((Macros.It OneOf)))
+                       (Macros.scaledMana GenericUnit (Macros.forEach 1
+                                            (And [Macros.artifact, HasPossessor ControllerAx You]))))) ]
        Nothing
 
 public export
@@ -985,8 +988,10 @@ rakshasasDisdain : Card
 rakshasasDisdain =
   Macros.card "Rakshasa's Disdain" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing ((May (Macros.controllerOf (Macros.target Macros.spell)) (Pay They (Macros.scaledMana GenericUnit (Macros.forEach 1
-                                            (InZone (Macros.graveyardOf You)))) PaidOnce) Nothing (Just (CounterSpell ((Macros.It OneOf)))))) ]
+       [ Spell Nothing ((Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                       (CounterSpell ((Macros.It OneOf)))
+                       (Macros.scaledMana GenericUnit (Macros.forEach 1
+                                            (InZone (Macros.graveyardOf You)))))) ]
        Nothing
 
 public export
@@ -996,20 +1001,25 @@ megatherium =
        (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.keyword "Trample"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
-           ((May You (Pay You (Macros.scaledMana GenericUnit (Macros.forEach 1 (InZone (Macros.handOf You)))) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))) ]
+           ((Macros.unless You (Macros.sacrifice You Macros.thisCreature)
+                (Macros.scaledMana GenericUnit (Macros.forEach 1 (InZone (Macros.handOf You)))))) ]
        (Just (4, 4))
 
 public export
 killingWave : Instruction []
 killingWave =
   ForEachOf (Macros.each Macros.creature)
-            ((May (Macros.controllerOf ((Macros.It OneOf))) (Pay They (Do (Macros.losesLife They (LetterVal X))) PaidOnce) Nothing (Just (Macros.sacrifice They ((Macros.It OneOf))))))
+            ((Macros.unless (Macros.controllerOf ((Macros.It OneOf)))
+                            (Macros.sacrifice They ((Macros.It OneOf)))
+                            (Do (Macros.losesLife They (LetterVal X)))))
 
 public export
 fadeAway : Instruction []
 fadeAway =
   ForEachOf (Macros.each Macros.creature)
-            ((May (Macros.controllerOf ((Macros.It OneOf))) (Pay They (Mana [Macros.generic 1]) PaidOnce) Nothing (Just (Macros.sacrifice They (Macros.a Permanent)))))
+            ((Macros.unless (Macros.controllerOf ((Macros.It OneOf)))
+                            (Macros.sacrifice They (Macros.a Permanent))
+                            (Mana [Macros.generic 1])))
 
 public export
 tidalFlats : Card

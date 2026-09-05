@@ -652,9 +652,9 @@ cycloneUpkeepPayment =
   Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
     (Sequentially
        [ PutCounters (Lit 1) (PrintedKind (NamedCounter "Wind")) Macros.thisEnchantment
-       , (May You (Pay You (Macros.scaledMana (RunUnit [Macros.pip Green])
-                                (Macros.times 1 (CountersOn (NamedCounter "Wind") Macros.thisEnchantment)))
-                PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisEnchantment))) ])
+       , (Macros.unless You (Macros.sacrifice You Macros.thisEnchantment)
+                (Macros.scaledMana (RunUnit [Macros.pip Green])
+                                (Macros.times 1 (CountersOn (NamedCounter "Wind") Macros.thisEnchantment)))) ])
 
 public export
 stormwildCapridor : Card

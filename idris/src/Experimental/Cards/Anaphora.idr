@@ -145,8 +145,8 @@ manaLeak : Card
 manaLeak =
   Macros.card "Mana Leak" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
-       [ Spell Nothing (Unless (CounterSpell (Macros.target Macros.spell))
-                       (Macros.controllerOf ((Macros.It OneOf)))
+       [ Spell Nothing (Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                       (CounterSpell ((Macros.It OneOf)))
                        (Mana [Macros.generic 3])) ]
        Nothing
 

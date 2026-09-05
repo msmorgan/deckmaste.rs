@@ -1276,10 +1276,6 @@ mutual
              Instruction bs
     If : (c : Condition bs) -> (e : Instruction (condIntro c)) ->
          (otherwise : Maybe (Instruction (otherwiseCtx e))) -> Instruction bs
-    Unless : (e : Instruction bs) -> (who : Noun (preIntro e) Player) ->
-             (c : Cost (nomIntro who)) ->
-             {auto 0 pb : Payable c} ->
-             {auto 0 ag : PayAgrees who c} -> Instruction bs
     Define : (l : Letter) -> (amt : Amount bs) ->
              {auto 0 ok : So (anyOpenLetter l bs)} -> Instruction bs
     ForEachOf : {k : Kind} -> {auto ph : Phrasal k} ->
@@ -1389,7 +1385,6 @@ mutual
   reflexEncloseUse (IfDone _ _ _) = EncNotOneAction
   reflexEncloseUse (OnlyIf e _ _) = reflexEncloseUse e
   reflexEncloseUse (If _ _ _) = EncNotOneAction
-  reflexEncloseUse (Unless _ _ _) = EncNotOneAction
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (ForEachKindOf _ _ _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
@@ -1517,7 +1512,6 @@ mutual
   costActionOk (StoreResults _) = False
   costActionOk (Continuously _ _) = False
   costActionOk (Pay _ _ _) = False
-  costActionOk (Unless _ _ _) = False
   costActionOk (Repeat _) = False
   costActionOk (Sequentially _) = False
   costActionOk (Simultaneously _) = False
@@ -1732,7 +1726,6 @@ mutual
   replacedCtx (IfDone body did notd) = replacedCtx body
   replacedCtx (OnlyIf e c oth) = replacedCtx e
   replacedCtx (If c e oth) = bs
-  replacedCtx (Unless e who c) = replacedCtx e
   replacedCtx e = deedDelta e ++ annIntro e
 
   public export
@@ -1869,8 +1862,6 @@ mutual
   instrProfile (IfDone body did notd) = mayProfile body did notd
   instrProfile (OnlyIf e c oth) = sameIntro (annIntro e) []
   instrProfile (If c e oth) = sameIntro bs []
-  instrProfile (Unless e who c) =
-    MkInstrProfile (annIntro e) bs Nothing ([])
   instrProfile (Define l amt) = sameIntro (defineLetter l (amtIntro amt)) []
   instrProfile (ForEachOf grp body) =
     MkInstrProfile bs

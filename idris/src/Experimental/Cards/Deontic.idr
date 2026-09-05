@@ -430,7 +430,8 @@ stasis =
        (MkTypeLine [] [Enchantment])
        [ Static (Skips (PlayerGroup AllPlayers) UntapStep)
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-           ((May You (Pay You (Mana [Macros.pip Blue]) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisEnchantment)))) ] Nothing
+           ((Macros.unless You (Macros.sacrifice You Macros.thisEnchantment)
+                (Mana [Macros.pip Blue]))) ] Nothing
 
 public export
 yawgmothsBargain : Card

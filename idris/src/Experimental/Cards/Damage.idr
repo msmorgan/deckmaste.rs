@@ -1271,8 +1271,8 @@ quenchableFire =
   Sequentially
     [ DealDamage This (Lit 3) Description.targetPlayerOrPlaneswalker
     , Macros.delayed (BeginningOf ThePart Upkeep (ByPlayer You))
-        (Unless (DealDamage This (Lit 3) Macros.thatJoin)
-                Macros.splitOverPlaneswalker
+        (Macros.unless Macros.splitOverPlaneswalker
+                (DealDamage This (Lit 3) Macros.thatJoin)
                 (Mana [Macros.pip Blue])) ]
 
 ||| Searing Blaze, both sentences

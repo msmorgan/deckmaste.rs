@@ -1632,6 +1632,18 @@ agentRef agent ok =
   Macros.agentSelfOrOwn agent (Experimental.Phrase.agentDelta agent)
                         (Experimental.Phrase.agentPlur agent) ok
 
+||| "[effect] unless [who] pays [cost]": the offer, in the order the card
+||| prints it [CR#118.12a].
+public export
+unless : {bs : Bindings} -> (who : Noun bs Player) ->
+         {auto 0 ar : Macros.AgentRefOk who} ->
+         (e : Instruction (Experimental.Phrase.agentIntro who)) ->
+         (c : Cost (nomIntro (Macros.agentRef who ar))) ->
+         {auto 0 pb : Payable c} ->
+         {auto 0 ag : PayAgrees (Macros.agentRef who ar) c} -> Instruction bs
+unless who e c =
+  May who (Pay (Macros.agentRef who ar) c PaidOnce {pb} {ag}) Nothing (Just e)
+
 ||| "the top N cards of that player's library", read in the looker's own
 ||| context; the looker and the library's owner need not be the same player
 ||| [CR#701.29a].

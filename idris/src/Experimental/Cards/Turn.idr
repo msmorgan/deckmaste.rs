@@ -354,9 +354,10 @@ fettergeist =
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
-           ((May You (Pay You (Macros.scaledMana GenericUnit (Macros.forEach 1
+           ((Macros.unless You (Macros.sacrifice You Macros.thisCreature)
+                (Macros.scaledMana GenericUnit (Macros.forEach 1
                           (And [Macros.creature, HasPossessor ControllerAx You,
-                                OtherThan Macros.thisCreature]))) PaidOnce) Nothing (Just (Macros.sacrifice You Macros.thisCreature)))) ]
+                                OtherThan Macros.thisCreature]))))) ]
        (Just (3, 4))
 
 public export

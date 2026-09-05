@@ -110,13 +110,14 @@ badIfNotReadsMandatoryBody Refl impossible
 public export
 okUnlessManaCost : Instruction []
 okUnlessManaCost =
-  Unless (CounterSpell (Macros.target Macros.spell))
-         (Macros.controllerOf (Macros.It OneOf)) (Mana [Macros.generic 3])
+  Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                (CounterSpell (Macros.It OneOf)) (Mana [Macros.generic 3])
 
 ||| "Counter target spell unless its controller taps."
 public export
 badUnlessTapSymbol : Unspellable (Instruction []) (\ok =>
-  Unless (CounterSpell (Macros.target Macros.spell)) (Macros.controllerOf ((Macros.It OneOf))) TapSymbol {pb = ok})
+  Macros.unless (Macros.controllerOf (Macros.target Macros.spell))
+                (CounterSpell ((Macros.It OneOf))) TapSymbol {pb = ok})
 badUnlessTapSymbol Oh impossible
 
 ||| "Activate only before the combat damage step."
