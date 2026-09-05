@@ -342,6 +342,8 @@ def coloredManaSpentToCast (spell : NounPhrase) : Condition :=
 def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
 /-- "the amount by which the ceiling was not reached" -/
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
+/-- "increase or decrease the result by N" -/
+def shiftResult (amount : Amount) : Instruction := .shiftResult none amount
 /-- "<subject> can't attack [this turn]" -/
 def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid ["Attack"] .agent none .noPatient none .noRider) duration
