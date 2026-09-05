@@ -315,14 +315,35 @@ pub(crate) fn emit(
                 let pair_initializer = frame_complement_pair.then(|| {
                     quote! { frame_complement_pair_role, }
                 });
+                let pair_debug = frame_complement_pair.then(|| {
+                    quote! { .field("frame_complement_pair_role", &self.frame_complement_pair_role) }
+                });
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.declaration_value_ident().to_string()),
                     quote! {
-                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        #[derive(Clone, PartialEq, Eq)]
                         pub struct #declaration {
-                            reference: crate::environment::VerbInventoryRef,
-                            inflectional_form: Option<::deckmaste_construction_core::macro_def::InflectionalForm>,
+                            reference: Box<crate::environment::VerbInventoryRef>,
+                            inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
                             #pair_field
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: Some("Debug".to_owned()),
+                        self_ty: row.declaration_value_ident().to_string(),
+                    },
+                    quote! {
+                        impl std::fmt::Debug for #declaration {
+                            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                                formatter
+                                    .debug_struct(stringify!(#declaration))
+                                    .field("reference", self.reference())
+                                    #pair_debug
+                                    .finish()
+                            }
                         }
                     },
                     vec![origin.clone()],
@@ -353,44 +374,63 @@ pub(crate) fn emit(
                                 .into_iter()
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
                                 .then_some(Self {
-                                    reference,
-                                    inflectional_form: None,
+                                    reference: Box::new(reference),
+                                    inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY,
                                     #pair_initializer
                                 })
                             }
 
-                            pub(crate) fn from_inflectional_form(
+                            pub(crate) fn from_inflectional_forms(
                                 environment: &crate::environment::ParserEnvironment,
                                 reference: crate::environment::VerbInventoryRef,
-                                inflectional_form: ::deckmaste_construction_core::macro_def::InflectionalForm,
+                                inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
                                 #pair_parameter
                             ) -> Option<Self> {
                                 let frame = VerbFrameKey::with_class(
                                     #frame_class,
                                     &[#(#frame_atoms),*],
                                 );
-                                let has_required_forms = match inflectional_form {
-                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Plain
-                                    | ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent => [
+                                let has_present_form = inflectional_forms.contains(
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Plain,
+                                ) || inflectional_forms.contains(
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent,
+                                );
+                                let has_present_paradigm = !has_present_form || [
                                         ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                                         ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                                     ]
                                     .into_iter()
-                                    .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some()),
-                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite => environment
-                                        .verb_inventory_surface(
-                                            &reference,
-                                            ::deckmaste_construction_core::macro_def::SurfaceFeature::PRETERITE,
-                                        )
-                                        .is_some(),
-                                    ::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple
-                                    | ::deckmaste_construction_core::macro_def::InflectionalForm::PastParticiple => false,
+                                    .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some());
+                                let surfaces = inflectional_forms
+                                    .iter()
+                                    .filter(|form| matches!(
+                                        form,
+                                        ::deckmaste_construction_core::macro_def::InflectionalForm::Plain
+                                            | ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent
+                                            | ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite
+                                    ))
+                                    .map(|form| environment.verb_inventory_surface(
+                                        &reference,
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(form),
+                                    ))
+                                    .collect::<Option<Vec<_>>>();
+                                let has_one_homographic_surface = surfaces.is_some_and(|surfaces| {
+                                    !surfaces.is_empty()
+                                        && surfaces.windows(2).all(|pair| pair[0] == pair[1])
+                                });
+                                let retained_inflectional_forms = if inflectional_forms.contains(
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                                ) {
+                                    inflectional_forms
+                                } else {
+                                    ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY
                                 };
                                 (environment.verb_frame_licenses(&reference, frame)
-                                    && has_required_forms)
+                                    && has_present_paradigm
+                                    && has_one_homographic_surface)
                                 .then_some(Self {
-                                    reference,
-                                    inflectional_form: Some(inflectional_form),
+                                    reference: Box::new(reference),
+                                    inflectional_forms: retained_inflectional_forms,
                                     #pair_initializer
                                 })
                             }
@@ -399,12 +439,11 @@ pub(crate) fn emit(
                                 &self.reference
                             }
 
-                            pub(crate) const fn inflectional_form(
+                            pub(crate) const fn inflectional_forms(
                                 &self,
-                            ) -> Option<::deckmaste_construction_core::macro_def::InflectionalForm> {
-                                self.inflectional_form
+                            ) -> ::deckmaste_construction_core::macro_def::InflectionalFormSet {
+                                self.inflectional_forms
                             }
-
                         }
                     },
                     vec![origin.clone()],
@@ -1533,6 +1572,14 @@ fn emit_lexeme_surface_helper(
             Ok(quote! { (#ty::#member, #feature) => #surface })
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    let concord_fallback = (lexeme.morphology().feature() == crate::Feature::ConcordClass)
+        .then(|| {
+            quote! {
+                (_, ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite) => {
+                    unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class")
+                }
+            }
+        });
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -1540,7 +1587,7 @@ fn emit_lexeme_surface_helper(
         },
         quote! {
             fn #function(lexeme: #ty, #feature_argument: #feature_ty,) -> &'static str {
-                match (lexeme, #feature_argument) { #(#arms,)* }
+                match (lexeme, #feature_argument) { #(#arms,)* #concord_fallback }
             }
         },
         vec![origin],
@@ -2214,6 +2261,9 @@ mod tests {
                         (VerbLexeme::InventedLemma, ConcordClass::ThirdPersonSingular) => "deals",
                         (VerbLexeme::Be, ConcordClass::Other) => "are",
                         (VerbLexeme::Be, ConcordClass::ThirdPersonSingular) => "is",
+                        (_, ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite) => {
+                            unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class")
+                        }
                     }
                 }
             }

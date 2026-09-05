@@ -62,7 +62,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Cast.ron",
-            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",preterite:"cast",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Search.ron",
@@ -1804,7 +1804,6 @@ fn declared_preterites_reach_general_finite_clause_hosts() {
         "Whenever creatures you control attacked, draw a card.",
         "Draw a card only if a creature died this turn.",
         "Draw a card only if a creature attacked this turn.",
-        "Each player that searched a library shuffles.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -1815,6 +1814,13 @@ fn declared_preterites_reach_general_finite_clause_hosts() {
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
+
+    let analysis = parser.analyze("A player cast a spell.", &context);
+    let decision = analysis
+        .decision()
+        .expect("third-person singular subject has a finite-clause decision");
+    assert_eq!(decision.candidates().len(), 1, "{decision:#?}");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
 }
 
 #[test]

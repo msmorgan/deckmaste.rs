@@ -2202,6 +2202,14 @@ mod tests {
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             enum ConcordClass { Other, ThirdPersonSingular }
+            impl ConcordClass {
+                const fn compatible_with(self, other: Self) -> bool {
+                    matches!((self, other), (Self::Other, Self::Other) | (Self::ThirdPersonSingular, Self::ThirdPersonSingular))
+                }
+                const fn matches_required(self, required: Self) -> bool {
+                    matches!((self, required), (Self::Other, Self::Other) | (Self::ThirdPersonSingular, Self::ThirdPersonSingular))
+                }
+            }
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             enum Number { Singular, Plural }
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]

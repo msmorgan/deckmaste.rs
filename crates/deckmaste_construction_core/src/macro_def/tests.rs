@@ -199,7 +199,7 @@ fn morphology_uses_only_dumb_defaults_and_whole_surface_replacements() {
     assert_eq!(texts(&destroy), ["destroy", "destroys", "destroyed"]);
 
     let scry = read_str(source_path("Scry.ron"), SCRY).unwrap();
-    assert_eq!(texts(&scry), ["scry", "scries", "scryed"]);
+    assert_eq!(texts(&scry), ["scry", "scries", "scried", "scryed"]);
 
     let turn_face_up = read_str(
         source_path("TurnFaceUp.ron"),

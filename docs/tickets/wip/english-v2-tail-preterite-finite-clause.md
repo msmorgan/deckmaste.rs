@@ -98,51 +98,71 @@ dimension the implementer must measure rather than assume.
 
 Standard constraints apply.
 
-## Landing record — STOP (2026-09-05)
+## Landing record (2026-09-05)
 
-Measured on working change `qrpltxtt`, refreshed onto claim change
-`xyysysuz`. Work started at 2026-09-05 06:25:44 PDT and the STOP was
-confirmed at 2026-09-05 07:33:40 PDT, after 4,076 s.
+Work started at 2026-09-05 06:25:44 PDT. Work stopped at
+2026-09-05 10:28:36 PDT after a refreshed-tree negative oracle became newly
+covered. Full-corpus measurement and lock blessing were not run after the
+STOP.
+
+### Coordinator rulings dated 2026-09-05
+
+(1) ACCEPTANCE WITNESSES. The ticket's own letter contradicts itself: `that died this turn` (Ashen-Skin Zubera) and `who searched …` (Boldwyr Heavyweights) need relative-clause / temporal-duration hosts the ticket forbids changing, and the present-tense controls fail the same host invariant, so those two were never preterite failures. Strike them from acceptance; route both identities with their exact blocking surfaces (`that died this turn` — `MannerReference.this_way` invariant; `who searched` — stops at `who`) to docs/tickets/fog.md under the relative-clause family, naming english-v2-relative-clause as the owner. The remaining four witnesses stand.
+
+(2) PLAIN/PRETERITE HOMOGRAPHS (`cast`, `put`, `cost`, …) follow the Number idiom from english-v2-number-feature-unification (homogeneous feature, one row, agreement resolves, never two candidates): a declared preterite form byte-identical to the lexeme's plain form is emitted as ONE scanner hit whose inflectional-form value is the SET {Plain, Preterite} with the union of the two concord-class applicabilities; a host that requires one inflectional form (a finite clause with a third-person-singular subject, a participle host, a modal complement) narrows it; where nothing narrows it the unit selects the single underspecified analysis. This is feature underspecification in construction_core's existing inflectional-form/concord machinery, declared once at the compiler level — never a per-lexeme switch, never a guard naming a verb, never a specificity weight, never a dominance edge. Prove it: the 3,367 subset ties go to zero; every `cast`/`put`/`cost` unit that was covered before is covered after with the same selected surface analysis (the per-unit diff shows only the inflectional-form annotation), and a third-person-singular-subject unit selects Preterite uniquely. If the compiler cannot express a set-valued inflectional form without a new feature domain, add the domain the way Number was added (sealed compiler feature, normalized rows carry it as data) and disclose it as a Deviation; if that turns out to need a construction shape you cannot place, STOP naming the shape.
+
+(3) `Deal::Preterite` displacing the past-participle analyses of Aggravate and Ballista Watcher is a WRONG analysis, so withholding it was correct; keep it withheld, disclose the two identities with both analyses, and route "preterite/past-participle homograph host discrimination (`dealt`)" to fog.md with those identities as the frontier residue.
 
 ### PROVE
 
-- The safe partial implementation adds an explicitly authored `preterite`
-  surface to the declaration grammar, indexes core and plugin verb lexemes by
-  that Inflectional Form, and lets every existing Concord Class-aware
-  declaration-verb terminal scan it for both Concord Classes. The selected
-  Inflectional Form is private compiler/runtime realization metadata; no
-  public AST form tag, host-side construction, word guard, `require`,
-  `checked by`, dominance edge, or exception was added. Rendering and lexical
-  provenance consume that same selected form.
+- The implementation adds an explicitly authored `preterite` surface to the
+  declaration grammar, indexes core and plugin Verb Lexemes by that
+  Inflectional Form, and lets every existing Concord Class-aware
+  declaration-verb terminal scan it through the general finite-clause
+  machinery. Rendering and lexical provenance consume the selected form. No
+  host-side construction, word guard, `require`, `checked by`, dominance edge,
+  exception, or specificity weight was added.
+- Plain/preterite homographs are one normalized declaration row carrying the
+  sealed `InflectionalFormSet {Plain, Preterite}`. Concord Class applicability
+  is its homogeneous compiler feature: a constraining host narrows the set;
+  otherwise one underspecified analysis survives. The production compiler
+  path is general across declarations and contains no Verb Lexeme identity
+  switch.
 - The ticket subset was built with its complete surface expression
   (`\b\w+ed\b` plus `died|left|lost|put|cast|dealt|drew|spent|made|won`), the
-  568 cards whose parent selection contained `reduced_relative_modifier` or
-  `participial_by_complement`, and the named witnesses. It contains 14,468
-  cards and 13,664 corpus units.
-- Claim subset -> safe partial subset: selected and covered 6,681 -> 6,793;
-  parse failures 6,983 -> 6,871; unresolved ties 0 -> 0; internal failures,
+  parent-selected rivalry cards, every `cast`/`put`/`cost` card, the four
+  standing witnesses, Aggravate, and Ballista Watcher // Ballista Wielder. It
+  contains 19,743 cards and 18,434 corpus units.
+- Claim subset -> final subset: selected and covered 9,119 -> 9,235; parse
+  failures 9,315 -> 9,199; unresolved ties 0 -> 0; internal failures,
   ownership failures, round-trip mismatches, traversal failures, gap spans,
   overlap spans, synthetic claims, and provenance-plan mismatches remain 0.
-  The per-unit ambiguity diff is +112 selected, -0 selected, with all 6,681
-  surviving selections retaining the same selected construction path. The new
-  selections are 40 unique and 72 specificity-resolved.
-- Focused positive artifacts completed before the STOP:
+  The per-unit ambiguity diff is +116 selected, -0 selected, with all 9,119
+  surviving selections retaining the same selected construction path. Of the
+  gains, 42 are unique and 74 are specificity-resolved.
+- The ruled homograph experiment's 3,367 unresolved subset units are 0 in the
+  final subset. All 3,108 parent-selected units containing `cast`, `put`, or
+  `cost` remain selected with the same construction path; only the private
+  Inflectional Form annotation changes. `A player cast a spell.` has one
+  candidate and a unique Preterite finite-clause selection.
+- Focused positive artifacts:
   `declared_preterites_parse_and_render_through_both_concord_classes` passed
   (`test result: ok. 1 passed; 0 failed`),
   `declared_preterites_reach_general_finite_clause_hosts` passed
-  (`test result: ok. 1 passed; 0 failed`), and the builtin-v2 declaration-row
-  assertion passed (`test result: ok. 1 passed; 0 failed`). The affected-subset
-  ambiguity command with `--require-resolved` exited 0. The affected-subset
-  round trip reported `parse accepted 6793`, `clean 6793`, `mismatched 0`.
+  (`test result: ok. 1 passed; 0 failed`), the generated compiler consumer
+  passed (`test result: ok. 44 passed; 0 failed`), and the construction-core
+  suite passed (`test result: ok. 418 passed; 0 failed`). The affected-subset
+  ambiguity report has 0 ties and 0 internal failures. Its round trip reported
+  `parse accepted 9235`, `clean 9235`, `mismatched 0`.
 - Present controls and the past-participle rivalry were compared unit by unit.
-  No prior selected path moves in the safe partial tree. In particular,
+  No prior selected path moves in the final subset. In particular,
   Aggravate and Ballista Watcher // Ballista Wielder retain their prior
-  reduced-passive `dealt damage this way` analyses; the unsafe finite
-  `Deal::Preterite` declaration that moved those selections was not retained.
+  reduced-passive `dealt damage this way` analyses; `Deal::Preterite` remains
+  withheld.
 
 ### DISCLOSE
 
-The 112 provisional subset gains are named below by their selected analysis.
+All 116 subset gains are named below by their selected analysis.
 Each group is the declared `Verb Lexeme::Preterite` realized in the existing
 finite Predicate path, followed by the ambiguity resolver outcome.
 
@@ -193,80 +213,95 @@ finite Predicate path, followed by the ambiguity resolver outcome.
 - `Lose::Preterite` (`lost`), unique: Cindering Cutthroat; Falkenrath Pit
   Fighter; Frilled Sparkshooter; Gutterbones; Mounted Dreadknight.
 - `Return::Preterite` (`returned`), specificity-resolved: Cache Grab.
+- `Cast::Preterite` (`cast`), unique: Ertai's Scorn; Lure of Prey.
+- `Cast::Preterite` (`cast`), specificity-resolved: Mindbreak Trap; Sandstalker
+  Moloch.
 
 The claim-time full census was 19,469 selected and covered of 32,641, with
 13,172 parse failures, 15,271 unique selections, 4,198
 specificity-resolved selections, 0 unresolved ties, and 0 internal failures.
 The ticket's historical 929-fragment bucket remeasured as 741 fragments at the
-claim tree under the same first-failure byte test. Because this round STOPped
-before an admissible full measured tree existed, no complete preterite versus
-past-participle split is asserted. The safe subset establishes a lower bound of
-112 true preterites that become selected; presenting that lower bound as the
-requested split would be false precision.
+claim tree under the same first-failure byte test. The measured selected delta
+establishes 116 true preterites in the affected subset. No complete lexical
+split of the remaining shaped failures is asserted: the bucket deliberately
+mixes preterites, past participles, and earlier host failures, so presenting
+`741 - 116` as a past-participle count would be false precision.
+
+The withheld rivalry identities and both analyses are:
+
+- `57bbe75f309b505dd4882064db97811056a148735b94cd43558202587b752c06`
+  — Aggravate — selected: past-participle `Deal::PastParticiple` in
+  `DeclaredObjectPassivePredicateDeclaredObjectPassivePredicate`, modifying
+  `Each creature`, with `MannerReferenceThisWay`; withheld wrong alternative:
+  finite `Deal::Preterite` as the clause Predicate.
+- `4c82b6f6b1da0021ddb05732ec64c82a012ca49c9807f0e2d6f835c1843f4741`
+  — Ballista Watcher // Ballista Wielder (Ballista Wielder face) — selected:
+  past-participle `Deal::PastParticiple` in
+  `DeclaredObjectPassivePredicateDeclaredObjectPassivePredicate`, modifying
+  `A creature`, with `MannerReferenceThisWay`; withheld wrong alternative:
+  finite `Deal::Preterite` as the clause Predicate.
 
 ### REPORT
 
-- Construction declarations: 394 on the refreshed tree; this change adds or
-  removes 0. Licensing checkers remain 21 permitted and 0 forbidden. The
-  licensed vocabulary/lexicon homograph inventory remains 2 and the form
+- Construction declarations: 394; this change adds or removes 0. Licensing
+  checkers remain 21 permitted and 0 forbidden. The licensed
+  vocabulary/lexicon homograph inventory remains 2 and the form
   literal/vocabulary overlap inventory remains 9. Selection exceptions remain
   0. No inventory was fitted to a count.
-- Claim full coverage performance: 8 workers, 128 s, 151,125 ns/B, host load
-  18/17/16. Final safe-subset coverage: 8 workers, 62 s, 166,228 ns/B, host
-  load 25/22/19. Final safe-subset ambiguity: 8 workers, 72 s, 235,046 ns/B,
-  host load 28/25/20. Final safe-subset round trip: 8 workers, 46 s,
-  144,603 ns/B, host load 20/23/20. The sandbox-visible process count was 4;
-  sibling contention is not visible. All ceiling exceedances occurred under
-  load and are advisory.
-- Assurance census: restored 0; re-spelled 0; extended 2 existing test
-  functions (declaration normalization and builtin-v2 homographic form rows);
-  ignored with blockers 2 named full-card witnesses; added 2 test functions
-  (general finite-host realization and synthetic declaration scan/render);
-  removed 0.
-- Coverage lock: not blessed. No `coverage --check` or `--bless`, full
-  ambiguity, full round trip, strict clippy, changed-closure gate, or cite gate
-  was run after refresh because the acceptance contradiction is known. No red
-  or unrun full gate is reported as done.
+- Final affected-subset coverage: 8 workers, 56 s, 129,332 ns/B, host load
+  9/7/7. Final affected-subset ambiguity: 8 workers, 53 s, 136,422 ns/B, host
+  load 8/8/7. Final affected-subset round trip: 8 workers, 49 s, 124,370 ns/B,
+  host load 8/8/7. Full-corpus performance is recorded below after refresh.
+- Assurance census: restored 0; re-spelled 0; ignored with blockers 2 named
+  full-card witnesses; added 2 test functions (general finite-host realization
+  and synthetic declaration scan/render); removed 0. Existing compiler,
+  declaration normalization, generated-consumer, and builtin declaration-row
+  assertions were extended for the set-valued form and its narrowing.
 - Deviation: the claim-time full ambiguity report ran twice. The first
   redirected long-running process returned an obscured session and its output
   file was inspected before completion; a second foreground report was then
   run to establish the schema. This did not alter repository state but exceeded
   the requested single claim snapshot.
+- Deviation authorized by coordinator ruling (2): the compiler could not
+  express a set-valued Inflectional Form in the scalar Concord Class carrier,
+  so this landing adds sealed `InflectionalFormSet` declaration data and two
+  internal union-applicability values. Homogeneous rows narrow the data in the
+  same direction as Number. This adds no construction shape.
 - Deviations and additions: production changes are limited to the declaration
   grammar, generated declaration-verb realization path, core preterite data,
-  and the Search preterite row. No construction was added or changed. `Have`,
-  `Cast`, `Cost`, `Put`, and `Deal` preterites are deliberately absent from the
-  safe partial tree for the STOP reasons below, not silently treated as
-  negative lexical evidence.
+  and declared preterite rows. No construction was added, changed, or removed.
+  `Deal::Preterite` is deliberately withheld under coordinator ruling (3), not
+  silently treated as negative lexical evidence.
+- The two struck witnesses are routed in `docs/tickets/fog.md` with their exact
+  blocking surfaces and owner `english-v2-relative-clause`. The two `dealt`
+  rivalry identities are routed there as frontier residue.
 - glossary gap: none. The existing Inflectional Form, Finiteness, and Concord
   Class entries suffice.
-
-### STOP and decision wanted
-
-1. The ticket says Ashen-Skin Zubera's present control, `that dies this turn`,
-   is already reachable and also requires all six witnesses to select, while
-   forbidding host-side changes. On the refreshed claim tree both that present
-   control and `that died this turn` fail the same
-   `MannerReference.this_way` invariant. Boldwyr Heavyweights likewise stops at
-   `who` before either `searched` or the present control `searches`. Thus the
-   two required full-card selections need duration/relative-host work while the
-   ticket forbids such work. This is a contradiction in the ticket's operative
-   acceptance letter, so the requested STOP protocol applies.
-2. An intermediate declaration of the genuinely plain/preterite-homographic
-   forms `Cast`, `Put`, and `Cost` produced 3,367 unresolved subset units. The
-   two analyses are the declared `InflectionalForm::Plain` finite reading and
-   the declared `InflectionalForm::Preterite` finite reading through the same
-   Concord Class-aware terminal. No precedence can truthfully choose between
-   readings such as `you cast`; those declarations were removed from the safe
-   partial tree.
-3. An intermediate `Deal::Preterite` did not tie, but it changed Aggravate and
-   Ballista Watcher // Ballista Wielder from their established
-   past-participle reduced-passive analysis to a finite-preterite analysis.
-   That is a wrong movement of the ticket's negative control, so the
-   declaration was removed rather than hidden with a dominance edge.
-4. Decision wanted: amend the ticket either to depend on explicit general
-   duration/relative-host work (and restate the two currently false controls),
-   or reduce acceptance to the finite-clause witnesses that reach the verb.
-   Separately rule whether genuine plain/preterite homographs remain
-   intentionally unavailable or require a new grammatical dimension capable
-   of retaining both analyses. Until then this ticket cannot be landed.
+- Refreshed affected-subset diagnostic before the STOP: selected and covered
+  9,485 of 18,434; parse failures 8,949; unique 6,963;
+  specificity-resolved 2,522; unresolved ties 0; internal failures 0. Round
+  trip reported `parse accepted 9485`, `clean 9485`, `mismatched 0` with 8
+  workers in 57 s at 130,721 ns/B and host load 12/10/7. The +250 selections
+  and 99 path changes versus the pre-refresh subset artifact came from the
+  refreshed concurrent base; the preserved ticket delta before that refresh
+  remained +116, -0, with 0 surviving-path changes.
+- The refreshed reverse-dependency closure printed:
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  and
+  `cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings`.
+  The gate is red and is not reported as complete. Compiler and construction
+  suites passed, but `deckmaste_english_v2 --test nominal_grammar` failed its
+  tracked negative oracle.
+- STOP — newly covered negative oracle and recorded-boundary contradiction:
+  `general_event_relative_remains_an_exact_ordinary_parse_failure` expects
+  `Destroy target creature that entered this turn.` to remain an ordinary
+  parse failure, but this ticket's `Enter::Preterite` selects uniquely as
+  `AbilityPlain -> SentenceImperative -> PredicateAdjunctPredicate ->
+  TransitivePredicate -> SubjectRelativeQualifiedReference ->
+  FiniteSubjectGapRelativeClause(Enter::Preterite) ->
+  DurationPredicateAdjunct(this turn)`. The ticket simultaneously pins every
+  existing finite host, explicitly including `finite_subject_gap_relative_clause`,
+  to reach the preterite. Preserving the recorded negative requires authority
+  to exempt or change that relative-clause/duration path; accepting the new
+  analysis requires authority to retire the negative. Neither is authorized
+  here. Decision wanted: rule which recorded boundary governs.

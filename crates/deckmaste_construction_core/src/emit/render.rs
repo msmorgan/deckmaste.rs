@@ -3598,7 +3598,12 @@ fn render_owner(
                         )
                     }
                 });
-            Ok(quote! { match #concord_class { #(#arms,)* } })
+            Ok(quote! {
+                match #concord_class {
+                    #(#arms,)*
+                    ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class"),
+                }
+            })
         }
         AtomPlan::OpenDeclaration(open) => {
             let concord_class = verb_concord_class(validated, construction, locals)?;
@@ -3608,6 +3613,7 @@ fn render_owner(
                     ConcordClass::ThirdPersonSingular => {
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                     }
+                    ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 }
             };
             let kind = crate::emit::declaration_kind(open.kind());
@@ -3816,6 +3822,10 @@ fn render_declaration_verb_atom(
             let feature = quote! { match #concord_class {
                 ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                ConcordClass::OtherOrThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                ),
+                ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
             }};
             (concord_class, feature)
         }
@@ -3866,10 +3876,22 @@ fn declaration_verb_surface_feature(
     fallback: &TokenStream,
 ) -> TokenStream {
     quote! {
-        (#declaration)
-            .inflectional_form()
-            .map(::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional)
-            .unwrap_or(#fallback)
+        match (#declaration).inflectional_forms().first() {
+            Some(::deckmaste_construction_core::macro_def::InflectionalForm::Plain) => {
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN
+            }
+            Some(::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent) => {
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
+            }
+            Some(::deckmaste_construction_core::macro_def::InflectionalForm::Preterite) => {
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::PRETERITE
+            }
+            Some(
+                ::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple
+                | ::deckmaste_construction_core::macro_def::InflectionalForm::PastParticiple,
+            ) => unreachable!("a finite declaration verb cannot carry a participial Inflectional Form"),
+            None => #fallback,
+        }
     }
 }
 
@@ -3888,6 +3910,10 @@ fn declaration_verb_owner(
             let feature = quote! { match #concord_class {
                 ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                ConcordClass::OtherOrThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                ),
+                ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
             }};
             (concord_class, feature)
         }
@@ -3940,6 +3966,9 @@ fn declaration_verb_owner(
         return Ok(quote! {
             match (#value, #axis_value) {
                 #(#arms,)*
+                (#verb::Lexeme(_), ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite) => {
+                    unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class")
+                }
                 (#verb::Declaration(declaration), _) => match declaration.reference() {
                     crate::environment::VerbInventoryRef::Core(_) => LexicalOwner::static_owner(
                         LexicalProvenanceKind::Lexeme,
@@ -4009,6 +4038,7 @@ fn render_open_declaration(
             ConcordClass::ThirdPersonSingular => {
                 ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
             }
+            ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
         }
     };
     let kind = crate::emit::declaration_kind(open.kind());
@@ -4504,7 +4534,12 @@ fn implicit_verb_onset(
                     let onset = super::onset(row.onset());
                     quote! { #concord_class => #onset }
                 });
-            Ok(quote! { match #concord_class { #(#arms,)* } })
+            Ok(quote! {
+                match #concord_class {
+                    #(#arms,)*
+                    ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class"),
+                }
+            })
         }
         AtomPlan::OpenDeclaration(open) => {
             let kind = crate::emit::declaration_kind(open.kind());
@@ -4518,6 +4553,7 @@ fn implicit_verb_onset(
                             ConcordClass::ThirdPersonSingular => {
                                 ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                             }
+                            ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                         },
                     )
                     .expect("required open verb remains in its normalized parser environment")
@@ -4925,20 +4961,29 @@ fn declaration_verb_onset_expr(
                     let onset = super::onset(row.onset());
                     quote! { (#verb::Lexeme(#closed::#member), #concord_class) => #onset }
                 });
+                let declaration_feature =
+                    declaration_verb_surface_feature(&quote! { declaration }, &quote! { fallback });
                 Ok(quote! {
                     match (#role_value, #concord_class) {
                         #(#closed_arms,)*
-                        (#verb::Declaration(declaration), concord_class) => environment
-                            .verb_inventory_onset(
-                                declaration.reference(),
-                                match concord_class {
+                        (#verb::Lexeme(_), ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite) => {
+                            unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class")
+                        }
+                        (#verb::Declaration(declaration), concord_class) => {
+                            let fallback = match concord_class {
                                     ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                                     ConcordClass::ThirdPersonSingular => {
                                         ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                                     }
-                                },
-                            )
-                            .expect("stored declaration verb remains in its normalized parser environment"),
+                                    ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                };
+                            environment
+                                .verb_inventory_onset(
+                                    declaration.reference(),
+                                    #declaration_feature
+                                )
+                                .expect("stored declaration verb remains in its normalized parser environment")
+                        },
                     }
                 })
             }
@@ -4973,6 +5018,7 @@ fn declaration_verb_onset_expr(
                     ConcordClass::ThirdPersonSingular => {
                         ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
                     }
+                    ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
                 }
             }
         }
@@ -4980,6 +5026,11 @@ fn declaration_verb_onset_expr(
             quote! { ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE }
         }
         _ => unreachable!("validated declaration verb feature axis is closed"),
+    };
+    let feature = if codec.feature_axis() == Feature::ConcordClass {
+        declaration_verb_surface_feature(role_value, &feature)
+    } else {
+        feature
     };
     Ok(quote! {
         environment
@@ -5504,7 +5555,7 @@ fn emit_category_concord_class_match_helper(
                         Feature::ConcordClass,
                         &locals,
                     )?;
-                    Ok(quote! { #pattern => (#expected) == concord_class })
+                    Ok(quote! { #pattern => (#expected).matches_required(concord_class) })
                 }
                 ConcordClassAuthorityPlan::SequenceConstraint { role, target } => {
                     let value = ident("value");

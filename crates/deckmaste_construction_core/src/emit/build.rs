@@ -228,6 +228,7 @@ fn emit_arm_from_plan(
                     lower_sequence_owner_field(
                         plan,
                         rule,
+                        row,
                         row.element_type(),
                         field,
                         state,
@@ -376,9 +377,11 @@ fn emit_arm_from_plan(
                     };
                     ResolvedFeatureValue::Computed(quote! { #helper(#value) })
                 };
-                let expected = feature_value(*value);
-                let actual = resolved_feature_value_tokens(&actual);
-                Ok(quote! { #actual == #expected })
+                Ok(compare_feature_values(
+                    *feature,
+                    &actual,
+                    &ResolvedFeatureValue::Known(*value),
+                ))
             }
             _ => Err(internal("form guard domain and assignment value disagree")),
         }
@@ -801,6 +804,7 @@ fn emit_product_arm(
                         field,
                         state,
                         false,
+                        None,
                         &mut binders,
                     )?;
                     debug_assert!(features.is_empty());
@@ -1686,12 +1690,22 @@ fn lower_zeroable_owner_value(
 fn lower_sequence_owner_field(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
+    row: &ConstructionPlan,
     owner: &str,
     field: &StructuralFieldPlan,
     state: &super::rules::OwnerFieldBuildPlan,
     checked: bool,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
+    let concord_target = FeaturePlace::Role {
+        field: ident(field.name()),
+        feature: Feature::ConcordClass,
+    };
+    let required_concord_class =
+        match plan.feature_resolution(row.construction_id(), &concord_target) {
+            Some(crate::feature::FeatureResolution::Known(value)) => Some(value),
+            _ => None,
+        };
     let (patterns, value, sequence_feature, guards) = lower_sequence_owner_value(
         plan,
         rule,
@@ -1699,6 +1713,7 @@ fn lower_sequence_owner_field(
         field,
         state,
         checked,
+        required_concord_class,
         &mut lowering.binders,
     )?;
     lowering.patterns.extend(patterns);
@@ -1706,7 +1721,7 @@ fn lower_sequence_owner_field(
     for (feature, value) in sequence_feature {
         lowering.role_features.insert(
             (field.name().to_owned(), feature),
-            LocalFeatureValue::Bound(value),
+            LocalFeatureValue::Computed(value),
         );
     }
     lowering.guards.extend(guards);
@@ -1716,7 +1731,7 @@ fn lower_sequence_owner_field(
 type LoweredSequenceOwnerValue = (
     Vec<TokenStream>,
     TokenStream,
-    Vec<(Feature, syn::Ident)>,
+    SequenceOwnerFeatures,
     Vec<TokenStream>,
 );
 
@@ -1727,6 +1742,7 @@ fn lower_sequence_owner_value(
     field: &StructuralFieldPlan,
     state: &super::rules::OwnerFieldBuildPlan,
     checked: bool,
+    required_concord_class: Option<FeatureValue>,
     binders: &mut LocalAllocator,
 ) -> syn::Result<LoweredSequenceOwnerValue> {
     let StructuralFieldKindPlan::Sequence { .. } = field.kind() else {
@@ -1787,6 +1803,7 @@ fn lower_sequence_owner_value(
                     possessive_endings: Vec::new(),
                     tail_possessive_ending: parts.tail_possessive_ending,
                 },
+                required_concord_class,
             )?;
             (quote! { #tail.clone() }, feature_value, guards)
         }
@@ -1805,6 +1822,7 @@ fn lower_sequence_owner_value(
                     possessive_endings: parts.possessive_endings,
                     tail_possessive_ending: None,
                 },
+                required_concord_class,
             )?;
             let value = if checked {
                 quote! { Vec::from([#(#values),*]) }
@@ -1828,6 +1846,7 @@ fn lower_sequence_owner_value(
                     possessive_endings: parts.possessive_endings,
                     tail_possessive_ending: None,
                 },
+                required_concord_class,
             )?;
             let value = if checked {
                 quote! { Vec::from([#(#values),*]) }
@@ -1854,6 +1873,7 @@ fn lower_sequence_owner_value(
                     possessive_endings: parts.possessive_endings,
                     tail_possessive_ending: parts.tail_possessive_ending,
                 },
+                required_concord_class,
             )?;
             (
                 quote! {{
@@ -2083,23 +2103,51 @@ fn prefixed_sequence_parts(
 }
 
 fn homogeneous_sequence_feature(
+    feature: Feature,
     values: Vec<syn::Ident>,
     tail_value: Option<syn::Ident>,
-) -> (Option<syn::Ident>, Vec<TokenStream>) {
+    required_concord_class: Option<FeatureValue>,
+) -> (Option<TokenStream>, Vec<TokenStream>) {
     let mut all = values;
     all.extend(tail_value);
     let Some(first) = all.first().cloned() else {
         return (None, Vec::new());
     };
-    let guards = all
-        .iter()
-        .skip(1)
-        .map(|value| quote! { #first == #value })
-        .collect();
-    (Some(first), guards)
+    let mut guards = if feature == Feature::ConcordClass {
+        all.iter()
+            .enumerate()
+            .flat_map(|(index, left)| {
+                all.iter()
+                    .skip(index + 1)
+                    .map(move |right| quote! { (*#left).homogeneous_with(*#right) })
+            })
+            .collect::<Vec<_>>()
+    } else {
+        all.iter()
+            .skip(1)
+            .map(|value| quote! { #first == #value })
+            .collect::<Vec<_>>()
+    };
+    if feature == Feature::ConcordClass
+        && let Some(required) = required_concord_class
+    {
+        let required = feature_value(required);
+        guards.extend(
+            all.iter()
+                .map(|value| quote! { (*#value).matches_required(#required) }),
+        );
+    }
+    let value = match feature {
+        Feature::ConcordClass => all.iter().skip(1).fold(
+            quote! { *#first },
+            |narrowed, value| quote! { (#narrowed).narrow_homogeneous(*#value) },
+        ),
+        _ => quote! { *#first },
+    };
+    (Some(value), guards)
 }
 
-type SequenceOwnerFeatures = Vec<(Feature, syn::Ident)>;
+type SequenceOwnerFeatures = Vec<(Feature, TokenStream)>;
 
 struct SequenceFeatureBindings {
     concord_classes: Vec<syn::Ident>,
@@ -2115,6 +2163,7 @@ struct SequenceFeatureBindings {
 fn sequence_owner_feature_values(
     features: &[Feature],
     bindings: &SequenceFeatureBindings,
+    required_concord_class: Option<FeatureValue>,
 ) -> syn::Result<(SequenceOwnerFeatures, Vec<TokenStream>)> {
     let mut values = Vec::new();
     let mut guards = Vec::new();
@@ -2122,15 +2171,19 @@ fn sequence_owner_feature_values(
         let (value, feature_guards) = match feature {
             Feature::ConcordClass => {
                 let (value, guards) = homogeneous_sequence_feature(
+                    Feature::ConcordClass,
                     bindings.concord_classes.clone(),
                     bindings.tail_concord_class.clone(),
+                    required_concord_class,
                 );
                 (value, guards)
             }
             Feature::Number => {
                 let (value, guards) = homogeneous_sequence_feature(
+                    Feature::Number,
                     bindings.numbers.clone(),
                     bindings.tail_number.clone(),
+                    None,
                 );
                 (value, guards)
             }
@@ -2139,14 +2192,16 @@ fn sequence_owner_feature_values(
                     .onsets
                     .first()
                     .cloned()
-                    .or(bindings.tail_onset.clone()),
+                    .or(bindings.tail_onset.clone())
+                    .map(|value| quote! { *#value }),
                 Vec::new(),
             ),
             Feature::PossessiveEnding => (
                 bindings
                     .tail_possessive_ending
                     .clone()
-                    .or_else(|| bindings.possessive_endings.last().cloned()),
+                    .or_else(|| bindings.possessive_endings.last().cloned())
+                    .map(|value| quote! { *#value }),
                 Vec::new(),
             ),
             _ => return Err(internal("unsupported sequence owner feature")),
@@ -2177,6 +2232,7 @@ fn emit_exact_sequence_success(
             possessive_endings: parts.possessive_endings,
             tail_possessive_ending: None,
         },
+        None,
     )
     .expect("validated sequence features are supported");
     if sequence_features.is_empty() {
@@ -2190,7 +2246,7 @@ fn emit_exact_sequence_success(
         };
         quote! {
             if #predicate {
-                Ok(Some(BuildValue::#carrier(vec![#(#values),*] #(, *#sequence_features)*)))
+                Ok(Some(BuildValue::#carrier(vec![#(#values),*] #(, #sequence_features)*)))
             } else {
                 Ok(None)
             }
@@ -2218,6 +2274,7 @@ fn emit_prefixed_sequence_success(
             possessive_endings: parts.possessive_endings,
             tail_possessive_ending: parts.tail_possessive_ending,
         },
+        None,
     )
     .expect("validated sequence features are supported");
     if sequence_features.is_empty() {
@@ -2239,7 +2296,7 @@ fn emit_prefixed_sequence_success(
                 let mut values = Vec::with_capacity(#prefix_len + #tail.len());
                 #(values.push(#values);)*
                 values.extend(#tail.iter().cloned());
-                Ok(Some(BuildValue::#carrier(values #(, *#sequence_features)*)))
+                Ok(Some(BuildValue::#carrier(values #(, #sequence_features)*)))
             } else {
                 Ok(None)
             }
@@ -2737,7 +2794,14 @@ fn role_concord_class_pattern(
             (identifier_key(role), Feature::ConcordClass),
             LocalFeatureValue::Known(value),
         );
-        return Ok(feature_value(value));
+        let actual = lowering
+            .binders
+            .allocate(&format!("{}_concord_class", identifier_key(role)));
+        let expected = feature_value(value);
+        lowering
+            .guards
+            .push(quote! { (*#actual).matches_required(#expected) });
+        return Ok(quote! { #actual });
     }
     if let Some(equation) = equation(validated, row, &target) {
         if matches!(equation.value(), FeatureExpr::MatchVocab { .. }) {
@@ -3648,9 +3712,14 @@ fn lower_feature_guards(
             } else {
                 quote! { true }
             };
+            let present = if *feature == Feature::ConcordClass {
+                quote! { #helper(value).compatible_with(#source) }
+            } else {
+                quote! { #helper(value) == #source }
+            };
             lowering.guards.push(quote! {
                 match (#optional).as_ref() {
-                    Some(value) => #helper(value) == #source,
+                    Some(value) => #present,
                     None => #absent,
                 }
             });
@@ -3676,7 +3745,7 @@ fn lower_feature_guards(
         if !same_known_feature(&source, &target) {
             lowering
                 .guards
-                .push(compare_feature_values(&source, &target));
+                .push(compare_feature_values(*feature, &source, &target));
         }
     }
     Ok(())
@@ -4344,15 +4413,22 @@ fn resolved_feature_value_tokens(value: &ResolvedFeatureValue) -> TokenStream {
 }
 
 fn compare_feature_values(
+    feature: Feature,
     left: &ResolvedFeatureValue,
     right: &ResolvedFeatureValue,
 ) -> TokenStream {
     if let (ResolvedFeatureValue::Bound(left), ResolvedFeatureValue::Bound(right)) = (left, right) {
-        quote! { #left == #right }
+        match feature {
+            Feature::ConcordClass => quote! { (*#left).compatible_with(*#right) },
+            _ => quote! { #left == #right },
+        }
     } else {
         let left = resolved_feature_value_tokens(left);
         let right = resolved_feature_value_tokens(right);
-        quote! { #left == #right }
+        match feature {
+            Feature::ConcordClass => quote! { (#left).compatible_with(#right) },
+            _ => quote! { #left == #right },
+        }
     }
 }
 
@@ -5804,7 +5880,9 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("BuildValue :: Child (child , ConcordClass :: ThirdPersonSingular , child_following_onset)"),
+            source.contains(
+                "(* child_concord_class) . matches_required (ConcordClass :: ThirdPersonSingular)"
+            ),
             "the required Mode::One arm must constrain the child concord_class: {source}"
         );
         assert!(!source.contains("feature source was not bound"), "{source}");

@@ -1663,7 +1663,7 @@ pub mod declaration_verb_fixture {
             ),
             declaration(
                 "/synthetic/actions/Cast.ron",
-                r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",frame_set:Transitive))"#,
+                r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",preterite:"cast",participle:"cast",frame_set:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/SecondAct.ron",
@@ -1885,6 +1885,54 @@ pub mod declaration_verb_fixture {
                 .stable_id(),
             "lexeme:keyword_action/FirstAct/bare",
         );
+
+        let any_concord_terminal = LexicalTerminal {
+            matcher: Lexical::DeclarationVerb(3, FeatureConstraint::Any),
+            ..verb_terminal
+        };
+        let homographic = scan(&environment, &context, "Cast object.", any_concord_terminal);
+        let [
+            LexicalMatch {
+                value:
+                    Leaf::TransitiveVerb {
+                        verb: TransitiveVerb::Declaration(_),
+                        concord_class: ConcordClass::PlainOrPreterite,
+                        ..
+                    },
+                ..
+            },
+        ] = homographic.as_slice()
+        else {
+            panic!("a plain/preterite homograph is one set-valued scanner hit")
+        };
+
+        let third_person_terminal = LexicalTerminal {
+            matcher: Lexical::DeclarationVerb(
+                3,
+                FeatureConstraint::Exact(ConcordClass::ThirdPersonSingular),
+            ),
+            ..verb_terminal
+        };
+        let third_person = scan(
+            &environment,
+            &context,
+            "Cast object.",
+            third_person_terminal,
+        );
+        let [
+            LexicalMatch {
+                value:
+                    Leaf::TransitiveVerb {
+                        verb: TransitiveVerb::Declaration(_),
+                        concord_class: ConcordClass::ThirdPersonSingular,
+                        ..
+                    },
+                ..
+            },
+        ] = third_person.as_slice()
+        else {
+            panic!("ThirdPersonSingular narrows the homograph to one preterite hit")
+        };
 
         let objects = scan(&environment, &context, "Object.", object_terminal);
         assert!(matches!(
@@ -6855,6 +6903,9 @@ pub mod fixture {
                 ConcordClass::ThirdPersonSingular,
                 FeatureConstraint::Any,
             ),
+            ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => {
+                unreachable!("this fixture supplies only exact Concord Class values")
+            }
         };
         let pair = build(
             RuleId::UniformChildrenMembersSequenceLength2,

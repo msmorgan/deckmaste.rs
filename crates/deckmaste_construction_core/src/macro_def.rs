@@ -677,6 +677,105 @@ pub enum InflectionalForm {
     PastParticiple,
 }
 
+/// A nonempty-or-empty set of declared forms carried by one homographic scan.
+///
+/// The bits are private so consumers can combine only declared
+/// [`InflectionalForm`] values rather than minting a parallel morphology
+/// domain.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct InflectionalFormSet(u8);
+
+impl InflectionalFormSet {
+    /// The empty set, used only while a scanner accumulates a reading.
+    pub const EMPTY: Self = Self(0);
+
+    /// Makes the singleton set containing `form`.
+    #[must_use]
+    pub const fn singleton(form: InflectionalForm) -> Self {
+        Self(Self::bit(form))
+    }
+
+    /// Adds one declared form to this set.
+    pub const fn insert(&mut self, form: InflectionalForm) {
+        self.0 |= Self::bit(form);
+    }
+
+    /// Returns whether this set contains `form`.
+    #[must_use]
+    pub const fn contains(self, form: InflectionalForm) -> bool {
+        self.0 & Self::bit(form) != 0
+    }
+
+    /// Returns whether no declared form is present.
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Returns whether more than one declared form shares this scan.
+    #[must_use]
+    pub const fn has_multiple(self) -> bool {
+        self.0.count_ones() > 1
+    }
+
+    /// Iterates in the glossary's Inflectional Form order.
+    pub fn iter(self) -> impl Iterator<Item = InflectionalForm> {
+        [
+            InflectionalForm::Plain,
+            InflectionalForm::ThirdPersonSingularPresent,
+            InflectionalForm::Preterite,
+            InflectionalForm::GerundParticiple,
+            InflectionalForm::PastParticiple,
+        ]
+        .into_iter()
+        .filter(move |form| self.contains(*form))
+    }
+
+    /// Returns the first declared form in the stable morphology order.
+    #[must_use]
+    pub fn first(self) -> Option<InflectionalForm> {
+        self.iter().next()
+    }
+
+    /// Unions the Concord Class applicability of every contained form.
+    #[must_use]
+    pub fn concord_class_applicability(self) -> ConcordClassApplicability {
+        self.iter().fold(
+            ConcordClassApplicability {
+                without_concord_class: false,
+                other: false,
+                third_person_singular: false,
+            },
+            |union, form| {
+                let member = form.concord_class_applicability();
+                ConcordClassApplicability {
+                    without_concord_class: union.without_concord_class
+                        || member.without_concord_class,
+                    other: union.other || member.other,
+                    third_person_singular: union.third_person_singular
+                        || member.third_person_singular,
+                }
+            },
+        )
+    }
+
+    const fn bit(form: InflectionalForm) -> u8 {
+        match form {
+            InflectionalForm::Plain => 1 << 0,
+            InflectionalForm::ThirdPersonSingularPresent => 1 << 1,
+            InflectionalForm::Preterite => 1 << 2,
+            InflectionalForm::GerundParticiple => 1 << 3,
+            InflectionalForm::PastParticiple => 1 << 4,
+        }
+    }
+}
+
+impl std::fmt::Debug for InflectionalFormSet {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_set().entries(self.iter()).finish()
+    }
+}
+
 /// The Concord Classes an Inflectional Form can realize before Finiteness is
 /// supplied by its syntactic context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

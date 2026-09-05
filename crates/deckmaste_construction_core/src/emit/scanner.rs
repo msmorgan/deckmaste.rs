@@ -730,6 +730,14 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 let Some(frame_complement_pair_role) = frame_complement_pair_role_from_keys(terminal, member) else {
                     continue;
                 };
+                let frame_complement_pair_role = Some(frame_complement_pair_role);
+            });
+            let absent_pair_preposition = (!frame_complement_pair).then(|| quote! {
+                let frame_complement_pair_role: Option<usize> = None;
+            });
+            let pair_unpack = frame_complement_pair.then(|| quote! {
+                let frame_complement_pair_role = frame_complement_pair_role
+                    .expect("a grouped frame-complement-pair reading retains its role");
             });
             let pair_argument = frame_complement_pair
                 .then(|| quote! { frame_complement_pair_role, });
@@ -852,6 +860,24 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             } else {
                 quote! { declaration }
             };
+            let remove_homographic_closed = codec.closed_lexeme().is_some().then(|| quote! {
+                if matches!(reference, crate::environment::VerbInventoryRef::Core(_))
+                    && inflectional_forms.has_multiple()
+                {
+                    matches.retain(|candidate| {
+                        !matches!(
+                            &candidate.value,
+                            Leaf::#verb {
+                                verb: #verb::Lexeme(_),
+                                concord_class: candidate_concord_class,
+                                onset: candidate_onset,
+                            } if candidate_concord_class.compatible_with(concord_class)
+                                && *candidate_onset == onset
+                                && candidate.end == end
+                        )
+                    });
+                }
+            });
             match codec.feature_axis() {
                 crate::feature::Feature::ConcordClass => quote! {
                     Lexical::DeclarationVerb(#terminal_index, wanted) => {
@@ -861,20 +887,26 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         #frame_class,
                         &[#(#frame_atoms),*],
                     );
-                    for concord_class in [ConcordClass::Other, ConcordClass::ThirdPersonSingular] {
-                        if !matches!(wanted, FeatureConstraint::Any)
-                            && !matches!(wanted, FeatureConstraint::Exact(expected) if expected == concord_class)
-                        {
-                            continue;
-                        }
-                        let present_form = match concord_class {
-                            ConcordClass::Other => ::deckmaste_construction_core::macro_def::InflectionalForm::Plain,
-                            ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent,
-                        };
-                        for inflectional_form in [
-                            present_form,
+                    let mut finite_readings: Vec<(
+                            usize,
+                            crate::environment::VerbInventoryRef,
+                            Onset,
+                            ::deckmaste_construction_core::macro_def::InflectionalFormSet,
+                            Option<usize>,
+                    )> = Vec::new();
+                    for inflectional_form in [
+                            ::deckmaste_construction_core::macro_def::InflectionalForm::Plain,
+                            ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent,
                             ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
                         ] {
+                            let applicability = inflectional_form.concord_class_applicability();
+                            if matches!(wanted, FeatureConstraint::Exact(ConcordClass::Other))
+                                && !applicability.other
+                                || matches!(wanted, FeatureConstraint::Exact(ConcordClass::ThirdPersonSingular))
+                                    && !applicability.third_person_singular
+                            {
+                                continue;
+                            }
                             for (end, reading) in input.declaration_verb_readings(
                                 input.position.byte_offset,
                                 &frame,
@@ -883,10 +915,52 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 let reference = reading.reference().clone();
                                 let onset = reading.onset();
                                 #pair_preposition
-                                let Some(declaration) = #declaration::from_inflectional_form(
+                                #absent_pair_preposition
+                                if let Some((_, _, _, forms, _)) = finite_readings.iter_mut().find(
+                                    |(candidate_end, candidate_reference, candidate_onset, forms, candidate_pair)| {
+                                        *candidate_end == end
+                                            && candidate_reference == &reference
+                                            && *candidate_onset == onset
+                                            && *candidate_pair == frame_complement_pair_role
+                                            && inflectional_form != ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent
+                                            && !forms.contains(::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent)
+                                    },
+                                ) {
+                                    forms.insert(inflectional_form);
+                                } else {
+                                    finite_readings.push((
+                                        end,
+                                        reference,
+                                        onset,
+                                        ::deckmaste_construction_core::macro_def::InflectionalFormSet::singleton(inflectional_form),
+                                        frame_complement_pair_role,
+                                    ));
+                                }
+                            }
+                        }
+                    for (end, reference, onset, inflectional_forms, frame_complement_pair_role) in finite_readings {
+                                let applicability = inflectional_forms.concord_class_applicability();
+                                let concord_class = match wanted {
+                                    FeatureConstraint::Exact(expected) => expected,
+                                    FeatureConstraint::Any => match (
+                                        applicability.other,
+                                        applicability.third_person_singular,
+                                    ) {
+                                        (true, false) => ConcordClass::Other,
+                                        (false, true) => ConcordClass::ThirdPersonSingular,
+                                        (true, true) if inflectional_forms.has_multiple() => {
+                                            ConcordClass::PlainOrPreterite
+                                        }
+                                        (true, true) => ConcordClass::OtherOrThirdPersonSingular,
+                                        (false, false) => continue,
+                                    },
+                                };
+                                #pair_unpack
+                                #remove_homographic_closed
+                                let Some(declaration) = #declaration::from_inflectional_forms(
                                     input.environment,
                                     reference,
-                                    inflectional_form,
+                                    inflectional_forms,
                                     #pair_argument
                                 ) else {
                                     continue;
@@ -900,8 +974,6 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                     },
                                     owner: None,
                                 });
-                            }
-                        }
                     }
                     matches
                     }

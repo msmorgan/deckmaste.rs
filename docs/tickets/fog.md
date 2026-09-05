@@ -205,6 +205,30 @@ Families at >= 15 units:
 | `at random` (postmodifier position) | 21 | unresolved | UNOWNED |
 | `twice that much/many` | 21 | unresolved | UNOWNED |
 
+Relative-clause residue routed from
+`english-v2-tail-preterite-finite-clause` on 2026-09-05 is owned by
+`english-v2-relative-clause`:
+
+- `5127c53a4d019cd2ac0cc868f916703b84d38ace52d3d3ee49c6f7d068be242b`
+  — Ashen-Skin Zubera — `that died this turn` — blocked by the
+  `MannerReference.this_way` invariant before the preterite distinction can
+  decide selection.
+- `a70c14b1f1abb00e54a5aa550264c5040c79a2e241a2cf5a0a2c725140d94d39`
+  — Boldwyr Heavyweights — `who searched` — stops at `who`, before the
+  preterite distinction can decide selection.
+
+Frontier residue routed from the same landing: preterite/past-participle
+homograph host discrimination (`dealt`). `Deal::Preterite` must remain withheld
+until the host distinguishes it from the selected past-participle reduced
+passive; otherwise these established selections move to a wrong finite
+analysis:
+
+- `57bbe75f309b505dd4882064db97811056a148735b94cd43558202587b752c06`
+  — Aggravate — `Each creature dealt damage this way ...`.
+- `4c82b6f6b1da0021ddb05732ec64c82a012ca49c9807f0e2d6f835c1843f4741`
+  — Ballista Watcher // Ballista Wielder (Ballista Wielder face) — `A creature
+  dealt damage this way ...`.
+
 Not a family, do not mint: the bare `.` fragment, 660 units over 102 distinct
 preceding tokens — the generic end-of-sentence position.
 

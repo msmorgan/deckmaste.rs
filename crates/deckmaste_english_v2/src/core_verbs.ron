@@ -30,7 +30,7 @@
     (identity: Copy, bare: "copy", third_person: "copies", preterite: Some("copied"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Cost, bare: "cost", third_person: "costs", frames: [
+    (identity: Cost, bare: "cost", third_person: "costs", preterite: Some("cost"), frames: [
         Predicate([
             Role("ManaAmount"),
             Role("ComparisonDirection"),
@@ -106,7 +106,7 @@
     (identity: Prevent, bare: "prevent", third_person: "prevents", preterite: Some("prevented"), participle: Some("prevented"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Put, bare: "put", third_person: "puts", participle: Some("put"), frames: [
+    (identity: Put, bare: "put", third_person: "puts", preterite: Some("put"), participle: Some("put"), frames: [
         Predicate([
             Role("Object"),
             OptionalLex("Preposition", "From"),

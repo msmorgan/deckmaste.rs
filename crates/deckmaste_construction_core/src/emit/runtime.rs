@@ -141,7 +141,62 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             CONCORD_CLASS_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum ConcordClass { Other, ThirdPersonSingular }
+                pub(crate) enum ConcordClass {
+                    Other,
+                    ThirdPersonSingular,
+                    OtherOrThirdPersonSingular,
+                    PlainOrPreterite,
+                }
+            },
+        ),
+        impl_item(
+            None,
+            CONCORD_CLASS_TYPE,
+            quote! {
+                impl ConcordClass {
+                    const fn compatible_with(self, other: Self) -> bool {
+                        matches!(
+                            (self, other),
+                            (Self::Other, Self::Other)
+                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
+                                | (Self::OtherOrThirdPersonSingular, _)
+                                | (_, Self::OtherOrThirdPersonSingular)
+                                | (Self::PlainOrPreterite, _)
+                                | (_, Self::PlainOrPreterite)
+                        )
+                    }
+
+                    const fn matches_required(self, required: Self) -> bool {
+                        matches!(
+                            (self, required),
+                            (Self::Other, Self::Other)
+                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
+                                | (Self::OtherOrThirdPersonSingular, _)
+                                | (Self::PlainOrPreterite, _)
+                        )
+                    }
+
+                    const fn homogeneous_with(self, other: Self) -> bool {
+                        matches!(
+                            (self, other),
+                            (Self::Other, Self::Other)
+                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
+                                | (Self::OtherOrThirdPersonSingular, _)
+                                | (_, Self::OtherOrThirdPersonSingular)
+                                | (Self::PlainOrPreterite, _)
+                                | (Self::Other, Self::PlainOrPreterite)
+                        )
+                    }
+
+                    const fn narrow_homogeneous(self, other: Self) -> Self {
+                        match (self, other) {
+                            (Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite, value) => value,
+                            (value, Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite) => value,
+                            _ => self,
+                        }
+                    }
+
+                }
             },
         ),
         named_type(
@@ -2488,9 +2543,17 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 } else {
                     quote! { declaration }
                 };
+                let closed_union_arm = codec.closed_lexeme().is_some().then(|| quote! {
+                    (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
+                        verb: #verb::Lexeme(_),
+                        concord_class: ConcordClass::OtherOrThirdPersonSingular,
+                        ..
+                    }) => unreachable!("a closed verb lexeme cannot carry an underspecified Concord Class"),
+                });
                 match codec.feature_axis() {
                     crate::feature::Feature::ConcordClass => quote! {
                         #(#closed_owner_arms)*
+                        #closed_union_arm
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                             verb: #declaration_pattern, concord_class, ..
                         }) => Some(match declaration.reference() {
@@ -2499,13 +2562,14 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 identity.owner_id(),
                             ),
                             crate::environment::VerbInventoryRef::Declaration(id) => {
-                                let feature = declaration
-                                    .inflectional_form()
-                                    .map(::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional)
-                                    .unwrap_or_else(|| match concord_class {
-                                        ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
-                                        ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
-                                    });
+                                let feature = match concord_class {
+                                    ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                    ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                                    ConcordClass::OtherOrThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                                        ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                                    ),
+                                    ConcordClass::PlainOrPreterite => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                };
                                 LexicalOwner::declaration_owner(id.clone(), feature)
                             }
                         }),

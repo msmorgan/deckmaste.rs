@@ -1,6 +1,7 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DeclarationTransitiveVerb {
-    reference: crate::environment::VerbInventoryRef,
+    reference: Box<crate::environment::VerbInventoryRef>,
+    inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
 }
 impl DeclarationTransitiveVerb {
     pub fn new(
@@ -22,10 +23,84 @@ impl DeclarationTransitiveVerb {
             .all(|feature| {
                 environment.verb_inventory_surface(&reference, feature).is_some()
             })
-            .then_some(Self { reference })
+            .then_some(Self {
+                reference: Box::new(reference),
+                inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY,
+            })
+    }
+    pub(crate) fn from_inflectional_forms(
+        environment: &crate::environment::ParserEnvironment,
+        reference: crate::environment::VerbInventoryRef,
+        inflectional_forms: ::deckmaste_construction_core::macro_def::InflectionalFormSet,
+    ) -> Option<Self> {
+        let frame = VerbFrameKey::with_class(
+            VerbFrameClass::Predicate,
+            &[VerbFrameAtom::ObjectNounPhrase],
+        );
+        let has_present_form = inflectional_forms
+            .contains(::deckmaste_construction_core::macro_def::InflectionalForm::Plain)
+            || inflectional_forms
+                .contains(
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent,
+                );
+        let has_present_paradigm = !has_present_form
+            || [
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+            ]
+                .into_iter()
+                .all(|feature| {
+                    environment.verb_inventory_surface(&reference, feature).is_some()
+                });
+        let surfaces = inflectional_forms
+            .iter()
+            .filter(|form| {
+                matches!(
+                    form,
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::Plain |
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent
+                    |
+                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite
+                )
+            })
+            .map(|form| {
+                environment
+                    .verb_inventory_surface(
+                        &reference,
+                        ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(
+                            form,
+                        ),
+                    )
+            })
+            .collect::<Option<Vec<_>>>();
+        let has_one_homographic_surface = surfaces
+            .is_some_and(|surfaces| {
+                !surfaces.is_empty()
+                    && surfaces.windows(2).all(|pair| pair[0] == pair[1])
+            });
+        let retained_inflectional_forms = if inflectional_forms
+            .contains(
+                ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+            )
+        {
+            inflectional_forms
+        } else {
+            ::deckmaste_construction_core::macro_def::InflectionalFormSet::EMPTY
+        };
+        (environment.verb_frame_licenses(&reference, frame) && has_present_paradigm
+            && has_one_homographic_surface)
+            .then_some(Self {
+                reference: Box::new(reference),
+                inflectional_forms: retained_inflectional_forms,
+            })
     }
     pub fn reference(&self) -> &crate::environment::VerbInventoryRef {
         &self.reference
+    }
+    pub(crate) const fn inflectional_forms(
+        &self,
+    ) -> ::deckmaste_construction_core::macro_def::InflectionalFormSet {
+        self.inflectional_forms
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

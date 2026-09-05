@@ -2165,7 +2165,12 @@ mod tests {
 
         assert_eq!(
             enum_variants(generated_item(&expansion, "ConcordClass")),
-            ["Other", "ThirdPersonSingular"]
+            [
+                "Other",
+                "ThirdPersonSingular",
+                "OtherOrThirdPersonSingular",
+                "PlainOrPreterite"
+            ]
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "Number")),
