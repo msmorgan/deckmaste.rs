@@ -10,6 +10,7 @@ import Semantics.Cards.Deontic
 import Semantics.Cards.Description
 import Semantics.Cards.Faces
 import Semantics.Cards.Keyword
+import Semantics.Cards.Mana
 import Semantics.Cards.Piles
 import Semantics.Cards.Static
 import Semantics.Cards.Trigger

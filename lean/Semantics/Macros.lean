@@ -96,6 +96,8 @@ def a (p : Predicate) : NounPhrase := .described (.a .unmarked) p
 def aAtRandom (p : Predicate) : NounPhrase := .described (.a .atRandom) p
 /-- "a … of their choice", the chooser being the last-mentioned player. -/
 def aTheirChoice (p : Predicate) : NounPhrase := .described (.a (.theirChoice (.top 1))) p
+/-- "a … of your choice" -/
+def aYourChoice (p : Predicate) : NounPhrase := .described (.a .yourChoice) p
 /-- "the …" -/
 def the (p : Predicate) : NounPhrase := .described .the p
 
@@ -187,6 +189,8 @@ def permanentCard : Predicate :=
 def colorless : Predicate := .colorCount .eq 0
 /-- "multicolored": an object of two or more colors [CR#105.2b]. -/
 def multicolored : Predicate := .colorCount .atLeast 2
+/-- "monocolored" -/
+def monocolored : Predicate := .colorCount .eq 1
 /-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
 def historic : Predicate :=
   .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype (.of .enchantment "Saga")]
@@ -345,6 +349,8 @@ def pip (color : Color) : ManaSymbol := .simple (.specific (.of color))
 def colorlessPip : ManaSymbol := .simple (.specific .colorless)
 /-- "{A/B}" -/
 def hybridPip (left right : Color) : ManaSymbol := .hybrid (.specific (.of left)) right
+/-- "{G/P}": a Phyrexian mana symbol [CR#107.4f]. -/
+def phyrexianPip (color : Color) : ManaSymbol := .phyrexian color none
 /-- "{1} for each …", "{R} for each …": a mana cost scaled by an amount. -/
 def scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
   match unit with
@@ -580,6 +586,10 @@ def eventSum (event : EventName) (who : NounPhrase) (lookback : Lookback) : Amou
 def eventCountFrom (event : EventName) (who : NounPhrase) (lookback : Lookback) (what : NounPhrase)
     (source : EventSource) : Amount :=
   .eventTally .count who (.mk event lookback (some (.fromZones source (some (.involving what)))))
+/-- "if <who> <event>ed <what> from <source> <lookback>" -/
+def happenedFrom (event : EventName) (who : NounPhrase) (lookback : Lookback) (what : NounPhrase)
+    (source : EventSource) : Condition :=
+  .happened who (.mk event lookback (some (.fromZones source (some (.involving what)))))
 /-- "if <who> <event>ed at <zone> <lookback>" -/
 def happenedAt (event : EventName) (who : NounPhrase) (lookback : Lookback) (zone : ZoneExpr) :
     Condition :=
