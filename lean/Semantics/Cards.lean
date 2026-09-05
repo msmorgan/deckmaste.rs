@@ -2,6 +2,7 @@ import Semantics
 import Semantics.Macros
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
+import Semantics.Cards.Choice
 import Semantics.Cards.Copy
 import Semantics.Cards.Deontic
 import Semantics.Cards.Description

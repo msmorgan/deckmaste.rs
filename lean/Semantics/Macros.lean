@@ -101,6 +101,8 @@ def countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
 def exists_ (p : Predicate) : Condition := .exists_ (bare p)
 /-- "if it's a <p> card": the card slot's occupant, tested. -/
 def itsACard (p : Predicate) : Condition := .matches itCard p
+/-- "if it's a <p>" -/
+def itsA (p : Predicate) : Condition := .matches it p
 
 /-- "the number of …s" -/
 def countOf (p : Predicate) : Amount := .countOf (bare p)
@@ -132,6 +134,9 @@ def onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
 def onTop : ZoneExpr := .library (.oneEnd .top) none none .bare
 /-- "on the top or bottom of your library" -/
 def topOrBottom : ZoneExpr := .library (.eitherEnd none) none none .bare
+/-- "on the top or bottom of its owner's library, <chooser>'s choice" -/
+def choiceOfTopOrBottom (chooser : NounPhrase) : ZoneExpr :=
+  .library (.eitherEnd (some chooser)) none none .bare
 /-- "Nth from the top or bottom of your library" -/
 def nthFromTopOrBottom (ordinal : Ordinal) : ZoneExpr :=
   .library (.eitherEnd none) none (some ordinal) .bare
@@ -181,6 +186,8 @@ def creatureYouControl : Predicate := .and [creature, .hasPossessor .controller 
 def creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
 def creatureYourOpponentsControl : Predicate :=
   .and [creature, .hasPossessor .controller (.playerGroup .yourOpponents)]
+/-- "another creature", anchored on <n>. -/
+def otherCreature (n : NounPhrase) : Predicate := .and [creature, .otherThan n]
 /-- "another creature you control", anchored on <n>. -/
 def otherCreatureYouControl (n : NounPhrase) : Predicate :=
   .and [creature, .hasPossessor .controller .you, .otherThan n]
@@ -221,6 +228,10 @@ def quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
 def qualityFrom (sort : QualitySort) (domain : ChoiceDomain) : Predicate :=
   .qualityNoun sort (some domain)
+/-- "a <dom> with <stat> <r> <bound>", the stat read of the member itself. -/
+def comparesOwnStat (stat : Stat) (domain : Predicate) (comparator : Comparator) (bound : Amount) :
+    Predicate :=
+  .compareOver domain (.statOf (.stat stat) (.pro .bare .one (.top 1))) comparator bound
 /-- "the chosen color" -/
 def thatColor : ColorTerm := .chosen .theChoice
 
@@ -256,6 +267,7 @@ def thisVehicle : NounPhrase := .asType .artifact .this (some (artifactType "Veh
 def thisSpacecraft : NounPhrase := .asType .artifact .this (some (artifactType "Spacecraft"))
 def thisSaga : NounPhrase := .asType .enchantment .this (some (enchantmentType "Saga"))
 def thisCase : NounPhrase := .asType .enchantment .this (some (enchantmentType "Case"))
+def thisClass : NounPhrase := .asType .enchantment .this (some (enchantmentType "Class"))
 /-- "your commander" -/
 def yourCommander : NounPhrase := .designated "commander" .you
 /-- "a card exiled with this artifact" -/
@@ -325,6 +337,7 @@ def scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
 def untilEndOfTurn : Duration := .until_ (.endOf .turn none)
 def untilYourNextTurn : Duration := .until_ (.startOf .turn (some .you))
 def untilEndOfCombat : Duration := .until_ (.endOf .combat none)
+def untilYourNextEndStep : Duration := .until_ (.startOf .endStep (some .you))
 
 /-! ## Amounts -/
 
@@ -398,12 +411,23 @@ def putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
 /-- "put <subject> onto the battlefield under your control" -/
 def putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
   .move subject battlefield [.under .you]
+/-- "put <subject> onto the battlefield tapped and attacking" -/
+def putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
+  .move subject battlefield [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
 def searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
   .search .you (.oneZone yourLibrary) quantity p
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" -/
 def searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Instruction :=
   .search .you (.someZones (some whose) [.graveyard, .hand, .library]) quantity p
+/-- "search your library and/or graveyard for a <p>" -/
+def searchLibraryOrGraveyard (p : Predicate) : Instruction :=
+  .search .you (.someZones (some .you) [.library, .graveyard]) (exactly 1) p
+/-- "<who> searches their library for a <p>" -/
+def playerSearchesTheirLibraryFor (who : NounPhrase) (p : Predicate) : Instruction :=
+  .search who (.oneZone (libraryOf they)) (exactly 1) p
+/-- "<who> reveals their hand" -/
+def revealsTheirHand (who : NounPhrase) : Instruction := .expose .reveal who (.zone (handOf they))
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
 def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.down amount)
@@ -445,6 +469,9 @@ def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
 def flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
 /-- "<decider> may <body>" -/
 def may (decider : NounPhrase) (body : Instruction) : Instruction := .may decider body none none
+/-- "<decider> may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
+def mayWhen (decider : NounPhrase) (body trigger : Instruction) : Instruction :=
+  .reflexively (.may decider body none none) trigger
 /-- "the chosen number" -/
 def chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
@@ -741,6 +768,23 @@ def throughout (spec : StaticSpec) (duration : Duration) : Instruction :=
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   .onlyDuring .untapStep whose (objectCant (.action "Untap") subject)
+/-- "you may choose not to untap <subject> during [<whose>] untap step" -/
+def mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  .onlyDuring .untapStep whose
+    (.deontic subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
+/-- "<subject> can block an additional creature each combat" -/
+def mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
+  .deontic subject .permit [.core .block] .agent (some (.additional quantity))
+    (.counterpart (allOf creature)) none .noRider
+/-- "<who> may vote an additional time" -/
+def mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
+  .deontic who .permit [.action "Vote"] .agent (some (.additional quantity)) .noPatient none
+    .noRider
+/-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
+def maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
+    (purpose : Option SpendPurpose) : StaticSpec :=
+  .deontic who .permit [.core .spend] .agent none .noPatient (some (.mana what as_ purpose))
+    .noRider
 /-- "<player> can't <deed> more than N <p>" -/
 def cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=
@@ -833,8 +877,18 @@ def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
 def entersChoosingFrom (subject : NounPhrase) (sort : QualitySort) (domain : ChoiceDomain) :
     StaticSpec :=
   .entersChoice subject (.quality sort) (some domain) .openly
+/-- "As <subject> enters, choose a player [from <domain>]." -/
+def entersChoosingPlayer (subject : NounPhrase) (domain : Option ChoiceDomain) : StaticSpec :=
+  .entersChoice subject .player domain .openly
+/-- "As <subject> enters, secretly choose a player [from <domain>]." -/
+def entersChoosingPlayerSecretly (subject : NounPhrase) (domain : Option ChoiceDomain) :
+    StaticSpec :=
+  .entersChoice subject .player domain .secretly
 /-- "<subject> enters tapped" -/
 def entersTapped (subject : NounPhrase) : StaticSpec := .entersRider subject (.entersAs .tapped)
+/-- "As <subject> becomes attached, choose a <quality>." -/
+def attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
+  .attachChoice subject (.quality sort) none
 /-- "<subject> enters with N <kind> counters on it" -/
 def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
@@ -911,6 +965,12 @@ def activated (cost : Cost) (instruction : Instruction) : Ability :=
 /-- "[cost]: <instruction>. Activate only <timing>." -/
 def activatedOnlyDuring (cost : Cost) (instruction : Instruction) (timing : Timing) : Ability :=
   .activated cost instruction (some timing) none none none
+/-- "[cost]: <instruction>. Only <who> may activate this ability." -/
+def activatedBy (cost : Cost) (instruction : Instruction) (who : NounPhrase) : Ability :=
+  .activated cost instruction none none none (some who)
+/-- "[cost]: <instruction>. Activate only once <limit>." -/
+def activatedOnlyOnce (cost : Cost) (instruction : Instruction) (limit : UsageLimit) : Ability :=
+  .activated cost instruction none (some limit) none none
 
 /-! ## Cards -/
 
