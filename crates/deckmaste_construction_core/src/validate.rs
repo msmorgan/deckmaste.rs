@@ -18062,7 +18062,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 150);
+        assert_eq!(expansion.plan().items().len(), 155);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18427,7 +18427,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 150);
+        assert_eq!(expansion.plan().items().len(), 155);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18569,7 +18569,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 150);
+        assert_eq!(emission.items().len(), 155);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

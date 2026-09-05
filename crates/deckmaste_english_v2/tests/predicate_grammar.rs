@@ -2183,7 +2183,7 @@ fn predicate_adjuncts_pin_postposed_prepositions_outside_their_objects() {
 }
 
 #[test]
-fn object_gap_adjunct_attachment_selects_the_low_relative_reading() {
+fn object_gap_adjunct_attachment_uses_the_hoisted_representative() {
     let parser = parser();
     let context = context();
 
@@ -2204,18 +2204,38 @@ fn object_gap_adjunct_attachment_selects_the_low_relative_reading() {
             .to_vec()
     };
 
-    for text in [
-        "Destroy each creature you sacrifice in your graveyard.",
-        "Exile each card you exile in your graveyard.",
-        "Destroy each creature you sacrifice during your upkeep.",
-        "Untap all permanents you control during each other player's untap step.",
+    for (text, outer) in [
+        (
+            "Destroy each creature you sacrifice in your graveyard.",
+            "PostmodifiedReferencePrepositionalQualifiedReference",
+        ),
+        (
+            "Exile each card you exile in your graveyard.",
+            "PostmodifiedReferencePrepositionalQualifiedReference",
+        ),
+        (
+            "Destroy each creature you sacrifice during your upkeep.",
+            "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
+        ),
+        (
+            "Untap all permanents you control during each other player's untap step.",
+            "PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate",
+        ),
     ] {
         let path = selected_path(text);
+        let outer = path
+            .iter()
+            .position(|name| name == outer)
+            .unwrap_or_else(|| panic!("the packed representative keeps the adjunct: {path:?}"));
+        let relative = path
+            .iter()
+            .position(|name| name == "PositiveObjectGapRelativeClausePositiveObjectGapRelative")
+            .unwrap_or_else(|| {
+                panic!("the packed representative keeps the object-gap relative: {path:?}")
+            });
         assert!(
-            path.iter().any(|name| {
-                name == "PositiveObjectGapRelativeClausePositiveObjectGapRelativeWithPrepositionalAdjunct"
-            }),
-            "the object-gap relative selects the low adjunct attachment for {text:?}: {path:?}",
+            outer < relative,
+            "the object-gap relative uses the hoisted adjunct representative for {text:?}: {path:?}",
         );
     }
 
@@ -2670,17 +2690,19 @@ fn contracted_perfect_object_gap_relatives_use_participles() {
 }
 
 #[test]
-fn participial_relatives_select_low_adjunct_attachment() {
+fn participial_relatives_use_the_hoisted_adjunct_representative() {
     let parser = parser();
     let context = context();
 
-    for (text, inner) in [
+    for (text, outer, inner) in [
         (
             "Destroy a card you've exiled this turn.",
-            "ContractedPerfectAdjunctObjectGapRelativeClauseContractedPerfectObjectGapRelativeWithAdjunct",
+            Some("PredicateAdjunctPredicatePredicateAdjunctPredicate"),
+            "ContractedPerfectObjectGapRelativeClauseContractedPerfectObjectGapRelative",
         ),
         (
             "Destroy each creature turned face up this turn.",
+            None,
             "PostmodifiedReferenceReducedPassiveAdjunctQualifiedReference",
         ),
     ] {
@@ -2697,10 +2719,24 @@ fn participial_relatives_select_low_adjunct_attachment() {
             .find(|candidate| candidate.ordinal() == ordinal)
             .expect("the selected ordinal names a candidate")
             .construction_path();
-        assert!(
-            path.iter().any(|name| name == inner),
-            "the low participial-relative attachment must win for {text:?}: {path:?}",
-        );
+        let relative = path
+            .iter()
+            .position(|name| name == inner)
+            .unwrap_or_else(|| {
+                panic!("the selected path keeps the participial relative: {path:?}")
+            });
+        if let Some(outer) = outer {
+            let outer = path
+                .iter()
+                .position(|name| name == outer)
+                .unwrap_or_else(|| {
+                    panic!("the packed representative keeps the duration adjunct: {path:?}")
+                });
+            assert!(
+                outer < relative,
+                "the participial relative uses the hoisted adjunct representative for {text:?}: {path:?}",
+            );
+        }
     }
 }
 
@@ -3771,17 +3807,24 @@ fn role_preemption_reaches_only_the_right_periphery_of_the_governed_material() {
         .iter()
         .position(|construction| construction.ends_with("AndNounPhraseCoordination"))
         .expect("the object coordinates its two targets");
-    let spared_postmodifiers = postmodifiers(&spared);
+    let spared_prepositional_phrases = spared
+        .iter()
+        .enumerate()
+        .filter(|(_, construction)| {
+            construction.as_str() == "PrepositionalPhrasePrepositionalPhrase"
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
     assert_eq!(
-        spared_postmodifiers.len(),
+        spared_prepositional_phrases.len(),
         2,
-        "each Conjunct keeps its own Postmodifier: {spared:#?}",
+        "each Conjunct keeps its own prepositional phrase: {spared:#?}",
     );
     assert!(
-        spared_postmodifiers
+        spared_prepositional_phrases
             .iter()
             .all(|index| *index > coordination),
-        "both Postmodifiers sit inside the object coordination: {spared:#?}",
+        "both prepositional phrases sit inside the object coordination: {spared:#?}",
     );
 }
 
@@ -4670,25 +4713,26 @@ fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     );
     assert!(
         path.iter()
-            .any(|item| item == "ThenPredicateSequenceThenPredicateSequence")
+            .any(|item| item == "BareThenPredicateSequenceBareThenPredicateSequence"),
+        "the selected path hoists the shared auxiliary over the then sequence: {path:#?}",
     );
     assert_eq!(
         exact_claim_trace(&parser, &context, auxiliary_text)
             .into_iter()
-            .filter(|(_, owner)| owner.starts_with("structural:ThenPredicateSequence"))
+            .filter(|(_, owner)| owner.starts_with("structural:BareThenPredicateSequence"))
             .collect::<Vec<_>>(),
         [
             (
                 ", ".to_owned(),
-                "structural:ThenPredicateSequenceValue/members/separator/first/0".to_owned(),
+                "structural:BareThenPredicateSequenceValue/members/separator/first/0".to_owned(),
             ),
             (
                 ", ".to_owned(),
-                "structural:ThenPredicateSequenceValue/members/separator/middle/0".to_owned(),
+                "structural:BareThenPredicateSequenceValue/members/separator/middle/0".to_owned(),
             ),
             (
                 ", then ".to_owned(),
-                "structural:ThenPredicateSequenceValue/members/separator/last/0".to_owned(),
+                "structural:BareThenPredicateSequenceValue/members/separator/last/0".to_owned(),
             ),
         ],
     );

@@ -222,16 +222,7 @@ fn emit_trait(
     terminals: &TerminalVisitors<'_>,
 ) -> syn::Result<GeneratedItem> {
     let visitor = ident(VISITOR_TRAIT);
-    let mut methods = vec![
-        quote! {
-            /// Reports one concrete AST construction before its children are visited.
-            fn enter_construction(&mut self, _construction: &'static str) {}
-        },
-        quote! {
-            /// Reports one terminal leaf in surface order before its typed callback.
-            fn enter_leaf(&mut self, _terminal: &'static str) {}
-        },
-    ];
+    let mut methods = scope_visitor_methods();
     methods.extend(visitor_methods(plan, categories, constructions, terminals));
 
     let mut leaf_origins = Vec::new();
@@ -363,6 +354,48 @@ fn emit_trait(
         quote! { pub trait #visitor { #(#methods)* } },
         origins,
     ))
+}
+
+fn scope_visitor_methods() -> Vec<TokenStream> {
+    vec![
+        quote! {
+            /// Reports one concrete AST construction before its children are visited.
+            fn enter_construction(&mut self, _construction: &'static str) {}
+        },
+        quote! {
+            /// Reports the end of the current concrete AST construction.
+            fn exit_construction(&mut self) {}
+        },
+        quote! {
+            /// Reports a named construction role before its value is visited.
+            fn enter_role(
+                &mut self,
+                _role: &'static str,
+                _scope_sibling: Option<&'static str>,
+                _admissible_sites: Option<&AdmissibleSites>,
+            ) {}
+        },
+        quote! {
+            /// Reports the end of the current named construction role.
+            fn exit_role(&mut self) {}
+        },
+        quote! {
+            /// Reports a sequence member before its value is visited.
+            fn enter_conjunct(&mut self, _role: &'static str, _ordinal: usize) {}
+        },
+        quote! {
+            /// Reports the end of the current sequence member.
+            fn exit_conjunct(&mut self) {}
+        },
+        quote! {
+            /// Reports one realized atom for structural span accounting.
+            fn scope_leaf(&mut self) {}
+        },
+        quote! {
+            /// Reports one terminal leaf in surface order before its typed callback.
+            fn enter_leaf(&mut self, _terminal: &'static str) {}
+        },
+    ]
 }
 
 fn visitor_methods(
@@ -666,6 +699,7 @@ fn emit_sequence_walker(
     let function = ident(&function_name);
     let item_ty = super::value_kind_type(item);
     let call = walk_structural_value(plan, item, quote! { value })?;
+    let role = syn::LitStr::new(field.name(), Span::call_site());
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -673,7 +707,14 @@ fn emit_sequence_walker(
         },
         quote! {
             fn #function<V: Visitor + ?Sized>(visitor: &mut V, values: &[#item_ty]) {
-                for value in values { #call }
+                for (ordinal, value) in values.iter().enumerate() {
+                    if ordinal > 0 {
+                        visitor.scope_leaf();
+                    }
+                    visitor.enter_conjunct(#role, ordinal);
+                    #call
+                    visitor.exit_conjunct();
+                }
             }
         },
         vec![DeclarationKey::new(kind, owner)],
@@ -720,7 +761,7 @@ fn walk_structural_value(
             } else {
                 expression
             };
-            Ok(quote! { #enter_leaf #walker(visitor, #expression); })
+            Ok(quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #expression); })
         }
     }
 }
@@ -1022,6 +1063,7 @@ fn emit_construction_walker(
                     visitor.enter_construction(#construction_id);
                     #destructure
                     #(#calls)*
+                    visitor.exit_construction();
                 }
             },
             vec![DeclarationKey::new(
@@ -1082,7 +1124,7 @@ fn emit_construction_walker(
                     }
                 })?;
             Ok(if let Some(guard) = guard {
-                quote! { if #guard { #(#calls)* return; } }
+                quote! { if #guard { #(#calls)* visitor.exit_construction(); return; } }
             } else {
                 quote! { #(#calls)* }
             })
@@ -1101,6 +1143,7 @@ fn emit_construction_walker(
                 visitor.enter_construction(#construction_id);
                 #destructure
                 #(#form_bodies)*
+                visitor.exit_construction();
                 #exhaustiveness
             }
         },
@@ -1120,59 +1163,23 @@ fn emit_construction_form_walker_calls(
     fields: &HashMap<String, &ConstructionFieldPlan>,
 ) -> syn::Result<Vec<TokenStream>> {
     let mut calls = Vec::new();
-    for atom in form.atoms() {
-        if let Some(role) = visit_atom_role(atom)
-            && let Some(field) = fields.get(role)
-            && let Some(structural) = field.structural_plan()
-        {
-            let value = field_value(construction, role, argument, field_locals)?;
-            let marker = if let AtomPlan::Marked { terminal, path, .. } = atom {
-                let walker = ident(&format!("walk_{}", snake_case(terminal)));
-                let enter_leaf = enter_leaf_call(validated, terminal)?;
-                Some(quote! { #enter_leaf #walker(visitor, #path); })
-            } else {
-                None
-            };
-            let call = match structural.kind() {
-                StructuralFieldKindPlan::Required(kind) => {
-                    let visit = walk_structural_value(validated, kind, value)?;
-                    quote! { #marker #visit }
-                }
-                StructuralFieldKindPlan::Zeroable(kind) => {
-                    let visit = walk_structural_value(validated, kind, quote! { value })?;
-                    let ty = field.value_type();
-                    calls.push(quote! {
-                        if let #ty::Headed(value) = #value { #marker #visit }
-                    });
-                    continue;
-                }
-                StructuralFieldKindPlan::Optional(kind) => {
-                    let visit = walk_structural_value(validated, kind, quote! { value })?;
-                    let optional = if structural.is_recursive() {
-                        quote! { #value.as_ref() }
-                    } else {
-                        value
-                    };
-                    quote! { if let Some(value) = #optional { #marker #visit } }
-                }
-                StructuralFieldKindPlan::Sequence { .. } => {
-                    if marker.is_some() {
-                        return Err(internal("marked roles cannot be sequences"));
-                    }
-                    let walker = ident(&structural_sequence_walker(
-                        construction.element_type(),
-                        structural.name(),
-                    ));
-                    quote! { #walker(visitor, #value); }
-                }
-            };
+    for (atom_index, atom) in form.atoms().iter().enumerate() {
+        if let Some(call) = structural_role_walker_call(
+            validated,
+            construction,
+            form,
+            (atom_index, atom),
+            argument,
+            field_locals,
+            fields,
+        )? {
             calls.push(call);
             continue;
         }
         let call = match atom.value_atom() {
             AtomPlan::Literal(_)
             | AtomPlan::SentenceInitialLiteral(_)
-            | AtomPlan::StructuralLiteral(_) => None,
+            | AtomPlan::StructuralLiteral(_) => Some(quote! { visitor.scope_leaf(); }),
             AtomPlan::Category { role, category } => {
                 let field = fields
                     .get(role)
@@ -1182,16 +1189,36 @@ fn emit_construction_form_walker_calls(
                 }
                 let callback = ident(&format!("visit_{}", snake_case(category)));
                 let value = field_value(construction, role, argument, field_locals)?;
-                Some(quote! { visitor.#callback(#value); })
+                Some(role_visit(
+                    construction,
+                    form,
+                    atom_index,
+                    field,
+                    argument,
+                    &quote! { visitor.#callback(#value); },
+                ))
             }
-            AtomPlan::Marked { .. } => Some(marked_role_visit(
-                validated,
-                construction,
-                atom.value_atom(),
-                argument,
-                field_locals,
-                fields,
-            )?),
+            AtomPlan::Marked { role, .. } => {
+                let field = fields
+                    .get(role)
+                    .ok_or_else(|| internal("walker marked role absent"))?;
+                let visit = marked_role_visit(
+                    validated,
+                    construction,
+                    atom.value_atom(),
+                    argument,
+                    field_locals,
+                    fields,
+                )?;
+                Some(role_visit(
+                    construction,
+                    form,
+                    atom_index,
+                    field,
+                    argument,
+                    &visit,
+                ))
+            }
             AtomPlan::Lex { role, terminal } => {
                 let field = fields
                     .get(role)
@@ -1200,12 +1227,20 @@ fn emit_construction_form_walker_calls(
                 let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 let enter_leaf = enter_leaf_call(validated, terminal)?;
-                Some(if copy {
+                let visit = if copy {
                     let value = copy_value(field, value);
-                    quote! { #enter_leaf #walker(visitor, #value); }
+                    quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #value); }
                 } else {
-                    quote! { #enter_leaf #walker(visitor, #value); }
-                })
+                    quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #value); }
+                };
+                Some(role_visit(
+                    construction,
+                    form,
+                    atom_index,
+                    field,
+                    argument,
+                    &visit,
+                ))
             }
             AtomPlan::Identity { role, terminal } => {
                 let field = fields
@@ -1215,12 +1250,20 @@ fn emit_construction_form_walker_calls(
                 let value = field_value(construction, role, argument, field_locals)?;
                 let copy = terminal_mode(validated, terminal)? == VisitMode::Copy;
                 let enter_leaf = enter_leaf_call(validated, terminal)?;
-                Some(if copy {
+                let visit = if copy {
                     let value = copy_value(field, value);
-                    quote! { #enter_leaf #walker(visitor, #value); }
+                    quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #value); }
                 } else {
-                    quote! { #enter_leaf #walker(visitor, #value); }
-                })
+                    quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #value); }
+                };
+                Some(role_visit(
+                    construction,
+                    form,
+                    atom_index,
+                    field,
+                    argument,
+                    &visit,
+                ))
             }
             AtomPlan::Noun { role, terminal } => {
                 let field = fields
@@ -1229,23 +1272,32 @@ fn emit_construction_form_walker_calls(
                 let callback = ident(&format!("visit_{}", snake_case(terminal)));
                 let value = field_value(construction, role, argument, field_locals)?;
                 let enter_leaf = enter_leaf_call(validated, terminal)?;
-                Some(if terminal_mode(validated, terminal)? == VisitMode::Copy {
+                let visit = if terminal_mode(validated, terminal)? == VisitMode::Copy {
                     let value = copy_value(field, value);
-                    quote! { #enter_leaf visitor.#callback(#value); }
+                    quote! { visitor.scope_leaf(); #enter_leaf visitor.#callback(#value); }
                 } else {
-                    quote! { #enter_leaf visitor.#callback(#value); }
-                })
+                    quote! { visitor.scope_leaf(); #enter_leaf visitor.#callback(#value); }
+                };
+                Some(role_visit(
+                    construction,
+                    form,
+                    atom_index,
+                    field,
+                    argument,
+                    &visit,
+                ))
             }
             AtomPlan::LexFixed { terminal, path, .. }
             | AtomPlan::VerbFixed { terminal, path, .. } => {
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));
                 let enter_leaf = enter_leaf_call(validated, terminal)?;
-                Some(quote! { #enter_leaf #walker(visitor, #path); })
+                Some(quote! { visitor.scope_leaf(); #enter_leaf #walker(visitor, #path); })
             }
             AtomPlan::OpenDeclaration(open) => {
                 let kind = crate::emit::declaration_kind(open.kind());
                 let name = syn::LitStr::new(open.name(), Span::call_site());
                 Some(quote! {
+                    visitor.scope_leaf();
                     visitor.enter_leaf("open declaration");
                     visitor.visit_declaration(
                         &::deckmaste_construction_core::macro_def::DeclarationIdentity::new(#kind, #name),
@@ -1256,11 +1308,92 @@ fn emit_construction_form_walker_calls(
                 unreachable!("value_atom removes form wrappers")
             }
         };
-        if let Some(call) = call {
-            calls.push(call);
-        }
+        calls.extend(call);
     }
     Ok(calls)
+}
+
+fn structural_role_walker_call(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    atom: (usize, &AtomPlan),
+    argument: &syn::Ident,
+    field_locals: &HashMap<String, syn::Ident>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<Option<TokenStream>> {
+    let (atom_index, atom) = atom;
+    let Some(role) = visit_atom_role(atom) else {
+        return Ok(None);
+    };
+    let Some(field) = fields.get(role) else {
+        return Ok(None);
+    };
+    let Some(structural) = field.structural_plan() else {
+        return Ok(None);
+    };
+    let value = field_value(construction, role, argument, field_locals)?;
+    let marker = if let AtomPlan::Marked { terminal, path, .. } = atom {
+        let walker = ident(&format!("walk_{}", snake_case(terminal)));
+        let enter_leaf = enter_leaf_call(validated, terminal)?;
+        Some(quote! { #enter_leaf #walker(visitor, #path); })
+    } else {
+        None
+    };
+    let call = match structural.kind() {
+        StructuralFieldKindPlan::Required(kind) => {
+            let visit = walk_structural_value(validated, kind, value)?;
+            role_visit(
+                construction,
+                form,
+                atom_index,
+                field,
+                argument,
+                &quote! { #marker #visit },
+            )
+        }
+        StructuralFieldKindPlan::Zeroable(kind) => {
+            let visit = walk_structural_value(validated, kind, quote! { value })?;
+            let ty = field.value_type();
+            let visit = role_visit(
+                construction,
+                form,
+                atom_index,
+                field,
+                argument,
+                &quote! { #marker #visit },
+            );
+            quote! { if let #ty::Headed(value) = #value { #visit } }
+        }
+        StructuralFieldKindPlan::Optional(kind) => {
+            let visit = walk_structural_value(validated, kind, quote! { value })?;
+            let optional = if structural.is_recursive() {
+                quote! { #value.as_ref() }
+            } else {
+                value
+            };
+            let visit = role_visit(
+                construction,
+                form,
+                atom_index,
+                field,
+                argument,
+                &quote! { #marker #visit },
+            );
+            quote! { if let Some(value) = #optional { #visit } }
+        }
+        StructuralFieldKindPlan::Sequence { .. } => {
+            if marker.is_some() {
+                return Err(internal("marked roles cannot be sequences"));
+            }
+            let walker = ident(&structural_sequence_walker(
+                construction.element_type(),
+                structural.name(),
+            ));
+            quote! { #walker(visitor, #value); }
+        }
+    };
+    Ok(Some(call))
 }
 
 fn marked_role_visit(
@@ -1292,10 +1425,67 @@ fn marked_role_visit(
     let callback = ident(&format!("visit_{}", snake_case(category)));
     let value = field_value(construction, role, argument, field_locals)?;
     Ok(quote! {
+        visitor.scope_leaf();
         #enter_leaf
         #walker(visitor, #path);
         visitor.#callback(#value);
     })
+}
+
+fn role_visit(
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    atom_index: usize,
+    field: &ConstructionFieldPlan,
+    argument: &syn::Ident,
+    visit: &TokenStream,
+) -> TokenStream {
+    let role = syn::LitStr::new(&field.name_key(), field.name().span());
+    let scope_sibling = if field.is_mobile() {
+        field.mobile_scope_sibling().map(str::to_owned).or_else(|| {
+            [atom_index.checked_sub(1), atom_index.checked_add(1)]
+                .into_iter()
+                .flatten()
+                .filter_map(|index| form.atoms().get(index))
+                .filter_map(visit_atom_role)
+                .find(|role| {
+                    construction
+                        .fields()
+                        .iter()
+                        .find(|candidate| candidate.name_key() == **role)
+                        .and_then(ConstructionFieldPlan::structural_plan)
+                        .is_some_and(|structural| {
+                            matches!(structural.kind(), StructuralFieldKindPlan::Sequence { .. })
+                        })
+                })
+                .map(str::to_owned)
+        })
+    } else {
+        None
+    };
+    let scope_sibling = scope_sibling.map_or_else(
+        || quote! { None },
+        |scope_sibling| {
+            let scope_sibling = syn::LitStr::new(&scope_sibling, field.name().span());
+            quote! { Some(#scope_sibling) }
+        },
+    );
+    let sites = if field.is_mobile() {
+        quote! {
+            Some(
+                #argument
+                    .admissible_sites(#role)
+                    .expect("every mobile role has one attachment slot"),
+            )
+        }
+    } else {
+        quote! { None }
+    };
+    quote! {
+        visitor.enter_role(#role, #scope_sibling, #sites);
+        #visit
+        visitor.exit_role();
+    }
 }
 
 fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -2008,6 +2198,12 @@ mod tests {
             callbacks,
             [
                 "enter_construction",
+                "exit_construction",
+                "enter_role",
+                "exit_role",
+                "enter_conjunct",
+                "exit_conjunct",
+                "scope_leaf",
                 "enter_leaf",
                 "visit_atom",
                 "visit_branch",
@@ -2085,8 +2281,8 @@ mod tests {
                 .block
                 .to_token_stream()
                 .to_string()
-                .contains("for value in values { visitor . visit_branch (value) ; }"),
-            "sequence traversal walks the stored slice without indices or reversal",
+                .contains("for (ordinal , value) in values . iter () . enumerate () { if ordinal > 0 { visitor . scope_leaf () ; } visitor . enter_conjunct (\"items\" , ordinal) ; visitor . visit_branch (value) ; visitor . exit_conjunct () ; }"),
+            "sequence traversal walks the stored slice with source-order ordinals",
         );
 
         let syn::Item::Fn(sum) = named(&expansion, "walk_branch") else {
@@ -2151,15 +2347,30 @@ mod tests {
             calls,
             [
                 "visitor . enter_construction (\"NodeWriter\")",
+                "visitor . enter_role (\"plain\" , None , None)",
+                "visitor . scope_leaf ()",
                 "visitor . enter_leaf (\"plain\")",
                 "walk_plain (visitor , * & walk_mode_2 . plain)",
+                "visitor . exit_role ()",
+                "visitor . enter_role (\"mode\" , None , None)",
+                "visitor . scope_leaf ()",
                 "visitor . enter_leaf (\"mode\")",
                 "walk_mode (visitor , walk_mode_2 . mode ())",
+                "visitor . exit_role ()",
+                "visitor . enter_role (\"child\" , None , None)",
                 "visitor . visit_node (walk_mode_2 . child ())",
+                "visitor . exit_role ()",
+                "visitor . enter_role (\"spelling\" , None , None)",
+                "visitor . scope_leaf ()",
                 "visitor . enter_leaf (\"self reference\")",
                 "walk_self_reference_spelling (visitor , walk_mode_2 . spelling ())",
+                "visitor . exit_role ()",
+                "visitor . enter_role (\"visitor\" , None , None)",
+                "visitor . scope_leaf ()",
                 "visitor . enter_leaf (\"marker\")",
                 "walk_marker (visitor , * & walk_mode_2 . visitor)",
+                "visitor . exit_role ()",
+                "visitor . exit_construction ()",
             ],
             "access levels and callbacks must follow declaration/form order",
         );
@@ -2514,7 +2725,14 @@ mod tests {
                 };
                 (
                     method.sig.ident.to_string(),
-                    method.sig.inputs[1].to_token_stream().to_string(),
+                    method
+                        .sig
+                        .inputs
+                        .iter()
+                        .nth(1)
+                        .map(ToTokens::to_token_stream)
+                        .unwrap_or_default()
+                        .to_string(),
                 )
             })
             .collect::<Vec<_>>();
@@ -2525,6 +2743,12 @@ mod tests {
                     "enter_construction".into(),
                     "_construction : & 'static str".into(),
                 ),
+                ("exit_construction".into(), String::new()),
+                ("enter_role".into(), "_role : & 'static str".into()),
+                ("exit_role".into(), String::new()),
+                ("enter_conjunct".into(), "_role : & 'static str".into()),
+                ("exit_conjunct".into(), String::new()),
+                ("scope_leaf".into(), String::new()),
                 ("enter_leaf".into(), "_terminal : & 'static str".into()),
                 ("visit_expr".into(), "expr : & Expr".into()),
                 ("visit_predicate".into(), "predicate : & Predicate".into()),

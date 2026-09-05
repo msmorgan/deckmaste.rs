@@ -16,6 +16,9 @@ use super::engine::SpannedLexical;
 use super::ownership::RawLexicalClaim;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
+use crate::constructions::AdmissibleSites;
+use crate::constructions::AttachmentSitePath;
+use crate::constructions::AttachmentSiteStep;
 use crate::constructions::BuildRejection;
 use crate::constructions::BuildValue;
 use crate::constructions::Category;
@@ -28,6 +31,7 @@ use crate::constructions::LexicalTerminal;
 #[cfg(test)]
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
+use crate::constructions::Visitor;
 use crate::constructions::build_checked;
 use crate::context::ParseContext;
 use crate::parser::scan::RootForest;
@@ -51,6 +55,24 @@ thread_local! {
     static MATERIALIZED_CANDIDATE_COPIES: std::cell::Cell<usize> = const { std::cell::Cell::new(1) };
     static SPECIFICITY_CANDIDATE_EVALUATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static FINALIZED_CANDIDATE_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static SCOPE_COLLAPSE_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
+
+#[cfg(test)]
+fn without_scope_collapse<T>(run: impl FnOnce() -> T) -> T {
+    struct Reset;
+
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            SCOPE_COLLAPSE_ENABLED.with(|enabled| enabled.set(true));
+        }
+    }
+
+    SCOPE_COLLAPSE_ENABLED.with(|enabled| enabled.set(false));
+    let reset = Reset;
+    let result = run();
+    drop(reset);
+    result
 }
 
 #[cfg(test)]
@@ -747,8 +769,6 @@ fn finalize_candidates<R: GeneratedParseRoot>(
                     None => {}
                 }
             }
-            #[cfg(test)]
-            count_specificity_candidate();
             let candidate = Candidate {
                 value,
                 constructions: built.constructions.as_ref().to_vec(),
@@ -765,27 +785,1361 @@ fn finalize_candidates<R: GeneratedParseRoot>(
                 claims,
                 synthetic_claims,
             };
-            let ordinal = candidates.len();
-            if push_unique(&mut candidates, candidate)
-                && let Some((trace, limits)) = observation.as_mut()
-            {
-                let candidate = candidates.last().expect("just inserted candidate");
-                trace.record_candidate_with(|| {
-                    MaterializedCandidateInfo::new(
-                        ordinal,
-                        R::render_with_claims(&candidate.value, context, environment).0,
-                        format!("{:?}", candidate.value),
-                        &candidate.constructions,
-                        &candidate.specificity,
-                        limits.per_collection(),
-                    )
-                });
-            }
+            push_unique(&mut candidates, candidate);
+        }
+    }
+    #[cfg(test)]
+    let collapse_enabled = SCOPE_COLLAPSE_ENABLED.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let collapse_enabled = true;
+    if collapse_enabled {
+        candidates = collapse_scope_candidates(candidates, context, environment);
+    }
+    for (ordinal, candidate) in candidates.iter().enumerate() {
+        #[cfg(test)]
+        count_specificity_candidate();
+        if let Some((trace, limits)) = observation.as_mut() {
+            trace.record_candidate_with(|| {
+                MaterializedCandidateInfo::new(
+                    ordinal,
+                    R::render_with_claims(&candidate.value, context, environment).0,
+                    format!("{:?}", candidate.value),
+                    &candidate.constructions,
+                    &candidate.specificity,
+                    limits.per_collection(),
+                )
+            });
         }
     }
     #[cfg(test)]
     FINALIZED_CANDIDATE_COUNT.with(|count| count.set(candidates.len()));
     candidates
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ScopeNodeKind {
+    Construction(&'static str, usize),
+    Group,
+    Leaf(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ScopeNode {
+    kind: ScopeNodeKind,
+    children: Vec<ScopeChild>,
+    span: Option<(usize, usize)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ScopeChild {
+    step: Option<ScopeStep>,
+    mobile: Option<MobileRole>,
+    node: ScopeNode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ScopeStep {
+    Role(&'static str),
+    Conjunct(&'static str, usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MobileRole {
+    role: &'static str,
+    scope_sibling: Option<&'static str>,
+}
+
+enum ScopeFrame {
+    Root {
+        children: Vec<ScopeChild>,
+    },
+    Construction {
+        identity: &'static str,
+        index: usize,
+        children: Vec<ScopeChild>,
+    },
+    Edge {
+        step: ScopeStep,
+        mobile: Option<MobileRole>,
+        children: Vec<ScopeChild>,
+    },
+}
+
+#[derive(Default)]
+struct ScopeProjectionVisitor {
+    frames: Vec<ScopeFrame>,
+    root: Option<ScopeNode>,
+    next_construction: usize,
+    next_leaf: usize,
+}
+
+impl ScopeProjectionVisitor {
+    fn push_node(&mut self, node: ScopeNode) {
+        let child = ScopeChild {
+            step: None,
+            mobile: None,
+            node,
+        };
+        match self.frames.last_mut() {
+            Some(
+                ScopeFrame::Root { children }
+                | ScopeFrame::Construction { children, .. }
+                | ScopeFrame::Edge { children, .. },
+            ) => {
+                children.push(child);
+            }
+            None => {
+                debug_assert!(self.root.is_none());
+                self.root = Some(child.node);
+            }
+        }
+    }
+
+    fn finish(mut self) -> ScopeProjection {
+        if let Some(ScopeFrame::Root { children }) = self.frames.pop() {
+            debug_assert!(self.frames.is_empty());
+            let span = child_span(&children);
+            return ScopeProjection {
+                root: ScopeNode {
+                    kind: ScopeNodeKind::Group,
+                    children,
+                    span,
+                },
+            };
+        }
+        debug_assert!(self.frames.is_empty());
+        ScopeProjection {
+            root: self
+                .root
+                .take()
+                .expect("a generated root visits one construction"),
+        }
+    }
+}
+
+impl Visitor for ScopeProjectionVisitor {
+    fn enter_construction(&mut self, construction: &'static str) {
+        let index = self.next_construction;
+        self.next_construction += 1;
+        self.frames.push(ScopeFrame::Construction {
+            identity: construction,
+            index,
+            children: Vec::new(),
+        });
+    }
+
+    fn exit_construction(&mut self) {
+        let Some(ScopeFrame::Construction {
+            identity,
+            index,
+            children,
+        }) = self.frames.pop()
+        else {
+            unreachable!("generated construction visits are balanced")
+        };
+        let span = child_span(&children);
+        self.push_node(ScopeNode {
+            kind: ScopeNodeKind::Construction(identity, index),
+            children,
+            span,
+        });
+    }
+
+    fn enter_role(
+        &mut self,
+        role: &'static str,
+        scope_sibling: Option<&'static str>,
+        admissible_sites: Option<&AdmissibleSites>,
+    ) {
+        self.frames.push(ScopeFrame::Edge {
+            step: ScopeStep::Role(role),
+            mobile: admissible_sites.map(|_| MobileRole {
+                role,
+                scope_sibling,
+            }),
+            children: Vec::new(),
+        });
+    }
+
+    fn exit_role(&mut self) {
+        self.exit_edge();
+    }
+
+    fn enter_conjunct(&mut self, role: &'static str, ordinal: usize) {
+        self.frames.push(ScopeFrame::Edge {
+            step: ScopeStep::Conjunct(role, ordinal),
+            mobile: None,
+            children: Vec::new(),
+        });
+    }
+
+    fn exit_conjunct(&mut self) {
+        self.exit_edge();
+    }
+
+    fn scope_leaf(&mut self) {
+        let index = self.next_leaf;
+        self.next_leaf += 1;
+        self.push_node(ScopeNode {
+            kind: ScopeNodeKind::Leaf(index),
+            children: Vec::new(),
+            span: Some((index, index + 1)),
+        });
+    }
+}
+
+impl ScopeProjectionVisitor {
+    fn exit_edge(&mut self) {
+        let Some(ScopeFrame::Edge {
+            step,
+            mobile,
+            children,
+        }) = self.frames.pop()
+        else {
+            unreachable!("generated role visits are balanced")
+        };
+        let span = child_span(&children);
+        let node = ScopeNode {
+            kind: ScopeNodeKind::Group,
+            children,
+            span,
+        };
+        let Some(
+            ScopeFrame::Root { children }
+            | ScopeFrame::Construction { children, .. }
+            | ScopeFrame::Edge { children, .. },
+        ) = self.frames.last_mut()
+        else {
+            unreachable!("a role or Conjunct belongs to a construction")
+        };
+        children.push(ScopeChild {
+            step: Some(step),
+            mobile,
+            node,
+        });
+    }
+}
+
+fn child_span(children: &[ScopeChild]) -> Option<(usize, usize)> {
+    let mut spans = children.iter().filter_map(|child| child.node.span);
+    let first = spans.next()?;
+    Some(spans.fold(first, |span, next| (span.0.min(next.0), span.1.max(next.1))))
+}
+
+#[derive(Debug, Clone)]
+struct ScopeProjection {
+    root: ScopeNode,
+}
+
+impl ScopeProjection {
+    fn of<R: GeneratedParseRoot>(value: &R) -> Self {
+        let mut visitor = ScopeProjectionVisitor::default();
+        visitor.frames.push(ScopeFrame::Root {
+            children: Vec::new(),
+        });
+        value.visit_scope(&mut visitor);
+        visitor.finish()
+    }
+
+    fn pruned(&self, affected: &HashSet<usize>, erase_all: bool) -> Vec<ScopeKey> {
+        prune_scope_node(&self.root, affected, erase_all)
+    }
+
+    fn construction_paths(&self) -> HashMap<usize, ConstructionPath> {
+        let mut paths = HashMap::new();
+        collect_construction_paths(&self.root, &[], &[], &[], &mut paths);
+        paths
+    }
+
+    fn mobiles(&self) -> Vec<MobileOccurrence> {
+        let paths = self.construction_paths();
+        let mut mobiles = Vec::new();
+        collect_mobiles(&self.root, None, None, &paths, &mut mobiles);
+        mobiles.sort_by(|left, right| {
+            left.signature
+                .cmp(&right.signature)
+                .then_with(|| left.host.skeleton.cmp(&right.host.skeleton))
+                .then_with(|| left.role.cmp(right.role))
+        });
+        mobiles
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum ScopeKey {
+    Construction {
+        span: Option<(usize, usize)>,
+        identity: Option<&'static str>,
+        children: Vec<ScopeKey>,
+    },
+    Leaf(usize),
+}
+
+fn prune_scope_node(node: &ScopeNode, affected: &HashSet<usize>, erase_all: bool) -> Vec<ScopeKey> {
+    match node.kind {
+        ScopeNodeKind::Leaf(index) => vec![ScopeKey::Leaf(index)],
+        ScopeNodeKind::Group => node
+            .children
+            .iter()
+            .filter(|child| child.mobile.is_none())
+            .flat_map(|child| prune_scope_node(&child.node, affected, erase_all))
+            .collect(),
+        ScopeNodeKind::Construction(identity, index) => {
+            let mut children = Vec::new();
+            for child in node.children.iter().filter(|child| child.mobile.is_none()) {
+                children.extend(prune_scope_node(&child.node, affected, erase_all));
+            }
+            let span = key_span(&children);
+            let identity = (!erase_all && !affected.contains(&index)).then_some(identity);
+            if identity.is_none() && children.len() == 1 {
+                return children;
+            }
+            vec![ScopeKey::Construction {
+                span,
+                identity,
+                children,
+            }]
+        }
+    }
+}
+
+fn key_span(children: &[ScopeKey]) -> Option<(usize, usize)> {
+    fn span(key: &ScopeKey) -> Option<(usize, usize)> {
+        match key {
+            ScopeKey::Leaf(index) => Some((*index, *index + 1)),
+            ScopeKey::Construction { span, .. } => *span,
+        }
+    }
+    let mut spans = children.iter().filter_map(span);
+    let first = spans.next()?;
+    Some(spans.fold(first, |current, next| {
+        (current.0.min(next.0), current.1.max(next.1))
+    }))
+}
+
+#[derive(Debug, Clone)]
+struct ConstructionPath {
+    identity: &'static str,
+    skeleton: Vec<usize>,
+    attachment: Vec<ScopeStep>,
+    anchor: Vec<ScopeStep>,
+    span: Option<(usize, usize)>,
+}
+
+fn collect_construction_paths(
+    node: &ScopeNode,
+    skeleton: &[usize],
+    attachment: &[ScopeStep],
+    anchor: &[ScopeStep],
+    paths: &mut HashMap<usize, ConstructionPath>,
+) {
+    if let ScopeNodeKind::Construction(identity, index) = node.kind {
+        paths.insert(
+            index,
+            ConstructionPath {
+                identity,
+                skeleton: skeleton.to_vec(),
+                attachment: attachment.to_vec(),
+                anchor: anchor.to_vec(),
+                span: key_span(&prune_scope_node(node, &HashSet::new(), true)),
+            },
+        );
+    }
+    let mut child_index = 0;
+    for child in &node.children {
+        let mut child_attachment = attachment.to_vec();
+        if let Some(step) = child.step {
+            child_attachment.push(step);
+        }
+        let (child_skeleton, child_anchor) = if child.mobile.is_some() {
+            (Vec::new(), child_attachment.clone())
+        } else {
+            let mut child_skeleton = skeleton.to_vec();
+            if matches!(node.kind, ScopeNodeKind::Construction(_, _)) {
+                child_skeleton.push(child_index);
+                child_index += prune_scope_node(&child.node, &HashSet::new(), true).len();
+            }
+            (child_skeleton, anchor.to_vec())
+        };
+        collect_construction_paths(
+            &child.node,
+            &child_skeleton,
+            &child_attachment,
+            &child_anchor,
+            paths,
+        );
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct MobileSignature {
+    span: Option<(usize, usize)>,
+    subtree: Vec<ScopeKey>,
+}
+
+#[derive(Debug, Clone)]
+struct MobileOccurrence {
+    signature: MobileSignature,
+    host_index: usize,
+    host: ConstructionPath,
+    role: &'static str,
+    scope_sibling: Option<&'static str>,
+    scope_region: Option<MobileSignature>,
+    subtree: ScopeNode,
+    scope_subtree: Option<ScopeNode>,
+    first_conjunct_path: Option<Vec<ScopeStep>>,
+}
+
+fn collect_mobiles(
+    node: &ScopeNode,
+    host: Option<usize>,
+    scope_region: Option<&MobileSignature>,
+    paths: &HashMap<usize, ConstructionPath>,
+    mobiles: &mut Vec<MobileOccurrence>,
+) {
+    let host = match node.kind {
+        ScopeNodeKind::Construction(_, index) => Some(index),
+        ScopeNodeKind::Group | ScopeNodeKind::Leaf(_) => host,
+    };
+    for child in &node.children {
+        let mut child_region = scope_region.cloned();
+        if let Some(mobile) = child.mobile {
+            let host = host.expect("a mobile role belongs to a construction");
+            let subtree = prune_scope_node(&child.node, &HashSet::new(), true);
+            let signature = MobileSignature {
+                span: key_span(&subtree),
+                subtree,
+            };
+            let scope_child = mobile.scope_sibling.and_then(|scope_sibling| {
+                node.children
+                    .iter()
+                    .find(|candidate| candidate.step == Some(ScopeStep::Role(scope_sibling)))
+            });
+            let first_conjunct_path = scope_child.and_then(|scope_child| {
+                let mut path = vec![scope_child.step.expect("a scope sibling is a role")];
+                find_first_conjunct(&scope_child.node, &mut path)
+            });
+            mobiles.push(MobileOccurrence {
+                signature: signature.clone(),
+                host_index: host,
+                host: paths[&host].clone(),
+                role: mobile.role,
+                scope_sibling: mobile.scope_sibling,
+                scope_region: scope_region.cloned(),
+                subtree: child.node.clone(),
+                scope_subtree: scope_child.map(|scope_child| scope_child.node.clone()),
+                first_conjunct_path,
+            });
+            child_region = Some(signature);
+        }
+        collect_mobiles(&child.node, host, child_region.as_ref(), paths, mobiles);
+    }
+}
+
+fn find_first_conjunct(node: &ScopeNode, path: &mut Vec<ScopeStep>) -> Option<Vec<ScopeStep>> {
+    for child in &node.children {
+        if let Some(step) = child.step {
+            path.push(step);
+        }
+        if matches!(child.step, Some(ScopeStep::Conjunct(_, 0))) {
+            return Some(path.clone());
+        }
+        if let Some(found) = find_first_conjunct(&child.node, path) {
+            return Some(found);
+        }
+        if child.step.is_some() {
+            path.pop();
+        }
+    }
+    None
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ScopeBucketKey {
+    mobiles: Vec<MobileSignature>,
+    skeleton: Vec<ScopeKey>,
+}
+
+fn collapse_scope_candidates<R: GeneratedParseRoot>(
+    candidates: Vec<Candidate<R>>,
+    context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
+) -> Vec<Candidate<R>> {
+    if candidates.len() < 2 {
+        return candidates;
+    }
+    let projections = candidates
+        .iter()
+        .map(|candidate| ScopeProjection::of(&candidate.value))
+        .collect::<Vec<_>>();
+    let mobiles = projections
+        .iter()
+        .map(ScopeProjection::mobiles)
+        .collect::<Vec<_>>();
+    let rendered = candidates
+        .iter()
+        .map(|candidate| R::render_with_claims(&candidate.value, context, environment).0)
+        .collect::<Vec<_>>();
+    let mut buckets = HashMap::<ScopeBucketKey, Vec<usize>>::new();
+    for (index, projection) in projections.iter().enumerate() {
+        let mut signatures = mobiles[index]
+            .iter()
+            .map(|mobile| mobile.signature.clone())
+            .collect::<Vec<_>>();
+        signatures.sort();
+        if signatures.is_empty() {
+            continue;
+        }
+        buckets
+            .entry(ScopeBucketKey {
+                mobiles: signatures,
+                skeleton: projection.pruned(&HashSet::new(), true),
+            })
+            .or_default()
+            .push(index);
+    }
+    let mut keep = vec![true; candidates.len()];
+    for bucket in buckets.values().filter(|bucket| bucket.len() > 1) {
+        let mut adjacent = HashMap::<usize, Vec<usize>>::new();
+        for (offset, &left) in bucket.iter().enumerate() {
+            for &right in &bucket[offset + 1..] {
+                let verified =
+                    verify_scope_pair(left, right, &candidates, &projections, &mobiles, &rendered);
+                if verified {
+                    adjacent.entry(left).or_default().push(right);
+                    adjacent.entry(right).or_default().push(left);
+                }
+            }
+        }
+        let mut visited = HashSet::new();
+        for &start in bucket {
+            if !visited.insert(start) {
+                continue;
+            }
+            let mut component = vec![start];
+            let mut pending = vec![start];
+            while let Some(index) = pending.pop() {
+                for &next in adjacent.get(&index).into_iter().flatten() {
+                    if visited.insert(next) {
+                        component.push(next);
+                        pending.push(next);
+                    }
+                }
+            }
+            if component.len() > 1 {
+                collapse_scope_component(
+                    &component,
+                    &adjacent,
+                    &candidates,
+                    &projections,
+                    &mobiles,
+                    &mut keep,
+                );
+            }
+        }
+    }
+    candidates
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, candidate)| keep[index].then_some(candidate))
+        .collect()
+}
+
+fn verify_scope_pair<R>(
+    left: usize,
+    right: usize,
+    candidates: &[Candidate<R>],
+    projections: &[ScopeProjection],
+    mobiles: &[Vec<MobileOccurrence>],
+    rendered: &[String],
+) -> bool {
+    if !same_claimed_leaves(&candidates[left].claims, &candidates[right].claims)
+        || candidates[left].synthetic_claims != candidates[right].synthetic_claims
+        || rendered[left] != rendered[right]
+    {
+        return false;
+    }
+    let left_mobiles = &mobiles[left];
+    let right_mobiles = &mobiles[right];
+    if left_mobiles.len() != right_mobiles.len()
+        || left_mobiles
+            .iter()
+            .zip(right_mobiles)
+            .any(|(left, right)| left.signature != right.signature)
+    {
+        return false;
+    }
+    let mut left_affected = HashSet::new();
+    let mut right_affected = HashSet::new();
+    let mut moved = false;
+    for (left_mobile, right_mobile) in left_mobiles.iter().zip(right_mobiles) {
+        if left_mobile.host.identity == right_mobile.host.identity {
+            if left_mobile.role != right_mobile.role {
+                return false;
+            }
+            if left_mobile.scope_sibling == right_mobile.scope_sibling
+                && left_mobile.scope_sibling.is_some()
+                && (left_mobile.first_conjunct_path.is_some()
+                    || right_mobile.first_conjunct_path.is_some())
+            {
+                let left_region = coordination_region(&projections[left], left_mobile);
+                let right_region = coordination_region(&projections[right], right_mobile);
+                if let (Some(left_region), Some(right_region)) = (left_region, right_region)
+                    && (left_mobile.first_conjunct_path != right_mobile.first_conjunct_path
+                        || prune_scope_node(left_region, &HashSet::new(), false)
+                            != prune_scope_node(right_region, &HashSet::new(), false))
+                {
+                    moved = true;
+                    mark_scope_region(&projections[left], left_region, &mut left_affected);
+                    mark_scope_region(&projections[right], right_region, &mut right_affected);
+                }
+            } else if left_mobile.scope_sibling.is_none()
+                && left_mobile.host.attachment != right_mobile.host.attachment
+            {
+                let ordered =
+                    is_step_prefix(&left_mobile.host.attachment, &right_mobile.host.attachment)
+                        || is_step_prefix(
+                            &right_mobile.host.attachment,
+                            &left_mobile.host.attachment,
+                        );
+                if ordered
+                    && (move_is_licensed(left_mobile, right_mobile)
+                        || move_is_licensed(right_mobile, left_mobile))
+                {
+                    moved = true;
+                    left_affected.insert(left_mobile.host_index);
+                    right_affected.insert(right_mobile.host_index);
+                }
+            } else if left_mobile.scope_sibling.is_none()
+                && left_mobile.host.attachment == right_mobile.host.attachment
+            {
+                let left_host = find_construction(&projections[left].root, left_mobile.host_index)
+                    .expect("a mobile host remains in its projection");
+                let right_host =
+                    find_construction(&projections[right].root, right_mobile.host_index)
+                        .expect("a mobile host remains in its projection");
+                let before = (left_affected.len(), right_affected.len());
+                if mark_identity_differences(
+                    left_host,
+                    right_host,
+                    &mut left_affected,
+                    &mut right_affected,
+                ) && before != (left_affected.len(), right_affected.len())
+                {
+                    moved = true;
+                }
+            }
+            continue;
+        }
+        moved = true;
+        let (high, low) =
+            if is_step_prefix(&left_mobile.host.attachment, &right_mobile.host.attachment) {
+                (left_mobile, right_mobile)
+            } else if is_step_prefix(&right_mobile.host.attachment, &left_mobile.host.attachment) {
+                (right_mobile, left_mobile)
+            } else {
+                return false;
+            };
+        if !move_is_licensed(high, low) {
+            return false;
+        }
+        for (scope_region, skeleton) in [
+            (&left_mobile.scope_region, &left_mobile.host.skeleton),
+            (&right_mobile.scope_region, &right_mobile.host.skeleton),
+        ] {
+            if !mark_identity_difference_at(
+                (&projections[left], left_mobiles),
+                (&projections[right], right_mobiles),
+                scope_region.as_ref(),
+                skeleton,
+                &mut left_affected,
+                &mut right_affected,
+            ) {
+                return false;
+            }
+        }
+    }
+    if !moved {
+        return false;
+    }
+    if projections[left].pruned(&left_affected, false)
+        != projections[right].pruned(&right_affected, false)
+    {
+        return false;
+    }
+    for (left_mobile, right_mobile) in left_mobiles.iter().zip(right_mobiles) {
+        if mobile_identity_key(left_mobile) != mobile_identity_key(right_mobile) {
+            return false;
+        }
+    }
+    true
+}
+
+fn mobile_identity_key(mobile: &MobileOccurrence) -> Vec<ScopeKey> {
+    if contains_conjunct(&mobile.subtree) {
+        return mobile.signature.subtree.clone();
+    }
+    let mut boundary = HashSet::new();
+    mark_full_span_constructions(&mobile.subtree, mobile.signature.span, &mut boundary);
+    prune_scope_node(&mobile.subtree, &boundary, false)
+}
+
+fn mark_full_span_constructions(
+    node: &ScopeNode,
+    span: Option<(usize, usize)>,
+    affected: &mut HashSet<usize>,
+) {
+    if let ScopeNodeKind::Construction(_, index) = node.kind
+        && key_span(&prune_scope_node(node, &HashSet::new(), true)) == span
+    {
+        affected.insert(index);
+    }
+    for child in &node.children {
+        mark_full_span_constructions(&child.node, span, affected);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IdentityShape {
+    chain: Vec<(&'static str, usize)>,
+    terminal: IdentityTerminal,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum IdentityTerminal {
+    Leaf(usize),
+    Children(Vec<IdentityShape>),
+}
+
+fn identity_shapes(node: &ScopeNode) -> Vec<IdentityShape> {
+    match node.kind {
+        ScopeNodeKind::Leaf(index) => vec![IdentityShape {
+            chain: Vec::new(),
+            terminal: IdentityTerminal::Leaf(index),
+        }],
+        ScopeNodeKind::Group => node
+            .children
+            .iter()
+            .filter(|child| child.mobile.is_none())
+            .flat_map(|child| identity_shapes(&child.node))
+            .collect(),
+        ScopeNodeKind::Construction(identity, index) => {
+            let mut children = node
+                .children
+                .iter()
+                .filter(|child| child.mobile.is_none())
+                .flat_map(|child| identity_shapes(&child.node))
+                .collect::<Vec<_>>();
+            if children.len() == 1 {
+                let mut child = children.pop().expect("one projected child");
+                child.chain.insert(0, (identity, index));
+                vec![child]
+            } else {
+                vec![IdentityShape {
+                    chain: vec![(identity, index)],
+                    terminal: IdentityTerminal::Children(children),
+                }]
+            }
+        }
+    }
+}
+
+fn mark_identity_differences(
+    left: &ScopeNode,
+    right: &ScopeNode,
+    left_affected: &mut HashSet<usize>,
+    right_affected: &mut HashSet<usize>,
+) -> bool {
+    let left_shapes = identity_shapes(left);
+    let right_shapes = identity_shapes(right);
+    mark_shape_differences(&left_shapes, &right_shapes, left_affected, right_affected)
+}
+
+fn mark_shape_differences(
+    left: &[IdentityShape],
+    right: &[IdentityShape],
+    left_affected: &mut HashSet<usize>,
+    right_affected: &mut HashSet<usize>,
+) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    for (left, right) in left.iter().zip(right) {
+        let retained = common_identity_indices(&left.chain, &right.chain);
+        for (ordinal, &(_, index)) in left.chain.iter().enumerate() {
+            if !retained.0.contains(&ordinal) {
+                left_affected.insert(index);
+            }
+        }
+        for (ordinal, &(_, index)) in right.chain.iter().enumerate() {
+            if !retained.1.contains(&ordinal) {
+                right_affected.insert(index);
+            }
+        }
+        match (&left.terminal, &right.terminal) {
+            (IdentityTerminal::Leaf(left), IdentityTerminal::Leaf(right)) if left == right => {}
+            (IdentityTerminal::Children(left), IdentityTerminal::Children(right)) => {
+                if !mark_shape_differences(left, right, left_affected, right_affected) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn common_identity_indices(
+    left: &[(&'static str, usize)],
+    right: &[(&'static str, usize)],
+) -> (HashSet<usize>, HashSet<usize>) {
+    let mut lengths = vec![vec![0; right.len() + 1]; left.len() + 1];
+    for left_index in (0..left.len()).rev() {
+        for right_index in (0..right.len()).rev() {
+            lengths[left_index][right_index] = if left[left_index].0 == right[right_index].0 {
+                lengths[left_index + 1][right_index + 1] + 1
+            } else {
+                lengths[left_index + 1][right_index].max(lengths[left_index][right_index + 1])
+            };
+        }
+    }
+    let mut retained_left = HashSet::new();
+    let mut retained_right = HashSet::new();
+    let (mut left_index, mut right_index) = (0, 0);
+    while left_index < left.len() && right_index < right.len() {
+        if left[left_index].0 == right[right_index].0 {
+            retained_left.insert(left_index);
+            retained_right.insert(right_index);
+            left_index += 1;
+            right_index += 1;
+        } else if lengths[left_index + 1][right_index] >= lengths[left_index][right_index + 1] {
+            left_index += 1;
+        } else {
+            right_index += 1;
+        }
+    }
+    (retained_left, retained_right)
+}
+
+fn coordination_region<'a>(
+    projection: &'a ScopeProjection,
+    mobile: &'a MobileOccurrence,
+) -> Option<&'a ScopeNode> {
+    if let Some(scope_subtree) = &mobile.scope_subtree
+        && let Some(target) = first_conjunct_construction(scope_subtree)
+    {
+        return deepest_coordination_containing(scope_subtree, target);
+    }
+    deepest_coordination_containing(&projection.root, mobile.host_index)
+}
+
+fn first_conjunct_construction(node: &ScopeNode) -> Option<usize> {
+    for child in &node.children {
+        if matches!(child.step, Some(ScopeStep::Conjunct(_, 0)))
+            && let Some(index) = first_construction(&child.node)
+        {
+            return Some(index);
+        }
+        if let Some(index) = first_conjunct_construction(&child.node) {
+            return Some(index);
+        }
+    }
+    None
+}
+
+fn first_construction(node: &ScopeNode) -> Option<usize> {
+    if let ScopeNodeKind::Construction(_, index) = node.kind {
+        return Some(index);
+    }
+    node.children
+        .iter()
+        .find_map(|child| first_construction(&child.node))
+}
+
+fn deepest_coordination_containing(node: &ScopeNode, target: usize) -> Option<&ScopeNode> {
+    if !contains_construction(node, target) {
+        return None;
+    }
+    if let Some(deeper) = node
+        .children
+        .iter()
+        .find_map(|child| deepest_coordination_containing(&child.node, target))
+    {
+        return Some(deeper);
+    }
+    (matches!(node.kind, ScopeNodeKind::Construction(_, _)) && contains_conjunct(node))
+        .then_some(node)
+}
+
+fn contains_construction(node: &ScopeNode, target: usize) -> bool {
+    matches!(node.kind, ScopeNodeKind::Construction(_, index) if index == target)
+        || node
+            .children
+            .iter()
+            .any(|child| contains_construction(&child.node, target))
+}
+
+fn contains_conjunct(node: &ScopeNode) -> bool {
+    node.children.iter().any(|child| {
+        matches!(child.step, Some(ScopeStep::Conjunct(_, _))) || contains_conjunct(&child.node)
+    })
+}
+
+fn same_claimed_leaves(left: &[RawLexicalClaim], right: &[RawLexicalClaim]) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right)
+            .all(|(left, right)| left.span == right.span && left.value == right.value)
+}
+
+fn mark_scope_region(
+    projection: &ScopeProjection,
+    region: &ScopeNode,
+    affected: &mut HashSet<usize>,
+) {
+    mark_construction_subtree(region, affected);
+    let Some(region_index) = first_construction(region) else {
+        return;
+    };
+    let region_span = key_span(&prune_scope_node(region, &HashSet::new(), true));
+    mark_same_span_ancestors(&projection.root, region_index, region_span, affected);
+}
+
+fn mark_construction_subtree(node: &ScopeNode, affected: &mut HashSet<usize>) {
+    if let ScopeNodeKind::Construction(_, index) = node.kind {
+        affected.insert(index);
+    }
+    for child in &node.children {
+        mark_construction_subtree(&child.node, affected);
+    }
+}
+
+fn mark_same_span_ancestors(
+    node: &ScopeNode,
+    target: usize,
+    target_span: Option<(usize, usize)>,
+    affected: &mut HashSet<usize>,
+) {
+    if !contains_construction(node, target) {
+        return;
+    }
+    if let ScopeNodeKind::Construction(_, index) = node.kind
+        && key_span(&prune_scope_node(node, &HashSet::new(), true)) == target_span
+    {
+        affected.insert(index);
+    }
+    for child in node.children.iter().filter(|child| child.mobile.is_none()) {
+        mark_same_span_ancestors(&child.node, target, target_span, affected);
+    }
+}
+
+fn mark_identity_difference_at(
+    left: (&ScopeProjection, &[MobileOccurrence]),
+    right: (&ScopeProjection, &[MobileOccurrence]),
+    scope_region: Option<&MobileSignature>,
+    skeleton: &[usize],
+    left_affected: &mut HashSet<usize>,
+    right_affected: &mut HashSet<usize>,
+) -> bool {
+    let (left_projection, left_mobiles) = left;
+    let (right_projection, right_mobiles) = right;
+    let Some(left_node) =
+        construction_node_at(left_projection, left_mobiles, scope_region, skeleton)
+    else {
+        return false;
+    };
+    let Some(right_node) =
+        construction_node_at(right_projection, right_mobiles, scope_region, skeleton)
+    else {
+        return false;
+    };
+    let left_chain = unary_construction_chain(left_node);
+    let right_chain = unary_construction_chain(right_node);
+    let common_suffix = left_chain
+        .iter()
+        .rev()
+        .zip(right_chain.iter().rev())
+        .take_while(|(left, right)| construction_identity(left) == construction_identity(right))
+        .count();
+    for node in &left_chain[..left_chain.len() - common_suffix] {
+        left_affected.insert(construction_index(node));
+    }
+    for node in &right_chain[..right_chain.len() - common_suffix] {
+        right_affected.insert(construction_index(node));
+    }
+    true
+}
+
+fn construction_node_at<'a>(
+    projection: &'a ScopeProjection,
+    mobiles: &'a [MobileOccurrence],
+    scope_region: Option<&MobileSignature>,
+    skeleton: &[usize],
+) -> Option<&'a ScopeNode> {
+    let region = match scope_region {
+        None => &projection.root,
+        Some(signature) => {
+            let mut matches = mobiles
+                .iter()
+                .filter(|mobile| &mobile.signature == signature)
+                .map(|mobile| &mobile.subtree);
+            let region = matches.next()?;
+            if matches.next().is_some() {
+                return None;
+            }
+            region
+        }
+    };
+    let mut paths = HashMap::new();
+    collect_construction_paths(region, &[], &[], &[], &mut paths);
+    let mut matches = paths
+        .into_iter()
+        .filter(|(_, path)| path.anchor.is_empty() && path.skeleton == skeleton)
+        .map(|(index, _)| index);
+    let index = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    find_construction(region, index)
+}
+
+fn find_construction(node: &ScopeNode, target: usize) -> Option<&ScopeNode> {
+    if matches!(node.kind, ScopeNodeKind::Construction(_, index) if index == target) {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_construction(&child.node, target))
+}
+
+fn unary_construction_chain(mut node: &ScopeNode) -> Vec<&ScopeNode> {
+    let mut chain = vec![node];
+    loop {
+        let mut children = Vec::new();
+        collect_nonmobile_nodes(node, &mut children);
+        let [child] = children.as_slice() else {
+            break;
+        };
+        if !matches!(child.kind, ScopeNodeKind::Construction(_, _)) {
+            break;
+        }
+        node = child;
+        chain.push(node);
+    }
+    chain
+}
+
+fn collect_nonmobile_nodes<'a>(node: &'a ScopeNode, nodes: &mut Vec<&'a ScopeNode>) {
+    for child in node.children.iter().filter(|child| child.mobile.is_none()) {
+        if matches!(child.node.kind, ScopeNodeKind::Group) {
+            collect_nonmobile_nodes(&child.node, nodes);
+        } else {
+            nodes.push(&child.node);
+        }
+    }
+}
+
+fn construction_identity(node: &ScopeNode) -> &'static str {
+    let ScopeNodeKind::Construction(identity, _) = node.kind else {
+        unreachable!("a construction chain contains constructions")
+    };
+    identity
+}
+
+fn construction_index(node: &ScopeNode) -> usize {
+    let ScopeNodeKind::Construction(_, index) = node.kind else {
+        unreachable!("a construction chain contains constructions")
+    };
+    index
+}
+
+fn is_step_prefix(prefix: &[ScopeStep], path: &[ScopeStep]) -> bool {
+    path.starts_with(prefix)
+}
+
+fn move_is_licensed(high: &MobileOccurrence, low: &MobileOccurrence) -> bool {
+    if let Some(scope_sibling) = high.scope_sibling {
+        return low
+            .host
+            .attachment
+            .get(high.host.attachment.len())
+            .is_some_and(|step| match step {
+                ScopeStep::Role(role) | ScopeStep::Conjunct(role, _) => *role == scope_sibling,
+            });
+    }
+    let Some(mobile_span) = high.signature.span else {
+        return false;
+    };
+    high.host.span.is_some_and(|span| span.1 <= mobile_span.0)
+        && low.host.span.is_some_and(|span| span.1 <= mobile_span.0)
+}
+
+fn collapse_scope_component<R: GeneratedParseRoot>(
+    component: &[usize],
+    adjacent: &HashMap<usize, Vec<usize>>,
+    candidates: &[Candidate<R>],
+    projections: &[ScopeProjection],
+    mobiles: &[Vec<MobileOccurrence>],
+    keep: &mut [bool],
+) {
+    let mut remaining = component.to_vec();
+    let varying_mobiles = (0..mobiles[component[0]].len())
+        .filter(|&mobile| {
+            component[1..].iter().any(|&candidate| {
+                mobiles[candidate][mobile].host.identity
+                    != mobiles[component[0]][mobile].host.identity
+                    || mobiles[candidate][mobile].role != mobiles[component[0]][mobile].role
+                    || mobiles[candidate][mobile].first_conjunct_path
+                        != mobiles[component[0]][mobile].first_conjunct_path
+            })
+        })
+        .collect::<Vec<_>>();
+    while let Some(&representative) = remaining
+        .iter()
+        .min_by_key(|&&candidate| representative_key(&mobiles[candidate], &varying_mobiles))
+    {
+        let packed = remaining
+            .iter()
+            .copied()
+            .filter(|&candidate| {
+                candidate == representative
+                    || adjacent
+                        .get(&representative)
+                        .is_some_and(|neighbors| neighbors.contains(&candidate))
+            })
+            .filter(|&candidate| {
+                mobiles[representative]
+                    .iter()
+                    .zip(&mobiles[candidate])
+                    .all(|(high, low)| placement_at_least_as_high(high, low))
+            })
+            .collect::<Vec<_>>();
+        if packed.len() > 1 {
+            populate_component_sites(
+                representative,
+                &packed,
+                &candidates[representative].value,
+                projections,
+                mobiles,
+            );
+            for &candidate in &packed {
+                if candidate != representative {
+                    keep[candidate] = false;
+                }
+            }
+        }
+        remaining.retain(|candidate| !packed.contains(candidate));
+        if packed.is_empty() {
+            remaining.retain(|candidate| *candidate != representative);
+        }
+    }
+}
+
+fn placement_at_least_as_high(high: &MobileOccurrence, low: &MobileOccurrence) -> bool {
+    (high.role == low.role
+        && high.host.identity == low.host.identity
+        && match (&high.first_conjunct_path, &low.first_conjunct_path) {
+            (Some(high), Some(low)) => high.len() <= low.len(),
+            (Some(_) | None, None) => true,
+            (None, Some(_)) => false,
+        })
+        || (is_step_prefix(&high.host.attachment, &low.host.attachment)
+            && move_is_licensed(high, low))
+}
+
+fn representative_key(
+    mobiles: &[MobileOccurrence],
+    varying_mobiles: &[usize],
+) -> Vec<(usize, Vec<ScopeStep>)> {
+    let mut order = varying_mobiles.to_vec();
+    order.sort_by_key(|&index| {
+        let span = mobiles[index].signature.span.unwrap_or((0, 0));
+        (std::cmp::Reverse(span.1.saturating_sub(span.0)), span.0)
+    });
+    order
+        .into_iter()
+        .map(|index| {
+            let host = mobiles[index]
+                .first_conjunct_path
+                .as_ref()
+                .unwrap_or(&mobiles[index].host.attachment);
+            (host.len(), host.clone())
+        })
+        .collect()
+}
+
+fn populate_component_sites<R: GeneratedParseRoot>(
+    representative: usize,
+    packed: &[usize],
+    value: &R,
+    projections: &[ScopeProjection],
+    mobiles: &[Vec<MobileOccurrence>],
+) {
+    for (mobile_index, mobile) in mobiles[representative].iter().enumerate() {
+        let mut lower_hosts = packed
+            .iter()
+            .filter_map(|&candidate| {
+                let packed_mobile = &mobiles[candidate][mobile_index];
+                (packed_mobile.host.identity != mobile.host.identity
+                    || packed_mobile.first_conjunct_path != mobile.first_conjunct_path
+                    || host_identity_differs(
+                        &projections[representative],
+                        mobile,
+                        &projections[candidate],
+                        packed_mobile,
+                    ))
+                .then(|| (candidate, packed_mobile.clone()))
+            })
+            .collect::<Vec<_>>();
+        lower_hosts.sort_by_key(|(_, mobile)| {
+            let path = mobile
+                .first_conjunct_path
+                .as_ref()
+                .unwrap_or(&mobile.host.attachment);
+            (path.len(), path.clone())
+        });
+        lower_hosts.dedup_by(|(_, left), (_, right)| {
+            left.host.attachment == right.host.attachment
+                && left.first_conjunct_path == right.first_conjunct_path
+        });
+        let mut paths = lower_hosts
+            .iter()
+            .filter_map(|(candidate, lower)| {
+                if mobile.host.identity == lower.host.identity
+                    && mobile.first_conjunct_path != lower.first_conjunct_path
+                {
+                    mobile.first_conjunct_path.clone()
+                } else if mobile.host.identity == lower.host.identity {
+                    alternative_path_within_host(
+                        &projections[representative],
+                        mobile,
+                        &projections[*candidate],
+                        lower,
+                    )
+                } else {
+                    attachment_path_between(&mobile.host, &lower.host)
+                }
+            })
+            .map(|steps| {
+                AttachmentSitePath::new(
+                    steps
+                        .into_iter()
+                        .map(|step| match step {
+                            ScopeStep::Role(role) => AttachmentSiteStep::Role(role),
+                            ScopeStep::Conjunct(role, ordinal) => {
+                                AttachmentSiteStep::Conjunct(role, ordinal)
+                            }
+                        })
+                        .collect(),
+                )
+            })
+            .collect::<Vec<_>>();
+        paths.dedup();
+        if !paths.is_empty() {
+            let mut visitor = PopulateSitesVisitor {
+                target_construction: mobile.host_index,
+                target_role: mobile.role,
+                paths: Some(paths),
+                next_construction: 0,
+                construction_stack: Vec::new(),
+            };
+            value.visit_scope(&mut visitor);
+            debug_assert!(visitor.paths.is_none());
+        }
+    }
+}
+
+fn host_identity_differs(
+    left_projection: &ScopeProjection,
+    left: &MobileOccurrence,
+    right_projection: &ScopeProjection,
+    right: &MobileOccurrence,
+) -> bool {
+    let left_host = find_construction(&left_projection.root, left.host_index)
+        .expect("a mobile host remains in its projection");
+    let right_host = find_construction(&right_projection.root, right.host_index)
+        .expect("a mobile host remains in its projection");
+    prune_scope_node(left_host, &HashSet::new(), false)
+        != prune_scope_node(right_host, &HashSet::new(), false)
+}
+
+fn alternative_path_within_host(
+    representative_projection: &ScopeProjection,
+    representative: &MobileOccurrence,
+    lower_projection: &ScopeProjection,
+    lower: &MobileOccurrence,
+) -> Option<Vec<ScopeStep>> {
+    let representative_host =
+        find_construction(&representative_projection.root, representative.host_index)?;
+    let lower_host = find_construction(&lower_projection.root, lower.host_index)?;
+    let mut representative_affected = HashSet::new();
+    let mut lower_affected = HashSet::new();
+    if !mark_identity_differences(
+        representative_host,
+        lower_host,
+        &mut representative_affected,
+        &mut lower_affected,
+    ) {
+        return None;
+    }
+    let paths = representative_projection.construction_paths();
+    paths
+        .into_iter()
+        .filter(|(index, path)| {
+            representative_affected.contains(index)
+                && path.attachment.len() > representative.host.attachment.len()
+                && path.attachment.starts_with(&representative.host.attachment)
+        })
+        .min_by_key(|(_, path)| path.attachment.len())
+        .and_then(|(_, path)| {
+            path.attachment
+                .strip_prefix(representative.host.attachment.as_slice())
+                .map(<[ScopeStep]>::to_vec)
+        })
+}
+
+fn attachment_path_between(
+    high: &ConstructionPath,
+    low: &ConstructionPath,
+) -> Option<Vec<ScopeStep>> {
+    low.attachment
+        .strip_prefix(high.attachment.as_slice())
+        .map(<[ScopeStep]>::to_vec)
+}
+
+struct PopulateSitesVisitor {
+    target_construction: usize,
+    target_role: &'static str,
+    paths: Option<Vec<AttachmentSitePath>>,
+    next_construction: usize,
+    construction_stack: Vec<usize>,
+}
+
+impl Visitor for PopulateSitesVisitor {
+    fn enter_construction(&mut self, _construction: &'static str) {
+        let index = self.next_construction;
+        self.next_construction += 1;
+        self.construction_stack.push(index);
+    }
+
+    fn exit_construction(&mut self) {
+        self.construction_stack.pop();
+    }
+
+    fn enter_role(
+        &mut self,
+        role: &'static str,
+        _scope_sibling: Option<&'static str>,
+        admissible_sites: Option<&AdmissibleSites>,
+    ) {
+        if self.construction_stack.last() == Some(&self.target_construction)
+            && role == self.target_role
+            && let (Some(sites), Some(paths)) = (admissible_sites, self.paths.take())
+        {
+            sites.replace(paths);
+        }
+    }
 }
 
 fn build_root_rule(
@@ -1056,6 +2410,7 @@ mod tests {
     use super::materialize;
     use super::materialize_node;
     use super::materialize_observed;
+    use super::without_scope_collapse;
     use crate::ast::BareSingularNominal;
     use crate::ast::BaseVerbPhrase;
     use crate::ast::CommonNoun;
@@ -1100,6 +2455,7 @@ mod tests {
     use crate::environment::VerbInventoryRef;
     use crate::environment::canonical_test_environment;
     use crate::parser::SelectionResolution;
+    use crate::parser::SpecificityTier;
     use crate::parser::diagnostic::BoundedParseOutcome;
     use crate::parser::diagnostic::ParserTrace;
     use crate::parser::diagnostic::StructuralTrace;
@@ -1216,7 +2572,10 @@ mod tests {
     fn context(card_name: &str) -> ParseContext<'_> {
         ParseContext::new(
             card_name,
-            card_name == "Zacama, Primal Calamity",
+            matches!(
+                card_name,
+                "Zacama, Primal Calamity" | "Daretti, Rocketeer Engineer"
+            ),
             if card_name == "Artifact Avatar" {
                 deckmaste_construction_core::macro_def::Onset::Vowel
             } else {
@@ -2195,5 +3554,356 @@ mod tests {
             trace.into_parse_result(),
             Err(crate::parser::ParseError::ValidatedRootDidNotMaterialize)
         );
+    }
+
+    fn ability_candidates(
+        text: &str,
+        card_name: &str,
+        collapse: bool,
+    ) -> Vec<super::Candidate<crate::ast::Ability>> {
+        let forest = slice_candidates(text, card_name).expect("witness reaches an ability root");
+        let environment = canonical_test_environment();
+        let parse_context = context(card_name);
+        if collapse {
+            materialize(&forest, &parse_context, &environment)
+        } else {
+            without_scope_collapse(|| materialize(&forest, &parse_context, &environment))
+        }
+    }
+
+    #[derive(Default)]
+    struct ScopeWitnessVisitor {
+        leaves: usize,
+        construction_path: Vec<&'static str>,
+        populated_sites: Vec<(&'static str, Vec<crate::constructions::AttachmentSitePath>)>,
+    }
+
+    impl crate::constructions::Visitor for ScopeWitnessVisitor {
+        fn enter_construction(&mut self, construction: &'static str) {
+            self.construction_path.push(construction);
+        }
+
+        fn enter_role(
+            &mut self,
+            role: &'static str,
+            _scope_sibling: Option<&'static str>,
+            admissible_sites: Option<&crate::constructions::AdmissibleSites>,
+        ) {
+            if let Some(sites) = admissible_sites
+                && !sites.is_empty()
+            {
+                self.populated_sites.push((role, sites.paths().to_vec()));
+            }
+        }
+
+        fn scope_leaf(&mut self) {
+            self.leaves += 1;
+        }
+    }
+
+    fn scope_witness(value: &crate::ast::Ability) -> ScopeWitnessVisitor {
+        let mut visitor = ScopeWitnessVisitor::default();
+        crate::constructions::GeneratedParseRoot::visit_scope(value, &mut visitor);
+        visitor
+    }
+
+    #[test]
+    fn declared_scope_variants_pack_and_preserve_rendered_bytes() {
+        let witnesses = [
+            (
+                "Seedborn Muse",
+                "Untap all permanents you control during each other player's untap step.",
+            ),
+            (
+                "Context Card",
+                "Destroy all artifacts and creatures with mana value X or less.",
+            ),
+            (
+                "Grafdigger's Cage",
+                "Players can't cast spells from graveyards or libraries.",
+            ),
+            (
+                "Ground Seal",
+                "Cards in graveyards can't be the targets of spells or abilities.",
+            ),
+            (
+                "Mass Manipulation",
+                "Gain control of X target creatures and/or planeswalkers.",
+            ),
+        ];
+
+        for (card_name, text) in witnesses {
+            let raw = ability_candidates(text, card_name, false);
+            let packed = ability_candidates(text, card_name, true);
+            assert!(
+                raw.len() > packed.len(),
+                "scope variants did not pack for {card_name}: {} -> {}",
+                raw.len(),
+                packed.len(),
+            );
+            let environment = canonical_test_environment();
+            let parse_context = context(card_name);
+            assert!(
+                raw.iter()
+                    .chain(&packed)
+                    .all(|candidate| candidate.value.render(&parse_context, &environment) == text),
+                "a packed unit changed its rendered bytes for {card_name}",
+            );
+            assert!(
+                packed
+                    .iter()
+                    .any(|candidate| !scope_witness(&candidate.value).populated_sites.is_empty()),
+                "the representative did not retain its alternative sites for {card_name}",
+            );
+        }
+    }
+
+    #[test]
+    fn aquatic_alchemist_exposes_the_shared_constituent_coordination_site() {
+        let card_name = "Aquatic Alchemist";
+        let text = "Whenever you cast your first instant or sorcery spell each turn, this creature gets +2/+0 until end of turn.";
+        let candidates = ability_candidates(text, card_name, false);
+        assert_eq!(candidates.len(), 1);
+        let projection = super::ScopeProjection::of(&candidates[0].value);
+        let mobiles = projection.mobiles();
+        assert!(
+            mobiles.iter().any(|mobile| {
+                mobile.role == "possessor"
+                    && mobile.scope_sibling == Some("nominal")
+                    && mobile.first_conjunct_path.is_some()
+            }),
+            "the shared constituent retains its declared coordination site: {mobiles:#?}",
+        );
+        assert_eq!(
+            candidates[0]
+                .value
+                .render(&context(card_name), &canonical_test_environment()),
+            text,
+        );
+    }
+
+    #[test]
+    fn flat_and_nested_coordination_units_pack() {
+        let witnesses = [
+            (
+                "Grafdigger's Cage",
+                "Players can't cast spells from graveyards or libraries.",
+            ),
+            (
+                "Weathered Runestone",
+                "Players can't cast spells from graveyards or libraries.",
+            ),
+            (
+                "Ground Seal",
+                "Cards in graveyards can't be the targets of spells or abilities.",
+            ),
+            (
+                "Silent Gravestone",
+                "Cards in graveyards can't be the targets of spells or abilities.",
+            ),
+            (
+                "Grand Abolisher",
+                "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+            ),
+            (
+                "Mass Manipulation",
+                "Gain control of X target creatures and/or planeswalkers.",
+            ),
+            (
+                "Fury",
+                "When this creature enters, it deals 4 damage divided as you choose among any number of target creatures and/or planeswalkers.",
+            ),
+            (
+                "Reprocess",
+                "Sacrifice any number of artifacts, creatures, and/or lands.",
+            ),
+            (
+                "Lich-Knights' Conquest",
+                "Sacrifice any number of artifacts, enchantments, and/or tokens.",
+            ),
+            (
+                "Malevolent Witchkite",
+                "When this creature enters, sacrifice any number of artifacts, enchantments, and/or tokens, then draw that many cards.",
+            ),
+            (
+                "Boltbender",
+                "When this creature is turned face up, you may choose new targets for any number of other spells and/or abilities.",
+            ),
+        ];
+
+        let mut packed_pairs = 0;
+        for (card_name, text) in witnesses {
+            let raw = ability_candidates(text, card_name, false);
+            let packed = ability_candidates(text, card_name, true);
+            packed_pairs += raw.len() - packed.len();
+            let environment = canonical_test_environment();
+            let parse_context = context(card_name);
+            let projections = packed
+                .iter()
+                .map(|candidate| super::ScopeProjection::of(&candidate.value))
+                .collect::<Vec<_>>();
+            let mobiles = projections
+                .iter()
+                .map(super::ScopeProjection::mobiles)
+                .collect::<Vec<_>>();
+            let rendered = packed
+                .iter()
+                .map(|candidate| {
+                    crate::constructions::GeneratedParseRoot::render_with_claims(
+                        &candidate.value,
+                        &parse_context,
+                        &environment,
+                    )
+                    .0
+                })
+                .collect::<Vec<_>>();
+            for left in 0..packed.len() {
+                for right in left + 1..packed.len() {
+                    assert!(
+                        !super::verify_scope_pair(
+                            left,
+                            right,
+                            &packed,
+                            &projections,
+                            &mobiles,
+                            &rendered,
+                        ),
+                        "a verified flat-versus-nested pair survived for {card_name}",
+                    );
+                }
+            }
+        }
+        assert!(
+            packed_pairs > 0,
+            "the eleven-unit fixture exercised no collapse"
+        );
+    }
+
+    #[test]
+    fn packing_keeps_leaf_traversal_and_uses_the_hoisted_construction_path() {
+        let card_name = "Seedborn Muse";
+        let text = "Untap all permanents you control during each other player's untap step.";
+        let raw = ability_candidates(text, card_name, false);
+        let packed = ability_candidates(text, card_name, true);
+        let environment = canonical_test_environment();
+        let parse_context = context(card_name);
+        let projections = raw
+            .iter()
+            .map(|candidate| super::ScopeProjection::of(&candidate.value))
+            .collect::<Vec<_>>();
+        let mobiles = projections
+            .iter()
+            .map(super::ScopeProjection::mobiles)
+            .collect::<Vec<_>>();
+        let rendered = raw
+            .iter()
+            .map(|candidate| {
+                crate::constructions::GeneratedParseRoot::render_with_claims(
+                    &candidate.value,
+                    &parse_context,
+                    &environment,
+                )
+                .0
+            })
+            .collect::<Vec<_>>();
+
+        for representative in &packed {
+            let representative_index = raw
+                .iter()
+                .position(|candidate| candidate.constructions == representative.constructions)
+                .expect("the canonical construction path comes from one packed member");
+            let representative_walk = scope_witness(&representative.value);
+            assert_eq!(
+                representative_walk.construction_path,
+                representative
+                    .constructions
+                    .iter()
+                    .map(|construction| construction.name())
+                    .collect::<Vec<_>>(),
+            );
+            for candidate in 0..raw.len() {
+                if candidate != representative_index
+                    && super::verify_scope_pair(
+                        representative_index,
+                        candidate,
+                        &raw,
+                        &projections,
+                        &mobiles,
+                        &rendered,
+                    )
+                {
+                    assert!(
+                        mobiles[representative_index]
+                            .iter()
+                            .zip(&mobiles[candidate])
+                            .all(|(high, low)| super::placement_at_least_as_high(high, low)),
+                    );
+                    assert_eq!(
+                        representative_walk.leaves,
+                        scope_witness(&raw[candidate].value).leaves,
+                    );
+                }
+            }
+        }
+        assert!(
+            mobiles
+                .iter()
+                .flatten()
+                .any(|mobile| mobile.scope_region.is_some()),
+            "the witness keeps a mobile nested inside another mobile's region",
+        );
+    }
+
+    #[test]
+    fn construction_identity_outside_a_move_region_prevents_a_merge() {
+        for (card_name, text) in [
+            (
+                "Daretti, Rocketeer Engineer",
+                "Daretti's power is equal to the greatest mana value among artifacts you control.",
+            ),
+            (
+                "Nightmare",
+                "Nightmare's power and toughness are each equal to the number of Swamps you control.",
+            ),
+        ] {
+            let candidates = ability_candidates(text, card_name, true);
+            let identity = candidates
+                .iter()
+                .find(|candidate| {
+                    candidate
+                        .constructions
+                        .contains(&Construction::PossessiveOwnerPossessiveSelfReference)
+                })
+                .expect("the identity construction remains a distinct candidate")
+                .clone();
+            let declared = candidates
+                .iter()
+                .find(|candidate| {
+                    candidate
+                        .constructions
+                        .contains(&Construction::PossessiveOwnerPossessiveSingularNominal)
+                })
+                .expect("the declared-type construction remains a distinct candidate")
+                .clone();
+            let mut candidates = vec![identity, declared];
+            for candidate in &mut candidates {
+                for tier in &mut candidate.specificity {
+                    if *tier == SpecificityTier::Identity {
+                        *tier = SpecificityTier::TypedLexical;
+                    }
+                }
+            }
+            let analysis = super::super::selection::analyze_selection(candidates)
+                .expect("the fixture uses the valid empty exception inventory");
+            let (result, decision) = analysis.into_result_and_decision();
+            assert!(matches!(
+                result,
+                Err(crate::parser::ParseError::Ambiguous { .. })
+            ));
+            assert_eq!(
+                decision.expect("the tie remains visible").resolution(),
+                SelectionResolution::UnresolvedTie,
+            );
+        }
     }
 }

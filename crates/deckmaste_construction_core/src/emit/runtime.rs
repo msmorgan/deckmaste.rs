@@ -46,6 +46,7 @@ use crate::semantic::DeclarationNounPlan;
 use crate::semantic::DeclarationTermPlan;
 use crate::semantic::DeclarationVerbPlan;
 use crate::semantic::LexemePlan;
+use crate::semantic::RootPlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
 use crate::semantic::UnsignedNumberPlan;
@@ -890,6 +891,8 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
             quote! {
                 pub(crate) trait GeneratedParseRoot: GeneratedRoot {
+                    fn visit_scope(&self, visitor: &mut dyn Visitor);
+
                     fn render_with_claims(
                         &self,
                         context: &ParseContext<'_>,
@@ -972,40 +975,50 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         plan.roots()
             .iter()
             .filter(|root| root.is_render_entry())
-            .map(|root| {
-                let category = emitted_ident(root.category(), Span::call_site());
-                let renderer = emitted_ident(
-                    &format!("render_{}_with_claims", snake_case(root.category())),
-                    Span::call_site(),
-                );
-                let environment = takes_environment.then(|| quote! { , environment });
-                GeneratedItem::new(
-                    ItemKey::Impl {
-                        trait_name: Some("GeneratedParseRoot".to_owned()),
-                        self_ty: root.category().to_owned(),
-                    },
-                    quote! {
-                        impl GeneratedParseRoot for #category {
-                            fn render_with_claims(
-                                &self,
-                                context: &ParseContext<'_>,
-                                environment: &crate::environment::ParserEnvironment,
-                            ) -> (
-                                String,
-                                Vec<RawRenderedClaim>,
-                            ) {
-                                #renderer(self, context #environment)
-                            }
-                        }
-                    },
-                    vec![crate::plan::DeclarationKey::new(
-                        crate::plan::SourceDeclarationKind::Root,
-                        root.category(),
-                    )],
-                )
-            }),
+            .map(|root| emit_generated_parse_root(root, takes_environment)),
     );
     items
+}
+
+fn emit_generated_parse_root(root: &RootPlan, takes_environment: bool) -> GeneratedItem {
+    let category = emitted_ident(root.category(), Span::call_site());
+    let visit = emitted_ident(
+        &format!("visit_{}", snake_case(root.category())),
+        Span::call_site(),
+    );
+    let renderer = emitted_ident(
+        &format!("render_{}_with_claims", snake_case(root.category())),
+        Span::call_site(),
+    );
+    let environment = takes_environment.then(|| quote! { , environment });
+    GeneratedItem::new(
+        ItemKey::Impl {
+            trait_name: Some("GeneratedParseRoot".to_owned()),
+            self_ty: root.category().to_owned(),
+        },
+        quote! {
+            impl GeneratedParseRoot for #category {
+                fn visit_scope(&self, visitor: &mut dyn Visitor) {
+                    visitor.#visit(self);
+                }
+
+                fn render_with_claims(
+                    &self,
+                    context: &ParseContext<'_>,
+                    environment: &crate::environment::ParserEnvironment,
+                ) -> (
+                    String,
+                    Vec<RawRenderedClaim>,
+                ) {
+                    #renderer(self, context #environment)
+                }
+            }
+        },
+        vec![crate::plan::DeclarationKey::new(
+            crate::plan::SourceDeclarationKind::Root,
+            root.category(),
+        )],
+    )
 }
 
 fn emit_build_rejection_types() -> Vec<GeneratedItem> {

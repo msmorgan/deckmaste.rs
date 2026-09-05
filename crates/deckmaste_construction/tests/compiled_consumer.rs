@@ -4331,9 +4331,9 @@ pub mod fixture {
         let JointMobileRoot::JointMobile(outer) = &nested else {
             panic!("the nested derivation hosts the Constituent one level down");
         };
-        assert!(outer.admissible_sites().is_empty());
+        assert!(outer.admissible_sites("inner").unwrap().is_empty());
         let InnerMobile::InnerMobile(inner) = &outer.inner;
-        assert!(inner.admissible_sites().is_empty());
+        assert!(inner.admissible_sites("leaf").unwrap().is_empty());
 
         let hoisted = JointMobileRoot::DirectMobile(
             DirectMobileHost::new(leaf).expect("the dominating host builds"),
@@ -4341,7 +4341,7 @@ pub mod fixture {
         let JointMobileRoot::DirectMobile(hoisted_host) = &hoisted else {
             panic!("the hoisted derivation hosts the Constituent at the dominating host");
         };
-        assert!(hoisted_host.admissible_sites().is_empty());
+        assert!(hoisted_host.admissible_sites("leaf").unwrap().is_empty());
 
         let context = ParseContext::default();
         let (rendered, rendered_claims) = render_joint_mobile_root_with_claims(&nested, &context);
@@ -4406,7 +4406,7 @@ pub mod fixture {
         let leaf = |mode| MobileConstituent::MobileLeaf(MobileLeafNode { mode });
         let host = ScopeSiblingMobileHost::new(leaf(Mode::One), leaf(Mode::Many), leaf(Mode::One))
             .expect("a mobile role between two siblings builds");
-        assert!(host.admissible_sites().is_empty());
+        assert!(host.admissible_sites("shared").unwrap().is_empty());
         let rule = RULES
             .iter()
             .find(|rule| rule.id == RuleId::ScopeSiblingRootScopeSiblingMobile)

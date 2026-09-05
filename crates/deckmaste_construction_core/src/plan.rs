@@ -2637,7 +2637,16 @@ mod tests {
     }
 
     fn expected_category_and_product_types() -> Vec<String> {
-        ["Node", "First"].into_iter().map(str::to_owned).collect()
+        [
+            "Node",
+            "AttachmentSiteStep",
+            "AttachmentSitePath",
+            "AdmissibleSites",
+            "First",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
     }
 
     fn assert_representative_concord_class_match(expansion: &crate::Expansion) {
@@ -2679,7 +2688,7 @@ mod tests {
             .map(|item| &item.key)
             .collect::<Vec<_>>();
         assert_eq!(
-            &keys[..17],
+            &keys[..22],
             &[
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -2688,6 +2697,26 @@ mod tests {
                 &ItemKey::Named {
                     kind: NamedKind::Type,
                     name: "Action".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "AttachmentSiteStep".into()
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "AttachmentSitePath".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: None,
+                    self_ty: "AttachmentSitePath".into(),
+                },
+                &ItemKey::Named {
+                    kind: NamedKind::Type,
+                    name: "AdmissibleSites".into()
+                },
+                &ItemKey::Impl {
+                    trait_name: None,
+                    self_ty: "AdmissibleSites".into(),
                 },
                 &ItemKey::Named {
                     kind: NamedKind::Type,
@@ -2751,7 +2780,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 127);
+        assert_eq!(keys.len(), 132);
         assert_representative_concord_class_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
@@ -2802,7 +2831,7 @@ mod tests {
             first
                 .items()
                 .iter()
-                .take(17)
+                .take(22)
                 .map(|item| item
                     .origins
                     .iter()
@@ -2812,6 +2841,11 @@ mod tests {
             [
                 vec!["leaf", "chain"],
                 vec!["action"],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
                 vec!["leaf"],
                 vec!["chain"],
                 vec!["action"],

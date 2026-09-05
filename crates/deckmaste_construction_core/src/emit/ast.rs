@@ -179,9 +179,6 @@ fn emit_attachment_site_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             )
         })
         .collect::<Vec<_>>();
-    if origins.is_empty() {
-        return Vec::new();
-    }
     vec![
         GeneratedItem::new(
             ItemKey::named_type(super::ATTACHMENT_SITE_STEP_TYPE),
@@ -209,6 +206,10 @@ fn emit_attachment_site_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
             quote! {
                 impl AttachmentSitePath {
+                    pub(crate) const fn new(steps: Vec<AttachmentSiteStep>) -> Self {
+                        Self(steps)
+                    }
+
                     pub const fn steps(&self) -> &[AttachmentSiteStep] {
                         self.0.as_slice()
                     }
@@ -220,7 +221,10 @@ fn emit_attachment_site_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             ItemKey::named_type(super::ADMISSIBLE_SITES_TYPE),
             quote! {
                 #[derive(Debug, Clone, PartialEq, Eq)]
-                pub struct AdmissibleSites(Vec<AttachmentSitePath>);
+                pub struct AdmissibleSites {
+                    role: &'static str,
+                    paths: std::sync::OnceLock<Vec<AttachmentSitePath>>,
+                }
             },
             origins.clone(),
         ),
@@ -231,16 +235,29 @@ fn emit_attachment_site_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
             quote! {
                 impl AdmissibleSites {
-                    pub const fn empty() -> Self {
-                        Self(Vec::new())
+                    pub const fn empty(role: &'static str) -> Self {
+                        Self {
+                            role,
+                            paths: std::sync::OnceLock::new(),
+                        }
                     }
 
-                    pub const fn paths(&self) -> &[AttachmentSitePath] {
-                        self.0.as_slice()
+                    pub const fn role(&self) -> &'static str {
+                        self.role
                     }
 
-                    pub const fn is_empty(&self) -> bool {
-                        self.0.is_empty()
+                    pub fn paths(&self) -> &[AttachmentSitePath] {
+                        self.paths.get().map_or(&[], Vec::as_slice)
+                    }
+
+                    pub fn is_empty(&self) -> bool {
+                        self.paths().is_empty()
+                    }
+
+                    pub(crate) fn replace(&self, paths: Vec<AttachmentSitePath>) {
+                        self.paths
+                            .set(paths)
+                            .expect("an attachment slot is populated at most once");
                     }
                 }
             },
@@ -494,7 +511,7 @@ fn emit_product(
         })
         .collect::<syn::Result<Vec<_>>>()?;
     if construction.has_mobile_role() {
-        fields.push(quote! { admissible_sites: AdmissibleSites });
+        fields.push(quote! { admissible_sites: Vec<AdmissibleSites> });
     }
     Ok(quote! {
         #[derive(Debug, Clone, PartialEq, Eq)]
@@ -581,7 +598,15 @@ fn emit_invariant_impl(
         })
         .collect::<syn::Result<Vec<_>>>()?;
     if construction.has_mobile_role() {
-        initializers.push(quote! { admissible_sites: AdmissibleSites::empty() });
+        let slots = construction
+            .fields()
+            .iter()
+            .filter(|field| field.is_mobile())
+            .map(|field| {
+                let role = syn::LitStr::new(&field.name_key(), field.name().span());
+                quote! { AdmissibleSites::empty(#role) }
+            });
+        initializers.push(quote! { admissible_sites: vec![#(#slots),*] });
     }
     let mut accessors = construction
         .fields()
@@ -626,8 +651,8 @@ fn emit_invariant_impl(
         .collect::<Vec<_>>();
     if construction.has_mobile_role() {
         accessors.push(quote! {
-            pub const fn admissible_sites(&self) -> &AdmissibleSites {
-                &self.admissible_sites
+            pub fn admissible_sites(&self, role: &str) -> Option<&AdmissibleSites> {
+                self.admissible_sites.iter().find(|sites| sites.role() == role)
             }
         });
     }
@@ -1554,15 +1579,18 @@ mod tests {
     }
 
     #[test]
-    fn mobile_role_emits_one_sealed_always_present_attachment_slot() {
+    fn mobile_roles_emit_one_always_present_slot_per_role() {
         let expansion = crate::generate(quote::quote! {
             construction child: Child {
                 element ChildNode {}
                 form child = "child";
             }
             construction host: Root {
-                element Host { tail: mobile Child, }
-                form host = tail;
+                element Host {
+                    first: mobile(second) Child,
+                    second: mobile Child,
+                }
+                form host = first second;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
@@ -1594,13 +1622,27 @@ mod tests {
         let Item::Struct(sites) = parse_named(expansion.items(), "AdmissibleSites") else {
             panic!("AdmissibleSites is a struct");
         };
-        let Fields::Unnamed(site_fields) = sites.fields else {
+        let Fields::Named(site_fields) = sites.fields else {
             panic!("AdmissibleSites seals its ordered paths");
         };
-        assert!(matches!(site_fields.unnamed[0].vis, Visibility::Inherited));
         assert_eq!(
-            site_fields.unnamed[0].ty.to_token_stream().to_string(),
-            "Vec < AttachmentSitePath >",
+            site_fields
+                .named
+                .iter()
+                .map(|field| (
+                    field.ident.as_ref().expect("site field").to_string(),
+                    field.ty.to_token_stream().to_string(),
+                    matches!(field.vis, Visibility::Inherited),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("role".to_owned(), "& 'static str".to_owned(), true),
+                (
+                    "paths".to_owned(),
+                    "std :: sync :: OnceLock < Vec < AttachmentSitePath > >".to_owned(),
+                    true,
+                ),
+            ],
         );
 
         let Item::Struct(host) = parse_named(expansion.items(), "Host") else {
@@ -1622,10 +1664,11 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
             [
-                ("tail".to_owned(), "Child".to_owned(), true),
+                ("first".to_owned(), "Child".to_owned(), true),
+                ("second".to_owned(), "Child".to_owned(), true),
                 (
                     "admissible_sites".to_owned(),
-                    "AdmissibleSites".to_owned(),
+                    "Vec < AdmissibleSites >".to_owned(),
                     false,
                 ),
             ],
@@ -1644,8 +1687,11 @@ mod tests {
             .expect("mobile host has a generated constructor and accessor")
             .tokens
             .to_string();
-        assert!(host_impl.contains("admissible_sites : AdmissibleSites :: empty ()"));
-        assert!(host_impl.contains("fn admissible_sites (& self) -> & AdmissibleSites"));
+        assert!(host_impl.contains("AdmissibleSites :: empty (\"first\")"));
+        assert!(host_impl.contains("AdmissibleSites :: empty (\"second\")"));
+        assert!(host_impl.contains(
+            "fn admissible_sites (& self , role : & str) -> Option < & AdmissibleSites >"
+        ));
     }
 
     #[test]
@@ -2448,6 +2494,9 @@ mod tests {
                 "Predicate",
                 "Tag",
                 "Document",
+                "AttachmentSiteStep",
+                "AttachmentSitePath",
+                "AdmissibleSites",
                 "LeafNode",
                 "NestedNode",
                 "ActionNode",

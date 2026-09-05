@@ -1096,9 +1096,9 @@ fn every_selector_family_enters_the_repeatable_order_free_postmodifier_position(
     for (text, candidate_count, resolution, expected_selected) in [
         (
             "A creature card you control in exile with mana value 2 or less gains 2 life.",
-            2,
-            SelectionResolution::Specificity,
             1,
+            SelectionResolution::Unique,
+            0,
         ),
         (
             "Target creature you control gains 2 life.",
