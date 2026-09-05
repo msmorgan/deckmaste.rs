@@ -392,6 +392,9 @@ def destroy (subject : NounPhrase) : Instruction :=
   .enact none (.action "Destroy") (.move subject graveyard [])
 def exile (subject : NounPhrase) : Instruction :=
   .enact none (.action "Exile") (.move subject exileZone [])
+/-- "exile <subject> with N <kind> counters on it" -/
+def exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) : Instruction :=
+  .enact none (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
 def sacrifice (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) (.action "Sacrifice") (.move subject graveyard [])
 /-- "<agent> sacrifices it": the permanent slot's occupant. -/
@@ -690,10 +693,17 @@ def losesAllCounters (who : NounPhrase) (kind : Option CounterKindSource) : Inst
 def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
   .removeCounters none kind from_
 
-/-- The agent re-read after its own clause: "you" stays "you", anyone else is "they". -/
-def agentRef : NounPhrase → NounPhrase
-  | .you => .you
-  | _ => they
+/-- The agent's number as an agent: "each …" acts one at a time (Idris `agentPlur`). -/
+def agentPlur : NounPhrase → Plurality
+  | .described .each _ => .one
+  | n => n.plur
+/-- The agent re-read after its own clause (Idris `agentRef`): an agent that introduces no
+binding is re-spelled as itself ("you", "that player"); one that does is read back as the
+player it just bound, windowed over the agent's own bindings. -/
+def agentRef (agent : NounPhrase) : NounPhrase :=
+  match NounPhrase.agentIntroduced [] agent with
+  | [] => agent
+  | ds => .pro (.word .player) (agentPlur agent) (.top ds.length)
 
 /-- "<player> may pay <cost>. If they don't, <instruction>." -/
 def unless_ (player : NounPhrase) (instruction : Instruction) (cost : Cost) : Instruction :=
@@ -822,6 +832,15 @@ def ifWouldInstead (event : GameEvent) (replacement : Instruction) (duration : O
 def preventAll (kind : DamageKind) (scope : DamageScope) (duration : Option Duration) :
     Instruction :=
   .continuously (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
+/-- "Prevent the next N <kind> damage that would be dealt <scope> [duration]." -/
+def preventNext (kind : DamageKind) (scope : DamageScope) (amount : Amount)
+    (duration : Option Duration) : Instruction :=
+  .continuously (.damageRule kind .unattributed scope (.prevent (.shield amount) none) .repeatedly)
+    duration
+/-- "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]." -/
+def preventAllBy (kind : DamageKind) (source : NounPhrase) (scope : DamageScope)
+    (duration : Option Duration) : Instruction :=
+  .continuously (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
 /-- "The next time <event> would happen, <replacement> instead [duration]." -/
 def nextTimeWouldInstead (event : GameEvent) (replacement : Instruction)
     (duration : Option Duration) : Instruction :=
@@ -894,6 +913,9 @@ def cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicat
 
 def leavesBattlefield (subject : NounPhrase) : GameEvent :=
   .leaves subject (some (.zones [battlefield]))
+/-- "<subject> leaves <zone>" -/
+def leavesZone (subject : NounPhrase) (zone : ZoneExpr) : GameEvent :=
+  .leaves subject (some (.zones [zone]))
 /-- "at the beginning of <possessor>'s <part>" -/
 def beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor : NounPhrase) :
     GameEvent :=
