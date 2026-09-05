@@ -28,3 +28,10 @@ Size: S. Done when: no deed lexeme literal remains in a core gate or stamp
 over `Effect.idr`/`Triggers.idr`/`Words.idr` finds only the deed table);
 the fateseal pin refutes; build at its module count. Standard constraints
 apply, including the RON-shaped constraint.
+
+## Rulings 2026-09-04 (wayfinder session)
+
+The four guard bullets are mechanical. The `actFacts` agent column is
+authored from `research-deed-subjects` (which deeds print a subject in the
+supported corpus, with the CR entry for each); pin the deed that no printed
+card ever gives a subject.

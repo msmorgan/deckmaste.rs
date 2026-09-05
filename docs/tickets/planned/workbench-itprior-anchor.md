@@ -14,3 +14,9 @@ witness and pin re-spelled, never deleted.
 Size: S. Done when: `itPrior`'s parameter is a noun or the ticket records
 the ruling; no printed number in any macro body; build at its module count.
 Standard constraints apply, including the RON-shaped constraint.
+
+## Ruling 2026-09-04
+
+Keep the antecedent instruction as `itPrior`'s anchor: the instruction is
+the antecedent clause, which is what "prior" names. Close by recording this
+on the macro's one doc line; no code change.

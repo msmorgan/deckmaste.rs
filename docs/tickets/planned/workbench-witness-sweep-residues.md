@@ -52,3 +52,28 @@ Size: L (bulleted, independent). Done when: every named witness reads its
 printed card in full or the record says which rule refuses it; pins probed;
 build at its module count. Standard constraints apply, including the
 RON-shaped constraint.
+
+## Rulings 2026-09-04 (wayfinder session)
+
+- Own-stat damage: index `DealDamage`'s amount at `selfSubjIntro src`; no
+  own-stat amount row.
+- "The exiled card": `ExiledWith This` uniquifies when the exiling ability's
+  quantity is one, read off the card's own abilities; no cross-ability
+  binding. The implementer reads the exile-with rule in `data/rules/cr.txt`
+  and cites it; `research-imprint-uniqueness` supplies the corpus count.
+- A condition's nouns do NOT join the read stack; "if … it …" reads the
+  clause subject.
+- Combat relations take a kind-polymorphic argument (`Player | Object` via
+  `Joined`); no separate defending-player predicate.
+- A cost under a deontic clause is typed at the enclosing clause's intro;
+  `Cost` gets no agent index.
+- The agentless counter replacement row takes a positional `Maybe` agent.
+- `QualitySort.AbilityQ` with the chosen-quality read; not a `Modal`.
+- `Exchanged` gains `Values a b` (two amounts) and `TextBoxes a b`; the
+  text-box arm lands with a pin only if `research-exchange-textbox` finds no
+  supported card.
+- `EachClosesOwnParts` extends to parts the same `ForEachOf` published.
+- "As you activate": a positional `Maybe` timing rider on the announced
+  choice, not on the comparison.
+- `SameNameAs n` through the `CardName` quality; `OtherThan` accepts the
+  granting ability's subject binding. Two S shapes.

@@ -15,3 +15,8 @@ type no land can produce under the chosen-colour read with the rule named.
 Size: S. Done when: Gauntlet of Power is benched; every existing
 `TappedForMana` site takes `Nothing`; pin probed; build at its module
 count. Standard constraints apply, including the RON-shaped constraint.
+
+## Ruling 2026-09-04
+
+One positional `Maybe` slot holding a mana-type read that admits both a
+literal type and the chosen-quality read; `Nothing` at every existing site.
