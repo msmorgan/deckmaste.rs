@@ -1,4 +1,12 @@
-# lean — the grammar workbench in Lean 4
+# lean — Semantics and English workbenches in Lean 4
+
+`English` is the Oracle English grammar design model beside `Semantics`.
+It uses grammatical and realization relations, with checked structural and
+surface witnesses; it does not require an executable parser or renderer.
+See the [grammar design](../docs/english-grammar-design.md) for scope and open
+decisions. Run `./scripts/build English` for its warning-free gate. The default
+build includes both workbenches. The remaining sections describe `Semantics`
+and its port-specific conventions.
 
 The semantics-target grammar as a Lean 4 workbench, begun as a port of
 `../idris/src/Experimental.idr` and its family: the grammar's constructors as
@@ -116,7 +124,7 @@ checking stops defining, as it stopped elaborating in Idris — and every
 phrase-level bench item beside its card as a plain definition with an
 `ok…` theorem. The Idris identifiers and oracle-text docstrings are kept. The
 `SemanticsCards` library holds them so `lake build Semantics` stays the inner
-loop; `scripts/build` builds all three.
+loop; `scripts/build` builds all three Semantics libraries and English.
 
 Not ported, each named in its family's module docstring: the Planechase items
 (`ichorElixirPlanarDice`, `fracturedPowerstonePlanarRoll`,

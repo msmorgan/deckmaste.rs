@@ -31,3 +31,51 @@ checks without warnings or proof placeholders; the chosen surface relation
 can express two distinct analyses of the same surface without assuming their
 equality. No parser, renderer algorithm, Rust changes, or production corpus
 measurement is required. Standard constraints apply.
+
+## Landing record
+
+Implemented in change `wqvspmnr`.
+
+### Prove
+
+- Added the independent `English` Lake library and default build target, with
+  `Grammar` and `Witnesses` imported by `English.lean`.
+- `docs/english-grammar-design.md` maps all sixteen style-guide sections,
+  grammatical categories/functions, lexical features/frames, recursive
+  dependencies, realization ownership, and inherited ticket/fog obligations.
+- Ordinary syntax plus inductive judgments separates grammatical licensing
+  from realization and selection. A finite synthetic lexicon witnesses two
+  unequal, grammatical trees realizing the same four-word surface. An
+  adjective-to-noun misuse has no grammatical derivation.
+- After `kata refresh`, `cd lean && ./scripts/build English` passed with
+  warnings treated as failures (5 jobs). Lean LSP MCP diagnostics are empty
+  for all three new Lean files. Live LSP goal inspection confirms the tree
+  inequality closes; LSP `lean_verify` reports no axioms or source warnings
+  for `English.Witnesses.distinct_analyses` and
+  `English.Witnesses.adjective_not_noun`. The former includes both structural
+  and surface derivations in its proof dependencies.
+- Production sources and data are unchanged. The workbench-specific acceptance
+  contract in the Lean design decision applies; no Rust coverage, roundtrip,
+  selection, or performance result is claimed.
+
+### Disclose
+
+- Added 9 checked theorems: 2 structural derivations, 3 lexical realization
+  witnesses, 2 composed realizations, 1 distinct-analysis witness and 1
+  exclusion. Restored 0; re-spelled 0; ignored 0; removed 0.
+- Deviations and additions: the lexical exclusion witness additionally checks
+  that licensing is restrictive. The Lean README now distinguishes the two
+  workbenches and links to the design map. No ticket-scope deviations.
+- No glossary additions were needed. No STOPs or existing-test regressions.
+- Only this workspace's WIP ticket was edited.
+
+### Report and limits
+
+This establishes representation and intended scope, not the complete grammar.
+The checked fragment covers nouns, adjectives, modification and binary `and`
+coordination of plural nominals. It uses surface atoms, not exact byte text.
+The witness is synthetic and makes no claim about a named card or preferred
+reading. Composition owns general agreement, frames, recursive phrases/clauses
+and gap accounting; document grammar owns exact surface composition. Selection
+and packing remain separate future work. The design map explicitly flags the
+uncertainty of gap representation and extension from atoms to exact text.
