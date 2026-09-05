@@ -1,10 +1,13 @@
 ---
-needs: [ability-conferral-without-innate, card-form-characteristics-model, construction-dsl-node, decision-terminology, engine-combatant-role, english-v2-frame-selected-prepositions, english-v2-grammatical-relations, english-v2-person-number-agreement, english-v2-targeting-marker, semantic-query-domains, type-def-permanent-type-flag]
+needs: [engine-combatant-role]
 ---
 **Adopt the candidate root [context map](../../../CONTEXT-MAP.md),
 [Game Model glossary](../../contexts/game-model/CONTEXT.md), and
 [Oracle English glossary](../../contexts/oracle-english/CONTEXT.md) after the
-nomenclature correction family lands.** This is the conformance and activation
+nomenclature correction family lands.** (2026-09-04: the three renames still
+open — `construction-dsl-node`, `english-v2-grammatical-relations`,
+`english-v2-person-number-agreement` — are recorded by the audit as open
+aliases rather than waited on.) This is the conformance and activation
 ticket, not another compatibility pass.
 
 Scope (ruling 2026-09-04): the Idris workbench, core, engine, and lowering's
