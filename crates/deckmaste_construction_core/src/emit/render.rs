@@ -1809,6 +1809,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
         Feature::HomographLicense => quote! { HomographLicense },
+        Feature::InflectionalForm => quote! { InflectionalForm },
         Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
@@ -4241,6 +4242,9 @@ fn feature_expr(
                     | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
                     }
+                    Feature::InflectionalForm => {
+                        Err(internal("verb slot does not provide an Inflectional Form"))
+                    }
                     Feature::BareLocativeComplement | Feature::PrepositionAttachment => {
                         Err(internal("verb slot does not provide preposition metadata"))
                     }
@@ -5261,6 +5265,7 @@ fn emit_feature_helper(
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
         Feature::HomographLicense => quote! { HomographLicense },
+        Feature::InflectionalForm => quote! { InflectionalForm },
         Feature::MannerAnaphorClass => quote! { MannerAnaphorClass },
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
@@ -5871,6 +5876,11 @@ fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
         FeatureValue::ConcordOther => quote! { ConcordClass::Other },
         FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
+        FeatureValue::Plain => quote! { InflectionalForm::Plain },
+        FeatureValue::ThirdPersonSingularPresent => {
+            quote! { InflectionalForm::ThirdPersonSingularPresent }
+        }
+        FeatureValue::Preterite => quote! { InflectionalForm::Preterite },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
         FeatureValue::BareDurationLicensed => {
@@ -6193,6 +6203,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Compoundability => "compoundability",
         Feature::Countability => "countability",
         Feature::HomographLicense => "homograph_license",
+        Feature::InflectionalForm => "inflectional_form",
         Feature::MannerAnaphorClass => "manner_anaphor_class",
         Feature::ModifierLicense => "modifier_license",
         Feature::Number => "number",

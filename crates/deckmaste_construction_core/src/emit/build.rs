@@ -866,22 +866,33 @@ fn emit_sum_arm(
         binders.reserve(name);
     }
     let concord_class_carry = plan.sum_carries_concord_class(sum.name());
+    let inflectional_form_carry = plan.carries_feature(sum.name(), Feature::InflectionalForm);
     let fused_head_license_carry = plan.carries_feature(sum.name(), Feature::FusedHeadLicense);
-    let (value, concord_class, fused_head_license) = if concord_class_carry {
-        let (value, concord_class, fused_head_license) =
+    let (value, concord_class, inflectional_form, fused_head_license) = if concord_class_carry {
+        let (value, concord_class, inflectional_form, fused_head_license) =
             lower_value_with_concord_class(plan, alternative.value(), "value", &mut binders)?;
-        (value, Some(concord_class), fused_head_license)
+        (
+            value,
+            Some(concord_class),
+            inflectional_form,
+            fused_head_license,
+        )
     } else if fused_head_license_carry {
         let (value, fused_head_license) =
             lower_value_with_fused_head_license(plan, alternative.value(), "value", &mut binders)?;
-        (value, None, Some(fused_head_license))
+        (value, None, None, Some(fused_head_license))
     } else {
         (
             lower_value(plan, alternative.value(), "value", &mut binders)?,
             None,
             None,
+            None,
         )
     };
+    debug_assert!(!inflectional_form_carry || inflectional_form.is_some());
+    let inflectional_form = inflectional_form_carry
+        .then_some(inflectional_form)
+        .flatten();
     let payload = if alternative.is_recursive() {
         let expression = value.expression;
         quote! { Box::new(#expression) }
@@ -892,13 +903,15 @@ fn emit_sum_arm(
     let variant = ident(alternative.name());
     let patterns = vec![value.pattern];
     let concord_class = concord_class.map(|concord_class| quote! { , *#concord_class });
+    let inflectional_form =
+        inflectional_form.map(|inflectional_form| quote! { , *#inflectional_form });
     let fused_head_license =
         fused_head_license.map(|fused_head_license| quote! { , *#fused_head_license });
     let rule_id = ident(&rule.id);
     Ok(quote! {
         RuleId::#rule_id => match children {
             [#(#patterns),*] => Ok(Some(BuildValue::#sum_type(
-                #sum_type::#variant(#payload) #concord_class #fused_head_license, FeatureConstraint::Any
+                #sum_type::#variant(#payload) #concord_class #inflectional_form #fused_head_license, FeatureConstraint::Any
             ))),
             _ => Ok(None),
         },
@@ -1033,6 +1046,7 @@ struct LoweredValue {
 #[derive(Default)]
 struct SequenceItemFeatures {
     concord_class: Option<syn::Ident>,
+    inflectional_form: Option<syn::Ident>,
     number: Option<syn::Ident>,
     onset: Option<syn::Ident>,
     possessive_ending: Option<syn::Ident>,
@@ -1064,6 +1078,10 @@ fn lower_value_with_sequence_features(
                 item_features.concord_class =
                     Some(binders.allocate(&format!("{preferred}_concord_class")));
             }
+            if features.contains(&Feature::InflectionalForm) {
+                item_features.inflectional_form =
+                    Some(binders.allocate(&format!("{preferred}_inflectional_form")));
+            }
             if features.contains(&Feature::Number) {
                 item_features.number = Some(binders.allocate(&format!("{preferred}_number")));
             }
@@ -1080,6 +1098,14 @@ fn lower_value_with_sequence_features(
                     .as_ref()
                     .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
             });
+            let inflectional_form =
+                plan.carries_feature(name, Feature::InflectionalForm)
+                    .then(|| {
+                        item_features
+                            .inflectional_form
+                            .as_ref()
+                            .map_or_else(|| quote! { , _ }, |value| quote! { , #value })
+                    });
             let cardinality = plan
                 .category_carries_cardinality(name)
                 .then(|| quote! { , _ });
@@ -1113,28 +1139,37 @@ fn lower_value_with_sequence_features(
             let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                     expression: quote! { #binding.clone() },
                 },
                 item_features,
             ))
         }
         ValueKindPlan::Sum(name)
-            if features == [Feature::ConcordClass] && plan.sum_carries_concord_class(name) =>
+            if features.iter().all(|feature| {
+                matches!(feature, Feature::ConcordClass | Feature::InflectionalForm)
+            }) && plan.sum_carries_concord_class(name) =>
         {
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let concord_class = binders.allocate(&format!("{preferred}_concord_class"));
+            let carried_inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| binders.allocate(&format!("{preferred}_inflectional_form")));
+            let inflectional_form = carried_inflectional_form
+                .as_ref()
+                .map(|value| quote! { , #value });
             let fused_head_license = plan
                 .carries_feature(name, Feature::FusedHeadLicense)
                 .then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #inflectional_form #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 SequenceItemFeatures {
                     concord_class: Some(concord_class),
+                    inflectional_form: carried_inflectional_form,
                     ..SequenceItemFeatures::default()
                 },
             ))
@@ -1152,6 +1187,7 @@ fn lower_value_with_sequence_features(
 fn category_carries_sequence_feature(plan: &SemanticPlan, name: &str, feature: Feature) -> bool {
     match feature {
         Feature::ConcordClass => plan.category_carries_concord_class(name),
+        Feature::InflectionalForm => plan.carries_feature(name, Feature::InflectionalForm),
         Feature::Number => plan.category_carries_number(name),
         Feature::Onset => plan.category_carries_onset(name),
         Feature::PossessiveEnding => plan.category_carries_possessive_ending(name),
@@ -1164,7 +1200,12 @@ fn lower_value_with_concord_class(
     value: &ValueKindPlan,
     preferred: &str,
     binders: &mut LocalAllocator,
-) -> syn::Result<(LoweredValue, syn::Ident, Option<syn::Ident>)> {
+) -> syn::Result<(
+    LoweredValue,
+    syn::Ident,
+    Option<syn::Ident>,
+    Option<syn::Ident>,
+)> {
     let concord_class = binders.allocate(&format!("{preferred}_concord_class"));
     match value {
         ValueKindPlan::Category(name) if plan.category_carries_concord_class(name) => {
@@ -1173,6 +1214,12 @@ fn lower_value_with_concord_class(
             let cardinality = plan
                 .category_carries_cardinality(name)
                 .then(|| quote! { , _ });
+            let carried_inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| binders.allocate(&format!("{preferred}_inflectional_form")));
+            let inflectional_form = carried_inflectional_form
+                .as_ref()
+                .map(|value| quote! { , #value });
             let number = plan.category_carries_number(name).then(|| quote! { , _ });
             let determiner_number = plan
                 .carries_feature(name, Feature::DeterminerNumber)
@@ -1194,11 +1241,12 @@ fn lower_value_with_concord_class(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding, #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset
+                        #binding, #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset
                     ) },
                     expression: quote! { #binding.clone() },
                 },
                 concord_class,
+                carried_inflectional_form,
                 carried_fused_head_license,
             ))
         }
@@ -1211,12 +1259,19 @@ fn lower_value_with_concord_class(
             let fused_head_license = carried_fused_head_license
                 .as_ref()
                 .map(|value| quote! { , #value });
+            let carried_inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| binders.allocate(&format!("{preferred}_inflectional_form")));
+            let inflectional_form = carried_inflectional_form
+                .as_ref()
+                .map(|value| quote! { , #value });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding, #concord_class #inflectional_form #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 concord_class,
+                carried_inflectional_form,
                 carried_fused_head_license,
             ))
         }
@@ -1244,6 +1299,9 @@ fn lower_value_with_fused_head_license(
             let concord_class = plan
                 .category_carries_concord_class(name)
                 .then(|| quote! { , _ });
+            let inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| quote! { , _ });
             let cardinality = plan
                 .category_carries_cardinality(name)
                 .then(|| quote! { , _ });
@@ -1262,7 +1320,7 @@ fn lower_value_with_fused_head_license(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding #concord_class #cardinality #number #determiner_number,
+                        #binding #concord_class #inflectional_form #cardinality #number #determiner_number,
                         #fused_head_license #nominal_license #onset #possessive_ending #following_onset
                     ) },
                     expression: quote! { #binding.clone() },
@@ -1274,9 +1332,12 @@ fn lower_value_with_fused_head_license(
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let concord_class = plan.sum_carries_concord_class(name).then(|| quote! { , _ });
+            let inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| quote! { , _ });
             Ok((
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #concord_class, #fused_head_license, _) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class #inflectional_form, #fused_head_license, _) },
                     expression: quote! { #binding.clone() },
                 },
                 fused_head_license,
@@ -1305,6 +1366,9 @@ fn lower_value(
             let concord_class = plan
                 .category_carries_concord_class(name)
                 .then(|| quote! { , _ });
+            let inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| quote! { , _ });
             let cardinality = plan
                 .category_carries_cardinality(name)
                 .then(|| quote! { , _ });
@@ -1324,7 +1388,7 @@ fn lower_value(
                 .then(|| quote! { , _ });
             let following_onset = carries_following_onset(plan, name).then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                pattern: quote! { BuildValue::#variant(#binding #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1340,11 +1404,14 @@ fn lower_value(
             let variant = ident(name);
             let binding = binders.allocate(preferred);
             let concord_class = plan.sum_carries_concord_class(name).then(|| quote! { , _ });
+            let inflectional_form = plan
+                .carries_feature(name, Feature::InflectionalForm)
+                .then(|| quote! { , _ });
             let fused_head_license = plan
                 .carries_feature(name, Feature::FusedHeadLicense)
                 .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #concord_class #fused_head_license, _) },
+                pattern: quote! { BuildValue::#variant(#binding #concord_class #inflectional_form #fused_head_license, _) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1617,6 +1684,9 @@ fn lower_zeroable_owner_value(
                 let concord_class = plan
                     .category_carries_concord_class(name)
                     .then(|| quote! { , _ });
+                let inflectional_form = plan
+                    .carries_feature(name, Feature::InflectionalForm)
+                    .then(|| quote! { , _ });
                 let cardinality = plan
                     .category_carries_cardinality(name)
                     .then(|| quote! { , _ });
@@ -1671,7 +1741,7 @@ fn lower_zeroable_owner_value(
                     quote! { , #feature }
                 });
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
+                    pattern: quote! { BuildValue::#variant(#binding #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) },
                     expression: quote! { #binding.clone() },
                 }
             } else {
@@ -1687,6 +1757,10 @@ fn lower_zeroable_owner_value(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "sequence ownership lowering keeps the normalized row and its feature state together"
+)]
 fn lower_sequence_owner_field(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
@@ -1735,6 +1809,11 @@ type LoweredSequenceOwnerValue = (
     Vec<TokenStream>,
 );
 
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the normalized sequence-state matrix is one exhaustive lowering boundary"
+)]
 fn lower_sequence_owner_value(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
@@ -1796,6 +1875,8 @@ fn lower_sequence_owner_value(
                 &SequenceFeatureBindings {
                     concord_classes: Vec::new(),
                     tail_concord_class: parts.tail_concord_class,
+                    inflectional_forms: Vec::new(),
+                    tail_inflectional_form: parts.tail_inflectional_form,
                     numbers: Vec::new(),
                     tail_number: parts.tail_number,
                     onsets: Vec::new(),
@@ -1815,6 +1896,8 @@ fn lower_sequence_owner_value(
                 &SequenceFeatureBindings {
                     concord_classes: parts.concord_classes,
                     tail_concord_class: None,
+                    inflectional_forms: parts.inflectional_forms,
+                    tail_inflectional_form: None,
                     numbers: parts.numbers,
                     tail_number: None,
                     onsets: parts.onsets,
@@ -1839,6 +1922,8 @@ fn lower_sequence_owner_value(
                 &SequenceFeatureBindings {
                     concord_classes: parts.concord_classes,
                     tail_concord_class: None,
+                    inflectional_forms: parts.inflectional_forms,
+                    tail_inflectional_form: None,
                     numbers: parts.numbers,
                     tail_number: None,
                     onsets: parts.onsets,
@@ -1866,6 +1951,8 @@ fn lower_sequence_owner_value(
                 &SequenceFeatureBindings {
                     concord_classes: parts.concord_classes,
                     tail_concord_class: parts.tail_concord_class,
+                    inflectional_forms: parts.inflectional_forms,
+                    tail_inflectional_form: parts.tail_inflectional_form,
                     numbers: parts.numbers,
                     tail_number: parts.tail_number,
                     onsets: parts.onsets,
@@ -1896,6 +1983,8 @@ struct LoweredSequenceRhs {
     tail: Option<syn::Ident>,
     concord_classes: Vec<syn::Ident>,
     tail_concord_class: Option<syn::Ident>,
+    inflectional_forms: Vec<syn::Ident>,
+    tail_inflectional_form: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -1918,6 +2007,8 @@ fn lower_sequence_rhs(
     let mut tail = None;
     let mut concord_classes = Vec::new();
     let mut tail_concord_class = None;
+    let mut inflectional_forms = Vec::new();
+    let mut tail_inflectional_form = None;
     let mut numbers = Vec::new();
     let mut tail_number = None;
     let mut onsets = Vec::new();
@@ -1938,6 +2029,7 @@ fn lower_sequence_rhs(
                 patterns.push(value.pattern);
                 values.push(value.expression);
                 concord_classes.extend(item_features.concord_class);
+                inflectional_forms.extend(item_features.inflectional_form);
                 numbers.extend(item_features.number);
                 onsets.extend(item_features.onset);
                 possessive_endings.extend(item_features.possessive_ending);
@@ -1960,6 +2052,9 @@ fn lower_sequence_rhs(
                 let number = features
                     .contains(&Feature::Number)
                     .then(|| binders.allocate("tail_number"));
+                let inflectional_form = features
+                    .contains(&Feature::InflectionalForm)
+                    .then(|| binders.allocate("tail_inflectional_form"));
                 let onset = features
                     .contains(&Feature::Onset)
                     .then(|| binders.allocate("tail_onset"));
@@ -1970,6 +2065,7 @@ fn lower_sequence_rhs(
                     .iter()
                     .map(|feature| match feature {
                         Feature::ConcordClass => concord_class.as_ref(),
+                        Feature::InflectionalForm => inflectional_form.as_ref(),
                         Feature::Number => number.as_ref(),
                         Feature::Onset => onset.as_ref(),
                         Feature::PossessiveEnding => possessive_ending.as_ref(),
@@ -1979,6 +2075,7 @@ fn lower_sequence_rhs(
                 patterns.push(quote! { BuildValue::#carrier(#binding #(, #feature_patterns)*) });
                 tail = Some(binding);
                 tail_concord_class = concord_class;
+                tail_inflectional_form = inflectional_form;
                 tail_number = number;
                 tail_onset = onset;
                 tail_possessive_ending = possessive_ending;
@@ -2002,6 +2099,8 @@ fn lower_sequence_rhs(
         tail,
         concord_classes,
         tail_concord_class,
+        inflectional_forms,
+        tail_inflectional_form,
         numbers,
         tail_number,
         onsets,
@@ -2014,6 +2113,7 @@ fn lower_sequence_rhs(
 struct ExactSequenceParts {
     values: Vec<TokenStream>,
     concord_classes: Vec<syn::Ident>,
+    inflectional_forms: Vec<syn::Ident>,
     numbers: Vec<syn::Ident>,
     onsets: Vec<syn::Ident>,
     possessive_endings: Vec<syn::Ident>,
@@ -2030,10 +2130,12 @@ fn exact_sequence_parts(
         )));
     }
     if lowered.tail_concord_class.is_some()
+        || lowered.tail_inflectional_form.is_some()
         || lowered.tail_number.is_some()
         || lowered.tail_onset.is_some()
         || lowered.tail_possessive_ending.is_some()
         || (!lowered.concord_classes.is_empty() && lowered.concord_classes.len() != expected)
+        || (!lowered.inflectional_forms.is_empty() && lowered.inflectional_forms.len() != expected)
         || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
@@ -2045,6 +2147,7 @@ fn exact_sequence_parts(
     Ok(ExactSequenceParts {
         values: lowered.values,
         concord_classes: lowered.concord_classes,
+        inflectional_forms: lowered.inflectional_forms,
         numbers: lowered.numbers,
         onsets: lowered.onsets,
         possessive_endings: lowered.possessive_endings,
@@ -2056,6 +2159,8 @@ struct PrefixedSequenceParts {
     tail: syn::Ident,
     concord_classes: Vec<syn::Ident>,
     tail_concord_class: Option<syn::Ident>,
+    inflectional_forms: Vec<syn::Ident>,
+    tail_inflectional_form: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -2080,6 +2185,7 @@ fn prefixed_sequence_parts(
         )));
     }
     if (!lowered.concord_classes.is_empty() && lowered.concord_classes.len() != expected)
+        || (!lowered.inflectional_forms.is_empty() && lowered.inflectional_forms.len() != expected)
         || (!lowered.numbers.is_empty() && lowered.numbers.len() != expected)
         || (!lowered.onsets.is_empty() && lowered.onsets.len() != expected)
         || (!lowered.possessive_endings.is_empty() && lowered.possessive_endings.len() != expected)
@@ -2093,6 +2199,8 @@ fn prefixed_sequence_parts(
         tail,
         concord_classes: lowered.concord_classes,
         tail_concord_class: lowered.tail_concord_class,
+        inflectional_forms: lowered.inflectional_forms,
+        tail_inflectional_form: lowered.tail_inflectional_form,
         numbers: lowered.numbers,
         tail_number: lowered.tail_number,
         onsets: lowered.onsets,
@@ -2113,7 +2221,7 @@ fn homogeneous_sequence_feature(
     let Some(first) = all.first().cloned() else {
         return (None, Vec::new());
     };
-    let mut guards = if feature == Feature::ConcordClass {
+    let mut guards = if matches!(feature, Feature::ConcordClass | Feature::InflectionalForm) {
         all.iter()
             .enumerate()
             .flat_map(|(index, left)| {
@@ -2138,7 +2246,7 @@ fn homogeneous_sequence_feature(
         );
     }
     let value = match feature {
-        Feature::ConcordClass => all.iter().skip(1).fold(
+        Feature::ConcordClass | Feature::InflectionalForm => all.iter().skip(1).fold(
             quote! { *#first },
             |narrowed, value| quote! { (#narrowed).narrow_homogeneous(*#value) },
         ),
@@ -2152,6 +2260,8 @@ type SequenceOwnerFeatures = Vec<(Feature, TokenStream)>;
 struct SequenceFeatureBindings {
     concord_classes: Vec<syn::Ident>,
     tail_concord_class: Option<syn::Ident>,
+    inflectional_forms: Vec<syn::Ident>,
+    tail_inflectional_form: Option<syn::Ident>,
     numbers: Vec<syn::Ident>,
     tail_number: Option<syn::Ident>,
     onsets: Vec<syn::Ident>,
@@ -2186,6 +2296,18 @@ fn sequence_owner_feature_values(
                     None,
                 );
                 (value, guards)
+            }
+            Feature::InflectionalForm => {
+                let mut all = bindings.inflectional_forms.clone();
+                all.extend(bindings.tail_inflectional_form.clone());
+                let value = all.first().map(|first| {
+                    all.iter()
+                        .skip(1)
+                        .fold(quote! { *#first }, |combined, value| {
+                            quote! { (#combined).coordinate_with(*#value) }
+                        })
+                });
+                (value, Vec::new())
             }
             Feature::Onset => (
                 bindings
@@ -2225,6 +2347,8 @@ fn emit_exact_sequence_success(
         &SequenceFeatureBindings {
             concord_classes: parts.concord_classes,
             tail_concord_class: None,
+            inflectional_forms: parts.inflectional_forms,
+            tail_inflectional_form: None,
             numbers: parts.numbers,
             tail_number: None,
             onsets: parts.onsets,
@@ -2267,6 +2391,8 @@ fn emit_prefixed_sequence_success(
         &SequenceFeatureBindings {
             concord_classes: parts.concord_classes,
             tail_concord_class: parts.tail_concord_class,
+            inflectional_forms: parts.inflectional_forms,
+            tail_inflectional_form: parts.tail_inflectional_form,
             numbers: parts.numbers,
             tail_number: parts.tail_number,
             onsets: parts.onsets,
@@ -2682,6 +2808,8 @@ fn lower_category_role(
         .insert(role_name.clone(), quote! { #role_binding.clone() });
 
     let carries_concord_class = validated.category_carries_concord_class(category_name);
+    let carries_inflectional_form =
+        validated.carries_feature(category_name, Feature::InflectionalForm);
     let carries_cardinality = validated.category_carries_cardinality(category_name);
     let carries_number = validated.category_carries_number(category_name);
     let carries_determiner_number =
@@ -2694,6 +2822,8 @@ fn lower_category_role(
     let concord_class = carries_concord_class
         .then(|| role_concord_class_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
+    let inflectional_form = carries_inflectional_form
+        .then(|| role_inflectional_form_pattern(validated, row, &role, lowering));
     let cardinality = carries_cardinality.then(|| {
         let name = lowering
             .binders
@@ -2756,6 +2886,7 @@ fn lower_category_role(
         name
     });
     let concord_class = concord_class.map(|value| quote! { , #value });
+    let inflectional_form = inflectional_form.map(|value| quote! { , #value });
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
@@ -2765,7 +2896,7 @@ fn lower_category_role(
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     lowering
         .patterns
-        .push(quote! { BuildValue::#category(#role_binding #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) });
+        .push(quote! { BuildValue::#category(#role_binding #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) });
     Ok(())
 }
 
@@ -2861,6 +2992,34 @@ fn role_number_pattern(
     } else {
         quote! { _ }
     }
+}
+
+fn role_inflectional_form_pattern(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    role: &syn::Ident,
+    lowering: &mut Lowering,
+) -> TokenStream {
+    let target = FeaturePlace::Role {
+        field: role.clone(),
+        feature: Feature::InflectionalForm,
+    };
+    let actual = lowering
+        .binders
+        .allocate(&format!("{}_inflectional_form", identifier_key(role)));
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::InflectionalForm),
+        LocalFeatureValue::Bound(actual.clone()),
+    );
+    if let Some(crate::feature::FeatureResolution::Known(value)) =
+        validated.feature_resolution(row.construction_id(), &target)
+    {
+        let expected = feature_value(value);
+        lowering
+            .guards
+            .push(quote! { (*#actual).matches_required(#expected) });
+    }
+    quote! { #actual }
 }
 
 fn lower_catalog_identity_role(
@@ -3215,23 +3374,35 @@ fn lower_declaration_verb_role(
         (identifier_key(role), Feature::Onset),
         LocalFeatureValue::Bound(onset.clone()),
     );
-    let feature_field = match plan.feature_axis() {
+    let (feature_field, inflectional_form_field) = match plan.feature_axis() {
         Feature::ConcordClass => {
+            let inflectional_form = lowering
+                .binders
+                .allocate(&format!("{}_inflectional_form", identifier_key(role)));
+            lowering.role_features.insert(
+                (identifier_key(role), Feature::InflectionalForm),
+                LocalFeatureValue::Bound(inflectional_form.clone()),
+            );
             let concord_class =
                 role_concord_class_pattern(validated, row, role, plan.codec_name(), lowering)?;
-            if concord_class.to_string() == "concord_class" {
+            let concord_class = if concord_class.to_string() == "concord_class" {
                 quote! { concord_class, }
             } else {
                 quote! { concord_class: #concord_class, }
-            }
+            };
+            (
+                concord_class,
+                quote! { inflectional_form: #inflectional_form, },
+            )
         }
-        Feature::Participle => quote! {},
+        Feature::Participle => (quote! {}, quote! {}),
         _ => unreachable!("validated declaration verb feature axis is closed"),
     };
     lowering.patterns.push(quote! {
         BuildValue::Leaf(Leaf::#leaf {
             verb: #value,
             #feature_field
+            #inflectional_form_field
             onset: #onset,
         })
     });
@@ -3801,6 +3972,8 @@ fn emit_success(
     let category_value = quote! { #category::#variant(#element_value) };
     let following_onset = &lowering.output_following_onset;
     let carries_concord_class = validated.category_carries_concord_class(row.category());
+    let carries_inflectional_form =
+        validated.carries_feature(row.category(), Feature::InflectionalForm);
     let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
@@ -3813,6 +3986,10 @@ fn emit_success(
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
     let concord_class = carries_concord_class
         .then(|| construction_concord_class(validated, row, lowering, concord_class_override))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let inflectional_form = carries_inflectional_form
+        .then(|| construction_inflectional_form(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
     let cardinality = carries_cardinality
@@ -3843,7 +4020,7 @@ fn emit_success(
         .then(|| construction_possessive_ending(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
-    let wrapped = quote! { BuildValue::#category(#category_value #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) };
+    let wrapped = quote! { BuildValue::#category(#category_value #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -3863,6 +4040,8 @@ fn emit_fallible_element_success(
     let variant = ident(row.category_variant());
     let following_onset = &lowering.output_following_onset;
     let carries_concord_class = validated.category_carries_concord_class(row.category());
+    let carries_inflectional_form =
+        validated.carries_feature(row.category(), Feature::InflectionalForm);
     let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
@@ -3875,6 +4054,9 @@ fn emit_fallible_element_success(
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
     let concord_class = carries_concord_class
         .then(|| construction_concord_class(validated, row, lowering, concord_class_override))
+        .transpose()?;
+    let inflectional_form = carries_inflectional_form
+        .then(|| construction_inflectional_form(validated, row, lowering))
         .transpose()?;
     let cardinality = carries_cardinality
         .then(|| construction_cardinality(validated, row, lowering))
@@ -3915,6 +4097,7 @@ fn emit_fallible_element_success(
         let owner = syn::LitStr::new(row.element_type(), row.origin_span());
         let role = syn::LitStr::new(&role, row.origin_span());
         let cardinality = cardinality.map(|value| quote! { , #value });
+        let inflectional_form = inflectional_form.map(|value| quote! { , #value });
         let number = number.map(|value| quote! { , #value });
         let determiner_number = determiner_number.map(|value| quote! { , #value });
         let fused_head_license = fused_head_license.map(|value| quote! { , #value });
@@ -3929,6 +4112,7 @@ fn emit_fallible_element_success(
                         Ok(Some(BuildValue::#category(
                             value,
                             #concord_class
+                            #inflectional_form
                             #cardinality
                             #number
                             #determiner_number
@@ -3953,6 +4137,7 @@ fn emit_fallible_element_success(
         });
     }
     let concord_class = concord_class.map(|value| quote! { , #value });
+    let inflectional_form = inflectional_form.map(|value| quote! { , #value });
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
@@ -3962,7 +4147,7 @@ fn emit_fallible_element_success(
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, #following_onset) })
             .map(Some)
     })
 }
@@ -4092,6 +4277,21 @@ fn construction_concord_class(
         row,
         lowering,
         &FeaturePlace::Construction(Feature::ConcordClass),
+        &mut HashSet::new(),
+    )?;
+    Ok(resolved_feature_value_tokens(&output))
+}
+
+fn construction_inflectional_form(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+) -> syn::Result<TokenStream> {
+    let output = resolve_feature_place(
+        validated,
+        row,
+        lowering,
+        &FeaturePlace::Construction(Feature::InflectionalForm),
         &mut HashSet::new(),
     )?;
     Ok(resolved_feature_value_tokens(&output))
@@ -4389,6 +4589,19 @@ fn resolve_feature_place(
                     feature: Feature::Participle,
                     ..
                 } => ResolvedFeatureValue::Known(FeatureValue::Participle),
+                FeaturePlace::Construction(Feature::InflectionalForm)
+                | FeaturePlace::Role {
+                    feature: Feature::InflectionalForm,
+                    ..
+                } => {
+                    let ty = ident(terminal_for_role(row, role)?);
+                    let arms = arms.iter().map(|(variant, value)| {
+                        let variant = variant.value();
+                        let value = feature_value(*value);
+                        quote! { #ty::#variant => #value }
+                    });
+                    ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
+                }
             }
         }
     };
@@ -4418,16 +4631,18 @@ fn compare_feature_values(
     right: &ResolvedFeatureValue,
 ) -> TokenStream {
     if let (ResolvedFeatureValue::Bound(left), ResolvedFeatureValue::Bound(right)) = (left, right) {
-        match feature {
-            Feature::ConcordClass => quote! { (*#left).compatible_with(*#right) },
-            _ => quote! { #left == #right },
+        if feature == Feature::ConcordClass {
+            quote! { (*#left).compatible_with(*#right) }
+        } else {
+            quote! { #left == #right }
         }
     } else {
         let left = resolved_feature_value_tokens(left);
         let right = resolved_feature_value_tokens(right);
-        match feature {
-            Feature::ConcordClass => quote! { (#left).compatible_with(#right) },
-            _ => quote! { #left == #right },
+        if feature == Feature::ConcordClass {
+            quote! { (#left).compatible_with(#right) }
+        } else {
+            quote! { #left == #right }
         }
     }
 }
@@ -4522,6 +4737,11 @@ fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
         FeatureValue::ConcordOther => quote! { ConcordClass::Other },
         FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
+        FeatureValue::Plain => quote! { InflectionalForm::Plain },
+        FeatureValue::ThirdPersonSingularPresent => {
+            quote! { InflectionalForm::ThirdPersonSingularPresent }
+        }
+        FeatureValue::Preterite => quote! { InflectionalForm::Preterite },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
         FeatureValue::BareDurationLicensed => {

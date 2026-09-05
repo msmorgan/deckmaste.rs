@@ -2160,6 +2160,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the terminal ABI assertion pins one complete generated inventory"
+    )]
     fn generated_terminal_abi_is_derived_from_the_semantic_inventory() {
         let expansion = representative_expansion();
 
@@ -2170,6 +2174,16 @@ mod tests {
                 "ThirdPersonSingular",
                 "OtherOrThirdPersonSingular",
                 "PlainOrPreterite"
+            ]
+        );
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "InflectionalForm")),
+            [
+                "Plain",
+                "ThirdPersonSingularPresent",
+                "Preterite",
+                "PlainOrPreterite",
+                "NonUniform"
             ]
         );
         assert_eq!(
@@ -2785,7 +2799,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 133);
+        assert_eq!(keys.len(), 135);
         assert_representative_concord_class_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,

@@ -1508,6 +1508,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
+        | crate::Feature::InflectionalForm
         | crate::Feature::BareDurationLicense
         | crate::Feature::BareLocativeComplement
         | crate::Feature::BareLocativeLicense

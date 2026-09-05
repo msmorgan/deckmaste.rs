@@ -52,10 +52,7 @@ mod finite_copula_inflectional_forms {
             let permitted = match derived {
                 ConcordClass::Other => applicability.other,
                 ConcordClass::ThirdPersonSingular => applicability.third_person_singular,
-                ConcordClass::OtherOrThirdPersonSingular => {
-                    applicability.other && applicability.third_person_singular
-                }
-                ConcordClass::PlainOrPreterite => {
+                ConcordClass::OtherOrThirdPersonSingular | ConcordClass::PlainOrPreterite => {
                     applicability.other && applicability.third_person_singular
                 }
             };

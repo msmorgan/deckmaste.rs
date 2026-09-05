@@ -1838,6 +1838,10 @@ pub mod declaration_verb_fixture {
         }
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the generated declaration-verb boundary is exercised end to end"
+    )]
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
@@ -1862,6 +1866,7 @@ pub mod declaration_verb_fixture {
             Leaf::TransitiveVerb {
                 verb: TransitiveVerb::Lexeme(CoreVerb::Act),
                 concord_class: ConcordClass::Other,
+                inflectional_form: InflectionalForm::Plain,
                 onset: deckmaste_construction_core::macro_def::Onset::Vowel,
             }
         ));
@@ -1871,6 +1876,7 @@ pub mod declaration_verb_fixture {
                 Leaf::TransitiveVerb {
                     verb: TransitiveVerb::Declaration(declaration),
                     concord_class: ConcordClass::Other,
+                    inflectional_form: InflectionalForm::Plain,
                     onset: deckmaste_construction_core::macro_def::Onset::Vowel,
                 } => declaration_id(declaration.reference()).name(),
                 other => panic!("unexpected declaration verb candidate: {other:?}"),
@@ -2264,6 +2270,7 @@ pub mod declaration_verb_fixture {
         let Leaf::MeasureComplementVerb {
             verb: identity,
             concord_class: ConcordClass::Other,
+            inflectional_form: InflectionalForm::Plain,
             onset: deckmaste_construction_core::macro_def::Onset::Consonant,
         } = &verb.value
         else {
@@ -2394,6 +2401,7 @@ pub mod declaration_verb_fixture {
                     BuildValue::Leaf(Leaf::RoleVerb {
                         verb: head.clone(),
                         concord_class: ConcordClass::Other,
+                        inflectional_form: InflectionalForm::Plain,
                         onset: Onset::Consonant,
                     }),
                     BuildValue::Nominal(object, FeatureConstraint::Any),

@@ -892,7 +892,9 @@ fn emit_sequence_feature_check(
 ) -> syn::Result<TokenStream> {
     if matches!(
         feature,
-        crate::feature::Feature::Onset | crate::feature::Feature::PossessiveEnding
+        crate::feature::Feature::InflectionalForm
+            | crate::feature::Feature::Onset
+            | crate::feature::Feature::PossessiveEnding
     ) {
         return Ok(TokenStream::new());
     }
@@ -1299,6 +1301,11 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::ThirdPersonSingular => {
             quote! { ConcordClass::ThirdPersonSingular }
         }
+        crate::feature::FeatureValue::Plain => quote! { InflectionalForm::Plain },
+        crate::feature::FeatureValue::ThirdPersonSingularPresent => {
+            quote! { InflectionalForm::ThirdPersonSingularPresent }
+        }
+        crate::feature::FeatureValue::Preterite => quote! { InflectionalForm::Preterite },
         crate::feature::FeatureValue::QualifiedOnly => {
             quote! { BareLocativeLicense::QualifiedOnly }
         }
@@ -2534,6 +2541,7 @@ mod tests {
                 "ObjectStem",
                 "ActionStem",
                 "ConcordClass",
+                "InflectionalForm",
                 "Cardinality",
                 "BareLocativeComplement",
                 "BareLocativeLicense",

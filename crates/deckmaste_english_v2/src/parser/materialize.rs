@@ -3866,6 +3866,7 @@ mod tests {
         Leaf::IntransitiveVerb {
             verb: predicate.head,
             concord_class: ConcordClass::Other,
+            inflectional_form: crate::constructions::InflectionalForm::Plain,
             onset,
         }
     }

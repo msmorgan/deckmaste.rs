@@ -705,7 +705,7 @@ fn validate_sequence_feature_roles(
                 }
                 let category = match (feature, item) {
                     (
-                        ParsedFeature::ConcordClass,
+                        ParsedFeature::ConcordClass | ParsedFeature::InflectionalForm,
                         ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
                     )
                     | (
@@ -715,7 +715,7 @@ fn validate_sequence_feature_roles(
                         ValueKindPlan::Category(category),
                     ) => category,
                     (
-                        ParsedFeature::ConcordClass,
+                        ParsedFeature::ConcordClass | ParsedFeature::InflectionalForm,
                         ValueKindPlan::Lex(_)
                         | ValueKindPlan::Identity(_)
                         | ValueKindPlan::Product(_),
@@ -784,16 +784,18 @@ fn sequence_feature_has_competing_equations(
 fn sequence_feature_order(feature: ParsedFeature) -> usize {
     match feature {
         ParsedFeature::ConcordClass => 0,
-        ParsedFeature::Number => 1,
-        ParsedFeature::Onset => 2,
-        ParsedFeature::PossessiveEnding => 3,
-        _ => 4,
+        ParsedFeature::InflectionalForm => 1,
+        ParsedFeature::Number => 2,
+        ParsedFeature::Onset => 3,
+        ParsedFeature::PossessiveEnding => 4,
+        _ => 5,
     }
 }
 
 fn supported_sequence_feature(feature: ParsedFeature) -> Option<Feature> {
     match feature {
         ParsedFeature::ConcordClass => Some(Feature::ConcordClass),
+        ParsedFeature::InflectionalForm => Some(Feature::InflectionalForm),
         ParsedFeature::Number => Some(Feature::Number),
         ParsedFeature::Onset => Some(Feature::Onset),
         ParsedFeature::PossessiveEnding => Some(Feature::PossessiveEnding),
@@ -5520,6 +5522,9 @@ fn generated_name_inventory(
                         ParsedFeature::HomographLicense => {
                             ("homograph_license", "HomographLicense")
                         }
+                        ParsedFeature::InflectionalForm => {
+                            ("inflectional_form", "InflectionalForm")
+                        }
                         ParsedFeature::MannerAnaphorClass => {
                             ("manner_anaphor_class", "MannerAnaphorClass")
                         }
@@ -6151,6 +6156,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
         Feature::HomographLicense => ParsedFeature::HomographLicense,
+        Feature::InflectionalForm => ParsedFeature::InflectionalForm,
         Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
@@ -6215,6 +6221,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
         Feature::HomographLicense => ParsedFeature::HomographLicense,
+        Feature::InflectionalForm => ParsedFeature::InflectionalForm,
         Feature::MannerAnaphorClass => ParsedFeature::MannerAnaphorClass,
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
@@ -6503,6 +6510,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
                 | ParsedFeature::HomographLicense
+                | ParsedFeature::InflectionalForm
                 | ParsedFeature::MannerAnaphorClass
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
@@ -7466,6 +7474,7 @@ fn check_feature_role(
             if matches!(
                 feature,
                 ParsedFeature::ConcordClass
+                    | ParsedFeature::InflectionalForm
                     | ParsedFeature::Number
                     | ParsedFeature::Onset
                     | ParsedFeature::PossessiveEnding
@@ -10362,6 +10371,16 @@ fn declared_terminal_feature_providers(
         let Declaration::Codec(codec) = declaration else {
             continue;
         };
+        if matches!(
+            &codec.generated,
+            Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
+                if recipe
+                    .feature_slots
+                    .first()
+                    .is_some_and(|slot| slot.value == "ConcordClass")
+        ) {
+            providers.insert((identifier_key(&codec.name), ParsedFeature::InflectionalForm));
+        }
         let Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(recipe)) = &codec.generated
         else {
             continue;
@@ -10419,6 +10438,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Quantification,
             ParsedFeature::FusedHeadLicense,
             ParsedFeature::Focus,
+            ParsedFeature::InflectionalForm,
             ParsedFeature::PrepositionComplementKind,
             ParsedFeature::LocativeTemporalLicense,
             ParsedFeature::NominalForm,
@@ -10523,6 +10543,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 ParsedFeature::Quantification,
                 ParsedFeature::FusedHeadLicense,
                 ParsedFeature::Focus,
+                ParsedFeature::InflectionalForm,
                 ParsedFeature::LocativeTemporalLicense,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
@@ -10564,6 +10585,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
         ParsedFeature::HomographLicense => "homograph_license",
+        ParsedFeature::InflectionalForm => "inflectional_form",
         ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
@@ -10990,6 +11012,7 @@ fn validate_lowerable_feature_compositions(
             | (
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::ConcordClass
+                    | ParsedFeature::InflectionalForm
                     | ParsedFeature::Onset
                     | ParsedFeature::PossessiveEnding,
                 ),
@@ -11051,6 +11074,19 @@ fn validate_lowerable_feature_compositions(
             ) => {
                 identifier_key(field) == "verb" || role_provides_concord_class(raw, &fields, field)
             }
+            (
+                ParsedFeaturePlace::Role {
+                    field,
+                    feature: ParsedFeature::InflectionalForm,
+                },
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => role_feature_is_constructible(
+                raw,
+                construction,
+                &fields,
+                field,
+                ParsedFeature::InflectionalForm,
+            ),
             (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
                 same_identifier(field, role)
                     && matches!(fields.get(&identifier_key(field)), Some(FieldKind::Lex(_)))
@@ -11343,6 +11379,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
         ParsedFeature::HomographLicense => "homograph_license",
+        ParsedFeature::InflectionalForm => "inflectional_form",
         ParsedFeature::MannerAnaphorClass => "manner_anaphor_class",
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
@@ -18131,7 +18168,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 156);
+        assert_eq!(expansion.plan().items().len(), 158);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18496,7 +18533,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 156);
+        assert_eq!(expansion.plan().items().len(), 158);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18638,7 +18675,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 156);
+        assert_eq!(emission.items().len(), 158);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

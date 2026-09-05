@@ -2845,9 +2845,11 @@ mod tests {
                     )
                     .expect("the canonical environment declares intransitive Connive"),
                     concord_class: ConcordClass::ThirdPersonSingular,
+                    inflectional_form:
+                        crate::constructions::InflectionalForm::ThirdPersonSingularPresent,
                     onset: Onset::Consonant,
                 },
-                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, concord_class: ThirdPersonSingular, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, concord_class: ThirdPersonSingular, inflectional_form: ThirdPersonSingularPresent, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),

@@ -39,6 +39,7 @@ feature_inventory! {
     Compoundability => "compoundability",
     Countability => "countability",
     HomographLicense => "homograph_license",
+    InflectionalForm => "inflectional_form",
     MannerAnaphorClass => "manner_anaphor_class",
     ModifierLicense => "modifier_license",
     DeterminerNumber => "determiner_number",
@@ -84,6 +85,9 @@ pub(crate) enum FeatureValue {
     Mass,
     HomographUnlicensed,
     HomographLicensed,
+    Plain,
+    ThirdPersonSingularPresent,
+    Preterite,
     OtherNoun,
     MannerAnaphor,
     Unrestricted,
@@ -193,6 +197,11 @@ impl Feature {
             Self::HomographLicense => &[
                 FeatureValue::HomographUnlicensed,
                 FeatureValue::HomographLicensed,
+            ],
+            Self::InflectionalForm => &[
+                FeatureValue::Plain,
+                FeatureValue::ThirdPersonSingularPresent,
+                FeatureValue::Preterite,
             ],
             Self::MannerAnaphorClass => &[FeatureValue::OtherNoun, FeatureValue::MannerAnaphor],
             Self::ModifierLicense => &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer],
@@ -311,6 +320,9 @@ impl FeatureValue {
             Self::Mass => "Mass",
             Self::HomographUnlicensed | Self::Unlicensed => "Unlicensed",
             Self::HomographLicensed => "Licensed",
+            Self::Plain => "Plain",
+            Self::ThirdPersonSingularPresent => "ThirdPersonSingularPresent",
+            Self::Preterite => "Preterite",
             Self::OtherNoun => "OtherNoun",
             Self::MannerAnaphor => "MannerAnaphor",
             Self::Unrestricted => "Unrestricted",
@@ -521,6 +533,9 @@ impl FeatureValue {
             Self::Mass => "Mass",
             Self::HomographUnlicensed | Self::Unlicensed => "Unlicensed",
             Self::HomographLicensed => "Licensed",
+            Self::Plain => "Plain",
+            Self::ThirdPersonSingularPresent => "ThirdPersonSingularPresent",
+            Self::Preterite => "Preterite",
             Self::OtherNoun => "OtherNoun",
             Self::MannerAnaphor => "MannerAnaphor",
             Self::Unrestricted => "Unrestricted",
@@ -627,6 +642,11 @@ pub(crate) fn lower_constant(
         (model::Feature::Countability, "Mass") => FeatureValue::Mass,
         (model::Feature::HomographLicense, "Unlicensed") => FeatureValue::HomographUnlicensed,
         (model::Feature::HomographLicense, "Licensed") => FeatureValue::HomographLicensed,
+        (model::Feature::InflectionalForm, "Plain") => FeatureValue::Plain,
+        (model::Feature::InflectionalForm, "ThirdPersonSingularPresent") => {
+            FeatureValue::ThirdPersonSingularPresent
+        }
+        (model::Feature::InflectionalForm, "Preterite") => FeatureValue::Preterite,
         (model::Feature::MannerAnaphorClass, "OtherNoun") => FeatureValue::OtherNoun,
         (model::Feature::MannerAnaphorClass, "MannerAnaphor") => FeatureValue::MannerAnaphor,
         (model::Feature::ModifierLicense, "Unrestricted") => FeatureValue::Unrestricted,
@@ -760,6 +780,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a homograph-license value"),
             ));
         }
+        (model::Feature::InflectionalForm, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not an Inflectional Form value"),
+            ));
+        }
         (model::Feature::MannerAnaphorClass, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -877,6 +903,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Compoundability => Self::Compoundability,
             model::Feature::Countability => Self::Countability,
             model::Feature::HomographLicense => Self::HomographLicense,
+            model::Feature::InflectionalForm => Self::InflectionalForm,
             model::Feature::MannerAnaphorClass => Self::MannerAnaphorClass,
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,

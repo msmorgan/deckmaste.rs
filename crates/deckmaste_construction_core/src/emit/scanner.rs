@@ -598,6 +598,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::PrepositionAttachment
             | crate::feature::Feature::Onset
             | crate::feature::Feature::Participle
+            | crate::feature::Feature::InflectionalForm
             | crate::feature::Feature::PossessiveEnding
             | crate::feature::Feature::Properness
             | crate::feature::Feature::Relationality => {
@@ -819,16 +820,21 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             };
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
                             let onset = crate::emit::onset(row.onset());
-                            quote! { (#closed::#member, #concord_class, #onset, #surface) }
+                            let inflectional_form = match row.feature() {
+                                crate::macro_def::SurfaceFeature::PLAIN => quote! { InflectionalForm::Plain },
+                                crate::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT => quote! { InflectionalForm::ThirdPersonSingularPresent },
+                                _ => unreachable!("validated ConcordClass declaration verb has ConcordClass rows"),
+                            };
+                            quote! { (#closed::#member, #concord_class, #inflectional_form, #onset, #surface) }
                         });
                         quote! {
-                            for (lexeme, concord_class, onset, surface) in [#(#candidates),*] {
+                            for (lexeme, concord_class, inflectional_form, onset, surface) in [#(#candidates),*] {
                                 if (matches!(wanted, FeatureConstraint::Any)
                                     || matches!(wanted, FeatureConstraint::Exact(expected) if expected == concord_class))
                                     && let Some(end) = input.word_end(surface, terminal.right_boundary)
                                 {
                                     matches.push(LexicalMatch { end, value: Leaf::#verb {
-                                        verb: #verb::Lexeme(lexeme), concord_class, onset,
+                                        verb: #verb::Lexeme(lexeme), concord_class, inflectional_form, onset,
                                     }, owner: None });
                                 }
                             }
@@ -871,6 +877,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 verb: #verb::Lexeme(_),
                                 concord_class: candidate_concord_class,
                                 onset: candidate_onset,
+                                ..
                             } if candidate_concord_class.compatible_with(concord_class)
                                 && *candidate_onset == onset
                                 && candidate.end == end
@@ -955,6 +962,17 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                         (false, false) => continue,
                                     },
                                 };
+                                let inflectional_form = match (
+                                    inflectional_forms.contains(::deckmaste_construction_core::macro_def::InflectionalForm::Plain),
+                                    inflectional_forms.contains(::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent),
+                                    inflectional_forms.contains(::deckmaste_construction_core::macro_def::InflectionalForm::Preterite),
+                                ) {
+                                    (true, false, true) => InflectionalForm::PlainOrPreterite,
+                                    (true, false, false) => InflectionalForm::Plain,
+                                    (false, true, false) => InflectionalForm::ThirdPersonSingularPresent,
+                                    (false, false, true) => InflectionalForm::Preterite,
+                                    _ => continue,
+                                };
                                 #pair_unpack
                                 #remove_homographic_closed
                                 let Some(declaration) = #declaration::from_inflectional_forms(
@@ -970,6 +988,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                     value: Leaf::#verb {
                                         verb: #open_value,
                                         concord_class,
+                                        inflectional_form,
                                         onset,
                                     },
                                     owner: None,

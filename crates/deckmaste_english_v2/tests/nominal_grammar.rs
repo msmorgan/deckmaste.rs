@@ -692,17 +692,56 @@ fn assert_ordinary_parse_failure(error: &ParseError) {
 }
 
 #[test]
-fn general_event_relative_remains_an_exact_ordinary_parse_failure() {
+fn event_subject_relative_with_preterite_and_duration_selects_uniquely() {
     let parser = parser();
     let context = context("Context Card");
     let text = "Destroy target creature that entered this turn.";
     let analysis = parser.analyze(text, &context);
 
-    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::ParseFailure);
-    let error = analysis
-        .into_parse_result()
-        .expect_err("general event relatives remain a deferred boundary");
-    assert_ordinary_parse_failure(&error);
+    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
+    let decision = analysis
+        .decision()
+        .expect("the selected event relative records its decision");
+    assert_eq!(decision.candidates().len(), 1);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.selected(), Some(0));
+    assert_eq!(decision.survivors(), [0]);
+    assert!(decision.comparisons().is_empty());
+    assert!(decision.exception_uses().is_empty());
+    assert_eq!(
+        decision.candidates()[0].construction_path(),
+        [
+            "AbilityPlain",
+            "AbilityBodySentences",
+            "SentenceImperative",
+            "PredicateAdjunctPredicatePredicateAdjunctPredicate",
+            "TransitiveLexicalVerbPhraseTransitivePredicate",
+            "ObjectObjectNominal",
+            "NounPhraseQualifiedNounPhrase",
+            "PostmodifiedReferenceSubjectRelativeQualifiedReference",
+            "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
+            "UnqualifiedReferenceDeterminedNominal",
+            "DeterminativeTargetingMarkerDeterminative",
+            "NominalBareSingularNominal",
+            "HeadNounSingularHead",
+            "FiniteSubjectGapRelativeClauseFiniteSubjectGapRelativeClause",
+            "PredicateAdjunctDurationPredicateAdjunct",
+            "FixedDurationPhraseFixedDurationPhrase",
+            "NounPhraseQualifiedNounPhrase",
+            "PostmodifiedReferenceUnqualifiedPostmodifiedReference",
+            "UnqualifiedReferenceDeterminedNominal",
+            "DeterminativeSingularSimpleDeterminative",
+            "NominalBareSingularNominal",
+            "HeadNounSingularHead",
+        ]
+    );
+    assert_eq!(
+        analysis
+            .selected()
+            .expect("the event relative has one selected AST")
+            .render(&context, parser.environment()),
+        text,
+    );
 }
 
 #[test]

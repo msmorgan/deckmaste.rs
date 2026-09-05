@@ -100,10 +100,9 @@ Standard constraints apply.
 
 ## Landing record (2026-09-05)
 
-Work started at 2026-09-05 06:25:44 PDT. Work stopped at
-2026-09-05 10:28:36 PDT after a refreshed-tree negative oracle became newly
-covered. Full-corpus measurement and lock blessing were not run after the
-STOP.
+Work started at 2026-09-05 06:25:44 PDT. The initial STOP at
+2026-09-05 10:28:36 PDT was ruled by the coordinator; work resumed at
+2026-09-05 10:31:34 PDT and completed at 2026-09-05 12:31:13 PDT.
 
 ### Coordinator rulings dated 2026-09-05
 
@@ -113,7 +112,13 @@ STOP.
 
 (3) `Deal::Preterite` displacing the past-participle analyses of Aggravate and Ballista Watcher is a WRONG analysis, so withholding it was correct; keep it withheld, disclose the two identities with both analyses, and route "preterite/past-participle homograph host discrimination (`dealt`)" to fog.md with those identities as the frontier residue.
 
-### PROVE
+(4) Your negative-oracle STOP is ruled (coordinator, 2026-09-05; record verbatim in the landing record): `Destroy target creature that entered this turn.` is grammatical Oracle English and attested — AtomicCards prints `that entered this turn` on Cradle to Grave, Cathedral Acolyte, Alena Kessig Trapper, Deathleaper, Ocelot Pride and more — and the analysis you report (`SubjectRelativeQualifiedReference → FiniteSubjectGapRelativeClause(Enter::Preterite) → DurationPredicateAdjunct(this turn)`) is the correct reading. The test `general_event_relative_remains_an_exact_ordinary_parse_failure` (nominal_grammar.rs) is a scope fence from before relative clauses reached event verbs, not a grammaticality oracle; under the source-of-truth rule ("is this grammatical English? if so it stays") and the assurance rule, RE-SPELL it — same sentence, now a positive witness asserting a unique selection with that path (rename the fn to say what it now proves; keep it in place). Count it as re-spelled: 1. This is the newly covered identity class the ticket exists for; list every corpus identity it covers with the selected analysis. Nothing else changes: rulings (1)–(3) from the previous delta stand.
+
+### Superseded pre-ruling evidence
+
+The following three subsections preserve the measurements and STOP provenance
+that led to rulings (1)--(4). They are historical evidence, not the final
+landing result.
 
 - The implementation adds an explicitly authored `preterite` surface to the
   declaration grammar, indexes core and plugin Verb Lexemes by that
@@ -160,7 +165,7 @@ STOP.
   reduced-passive `dealt damage this way` analyses; `Deal::Preterite` remains
   withheld.
 
-### DISCLOSE
+#### Superseded disclosure
 
 All 116 subset gains are named below by their selected analysis.
 Each group is the declared `Verb Lexeme::Preterite` realized in the existing
@@ -241,7 +246,7 @@ The withheld rivalry identities and both analyses are:
   `A creature`, with `MannerReferenceThisWay`; withheld wrong alternative:
   finite `Deal::Preterite` as the clause Predicate.
 
-### REPORT
+#### Superseded report
 
 - Construction declarations: 394; this change adds or removes 0. Licensing
   checkers remain 21 permitted and 0 forbidden. The licensed
@@ -292,7 +297,8 @@ The withheld rivalry identities and both analyses are:
   The gate is red and is not reported as complete. Compiler and construction
   suites passed, but `deckmaste_english_v2 --test nominal_grammar` failed its
   tracked negative oracle.
-- STOP — newly covered negative oracle and recorded-boundary contradiction:
+- RESOLVED STOP — the coordinator's ruling (4) resolves the formerly reported
+  negative-oracle and recorded-boundary contradiction:
   `general_event_relative_remains_an_exact_ordinary_parse_failure` expects
   `Destroy target creature that entered this turn.` to remain an ordinary
   parse failure, but this ticket's `Enter::Preterite` selects uniquely as
@@ -301,7 +307,248 @@ The withheld rivalry identities and both analyses are:
   FiniteSubjectGapRelativeClause(Enter::Preterite) ->
   DurationPredicateAdjunct(this turn)`. The ticket simultaneously pins every
   existing finite host, explicitly including `finite_subject_gap_relative_clause`,
-  to reach the preterite. Preserving the recorded negative requires authority
-  to exempt or change that relative-clause/duration path; accepting the new
-  analysis requires authority to retire the negative. Neither is authorized
-  here. Decision wanted: rule which recorded boundary governs.
+  to reach the preterite. Ruling (4) authorizes the grammatical analysis and
+  the assurance was re-spelled in place.
+
+### PROVE
+
+- Declared Verb Lexemes now carry their authored preterite surface as lexical
+  data. The existing finite Predicate terminals realize that Inflectional Form
+  through their Finiteness and Concord Class machinery. Rendering and lexical
+  provenance consume the selected form. There is one general path: no
+  construction, word guard, `require`, `checked by`, exception, specificity
+  weight, or dominance edge was added.
+- Plain/preterite homographs compile to one normalized scanner row with the
+  sealed Inflectional Form value `{Plain, Preterite}` and the union of the two
+  Concord Class applicabilities. A constraining host narrows the value; an
+  unconstrained host retains one underspecified analysis. Mixed-form finite
+  coordination carries the sealed internal `NonUniform` value so a modal or
+  bare-form host cannot accept it accidentally.
+- The affected subset was built with the ticket expression
+  `\b\w+ed\b|died|left|lost|put|cast|dealt|drew|spent|made|won`, unioned with
+  the four standing witnesses, the parent rivalry identities, and all
+  `cast`/`put`/`cost` units. It has 20,052 cards and 18,715 corpus units.
+  Refreshed base -> feature is 9,667 -> 9,779 selected and covered, a ticket
+  delta of +112/-0; parse failures are 9,048 -> 8,936; unresolved ties and
+  internal failures remain 0. The raw fork-point diff is +197/-0 because the
+  refresh supplied 85 of those selections. Every surviving construction path
+  is unchanged.
+- The ruled two-hit homograph experiment produced 3,367 unresolved subset
+  units; the single set-valued hit produces 0. Every previously selected
+  `cast`/`put`/`cost` unit remains selected with the same surface construction
+  path. `A player cast a spell.` has one selected finite-clause candidate and
+  the third-person-singular host narrows it uniquely to Preterite.
+- The four standing witnesses select: Admiral's Order; the two general finite
+  probes for `attacked` and `died`; and Barad-dûr. The two impossible
+  relative-clause witnesses are routed under ruling (1). Aggravate and
+  Ballista Watcher // Ballista Wielder retain their past-participle readings
+  under ruling (3).
+- `event_subject_relative_with_preterite_and_duration_selects_uniquely`
+  re-spells the former scope fence in place and proves
+  `SubjectRelativeQualifiedReference -> FiniteSubjectGapRelativeClause`
+  with `Enter::Preterite` and `DurationPredicateAdjunct(this turn)`.
+- Focused and closure artifacts include:
+  `test result: ok. 44 passed; 0 failed; 0 ignored`,
+  `test result: ok. 421 passed; 0 failed; 0 ignored`,
+  `test result: ok. 156 passed; 0 failed; 0 ignored`, and
+  `test result: ok. 468 passed; 0 failed; 1 ignored`.
+- Final affected-subset coverage selected 9,779 of 18,715 with 0 ties and 0
+  internal failures. Ambiguity reported 7,221 unique and 2,558
+  specificity-selected units. Round trip reported `parse accepted 9779`,
+  `clean 9779`, `mismatched 0`.
+- On the full corpus, report-mode `coverage --check` printed 32,641 total,
+  20,202 selected and covered, 12,439 parse failures, 0 unresolved ties, 0
+  internal failures, 0 ownership failures, and lock delta +200/-0. The
+  subsequent report-mode `--bless` wrote the lock to exactly that selected
+  set. No negative oracle or wrong analysis is newly covered.
+- Full ambiguity reported 20,202 selected: 16,698 unique and 3,504
+  specificity-selected, with 0 ties and 0 internal failures. Full round trip
+  reported `parse accepted 20202`, `clean 20202`, `mismatched 0`.
+
+### DISCLOSE
+
+The coverage-lock delta contains 200 newly covered corpus identities and no
+loss. Each identity is named below under its selected Verb Lexeme form and
+ambiguity outcome. For byte-identical `cast`, the scanner analysis is the
+single `{Plain, Preterite}` value; the finite host narrows it when its Concord
+Class requires Preterite.
+
+- `Attack::Preterite`, specificity-selected (52): Admiral's Order; Agent Frank
+  Horrigan; Bellowing Saddlebrute; Bloodsoaked Champion; Brazen Cannonade;
+  Chart a Course; Cruel Administrator; Deadeye Rig-Hauler; Deadeye Tormentor;
+  Fearless Swashbuckler; Fire Nation Engineer; Fire Nation Raider; Firecannon
+  Blast; Goblin Boarders; Gorehorn Raider; Heartless Pillage; Instill Furor;
+  Insubordination; Invasion of Gobakhan // Lightshield Array; Lurker;
+  Marauding Looter; Mardu Heart-Piercer; Mardu Hordechief; Mardu Skullhunter;
+  Mardu Warshrieker; Navigator's Ruin; Nightsquad Commando; Perforating
+  Artist; Raiders' Wake; Repeating Barrage; Rigging Runner; Rose, Cutthroat
+  Raider; Rowdy Research; Ruin Raider; Searslicer Goblin; Shipwreck Looter;
+  Siren Reaver; Skyship Buccaneer; Storm Fleet Aerialist; Storm Fleet
+  Arsonist; Storm Fleet Pyromancer; Storm Fleet Spy; Strongbox Raider;
+  Swaggering Corsair; Taigam, Ojutai Master; The Mary Janes; Timely Hordemate;
+  Vizier of Deferment; War-Name Aspirant; Warrior's Resolve; Wingmate Roc;
+  Witchstalker Frenzy.
+- `Attack::Preterite`, unique-selected (4): Custodi Soulcaller; Jabari's
+  Influence; Search Party Captain; War Historian.
+- `Block::Preterite`, specificity-selected (6): Gideon's Triumph; Hezrou //
+  Demonic Stench; Inferno Hellion; Joven's Ferrets; Kjeldoran Home Guard;
+  Sizzling Barrage.
+- `Block::Preterite`, unique-selected (1): Cathedral Membrane.
+- `Cast::{Plain, Preterite}`, specificity-selected (2): Mindbreak Trap;
+  Sandstalker Moloch.
+- `Cast::{Plain, Preterite}`, unique-selected (2): Ertai's Scorn; Lure of
+  Prey.
+- `Control::Preterite`, specificity-selected (4): Dawn Evangel; Pegasus
+  Guardian // Rescue the Foal; Power Surge; Vrock.
+- `Control::Preterite`, unique-selected (9): Azog, Moria's Ruin; Boomerang
+  Basics; Break the Spell; Demonic Junker; Geistwave; Gleeful Demolition;
+  Hotshot Investigators; Kellan, Inquisitive Prodigy // Tail the Suspect;
+  Summoning Trap.
+- `Die::Preterite`, specificity-selected (32): Bulette; Cackling Prowler;
+  Compy Swarm; Death-Priest of Myrkul; Deathreap Ritual; Emeritus of Woe //
+  Demonic Tutor; Emissary of the Sleepless; Funnel-Web Recluse; Grim Reaper's
+  Sprint; Hollowhenge Scavenger; Kuon, Ogre Ascendant // Kuon's Essence;
+  Lagomos, Hand of Hatred; Liliana's Devotee; Liliana's Scrounger; Malicious
+  Affliction; Morkrut Banshee; Needletooth Pack; Old Flitterfang; Reaper from
+  the Abyss; Rictus Robber; Sabertooth Mauler; Scorpion, Seething Striker;
+  Shessra, Death's Whisper; Skeletal Swarming; Slumbering Cerberus; Titan
+  Hunter; Twinblade Assassins; Ulvenwald Bear; Vashta Nerada; Wakedancer;
+  Wardens of the Cycle; Zombie Ogre.
+- `Die::Preterite`, unique-selected (26): Barad-dûr; Blacksnag Buzzard; Bone
+  Picker; Brimstone Volley; Cackling Slasher; Caged Zombie; Chain
+  Assassination; Death's Presence; Drag the Canal; Dreaded Bat-Cloud;
+  Festerhide Boar; Fungal Rebirth; Gravetiller Wurm; Grim Wanderer; Hunger of
+  the Howlpack; Inga Rune-Eyes; Life Goes On; Predator's Howl; Purple Worm;
+  Skirsdag High Priest; Somberwald Spider; Tragic Banshee; Tragic Slip; Undead
+  Sprinter; Undercity Scrounger; Vengeful Devil.
+- `Draw::Preterite`, specificity-selected (1): Runeflare Trap.
+- `Enter::Preterite`, specificity-selected (7): Crew Captain; Drownyard
+  Behemoth; Fungus Elemental; Keldon Strike Team; Mirrex; Samut, Vizier of
+  Naktamun; Shardmage's Rescue.
+- `Enter::Preterite`, unique-selected (4): Cradle to Grave; Force of Despair;
+  Ghired, Mirror of the Wilds; Phelia, Exuberant Shepherd.
+- `Gain::Preterite`, specificity-selected (8): Courier Bat; Crested Sunmare;
+  Eccentric Pestfinder // Turn Stones; Lucky the Pizza Dog; Markov Purifier;
+  Regal Bloodlord; Restless Bloodseeker // Bloodsoaked Reveler; Witch of the
+  Moors.
+- `Gain::Preterite`, unique-selected (14): Brackish Trudge; Doctor Jane
+  Foster; Foolish Fate; Lumaret's Favor; Mortality Spear; Needlebite Trap;
+  Oathsworn Vampire; Old-Growth Educator; Poisoner's Apprentice; Tenured
+  Concocter; Thornfist Striker; Tragedy Feaster; Ulna Alley Shopkeep; Withering
+  Curse.
+- `Leave::Preterite`, specificity-selected (6): Essence Anchor; Gau, Feral
+  Youth; Living History; Primary Research; Relic Retriever; Syrix, Carrier of
+  the Flame.
+- `Leave::Preterite`, unique-selected (1): Wilt in the Heat.
+- `Lose::Preterite`, specificity-selected (11): Arrogant Outlaw; Bat
+  Whisperer; Bloodtithe Collector; Famished Foragers; Fireglass Mentor;
+  Flamecache Gecko; Lion Vulture; Savage Gorger; Stromkirk Bloodthief; Vampire
+  Socialite; Voldaren Ambusher.
+- `Lose::Preterite`, unique-selected (5): Cindering Cutthroat; Falkenrath Pit
+  Fighter; Frilled Sparkshooter; Gutterbones; Mounted Dreadknight.
+- `Return::Preterite`, specificity-selected (1): Cache Grab.
+- `Search::Preterite`, specificity-selected (3): Grasping Current; Rhythmic
+  Water Vortex; Sun-Blessed Mount.
+- `Search::Preterite`, unique-selected (1): Archive Trap.
+
+The ruled subject-relative identity class selects uniquely through
+`SubjectRelativeQualifiedReference -> FiniteSubjectGapRelativeClause`
+with `Enter::Preterite` and `DurationPredicateAdjunct(this turn)` for every
+covered corpus member:
+
+- `0b6d9a2739e8b964be65b1ce70014affa4180905ae769f206488bcb8428bfbb0`
+  — Cradle to Grave.
+- `92357da25083f40814de42fa1d9900d30f0b47e4d3dea36ad5641dcd8a4930cc`
+  — Force of Despair.
+- `8aa5e15b8fe338e6468fea087f1c1668a19bf88b045bf378e2d4778788c199b9`
+  — Ghired, Mirror of the Wilds.
+
+The fork-point ambiguity artifact had 19,947 selected units. The refreshed
+tree has 20,202, so the raw per-unit diff is +255/-0. Of those, 55 gains and
+all 924 surviving construction-path changes arrived with the refreshed base;
+the feature lock delta is the 200 identities above. The 55 refreshed-base
+gains, named here rather than attributed to this ticket, select through their
+integrated construction paths: specificity-selected — Ajani's Aid; Angrath's
+Fury; Arachnus Spinner; Ashiok's Forerunner; Auditore Ambush; Basri's Aegis;
+Boonweaver Giant; Chandra's Firemaw; Chandra's Flame Wave; Chandra's Outburst;
+Danitha, Benalia's Hope; Dark Supplicant; Delivery Moogle; Dina's Guidance;
+Domri's Nodorog; Dovin's Dismissal; Elspeth's Devotee; Ethereal Elk;
+Fang-Druid Summoner; Garruk's Warsteed; Gideon's Battle Cry; Gideon's Resolve;
+Goldmane Griffin; Invasion of Ikoria // Zilortha, Apex of Ikoria; Jace's Ruse;
+Journey for the Elixir; Kassandra, Eagle Bearer; Liberated Livestock;
+Liberating Combustion; Liliana's Influence; Liliana's Scorn; Niambi, Faithful
+Healer; Nissa's Encouragement; Ral's Dispersal; Raven Clan War-Axe; Rowan's
+Stalwarts; Runed Crown; Runeforge Champion; Sorin's Guide; Teferi's Wavecaster;
+Tezzeret's Betrayal; The First Doctor; Tower Winder; Verdant Crescendo;
+Vraska's Scorn; Vraska's Stoneglare; Yanling's Harbinger. Unique-selected —
+Dread Tiller; Harness Infinity; Jace, the Living Guildpact; Morality Shift;
+Riveteers Confluence; Swift Warkite; Temporal Cascade; Trenzalore Clocktower.
+
+The withheld rivalry identities and both readings are unchanged:
+
+- `57bbe75f309b505dd4882064db97811056a148735b94cd43558202587b752c06`
+  — Aggravate — selected: `Deal::PastParticiple` in
+  `DeclaredObjectPassivePredicate`, modifying `Each creature`, with
+  `MannerReference.this_way`; withheld wrong reading: finite
+  `Deal::Preterite` as the clause Predicate.
+- `4c82b6f6b1da0021ddb05732ec64c82a012ca49c9807f0e2d6f835c1843f4741`
+  — Ballista Watcher // Ballista Wielder (Ballista Wielder face) — selected:
+  `Deal::PastParticiple` in `DeclaredObjectPassivePredicate`, modifying
+  `A creature`, with `MannerReference.this_way`; withheld wrong reading:
+  finite `Deal::Preterite` as the clause Predicate.
+
+### REPORT
+
+- Construction declarations: 397 before and after; added 0, changed 0,
+  removed 0. Licensing checkers: 23 permitted, 0 forbidden. Licensed
+  vocabulary/lexicon homographs: 2. Form-literal/vocabulary overlaps: 9.
+  Selection exceptions: 0. No pin, ceiling, checker, frame, or construction
+  was fitted to an inventory count.
+- Full coverage check: 8 workers, 177 s, 239,976 ns/B, visible process count
+  668, host load 23/28/24. Coverage bless: 8 workers, 140 s, 185,785 ns/B,
+  visible process count 656, host load 14/21/23. Full ambiguity: 8 workers,
+  216 s, 263,329 ns/B, visible process count 664, host load 26/25/24. Full
+  round trip: 8 workers, 127 s, 177,873 ns/B, visible process count 644, host
+  load 8/16/20. These exceed the 16 s advisory ceiling under shared-host load
+  and are reported, not treated as a STOP.
+- Affected-subset coverage: 8 workers, 58 s, 133,273 ns/B, host load 12/18/17.
+  Affected-subset ambiguity: 8 workers, 57 s, 138,954 ns/B, host load
+  11/17/17. Affected-subset round trip: 8 workers, 87 s, 195,614 ns/B, host
+  load 25/20/18.
+- The reverse-dependency closure printed and ran exactly:
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  and
+  `cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings`.
+  It completed green in 230 s with visible process count 670. Earlier closure
+  attempts were rerun only after failures surfaced and code changed.
+- `cargo xtask catalogs check`: `catalogs are up to date`.
+  `cargo xtask cite check`: `checked 14490 citations against cr.txt (eff.
+  2026-08-07); 0 stale`. `cargo fmt --all` completed successfully.
+- Assurance census: restored 0; re-spelled 1; ignored with blockers 2; added 2;
+  removed 2. Re-spelled: the event subject-relative scope fence is now the
+  positive unique-selection witness required by ruling (4). Ignored with
+  blockers: Ashen-Skin Zubera and Boldwyr Heavyweights, routed under ruling
+  (1). Added: the general finite-host realization test and the synthetic open
+  declaration scan/render test. Removed: the stale ordinary-failure entries
+  `As an additional cost cast this spell, discard a card.` and `This ability
+  cost {1} less to activate.`, both grammatical under the ruled homogeneous
+  form analysis.
+- Deviation authorized by ruling (2): the scalar Concord Class carrier could
+  not express a set-valued Inflectional Form, so the compiler adds a sealed
+  Inflectional Form feature domain, normalized row data, and the internal
+  `NonUniform` coordination value. This adds no construction shape.
+- Deviations and additions: production scope is the declaration grammar,
+  compiler normalization/emission, existing verb-headed construction feature
+  propagation, core and plugin lexical data, tests, and the coverage lock.
+  No out-of-letter construction was added, changed, or removed. Failed closure
+  attempts were repaired before the single final green closure. One diagnostic
+  inspect file was mistakenly written under `/tmp` and immediately deleted;
+  no scratch file remains there. A post-gate subset-only coordinator-tip
+  diagnostic was discarded because the coordinator line had moved again; it
+  did not alter the landing measurements or run a second full corpus pass.
+- `docs/tickets/fog.md` owns both struck exact surfaces under
+  `english-v2-relative-clause` and the two `dealt` rivalry identities as
+  frontier residue.
+- glossary gap: none. Inflectional Form, Finiteness, and Concord Class cover
+  the model.
+- STOP: none. Decision wanted: none.

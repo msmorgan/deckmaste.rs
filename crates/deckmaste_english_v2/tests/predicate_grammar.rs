@@ -4646,7 +4646,6 @@ fn cost_frame_reciprocals_reject_crossed_boundaries() {
     }
 
     for text in [
-        "As an additional cost cast this spell, discard a card.",
         "As an additional cost to cast, discard a card.",
         "You may sacrifice a Mountain for rather than pay this spell's mana cost.",
         "You may sacrifice a Mountain rather than this spell's mana cost.",
@@ -4654,7 +4653,6 @@ fn cost_frame_reciprocals_reject_crossed_boundaries() {
         "Spells cost less {1} to cast.",
         "Spells cost {1} less for cast.",
         "Spells costs {1} less to cast.",
-        "This ability cost {1} less to activate.",
         "Cast this spell if only you control fewer creatures than each opponent.",
         "Cast this spell only only during your turn.",
     ] {

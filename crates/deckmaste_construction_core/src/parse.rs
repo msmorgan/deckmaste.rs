@@ -817,6 +817,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "compoundability" => Some(Feature::Compoundability),
         "countability" => Some(Feature::Countability),
         "homograph_license" => Some(Feature::HomographLicense),
+        "inflectional_form" => Some(Feature::InflectionalForm),
         "manner_anaphor_class" => Some(Feature::MannerAnaphorClass),
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),

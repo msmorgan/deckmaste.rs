@@ -1670,6 +1670,7 @@ constructions! {
         require len(members) >= 2;
         derive members.concord_class = Values::Other;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         form then_predicate_sequence = members;
     }
     construction bare_then_predicate_sequence: BareThenPredicateSequence {
@@ -1684,6 +1685,7 @@ constructions! {
         require len(members) >= 2;
         derive members.concord_class = Values::Other;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         derive focus = Values::Unfocused;
         form bare_then_predicate_sequence = members;
     }
@@ -1720,6 +1722,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         form and_predicate_coordination = members;
     }
     construction or_predicate_coordination: PredicateCoordination {
@@ -1733,6 +1736,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         form or_predicate_coordination = members;
     }
     construction and_or_predicate_coordination: PredicateCoordination {
@@ -1746,6 +1750,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         form and_or_predicate_coordination = members;
     }
     construction bare_and_predicate_coordination: BarePredicateCoordination {
@@ -1759,6 +1764,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         derive focus = Values::Unfocused;
         form bare_and_predicate_coordination = members;
     }
@@ -1773,6 +1779,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         derive focus = Values::Unfocused;
         form bare_or_predicate_coordination = members;
     }
@@ -1787,6 +1794,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive inflectional_form = members.inflectional_form;
         derive focus = Values::Unfocused;
         form bare_and_or_predicate_coordination = members;
     }
@@ -1872,6 +1880,7 @@ constructions! {
             complement: PredicativeComplement,
         }
         derive concord_class = Values::Other;
+        derive inflectional_form = Values::Plain;
         derive focus = Values::Unfocused;
         form bare_copular_predicate = lex(copula) complement;
     }
@@ -1922,12 +1931,14 @@ constructions! {
             predicate: PassivePredicate,
         }
         derive concord_class = Values::Other;
+        derive inflectional_form = Values::Plain;
         derive focus = Values::Unfocused;
         form bare_passive_predicate = lex(copula) predicate;
     }
     construction inventory_auxiliary: AuxiliaryHead {
         element InventoryAuxiliary { head: lex AuxiliaryVerb, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form inventory_auxiliary = verb(head);
     }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
@@ -1937,6 +1948,7 @@ constructions! {
             complement: VerbPhrase,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive complement.concord_class = Values::Other;
         derive focus = Values::Unfocused;
         form object_infinitive_predicate = verb(head) object licensed("to") complement;
@@ -1955,6 +1967,7 @@ constructions! {
             complement: InfinitiveComplement,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form choose_infinitive_predicate = verb(head) complement;
     }
@@ -1964,6 +1977,7 @@ constructions! {
             frequency: NounPhrase,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form requirement_predicate = verb(head) frequency "if" "able";
     }
@@ -1974,6 +1988,7 @@ constructions! {
             duration: opt DurationPhrase,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form transitive_requirement_predicate =
             verb(head) object duration "if" "able";
@@ -1984,6 +1999,7 @@ constructions! {
             condition: CounterfactualClause,
         }
         derive concord_class = predicate.concord_class;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form as_though_predicate = predicate "as" "though" condition;
     }
@@ -2005,6 +2021,7 @@ constructions! {
         require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form ordered_predicate =
             verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(determiner) "order";
@@ -2068,6 +2085,7 @@ constructions! {
         element FocusedBarePredicateValue { adverb: lex FocusAdverb, focus: BarePredicate, }
         require focus.focus is Unfocused;
         derive concord_class = focus.concord_class;
+        derive inflectional_form = focus.inflectional_form;
         derive focus = Values::Focused;
         form focused_bare_predicate = lex(adverb) focus;
     }
@@ -2077,6 +2095,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form predicate_adjunct_predicate = predicate adjunct;
     }
@@ -2086,6 +2105,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form prepositional_predicate_adjunct_predicate = predicate adjunct;
     }
@@ -2096,6 +2116,7 @@ constructions! {
             trailing: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form stacked_predicate_adjunct_predicate = predicate leading trailing;
     }
@@ -2105,6 +2126,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_duration(),
         }
         derive concord_class = Values::Other;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form passive_duration_predicate_adjunct = predicate adjunct;
     }
@@ -2115,6 +2137,7 @@ constructions! {
         }
         require marker is Instead;
         derive concord_class = predicate.concord_class;
+        derive inflectional_form = predicate.inflectional_form;
         derive focus = Values::Unfocused;
         form instead_predicate = predicate lex(marker);
     }
@@ -2161,6 +2184,7 @@ constructions! {
         }
         derive action.concord_class = Values::Other;
         derive concord_class = action.concord_class;
+        derive inflectional_form = action.inflectional_form;
         derive alternative.concord_class = Values::Other;
         derive focus = Values::Unfocused;
         form alternative_predicate = action "rather" "than" alternative;
@@ -2172,6 +2196,7 @@ constructions! {
             complement: Object,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form without_gerund_object_predicate =
             verb(head) object "without" "paying" complement;
@@ -2189,6 +2214,7 @@ constructions! {
             action: ControlledCostAction,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form cost_comparison_predicate = verb(head) amount lex(direction) action;
     }
@@ -2206,6 +2232,14 @@ constructions! {
             Were => Values::Other,
         };
         derive concord_class = copula.concord_class;
+        derive inflectional_form = match copula {
+            Is => Values::ThirdPersonSingularPresent,
+            Isnt => Values::ThirdPersonSingularPresent,
+            Are => Values::Plain,
+            Arent => Values::Plain,
+            Was => Values::Preterite,
+            Were => Values::Preterite,
+        };
         form finite_passive_predicate = lex(copula) predicate;
     }
     construction auxiliary_predicate: AuxiliaryPredicate {
@@ -2214,7 +2248,9 @@ constructions! {
             predicate: BarePredicate,
         }
         derive predicate.concord_class = Values::Other;
+        derive predicate.inflectional_form = Values::Plain;
         derive concord_class = auxiliary.concord_class;
+        derive inflectional_form = auxiliary.inflectional_form;
         form auxiliary_predicate = auxiliary predicate;
     }
     construction finite_copular_predicate: FiniteCopularPredicate {
@@ -2231,6 +2267,14 @@ constructions! {
             Were => Values::Other,
         };
         derive concord_class = copula.concord_class;
+        derive inflectional_form = match copula {
+            Is => Values::ThirdPersonSingularPresent,
+            Isnt => Values::ThirdPersonSingularPresent,
+            Are => Values::Plain,
+            Arent => Values::Plain,
+            Was => Values::Preterite,
+            Were => Values::Preterite,
+        };
         form finite_copular_predicate = lex(copula) complement;
     }
     construction plain_finite_clause: FiniteClause {
@@ -2758,7 +2802,7 @@ constructions! {
         element BareSingularNominal { head: Head, }
         derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::BareSingularNoun;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2770,7 +2814,7 @@ constructions! {
         element BarePluralNominal { head: Head, }
         derive head.number = Values::Plural;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::BarePluralNoun;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2786,7 +2830,7 @@ constructions! {
         }
         derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2802,7 +2846,7 @@ constructions! {
         }
         derive head.number = Values::Plural;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2819,7 +2863,7 @@ constructions! {
         require len(modifiers) >= 2;
         derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
@@ -2836,7 +2880,7 @@ constructions! {
         require len(modifiers) >= 2;
         derive head.number = Values::Plural;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
@@ -2882,7 +2926,7 @@ constructions! {
             head: Head,
         }
         derive concord_class = head.concord_class;
-        derive head.number = Values::Singular;
+       derive head.number = Values::Singular;
         derive number = Values::Singular;
         derive onset = adjective.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2901,7 +2945,7 @@ constructions! {
         }
         require first.modifier_license is LocalDeterminer;
         derive concord_class = head.concord_class;
-        derive head.number = Values::Singular;
+       derive head.number = Values::Singular;
         derive number = Values::Singular;
         derive onset = first.onset;
         derive possessive_ending = head.possessive_ending;
@@ -2914,7 +2958,7 @@ constructions! {
     construction bare_coordination_member: CoordinationMember {
         element BareCoordinationMember { head: Head, }
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = head.possessive_ending;
         form bare_coordination_member = head;
@@ -2925,7 +2969,7 @@ constructions! {
             head: Head,
         }
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive onset = modifier.onset;
         derive possessive_ending = head.possessive_ending;
         form modified_coordination_member = modifier head;
@@ -2938,7 +2982,7 @@ constructions! {
         }
         require len(modifiers) >= 2;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive onset = Values::Consonant;
         derive possessive_ending = head.possessive_ending;
         form negative_modified_coordination_member = leading modifiers head;
@@ -4173,7 +4217,7 @@ constructions! {
         element FusedDeterminativeReference { head: Determinative, }
         require head.fused_head_license in [FusedHead, PluralPredeterminer];
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
         derive relationality = Values::NonRelational;
@@ -4196,7 +4240,7 @@ constructions! {
         }
         require relation is Of;
         derive concord_class = head.concord_class;
-        derive number = head.number;
+       derive number = head.number;
         derive onset = head.onset;
         derive possessive_ending = Values::Other;
         derive relationality = whole.relationality;
@@ -4404,6 +4448,7 @@ constructions! {
     construction base_verb_phrase: VerbPhrase {
         element BaseVerbPhrase { frame: LexicalVerbPhrase, }
         derive concord_class = frame.concord_class;
+        derive inflectional_form = frame.inflectional_form;
         derive focus = Values::Unfocused;
         form base_verb_phrase = frame;
     }
@@ -4429,6 +4474,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form and_frame_complement_pair_coordination = verb(head) members;
     }
@@ -4446,6 +4492,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form or_frame_complement_pair_coordination = verb(head) members;
     }
@@ -4463,12 +4510,14 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form and_or_frame_complement_pair_coordination = verb(head) members;
     }
     construction pro_verb_predicate: VerbPhrase {
         element ProVerbPredicate { head: lex ProVerbHead, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form pro_verb_predicate = verb(head);
     }
@@ -4479,22 +4528,26 @@ constructions! {
             complement: PredicativeComplement,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_object_predicative_verb_phrase = verb(head) object complement;
     }
     construction intransitive_predicate: IntransitiveLexicalVerbPhrase {
         element IntransitivePredicate { head: lex IntransitiveVerb, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form intransitive_predicate = verb(head);
     }
     construction transitive_predicate: TransitiveLexicalVerbPhrase {
         element TransitivePredicate { head: lex TransitiveVerb, object: Object, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form transitive_predicate = verb(head) object;
     }
     construction measure_complement_predicate: MeasureComplementLexicalVerbPhrase {
         element MeasureComplementPredicate { head: lex MeasureComplementVerb, amount: Amount, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form measure_complement_predicate = verb(head) amount;
     }
     construction declared_object_amount_lexical_verb_phrase: ObjectAmountLexicalVerbPhrase {
@@ -4504,6 +4557,7 @@ constructions! {
             amount: Amount,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form declared_object_amount_lexical_verb_phrase = verb(head) object amount;
     }
     construction declared_with_object_lexical_verb_phrase: WithObjectLexicalVerbPhrase {
@@ -4512,6 +4566,7 @@ constructions! {
             object: Object,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form declared_with_object_lexical_verb_phrase = verb(head) lex(Preposition::With) object;
     }
     construction declared_object_with_object_lexical_verb_phrase: ObjectWithObjectLexicalVerbPhrase {
@@ -4525,6 +4580,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form declared_object_with_object_lexical_verb_phrase = verb(head) object lex(Preposition::With) complement;
     }
     construction declared_object_for_object_lexical_verb_phrase: ObjectForObjectLexicalVerbPhrase {
@@ -4538,6 +4594,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form declared_object_for_object_lexical_verb_phrase =
             verb(head) object lex(Preposition::For) complement;
     }
@@ -4552,6 +4609,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form declared_object_into_object_lexical_verb_phrase =
             verb(head) object lex(Preposition::Into) destination;
     }
@@ -4592,6 +4650,7 @@ constructions! {
     construction finite_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
         element FiniteSubjectGapRelativeClauseValue { head: lex IntransitiveVerb, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form finite_subject_gap_relative_clause = licensed("that") verb(head);
     }
     construction finite_transitive_subject_gap_relative_clause: FiniteSubjectGapRelativeClause {
@@ -4600,6 +4659,7 @@ constructions! {
             object: Object,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form finite_transitive_subject_gap_relative_clause =
             licensed("that") verb(head) object;
     }
@@ -4637,6 +4697,7 @@ constructions! {
             marker: opt lex ReplacementMarker,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form distributed_measure_predicate =
             verb(head) amount measure distribution lex(marker);
@@ -4655,6 +4716,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_object_equality_to_predicate =
             verb(head) object equality lex(Preposition::To) recipient;
@@ -4673,6 +4735,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_object_to_equality_predicate =
             verb(head) object lex(Preposition::To) recipient equality;
@@ -4684,12 +4747,14 @@ constructions! {
             equality: ScalarEquality,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_object_equality_predicate = verb(head) object equality;
     }
     construction mana_phrase: VerbPhrase {
         element ManaVerbPhrase { head: lex ManaPhraseVerb, mana: ManaPhrase, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form mana_phrase = verb(head) mana;
     }
@@ -4704,6 +4769,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_object_from_predicate =
             verb(head) object lex(Preposition::From) source;
@@ -4729,6 +4795,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form put_onto =
             verb(head) object source lex(Preposition::Onto) destination result marked(Preposition::Under, control);
@@ -4753,6 +4820,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form put_onto_source_after =
             verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result marked(Preposition::Under, control);
@@ -4772,6 +4840,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form put_on = verb(head) object source lex(Preposition::On) destination;
     }
@@ -4786,6 +4855,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form put_to = verb(head) object lex(Preposition::To) destination;
     }
@@ -4810,6 +4880,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form return_to =
             verb(head) object source lex(Preposition::To) destination result marked(Preposition::Under, control);
@@ -4817,6 +4888,7 @@ constructions! {
     construction predicative_complement_predicate: PredicativeComplementLexicalVerbPhrase {
         element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form predicative_complement_predicate = verb(head) complement;
     }
     construction declared_with_object_on_predicate: VerbPhrase {
@@ -4830,6 +4902,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_with_object_on_predicate =
             verb(head) lex(Preposition::With) object lex(Preposition::On) recipient;
@@ -4848,6 +4921,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form enter_location = verb(head) location result marked(Preposition::Under, control);
     }
@@ -4857,12 +4931,14 @@ constructions! {
             control: Object,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form enter_control = verb(head) marked(Preposition::Under, control);
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form look_at = verb(head) lex(Preposition::At) object;
     }
@@ -4877,6 +4953,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_to_object_predicate =
             verb(head) object lex(Preposition::To) complement;
@@ -4887,6 +4964,7 @@ constructions! {
             object: Object,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive focus = Values::Unfocused;
         form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
     }
@@ -4910,6 +4988,7 @@ constructions! {
             ability: GrantedAbility,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form granted_ability_lexical_verb_phrase = verb(head) ability;
     }
     construction quote_terminated_statement: AbilityBody {
@@ -4932,6 +5011,7 @@ constructions! {
             adjustment: PowerToughnessAdjustment,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         form get_power_toughness = verb(head) adjustment;
     }
     construction have_object_control: VerbPhrase {
@@ -4941,6 +5021,7 @@ constructions! {
             predicate: BarePredicate,
         }
         derive concord_class = head.concord_class;
+        derive inflectional_form = head.inflectional_form;
         derive predicate.concord_class = Values::Other;
         derive focus = Values::Unfocused;
         form have_object_control = verb(head) object predicate;

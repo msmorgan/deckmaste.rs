@@ -155,37 +155,39 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 impl ConcordClass {
                     const fn compatible_with(self, other: Self) -> bool {
-                        matches!(
-                            (self, other),
-                            (Self::Other, Self::Other)
-                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
-                                | (Self::OtherOrThirdPersonSingular, _)
-                                | (_, Self::OtherOrThirdPersonSingular)
-                                | (Self::PlainOrPreterite, _)
-                                | (_, Self::PlainOrPreterite)
-                        )
+                        match self {
+                            Self::Other => matches!(
+                                other,
+                                Self::Other | Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite
+                            ),
+                            Self::ThirdPersonSingular => matches!(
+                                other,
+                                Self::ThirdPersonSingular | Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite
+                            ),
+                            Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite => true,
+                        }
                     }
 
                     const fn matches_required(self, required: Self) -> bool {
-                        matches!(
-                            (self, required),
-                            (Self::Other, Self::Other)
-                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
-                                | (Self::OtherOrThirdPersonSingular, _)
-                                | (Self::PlainOrPreterite, _)
-                        )
+                        match self {
+                            Self::Other => matches!(required, Self::Other),
+                            Self::ThirdPersonSingular => matches!(required, Self::ThirdPersonSingular),
+                            Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite => true,
+                        }
                     }
 
                     const fn homogeneous_with(self, other: Self) -> bool {
-                        matches!(
-                            (self, other),
-                            (Self::Other, Self::Other)
-                                | (Self::ThirdPersonSingular, Self::ThirdPersonSingular)
-                                | (Self::OtherOrThirdPersonSingular, _)
-                                | (_, Self::OtherOrThirdPersonSingular)
-                                | (Self::PlainOrPreterite, _)
-                                | (Self::Other, Self::PlainOrPreterite)
-                        )
+                        match self {
+                            Self::Other => matches!(
+                                other,
+                                Self::Other | Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite
+                            ),
+                            Self::ThirdPersonSingular => matches!(
+                                other,
+                                Self::ThirdPersonSingular | Self::OtherOrThirdPersonSingular
+                            ),
+                            Self::OtherOrThirdPersonSingular | Self::PlainOrPreterite => true,
+                        }
                     }
 
                     const fn narrow_homogeneous(self, other: Self) -> Self {
@@ -196,6 +198,67 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                         }
                     }
 
+                }
+            },
+        ),
+        named_type(
+            "InflectionalForm",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum InflectionalForm {
+                    Plain,
+                    ThirdPersonSingularPresent,
+                    Preterite,
+                    PlainOrPreterite,
+                    NonUniform,
+                }
+            },
+        ),
+        impl_item(
+            None,
+            "InflectionalForm",
+            quote! {
+                impl InflectionalForm {
+                    const fn compatible_with(self, other: Self) -> bool {
+                        match self {
+                            Self::Plain => matches!(other, Self::Plain | Self::PlainOrPreterite),
+                            Self::ThirdPersonSingularPresent => {
+                                matches!(other, Self::ThirdPersonSingularPresent)
+                            }
+                            Self::Preterite => {
+                                matches!(other, Self::Preterite | Self::PlainOrPreterite)
+                            }
+                            Self::PlainOrPreterite => matches!(
+                                other,
+                                Self::Plain | Self::Preterite | Self::PlainOrPreterite
+                            ),
+                            Self::NonUniform => false,
+                        }
+                    }
+
+                    const fn matches_required(self, required: Self) -> bool {
+                        self.compatible_with(required)
+                    }
+
+                    const fn homogeneous_with(self, other: Self) -> bool {
+                        self.compatible_with(other)
+                    }
+
+                    const fn narrow_homogeneous(self, other: Self) -> Self {
+                        match (self, other) {
+                            (Self::PlainOrPreterite, value) => value,
+                            (value, Self::PlainOrPreterite) => value,
+                            _ => self,
+                        }
+                    }
+
+                    const fn coordinate_with(self, other: Self) -> Self {
+                        if self.compatible_with(other) {
+                            self.narrow_homogeneous(other)
+                        } else {
+                            Self::NonUniform
+                        }
+                    }
                 }
             },
         ),
@@ -972,6 +1035,9 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let concord_class = plan
             .category_carries_concord_class(root.category())
             .then(|| quote! { , _ });
+        let inflectional_form = plan
+            .carries_feature(root.category(), crate::feature::Feature::InflectionalForm)
+            .then(|| quote! { , _ });
         let cardinality = plan
             .category_carries_cardinality(root.category())
             .then(|| quote! { , _ });
@@ -1017,7 +1083,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) => Some(value),
+                            BuildValue::#category(value #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending #following_onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -1210,6 +1276,10 @@ fn emit_build_rejection_types() -> Vec<GeneratedItem> {
     ]
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "semantic runtime variants and their category mappings share one generated ABI"
+)]
 fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let semantic_types = super::semantic_types(plan);
     let build_variants = semantic_types.iter().map(|item| {
@@ -1219,6 +1289,9 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let concord_class = plan
                     .category_carries_concord_class(item.name)
                     .then(|| quote! { , ConcordClass });
+                let inflectional_form = plan
+                    .carries_feature(item.name, crate::feature::Feature::InflectionalForm)
+                    .then(|| quote! { , InflectionalForm });
                 let cardinality = plan
                     .category_carries_cardinality(item.name)
                     .then(|| quote! { , Cardinality });
@@ -1240,7 +1313,7 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #concord_class #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, FeatureConstraint<Onset>) }
+                quote! { #name(#name #concord_class #inflectional_form #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, FeatureConstraint<Onset>) }
             }
             super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
@@ -1249,10 +1322,13 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let concord_class = plan
                     .sum_carries_concord_class(item.name)
                     .then(|| quote! { , ConcordClass });
+                let inflectional_form = plan
+                    .carries_feature(item.name, crate::feature::Feature::InflectionalForm)
+                    .then(|| quote! { , InflectionalForm });
                 let fused_head_license = plan
                     .carries_feature(item.name, crate::feature::Feature::FusedHeadLicense)
                     .then(|| quote! { , FusedHeadLicense });
-                quote! { #name(#name #concord_class #fused_head_license, FeatureConstraint<Onset>) }
+                quote! { #name(#name #concord_class #inflectional_form #fused_head_license, FeatureConstraint<Onset>) }
             }
         }
     });
@@ -1513,7 +1589,7 @@ fn declaration_verb_lexical_variants(
             let verb = codec.codec_ident();
             match codec.feature_axis() {
                 crate::feature::Feature::ConcordClass => {
-                    quote! { #verb { verb: #verb, concord_class: ConcordClass, onset: Onset }, }
+                    quote! { #verb { verb: #verb, concord_class: ConcordClass, inflectional_form: InflectionalForm, onset: Onset }, }
                 }
                 crate::feature::Feature::Participle => {
                     quote! { #verb { verb: #verb, onset: Onset }, }
