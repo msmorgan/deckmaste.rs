@@ -59,6 +59,38 @@ A syntactic unit organized around a predication and its dependents.
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
+**Adjective**:
+A lexical Category whose members characteristically modify Nominals or serve
+as predicative Complements.
+
+**Adjective Phrase**:
+A phrase headed by an Adjective.
+
+**Preposition**:
+A lexical Category whose members head phrases expressing relations and
+characteristically select Complements.
+
+**Preposition Phrase**:
+A phrase headed by a Preposition together with its selected Complements.
+
+**Voice**:
+The grammatical organization of a predication's participants, including the
+active and passive patterns of Subject and Complement realization.
+
+**Polarity**:
+The grammatical distinction between positive and negative expressions.
+
+**Ellipsis**:
+The omission of material whose grammatical content is recoverable from an
+Antecedent or context.
+
+**Cardinal Numeral**:
+A numeral expressing a count, such as *one* or *two*.
+
+**Measure Phrase**:
+A phrase expressing an extent or scalar value, including arithmetic
+combinations and comparisons with other values.
+
 **Adverb**:
 A lexical Category whose members characteristically modify a phrase, Clause,
 or other expression without serving as a nominal argument.
@@ -103,6 +135,9 @@ as Subject, Object, or Complement of a preposition.
 **Determinative**:
 A lexical Category containing words such as *the*, *this*, *each*, and *any*.
 It is distinct from the Determiner function.
+
+**Determinative Phrase**:
+A phrase headed by a Determinative, including cardinal determinatives.
 
 **Determiner**:
 The grammatical function that marks a Noun Phrase as definite, quantified, or

@@ -11,6 +11,12 @@ or packed structure and explicit exclusions, rather than constructor counts
 or whole-card coverage gains. Check the interaction of the selection laws with
 the document grammar, which could have developed independently.
 
+The composition scope decisions in `docs/english-grammar-design.md` are
+explicit review inputs: extraction/relative form constraints, countability and
+modifier feature carriers, mixed agreement, temporal NP distribution, and
+antecedent accessibility. Challenge these before declaring a migration slice
+ready; a restricted illustrative lexicon does not discharge them.
+
 Resolve design-blocking findings with model changes and updated witnesses or
 proofs. Record a short conclusion in the design document: represented scope,
 the exact proven claims and assumptions, remaining limitations, and which

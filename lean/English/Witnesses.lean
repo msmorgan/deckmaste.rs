@@ -30,16 +30,17 @@ def shared : Syntax Lexeme :=
 def surface : Surface := ["white", "creatures", "and", "artifacts"]
 
 theorem narrow_derives : Derives lexicon narrow (.nominal .plural) := by
-  apply Derives.coordinate
-  · apply Derives.modify
-    · exact Derives.adjective rfl
-    · exact Derives.noun (Or.inl rfl)
-  · exact Derives.noun (Or.inr rfl)
+  apply Judges.node Production.coordinate
+  apply JudgeChildren.cons (headGaps := []) (tailGaps := [])
+  · apply Judges.modify
+    · exact Judges.adjective rfl
+    · exact Judges.noun (Or.inl rfl)
+  · exact .cons (.noun (Or.inr rfl)) .nil
 
 theorem shared_derives : Derives lexicon shared (.nominal .plural) := by
-  apply Derives.modify
-  · exact Derives.adjective rfl
-  · exact Derives.coordinate (Derives.noun (Or.inl rfl)) (Derives.noun (Or.inr rfl))
+  apply Judges.modify
+  · exact Judges.adjective rfl
+  · exact .node .coordinate (.cons (.noun (Or.inl rfl)) (.cons (.noun (Or.inr rfl)) .nil))
 
 private theorem white_realizes : Realizes lexicon (.adjective .white) ["white"] :=
   .adjective ⟨rfl, rfl⟩
@@ -51,10 +52,12 @@ private theorem artifacts_realizes : Realizes lexicon (.noun .artifact .plural) 
   .noun (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩)))
 
 theorem narrow_realizes : Realizes lexicon narrow surface := by
-  exact Realizes.coordinate (Realizes.modify white_realizes creatures_realizes) artifacts_realizes
+  exact .node (.cons (.modify white_realizes creatures_realizes)
+    (.cons artifacts_realizes .nil)) .coordinate
 
 theorem shared_realizes : Realizes lexicon shared surface := by
-  exact Realizes.modify white_realizes (Realizes.coordinate creatures_realizes artifacts_realizes)
+  exact .modify white_realizes (.node (.cons creatures_realizes
+    (.cons artifacts_realizes .nil)) .coordinate)
 
 /-- Surface identity does not force identity of grammatical analyses. -/
 theorem distinct_analyses :

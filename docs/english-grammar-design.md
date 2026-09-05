@@ -20,32 +20,42 @@ agreement or gap constraints local to judgments. The tradeoff is that every
 admissibility claim must carry a grammatical derivation; constructing a syntax
 value alone proves nothing about its grammaticality.
 
-The implemented dependency order is:
+The implemented dependency order is `English.Grammar` (shared syntax,
+features, lexical assumptions, grammatical and realization judgments), then
+`English.Witnesses` and `English.Composition`, imported by `English.lean`.
+One `Syntax` recursively contains phrases and clauses. The mutual
+`Judges` / `JudgeChildren` / `JudgeFrame` group checks their composition.
+Documents and selection consume this model; neither licensing nor realization
+depends on selection or `Semantics`.
 
-1. `English.Grammar`: number, fragment categories, lexical assumptions, syntax,
-   grammatical derivation, realization, and admissibility.
-2. `English.Witnesses`: a finite illustrative lexicon and checked claims.
-3. `English.lean`: the library root importing both, so witnesses are built.
+`Production` gives ordered categories for local constructions. A Verb Frame is
+an ordered list of `FrameItem.argument` values (grammatical relation plus
+category) and `FrameItem.fixed` lexical markers. `JudgeFrame` instantiates the
+schema against actual children; no construction or spelling guard decides a
+head's frame. The same NP category supplies Subject, Object and a preposition's
+Complement. Determiner is the function assigned by `determine`; its child
+category is Determinative Phrase.
 
-As composition grows, keep recursively related phrases and clauses in one
-syntax family (a mutual inductive group if separate Lean types improve
-readability). NPs can contain relative clauses; clauses can contain NPs, PPs,
-and subordinate clauses; quoted ability text can contain documents. Do not
-encode these with unrelated copied phrase types or imports in a cycle. Move
-shared recursive declarations together before extending them. Define lexical
-features and frame schemas before judgments; frame schemas select categories
-and grammatical relations, not instantiated syntax or lists of spellings.
-Documents and selection consume this common model. Neither grammatical
-judgments nor realization may depend on a selection result or on `Semantics`.
+`Judges lexicon tree category gaps` records ordered unfilled positions.
+`Derives` is its closed, empty-gap case. Ordinary composition concatenates
+resources, a relative construction discharges one matching NP gap, and explicit
+shared coordination requires the same gap in both conjuncts. An ellipsis node
+retains its supplied antecedent tree, whose structure must derive; identifying
+that antecedent in discourse is an assumption, not a theorem of this judgment.
 
-`Syntax` currently has noun and adjective occurrences, modification, and binary
-coordination. `Category` currently has number-bearing Nominal and Adjective
-Phrase. `Derives lexicon tree category` licenses a structure;
-`Realizes lexicon tree surface` relates its structure to a surface;
-`Admissible` requires both. The lexicon separately declares licensed noun
-numbers/adjective uses and their word forms. It may supply multiple forms or
-homographs; no lexical completeness or disjointness assumption is imposed.
-Realization alone does not certify grammaticality.
+`FiniteLicense` propagates the overt head's declared agreement through
+auxiliaries, adjuncts, coordination and ellipsis. Regular inflection is the
+`FiniteForm` helper; it does not constrain invariant or irregular heads.
+Voice is independent of Inflectional Form: auxiliary declarations select both
+form and voice, so a passive frame cannot enter a perfect construction merely
+because both use a past participle. Negation is polarity on an auxiliary
+construction with a licensed complement. There is no generic production that
+puts *not* before any finite verb.
+
+`Realizes` and `Linearizes` connect these trees and their children to surfaces.
+`Admissible` requires a closed derivation and realization, independently of
+selection. Lexical licensing and word forms are distinct relations: neither
+lexical completeness nor disjoint spellings are assumed.
 
 `Surface` currently means a list of surface atoms represented by strings.
 The witness uses words as atoms. It is not a byte string, scanner contract, or
@@ -133,13 +143,53 @@ synthetic nominal surface `white creatures and artifacts`. Both analyses are
 admissible: modifying just the first conjunct, or modifying the coordination.
 The trees are proved unequal. These are scope candidates in the fragment,
 not a claim about a named card, semantic equivalence, or a preferred Oracle
-reading. The fragment admits only binary `and` coordination of plural nominals;
-it does not yet model general number resolution or all coordinators.
+reading. The original coordination now uses the general production through an
+abbreviation; it is not a second admissible wrapper.
 
 The same file proves that an unlicensed noun use of the adjective lexeme has
 no nominal derivation. Together the positive and negative witnesses show that
 the licensing relation is inhabited and restrictive. Selection, packing and
 precedence are deliberately absent from these definitions.
+
+## Composition decisions and evidence
+
+`English.Composition` adds explicit structural and surface witnesses for:
+
+- A relative body whose subject gap survives an auxiliary and PP adjunct;
+  the head discharges it, yielding the synthetic phrase *creatures that can
+  attack during turns*.
+- A declared Object frame filled by coordinated NPs, with the surface
+  *destroy creatures and artifacts*; the same `creatures` tree also occupies
+  Subject and preposition-Complement relations.
+- Cardinal determinatives, arithmetic Measure Phrases, comparative Adjective
+  Phrases, nonfinite clauses, negative auxiliaries, and passive selection.
+- Agreement and frame-arity exclusions with positive twins, fixed-marker
+  identity, a gap that cannot derive as closed, and sharing one gap across
+  coordinated clauses.
+
+The source directions are style guide §4, “Numbers, quantities, and
+comparisons”; §§5–7, names and nominal/type grammar; §10, “Logic, choice, and
+coordination”; §11, “Timing and duration”; and §§12–13, effect templates.
+The witnesses above are synthetic combinations, not corpus transcriptions.
+
+The following scope decisions bound this formal composition model. They are
+requirements for the design review's challenges, not instructions to restore
+card-driven scheduling:
+
+| Capability | Decision and exact limit |
+|---|---|
+| Lexical distributions and modifier order | Model licenses nominal adjectives, declared noun numbers and bare plural NPs; countability, attributive noun/type features, Targeting Marker ordering and genitives need a feature-carrier decision before broader claims. No Game Model Status category is introduced. |
+| Frames and grammatical relations | Ordered arguments and fixed lexical markers are modeled; copular NP/Adjective Phrase/PP complements and retained-object passives use declared frame data. Automatic active-to-passive frame conversion is outside this model's claims. |
+| Agreement | Finite heads declare form/agreement relations, including invariant modals. Binary same-category coordination resolves `and` NPs to plural; mixed-person/mixed-number and `or` proximity agreement remain a review decision, not silently licensed by a guessed rule. |
+| Subordination and gaps | Finite/nonfinite clause embedding, one NP relative gap and explicit across-conjunct sharing are modeled. Extraction islands, whose/pied-piping, zero versus overt/nonrestrictive relatives and right-node raising need distinct discharge/placement decisions before their acceptance is asserted. |
+| Ellipsis and anaphora | VP ellipsis carries an explicit grammatical antecedent; this models recoverability as an input. Discourse accessibility, omitted destinations, nominal ellipsis and door/half/former/latter reference resolution are not proved. Review must choose which are grammatical context judgments versus semantic resolution. |
+| Adjuncts | Host/dependent licensing and before/after placement are explicit. Marked subordinate clauses are distinguished from bare clauses. Bare temporal NPs still need a distribution feature; the eleven passive-temporal obligations remain migration/review challenges. |
+| Quantities and comparisons | Cardinal-to-determinative projection, Measure Phrase arithmetic and selected comparative complements are modeled. Variable binding, fractions/rounding spellings and full countability constraints are documentary/lexical extensions; arithmetic truth is not grammatical acceptance. |
+
+**Less certain:** the single-gap resource representation is useful evidence
+for composition, but does not settle extraction constraints or antecedent
+accessibility. The review must challenge these before declaring a migration
+slice ready. No theorem here establishes global grammatical soundness.
 
 ## Inherited obligations and remaining decisions
 
