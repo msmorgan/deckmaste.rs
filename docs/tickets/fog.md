@@ -134,58 +134,64 @@ re-measure before minting, and stamp the measurement. No xtask command exposes
 a family key yet; the census below bucketed parse failures by first-failure
 byte offset over the `coverage` rows.
 
-Measured 2026-09-05 on change `ykrsttluzkxm` (18,917 / 32,641 covered, 13,724
-parse failures; re-run unchanged after the `english-v2-scope-device-mobility-declarations`
-integrate rebased that change, as that ticket required). Key: the first-failure byte offset carried in each
+Measured 2026-09-05 on change `osnrsxuvkrwo` (19,198 / 32,641 covered, 13,443
+parse failures). Key: the first-failure byte offset carried in each
 `parse_failure` row's `message` ("parse failed at bytes N..M"), bucketed by the
-token at that offset and the token before it. 615 rows carry no offset (build
+token at that offset and the token before it. 534 rows carry no offset (build
 rejections) and are unbucketed. A unit is a whole card face, so a family's count
 is the units it is the FIRST failure of, not the units that contain its surface.
 
+**Reading a mid-word offset.** An offset that lands inside an orthographic word
+(`color|less`, `Other|wise`, `a|ddition`, `land|cycling`) is an ARTIFACT, not a
+scanner split. `has_lexical_boundary`
+(`crates/deckmaste_english_v2/src/parser/scan.rs:1184`) does enforce a right
+word boundary; a prefix reading survives only when an adjacency-marked
+continuation suppresses it, and that branch then dies without affecting the
+outcome. The real gap in every such case is that no lexeme spans the whole
+word. Verified on `colorless` 2026-09-05; the previous register's
+"scanner splits `color` + `less`" wording was a wrong diagnosis and is retired
+with it. Do not mint a scanner ticket on this evidence.
+
 Top ten by first-failure attribution:
 
-- restrictive `only` as a focus adverb: 729 — minted 2026-09-05 as
-  `english-v2-tail-restrictive-focus-adverb` (312 focus an `as` phrase, 166 an
-  `if` clause, 101 a frequency adverbial, 86 a `during` phrase, 57 an Object,
-  7 a Bare Predicate; 651 follow an Object-less `Activate`). Absorbs the former
-  `Activate only …` entry. `english-v2-cost-family-lowering` gave up
-  `CastingRestriction`/`RestrictionTurn` to it.
-- `colorless` (scanner splits `color` + `less`): 386 — UNOWNED, lexical layer
-- `Spend this mana only …` / `… mana spent to cast …`: 207 — the parse half is
-  named, unpinned, by `engine-restricted-mana` (an engine ticket)
-- `if … was kicked` / kicker conditionals: 200 — UNOWNED
-- `defending player`: 196 — UNOWNED
-- `in addition to its other types` (scanner splits `a` + `ddition`): 167 —
-  `english-v2-locative-licence-set` names the sentence, does not own the split
-- exceptive `except` clauses (`…, except it's legendary`): 138 — UNOWNED.
-  `english-v2-remaining-prepositions` deliberately leaves `except` a form
-  literal inside the fused `participial_except_by_complement`
-- `total` (life total, total power, total mana value): 128 — UNOWNED
-- landwalk (`Swamp`/`Island`/`Forest` + `walk` split): 127 — UNOWNED
-- arithmetic `plus` (`X is 1 plus the number of …`): 123 — fogged above as
-  §"Arithmetic and fraction values (A10)"; a fog entry is not a ticket
+- `as` not licensed as a general preposition or comparator: 437 — OWNED by
+  `english-v2-remaining-prepositions`, which names `as` as its hardest member
+  and splits the `as long as` / `as though` subordinator sites explicitly
+- `colorless`: 387 — minted 2026-09-05 as
+  `english-v2-tail-color-property-adjectives`. One absent member of the
+  colour-property class ([CR#105.2c]); the class is complete at eight
+- `if … was kicked` / kicker conditionals: 194 — UNOWNED. No `Kick` verb is
+  declared anywhere (`core_verbs.ron` has no entry), while
+  `predicative_declared_participle` (`verb(head)`, bare) is already the right
+  standalone host — a lexeme-data gap, not a seam
+- restrictive `only … each turn`: 191 — OWNED by
+  `english-v2-frequency-adverbial-family`
+- `in addition to its other types`: 169 — UNOWNED, and double-blocked:
+  `addition` is absent from the closed `CommonNoun` inventory, and
+  `nominal_preposition_is_licensed` refuses every `to`-postmodifier outright —
+  the second half is `english-v2-locative-licence-set`'s pinned defect
+- copula contraction + `still` + predicate (`It's still a land.`): 115 — UNOWNED
+- elliptical `If you don't, …`: 109 — fogged above under "Gerund clauses and
+  modal ellipsis (A9, A11)"; a fog entry is not a ticket
+- sentence-initial `Otherwise,`: 84 — UNOWNED, named nowhere
+- `until you <verb>` finite subordinate clause: 84 — OWNED by
+  `english-v2-subordinate-clause`
+- bare `X` as a card-count quantifier (`the top X cards`): 80 — UNOWNED
 
-Retained entries re-measured on the same key (the 2026-09-03 numbers were taken
-on a different tree and are not comparable term by term):
+Not a family, do not mint: the bare `.` fragment accounts for 653 failures
+spread over 101 distinct preceding tokens (`turn` 163, `time` 48, `top` 41,
+`cards` 35, `card` 34, `control` 29, … down to singletons). It is the generic
+end-of-sentence position, not one phenomenon.
 
-- `… is/are equal to …` comparisons: 141 in a first-failure window, 57 attributed
-  to `equal`/`to` exactly
-- coordinated `with`-grants: 46 (never a landing of its own — the same landing as
-  the preposition that carries it)
-- Spree and bulleted mode bodies: 41
-- `choose one that hasn't been chosen` (relative clause on a fused quantity
-  head): 25
-- Saga chapter bodies: 1; `emblem` into the noun inventory: 0; leveler band
-  bodies: 0 — no longer visible under this key. Not evidence they parse: the
-  unit may now fail earlier elsewhere. Re-derive before minting.
-- the fragment `.` accounts for 556 failures spread over at least twelve
-  preceding tokens (`turn`, `time`, `top`, `cards`, `card`, `control`, …). It is
-  a position, not a family; do not mint it.
-- conditional-sentence modal heads: not resolvable by this key (shape already
-  right per the 13-10 review)
+Routed residues:
+
+- `vocab Color` is misnamed: [CR#105.4] states that multicolored and colorless
+  are not colours, and the class already holds *monocolored* and *multicolored*.
+  `english-v2-tail-color-property-adjectives` sharpens this and routes the
+  rename to be minted at its landing.
 - coordination families generally: v1's coordination modules are a phenomenon
   checklist (coordinable categories, serial-list comma conventions, and/or/nor,
-  scope, agreement), never code or vocabulary to import
+  scope, agreement), never code or vocabulary to import.
 
 Hangs on: nothing; this is the live frontier.
 
