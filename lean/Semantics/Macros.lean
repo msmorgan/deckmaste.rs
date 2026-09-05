@@ -415,6 +415,15 @@ def gainControl (player : NounPhrase) (subject : NounPhrase) (duration : Option 
 /-- "<subject> can't be <deed>ed" -/
 def objectCant (deed : VerbLabel) (subject : NounPhrase) : StaticSpec :=
   .deontic subject .forbid [deed] .patient none .noPatient none .noRider
+/-- "<player> can't <deed>" -/
+def playerCant (deed : VerbLabel) (player : NounPhrase) : StaticSpec :=
+  .deontic player .forbid [deed] .agent none .noPatient none .noRider
+/-- "<spec> as long as <condition>" -/
+def onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
+  .conditionally spec condition .asLongAs
+/-- "<spec> <duration>": a clause holding for a stated duration. -/
+def throughout (spec : StaticSpec) (duration : Duration) : Instruction :=
+  .continuously spec (some duration)
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   .onlyDuring .untapStep whose (objectCant "Untap" subject)
