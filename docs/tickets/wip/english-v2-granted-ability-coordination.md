@@ -39,78 +39,101 @@ constraints apply.
 
 ## Landing record
 
-Measured on feature change `xzkulzuy` after the required `kata refresh`;
-the coverage lock on this tree contains **17,289** identities. Refresh initially
-refused while sibling workspace `workbench-dedup-tables` was divergent, then
-succeeded on retry without a content conflict. Work started
-`2026-09-04T15:51:11-07:00` and finished
-`2026-09-04T17:56:38-07:00`.
+Measured on the refreshed feature stack — feature change `xzkulzuy` plus the
+review change `qtmytztl` — against the default line at
+`kata: complete english-v2-copular-complement-sum`. The coverage lock on the
+measured tree contains **17,601** identities; the default-line lock it was
+measured against contains **17,423**. Work started `2026-09-04T15:51:11-07:00`;
+the implementer finished `2026-09-04T17:56:38-07:00`; review, the
+copular-complement refresh, and the re-measured gates finished
+`2026-09-04T19:00-07:00`.
+
+The implementer's first measurement was taken before
+`english-v2-copular-complement-sum` reached the default line (feature lock
+17,289 over a 17,114 base, +175). That landing integrated while the review
+gates were running; every figure below is re-measured on the merged tree, where
+this landing contributes **+178 / −0** — the original 175 plus three
+identities that need both the widened copular complement and the new ability
+coordination.
 
 ### PROVE
 
-- **No silent loss:** the exact parent-tip ambiguity comparison and report-mode
-  coverage delta show **0 identities no longer covered**. The initially observed
-  12 losses belonged to an earlier, discarded single-ability rewrite; retaining
-  the established single `QuotedAbility` and `KeywordAbility` frames removed
-  that regression before the final gates.
-- **Structural laws:** coverage reports 17,289 selected and covered,
+- **No silent loss.** The per-unit `ambiguity --json` comparison of the default
+  line against the measured tree reports **178 gained selections, 0 lost
+  selections, 27 changed selected construction paths, and 0 resolution
+  changes**. Report-mode `coverage --check` against the default-line lock
+  reports **178 newly covered and 0 no longer covered**. No identity stopped
+  being covered, so no retirement, re-coverage obligation, or regression is
+  owed.
+- **Structural laws.** Coverage reports 17,601 selected and 17,601 covered,
   0 selected-uncovered, 0 unresolved ties, 0 internal failures, 0 exception
-  resolutions/uses, 0 roundtrip mismatches, 0 ownership failures, 0 construction
-  traversal failures, 0 leaf traversal failures, 0 gaps, 0 overlaps, 0 synthetic
-  claims, and 0 provenance-plan mismatches. Construction traversal is
-  732,410/732,410 and leaf traversal is 257,208/257,208. The independent
-  roundtrip gate reports 17,289 clean of 17,289 accepted.
-- **No word-naming:** coverage reports 20 permitted licensing checkers and
-  **0 forbidden**. No added `checked by` or `require` names a keyword lexeme,
-  construction, verb, noun, preposition, or card. The existing
-  `environment.rs` load-error assurance passed in the workspace suite.
-- **Positive gates:** `cargo fmt --all` exited 0 (only the repository's
-  stable-rustfmt warnings for nightly options);
-  `CARGO_BUILD_JOBS=8 cargo clippy -p deckmaste_construction_core
-  -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings` exited 0;
-  `CARGO_BUILD_JOBS=8 cargo test --workspace` exited 0, including
-  `test result: ok. 753 passed; 0 failed; 1 ignored` for construction core,
-  `test result: ok. 144 passed; 0 failed` for english-v2, and
-  `test result: ok. 453 passed; 0 failed; 1 ignored` for xtask.
-  `DECKMASTE_COVERAGE_LOCK=report ... coverage --check --workers 8` and
-  `--bless` exited 0; `ambiguity --json --require-resolved --workers 8`
-  exited 0; `roundtrip --require-clean --workers 8` exited 0. No citation
-  changed, so cite gates were not required.
-- A parent-tip probe initially reused the feature target and caused one stale
-  construction-core artifact error. Only that disposable package artifact was
-  cleaned; the final workspace suite above rebuilt and passed on the final tree.
+  resolutions and 0 exception uses, 0 roundtrip mismatches, 0 ownership
+  failures, 0 construction-traversal failures, 0 leaf-traversal failures,
+  0 gap spans, 0 overlap spans, 0 synthetic claims, and 0 provenance-plan
+  mismatches. Construction traversal is 750,925/750,925 and leaf traversal is
+  263,397/263,397. The independent roundtrip gate reports 17,601 clean of
+  17,601 parse-accepted, 0 mismatched.
+- **No word-naming.** Coverage reports **20 permitted licensing checkers and 0
+  forbidden**. No `checked by`, `require`, or comment added by this landing
+  names a keyword lexeme, construction, verb, noun, preposition, or card; the
+  three coordination arms are gated only by `require len(members) >= 2`, the
+  same structural arity predicate every other coordination construction uses.
+  The `environment.rs` load-error assurance passed inside the green workspace
+  suite.
+- **Positive gates**, all foreground, on the measured tree:
+  - `cargo fmt --all` exited 0 (only the repository's stable-rustfmt warnings
+    for nightly-only options).
+  - `CARGO_BUILD_JOBS=8 cargo clippy -p deckmaste_construction_core
+    -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets
+    -- -D warnings` exited 0.
+  - `CARGO_BUILD_JOBS=8 cargo test --workspace` exited 0 —
+    **6,144 passed; 0 failed; 6 ignored** across the workspace, including
+    `test result: ok. 402 passed; 0 failed; 0 ignored` for
+    `deckmaste_construction_core`'s unit suite,
+    `test result: ok. 145 passed; 0 failed; 0 ignored` for
+    `deckmaste_english_v2`'s unit suite,
+    `ability_expressions_use_the_general_coordination_algebra ... ok` in
+    `predicate_grammar`, and
+    `tests/compile_fail/structural_empty_surface.rs ... ok` in
+    `deckmaste_construction`'s trybuild suite. The workspace gate is required
+    because this diff touches `crates/deckmaste_construction_core/src/emit/`
+    and `crates/deckmaste_english_v2/src/core_verbs.ron`.
+  - `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+    --workers 8` exited 0 with **zero** newly-covered and zero
+    no-longer-covered lines, i.e. the committed lock is exactly current.
+  - `cargo xtask english_v2 ambiguity --require-resolved --workers 8` exited 0.
+  - `cargo xtask english_v2 roundtrip --require-clean --workers 8` exited 0.
+  - No citation changed, so the cite gates were not required.
 
 ### DISCLOSE
 
-Selection census against the exact reflinked parent tip:
+Selection census, default line against the measured tree:
 
-| census | parent | feature | delta |
+| census | default line | this landing | delta |
 |---|---:|---:|---:|
-| selected / covered | 17,114 | 17,289 | +175 |
-| parse failures | 15,527 | 15,352 | -175 |
-| unique selections | 13,468 | 13,613 | +145 |
-| specificity-resolved | 3,646 | 3,676 | +30 |
+| selected / covered | 17,423 | 17,601 | +178 |
+| parse failures | 15,218 | 15,040 | -178 |
+| unique selections | 13,614 | 13,759 | +145 |
+| specificity-resolved | 3,809 | 3,842 | +33 |
 | exception-resolved | 0 | 0 | 0 |
 | unresolved ties | 0 | 0 | 0 |
 
-The per-unit JSON comparison found **175 gained selections, 0 lost selections,
-24 changed selected construction paths, and 0 resolution changes**. The
-specificity increase is in the new
-`AbilityExpressionAndAbilityCoordination` route, reached through
-`PrepositionalComplement::Ability` or
-`VerbPhraseAbilityExpressionPredicate`; it replaces the uniform
-`GrantedKeywordLineGrantedKeywordLine` analysis where an already-covered
-`and` pair changes path. Every gain contains one of the three new coordination
-arms: 100 verb-side `and`, 43 verb-side mixed keyword/quoted `and`, 20
-nominal `or`, 7 nominal mixed `and`, 2 nominal keyword `and`, 1
-verb-side nested quoted `and`, 1 nominal `and/or`, and 1 nested nominal
-`or`. None is a negative oracle or a wrong analysis.
+The specificity share rose in the pair
+`GrantedKeywordLineGrantedKeywordLine` against
+`AbilityExpressionAndAbilityCoordination`: an already-covered `and` pair that
+used to be one uniform granted line now brackets through the general
+coordination, reached by `PrepositionalComplement::Ability` on the nominal side
+and `VerbPhraseAbilityExpressionPredicate` on the verb side. Every gain
+contains one of the three new coordination arms — nominal and verb sides,
+`and`, `or`, and `and/or`, keyword-only lines, quoted-ability lines, and mixed
+lines, with and without the Oxford comma. None is a negative oracle or a wrong
+analysis.
 
-The report-mode `coverage --check` delta follows verbatim; these are all 175
+The report-mode `coverage --check` delta follows verbatim; these are all 178
 new identities with the tool's selected analysis:
 
 ```text
-newly covered 175 corpus identities
+newly covered 178 corpus identities
 newly covered	007e43a50387762fdbba311fcfd49eaffff2b6278343c9e3cd0bf3f40340a4cc	card "Living Conundrum"	selected_analysis "Hexproof\nIf you would draw a card while your library has no cards in it, skip that draw instead.\nAs long as there are no cards in your library, this creature has base power and toughness 10/10 and has flying and vigilance."
 newly covered	01cd23d4f4e03949d9ece36d2ad50b9fe3e8601a8d34094b741d977c596456b6	card "Argivian Avenger"	selected_analysis "{1}: Until end of turn, this creature gets -1/-1 and gains your choice of flying, vigilance, deathtouch, or haste."
 newly covered	049226a185fa95bc14a2f48960ec6782725ca5746728d1befdc81fc75ce144f2	card "Urza's Avenger"	selected_analysis "{0}: This creature gets -1/-1 and gains your choice of banding, flying, first strike, or trample until end of turn."
@@ -218,6 +241,7 @@ newly covered	8f961338c004e4e62a522e9377d6e3b253ee719354994b875372c2cbcf8f8530	c
 newly covered	916632230e35a6c9ada51f03de9d7365421dc09cceacf2da1980fb003b9bbd4f	card "Sejiri Merfolk"	selected_analysis "As long as you control a Plains, this creature has first strike and lifelink."
 newly covered	92a8eebf0506a85d17e8623743d2304578a7e9e9f88db6915c3e70fbce8aafa3	card "Flayer of Loyalties"	selected_analysis "When you cast this spell, gain control of target creature until end of turn. Untap that creature. Until end of turn, it has base power and toughness 10/10 and gains trample, annihilator 2, and haste.\nAnnihilator 2\nTrample"
 newly covered	96650e9896c5143a302c169854bba3621083b09a539a0be8293fda50dcac9293	card "Infantry Shield"	selected_analysis "Equipped creature has menace and mobilize X, where X is its power.\nEquip {2}"
+newly covered	97cb182094fde1c2b021c4402d1a966e394ec24005cc0f5febcfcff86a50507a	card "Hallowed Haunting"	selected_analysis "As long as you control seven or more enchantments, creatures you control have flying and vigilance.\nWhenever you cast an enchantment spell, create a white Spirit Cleric creature token with \"This token's power and toughness are each equal to the number of Spirits you control.\""
 newly covered	97d2f20c2f0d20d8405c5b3b8305d2284155d3a03e3c27e5cf96a1544f9283d9	card "Midnight Angel Armor"	selected_analysis "When this Equipment enters, create a 1/1 white Soldier creature token, then attach this Equipment to it.\nEquipped creature gets +3/+3 and has flying and vigilance.\nEquip {3}"
 newly covered	99f4c2704d46fe429c16d5d36ace30ad7f524208054c684e486ae15824f5a6bd	card "Fly"	selected_analysis "Enchant creature\nEnchanted creature has flying and \"Whenever this creature deals combat damage to a player, venture into the dungeon.\""
 newly covered	9a4fc19757ced86bdde0e901ce61e7caea681c3f9c2a61b8359920636ff45e4c	card "Esika, God of the Tree // The Prismatic Bridge (Esika, God of the Tree)"	selected_analysis "Vigilance\n{T}: Add one mana of any color.\nOther legendary creatures you control have vigilance and \"{T}: Add one mana of any color.\""
@@ -231,11 +255,13 @@ newly covered	a13fa54b5e6e12dfddbf947e20b0e2dedaf761582b238b5f654995aaa6a6b723	c
 newly covered	a36271e577655f8de05300fad5049408a2b55435773f0f5e861a0adfde9ab60d	card "Invasion of Pyrulea // Gargantuan Slabhorn (Gargantuan Slabhorn)"	selected_analysis "Trample, ward {2}\nOther transformed permanents you control have trample and ward {2}."
 newly covered	a3de05d36145e0b71a0a139930150161f3d960411f619a15540ceb1676db7956	card "Eternal Thirst"	selected_analysis "Enchant creature\nEnchanted creature has lifelink and \"Whenever a creature an opponent controls dies, put a +1/+1 counter on this creature.\""
 newly covered	a3f0dcf6748146c121efe963206016c3d2502831696276031d75996d69c42e3c	card "Tower Above"	selected_analysis "Until end of turn, target creature gets +4/+4 and gains trample, wither, and \"When this creature attacks, target creature blocks it this turn if able.\""
+newly covered	a420c6eb154566a79b22760585adcc96bee9e2d403f23a999527768784b07250	card "Long-Lost Lances"	selected_analysis "Equipped creature gets +2/+0.\nDuring your turn, creatures you control that are equipped have first strike and vigilance.\nEquip {2}"
 newly covered	a6108791ddea85cd62ec17a9ef570075ab039e205bc62e7551a7cd856bebb906	card "Assassin Initiate"	selected_analysis "{1}: This creature gains your choice of flying, deathtouch, or lifelink until end of turn."
 newly covered	a98b2eb045e290ebb195e074864fc73d235d6a6b2e2b2fd3f7acce61efc51c04	card "Dragon Egg"	selected_analysis "Defender\nWhen this creature dies, create a 2/2 red Dragon creature token with flying and \"{R}: This token gets +1/+0 until end of turn.\""
 newly covered	ada9cf9dac977aadf45bb386dedd8e3d92d6d555010017b9878c700b20b95903	card "Jodah's Avenger"	selected_analysis "{0}: Until end of turn, this creature gets -1/-1 and gains your choice of double strike, protection from red, vigilance, or shadow."
 newly covered	aed83366ef51667e0f2032d447689d692c848a851c3a74d81b4f1af0a7e2c2a8	card "Pheres-Band Warchief"	selected_analysis "Vigilance, trample\nOther Centaur creatures you control get +1/+1 and have vigilance and trample."
 newly covered	af08770cf22ebd20d7f8ccff696da368e7dda6020e7e77babc2dd471545115fb	card "Mask of Griselbrand"	selected_analysis "Equipped creature has flying and lifelink.\nWhenever equipped creature dies, you may pay X life, where X is its power. If you do, draw X cards.\nEquip {3}"
+newly covered	af313d45b5e6c513720a8b3d719b903450f8649b9f28a8d98e46e3f544e0c383	card "Veteran Warleader"	selected_analysis "Veteran Warleader's power and toughness are each equal to the number of creatures you control.\nTap another untapped Ally you control: This creature gains your choice of first strike, vigilance, or trample until end of turn."
 newly covered	b1d3f50ff65e6b3568314d2ff05294ba752ff220d6e9a011dfeb7ae95d60920b	card "Gray Slaad // Entropic Decay (Gray Slaad)"	selected_analysis "As long as there are four or more creature cards in your graveyard, this creature has menace and deathtouch."
 newly covered	b2c3aaa565d9ef2377d408bbd9252d9f9a434d9071e5a92ebe629439a61f7785	card "Brilliant Wings"	selected_analysis "Flash\nEnchant creature you control\nEnchanted creature has flying and hexproof.\nWhenever a creature you control enters, you may pay {1}. If you do, attach this Aura to that creature."
 newly covered	b9f3b0ae6a880d591f0759e4c94bd475927467dc489a8f5fdd235f93a277d81f	card "Run Wild"	selected_analysis "Until end of turn, target creature gains trample and \"{G}: Regenerate this creature.\""
@@ -288,90 +314,160 @@ newly covered	fc6799d4bb2342432acc9eb1ff0581e93f2f0285bb1f83ea4c072c7c13bce89a	c
 newly covered	fe0ef8eb213b2223edd22f161b2fa7e7e9bc44844dc4316f3c3feae5b3c8ea70	card "Swift Justice"	selected_analysis "Until end of turn, target creature gets +1/+0 and gains first strike and lifelink."
 ```
 
-The following 24 previously covered identities changed selected construction
-path. Each now selects the ordinary positional `and` ability coordination;
-the full selected analysis is included:
+The following 27 previously covered identities changed selected construction
+path. Each is the same single substitution — the uniform granted line
+re-brackets into the ordinary positional `and` ability coordination — with no
+other node moving, so every one is correct-to-correct:
 
-- Akoum Stonewaker — `8e6e22d5263a52d72f8594e0613eac68f3dd53f9bd794b3dd8882e7478740fc1` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Landfall — Whenever a land you control enters, you may pay {2}{R}. If you do, create a 3/1 red Elemental creature token with trample and haste. Exile that token at the beginning of the next end step."`
-- Dancing Sword — `300839963a5efe2cde20b9ef7f3fe7ae3bd3a090b6e4088963f8fc3291adb160` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Equipped creature gets +2/+1.\nWhen equipped creature dies, you may have this Equipment become a 2/1 Construct artifact creature with flying and ward {1}. If you do, it isn't an Equipment.\nEquip {1}"`
-- Daring Piracy — `569eb3c2a303f811e48e9ba6270ab760c731825f8bd00826038bb49bd655e848` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "At the beginning of combat on your turn, create a 1/1 red Pirate creature token with menace and haste. Exile it at the beginning of the next end step."`
-- Dragon Broodmother — `793c83aff79c9387a3e087b6e2c1d7fc65d87687a7276b7d5ffd76dbc60c81b6` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Flying\nAt the beginning of each upkeep, create a 1/1 red and green Dragon creature token with flying and devour 2."`
-- Drider — `c1327317649681d92dfb2f2dda7f342f4cdcad5f4a77486282baf908f39a45a6` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Reach\nWhenever this creature deals combat damage to a player, create a 2/1 black Spider creature token with reach and menace."`
-- Elemental Eruption — `9026b8260ca68277918e25afb26edd91666f061f55e7f3232e211560a187c545` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Create a 4/4 red Dragon Elemental creature token with flying and prowess.\nStorm"`
-- Force of Rage — `24f00453cc194b43f6c72d3afea659889afcc10a95add43a8835dc7c16c4ccf1` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "If it's not your turn, you may exile a red card from your hand rather than pay this spell's mana cost.\nCreate two 3/1 red Elemental creature tokens with trample and haste. Sacrifice those tokens at the beginning of your next upkeep."`
-- Hornet Nest — `a987341080a5398766b2d8e2622131129c0c4c9f11214d4b0d4548788ca954c6` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Defender\nWhenever this creature is dealt damage, create that many 1/1 green Insect creature tokens with flying and deathtouch."`
-- Hornet Queen — `912be9bbdf4702715188ffe327a32fc638c84a4e0f4fc7e9251d52b89fd8d0db` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Flying, deathtouch\nWhen this creature enters, create four 1/1 green Insect creature tokens with flying and deathtouch."`
-- Jenson Carthalion, Druid Exile — `992999c3dcba011794b31f449249aa0447ef73ffba348cf89b92d5c32eb31490` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Whenever you cast a multicolored spell, scry 1. If that spell was all colors, create a 4/4 white Angel creature token with flying and vigilance.\n{5}, {T}: Add {W}{U}{B}{R}{G}."`
-- Oath of Eorl — `19dc572cd3fcd424f88f60f241d0804cfd1f8535267c15f985405f656150f054` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "I — Create two 1/1 white Human Soldier creature tokens.\nII — Create two 2/2 red Human Knight creature tokens with trample and haste.\nIII — Put an indestructible counter on up to one target Human. You become the monarch."`
-- Opal Archangel — `6cc35d220ef46286978b00cd888b7969bb25568599bb39ab1f538c47652d8016` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "When an opponent casts a creature spell, if this permanent is an enchantment, it becomes a 5/5 Angel creature with flying and vigilance."`
-- Opal Guardian — `63a2b6227571aefa6987ffa83f9126030eedcad2d0bdc1d4744bce7a0de77b04` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "When an opponent casts a creature spell, if this permanent is an enchantment, this enchantment becomes a 3/4 Gargoyle creature with flying and protection from red."`
-- Queen Marchesa — `0148d3aef6f9ecd5e818baac2e8bf0417ab1e0fabdce4b0b81e2d611301a7585` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Deathtouch, haste\nWhen Queen Marchesa enters, you become the monarch.\nAt the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste."`
-- Rampage of the Valkyries — `c4486507e5627a8c6a33fd550732293044afd98d8d1d990556e23f24a2379d76` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "When this enchantment enters, create a 4/4 white Angel creature token with flying and vigilance.\nWhenever an Angel you control dies, each other player sacrifices a creature of their choice."`
-- Riders of Rohan — `0782804fabe5cf8db073e65481d6a8cfbbcd152f406c08acae64afd7bcb9f08c` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "When this creature enters, create two 2/2 red Human Knight creature tokens with trample and haste.\nDash {4}{R}{W}"`
-- Sorin the Mirthless — `bd1b6297c83404c2376c49eac48f6418022c1dfd6e276b263cf19cb3798099ce` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "[+1]: Look at the top card of your library. You may reveal that card and put it into your hand. If you do, you lose life equal to its mana value.\n[−2]: Create a 2/3 black Vampire creature token with flying and lifelink.\n[−7]: Sorin deals 13 damage to any target. You gain 13 life."`
-- The Legend of Roku // Avatar Roku — `e476b6fae4f3892cdd79e35fcf325fd04e52e017ba6aa3e1e408e5f6f33b933b` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Firebending 4\n{8}: Create a 4/4 red Dragon creature token with flying and firebending 4."`
-- The Locust God — `d76b569ea4dc0bf2311ed4918cd33554d2ce74238453072fb225c25b9e5ae819` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect creature token with flying and haste.\n{2}{U}{R}: Draw a card, then discard a card.\nWhen The Locust God dies, return it to its owner's hand at the beginning of the next end step."`
-- Thunderheads — `60c2873abdb5d985c44d04282fb82c57fa880a763171528157c593b30b6107d5` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Replicate {2}{U}\nCreate a 3/3 blue Weird creature token with defender and flying. Exile it at the beginning of the next end step."`
-- Valduk, Keeper of the Flame — `a8242394e24bf4f3491fc7b343a3c5c59f7ae5b2327c320c756a7bb25c5a479e` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "At the beginning of combat on your turn, for each Aura and Equipment attached to Valduk, create a 3/1 red Elemental creature token with trample and haste. Exile those tokens at the beginning of the next end step."`
-- Valkyrie's Sword — `effb1d60df12b47db3066f7ef17ab4c86d920fa338ed5afc3966119f9cae5ea7` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "When this Equipment enters, you may pay {4}{W}. If you do, create a 4/4 white Angel Warrior creature token with flying and vigilance, then attach this Equipment to it.\nEquipped creature gets +2/+1.\nEquip {3}"`
-- Warden of the First Tree — `c51e684f38f6eff22dbfc9da20a3b106e19721e64388e913161387c8841d46d4` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "{1}{W/B}: This creature becomes a Human Warrior with base power and toughness 3/3.\n{2}{W/B}{W/B}: If this creature is a Warrior, it becomes a Human Spirit Warrior with trample and lifelink.\n{3}{W/B}{W/B}{W/B}: If this creature is a Spirit, put five +1/+1 counters on it."`
-- Warrant // Warden — `d4c90ad6dc40f981de562eaa4b6b85f2e8533e4e3bedad44c94b6ca23e7e0ada` — selected `AbilityExpressionAndAbilityCoordination`; `selected_analysis "Create a 4/4 white and blue Sphinx creature token with flying and vigilance."`
+- Akoum Stonewaker — `8e6e22d5263a52d72f8594e0613eac68f3dd53f9bd794b3dd8882e7478740fc1` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Landfall — Whenever a land you control enters, you may pay {2}{R}. If you do, create a 3/1 red Elemental creature token with trample and haste. Exile that token at the beginning of the next end step."`
+- Dancing Sword — `300839963a5efe2cde20b9ef7f3fe7ae3bd3a090b6e4088963f8fc3291adb160` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Equipped creature gets +2/+1.\nWhen equipped creature dies, you may have this Equipment become a 2/1 Construct artifact creature with flying and ward {1}. If you do, it isn't an Equipment.\nEquip {1}"`
+- Daring Piracy — `569eb3c2a303f811e48e9ba6270ab760c731825f8bd00826038bb49bd655e848` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "At the beginning of combat on your turn, create a 1/1 red Pirate creature token with menace and haste. Exile it at the beginning of the next end step."`
+- Dragon Broodmother — `793c83aff79c9387a3e087b6e2c1d7fc65d87687a7276b7d5ffd76dbc60c81b6` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Flying\nAt the beginning of each upkeep, create a 1/1 red and green Dragon creature token with flying and devour 2."`
+- Drider — `c1327317649681d92dfb2f2dda7f342f4cdcad5f4a77486282baf908f39a45a6` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Reach\nWhenever this creature deals combat damage to a player, create a 2/1 black Spider creature token with reach and menace."`
+- Elemental Eruption — `9026b8260ca68277918e25afb26edd91666f061f55e7f3232e211560a187c545` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Create a 4/4 red Dragon Elemental creature token with flying and prowess.\nStorm"`
+- Force of Rage — `24f00453cc194b43f6c72d3afea659889afcc10a95add43a8835dc7c16c4ccf1` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "If it's not your turn, you may exile a red card from your hand rather than pay this spell's mana cost.\nCreate two 3/1 red Elemental creature tokens with trample and haste. Sacrifice those tokens at the beginning of your next upkeep."`
+- Hornet Nest — `a987341080a5398766b2d8e2622131129c0c4c9f11214d4b0d4548788ca954c6` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Defender\nWhenever this creature is dealt damage, create that many 1/1 green Insect creature tokens with flying and deathtouch."`
+- Hornet Queen — `912be9bbdf4702715188ffe327a32fc638c84a4e0f4fc7e9251d52b89fd8d0db` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Flying, deathtouch\nWhen this creature enters, create four 1/1 green Insect creature tokens with flying and deathtouch."`
+- Jenson Carthalion, Druid Exile — `992999c3dcba011794b31f449249aa0447ef73ffba348cf89b92d5c32eb31490` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Whenever you cast a multicolored spell, scry 1. If that spell was all colors, create a 4/4 white Angel creature token with flying and vigilance.\n{5}, {T}: Add {W}{U}{B}{R}{G}."`
+- Oath of Eorl — `19dc572cd3fcd424f88f60f241d0804cfd1f8535267c15f985405f656150f054` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "I — Create two 1/1 white Human Soldier creature tokens.\nII — Create two 2/2 red Human Knight creature tokens with trample and haste.\nIII — Put an indestructible counter on up to one target Human. You become the monarch."`
+- Opal Archangel — `6cc35d220ef46286978b00cd888b7969bb25568599bb39ab1f538c47652d8016` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "When an opponent casts a creature spell, if this permanent is an enchantment, it becomes a 5/5 Angel creature with flying and vigilance."`
+- Opal Guardian — `63a2b6227571aefa6987ffa83f9126030eedcad2d0bdc1d4744bce7a0de77b04` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "When an opponent casts a creature spell, if this permanent is an enchantment, this enchantment becomes a 3/4 Gargoyle creature with flying and protection from red."`
+- Parhelion II — `8ea3f86f1e479b336a9be758c22b48d1e68193384c6c2ad7c56995c28785d7c1` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Flying, first strike, vigilance\nWhenever Parhelion II attacks, create two 4/4 white Angel creature tokens with flying and vigilance that are attacking.\nCrew 4"`
+- Parhelion II // Parhelion II — `8fcd0418fc163013fb36f774c365acd953c106d650505833501e46fae20284c5` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Flying, first strike, vigilance\nWhenever Parhelion II attacks, create two 4/4 white Angel creature tokens with flying and vigilance that are attacking.\nCrew 4"`
+- Queen Marchesa — `0148d3aef6f9ecd5e818baac2e8bf0417ab1e0fabdce4b0b81e2d611301a7585` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Deathtouch, haste\nWhen Queen Marchesa enters, you become the monarch.\nAt the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste."`
+- Rampage of the Valkyries — `c4486507e5627a8c6a33fd550732293044afd98d8d1d990556e23f24a2379d76` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "When this enchantment enters, create a 4/4 white Angel creature token with flying and vigilance.\nWhenever an Angel you control dies, each other player sacrifices a creature of their choice."`
+- Riders of Rohan — `0782804fabe5cf8db073e65481d6a8cfbbcd152f406c08acae64afd7bcb9f08c` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "When this creature enters, create two 2/2 red Human Knight creature tokens with trample and haste.\nDash {4}{R}{W}"`
+- Sorin the Mirthless — `bd1b6297c83404c2376c49eac48f6418022c1dfd6e276b263cf19cb3798099ce` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "[+1]: Look at the top card of your library. You may reveal that card and put it into your hand. If you do, you lose life equal to its mana value.\n[−2]: Create a 2/3 black Vampire creature token with flying and lifelink.\n[−7]: Sorin deals 13 damage to any target. You gain 13 life."`
+- The Legend of Roku // Avatar Roku — `e476b6fae4f3892cdd79e35fcf325fd04e52e017ba6aa3e1e408e5f6f33b933b` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Firebending 4\n{8}: Create a 4/4 red Dragon creature token with flying and firebending 4."`
+- The Locust God — `d76b569ea4dc0bf2311ed4918cd33554d2ce74238453072fb225c25b9e5ae819` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect creature token with flying and haste.\n{2}{U}{R}: Draw a card, then discard a card.\nWhen The Locust God dies, return it to its owner's hand at the beginning of the next end step."`
+- Thunder Totem — `7773fd18729b9be1a20db1361c273a829876f3fb349b074c4f9a5c8c003e231b` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "{T}: Add {W}.\n{1}{W}{W}: This artifact becomes a 2/2 white Spirit artifact creature with flying and first strike until end of turn."`
+- Thunderheads — `60c2873abdb5d985c44d04282fb82c57fa880a763171528157c593b30b6107d5` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Replicate {2}{U}\nCreate a 3/3 blue Weird creature token with defender and flying. Exile it at the beginning of the next end step."`
+- Valduk, Keeper of the Flame — `a8242394e24bf4f3491fc7b343a3c5c59f7ae5b2327c320c756a7bb25c5a479e` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "At the beginning of combat on your turn, for each Aura and Equipment attached to Valduk, create a 3/1 red Elemental creature token with trample and haste. Exile those tokens at the beginning of the next end step."`
+- Valkyrie's Sword — `effb1d60df12b47db3066f7ef17ab4c86d920fa338ed5afc3966119f9cae5ea7` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "When this Equipment enters, you may pay {4}{W}. If you do, create a 4/4 white Angel Warrior creature token with flying and vigilance, then attach this Equipment to it.\nEquipped creature gets +2/+1.\nEquip {3}"`
+- Warden of the First Tree — `c51e684f38f6eff22dbfc9da20a3b106e19721e64388e913161387c8841d46d4` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "{1}{W/B}: This creature becomes a Human Warrior with base power and toughness 3/3.\n{2}{W/B}{W/B}: If this creature is a Warrior, it becomes a Human Spirit Warrior with trample and lifelink.\n{3}{W/B}{W/B}{W/B}: If this creature is a Spirit, put five +1/+1 counters on it."`
+- Warrant // Warden — `d4c90ad6dc40f981de562eaa4b6b85f2e8533e4e3bedad44c94b6ca23e7e0ada` — now selects `AbilityExpressionAndAbilityCoordination` (was `GrantedKeywordLineGrantedKeywordLine`); `selected_analysis "Create a 4/4 white and blue Sphinx creature token with flying and vigilance."`
 
 **Deviations and additions:**
 
-- The ticket needs a continuation-space owner before either an unspaced keyword
-  item or an unspaced quoted ability, while forbidding a second separator table.
-  The construction declaration language had no unnested form atom that owns
-  structural bytes while preserving the current case position. A
-  `structural(" ")` form atom was added to construction core, documented in
+- The shared member category needs a constituent-owned leading boundary before
+  either an unspaced keyword item or an unspaced quoted ability, while the
+  ticket forbids a second separator table. No existing unnested form atom owns
+  structural bytes without also claiming a word boundary (`Literal` renders
+  through `writer.word`) or moving the following item's case position
+  (`sentence_initial` applies `StructuralTransition::SentenceInitial`). A
+  `structural(surface)` form atom was added to construction core, documented in
   the rewrite ADR, emitted as a form-literal provenance owner with
-  `StructuralTransition::Preserve`, and covered by three core tests. It does
-  not relax the ADR's prohibition on continuation form atoms.
-- The synthetic predicate fixture gained ordinary declarations for
-  Deathtouch, Enchant, Haste, Reach, and Trample so the required exact
-  nominal, coordinator, and `Enchanted creature has "…" and "…"` witnesses
-  use declared vocabulary. This is test data, not a closed production keyword
-  list or a guard.
+  `StructuralTransition::Preserve`, matched exhaustively across the six emit
+  files, and covered by three core tests plus one macro-boundary trybuild
+  fixture. It is a single literal, not a positional table, so it is not a
+  second separator table in disguise; it does not relax the ADR's prohibition
+  on `continuation` form atoms.
+- `AbilityQuotedAbility` is a second quoted-ability construction that differs
+  from `QuotedAbility` only in who owns the leading space: `quoted_ability`
+  bakes the space into `sentence_initial(" \"")` because its parents render it
+  directly, while the coordination member cannot, since the positional
+  separators already own every internal boundary. The two are disjoint —
+  `AbilityExpression` requires two or more members, so a single quoted ability
+  still routes only through `PrepositionalComplement::Quoted` — and the
+  ambiguity gate reports 0 unresolved ties.
+- `granted_keyword_line` loses its `seq … separated by " and "` and becomes the
+  single-item wrapper it now is; the `and` case moved to the general
+  coordination. `require len(items) >= 1` went with the sequence because a
+  required singular field carries the same arity.
+- The synthetic predicate fixture gained ordinary declarations for Deathtouch,
+  Enchant, Haste, Reach, and Trample so the nominal, coordinator, and
+  `Enchanted creature has "…" and "…"` witnesses use declared vocabulary. This
+  is test data, not a production keyword list or a guard.
 - No other construction or test was added or deleted beyond the ticket's
   coordination witnesses and the structural-atom support they require.
 
-**Assurance:** restored 0; re-spelled 2 existing environment test functions
-(core frame census and exact special-frame membership); ignored 0; added 4 test
-functions (3 construction-core structural-form tests, 1 english-v2 coordination
-test containing four positive arms, a single-item comma regression witness, and
-one negative); removed 0.
+**Assurance:** restored 0; re-spelled 2 existing `environment.rs` test
+functions (the core frame census, whose `Gain` and `Have` frame counts rise
+4→5 and 5→6, and the exact special-frame membership assertion, which gains two
+positive `verb_frame_licenses` checks); ignored 0; added 5 test functions —
+three construction-core structural-form tests (parse, report, and the
+rules/render expansion), one english-v2 coordination test carrying four
+positive arms, a single-keyword regression witness, and a negative
+(`Destroy target creature with deathtouch, trample.` has no derivation), and
+one `deckmaste_construction` trybuild fixture
+(`structural_empty_surface`) for the macro-boundary refusal; removed 0.
 
 **Glossary gaps:** `Keyword Line Item`, `Quoted Ability`, and
-`Granted Ability` are used by the ticket but are not defined in
-`docs/contexts/oracle-english/CONTEXT.md`. `Coordination`,
-`Coordinator`, and `Conjunct` are defined there.
+`Granted Ability` are used by this ticket but are not defined in
+`docs/contexts/oracle-english/CONTEXT.md`. `Coordination`, `Coordinator`, and
+`Conjunct` are defined there and are used with their defined senses.
 
-**STOPs:** none. The discarded broad single-ability rewrite was corrected
-before landing; the final tree has no loss, wrong new analysis, negative oracle,
-word-naming guard, or selection tie.
+**STOPs:** none. The implementer's discarded broad single-ability rewrite,
+which cost 12 identities, was corrected before the first measurement; the final
+tree has no loss, wrong new analysis, negative oracle, word-naming guard, or
+selection tie.
 
 ### REPORT
 
-- Coverage lock: **17,114 -> 17,289** (**+175 / -0**) in report mode.
-- Construction declarations: **385 -> 390**. The five net additions are the
-  shared ability-expression predicate, an unspaced quoted-ability member, and
-  the three semantic coordinator arms; the established single grant and quoted
-  constructions remain.
+- Coverage lock `covered`: **17,423 -> 17,601** (**+178 / -0**), measured and
+  blessed in report mode.
+- Construction declarations: **382 -> 387**. The five additions are the shared
+  ability-expression predicate, the unspaced quoted-ability member, and the
+  three semantic coordinator arms; the established single granted line and
+  single quoted ability remain.
 - Licensed homographs (2): `AttributiveAdjective::Untap` beside declaration
   keyword action `Untap`; `TargetingMarker::Target` beside
   `CommonNoun::Target`.
-- Form-literal/vocabulary overlaps (9, reported rather than fitted):
-  `additional` at `additional_cost`; `to` at
-  `up_to_quantifying_determiner`; `the` and `next` at
+- Form-literal/vocabulary overlaps (9): `additional` at `additional_cost`;
+  `to` at `up_to_quantifying_determiner`; `the` and `next` at
   `definite_next_mass_quantity_reference`; `to` at
-  `scalar_less_than_or_equal_to`; `the` at
-  `number_of_scalar_value`; `the` at `greatest_scalar_value`;
-  `other` at `other_than_qualified_reference`; and `the` at
-  `positional_partitive`.
-- Performance advisory, all with 8 workers and a 16.26 s quiet-host ceiling:
-  coverage check **112.381 s / 119,499 ns/B**, host load
-  4.75/6.19/6.99; ambiguity **112.666 s / 124,805 ns/B**, host load
-  4.10/5.44/6.50; roundtrip **109.442 s / 118,164 ns/B**, host load
-  3.83/5.18/6.30. Concurrent-process count is not observable in the sandbox;
-  the reviewer supplies the contention stamp. These over-ceiling figures are
-  advisory, not fitted gates.
+  `scalar_less_than_or_equal_to`; `the` at `number_of_scalar_value`; `the` at
+  `greatest_scalar_value`; `other` at `other_than_qualified_reference`; `the`
+  at `positional_partitive`. Provenance, not fitted to.
+- Performance advisory, all with 8 workers against the 16.26 s quiet-host
+  ceiling, measured by the reviewer on the final tree: coverage check
+  **101.017 s / 113,419 ns/B**, host load 4.24/6.03/6.95; coverage bless
+  **97.856 s / 114,419 ns/B**, host load 3.65/5.18/6.99; ambiguity
+  **100.128 s / 118,209 ns/B**, host load 4.50/5.71/6.74; roundtrip
+  **99.216 s / 112,782 ns/B**, host load 3.91/5.35/6.51; the default-line
+  `ambiguity --json` baseline **98.984 s / 118,551 ns/B**, host load
+  5.14/5.28/6.10. **Contention stamp: 1 concurrent review session** on this
+  host throughout (the implementer's sandbox cannot observe process counts, so
+  its own count was meaningless and has been replaced). These over-ceiling
+  figures are advisory, not fitted gates.
+
+### Review corrections
+
+- **MEDIUM — implementer report corruption.** The implementer's final chat
+  report degenerated into garbled text in its performance section. The ticket's
+  landing record itself contains no corruption (scanned for non-ASCII: only
+  em-dashes and ellipses), but every performance figure was re-measured by the
+  reviewer rather than carried over.
+- **MEDIUM — misattributed gate artifact.** The record cited
+  `test result: ok. 753 passed; 0 failed; 1 ignored` as construction core's
+  suite. That line is `deckmaste_engine`'s unit suite; construction core's unit
+  suite is 402. Every gate artifact above is the reviewer's own measurement.
+- **MEDIUM — stale measurement base.** `english-v2-copular-complement-sum`
+  integrated during the review gates, so the record's `17,114 -> 17,289 (+175)`
+  and `385 -> 390` were measured against a superseded default line. The
+  workspace was refreshed onto the merged line, the coverage lock re-blessed
+  add-only, and the whole record re-measured: `17,423 -> 17,601 (+178)` and
+  `382 -> 387`. The three additional identities (Hallowed Haunting,
+  Long-Lost Lances, Veteran Warleader) need both landings; the three additional
+  changed paths (Parhelion II, Parhelion II // Parhelion II, Thunder Totem) are
+  the same granted-line re-bracketing on identities the copular landing had
+  just covered.
+- **MEDIUM — the new `structural` form atom had no macro-boundary case.** Its
+  nearest analogue `sentence_initial` is exercised through the real
+  `constructions!` macro by a trybuild fixture; `structural` was covered only
+  by construction-core unit tests. Added
+  `crates/deckmaste_construction/tests/compile_fail/structural_empty_surface.rs`
+  and its `.stderr`, matching the `sentence_initial_empty_surface` pair.
+- **LOW — undocumented model variant.** `FormAtom::StructuralLiteral` carried no
+  doc line. Added one stating what distinguishes it from `Literal`: the surface
+  is written without a word boundary of its own and the following lexical item
+  keeps its case position.
+- **Reviewed and accepted as correct, no change:** `final_constituent.rs`
+  treats `StructuralLiteral` as opaque (the rightmost-leaf fold answers `false`
+  for it), grouped with `Literal` and `SentenceInitialLiteral`. That is right:
+  the fold looks for the rightmost *realized* constituent, and a structural
+  literal realizes bytes. `Bound` and `Circumfix` are transparent only because
+  `value_atom()` unwraps them to the role they carry, which a bare literal has
+  none of. Every current use is leading, where the distinction is
+  unobservable, so making this one atom transparent would be an unmotivated
+  divergence from its two siblings.
