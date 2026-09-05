@@ -18,6 +18,12 @@ named witness to its printed text once the shape lands:
   Phyrexian Ingester, Chrome Mox).
 - **`TriggerWord.After`** for the dice template ("After you roll a die…",
   Xenosquirrel's Shift); `ShiftResult` then reads the roll in scope.
+- **Plural agent over an outer object.** Vaevictis Asmadi, the Dire: after
+  the `ForEachOf` loop now publishes its group, "Those players sacrifice those
+  permanents" is refused at `EachStackOk` — a distributive deed moving an
+  object bound outside the agent phrase. Extend the `EachClosesOwnParts`
+  case to a group the same loop published (residue of
+  `workbench-foreach-group-survives`, 2026-09-04); bench the card whole.
 - The remaining fifteen as recorded: a condition's nouns joining the read
   stack (Answered Prayers), the `AttackedBy` attacker for "that opponent is
   attacking" (Tahngarth), an as-you-activate rider (Keeper of the Flame), a
