@@ -6,10 +6,6 @@ import Semantics.Check.Card
 
 Port of `idris/src/Experimental/Proofs/Keyword.idr`: the pins of the Keyword family, in
 theorem form, each closed by `decide`. The names and the sentences are the Idris ones.
-
-Not ported: `badCompanionZoneScope` ("Each card on the battlefield in your starting deck").
-By the accord `permanent` is the macro `.inZone battlefield`, so that sentence and
-`okCompanionCharacteristicRead`'s "each permanent card" are one and the same term here.
 -/
 
 open Semantics Semantics.Macros
@@ -377,8 +373,19 @@ theorem badCounterJoinedPlayer :
 theorem okCompanionCharacteristicRead :
     Ability.check []
       (companion
-        (.everyCardIs (.and [permanent, .isCard])
+        (.everyCardIs permanentCard
           (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2))))) = [] := by
+  decide
+
+/-- "Companion — Each card on the battlefield in your starting deck ...": a zone is a place
+objects are during a game [CR#400.1] and the starting deck is outside it [CR#103.2b], so it is
+not a characteristic [CR#109.3]. `permanentCard` spells "each permanent card". -/
+theorem badCompanionZoneScope :
+    Ability.check []
+      (companion
+        (.everyCardIs (.inZone battlefield)
+          (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2)))))
+      = [.deckReadable] := by
   decide
 
 /-- "Companion — Each permanent card in your starting deck is tapped.": whether a permanent is
@@ -387,7 +394,7 @@ the battlefield [CR#103.2b]. -/
 theorem badCompanionBattlefieldStatus :
     Ability.check []
       (companion
-        (.everyCardIs (.and [permanent, .isCard]) (.aCharacteristic (.hasStatus .tapped))))
+        (.everyCardIs permanentCard (.aCharacteristic (.hasStatus .tapped))))
       = [.deckReadable] := by
   decide
 

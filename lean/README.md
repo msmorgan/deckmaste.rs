@@ -20,9 +20,8 @@ obligation `Experimental/*.idr` put in a constructor type), the subset of
 and all fourteen `Proofs.<Family>` pin suites: `Description` (and the
 2026-09-04 exchange pins in `Refresh`) as `Pin` values, the other thirteen in
 theorem form (`theorem okX : … = []`, `theorem badX : … = [.reason]`, both by
-`decide`), with the Idris names and sentences kept. Four Idris pins are not
-ported, each named in its module docstring: two Planechase sentences, one whose
-ok and bad twins are the same term under the accord's `permanent` macro, and one
+`decide`), with the Idris names and sentences kept. Three Idris pins are not
+ported, each named in its module docstring: two Planechase sentences and one
 Idris type error.
 
 Since the port the syntax has been reshaped (2026-09-04): a constructor stays

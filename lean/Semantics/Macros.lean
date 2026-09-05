@@ -139,6 +139,15 @@ def spell : Predicate := .and [.inZone stack, .not (.abilityHead .anyOnStack)]
 def untapped : Predicate := .hasStatus .untapped
 /-- "permanent": an object on the battlefield [CR#110.1]. -/
 def permanent : Predicate := .inZone battlefield
+/-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
+battle, creature, enchantment, land, or planeswalker type [CR#110.4a]; a reading of the card's
+types, wherever it is. -/
+def permanentCard : Predicate :=
+  .and
+    [ .isCard,
+      .or
+        [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
+          .hasType .land, .hasType .planeswalker ] ]
 /-- "colorless": an object of no color [CR#105.2c]. -/
 def colorless : Predicate := .colorCount .eq 0
 /-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/

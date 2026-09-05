@@ -315,9 +315,8 @@ mutual
   characteristics are readable [CR#109.3]. -/
   def Predicate.deckReadable : Predicate → Bool
     | .isCard | .hasType _ | .hasSubtype _ => true
-    | .inZone (.zone .battlefield _) => true
     | .compare axes _ bound => axes.all ProjAxis.deck && bound.deckBound
-    | .and ps => Predicate.deckReadableAll ps
+    | .and ps | .or ps => Predicate.deckReadableAll ps
     | .not p => p.deckReadable
     | _ => false
   termination_by structural p => p
