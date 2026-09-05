@@ -231,7 +231,7 @@ def actFacts : List ActFacts :=
       patientRole := ⟨[.object], spellTypes, true, some .stack⟩, bounded := true },
     { label := "Activate", agentRole := playerAgent, patientRole := ⟨[.object], [], true, some .stack⟩,
       abilityRole := some .patient, bounded := true },
-    { label := "Regenerate", agentRole := ⟨[], [], true, none⟩,
+    { label := "Regenerate", participle := some "regenerated", agentRole := ⟨[], [], true, none⟩,
       patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, rides := true,
       bounded := true },
     { label := "GainLife", agentRole := playerAgent, bounded := true },

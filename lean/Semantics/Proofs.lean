@@ -9,6 +9,7 @@ import Semantics.Proofs.Mana
 import Semantics.Proofs.Refresh
 import Semantics.Proofs.Static
 import Semantics.Proofs.Trigger
+import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
 
 /-!
