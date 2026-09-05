@@ -18,6 +18,7 @@ pub(crate) const CHECKED_CONSTRUCTOR: &str = "try_new";
 pub(crate) const BUILD_REJECTION_TYPE: &str = "BuildRejection";
 pub(crate) const BUILD_VIOLATION_TYPE: &str = "BuildViolation";
 pub(crate) const ADMISSIBLE_SITES_TYPE: &str = "AdmissibleSites";
+pub(crate) const ADMISSIBLE_SITES_FIELD: &str = "admissible_sites";
 pub(crate) const ATTACHMENT_SITE_PATH_TYPE: &str = "AttachmentSitePath";
 pub(crate) const ATTACHMENT_SITE_STEP_TYPE: &str = "AttachmentSiteStep";
 pub(crate) const CONCORD_CLASS_TYPE: &str = "ConcordClass";
@@ -83,6 +84,9 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     LEXICAL_OWNER_IDENTITY_TYPE,
     BUILD_REJECTION_TYPE,
     BUILD_VIOLATION_TYPE,
+    ADMISSIBLE_SITES_TYPE,
+    ATTACHMENT_SITE_PATH_TYPE,
+    ATTACHMENT_SITE_STEP_TYPE,
 ];
 
 /// Reserved for private standalone-root render dispatch emitted by the

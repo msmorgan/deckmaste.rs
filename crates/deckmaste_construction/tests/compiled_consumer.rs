@@ -2812,6 +2812,10 @@ pub mod fixture {
             element JointMobileHost { inner: mobile InnerMobile, }
             form joint_mobile = inner;
         }
+        construction direct_mobile: JointMobileRoot {
+            element DirectMobileHost { leaf: mobile MobileConstituent, }
+            form direct_mobile = leaf;
+        }
         construction guarded: Child {
             element GuardedChild { mode: lex Mode, child: Child, }
             require any(
@@ -4105,22 +4109,35 @@ pub mod fixture {
         assert_eq!(visitor.0, 1);
     }
 
-    pub(super) fn assert_mobile_roles_are_derived_and_jointly_realizable() {
+    pub(super) fn assert_mobile_roles_are_derived_and_attachment_heights_agree() {
         let leaf = MobileConstituent::MobileLeaf(MobileLeafNode { mode: Mode::One });
         let inner = InnerMobile::InnerMobile(
-            InnerMobileNode::new(leaf).expect("the inner mobile occupies its highest host"),
+            InnerMobileNode::new(leaf.clone()).expect("the nested inner host builds"),
         );
-        let root = JointMobileRoot::JointMobile(
-            JointMobileHost::new(inner).expect("the outer mobile occupies its highest host"),
+        let nested = JointMobileRoot::JointMobile(
+            JointMobileHost::new(inner).expect("the nested outer host builds"),
         );
-        let JointMobileRoot::JointMobile(outer) = &root;
+        let JointMobileRoot::JointMobile(outer) = &nested else {
+            panic!("the nested derivation hosts the Constituent one level down");
+        };
         assert!(outer.admissible_sites().is_empty());
         let InnerMobile::InnerMobile(inner) = &outer.inner;
         assert!(inner.admissible_sites().is_empty());
 
+        let hoisted = JointMobileRoot::DirectMobile(
+            DirectMobileHost::new(leaf).expect("the dominating host builds"),
+        );
+        let JointMobileRoot::DirectMobile(hoisted_host) = &hoisted else {
+            panic!("the hoisted derivation hosts the Constituent at the dominating host");
+        };
+        assert!(hoisted_host.admissible_sites().is_empty());
+
         let context = ParseContext::default();
-        let (rendered, rendered_claims) = render_joint_mobile_root_with_claims(&root, &context);
+        let (rendered, rendered_claims) = render_joint_mobile_root_with_claims(&nested, &context);
+        let (hoisted_rendered, hoisted_rendered_claims) =
+            render_joint_mobile_root_with_claims(&hoisted, &context);
         assert_eq!(rendered, "One.");
+        assert_eq!(hoisted_rendered, rendered);
         let surface = rendered
             .strip_suffix('.')
             .expect("the root renderer contributes punctuation");
@@ -4129,18 +4146,26 @@ pub mod fixture {
             .filter(|claim| claim.end <= surface.len())
             .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
             .collect::<Vec<_>>();
+        let hoisted_rendered_claims = hoisted_rendered_claims
+            .into_iter()
+            .filter(|claim| claim.end <= surface.len())
+            .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
+            .collect::<Vec<_>>();
         assert_eq!(rendered_claims.len(), 1);
+        assert_eq!(hoisted_rendered_claims, rendered_claims);
         assert_exact_partition(surface, &rendered_claims);
         let forest = parse_structural(Category::JointMobileRoot, surface, &context);
         let roots = forest.accepted_root_ids().collect::<Vec<_>>();
         assert_eq!(
             roots.len(),
-            1,
-            "both mobile Constituents are jointly realizable at their highest hosts",
+            2,
+            "the same bytes derive with the mobile Constituent at either host",
         );
-        let mut parsed_claims = Vec::new();
-        collect_first_family_claims(&forest, roots[0], &mut parsed_claims);
-        assert_eq!(parsed_claims, rendered_claims);
+        for root_id in roots {
+            let mut parsed_claims = Vec::new();
+            collect_first_family_claims(&forest, root_id, &mut parsed_claims);
+            assert_eq!(parsed_claims, rendered_claims);
+        }
 
         let inner_rule = RULES
             .iter()
@@ -4152,10 +4177,18 @@ pub mod fixture {
             .find(|rule| rule.id == RuleId::JointMobileRootJointMobile)
             .expect("the outer mobile rule is generated");
         assert!(matches!(outer_rule.rhs, [N(Category::InnerMobile)]));
+        let direct_rule = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::JointMobileRootDirectMobile)
+            .expect("the dominating host's rule is generated");
+        assert!(matches!(direct_rule.rhs, [N(Category::MobileConstituent)]));
 
         let mut visitor = RecordingVisitor::default();
-        visitor.visit_joint_mobile_root(&root);
+        visitor.visit_joint_mobile_root(&nested);
         assert_eq!(visitor.0, [VisitEvent::Mode(Mode::One)]);
+        let mut hoisted_visitor = RecordingVisitor::default();
+        hoisted_visitor.visit_joint_mobile_root(&hoisted);
+        assert_eq!(hoisted_visitor.0, [VisitEvent::Mode(Mode::One)]);
     }
 
     pub(super) fn assert_guarded_form_partition_boundaries() {
@@ -7899,8 +7932,8 @@ fn recursive_optional_fields_render_and_visit_through_generated_boxes() {
 }
 
 #[test]
-fn mobile_roles_add_only_an_empty_derived_slot_and_joint_highest_hosts_exist() {
-    fixture::assert_mobile_roles_are_derived_and_jointly_realizable();
+fn mobile_roles_add_only_an_empty_derived_slot_and_both_attachment_heights_agree() {
+    fixture::assert_mobile_roles_are_derived_and_attachment_heights_agree();
 }
 
 #[test]

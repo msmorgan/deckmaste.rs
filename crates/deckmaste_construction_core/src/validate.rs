@@ -7,9 +7,7 @@ use syn::spanned::Spanned;
 
 use crate::feature;
 use crate::feature::Feature;
-use crate::identifier::ADMISSIBLE_SITES_TYPE;
-use crate::identifier::ATTACHMENT_SITE_PATH_TYPE;
-use crate::identifier::ATTACHMENT_SITE_STEP_TYPE;
+use crate::identifier::ADMISSIBLE_SITES_FIELD;
 use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
@@ -5021,26 +5019,6 @@ fn generated_name_inventory(
     for name in FIXED_RUNTIME_TYPE_NAMES {
         names.register_type(name, "fixed generated runtime type", fixed_span, errors);
     }
-    if raw.declarations.iter().any(|declaration| {
-        matches!(
-            declaration,
-            Declaration::Construction(construction)
-                if construction.element.fields.iter().any(|field| field.mobile)
-        )
-    }) {
-        for name in [
-            ADMISSIBLE_SITES_TYPE,
-            ATTACHMENT_SITE_PATH_TYPE,
-            ATTACHMENT_SITE_STEP_TYPE,
-        ] {
-            names.register_type(
-                name,
-                "mobile-role attachment metadata type",
-                fixed_span,
-                errors,
-            );
-        }
-    }
     for (name, role) in [
         (RULES_CONSTANT, "fixed generated rules table constant"),
         (BUILD_FUNCTION, "fixed generated build function"),
@@ -7661,14 +7639,16 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
             .iter()
             .map(|field| (identifier_key(&field.name), field))
             .collect::<HashMap<_, _>>();
-        if fields.contains_key("admissible_sites")
+        if fields.contains_key(ADMISSIBLE_SITES_FIELD)
             && construction.element.fields.iter().any(|field| field.mobile)
         {
             combine(
                 &mut errors,
                 syn::Error::new(
                     construction.element.name.span(),
-                    "a construction with a mobile role reserves the field name `admissible_sites`",
+                    format!(
+                        "a construction with a mobile role reserves the field name `{ADMISSIBLE_SITES_FIELD}`",
+                    ),
                 ),
             );
         }
