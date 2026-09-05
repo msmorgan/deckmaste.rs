@@ -119,7 +119,7 @@ Terms the design needs that `docs/contexts/oracle-english/CONTEXT.md` does not
 define: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing, Mobility.
 Listed as gaps; none is coined into the tracked glossary by this ticket.
 
-## Landing record
+## Superseded STOP record (2026-09-05)
 
 **STOP — not complete and not eligible for integration.** The OPEN-1
 too-strict acceptance ruling contradicts §A.3's exact equality test on the
@@ -250,6 +250,114 @@ choose between recorded rulings.
   reporter and the experimental possessive-coordination arm were removed.
 - The final full gate set and complete changed-selection review are omitted
   because the recorded ruling contradiction is itself the mandatory STOP.
+
+Glossary gaps remain: Scope, Attachment, Head, Premodifier, Peripheral,
+Bracketing, and Mobility.
+
+## Landing record
+
+**STOP — not complete and not eligible for integration.** The mandatory
+changed-selection review found a wrong selected analysis for corpus identity
+`Cynical Loner`. Its `search your library for a card` clause changed from the
+declared `object … for … object` frame to a transitive predicate plus a generic
+prepositional Predicate Adjunct. That contradicts principle (ii): a declared
+frame role is not an admissible attachment site. A focused `probe` confirmed
+that the generic Adjunct analysis is selected. Restoring the earlier host-span
+condition in Move A did not restore the frame analysis, so the defect lies in
+the amended collapse's affected-region equality or representative selection.
+Per the 2026-09-05 work order, a wrong analysis in either sample stratum is a
+STOP naming the identity; no further relaxation or corpus fitting was made.
+
+### Resolved STOP history
+
+- The phase-2 slot-shape STOP was resolved by the 2026-09-04 amendment: the
+  always-present slot is per declared mobile role, not per element. Phase 3
+  consumes that shape as `AdmissibleSites` containing `AttachmentSitePath`s.
+- The first phase-3 STOP proved that ordinary §A.3 could not pack Fury or
+  Aquatic Alchemist // Bubble Up because Move S changes mobile inventories and
+  claim boundaries. The coordinator resolved it with A.3-S1 through A.3-S6.
+  This change implements anchor-bijection bucketing, peripheral difference
+  regions, scope-confined identity/mobile/claim-boundary erasure, the empty-
+  difference fence, and failed-verification degradation to two candidates.
+- The concurrent B7a note appended A.3-S3a after the named work-order sections
+  had been read. Phase 3 now also requires a peripheral difference region to be
+  fully yielded by declared mobile material. Its binary-rebracketing witness is
+  asserted, while all named Move S packing witnesses still pass.
+
+### Implemented safe work
+
+- Root-only bucket-and-verify collapse runs at candidate finalization. The
+  ordinary identity-free bucket handles Move A; the leaf-sequence plus ordered
+  Coordinator-anchor bucket admits Move S pairs without pre-filtering on their
+  different mobile inventories.
+- The selected representative hoists mobiles to the highest admissible site.
+  Slots are populated per mobile role, outermost first, and Move S alternatives
+  use `Conjunct(role, ordinal)` paths. Leaves and rendered bytes are unchanged.
+- The general possessive Coordination arm is restored. Aquatic Alchemist //
+  Bubble Up produces two raw candidates and one packed representative with two
+  populated role slots.
+- Positive witnesses cover Fury, Grand Abolisher, Reprocess, Lich-Knights'
+  Conquest, Malevolent Witchkite, Boltbender, Aquatic Alchemist // Bubble Up,
+  Grafdigger's Cage, Weathered Runestone, Ground Seal, Silent Gravestone, Mass
+  Manipulation, the Seedborn class, nesting, render invariance and traversal.
+  Negative witnesses cover a live neutral family swap, flat-versus-nested
+  Coordination associativity, binary rebracketing without a mobile yield, and
+  construction identity with the Identity specificity tier disabled.
+
+### PROVE / DISCLOSE / REPORT state at STOP
+
+- The coordinator interrupted the earlier run after excessive full-corpus
+  development loops; all subsequent development used the 2,323-card affected
+  subset. Immediately before this STOP it reported 739 selected, 548 unique,
+  191 specificity-resolved, 0 unresolved ties and 0 internal failures; its
+  round trip was 739/739 clean.
+- A full ambiguity pass was run before the concurrent A.3-S3a section was
+  noticed: 19,524 selected, 16,256 unique, 3,268 specificity-resolved, 0 ties,
+  and 1,000 selected trees with populated slots. The pass was repeated because
+  the newly binding tightening changed code. On that diagnostic tree it was
+  19,524 selected, 16,133 unique, 3,391 specificity-resolved, 0 ties and 934
+  selected trees with populated slots. Both figures are pre-STOP diagnostics,
+  not acceptance measurements; the current safe backout differs.
+- Against the refreshed parent (19,469 selected; 15,271 unique; 4,198
+  specificity-resolved), that diagnostic tree had 55 newly selected units, 854
+  specificity-to-unique movements, 942 changed selected paths, and 3,178
+  candidates removed across 1,520 units (mean 2.09). The >2-drop stratum held
+  233 units; the uniform remainder sample was prepared at 60 of 799. Review
+  stopped at the first confirmed wrong analysis, as required, so no correctness
+  rate is claimed.
+- The restored possessive arm accounted for all 55 diagnostic newly selected
+  units; every selected path contained the general possessed-Coordination arm.
+  Its required coverage delta was not run after STOP, so breadth beyond the
+  shared-head acceptance family remains unresolved and must be classified on a
+  resumed run.
+- Diagnostic performance after S3a was 160,942 ns/B with 8 workers, 125.785 s
+  wall time, and host load 8.82/9.56/11.62. The refreshed parent was 125,831
+  ns/B with 8 workers, 120.329 s wall time, and host load 20.35/12.00/11.21.
+  The diagnostic cost was +27.9%, beyond OPEN-4's ~10% threshold, which is an
+  independent STOP; no per-node implementation was substituted.
+- Because the wrong selection and performance STOPs occurred during mandatory
+  classification, the final coverage `--check`/`--bless`, final roundtrip,
+  final workspace test, strict clippy, construction/checker inventory and
+  final-tree census were not run. No coverage lock or citations were changed.
+- Focused positive artifacts before STOP: materializer library 153/153 and
+  nominal grammar 32/32 passed; after A.3-S3a, the named Move S and associativity
+  witnesses passed. The current tree intentionally remains unclaimed as green.
+- Assurance: 0 restored, 13 re-spelled, 0 ignored, 9 added, 0 removed. The added
+  ninth assurance is A.3-S3a's binary-rebracketing-without-mobile-yield fence.
+
+### Deviations and additions
+
+- The general possessive Coordination arm and `mobile(rest)` declarations on
+  the first singular/plural Modifier roles are additions explicitly ordered by
+  the 2026-09-05 amendment. Their complete coverage classification is blocked
+  by the current STOP.
+- A temporary, non-serialized packed-unit census hook was used only during the
+  ambiguity diagnostic and removed. No census gate, JSON field, selection
+  exception, AST Category, word-naming guard, specificity weight, or principle
+  (iv) work remains in the tree.
+- The final full-set budget was exceeded by one ambiguity pass only because the
+  concurrent A.3-S3a design section became visible after the first pass. No
+  other full corpus gate was repeated.
 
 Glossary gaps remain: Scope, Attachment, Head, Premodifier, Peripheral,
 Bracketing, and Mobility.

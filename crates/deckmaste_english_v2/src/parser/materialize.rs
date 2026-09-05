@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use super::TextSpan;
 use super::diagnostic::MaterializationTrace;
 use super::diagnostic::MaterializationTraceBuilder;
 use super::diagnostic::MaterializedCandidateInfo;
@@ -14,6 +15,7 @@ use super::engine::Rule;
 use super::engine::RulePosition;
 use super::engine::SpannedLexical;
 use super::ownership::RawLexicalClaim;
+use super::ownership::RawRenderedClaim;
 use super::selection::specificity_tiers;
 use crate::ast::Ability;
 use crate::constructions::AdmissibleSites;
@@ -1063,6 +1065,157 @@ impl ScopeProjection {
         });
         mobiles
     }
+
+    fn coordinations(&self) -> Vec<CoordinationOccurrence> {
+        let paths = self.construction_paths();
+        let mut coordinations = Vec::new();
+        collect_coordinations(&self.root, &paths, &mut coordinations);
+        coordinations.sort_by(|left, right| left.anchor.cmp(&right.anchor));
+        coordinations
+    }
+
+    fn leaf_sequence(&self) -> Vec<usize> {
+        let mut leaves = Vec::new();
+        collect_leaf_sequence(&self.root, &mut leaves);
+        leaves
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CoordinationOccurrence {
+    construction_index: usize,
+    anchor: Vec<usize>,
+    span: (usize, usize),
+    sequence_role: &'static str,
+    conjuncts: Vec<CoordinationConjunct>,
+    path: ConstructionPath,
+}
+
+#[derive(Debug, Clone)]
+struct CoordinationConjunct {
+    ordinal: usize,
+    span: Option<(usize, usize)>,
+    node: ScopeNode,
+}
+
+fn collect_coordinations(
+    node: &ScopeNode,
+    paths: &HashMap<usize, ConstructionPath>,
+    coordinations: &mut Vec<CoordinationOccurrence>,
+) {
+    if let ScopeNodeKind::Construction(_, construction_index) = node.kind
+        && let Some((sequence_role, anchor, conjuncts)) = coordination_parts(node)
+        && let Some(span) = coordination_yield_span(node)
+    {
+        coordinations.push(CoordinationOccurrence {
+            construction_index,
+            anchor,
+            span,
+            sequence_role,
+            conjuncts,
+            path: paths[&construction_index].clone(),
+        });
+    }
+    for child in &node.children {
+        collect_coordinations(&child.node, paths, coordinations);
+    }
+}
+
+fn coordination_yield_span(node: &ScopeNode) -> Option<(usize, usize)> {
+    fn collect(node: &ScopeNode, inside_conjunct: bool, leaves: &mut Vec<usize>) {
+        if let ScopeNodeKind::Leaf(index) = node.kind {
+            leaves.push(index);
+        }
+        for child in &node.children {
+            let child_inside_conjunct =
+                inside_conjunct || matches!(child.step, Some(ScopeStep::Conjunct(_, _)));
+            if child.mobile.is_some() && !child_inside_conjunct {
+                continue;
+            }
+            collect(&child.node, child_inside_conjunct, leaves);
+        }
+    }
+
+    let mut leaves = Vec::new();
+    collect(node, false, &mut leaves);
+    Some((*leaves.first()?, leaves.last()? + 1))
+}
+
+fn coordination_parts(
+    node: &ScopeNode,
+) -> Option<(&'static str, Vec<usize>, Vec<CoordinationConjunct>)> {
+    enum Part {
+        Constituent {
+            role: Option<&'static str>,
+            node: ScopeNode,
+        },
+        Coordinator(usize),
+    }
+
+    fn collect(node: &ScopeNode, parts: &mut Vec<Part>) {
+        for child in &node.children {
+            if child.mobile.is_some() {
+                continue;
+            }
+            if let Some(ScopeStep::Conjunct(role, _)) = child.step {
+                parts.push(Part::Constituent {
+                    role: Some(role),
+                    node: child.node.clone(),
+                });
+                continue;
+            }
+            match child.node.kind {
+                ScopeNodeKind::Leaf(index) => parts.push(Part::Coordinator(index)),
+                ScopeNodeKind::Group => collect(&child.node, parts),
+                ScopeNodeKind::Construction(_, _) => parts.push(Part::Constituent {
+                    role: None,
+                    node: child.node.clone(),
+                }),
+            }
+        }
+    }
+
+    let mut parts = Vec::new();
+    collect(node, &mut parts);
+    let anchor = parts
+        .iter()
+        .filter_map(|part| match part {
+            Part::Coordinator(index) => Some(*index),
+            Part::Constituent { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    let role = parts.iter().find_map(|part| match part {
+        Part::Constituent {
+            role: Some(role), ..
+        } => Some(*role),
+        Part::Constituent { role: None, .. } | Part::Coordinator(_) => None,
+    })?;
+    let conjuncts = parts
+        .into_iter()
+        .filter_map(|part| match part {
+            Part::Constituent { node, .. } => Some(node),
+            Part::Coordinator(_) => None,
+        })
+        .enumerate()
+        .map(|(ordinal, node)| CoordinationConjunct {
+            ordinal,
+            span: node.span,
+            node,
+        })
+        .collect::<Vec<_>>();
+    if anchor.is_empty() || conjuncts.len() != anchor.len() + 1 {
+        return None;
+    }
+    Some((role, anchor, conjuncts))
+}
+
+fn collect_leaf_sequence(node: &ScopeNode, leaves: &mut Vec<usize>) {
+    if let ScopeNodeKind::Leaf(index) = node.kind {
+        leaves.push(index);
+    }
+    for child in &node.children {
+        collect_leaf_sequence(&child.node, leaves);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1097,6 +1250,52 @@ fn prune_scope_node(node: &ScopeNode, affected: &HashSet<usize>, erase_all: bool
             vec![ScopeKey::Construction {
                 span,
                 identity,
+                children,
+            }]
+        }
+    }
+}
+
+fn prune_scope_node_for_move_s(
+    node: &ScopeNode,
+    affected: &HashSet<usize>,
+    regions: &[(usize, usize)],
+) -> Vec<ScopeKey> {
+    match node.kind {
+        ScopeNodeKind::Leaf(index) => vec![ScopeKey::Leaf(index)],
+        ScopeNodeKind::Group => node
+            .children
+            .iter()
+            .filter(|child| {
+                child.mobile.is_none()
+                    || child.node.span.is_some_and(|span| {
+                        regions
+                            .iter()
+                            .any(|region| interval_contains(*region, span))
+                    })
+            })
+            .flat_map(|child| prune_scope_node_for_move_s(&child.node, affected, regions))
+            .collect(),
+        ScopeNodeKind::Construction(identity, index) => {
+            let children = node
+                .children
+                .iter()
+                .filter(|child| {
+                    child.mobile.is_none()
+                        || child.node.span.is_some_and(|span| {
+                            regions
+                                .iter()
+                                .any(|region| interval_contains(*region, span))
+                        })
+                })
+                .flat_map(|child| prune_scope_node_for_move_s(&child.node, affected, regions))
+                .collect::<Vec<_>>();
+            if affected.contains(&index) {
+                return children;
+            }
+            vec![ScopeKey::Construction {
+                span: key_span(&children),
+                identity: Some(identity),
                 children,
             }]
         }
@@ -1201,7 +1400,7 @@ fn collect_mobiles(
         ScopeNodeKind::Construction(_, index) => Some(index),
         ScopeNodeKind::Group | ScopeNodeKind::Leaf(_) => host,
     };
-    for child in &node.children {
+    for (child_index, child) in node.children.iter().enumerate() {
         let mut child_region = scope_region.cloned();
         if let Some(mobile) = child.mobile {
             let host = host.expect("a mobile role belongs to a construction");
@@ -1213,11 +1412,17 @@ fn collect_mobiles(
             let scope_child = mobile.scope_sibling.and_then(|scope_sibling| {
                 node.children
                     .iter()
-                    .find(|candidate| candidate.step == Some(ScopeStep::Role(scope_sibling)))
+                    .enumerate()
+                    .find(|(_, candidate)| candidate.step == Some(ScopeStep::Role(scope_sibling)))
             });
             let first_conjunct_path = scope_child.and_then(|scope_child| {
+                let (scope_index, scope_child) = scope_child;
                 let mut path = vec![scope_child.step.expect("a scope sibling is a role")];
-                find_first_conjunct(&scope_child.node, &mut path)
+                if child_index < scope_index {
+                    find_first_conjunct(&scope_child.node, &mut path)
+                } else {
+                    find_last_conjunct(&scope_child.node, &mut path)
+                }
             });
             mobiles.push(MobileOccurrence {
                 signature: signature.clone(),
@@ -1227,7 +1432,7 @@ fn collect_mobiles(
                 scope_sibling: mobile.scope_sibling,
                 scope_region: scope_region.cloned(),
                 subtree: child.node.clone(),
-                scope_subtree: scope_child.map(|scope_child| scope_child.node.clone()),
+                scope_subtree: scope_child.map(|(_, scope_child)| scope_child.node.clone()),
                 first_conjunct_path,
             });
             child_region = Some(signature);
@@ -1254,10 +1459,39 @@ fn find_first_conjunct(node: &ScopeNode, path: &mut Vec<ScopeStep>) -> Option<Ve
     None
 }
 
+fn find_last_conjunct(node: &ScopeNode, path: &mut Vec<ScopeStep>) -> Option<Vec<ScopeStep>> {
+    for child in node.children.iter().rev() {
+        if let Some(step) = child.step {
+            path.push(step);
+        }
+        if matches!(child.step, Some(ScopeStep::Conjunct(_, _))) {
+            return Some(path.clone());
+        }
+        if let Some(found) = find_last_conjunct(&child.node, path) {
+            return Some(found);
+        }
+        if child.step.is_some() {
+            path.pop();
+        }
+    }
+    None
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ScopeBucketKey {
     mobiles: Vec<MobileSignature>,
     skeleton: Vec<ScopeKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct CoordinationBucketKey {
+    leaves: Vec<usize>,
+    anchors: Vec<Vec<usize>>,
+}
+
+struct RenderedCandidate {
+    text: String,
+    claims: Vec<RawRenderedClaim>,
 }
 
 fn collapse_scope_candidates<R: GeneratedParseRoot>(
@@ -1278,31 +1512,55 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
         .collect::<Vec<_>>();
     let rendered = candidates
         .iter()
-        .map(|candidate| R::render_with_claims(&candidate.value, context, environment).0)
+        .map(|candidate| {
+            let (text, claims) = R::render_with_claims(&candidate.value, context, environment);
+            RenderedCandidate { text, claims }
+        })
         .collect::<Vec<_>>();
     let mut buckets = HashMap::<ScopeBucketKey, Vec<usize>>::new();
+    let mut coordination_buckets = HashMap::<CoordinationBucketKey, Vec<usize>>::new();
     for (index, projection) in projections.iter().enumerate() {
         let mut signatures = mobiles[index]
             .iter()
             .map(|mobile| mobile.signature.clone())
             .collect::<Vec<_>>();
         signatures.sort();
-        if signatures.is_empty() {
-            continue;
+        if !signatures.is_empty() {
+            buckets
+                .entry(ScopeBucketKey {
+                    mobiles: signatures,
+                    skeleton: projection.pruned(&HashSet::new(), true),
+                })
+                .or_default()
+                .push(index);
         }
-        buckets
-            .entry(ScopeBucketKey {
-                mobiles: signatures,
-                skeleton: projection.pruned(&HashSet::new(), true),
-            })
-            .or_default()
-            .push(index);
+        let coordinations = projection.coordinations();
+        if !coordinations.is_empty() {
+            coordination_buckets
+                .entry(CoordinationBucketKey {
+                    leaves: projection.leaf_sequence(),
+                    anchors: coordinations
+                        .into_iter()
+                        .map(|coordination| coordination.anchor)
+                        .collect(),
+                })
+                .or_default()
+                .push(index);
+        }
     }
-    let mut keep = vec![true; candidates.len()];
-    for bucket in buckets.values().filter(|bucket| bucket.len() > 1) {
-        let mut adjacent = HashMap::<usize, Vec<usize>>::new();
+    let mut adjacent = HashMap::<usize, Vec<usize>>::new();
+    let mut compared = HashSet::new();
+    for bucket in buckets
+        .values()
+        .chain(coordination_buckets.values())
+        .filter(|bucket| bucket.len() > 1)
+    {
         for (offset, &left) in bucket.iter().enumerate() {
             for &right in &bucket[offset + 1..] {
+                let pair = (left.min(right), left.max(right));
+                if !compared.insert(pair) {
+                    continue;
+                }
                 let verified =
                     verify_scope_pair(left, right, &candidates, &projections, &mobiles, &rendered);
                 if verified {
@@ -1311,31 +1569,31 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
                 }
             }
         }
-        let mut visited = HashSet::new();
-        for &start in bucket {
-            if !visited.insert(start) {
-                continue;
-            }
-            let mut component = vec![start];
-            let mut pending = vec![start];
-            while let Some(index) = pending.pop() {
-                for &next in adjacent.get(&index).into_iter().flatten() {
-                    if visited.insert(next) {
-                        component.push(next);
-                        pending.push(next);
-                    }
+    }
+    let mut keep = vec![true; candidates.len()];
+    let mut visited = HashSet::new();
+    for start in 0..candidates.len() {
+        if !visited.insert(start) {
+            continue;
+        }
+        let mut component = vec![start];
+        let mut pending = vec![start];
+        while let Some(index) = pending.pop() {
+            for &next in adjacent.get(&index).into_iter().flatten() {
+                if visited.insert(next) {
+                    component.push(next);
                 }
             }
-            if component.len() > 1 {
-                collapse_scope_component(
-                    &component,
-                    &adjacent,
-                    &candidates,
-                    &projections,
-                    &mobiles,
-                    &mut keep,
-                );
-            }
+        }
+        if component.len() > 1 {
+            collapse_scope_component(
+                &component,
+                &adjacent,
+                &candidates,
+                &projections,
+                &mobiles,
+                &mut keep,
+            );
         }
     }
     candidates
@@ -1351,28 +1609,69 @@ fn verify_scope_pair<R>(
     candidates: &[Candidate<R>],
     projections: &[ScopeProjection],
     mobiles: &[Vec<MobileOccurrence>],
-    rendered: &[String],
+    rendered: &[RenderedCandidate],
 ) -> bool {
-    if !same_claimed_leaves(&candidates[left].claims, &candidates[right].claims)
-        || candidates[left].synthetic_claims != candidates[right].synthetic_claims
-        || rendered[left] != rendered[right]
+    if candidates[left].synthetic_claims != candidates[right].synthetic_claims
+        || rendered[left].text != rendered[right].text
     {
         return false;
     }
-    let left_mobiles = &mobiles[left];
-    let right_mobiles = &mobiles[right];
-    if left_mobiles.len() != right_mobiles.len()
-        || left_mobiles
+    if same_claimed_leaves(&candidates[left].claims, &candidates[right].claims)
+        && verify_scope_pair_with_erasure(
+            ScopeVerificationSide::ordinary(left, &mobiles[left]),
+            ScopeVerificationSide::ordinary(right, &mobiles[right]),
+            projections,
+            mobiles,
+            false,
+        )
+    {
+        return true;
+    }
+    verify_coordination_scope_pair(left, right, candidates, projections, mobiles, rendered)
+}
+
+struct ScopeVerificationSide<'a> {
+    candidate: usize,
+    mobiles: Vec<&'a MobileOccurrence>,
+    affected: HashSet<usize>,
+    regions: Option<&'a [(usize, usize)]>,
+}
+
+impl<'a> ScopeVerificationSide<'a> {
+    fn ordinary(candidate: usize, mobiles: &'a [MobileOccurrence]) -> Self {
+        Self {
+            candidate,
+            mobiles: mobiles.iter().collect(),
+            affected: HashSet::new(),
+            regions: None,
+        }
+    }
+}
+
+fn verify_scope_pair_with_erasure(
+    mut left: ScopeVerificationSide<'_>,
+    mut right: ScopeVerificationSide<'_>,
+    projections: &[ScopeProjection],
+    all_mobiles: &[Vec<MobileOccurrence>],
+    mut moved: bool,
+) -> bool {
+    if left.mobiles.len() != right.mobiles.len()
+        || left
+            .mobiles
             .iter()
-            .zip(right_mobiles)
+            .zip(&right.mobiles)
             .any(|(left, right)| left.signature != right.signature)
     {
         return false;
     }
-    let mut left_affected = HashSet::new();
-    let mut right_affected = HashSet::new();
-    let mut moved = false;
-    for (left_mobile, right_mobile) in left_mobiles.iter().zip(right_mobiles) {
+    for (left_mobile, right_mobile) in left.mobiles.iter().zip(&right.mobiles) {
+        if left_mobile.role == right_mobile.role
+            && left_mobile.host.attachment == right_mobile.host.attachment
+            && left.affected.contains(&left_mobile.host_index)
+            && right.affected.contains(&right_mobile.host_index)
+        {
+            continue;
+        }
         if left_mobile.host.identity == right_mobile.host.identity {
             if left_mobile.role != right_mobile.role {
                 return false;
@@ -1382,16 +1681,24 @@ fn verify_scope_pair<R>(
                 && (left_mobile.first_conjunct_path.is_some()
                     || right_mobile.first_conjunct_path.is_some())
             {
-                let left_region = coordination_region(&projections[left], left_mobile);
-                let right_region = coordination_region(&projections[right], right_mobile);
+                let left_region = coordination_region(&projections[left.candidate], left_mobile);
+                let right_region = coordination_region(&projections[right.candidate], right_mobile);
                 if let (Some(left_region), Some(right_region)) = (left_region, right_region)
                     && (left_mobile.first_conjunct_path != right_mobile.first_conjunct_path
                         || prune_scope_node(left_region, &HashSet::new(), false)
                             != prune_scope_node(right_region, &HashSet::new(), false))
                 {
                     moved = true;
-                    mark_scope_region(&projections[left], left_region, &mut left_affected);
-                    mark_scope_region(&projections[right], right_region, &mut right_affected);
+                    mark_scope_region(
+                        &projections[left.candidate],
+                        left_region,
+                        &mut left.affected,
+                    );
+                    mark_scope_region(
+                        &projections[right.candidate],
+                        right_region,
+                        &mut right.affected,
+                    );
                 }
             } else if left_mobile.scope_sibling.is_none()
                 && left_mobile.host.attachment != right_mobile.host.attachment
@@ -1407,24 +1714,25 @@ fn verify_scope_pair<R>(
                         || move_is_licensed(right_mobile, left_mobile))
                 {
                     moved = true;
-                    left_affected.insert(left_mobile.host_index);
-                    right_affected.insert(right_mobile.host_index);
+                    left.affected.insert(left_mobile.host_index);
+                    right.affected.insert(right_mobile.host_index);
                 }
             } else if left_mobile.scope_sibling.is_none()
                 && left_mobile.host.attachment == right_mobile.host.attachment
             {
-                let left_host = find_construction(&projections[left].root, left_mobile.host_index)
-                    .expect("a mobile host remains in its projection");
-                let right_host =
-                    find_construction(&projections[right].root, right_mobile.host_index)
+                let left_host =
+                    find_construction(&projections[left.candidate].root, left_mobile.host_index)
                         .expect("a mobile host remains in its projection");
-                let before = (left_affected.len(), right_affected.len());
+                let right_host =
+                    find_construction(&projections[right.candidate].root, right_mobile.host_index)
+                        .expect("a mobile host remains in its projection");
+                let before = (left.affected.len(), right.affected.len());
                 if mark_identity_differences(
                     left_host,
                     right_host,
-                    &mut left_affected,
-                    &mut right_affected,
-                ) && before != (left_affected.len(), right_affected.len())
+                    &mut left.affected,
+                    &mut right.affected,
+                ) && before != (left.affected.len(), right.affected.len())
                 {
                     moved = true;
                 }
@@ -1448,12 +1756,12 @@ fn verify_scope_pair<R>(
             (&right_mobile.scope_region, &right_mobile.host.skeleton),
         ] {
             if !mark_identity_difference_at(
-                (&projections[left], left_mobiles),
-                (&projections[right], right_mobiles),
+                (&projections[left.candidate], &all_mobiles[left.candidate]),
+                (&projections[right.candidate], &all_mobiles[right.candidate]),
                 scope_region.as_ref(),
                 skeleton,
-                &mut left_affected,
-                &mut right_affected,
+                &mut left.affected,
+                &mut right.affected,
             ) {
                 return false;
             }
@@ -1462,17 +1770,462 @@ fn verify_scope_pair<R>(
     if !moved {
         return false;
     }
-    if projections[left].pruned(&left_affected, false)
-        != projections[right].pruned(&right_affected, false)
-    {
+    let structures_match =
+        if let (Some(left_regions), Some(right_regions)) = (left.regions, right.regions) {
+            prune_scope_node_for_move_s(
+                &projections[left.candidate].root,
+                &left.affected,
+                left_regions,
+            ) == prune_scope_node_for_move_s(
+                &projections[right.candidate].root,
+                &right.affected,
+                right_regions,
+            )
+        } else {
+            projections[left.candidate].pruned(&left.affected, false)
+                == projections[right.candidate].pruned(&right.affected, false)
+        };
+    if !structures_match {
         return false;
     }
-    for (left_mobile, right_mobile) in left_mobiles.iter().zip(right_mobiles) {
+    for (left_mobile, right_mobile) in left.mobiles.iter().zip(&right.mobiles) {
         if mobile_identity_key(left_mobile) != mobile_identity_key(right_mobile) {
             return false;
         }
     }
     true
+}
+
+#[derive(Debug)]
+struct CoordinationScopeComparison {
+    left_affected: HashSet<usize>,
+    right_affected: HashSet<usize>,
+    left_regions: Vec<(usize, usize)>,
+    right_regions: Vec<(usize, usize)>,
+}
+
+fn verify_coordination_scope_pair<R>(
+    left: usize,
+    right: usize,
+    candidates: &[Candidate<R>],
+    projections: &[ScopeProjection],
+    mobiles: &[Vec<MobileOccurrence>],
+    rendered: &[RenderedCandidate],
+) -> bool {
+    let Some(comparison) = coordination_scope_comparison(
+        &projections[left],
+        &mobiles[left],
+        &projections[right],
+        &mobiles[right],
+    ) else {
+        return false;
+    };
+    let Some(left_claim_regions) =
+        rendered_text_regions(&rendered[left].claims, &comparison.left_regions)
+    else {
+        return false;
+    };
+    let Some(right_claim_regions) =
+        rendered_text_regions(&rendered[right].claims, &comparison.right_regions)
+    else {
+        return false;
+    };
+    if !same_claimed_leaves_in_regions(
+        &candidates[left].claims,
+        &candidates[right].claims,
+        &rendered[left].text,
+        &rendered[right].text,
+        &left_claim_regions,
+        &right_claim_regions,
+    ) {
+        return false;
+    }
+    let left_mobiles = mobiles[left]
+        .iter()
+        .filter(|mobile| !mobile_within_regions(mobile, &comparison.left_regions))
+        .collect::<Vec<_>>();
+    let right_mobiles = mobiles[right]
+        .iter()
+        .filter(|mobile| !mobile_within_regions(mobile, &comparison.right_regions))
+        .collect::<Vec<_>>();
+    verify_scope_pair_with_erasure(
+        ScopeVerificationSide {
+            candidate: left,
+            mobiles: left_mobiles,
+            affected: comparison.left_affected,
+            regions: Some(&comparison.left_regions),
+        },
+        ScopeVerificationSide {
+            candidate: right,
+            mobiles: right_mobiles,
+            affected: comparison.right_affected,
+            regions: Some(&comparison.right_regions),
+        },
+        projections,
+        mobiles,
+        true,
+    )
+}
+
+fn coordination_scope_comparison(
+    left_projection: &ScopeProjection,
+    left_mobiles: &[MobileOccurrence],
+    right_projection: &ScopeProjection,
+    right_mobiles: &[MobileOccurrence],
+) -> Option<CoordinationScopeComparison> {
+    let left_coordinations = left_projection.coordinations();
+    let right_coordinations = right_projection.coordinations();
+    if left_coordinations.is_empty() || left_coordinations.len() != right_coordinations.len() {
+        return None;
+    }
+    if left_coordinations
+        .windows(2)
+        .any(|pair| pair[0].anchor == pair[1].anchor)
+        || right_coordinations
+            .windows(2)
+            .any(|pair| pair[0].anchor == pair[1].anchor)
+    {
+        return None;
+    }
+    let mut left_affected = HashSet::new();
+    let mut right_affected = HashSet::new();
+    let mut left_regions = Vec::new();
+    let mut right_regions = Vec::new();
+    let mut moved = false;
+    let mut declared_mobile_difference = false;
+    for (left_coordination, right_coordination) in
+        left_coordinations.iter().zip(&right_coordinations)
+    {
+        if left_coordination.anchor != right_coordination.anchor {
+            return None;
+        }
+        let (left_span, right_span) = coordination_comparison_spans(
+            left_projection,
+            left_mobiles,
+            left_coordination,
+            right_projection,
+            right_mobiles,
+            right_coordination,
+        );
+        let differences = interval_symmetric_difference(left_span, right_span);
+        if differences.is_empty() {
+            continue;
+        }
+        if !coordination_difference_is_peripheral(left_span, right_span, &differences) {
+            return None;
+        }
+        declared_mobile_difference |= differences.iter().any(|difference| {
+            difference_is_declared_mobile_yield(*difference, left_mobiles)
+                || difference_is_declared_mobile_yield(*difference, right_mobiles)
+        });
+        moved = true;
+        mark_coordination_identity(left_projection, left_coordination, &mut left_affected);
+        mark_coordination_identity(right_projection, right_coordination, &mut right_affected);
+        let intersection = (left_span.0.max(right_span.0), left_span.1.min(right_span.1));
+        let touches_prefix = differences
+            .iter()
+            .any(|difference| difference.1 == intersection.0);
+        let touches_suffix = differences
+            .iter()
+            .any(|difference| difference.0 == intersection.1);
+        mark_touched_conjuncts(
+            left_coordination,
+            &differences,
+            touches_prefix,
+            touches_suffix,
+            &mut left_affected,
+        );
+        mark_touched_conjuncts(
+            right_coordination,
+            &differences,
+            touches_prefix,
+            touches_suffix,
+            &mut right_affected,
+        );
+        let scope_region = (left_span.0.min(right_span.0), left_span.1.max(right_span.1));
+        mark_partition_structure(
+            &left_projection.root,
+            scope_region,
+            left_coordination,
+            touches_prefix,
+            touches_suffix,
+            &mut left_affected,
+        );
+        mark_partition_structure(
+            &right_projection.root,
+            scope_region,
+            right_coordination,
+            touches_prefix,
+            touches_suffix,
+            &mut right_affected,
+        );
+        left_regions.push(scope_region);
+        right_regions.push(scope_region);
+    }
+    (moved && declared_mobile_difference).then_some(CoordinationScopeComparison {
+        left_affected,
+        right_affected,
+        left_regions: merge_intervals(left_regions),
+        right_regions: merge_intervals(right_regions),
+    })
+}
+
+fn difference_is_declared_mobile_yield(
+    difference: (usize, usize),
+    mobiles: &[MobileOccurrence],
+) -> bool {
+    merge_intervals(
+        mobiles
+            .iter()
+            .filter_map(|mobile| mobile.signature.span)
+            .filter(|span| interval_contains(difference, *span))
+            .collect(),
+    )
+    .contains(&difference)
+}
+
+fn coordination_comparison_spans(
+    left_projection: &ScopeProjection,
+    left_mobiles: &[MobileOccurrence],
+    left_coordination: &CoordinationOccurrence,
+    right_projection: &ScopeProjection,
+    right_mobiles: &[MobileOccurrence],
+    right_coordination: &CoordinationOccurrence,
+) -> ((usize, usize), (usize, usize)) {
+    if left_coordination.span != right_coordination.span {
+        return (left_coordination.span, right_coordination.span);
+    }
+    // A shared constituent can sit above an otherwise identical Coordination
+    // yield. The highest related mobile is the candidate-specific boundary of
+    // that Coordination; lower mobiles describe partitions inside that bound.
+    (
+        coordination_span_with_highest_mobile(left_projection, left_mobiles, left_coordination),
+        coordination_span_with_highest_mobile(right_projection, right_mobiles, right_coordination),
+    )
+}
+
+fn coordination_span_with_highest_mobile(
+    projection: &ScopeProjection,
+    mobiles: &[MobileOccurrence],
+    coordination: &CoordinationOccurrence,
+) -> (usize, usize) {
+    let related = mobiles.iter().filter(|mobile| {
+        (is_step_prefix(&mobile.host.attachment, &coordination.path.attachment)
+            || is_step_prefix(&coordination.path.attachment, &mobile.host.attachment))
+            && coordination_region(projection, mobile).is_some_and(|region| {
+                contains_construction(region, coordination.construction_index)
+            })
+    });
+    let Some(highest_depth) = related
+        .clone()
+        .map(|mobile| mobile.host.attachment.len())
+        .min()
+    else {
+        return coordination.span;
+    };
+    related
+        .filter(|mobile| mobile.host.attachment.len() == highest_depth)
+        .filter_map(|mobile| mobile.signature.span)
+        .fold(coordination.span, |span, mobile_span| {
+            (span.0.min(mobile_span.0), span.1.max(mobile_span.1))
+        })
+}
+
+fn mark_coordination_identity(
+    projection: &ScopeProjection,
+    coordination: &CoordinationOccurrence,
+    affected: &mut HashSet<usize>,
+) {
+    affected.insert(coordination.construction_index);
+    let node = find_construction(&projection.root, coordination.construction_index)
+        .expect("a Coordination remains in its projection");
+    let span = key_span(&prune_scope_node(node, &HashSet::new(), true));
+    mark_same_span_ancestors(
+        &projection.root,
+        coordination.construction_index,
+        span,
+        affected,
+    );
+}
+
+fn interval_symmetric_difference(
+    left: (usize, usize),
+    right: (usize, usize),
+) -> Vec<(usize, usize)> {
+    if left == right {
+        return Vec::new();
+    }
+    let intersection = (left.0.max(right.0), left.1.min(right.1));
+    if intersection.0 >= intersection.1 {
+        return vec![left, right];
+    }
+    let mut difference = Vec::new();
+    let left_edge = (left.0.min(right.0), intersection.0);
+    if left_edge.0 < left_edge.1 {
+        difference.push(left_edge);
+    }
+    let right_edge = (intersection.1, left.1.max(right.1));
+    if right_edge.0 < right_edge.1 {
+        difference.push(right_edge);
+    }
+    difference
+}
+
+fn coordination_difference_is_peripheral(
+    left: (usize, usize),
+    right: (usize, usize),
+    differences: &[(usize, usize)],
+) -> bool {
+    if differences.len() > 2 {
+        return false;
+    }
+    let intersection = (left.0.max(right.0), left.1.min(right.1));
+    intersection.0 < intersection.1
+        && differences
+            .iter()
+            .all(|difference| difference.1 == intersection.0 || difference.0 == intersection.1)
+}
+
+fn mark_touched_conjuncts(
+    coordination: &CoordinationOccurrence,
+    differences: &[(usize, usize)],
+    touches_prefix: bool,
+    touches_suffix: bool,
+    affected: &mut HashSet<usize>,
+) {
+    for (index, conjunct) in coordination.conjuncts.iter().enumerate() {
+        if conjunct.span.is_some_and(|span| {
+            differences.iter().any(|difference| {
+                intervals_intersect(span, *difference)
+                    || (index == 0 && touches_prefix)
+                    || (index + 1 == coordination.conjuncts.len() && touches_suffix)
+            })
+        }) {
+            mark_construction_subtree(&conjunct.node, affected);
+        }
+    }
+}
+
+fn mark_partition_structure(
+    node: &ScopeNode,
+    scope_region: (usize, usize),
+    coordination: &CoordinationOccurrence,
+    touches_prefix: bool,
+    touches_suffix: bool,
+    affected: &mut HashSet<usize>,
+) {
+    let untouched_conjuncts = coordination
+        .conjuncts
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| {
+            !(*index == 0 && touches_prefix
+                || *index + 1 == coordination.conjuncts.len() && touches_suffix)
+        })
+        .filter_map(|(_, conjunct)| conjunct.span)
+        .collect::<Vec<_>>();
+    mark_partition_structure_inner(node, scope_region, &untouched_conjuncts, affected);
+}
+
+fn mark_partition_structure_inner(
+    node: &ScopeNode,
+    scope_region: (usize, usize),
+    untouched_conjuncts: &[(usize, usize)],
+    affected: &mut HashSet<usize>,
+) {
+    if let ScopeNodeKind::Construction(_, index) = node.kind
+        && node.span.is_some_and(|span| {
+            interval_contains(scope_region, span)
+                && !untouched_conjuncts
+                    .iter()
+                    .any(|conjunct| interval_contains(*conjunct, span))
+        })
+    {
+        affected.insert(index);
+    }
+    for child in &node.children {
+        mark_partition_structure_inner(&child.node, scope_region, untouched_conjuncts, affected);
+    }
+}
+
+fn intervals_intersect(left: (usize, usize), right: (usize, usize)) -> bool {
+    left.0 < right.1 && right.0 < left.1
+}
+
+fn interval_contains(outer: (usize, usize), inner: (usize, usize)) -> bool {
+    outer.0 <= inner.0 && inner.1 <= outer.1
+}
+
+fn merge_intervals(mut intervals: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
+    intervals.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for interval in intervals {
+        if let Some(last) = merged.last_mut()
+            && interval.0 <= last.1
+        {
+            last.1 = last.1.max(interval.1);
+        } else {
+            merged.push(interval);
+        }
+    }
+    merged
+}
+
+fn mobile_within_regions(mobile: &MobileOccurrence, regions: &[(usize, usize)]) -> bool {
+    mobile.signature.span.is_some_and(|span| {
+        regions
+            .iter()
+            .any(|region| interval_contains(*region, span))
+    })
+}
+
+fn rendered_text_regions(
+    claims: &[RawRenderedClaim],
+    regions: &[(usize, usize)],
+) -> Option<Vec<TextSpan>> {
+    regions
+        .iter()
+        .map(|&(start, end)| {
+            if start >= end {
+                return None;
+            }
+            Some(TextSpan {
+                start: claims.get(start)?.span.start,
+                end: claims.get(end - 1)?.span.end,
+            })
+        })
+        .collect()
+}
+
+fn same_claimed_leaves_in_regions(
+    left: &[RawLexicalClaim],
+    right: &[RawLexicalClaim],
+    left_text: &str,
+    right_text: &str,
+    left_regions: &[TextSpan],
+    right_regions: &[TextSpan],
+) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right).all(|(left, right)| {
+            let left_inside = left_regions
+                .iter()
+                .any(|region| text_span_contains(*region, left.span));
+            let right_inside = right_regions
+                .iter()
+                .any(|region| text_span_contains(*region, right.span));
+            if left_inside || right_inside {
+                left_inside
+                    && right_inside
+                    && left_text[left.span.start..left.span.end].trim()
+                        == right_text[right.span.start..right.span.end].trim()
+            } else {
+                left.span == right.span && left.value == right.value
+            }
+        })
+}
+
+fn text_span_contains(outer: TextSpan, inner: TextSpan) -> bool {
+    outer.start <= inner.start && inner.end <= outer.end
 }
 
 fn mobile_identity_key(mobile: &MobileOccurrence) -> Vec<ScopeKey> {
@@ -1884,21 +2637,39 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
     keep: &mut [bool],
 ) {
     let mut remaining = component.to_vec();
-    let varying_mobiles = (0..mobiles[component[0]].len())
-        .filter(|&mobile| {
-            component[1..].iter().any(|&candidate| {
-                mobiles[candidate][mobile].host.identity
-                    != mobiles[component[0]][mobile].host.identity
-                    || mobiles[candidate][mobile].role != mobiles[component[0]][mobile].role
-                    || mobiles[candidate][mobile].first_conjunct_path
-                        != mobiles[component[0]][mobile].first_conjunct_path
+    while !remaining.is_empty() {
+        let maximal = remaining.iter().copied().filter(|&candidate| {
+            !remaining.iter().copied().any(|other| {
+                candidate != other
+                    && adjacent
+                        .get(&candidate)
+                        .is_some_and(|neighbors| neighbors.contains(&other))
+                    && candidate_at_least_as_high(
+                        &projections[other],
+                        &mobiles[other],
+                        &projections[candidate],
+                        &mobiles[candidate],
+                    )
+                    && !candidate_at_least_as_high(
+                        &projections[candidate],
+                        &mobiles[candidate],
+                        &projections[other],
+                        &mobiles[other],
+                    )
             })
-        })
-        .collect::<Vec<_>>();
-    while let Some(&representative) = remaining
-        .iter()
-        .min_by_key(|&&candidate| representative_key(&mobiles[candidate], &varying_mobiles))
-    {
+        });
+        let representative = maximal
+            .min_by_key(|&candidate| {
+                representative_key(&projections[candidate], &mobiles[candidate])
+            })
+            .unwrap_or_else(|| {
+                *remaining
+                    .iter()
+                    .min_by_key(|&&candidate| {
+                        representative_key(&projections[candidate], &mobiles[candidate])
+                    })
+                    .expect("a nonempty component has a representative")
+            });
         let packed = remaining
             .iter()
             .copied()
@@ -1909,10 +2680,13 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
                         .is_some_and(|neighbors| neighbors.contains(&candidate))
             })
             .filter(|&candidate| {
-                mobiles[representative]
-                    .iter()
-                    .zip(&mobiles[candidate])
-                    .all(|(high, low)| placement_at_least_as_high(high, low))
+                candidate == representative
+                    || candidate_at_least_as_high(
+                        &projections[representative],
+                        &mobiles[representative],
+                        &projections[candidate],
+                        &mobiles[candidate],
+                    )
             })
             .collect::<Vec<_>>();
         if packed.len() > 1 {
@@ -1948,25 +2722,91 @@ fn placement_at_least_as_high(high: &MobileOccurrence, low: &MobileOccurrence) -
             && move_is_licensed(high, low))
 }
 
+fn candidate_at_least_as_high(
+    high_projection: &ScopeProjection,
+    high_mobiles: &[MobileOccurrence],
+    low_projection: &ScopeProjection,
+    low_mobiles: &[MobileOccurrence],
+) -> bool {
+    if high_mobiles.len() == low_mobiles.len()
+        && high_mobiles
+            .iter()
+            .zip(low_mobiles)
+            .all(|(high, low)| placement_at_least_as_high(high, low))
+    {
+        return true;
+    }
+    if let Some(comparison) =
+        coordination_scope_comparison(high_projection, high_mobiles, low_projection, low_mobiles)
+    {
+        let high_coordinations = high_projection.coordinations();
+        let low_coordinations = low_projection.coordinations();
+        if high_coordinations
+            .iter()
+            .zip(&low_coordinations)
+            .any(|(high, low)| !interval_contains(low.span, high.span))
+        {
+            return false;
+        }
+        let high_outside = high_mobiles
+            .iter()
+            .filter(|mobile| !mobile_within_regions(mobile, &comparison.left_regions))
+            .collect::<Vec<_>>();
+        let low_outside = low_mobiles
+            .iter()
+            .filter(|mobile| !mobile_within_regions(mobile, &comparison.right_regions))
+            .collect::<Vec<_>>();
+        return high_outside.len() == low_outside.len()
+            && high_outside
+                .iter()
+                .zip(low_outside)
+                .all(|(high, low)| high.signature == low.signature && high.role == low.role);
+    }
+    false
+}
+
+type CoordinationRepresentativeKey = Vec<(Vec<usize>, usize, std::cmp::Reverse<usize>, usize)>;
+type MobileRepresentativeKey = Vec<(std::cmp::Reverse<usize>, usize, usize, Vec<ScopeStep>)>;
+type RepresentativeKey = (CoordinationRepresentativeKey, MobileRepresentativeKey);
+
 fn representative_key(
+    projection: &ScopeProjection,
     mobiles: &[MobileOccurrence],
-    varying_mobiles: &[usize],
-) -> Vec<(usize, Vec<ScopeStep>)> {
-    let mut order = varying_mobiles.to_vec();
+) -> RepresentativeKey {
+    let coordinations = projection
+        .coordinations()
+        .into_iter()
+        .map(|coordination| {
+            (
+                coordination.anchor,
+                coordination.span.1.saturating_sub(coordination.span.0),
+                std::cmp::Reverse(coordination.span.0),
+                coordination.span.1,
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut order = (0..mobiles.len()).collect::<Vec<_>>();
     order.sort_by_key(|&index| {
         let span = mobiles[index].signature.span.unwrap_or((0, 0));
         (std::cmp::Reverse(span.1.saturating_sub(span.0)), span.0)
     });
-    order
+    let placements = order
         .into_iter()
         .map(|index| {
+            let span = mobiles[index].signature.span.unwrap_or((0, 0));
             let host = mobiles[index]
                 .first_conjunct_path
                 .as_ref()
                 .unwrap_or(&mobiles[index].host.attachment);
-            (host.len(), host.clone())
+            (
+                std::cmp::Reverse(span.1.saturating_sub(span.0)),
+                span.0,
+                host.len(),
+                host.clone(),
+            )
         })
-        .collect()
+        .collect();
+    (coordinations, placements)
 }
 
 fn populate_component_sites<R: GeneratedParseRoot>(
@@ -1976,51 +2816,47 @@ fn populate_component_sites<R: GeneratedParseRoot>(
     projections: &[ScopeProjection],
     mobiles: &[Vec<MobileOccurrence>],
 ) {
-    for (mobile_index, mobile) in mobiles[representative].iter().enumerate() {
-        let mut lower_hosts = packed
+    for mobile in &mobiles[representative] {
+        let mut paths = packed
             .iter()
-            .filter_map(|&candidate| {
-                let packed_mobile = &mobiles[candidate][mobile_index];
-                (packed_mobile.host.identity != mobile.host.identity
-                    || packed_mobile.first_conjunct_path != mobile.first_conjunct_path
-                    || host_identity_differs(
-                        &projections[representative],
-                        mobile,
-                        &projections[candidate],
-                        packed_mobile,
-                    ))
-                .then(|| (candidate, packed_mobile.clone()))
+            .copied()
+            .filter(|candidate| *candidate != representative)
+            .filter_map(|candidate| {
+                let lower = mobiles[candidate]
+                    .iter()
+                    .find(|lower| lower.signature == mobile.signature && lower.role == mobile.role);
+                lower
+                    .and_then(|lower| {
+                        if mobile.host.identity == lower.host.identity
+                            && mobile.first_conjunct_path != lower.first_conjunct_path
+                        {
+                            mobile.first_conjunct_path.clone()
+                        } else if mobile.host.identity == lower.host.identity {
+                            alternative_path_within_host(
+                                &projections[representative],
+                                mobile,
+                                &projections[candidate],
+                                lower,
+                            )
+                        } else {
+                            attachment_path_between(&mobile.host, &lower.host)
+                        }
+                    })
+                    .or_else(|| {
+                        alternative_move_s_path(
+                            &projections[representative],
+                            &mobiles[representative],
+                            mobile,
+                            &projections[candidate],
+                            &mobiles[candidate],
+                        )
+                    })
             })
             .collect::<Vec<_>>();
-        lower_hosts.sort_by_key(|(_, mobile)| {
-            let path = mobile
-                .first_conjunct_path
-                .as_ref()
-                .unwrap_or(&mobile.host.attachment);
-            (path.len(), path.clone())
-        });
-        lower_hosts.dedup_by(|(_, left), (_, right)| {
-            left.host.attachment == right.host.attachment
-                && left.first_conjunct_path == right.first_conjunct_path
-        });
-        let mut paths = lower_hosts
-            .iter()
-            .filter_map(|(candidate, lower)| {
-                if mobile.host.identity == lower.host.identity
-                    && mobile.first_conjunct_path != lower.first_conjunct_path
-                {
-                    mobile.first_conjunct_path.clone()
-                } else if mobile.host.identity == lower.host.identity {
-                    alternative_path_within_host(
-                        &projections[representative],
-                        mobile,
-                        &projections[*candidate],
-                        lower,
-                    )
-                } else {
-                    attachment_path_between(&mobile.host, &lower.host)
-                }
-            })
+        paths.sort_by_key(|path| (path.len(), path.clone()));
+        paths.dedup();
+        let mut paths = paths
+            .into_iter()
             .map(|steps| {
                 AttachmentSitePath::new(
                     steps
@@ -2050,18 +2886,71 @@ fn populate_component_sites<R: GeneratedParseRoot>(
     }
 }
 
-fn host_identity_differs(
-    left_projection: &ScopeProjection,
-    left: &MobileOccurrence,
-    right_projection: &ScopeProjection,
-    right: &MobileOccurrence,
-) -> bool {
-    let left_host = find_construction(&left_projection.root, left.host_index)
-        .expect("a mobile host remains in its projection");
-    let right_host = find_construction(&right_projection.root, right.host_index)
-        .expect("a mobile host remains in its projection");
-    prune_scope_node(left_host, &HashSet::new(), false)
-        != prune_scope_node(right_host, &HashSet::new(), false)
+fn alternative_move_s_path(
+    representative: &ScopeProjection,
+    representative_mobiles: &[MobileOccurrence],
+    mobile: &MobileOccurrence,
+    lower: &ScopeProjection,
+    lower_mobiles: &[MobileOccurrence],
+) -> Option<Vec<ScopeStep>> {
+    let mobile_span = mobile.signature.span?;
+    let comparison = coordination_scope_comparison(
+        representative,
+        representative_mobiles,
+        lower,
+        lower_mobiles,
+    )?;
+    if !mobile_within_regions(mobile, &comparison.left_regions) {
+        return None;
+    }
+    let representative_coordinations = representative.coordinations();
+    let lower_coordinations = lower.coordinations();
+    representative_coordinations
+        .iter()
+        .zip(&lower_coordinations)
+        .find_map(|(representative_coordination, lower_coordination)| {
+            if representative_coordination.anchor != lower_coordination.anchor {
+                return None;
+            }
+            let (representative_span, lower_span) = coordination_comparison_spans(
+                representative,
+                representative_mobiles,
+                representative_coordination,
+                lower,
+                lower_mobiles,
+                lower_coordination,
+            );
+            if !interval_contains(
+                (
+                    representative_span.0.min(lower_span.0),
+                    representative_span.1.max(lower_span.1),
+                ),
+                mobile_span,
+            ) {
+                return None;
+            }
+            if let Some(path) = &mobile.first_conjunct_path {
+                return Some(path.clone());
+            }
+            let mut path = representative_coordination
+                .path
+                .attachment
+                .strip_prefix(mobile.host.attachment.as_slice())?
+                .to_vec();
+            let ordinal = if mobile_span.1 <= representative_span.0 {
+                0
+            } else if mobile_span.0 >= representative_span.1 {
+                representative_coordination.conjuncts.last()?.ordinal
+            } else {
+                return None;
+            };
+            path.push(ScopeStep::Role(representative_coordination.sequence_role));
+            path.push(ScopeStep::Conjunct(
+                representative_coordination.sequence_role,
+                ordinal,
+            ));
+            Some(path)
+        })
 }
 
 fn alternative_path_within_host(
@@ -3575,7 +4464,11 @@ mod tests {
     struct ScopeWitnessVisitor {
         leaves: usize,
         construction_path: Vec<&'static str>,
-        populated_sites: Vec<(&'static str, Vec<crate::constructions::AttachmentSitePath>)>,
+        populated_sites: Vec<(
+            &'static str,
+            Option<&'static str>,
+            Vec<crate::constructions::AttachmentSitePath>,
+        )>,
     }
 
     impl crate::constructions::Visitor for ScopeWitnessVisitor {
@@ -3586,13 +4479,14 @@ mod tests {
         fn enter_role(
             &mut self,
             role: &'static str,
-            _scope_sibling: Option<&'static str>,
+            scope_sibling: Option<&'static str>,
             admissible_sites: Option<&crate::constructions::AdmissibleSites>,
         ) {
             if let Some(sites) = admissible_sites
                 && !sites.is_empty()
             {
-                self.populated_sites.push((role, sites.paths().to_vec()));
+                self.populated_sites
+                    .push((role, scope_sibling, sites.paths().to_vec()));
             }
         }
 
@@ -3660,26 +4554,136 @@ mod tests {
 
     #[test]
     fn aquatic_alchemist_exposes_the_shared_constituent_coordination_site() {
-        let card_name = "Aquatic Alchemist";
+        let card_name = "Aquatic Alchemist // Bubble Up";
         let text = "Whenever you cast your first instant or sorcery spell each turn, this creature gets +2/+0 until end of turn.";
-        let candidates = ability_candidates(text, card_name, false);
-        assert_eq!(candidates.len(), 1);
-        let projection = super::ScopeProjection::of(&candidates[0].value);
-        let mobiles = projection.mobiles();
+        let raw = ability_candidates(text, card_name, false);
+        let packed = ability_candidates(text, card_name, true);
+        assert_eq!(raw.len(), 2);
+        assert_eq!(packed.len(), 1);
+        let witness = scope_witness(&packed[0].value);
+        for role in ["first", "head"] {
+            let paths = witness
+                .populated_sites
+                .iter()
+                .find_map(|(candidate_role, _, paths)| (*candidate_role == role).then_some(paths))
+                .unwrap_or_else(|| panic!("the shared {role} role carries an alternative site"));
+            assert!(paths.iter().all(|path| {
+                path.steps().iter().any(|step| {
+                    matches!(
+                        step,
+                        crate::constructions::AttachmentSiteStep::Conjunct(_, _)
+                    )
+                })
+            }));
+        }
+        let environment = canonical_test_environment();
+        let parse_context = context(card_name);
+        let packed_leaf_count = witness.leaves;
+        assert!(raw.iter().all(|candidate| {
+            candidate.value.render(&parse_context, &environment) == text
+                && scope_witness(&candidate.value).leaves == packed_leaf_count
+        }));
+        assert_eq!(packed[0].value.render(&parse_context, &environment), text,);
+    }
+
+    fn assert_coordination_scope_witness(
+        card_name: &str,
+        text: &str,
+        requires_conjunct_site: bool,
+    ) {
+        let raw = ability_candidates(text, card_name, false);
+        let packed = ability_candidates(text, card_name, true);
         assert!(
-            mobiles.iter().any(|mobile| {
-                mobile.role == "possessor"
-                    && mobile.scope_sibling == Some("nominal")
-                    && mobile.first_conjunct_path.is_some()
-            }),
-            "the shared constituent retains its declared coordination site: {mobiles:#?}",
+            raw.len() > packed.len(),
+            "the required coordination variants did not pack for {card_name}: {} -> {}",
+            raw.len(),
+            packed.len(),
         );
-        assert_eq!(
-            candidates[0]
-                .value
-                .render(&context(card_name), &canonical_test_environment()),
-            text,
+        let environment = canonical_test_environment();
+        let parse_context = context(card_name);
+        let leaf_count = scope_witness(&raw[0].value).leaves;
+        for candidate in raw.iter().chain(&packed) {
+            assert_eq!(
+                candidate.value.render(&parse_context, &environment),
+                text,
+                "a packed unit changed its rendered bytes for {card_name}",
+            );
+            assert_eq!(
+                scope_witness(&candidate.value).leaves,
+                leaf_count,
+                "packing changed leaf traversal for {card_name}",
+            );
+        }
+        let populated_paths = packed
+            .iter()
+            .flat_map(|candidate| scope_witness(&candidate.value).populated_sites)
+            .flat_map(|(_, _, paths)| paths)
+            .collect::<Vec<_>>();
+        assert!(
+            !populated_paths.is_empty(),
+            "the representative has no admissible alternative site for {card_name}",
         );
+        if requires_conjunct_site {
+            assert!(
+                populated_paths
+                    .iter()
+                    .any(|path| path.steps().iter().any(|step| matches!(
+                        step,
+                        crate::constructions::AttachmentSiteStep::Conjunct(_, _)
+                    ))),
+                "no coordination scope site names a Conjunct for {card_name}",
+            );
+        }
+        for (role, scope_sibling, paths) in packed
+            .iter()
+            .flat_map(|candidate| scope_witness(&candidate.value).populated_sites)
+            .filter(|(_, scope_sibling, _)| scope_sibling.is_some())
+        {
+            assert!(
+                paths.iter().all(|path| match path.steps().last() {
+                    Some(crate::constructions::AttachmentSiteStep::Conjunct(_, _)) => true,
+                    Some(crate::constructions::AttachmentSiteStep::Role(role)) => {
+                        Some(*role) == scope_sibling
+                    }
+                    None => false,
+                }),
+                "site for {card_name} role {role} escapes {scope_sibling:?}: {paths:?}",
+            );
+        }
+        let projections = packed
+            .iter()
+            .map(|candidate| super::ScopeProjection::of(&candidate.value))
+            .collect::<Vec<_>>();
+        let mobiles = projections
+            .iter()
+            .map(super::ScopeProjection::mobiles)
+            .collect::<Vec<_>>();
+        let rendered = packed
+            .iter()
+            .map(|candidate| {
+                let (text, claims) = crate::constructions::GeneratedParseRoot::render_with_claims(
+                    &candidate.value,
+                    &parse_context,
+                    &environment,
+                );
+                super::RenderedCandidate { text, claims }
+            })
+            .collect::<Vec<_>>();
+        for left in 0..packed.len() {
+            for right in left + 1..packed.len() {
+                assert!(
+                    !super::verify_scope_pair(
+                        left,
+                        right,
+                        &packed,
+                        &projections,
+                        &mobiles,
+                        &rendered,
+                    ),
+                    "a verified flat-versus-nested pair survived for {card_name}",
+                );
+            }
+        }
     }
 
     #[test]
@@ -3688,95 +4692,63 @@ mod tests {
             (
                 "Grafdigger's Cage",
                 "Players can't cast spells from graveyards or libraries.",
+                false,
             ),
             (
                 "Weathered Runestone",
                 "Players can't cast spells from graveyards or libraries.",
+                false,
             ),
             (
                 "Ground Seal",
                 "Cards in graveyards can't be the targets of spells or abilities.",
+                false,
             ),
             (
                 "Silent Gravestone",
                 "Cards in graveyards can't be the targets of spells or abilities.",
-            ),
-            (
-                "Grand Abolisher",
-                "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+                false,
             ),
             (
                 "Mass Manipulation",
                 "Gain control of X target creatures and/or planeswalkers.",
+                false,
+            ),
+            (
+                "Grand Abolisher",
+                "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+                true,
             ),
             (
                 "Fury",
                 "When this creature enters, it deals 4 damage divided as you choose among any number of target creatures and/or planeswalkers.",
+                true,
             ),
             (
                 "Reprocess",
                 "Sacrifice any number of artifacts, creatures, and/or lands.",
+                true,
             ),
             (
                 "Lich-Knights' Conquest",
                 "Sacrifice any number of artifacts, enchantments, and/or tokens.",
+                true,
             ),
             (
                 "Malevolent Witchkite",
                 "When this creature enters, sacrifice any number of artifacts, enchantments, and/or tokens, then draw that many cards.",
+                true,
             ),
             (
                 "Boltbender",
                 "When this creature is turned face up, you may choose new targets for any number of other spells and/or abilities.",
+                true,
             ),
         ];
 
-        let mut packed_pairs = 0;
-        for (card_name, text) in witnesses {
-            let raw = ability_candidates(text, card_name, false);
-            let packed = ability_candidates(text, card_name, true);
-            packed_pairs += raw.len() - packed.len();
-            let environment = canonical_test_environment();
-            let parse_context = context(card_name);
-            let projections = packed
-                .iter()
-                .map(|candidate| super::ScopeProjection::of(&candidate.value))
-                .collect::<Vec<_>>();
-            let mobiles = projections
-                .iter()
-                .map(super::ScopeProjection::mobiles)
-                .collect::<Vec<_>>();
-            let rendered = packed
-                .iter()
-                .map(|candidate| {
-                    crate::constructions::GeneratedParseRoot::render_with_claims(
-                        &candidate.value,
-                        &parse_context,
-                        &environment,
-                    )
-                    .0
-                })
-                .collect::<Vec<_>>();
-            for left in 0..packed.len() {
-                for right in left + 1..packed.len() {
-                    assert!(
-                        !super::verify_scope_pair(
-                            left,
-                            right,
-                            &packed,
-                            &projections,
-                            &mobiles,
-                            &rendered,
-                        ),
-                        "a verified flat-versus-nested pair survived for {card_name}",
-                    );
-                }
-            }
+        for (card_name, text, requires_conjunct_site) in witnesses {
+            assert_coordination_scope_witness(card_name, text, requires_conjunct_site);
         }
-        assert!(
-            packed_pairs > 0,
-            "the eleven-unit fixture exercised no collapse"
-        );
     }
 
     #[test]
@@ -3798,12 +4770,12 @@ mod tests {
         let rendered = raw
             .iter()
             .map(|candidate| {
-                crate::constructions::GeneratedParseRoot::render_with_claims(
+                let (text, claims) = crate::constructions::GeneratedParseRoot::render_with_claims(
                     &candidate.value,
                     &parse_context,
                     &environment,
-                )
-                .0
+                );
+                super::RenderedCandidate { text, claims }
             })
             .collect::<Vec<_>>();
 
@@ -3905,5 +4877,188 @@ mod tests {
                 SelectionResolution::UnresolvedTie,
             );
         }
+    }
+
+    #[test]
+    fn equal_bracketing_family_swap_keeps_both_live_candidates() {
+        let card_name = "Clarion Conqueror";
+        let text =
+            "Activated abilities of artifacts, creatures, and planeswalkers can't be activated.";
+        let raw = ability_candidates(text, card_name, false);
+        let packed = ability_candidates(text, card_name, true);
+        assert_eq!(packed.len(), raw.len());
+
+        let environment = canonical_test_environment();
+        let parse_context = context(card_name);
+        let projections = raw
+            .iter()
+            .map(|candidate| super::ScopeProjection::of(&candidate.value))
+            .collect::<Vec<_>>();
+        let mobiles = projections
+            .iter()
+            .map(super::ScopeProjection::mobiles)
+            .collect::<Vec<_>>();
+        let rendered = raw
+            .iter()
+            .map(|candidate| {
+                let (text, claims) = crate::constructions::GeneratedParseRoot::render_with_claims(
+                    &candidate.value,
+                    &parse_context,
+                    &environment,
+                );
+                super::RenderedCandidate { text, claims }
+            })
+            .collect::<Vec<_>>();
+        let pair = (0..raw.len()).find_map(|left| {
+            (left + 1..raw.len()).find_map(|right| {
+                let left_coordinates = projections[left]
+                    .coordinations()
+                    .into_iter()
+                    .map(|coordination| coordination.anchor)
+                    .collect::<Vec<_>>();
+                let right_coordinates = projections[right]
+                    .coordinations()
+                    .into_iter()
+                    .map(|coordination| coordination.anchor)
+                    .collect::<Vec<_>>();
+                (!left_coordinates.is_empty()
+                    && left_coordinates == right_coordinates
+                    && raw[left].constructions != raw[right].constructions)
+                    .then_some((left, right))
+            })
+        });
+        let (left, right) =
+            pair.expect("the live fixture retains its equal-bracketing family swap");
+        assert!(!super::verify_scope_pair(
+            left,
+            right,
+            &raw,
+            &projections,
+            &mobiles,
+            &rendered,
+        ));
+    }
+
+    #[test]
+    fn coordination_associativity_breaks_the_anchor_bijection() {
+        fn leaf(index: usize) -> super::ScopeNode {
+            super::ScopeNode {
+                kind: super::ScopeNodeKind::Leaf(index),
+                children: Vec::new(),
+                span: Some((index, index + 1)),
+            }
+        }
+
+        fn child(step: Option<super::ScopeStep>, node: super::ScopeNode) -> super::ScopeChild {
+            super::ScopeChild {
+                step,
+                mobile: None,
+                node,
+            }
+        }
+
+        fn coordination(
+            identity: &'static str,
+            index: usize,
+            children: Vec<super::ScopeChild>,
+        ) -> super::ScopeNode {
+            let span = super::child_span(&children);
+            super::ScopeNode {
+                kind: super::ScopeNodeKind::Construction(identity, index),
+                children,
+                span,
+            }
+        }
+
+        let role = "members";
+        let flat = super::ScopeProjection {
+            root: coordination(
+                "FixtureFlat",
+                0,
+                vec![
+                    child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(0)),
+                    child(None, leaf(1)),
+                    child(Some(super::ScopeStep::Conjunct(role, 1)), leaf(2)),
+                    child(None, leaf(3)),
+                    child(Some(super::ScopeStep::Conjunct(role, 2)), leaf(4)),
+                ],
+            ),
+        };
+        let mut family_swap = flat.clone();
+        family_swap.root.kind = super::ScopeNodeKind::Construction("FixtureFamilySwap", 0);
+        assert!(
+            super::coordination_scope_comparison(&flat, &[], &family_swap, &[]).is_none(),
+            "equal Coordination spans must use ordinary identity comparison",
+        );
+        let nested_tail = coordination(
+            "FixtureNestedTail",
+            1,
+            vec![
+                child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(2)),
+                child(None, leaf(3)),
+                child(Some(super::ScopeStep::Conjunct(role, 1)), leaf(4)),
+            ],
+        );
+        let nested = super::ScopeProjection {
+            root: coordination(
+                "FixtureNested",
+                0,
+                vec![
+                    child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(0)),
+                    child(None, leaf(1)),
+                    child(Some(super::ScopeStep::Conjunct(role, 1)), nested_tail),
+                ],
+            ),
+        };
+
+        assert!(
+            super::coordination_scope_comparison(&flat, &[], &nested, &[]).is_none(),
+            "a nested Coordination must not pair with one flat Coordination",
+        );
+
+        let left_inner = coordination(
+            "FixtureLeftInner",
+            1,
+            vec![
+                child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(0)),
+                child(None, leaf(1)),
+                child(Some(super::ScopeStep::Conjunct(role, 1)), leaf(2)),
+            ],
+        );
+        let left_binary = super::ScopeProjection {
+            root: coordination(
+                "FixtureLeftOuter",
+                0,
+                vec![
+                    child(Some(super::ScopeStep::Conjunct(role, 0)), left_inner),
+                    child(None, leaf(3)),
+                    child(Some(super::ScopeStep::Conjunct(role, 1)), leaf(4)),
+                ],
+            ),
+        };
+        let right_inner = coordination(
+            "FixtureRightInner",
+            1,
+            vec![
+                child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(2)),
+                child(None, leaf(3)),
+                child(Some(super::ScopeStep::Conjunct(role, 1)), leaf(4)),
+            ],
+        );
+        let right_binary = super::ScopeProjection {
+            root: coordination(
+                "FixtureRightOuter",
+                0,
+                vec![
+                    child(Some(super::ScopeStep::Conjunct(role, 0)), leaf(0)),
+                    child(None, leaf(1)),
+                    child(Some(super::ScopeStep::Conjunct(role, 1)), right_inner),
+                ],
+            ),
+        };
+        assert!(
+            super::coordination_scope_comparison(&left_binary, &[], &right_binary, &[]).is_none(),
+            "binary rebracketing without a declared mobile yield must not pack",
+        );
     }
 }

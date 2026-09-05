@@ -2763,7 +2763,7 @@ constructions! {
     }
     construction modified_singular_nominal: Nominal {
         element ModifiedSingularNominal {
-            first: NominalModifier,
+            first: mobile(rest) NominalModifier,
             rest: seq NominalModifier separated by " ",
             head: mobile Head,
         }
@@ -2779,7 +2779,7 @@ constructions! {
     }
     construction modified_plural_nominal: Nominal {
         element ModifiedPluralNominal {
-            first: NominalModifier,
+            first: mobile(rest) NominalModifier,
             rest: seq NominalModifier separated by " ",
             head: mobile Head,
         }
@@ -3327,6 +3327,19 @@ constructions! {
         derive locative_temporal_license = nominal.locative_temporal_license;
         derive bare_duration_license = Values::MarkerRequired;
         form possessed_reference = lex(possessor) nominal;
+    }
+    construction possessed_coordination_reference: UnqualifiedReference {
+        element PossessedCoordinationReference {
+            possessor: mobile(coordination) lex PossessiveDeterminerPronoun,
+            coordination: NominalCoordination,
+        }
+        derive concord_class = Values::Other;
+        derive number = Values::Plural;
+        derive onset = possessor.onset;
+        derive possessive_ending = coordination.possessive_ending;
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::OfInAndOnLicensed;
+        form possessed_coordination_reference = lex(possessor) coordination;
     }
     construction genitive_determiner_reference: UnqualifiedReference {
         element GenitiveDeterminerReference {
