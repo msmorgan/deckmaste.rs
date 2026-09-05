@@ -81,10 +81,64 @@ Listed as gaps; none is coined into the tracked glossary by this ticket.
 
 ## Landing record
 
-STOP — no implementation or corpus gate was run. The ticket's `Gate scope:
-cargo test --workspace` conflicts with the recorded `CLAUDE.md` gate-scope
-ruling and the task instruction, both of which require the tool-computed
-reverse-dependency closure through `cargo xtask gate --changed`. The conflict
-cannot be resolved by this ticket claimant. No product files changed; no
-coverage, selection, lock, construction, performance, or assurance figures
-were measured. Deviations and additions: none. Glossary gaps: none added.
+### PROVE
+
+Fork `pwokwpvzmoyl`; measured feature tip `outzwxoyywzk`.  With matched
+`--require-resolved --workers 8` flags, deleting the new `packed_sites` member
+from every ambiguity JSON row made the fork and feature reports byte-identical.
+The feature-only member is reported separately: 1,384 selected units have one
+or more packed sites.  Therefore every selected construction, resolution,
+selection lock, and traversal count is unchanged by this display-only census.
+
+`DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+--workers 8` reported the same 20,002 covered selections on both sides, with
+the lock byte-unchanged.  Both sides reported 888,873 nonterminal and visited
+constructions, 310,547 expected and visited leaves, and 0 traversal failures.
+`cargo xtask english_v2 roundtrip --require-clean --workers 8` reported 20,002
+clean, 0 mismatched, and 12,639 not parse accepted.  The JSON-shape unit test
+pins `packed_sites` as the sole new JSON field.
+
+### DISCLOSE
+
+The selection census is identical on fork and feature: 20,002 selected; 16,631
+unique; 3,371 specificity-resolved; 0 exception-resolved; 0 unresolved ties;
+and 12,639 parse failures.  `packed_units=1,384` is a report-only count and is
+not a partition term.  No identity was newly covered, retired, or reselected.
+Construction count is 396, unchanged by this xtask-only landing.  Inventory
+reports 23 permitted licensing checkers, 0 forbidden checkers, 2 homographs,
+9 overlaps, and longest literal 11.
+
+Deviation and additions: the grammar crate exposes only the already-selected
+diagnostic trace value; collection, JSON, summary, probe, and inspect display
+remain in `crates/xtask/src/english_v2/`.  There is no grammar or
+`materialize.rs` change, census gate, named lexical guard, selection exception,
+or construction change.  Assurance counts: 0 restored, 0 re-spelled, 0
+ignored, 2 added (JSON shape and coverage packed-unit census), 0 removed.
+Glossary gaps are the pre-existing ticket list; none was added or coined.
+
+Gate-scope ruling (coordinator, 2026-09-05): this ticket's legacy
+`cargo test --workspace` sentence is superseded by the tracked reverse-
+dependency closure rule; the closure gate below was run.
+
+### REPORT
+
+`cargo xtask gate --changed --run --clippy` printed:
+
+```text
+cargo test -p deckmaste_english_v2 -p xtask
+cargo clippy -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings
+```
+
+It passed: `deckmaste_english_v2` 468 passed, 0 failed, 1 ignored in 42 s;
+`cargo-xtask` 13 passed, 0 failed in 0 s; determinism 1 passed in 4 s;
+flavor words 1 passed in 0 s; english-v2 doc tests 2 passed in 0 s; xtask doc
+tests 0 passed, 0 failed in 0 s; clippy passed in 21 s.  `cargo fmt --all`
+passed.  Citations unchanged; no cite gate was needed.
+
+Performance advisory (workers 8; concurrent-process count unavailable to the
+sandbox): coverage feature run 205 s, 255,879 ns/B, host load 20/25/17;
+ambiguity feature run 135 s, 182,582 ns/B, host load 13/19/17; roundtrip 146 s,
+192,527 ns/B, host load 19/19/18.  The 16 s advisory ceiling was exceeded under
+shared-host load and is reported, not fitted.  STOP: none remaining; the prior
+gate-scope STOP was resolved by the coordinator ruling above.  No citations
+changed and no decision is wanted.
