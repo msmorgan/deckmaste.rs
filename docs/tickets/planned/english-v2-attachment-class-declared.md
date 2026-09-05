@@ -1,6 +1,15 @@
 ---
-needs: []
+needs: [english-v2-grammar-migration-design]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 # Declare every preposition's attachment class from English
 
 **R1 — first ticket of Group R (remedies, 2026-09-04 fallout audit).** Authority:

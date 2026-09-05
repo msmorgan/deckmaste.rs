@@ -1,6 +1,15 @@
 ---
-needs: [english-v2-scope-device-distributive-measure]
+needs: [english-v2-grammar-migration-design, english-v2-scope-device-distributive-measure]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 # The scope device: cross-host verification gates (Class C, §A.3-S8)
 
 Two classes of R1's re-measured changed paths are scope variants the collapse

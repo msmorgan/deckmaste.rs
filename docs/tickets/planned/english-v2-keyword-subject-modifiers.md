@@ -1,6 +1,15 @@
 ---
-needs: [english-v2-np-postmodifiers, english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-grammar-migration-design, english-v2-np-postmodifiers]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 Route keyword-subject modifiers through the general staged reference stack
 (separator-admission review M1/M3). `KeywordSubjectModifier` is a new
 5-member hand-enumeration (`"with" Object`, `"without" lex(KeywordAbility)`,

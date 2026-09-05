@@ -1,6 +1,15 @@
 ---
-needs: [english-v2-subordinate-clause, english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-grammar-migration-design]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 **Lower the cost-family categories to ordinary linguistic constituents.** The
 rewrite decision's Plan 09 amendment (`docs/decisions/english-v2-rewrite.md`,
 "English-v2 produces a linguistic AST … Printed notation and document

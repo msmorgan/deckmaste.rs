@@ -1,30 +1,26 @@
 ---
-needs: [english-v2-stage-5-grammar-buildout-13-10, english-v2-quoted-block-sentence-terminator, english-v2-compiler-onset-and-nested-document, english-v2-flavor-word-open-class, english-v2-frame-key-reduction]
+needs: [english-v2-grammar-migration-close]
 ---
-Long-tail closure to 100% of the normalized corpus. Scope: every remaining
-document shape and sentence family the frontier surfaces, run as the pure
-loop — add constructions, run the corpus gate, bump the ratchet, commit; no
-per-family briefs, reports, or evidence beyond the coverage lock. When the
-loop reaches coordination families, v1's coordination.rs and
-constructions/coordination.rs are a phenomenon checklist (coordinable
-categories, serial-list comma conventions, and/or/nor, scope, agreement) —
-never code or vocabulary to import; settled v2 rulings win over v1 analyses.
+# Complete the corpus long tail after the grammar migration
 
-Final acceptance: 100% of the normalized corpus selected, covered, byte-exact,
-and totally owned (32,641/32,641 as measured 2026-09-03 on change `lkznywvp`;
-re-measure the corpus size at claim); zero ties, exceptions, and counters; the coverage lock is the sole
-retention proof. Genuine tie or contradiction = STOP-and-report. Standard
+Coordinator umbrella: work through per-family tickets, not by claiming this
+umbrella directly. The [Lean design decision](../../decisions/english-lean-design-workbench.md)
+suspends the former largest-failure-first construction loop during formal
+grammar design and production migration. Resume after the migration-close
+judgment; the [wayfinder](../../english-grammar-wayfinder.md) names that sequence.
+
+Re-measure the supported normalized corpus and refresh the historical tail
+register in `../fog.md`. The old first-failure buckets and coverage counts are
+provenance, not current scope. Classify a failure against the migrated design:
+a general omission reopens a design/migration ticket; a local structural
+residue gets a coherent family ticket; purely lexical additions can be batched.
+Keep the existing focused-iteration/full-corpus-verification discipline and the
+current PROVE/DISCLOSE/REPORT contract. Do not resurrect an add-only ratchet or
+per-card evidence apparatus.
+
+Final acceptance remains every supported normalized corpus unit selected,
+covered, byte-exact, and totally owned, with no unresolved ties or internal
+failures. The accepted packed representation preserves permitted ambiguity;
+coverage alone does not certify its analysis. Account for wrong analyses and
+all named regression/re-coverage obligations before closing. Standard
 constraints apply.
-
-2026-09-04: corpus total stamped and marked for re-measure — was:
-"32,641/32,641 selected, covered, byte-exact, and totally owned".
-
-The remaining families and their counts live in `docs/tickets/fog.md`
-under "Tail families"; that register, not this ticket, is what the loop reads.
-
-Loop model (2026-09-02): this umbrella is worked as coordinator-minted
-per-family tickets — each iteration, the coordinator reads the frontier
-census (largest failure bucket), mints one `english-v2-tail-<family>`
-ticket sized to one linguistic family, and the executor completes it;
-this ticket closes when the corpus is 100% selected. Never claim this
-umbrella directly.

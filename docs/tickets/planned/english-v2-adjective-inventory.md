@@ -1,6 +1,15 @@
 ---
-needs: [english-v2-closed-class-single-owner, english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-grammar-migration-design, english-v2-closed-class-single-owner]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 Adjective lexeme tier (vocab-surface ruling 2026-09-02; homograph-feature
 ledger). Adjectives are content words with no legal home but a vocab:
 `AttributiveAdjective` / `PredicativeAdjective` are transitional. Mirror

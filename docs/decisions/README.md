@@ -40,6 +40,8 @@ requires explicit review rather than an opportunistic refactor.
   construction declaration compiles parse, render, and build.
 - [English v2 rewrite](english-v2-rewrite.md) — A fresh declaration-owned
   parser replaces the English stack; the declaration is the type.
+- [English grammar design in Lean](english-lean-design-workbench.md) — Formal
+  grammar modeling and proofs guide an in-place `english_v2` grammar migration.
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md) —
   Open plugin macros own positional semantic frames and the lexical facts
   needed to parse them.

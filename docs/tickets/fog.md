@@ -17,16 +17,15 @@ sharpen it.
 
 ## english-v2
 
-Nine entries below. Six are families demoted from `planned/` on 2026-09-03:
-they were pinned as a nine-deep serial chain of near-identical tickets whose
-bodies all deferred their design to the same audit, which is not a pinned shape.
-The seventh records gaps neither grammar ever had; the eighth is residue routed
-from a landing.
-
-The design source for the six is the Plan 09 v1/v2 taxonomy audit (its "v1
-taxonomy decisions v2 should ADOPT" table, rows A6–A11). Each entry restates
-that row's shape here so a fresh checkout needs nothing else. The probe set for
-each is that audit's 25-sentence probe table filtered to the family.
+**Routing changed 2026-09-05:** the [Lean design workbench and migration](../english-grammar-wayfinder.md)
+now owns grammar design and consolidation. The entries below retain examples,
+re-coverage identities, and historical measurements. Their old `Hangs on:`
+lines and corpus-first graduation recipes describe the previous schedule;
+the wayfinder maps their formal owners, and
+`english-v2-grammar-migration-design` must assign every production obligation.
+Do not mint new structural tail tickets from these counts during the design
+phase. Existing linguistic rulings still apply; proposed old mechanisms must
+be reconciled against the formal model.
 
 ### Gerund clauses and modal ellipsis (A9, A11)
 
@@ -127,13 +126,11 @@ feature-collapse precedent.
 
 ### Tail families (the frontier register for `english-v2-stage-5-grammar-buildout-14-10`)
 
-The umbrella ticket is never claimed directly; each iteration the coordinator
-re-runs the failure census, takes the largest remaining family, mints one
-`english-v2-tail-<family>` ticket sized to that family, and deletes the family
-from this list when the ticket lands. Counts go stale with every landing:
-re-measure before minting, and stamp the measurement. No xtask command exposes
-a family key yet; the census below bucketed parse failures by first-failure
-byte offset over the `coverage` rows.
+**Historical frontier; scheduling suspended until `english-v2-grammar-migration-close`.**
+The umbrella remains `english-v2-stage-5-grammar-buildout-14-10`. Its resumed
+loop re-measures these buckets and routes general omissions back to design.
+First-failure offsets hide later missing capabilities; the table is evidence
+for the whole-grammar scope review, not the design agenda.
 
 Measured 2026-09-05 on change `ptoxwkmmrqno` (19,469 / 32,641 covered, 13,172
 parse failures; 541 rows unbucketed). Key: the first-failure byte offset in each
@@ -272,7 +269,7 @@ UNOWNED.
 Coordination families generally: v1's coordination modules are a phenomenon
 checklist, never code or vocabulary to import.
 
-Hangs on: nothing; this is the live frontier.
+Hangs on: `english-v2-grammar-migration-close` before frontier scheduling resumes.
 
 ### Bare temporal adjunct inside a passive predicate
 
@@ -351,9 +348,7 @@ Recorded for the record, attributed to neither grammar — no ticket owns these,
 - reminder text
 - AdvP with degree modification
 
-Each becomes a ticket only on evidence — a corpus witness count plus a pinned
-construction shape. Evidence decides WHEN a gap is scheduled, never whether a
-general construction may admit it: attestation is provenance, not a filter
-(rewrite ADR), so a landed construction admits its full linguistic domain
-regardless of this register's counts (clarified 2026-09-04). Adding one to a general construction that already exists (a
-relative-marker slot, a coordination) is the cheap path; none is a family of its own.
+These gaps are now inputs to `english-lean-grammar-model`'s whole-grammar scope
+map. Decide representation or an explicit scope exclusion from grammatical and
+editorial evidence; a corpus count is not a prerequisite for modeling a general
+capability. The migration design owns subsequent implementation routing.

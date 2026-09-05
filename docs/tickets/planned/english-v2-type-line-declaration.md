@@ -1,6 +1,15 @@
 ---
-needs: [english-v2-type-line-construction]
+needs: [english-v2-grammar-migration-design]
 ---
+> **Migration routing (2026-09-05).** This unclaimed ticket waits on
+> `english-v2-grammar-migration-design` under the
+> [Lean design decision](../../decisions/english-lean-design-workbench.md).
+> That design task must reconcile and repin this ticket before it becomes
+> executable. The prior body below preserves examples, regression and
+> re-coverage obligations, and proposed mechanisms; its old sequence,
+> implementation prescriptions, and coverage-ratchet acceptance do not
+> override the new design process or the current landing contract.
+
 # Declare the type-line order in english_v2
 
 Routed from `workbench-card-class-and-command-zone` (close, 2026-08-26),

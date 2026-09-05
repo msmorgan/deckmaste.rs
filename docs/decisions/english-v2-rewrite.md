@@ -19,6 +19,17 @@ corpus-wide, and the sole genuine convergence is the coordination frame. A gener
 therefore loses nothing the handwritten AST provided, and every adapter
 construct exists only to bridge a gap this design removes.
 
+## Grammar work sequence (2026-09-05)
+
+[English grammar design in Lean](english-lean-design-workbench.md) governs the
+next grammar phase: a formal `English` workbench beside `Semantics`, followed
+by a migration of this crate's `constructions!` grammar. It supersedes the
+Group R scheduling and largest-first tail loop, while retaining this rewrite's
+declaration-owned production architecture and structural contracts. Workbench
+modeling does not require executable parsing, rendering, or production
+consumption. The [wayfinder](../english-grammar-wayfinder.md) routes the work;
+WIP tickets and claims are untouched.
+
 ## Source hierarchy and support corpus
 
 - The [Oracle text style guide](../oracle-style-guide.md) is the primary
@@ -1462,7 +1473,8 @@ bytes, so Linearization and the roundtrip law are untouched, leaf traversal is
 unchanged, and the canonical construction path is the hoisted one. Consumers —
 the semantics workbench and the xtask diagnostic display — read the slot. A
 first-class packed AST node holding alternative subtrees is deferred to the
-re-layering wayfinder, not built here.
+[grammar wayfinder](../english-grammar-wayfinder.md#the-former-re-layering-wayfinder);
+the formal model may investigate it before any production representation change.
 
 **Q4 — census.** A packed candidate is one candidate: not a tie, never a STOP.
 The packed-unit count is a REPORT figure, listed with its identities. A tie that
