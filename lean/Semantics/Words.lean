@@ -438,6 +438,10 @@ inductive NumberRegime where
   | clamped | signed
   deriving DecidableEq, Repr
 
+inductive Parity where
+  | even | odd
+  deriving DecidableEq, Repr
+
 inductive Supertype where
   | legendary | basic | snow | world
   deriving DecidableEq, Repr

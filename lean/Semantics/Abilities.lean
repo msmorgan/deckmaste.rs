@@ -152,14 +152,10 @@ inductive Repetition where
   | againExcludingChosen
   deriving Repr, BEq
 
-inductive ManaParity where
-  | even | odd
-  deriving DecidableEq, Repr
-
 inductive DeckTrait where
   | aCharacteristic (predicate : Predicate)
   /-- "cards with even mana values" [CR#202.3] -/
-  | manaValueParity (parity : ManaParity)
+  | manaValueParity (parity : Parity)
   /-- "more than one of the same mana symbol in its mana cost" -/
   | repeatedManaSymbol
   /-- "has an activated ability" -/

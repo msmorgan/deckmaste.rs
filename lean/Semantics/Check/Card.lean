@@ -111,9 +111,16 @@ def boxSuitsTypes (side : FaceSide) (tys : List CardType) (c : Characteristics) 
     (c.loyalty.isNone || tys.elem .planeswalker) &&
     (!tys.elem .battle || c.defense.isSome) && (c.defense.isNone || tys.elem .battle)
 
+/-- A written stat in a printed box is a literal; absent slots retain their box/type laws.
+Effect-written characteristics instead check their expressions in the supplied context. -/
+def Characteristics.printedStatsOk (c : Characteristics) : Bool :=
+  [c.power, c.toughness, c.loyalty, c.defense].all fun
+    | none | some (.lit _) => true
+    | some _ => false
+
 def cardBoxOk (side : FaceSide) (tys : List CardType) (text : List Ability)
     (c : Characteristics) : Bool :=
-  boxSuitsTypes side tys c &&
+  c.printedStatsOk && boxSuitsTypes side tys c &&
     ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.power text) c.power &&
     ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.toughness text) c.toughness
 

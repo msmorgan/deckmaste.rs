@@ -66,6 +66,12 @@ and comparisons inside an `Amount`, which are calculations and not effects.
 Nothing here is a refusal — "gains −1 life" means gain 0, and that meaning is
 the slot's declared regime. The pins are `Proofs/Numbers`.
 
+Present power, toughness, loyalty, and defense in a printed box must be
+`Amount.lit`; a nonliteral receives `cardBox`, including on shared-line halves,
+level bands, and prototype frames. Effect-written characteristics keep their
+context-aware expression checks. `Parity` is the even/odd number vocabulary,
+also used when a deck condition tests mana values.
+
 ## The checker
 
 The Idris grammar is inductive-recursive: constructor types call functions
