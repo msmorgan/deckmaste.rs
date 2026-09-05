@@ -2,9 +2,9 @@
 needs: []
 ---
 **A lookback is a game event with a gap, not a parallel event-name taxonomy.**
-`Semantics/Events.lean` declares `EventName`, a bare enumeration of event
+`lean/Semantics/Events.lean` declares `EventName`, a bare enumeration of event
 classes (`death`, `departure`, `damageTaken`, …, `verbedAct deed`), and
-`Semantics/Phrase.lean` builds a lookback ("creature that died this turn") as
+`lean/Semantics/Phrase.lean` builds a lookback ("creature that died this turn") as
 `LookbackClause.mk (event : EventName) (lookback) (complement : Option
 EventComplement)`. `GameEvent.name : GameEvent → EventName` projects the
 sentence form onto the class so `EventName.facts` can key the checker's event

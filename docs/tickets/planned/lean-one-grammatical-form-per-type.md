@@ -9,7 +9,7 @@ sentence each was first written for (`exile x` beside `exiles agent x`,
 `StaticSpec.modify`). Fix, in one landing:
 
 - `Instruction` constructors and the instruction macros in
-  `Semantics/Macros.lean` use the dictionary form; the agent is an optional
+  `lean/Semantics/Macros.lean` use the dictionary form; the agent is an optional
   trailing named argument, so `exile x` and `exile x (agent := you)` replace the
   `exile`/`exiles` pair, `mills` becomes `mill`, `chooses`/`secretlyChooses`
   fold into `choose`, `losesLife`/`gainsLife` become `loseLife`/`gainLife`.

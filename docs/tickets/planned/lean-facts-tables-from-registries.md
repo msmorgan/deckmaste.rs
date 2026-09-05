@@ -2,7 +2,7 @@
 needs: []
 ---
 **Generate the Lean workbench's facts tables from the registry declarations.**
-`lean/lean/Semantics/Check/Words.lean` and `Check/Keywords.lean` carry four
+`lean/Semantics/Check/Words.lean` and `Check/Keywords.lean` carry four
 hand-written tables the checker's laws read: `actFacts` (keyword actions, the
 deed table), `keywordFacts`, `counterFacts`, and `designationTable`, plus the
 small `subtypeFacts` (Saga, Adventure, Room frames). Each is a second copy of
@@ -22,7 +22,7 @@ the keyword-ability stubs plus a hand-kept gate-column overlay in
 `crates/xtask/src/facts.rs`, and `facts check` fails when the committed module
 is stale. Do the same for Lean, for all four tables:
 
-- `cargo xtask facts generate` also writes `lean/lean/Semantics/Check/Facts.lean`
+- `cargo xtask facts generate` also writes `lean/Semantics/Check/Facts.lean`
   (one generated module; `Check/Words.lean` and `Check/Keywords.lean` import it
   and lose their literal tables). Kernel `decide` still evaluates the tables, so
   they stay Lean data; only their authorship moves.

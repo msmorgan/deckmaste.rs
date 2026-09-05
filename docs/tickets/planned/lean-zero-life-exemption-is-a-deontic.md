@@ -3,7 +3,7 @@ needs: []
 ---
 **"Doesn't lose the game for having 0 or less life" is a deontic, not a
 constructor.** `StaticSpec.noLossFromZeroLife (player)` in
-`Semantics/Abilities.lean` hard-codes one card sentence (Lich, Phyrexian Unlife).
+`lean/Semantics/Abilities.lean` hard-codes one card sentence (Lich, Phyrexian Unlife).
 Platinum Angel's and Lich's Mastery's "you can't lose the game" already goes
 through `StaticSpec.deontic` as `playerCant (.core .loseGame)`; the zero-life
 sentence is the same deontic narrowed to one cause, the state-based action of
