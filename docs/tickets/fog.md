@@ -229,6 +229,27 @@ analysis:
   — Ballista Watcher // Ballista Wielder (Ballista Wielder face) — `A creature
   dealt damage this way ...`.
 
+Preterite morphology residue routed from the same landing (review, 2026-09-05),
+same family as the `dealt` item above and UNOWNED:
+
+- Only `Cast` and `Search` of the 67 verb declarations under
+  `plugins/builtin_v2/macros/` carry an authored `preterite:` surface, and the
+  core inventory leaves `Have`, `Share`, `Unlock` and `Win` without one. Every
+  unauthored lexeme's preterite is homographic with its past participle, so
+  authoring them reopens the host-discrimination question above. Attested
+  preterite surfaces waiting on it include `If you discarded` (Psionic Snoop),
+  `player who shuffled` (Collision of Realms), `opponent who voted` (Erestor of
+  the Council), `a creature that fought` (Boxing Ring), `a permanent you
+  controlled explored` (Herald's Reveille) and `who investigated` (Wernog,
+  Rider's Chaplain).
+- A plain/preterite homograph selected under a build-time Concord Class derive
+  keeps the underspecified `{Plain, Preterite}` Inflectional Form on its leaf:
+  the finite host licenses the set rather than rewriting it, so a
+  third-person-singular subject does not stamp `Preterite` on the selected
+  analysis. Byte-identical surfaces make this unobservable in rendering,
+  ownership and provenance today; it becomes real the moment a consumer reads
+  tense off the tree.
+
 Not a family, do not mint: the bare `.` fragment, 660 units over 102 distinct
 preceding tokens — the generic end-of-sentence position.
 

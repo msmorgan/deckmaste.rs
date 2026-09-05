@@ -320,10 +320,18 @@ The withheld rivalry identities and both analyses are:
   weight, or dominance edge was added.
 - Plain/preterite homographs compile to one normalized scanner row with the
   sealed Inflectional Form value `{Plain, Preterite}` and the union of the two
-  Concord Class applicabilities. A constraining host narrows the value; an
-  unconstrained host retains one underspecified analysis. Mixed-form finite
-  coordination carries the sealed internal `NonUniform` value so a modal or
-  bare-form host cannot accept it accidentally.
+  Concord Class applicabilities. A host whose terminal carries an exact Concord
+  Class constraint narrows the value to a single form; a host that supplies its
+  Concord Class through a build-time derive licenses the set without rewriting
+  it, so the selected leaf keeps the underspecified `{Plain, Preterite}`
+  annotation (review correction, routed to `docs/tickets/fog.md`). Coordinated
+  finite predicates may mix Inflectional Forms — Cache Grab attests `If you
+  control a Squirrel or returned a Squirrel card to your hand this way` — so a
+  coordination folds its members
+  with `coordinate_with` and carries the sealed `NonUniform` value rather than
+  rejecting them; that value is compatible with no required form, but no
+  construction requires a form of a coordination today, so nothing exercises the
+  refusal (review correction).
 - The affected subset was built with the ticket expression
   `\b\w+ed\b|died|left|lost|put|cast|dealt|drew|spent|made|won`, unioned with
   the four standing witnesses, the parent rivalry identities, and all
@@ -336,8 +344,12 @@ The withheld rivalry identities and both analyses are:
 - The ruled two-hit homograph experiment produced 3,367 unresolved subset
   units; the single set-valued hit produces 0. Every previously selected
   `cast`/`put`/`cost` unit remains selected with the same surface construction
-  path. `A player cast a spell.` has one selected finite-clause candidate and
-  the third-person-singular host narrows it uniquely to Preterite.
+  path. `A player cast a spell.` has one selected finite-clause candidate; the
+  third-person-singular host admits only the Preterite reading, and the
+  generated-consumer fixture proves the exact-constraint narrowing to
+  `InflectionalForm::Preterite` directly. In the corpus grammar the concord
+  class reaches the predicate as a build-time derive, so the selected leaf still
+  carries `{Plain, Preterite}` (review correction).
 - The four standing witnesses select: Admiral's Order; the two general finite
   probes for `attacked` and `died`; and Barad-dûr. The two impossible
   relative-clause witnesses are routed under ruling (1). Aggravate and
@@ -356,14 +368,27 @@ The withheld rivalry identities and both analyses are:
   internal failures. Ambiguity reported 7,221 unique and 2,558
   specificity-selected units. Round trip reported `parse accepted 9779`,
   `clean 9779`, `mismatched 0`.
-- On the full corpus, report-mode `coverage --check` printed 32,641 total,
-  20,202 selected and covered, 12,439 parse failures, 0 unresolved ties, 0
-  internal failures, 0 ownership failures, and lock delta +200/-0. The
-  subsequent report-mode `--bless` wrote the lock to exactly that selected
-  set. No negative oracle or wrong analysis is newly covered.
-- Full ambiguity reported 20,202 selected: 16,698 unique and 3,504
+- On the full corpus at the implementer's tree, report-mode `coverage --check`
+  printed 32,641 total, 20,202 selected and covered, 12,439 parse failures, 0
+  unresolved ties, 0 internal failures, 0 ownership failures, and lock delta
+  +200/-0. The subsequent report-mode `--bless` wrote the lock to exactly that
+  selected set. No negative oracle or wrong analysis is newly covered.
+- Full ambiguity at that tree reported 20,202 selected: 16,698 unique and 3,504
   specificity-selected, with 0 ties and 0 internal failures. Full round trip
   reported `parse accepted 20202`, `clean 20202`, `mismatched 0`.
+- Restated on the FINAL gated tree (change `pnwrqnru`, fork point `xyysysuz`,
+  refreshed onto the coordinator line after
+  `english-v2-scope-device-distributive-measure` landed its
+  `construction_core` emit changes): report-mode `coverage --check` printed
+  32,641 total, 20,254 selected and covered, 12,387 parse failures, 0
+  unresolved ties, 0 internal failures, 0 ownership failures, 0 round-trip
+  mismatches, 0 gap spans, 0 overlap spans, 0 synthetic claims and 0
+  provenance-plan mismatches, with the lock exactly current — no newly covered
+  and no loss against its 20,254 rows, which are this ticket's 200 identities
+  unioned with the 52 the refreshed base supplied. Full ambiguity reported
+  20,254 selected: 16,748 unique and 3,506 specificity-selected, 0 ties, 0
+  internal failures. Full round trip reported `parse accepted 20254`, `clean
+  20254`, `mismatched 0`.
 
 ### DISCLOSE
 
@@ -499,18 +524,24 @@ The withheld rivalry identities and both readings are unchanged:
 
 ### REPORT
 
-- Construction declarations: 397 before and after; added 0, changed 0,
+- Construction declarations: 397 before and after, re-counted at review on the
+  refreshed tree (`cargo xtask english_v2 report`); added 0, changed 0,
   removed 0. Licensing checkers: 23 permitted, 0 forbidden. Licensed
   vocabulary/lexicon homographs: 2. Form-literal/vocabulary overlaps: 9.
   Selection exceptions: 0. No pin, ceiling, checker, frame, or construction
   was fitted to an inventory count.
-- Full coverage check: 8 workers, 177 s, 239,976 ns/B, visible process count
-  668, host load 23/28/24. Coverage bless: 8 workers, 140 s, 185,785 ns/B,
-  visible process count 656, host load 14/21/23. Full ambiguity: 8 workers,
-  216 s, 263,329 ns/B, visible process count 664, host load 26/25/24. Full
-  round trip: 8 workers, 127 s, 177,873 ns/B, visible process count 644, host
-  load 8/16/20. These exceed the 16 s advisory ceiling under shared-host load
-  and are reported, not treated as a STOP.
+- Performance advisory, all figures stamped on the FINAL gated tree (change
+  `pnwrqnru`, lock `covered` 20,254) and measured with a true contention of 0
+  concurrent codex executors and 1 other Opus reviewer — the implementer's
+  "visible process count" is a sandboxed `pgrep` and carries no information.
+  Full coverage check: 8 workers, 115 s, 137,375 ns/B, host load 6/10/9. Full
+  ambiguity: 8 workers, 130 s, 154,621 ns/B, host load 13/13/10. Full round
+  trip: 8 workers, 123 s, 138,712 ns/B, host load 7/11/10. These exceed the
+  16 s advisory ceiling under shared-host load and are reported, not treated as
+  a STOP. The implementer's own figures, taken on its pre-refresh tree (lock
+  `covered` 20,202) under heavier load, were coverage check 177 s / 239,976
+  ns/B, bless 140 s / 185,785 ns/B, ambiguity 216 s / 263,329 ns/B and round
+  trip 127 s / 177,873 ns/B.
 - Affected-subset coverage: 8 workers, 58 s, 133,273 ns/B, host load 12/18/17.
   Affected-subset ambiguity: 8 workers, 57 s, 138,954 ns/B, host load
   11/17/17. Affected-subset round trip: 8 workers, 87 s, 195,614 ns/B, host
@@ -519,24 +550,45 @@ The withheld rivalry identities and both readings are unchanged:
   `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
   and
   `cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings`.
-  It completed green in 230 s with visible process count 670. Earlier closure
-  attempts were rerun only after failures surfaced and code changed.
+  Re-run green at review on the refreshed tree: 39 `test result: ok` lines, 0
+  failed, the 1 pre-existing on-demand `#[ignore]` in
+  `crates/xtask/src/macros/templates.rs`, with
+  `test result: ok. 424 passed` (`deckmaste_construction_core --lib`),
+  `test result: ok. 158 passed` (`deckmaste_english_v2 --test nominal_grammar`),
+  `test result: ok. 115 passed` (`--test predicate_grammar`) and
+  `test result: ok. 470 passed; 0 failed; 1 ignored` (`xtask --lib`); clippy
+  `Finished` with no diagnostics. `cargo xtask gate --changed` printed that
+  same closure line on the review diff. Earlier closure attempts were rerun
+  only after failures surfaced and code changed.
 - `cargo xtask catalogs check`: `catalogs are up to date`.
-  `cargo xtask cite check`: `checked 14490 citations against cr.txt (eff.
-  2026-08-07); 0 stale`. `cargo fmt --all` completed successfully.
-- Assurance census: restored 0; re-spelled 1; ignored with blockers 2; added 2;
-  removed 2. Re-spelled: the event subject-relative scope fence is now the
-  positive unique-selection witness required by ruling (4). Ignored with
-  blockers: Ashen-Skin Zubera and Boldwyr Heavyweights, routed under ruling
-  (1). Added: the general finite-host realization test and the synthetic open
-  declaration scan/render test. Removed: the stale ordinary-failure entries
-  `As an additional cost cast this spell, discard a card.` and `This ability
-  cost {1} less to activate.`, both grammatical under the ruled homogeneous
-  form analysis.
+  `cargo xtask cite check --list-noncompliant`: `0 non-compliant
+  citation-looking string(s)`. `cargo xtask cite check`: `checked 14488
+  citations against cr.txt (eff. 2026-08-07); 0 stale` (14,490 at the
+  implementer's tree; the refresh moved the corpus of citations, and this
+  landing adds none). `cargo fmt --all` completed successfully.
+- Assurance census (corrected at review): restored 0; re-spelled 3; ignored
+  with blockers 0; added 3; removed 0. Re-spelled: the event subject-relative
+  scope fence is now the positive unique-selection witness required by ruling
+  (4), and the two crossed-cost-frame rejections `As an additional cost cast
+  this spell, discard a card.` and `This ability cost {1} less to activate.`
+  — grammatical past-tense English once `cast` and `cost` carry a declared
+  preterite — were first deleted from their negative list and are now re-spelled
+  in place as `retired_cost_frame_rejections_select_as_preterite_finite_clauses`,
+  which asserts each one's unique finite-clause selection, its host member and
+  its byte-exact render. Nothing is `#[ignore]`d by this landing: Ashen-Skin
+  Zubera and Boldwyr Heavyweights were struck from acceptance under ruling (1)
+  and routed to `docs/tickets/fog.md`, which the earlier "ignored with blockers
+  2" line described wrongly. Added: the general finite-host realization test,
+  the synthetic open declaration scan/render test, and (at review) the
+  coordination witness
+  `finite_predicate_coordination_admits_mixed_inflectional_forms`.
 - Deviation authorized by ruling (2): the scalar Concord Class carrier could
   not express a set-valued Inflectional Form, so the compiler adds a sealed
-  Inflectional Form feature domain, normalized row data, and the internal
-  `NonUniform` coordination value. This adds no construction shape.
+  Inflectional Form feature domain and normalized row data, plus the two
+  internal union Concord Class values `OtherOrThirdPersonSingular` and
+  `PlainOrPreterite` and the internal `NonUniform` coordination value. This
+  adds no construction shape. Review kept all four after probing the
+  alternative (see Review corrections).
 - Deviations and additions: production scope is the declaration grammar,
   compiler normalization/emission, existing verb-headed construction feature
   propagation, core and plugin lexical data, tests, and the coverage lock.
@@ -552,3 +604,66 @@ The withheld rivalry identities and both readings are unchanged:
 - glossary gap: none. Inflectional Form, Finiteness, and Concord Class cover
   the model.
 - STOP: none. Decision wanted: none.
+
+### Review corrections (Opus landing reviewer, 2026-09-05)
+
+- INVESTIGATED, NOT A DEFECT — mixed Inflectional Form predicate coordination
+  (`Whenever a creature you control attacks and attacked, draw a card.`)
+  selects, because `sequence_owner_feature_values` folds the Inflectional Form
+  with `coordinate_with` into `NonUniform` instead of emitting the pairwise
+  homogeneity guard Concord Class uses. The reviewer first treated that as
+  over-generation and replaced the fold with the homogeneous path; the full
+  coverage check then dropped two identities, and the first of them settles the
+  question: Cache Grab prints `If you control a Squirrel or returned a Squirrel
+  card to your hand this way`, an attested coordination of a plain and a
+  preterite predicate under one subject, and Gideon's Triumph's `that attacked
+  or blocked this turn` went with it. Mixed-form coordination is grammatical
+  English, so `coordinate_with` and the sealed `NonUniform` value are the right
+  design and the change was reverted in full. Witness added instead:
+  `finite_predicate_coordination_admits_mixed_inflectional_forms`, which pins
+  both the mixed and the uniform coordinations as selecting and pins the
+  bare-form host refusing a preterite complement (`A player may attacked.`).
+  Correction to the PROVE claim: `NonUniform` does not stop a modal from taking
+  a mixed coordination — `A player may attack and attacked.` selects, and
+  correctly so, as `PredicateCoordinationAnd` over `[may attack]` and
+  `[attacked]`, with the modal scoping over neither. No construction in the
+  grammar today applies a required Inflectional Form to a coordination, so the
+  blocking effect the record claimed for `NonUniform` is unwitnessed.
+- HIGH — two entries were deleted from the negative list in
+  `cost_frame_reciprocals_reject_crossed_boundaries` rather than re-spelled.
+  Ruling (4) had already settled the treatment for exactly this situation in
+  this ticket (grammatical English keeps its test as a positive witness), so the
+  deletions applied the ruling inconsistently without a STOP. Both sentences are
+  re-spelled in place as
+  `retired_cost_frame_rejections_select_as_preterite_finite_clauses`; removed
+  count returns to 0.
+- MEDIUM — the assurance census claimed "ignored with blockers 2"; no
+  `#[ignore]` exists anywhere in the diff. Corrected above.
+- MEDIUM — the record claimed the third-person-singular host "narrows it
+  uniquely to Preterite". It does so only where the terminal carries an exact
+  Concord Class constraint (the generated-consumer fixture, whose assertion was
+  strengthened at review to pin `InflectionalForm::Preterite`); under the
+  corpus grammar's build-time derive the selected leaf keeps
+  `{Plain, Preterite}`. Corrected above and routed to `docs/tickets/fog.md`.
+- MEDIUM — only `Cast` and `Search` of the 67 verb declarations under
+  `plugins/builtin_v2/macros/` received a `preterite:` surface, and the core
+  inventory leaves `Have`, `Share`, `Unlock` and `Win` without one; the record
+  disclosed only the ruled `Deal` withholding. Every unauthored lexeme's
+  preterite is a past-participle homograph, so the omission belongs to the
+  routed `dealt` family; disclosed and routed to `docs/tickets/fog.md` with its
+  attested surfaces.
+- Contention stamp for the performance advisory: the figures above were taken
+  with 0 concurrent codex executors and 1 other Opus reviewer running, not the
+  implementer's sandboxed visible-process counts.
+- Guard scan: no `require`, `checked by`, Rust predicate or comment in the diff
+  names a lexeme, construction, verb, noun, preposition or card identity.
+- Newly covered analyses spot-checked at review across the Attack, Block, Cast,
+  Control, Die, Draw, Enter, Gain, Leave, Lose, Return and Search buckets (18
+  identities, including Archive Trap, Boomerang Basics, Cathedral Membrane,
+  Crested Sunmare, Custodi Soulcaller, Dawn Evangel, Death's Presence, Doctor
+  Jane Foster, Force of Despair, Ghired, Gideon's Triumph, Grasping Current,
+  Living History, Mirrex, Power Surge, Search Party Captain, Sun-Blessed Mount,
+  War Historian): every one is a finite preterite in a finite clause or a
+  subject/object-gap relative. Aggravate and Ballista Watcher // Ballista
+  Wielder keep their past-participle reduced-passive readings; Ashen-Skin
+  Zubera and Boldwyr Heavyweights remain parse failures as ruling (1) expects.

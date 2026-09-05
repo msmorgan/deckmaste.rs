@@ -1823,6 +1823,33 @@ fn declared_preterites_reach_general_finite_clause_hosts() {
     assert_eq!(decision.resolution(), SelectionResolution::Unique);
 }
 
+/// Coordinated finite predicates may mix Inflectional Forms — Cache Grab
+/// prints `If you control a Squirrel or returned a Squirrel card to your hand
+/// this way` — so the coordination carries the non-uniform value rather than
+/// rejecting the members, and only a host that requires one form refuses it.
+#[test]
+fn finite_predicate_coordination_admits_mixed_inflectional_forms() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Whenever a creature you control attacked and blocked, draw a card.",
+        "Whenever a creature you control attacks and blocks, draw a card.",
+        "Whenever a creature you control attacks and attacked, draw a card.",
+        "Whenever creatures you control attack and attacked, draw a card.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for text in ["A player may attacked.", "A player may casted."] {
+        let analysis = parser.analyze(text, &context);
+        assert!(
+            analysis.selected().is_none(),
+            "a bare-form host refuses a preterite complement: {text:?}: {analysis:#?}",
+        );
+    }
+}
+
 #[test]
 fn finite_clause_families_compose_in_triggers_and_conditions() {
     let parser = parser();
@@ -4660,6 +4687,55 @@ fn cost_frame_reciprocals_reject_crossed_boundaries() {
         assert!(
             analysis.selected().is_none(),
             "crossed cost frame must reject {text:?}: {analysis:#?}",
+        );
+    }
+}
+
+/// Re-spells two former crossed-cost-frame rejections that the preterite
+/// Inflectional Form retires: both are grammatical past-tense English once
+/// `cast` and `cost` carry a declared preterite, so each is asserted as the
+/// finite clause it now is rather than deleted.
+#[test]
+fn retired_cost_frame_rejections_select_as_preterite_finite_clauses() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected) in [
+        (
+            "This ability cost {1} less to activate.",
+            "CostComparisonPredicateCostComparisonPredicate",
+        ),
+        (
+            "As an additional cost cast this spell, discard a card.",
+            "AsClauseTailAsClauseTail",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let decision = analysis
+            .decision()
+            .unwrap_or_else(|| panic!("{text:?} must have a selection decision: {analysis:#?}"));
+        assert_eq!(
+            decision.resolution(),
+            SelectionResolution::Unique,
+            "{text:?}"
+        );
+        assert_eq!(decision.candidates().len(), 1, "{text:?}: {decision:#?}");
+        let path = decision.candidates()[0].construction_path();
+        assert!(
+            path.iter()
+                .any(|item| item == "FiniteClausePlainFiniteClause"),
+            "{text:?} is a finite clause: {path:#?}",
+        );
+        assert!(
+            path.iter().any(|item| item == expected),
+            "{text:?} keeps its {expected} host: {path:#?}",
+        );
+        assert_eq!(
+            analysis
+                .selected()
+                .expect("the retired rejection has one selected AST")
+                .render(&context, parser.environment()),
+            text,
         );
     }
 }

@@ -1931,6 +1931,7 @@ pub mod declaration_verb_fixture {
                     Leaf::TransitiveVerb {
                         verb: TransitiveVerb::Declaration(_),
                         concord_class: ConcordClass::ThirdPersonSingular,
+                        inflectional_form: InflectionalForm::Preterite,
                         ..
                     },
                 ..
