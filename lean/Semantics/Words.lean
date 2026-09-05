@@ -484,7 +484,7 @@ inductive ProjAxis where
   | anyCounter (kind : Kind)
   deriving DecidableEq, Repr
 
-/-- A Saga's chapter, counted from I [CR#714.2]. -/
+/-- A Saga's chapter, counted from I [CR#714.2a]. -/
 abbrev ChapterNumber := Nat
 
 /-- Each status category always has exactly one of its two values [CR#110.5]. -/

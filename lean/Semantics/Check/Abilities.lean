@@ -621,7 +621,7 @@ mutual
   termination_by structural parts => parts
 end
 
-/-! How many times a cost turns the source itself over [CR#107.5]. -/
+/-! How many times a cost turns the source itself over [CR#107.5,107.6]. -/
 mutual
   def Cost.selfTapUses : Cost → Nat
     | .scaled c _ => c.selfTapUses

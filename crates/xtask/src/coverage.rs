@@ -96,7 +96,7 @@ const SKIP_DIRS: &[&str] = &[
     "plugins/wizards",
     "docs/superpowers",
 ];
-const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr"];
+const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr", "lean"];
 
 /// Classify a repo-relative path into its citation tier.
 #[must_use]
@@ -109,7 +109,8 @@ pub fn tier_for_path(rel: &str) -> Tier {
     if rel.starts_with("docs/") || rel.ends_with(".md") {
         return Tier::Mentioned;
     }
-    let is_test = rel.contains("/tests/") || rel.starts_with("plugins/testing/");
+    let is_test =
+        rel.contains("/tests/") || rel.contains("/Proofs/") || rel.starts_with("plugins/testing/");
     if is_test { Tier::Tested } else { Tier::Bound }
 }
 

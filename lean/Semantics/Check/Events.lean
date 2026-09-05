@@ -169,7 +169,7 @@ def deedHeadTysOk (v : Deed) (r : Role) : List (List CardType) → Bool
   | alts => alts.all (deedAltOk v r)
 
 def deedZoneOf (v : Deed) (r : Role) : Option Zone := (deedRoleOf v r).zone
-/-- The deed a defender is declared against: attacking, the turn-based action [CR#508.1b]. -/
+/-- The deed a defender is declared against: attacking, the turn-based action [CR#508.1,508.1b]. -/
 def deedDefendsOk (v : Deed) : Bool := v == .core .attack
 /-- The deed that makes an object a target [CR#115.1]. -/
 def deedTargetedOk (v : Deed) : Bool := v == .core .target
