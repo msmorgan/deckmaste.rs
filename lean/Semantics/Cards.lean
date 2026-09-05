@@ -2,6 +2,7 @@ import Semantics
 import Semantics.Macros
 import Semantics.Check.Card
 import Semantics.Cards.Copy
+import Semantics.Cards.Description
 import Semantics.Cards.Piles
 
 /-!
@@ -18,35 +19,6 @@ does not define, as it did not elaborate in Idris.
 open Semantics Semantics.Macros
 
 namespace Semantics.Cards
-
-/-- Aerial Volley {G} — Instant. "Aerial Volley deals 3 damage divided as you choose among
-one, two, or three target creatures with flying." -/
-def aerialVolley : Spelled := spelled <| .singleFaced
-  { characteristics :=
-    { name := "Aerial Volley", cost := some [pip .green], types := [.instant],
-      text :=
-        [ .spell none (dealsDivided .this (.lit 3)
-            (.described (.target (oneThrough 3))
-              (.and [creature, .hasKeyword (.the "Flying")]))) ] } }
-
-/-- Topple {2}{W} — Sorcery. "Exile target creature with the greatest power among creatures
-on the battlefield." -/
-def topple : Spelled := spelled <| .singleFaced
-  { characteristics :=
-    { name := "Topple", cost := some [generic 2, pip .white], types := [.sorcery],
-      text :=
-        [ .spell none (exile (target
-            (.and [creature,
-                   .superlative .max (.stat .power) (.and [creature, permanent])]))) ] } }
-
-/-- Disarm {U} — Instant. "Unattach all Equipment from target creature." -/
-def disarm : Spelled := spelled <| .singleFaced
-  { characteristics :=
-    { name := "Disarm", cost := some [pip .blue], types := [.instant],
-      text :=
-        [ .spell none (.unattach (allOf
-            (.and [.hasSubtype (artifactType "Equipment"),
-                   .attachedTo (target creature)]))) ] } }
 
 /-- Mana Leak {1}{U} — Instant. "Counter target spell unless its controller pays {3}." -/
 def manaLeak : Spelled := spelled <| .singleFaced

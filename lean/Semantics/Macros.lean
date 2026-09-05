@@ -157,6 +157,9 @@ def blocked : Predicate := .inCombat .blockedBy none
 def unblocked : Predicate := .not blocked
 def creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
 def creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
+/-- "another creature you control", anchored on <n>. -/
+def otherCreatureYouControl (n : NounPhrase) : Predicate :=
+  .and [creature, .hasPossessor .controller .you, .otherThan n]
 /-- "source": the object dealing the damage under discussion. -/
 def source : Predicate := .isSource
 def emblem : Predicate := .isEmblem
@@ -200,6 +203,12 @@ def landType (label : String) : Subtype := .of .land label
 def enchantmentType (label : String) : Subtype := .of .enchantment label
 def spellType (label : String) : Subtype := .spell label
 def planeswalkerType (label : String) : Subtype := .of .planeswalker label
+/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12]. -/
+def outlaw : Predicate :=
+  .or [ .hasSubtype (creatureType "Assassin"), .hasSubtype (creatureType "Mercenary"),
+        .hasSubtype (creatureType "Pirate"), .hasSubtype (creatureType "Rogue"),
+        .hasSubtype (creatureType "Warlock") ]
+def outlawYouControl : Predicate := .and [outlaw, .hasPossessor .controller .you]
 
 /-! ## Nouns -/
 
@@ -242,6 +251,12 @@ def partyOf (player : NounPhrase) : NounPhrase :=
   .oneEachOf partyRoles (allOf (.and [creature, .hasPossessor .controller player]))
 /-- "your party" -/
 def party : NounPhrase := partyOf .you
+/-- "the number of creatures in <player>'s party" [CR#700.8a]. -/
+def partySizeOf (player : NounPhrase) : Amount := .countOf (partyOf player)
+def partySize : Amount := partySizeOf .you
+/-- "<player> has a full party": four creatures in that party [CR#700.8c]. -/
+def fullPartyOf (player : NounPhrase) : Condition := .compareAmt (partySizeOf player) .eq (.lit 4)
+def fullParty : Condition := fullPartyOf .you
 
 /-! ## Mana -/
 
@@ -259,6 +274,7 @@ def scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
 
 def untilEndOfTurn : Duration := .until_ (.endOf .turn none)
 def untilYourNextTurn : Duration := .until_ (.startOf .turn (some .you))
+def untilEndOfCombat : Duration := .until_ (.endOf .combat none)
 
 /-! ## Amounts -/
 
@@ -319,6 +335,9 @@ def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.down amount)
 def gainsLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.up amount)
+/-- "<player>'s life total becomes <amount>" -/
+def lifeBecomes (player : NounPhrase) (amount : Amount) : Instruction :=
+  .changeLife player (.set amount)
 def draw (player : NounPhrase) (amount : Amount) : Instruction := .draw player amount
 
 def lookAt (cards : NounPhrase) : Instruction := .expose .lookAt .you (.cards cards)
@@ -394,6 +413,16 @@ def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
 def eventCountInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
     (what : NounPhrase) : Amount :=
   .eventTally .count who (.mk event lookback (some (.involving what)))
+/-- "the number of times <event> happened to <who> <lookback>" -/
+def eventCount (event : EventName) (who : NounPhrase) (lookback : Lookback) : Amount :=
+  .eventTally .count who (.mk event lookback none)
+/-- "if <who> <event>ed <what> <lookback>" -/
+def happenedInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
+    (what : NounPhrase) : Condition :=
+  .happened who (.mk event lookback (some (.involving what)))
+/-- "that <event>ed <lookback>" -/
+def happenedTo (event : EventName) (lookback : Lookback) : Predicate :=
+  .happenedTo (.mk event lookback none)
 /-- "<subject>'s <keyword> cost was paid", read back. -/
 def paidCostRead (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
     Amount :=
@@ -401,6 +430,10 @@ def paidCostRead (which : PaidCostName) (window : Option Lookback) (subject : No
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
 def timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount :=
   .paid (.timesPaid which) subject
+/-- "if <subject>'s <cost> was paid" -/
+def costWasPaid (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
+    Condition :=
+  .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
 /-- "the last chosen color" -/
 def theLastChosenColor : ColorTerm := .chosen .theLatestChoice
 /-- "the amount by which the ceiling was not reached" -/
@@ -609,6 +642,9 @@ def stormExpansion : Ability :=
         may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 def activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
+/-- "[cost]: <instruction>. Activate only <timing>." -/
+def activatedOnlyDuring (cost : Cost) (instruction : Instruction) (timing : Timing) : Ability :=
+  .activated cost instruction (some timing) none none none
 
 /-! ## Cards -/
 
