@@ -1,0 +1,5 @@
+error: structural target must realize at least one byte
+ --> tests/compile_fail/structural_empty_surface.rs:6:42
+  |
+6 |         form invalid = "item" structural("");
+  |                                          ^^

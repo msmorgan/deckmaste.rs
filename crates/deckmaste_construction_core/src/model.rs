@@ -292,6 +292,9 @@ pub enum FormAtom {
     /// changes neither parsing nor rendering.
     LicensedLiteral(LitStr),
     SentenceInitial(LitStr),
+    /// A literal whose bytes are structural rather than lexical: the
+    /// surface is written without a word boundary of its own and the
+    /// following lexical item keeps the current case position.
     StructuralLiteral(LitStr),
     Role(Ident),
     Lex(Ident),
