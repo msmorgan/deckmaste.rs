@@ -48,6 +48,18 @@ surface form.
 **Linearization**:
 The ordering of a Construction's constituents into a surface sequence.
 
+**Document**:
+Structured rules text for one text box or independently named face portion,
+including its sentences, keyword lines, and editorial boundaries.
+
+**Keyword Line**:
+A line formed from one or more keyword-ability surfaces with their prescribed
+parameters and associated reminder text.
+
+**Notation**:
+A conventional written representation using symbols, numerals, or other
+specialized marks rather than ordinary word-and-phrase grammar alone.
+
 **Sentence**:
 The highest ordinary syntactic unit of Oracle text, terminated by sentence
 punctuation and containing one or more Clauses.

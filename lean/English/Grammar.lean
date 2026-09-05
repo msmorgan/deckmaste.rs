@@ -1,4 +1,5 @@
-import Init
+import English.Surface
+import English.DocumentShape
 
 /-! Oracle English composition; assumptions and scope are in `docs/english-grammar-design.md`. -/
 
@@ -63,6 +64,7 @@ inductive Category where
   | verbPhrase (form : InflectionalForm) (voice : Voice := .active)
   | clause (finiteness : Finiteness)
   | subordinateClause (finiteness : Finiteness)
+  | document (category : DocumentCategory)
   deriving DecidableEq
 
 inductive Relation where
@@ -79,19 +81,19 @@ inductive FrameItem (Lexeme : Type) where
   | argument (complement : Complement)
   | fixed (marker : Lexeme)
 
-abbrev Surface := List String
-
 inductive Coordinator where
   | and_ | or_ | andOr
   deriving DecidableEq
 
 def Coordinator.surface : Coordinator → Surface
-  | .and_ => ["and"]
-  | .or_ => ["or"]
-  | .andOr => ["and/or"]
+  | .and_ => (["and"] : Surface)
+  | .or_ => (["or"] : Surface)
+  | .andOr => (["and/or"] : Surface)
 
 /-- Local productions. Recursive arguments live in Syntax, never in lexical frame schemas. -/
 inductive Construction (Lexeme : Type) where
+  | document (rule : DocumentRule)
+  | keyword (head : Lexeme) (parameter : Option Category) (placement : KeywordPlacement)
   | determine (number : Number)
   | barePlural
   | quantify (number : Number)
@@ -115,6 +117,9 @@ structure Lexicon (Lexeme : Type) where
   adjective : Lexeme → Prop
   nounForm : Lexeme → Number → Surface → Prop
   adjectiveForm : Lexeme → Surface → Prop
+  keyword : Lexeme → Option Category → KeywordPlacement → Prop := fun _ _ _ => False
+  keywordForm : Lexeme → Surface → Prop := fun _ _ => False
+  keywordSuffix : Lexeme → String → Prop := fun _ _ => False
   word : Lexeme → Category → Prop := fun _ _ => False
   wordForm : Lexeme → Category → Surface → Prop := fun _ _ _ => False
   verb : Lexeme → InflectionalForm → Voice → List (FrameItem Lexeme) → Prop := fun _ _ _ _ => False
@@ -135,6 +140,12 @@ inductive WordCategory : Category → Prop where
   | adverb : WordCategory .adverbPhrase
   | quantity {number : Number} : WordCategory (.cardinalNumeral number)
   | measure : WordCategory .measurePhrase
+  | symbol : WordCategory (.document .symbol)
+  | label {kind : LabelKind} : WordCategory (.document (.label kind))
+  | notation : WordCategory (.document .notation)
+  | supertype : WordCategory (.document .supertype)
+  | type : WordCategory (.document .type)
+  | subtype : WordCategory (.document .subtype)
 
 /-- Adjunct distribution is independent of lexical complement selection. -/
 inductive AdjunctLicense : Category → Category → Placement → Prop where
@@ -156,9 +167,92 @@ def coordinationResult (coordinator : Coordinator) (category : Category) : Categ
   | .and_, .nounPhrase agreement => .nounPhrase { agreement with number := .plural }
   | _, _ => category
 
+/-- Document categories compose over the same clause and phrase categories. -/
+inductive DocumentProduction : DocumentRule → List Category → Category → Prop where
+  | sentence : DocumentProduction .sentence
+      [.clause .finite] (.document .sentence)
+  | body : DocumentProduction .body
+      [.document .sentence] (.document .body)
+  | bodyJoin : DocumentProduction .bodyJoin
+      [.document .body, .document .sentence] (.document .body)
+  | ordinary : DocumentProduction .ordinary
+      [.document .body] (.document .ability)
+  | document : DocumentProduction .document
+      [.document .ability] (.document .document)
+  | append : DocumentProduction .append
+      [.document .document, .document .document] (.document .document)
+  | costAction : DocumentProduction .costAction
+      [.verbPhrase .plain] (.document .cost)
+  | costSymbol : DocumentProduction .costSymbol
+      [.document .symbol] (.document .cost)
+  | costJoin : DocumentProduction .costJoin
+      [.document .cost, .document .cost] (.document .cost)
+  | activated : DocumentProduction .activated
+      [.document .cost, .document .body] (.document .ability)
+  | triggered : DocumentProduction .triggered
+      [.subordinateClause .finite, .clause .finite] (.document .ability)
+  | keywordLine : DocumentProduction .keywordLine
+      [.document .keyword] (.document .ability)
+  | keywordJoin : DocumentProduction .keywordJoin
+      [.document .keyword, .document .keyword] (.document .keyword)
+  | quote : DocumentProduction .quote
+      [.document .document] (.document .quotedText)
+  | mode : DocumentProduction .mode
+      [.document .body] (.document .mode)
+  | modeJoin : DocumentProduction .modeJoin
+      [.document .mode, .document .mode] (.document .modes)
+  | modes : DocumentProduction .modes
+      [.clause .finite, .document .modes] (.document .ability)
+  | weightedMode : DocumentProduction .weightedMode
+      [.document .symbol, .document .body] (.document .mode)
+  | label {kind : LabelKind} : DocumentProduction (.label kind)
+      [.document (.label kind), .document .ability] (.document .ability)
+  | chapter : DocumentProduction .chapter
+      [.document .notation, .document .body] (.document .document)
+  | classLevel : DocumentProduction .classLevel
+      [.document .cost, .document .notation, .document .document] (.document .document)
+  | levelBand : DocumentProduction .levelBand
+      [.document .notation, .document .notation, .document .document] (.document .document)
+  | solve : DocumentProduction .solve
+      [.document .body] (.document .document)
+  | solved : DocumentProduction .solved
+      [.document .ability] (.document .document)
+  | dieRow : DocumentProduction .dieRow
+      [.document .notation, .document .body] (.document .document)
+  | dieDashRow : DocumentProduction .dieDashRow
+      [.document .notation, .document .body] (.document .document)
+  | station : DocumentProduction .station
+      [.document .notation, .document .ability] (.document .document)
+  | supertype : DocumentProduction .supertype
+      [.document .supertype] (.document .supertypes)
+  | type : DocumentProduction .type
+      [.document .type] (.document .types)
+  | subtype : DocumentProduction .subtype
+      [.document .subtype] (.document .subtypes)
+  | noSupertypes : DocumentProduction .noSupertypes
+      [] (.document .supertypes)
+  | supertypes : DocumentProduction .supertypes
+      [.document .supertypes, .document .supertype] (.document .supertypes)
+  | types : DocumentProduction .types
+      [.document .types, .document .type] (.document .types)
+  | subtypes : DocumentProduction .subtypes
+      [.document .subtypes, .document .subtype] (.document .subtypes)
+  | typeLine : DocumentProduction .typeLine
+      [.document .supertypes, .document .types] (.document .typeLine)
+  | subtypedLine : DocumentProduction .subtypedLine
+      [.document .supertypes, .document .types, .document .subtypes] (.document .typeLine)
+
 /-- Ordered child categories are supplied by grammar rules, or by a declared lexical frame. -/
 inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
     Construction Lexeme → List Category → Category → Prop where
+  | document {rule : DocumentRule} {children : List Category} {category : Category} :
+      DocumentProduction rule children category →
+      Production lexicon (.document rule) children category
+  | keywordBare {head : Lexeme} : lexicon.keyword head none .free →
+      Production lexicon (.keyword head none .free) [] (.document .keyword)
+  | keywordParameter {head : Lexeme} {parameter : Category} {placement : KeywordPlacement} :
+      lexicon.keyword head (some parameter) placement →
+      Production lexicon (.keyword head (some parameter) placement) [parameter] (.document .keyword)
   | determine {number : Number} : Production lexicon (.determine number)
       [.determinativePhrase number, .nominal number] (.nounPhrase ⟨.third, number⟩)
   | barePlural : Production lexicon .barePlural [.nominal .plural]
@@ -203,6 +297,20 @@ inductive Syntax (Lexeme : Type) where
       (left right : Syntax Lexeme)
   | relative (number : Number) (head body : Syntax Lexeme)
   | ellipsis (antecedent : Syntax Lexeme)
+
+mutual
+  /-- Structural reminder nesting check; lexical spellings are assumed to respect atom ownership. -/
+  def Syntax.reminderFree {Lexeme : Type} : Syntax Lexeme → Bool
+    | .node (.document .reminder) _ => false
+    | .node _ children => reminderFreeChildren children
+    | .modify left right | .relative _ left right | .sharedCoordination _ _ left right =>
+        left.reminderFree && right.reminderFree
+    | .ellipsis antecedent => antecedent.reminderFree
+    | _ => true
+  def reminderFreeChildren {Lexeme : Type} : List (Syntax Lexeme) → Bool
+    | [] => true
+    | first :: rest => first.reminderFree && reminderFreeChildren rest
+end
 
 /-- The initial plural nominal coordination uses the general coordination production. -/
 def Syntax.coordinate {Lexeme : Type} (left right : Syntax Lexeme) : Syntax Lexeme :=
@@ -264,6 +372,9 @@ mutual
         FiniteLicense lexicon predicate agreement →
         Judges lexicon (.node (.finite agreement form voice) [subject, predicate]) (.clause .finite)
           (subjectGaps ++ predicateGaps)
+    | reminder {body : Syntax Lexeme} :
+        Judges lexicon body (.document .body) [] → body.reminderFree = true →
+        Judges lexicon (.node (.document .reminder) [body]) (.document .ability) []
     | gap {category : Category} : Judges lexicon (.gap category) category [category]
     | sharedCoordination {coordinator : Coordinator} {category gap : Category}
         {left right : Syntax Lexeme} :
@@ -302,9 +413,77 @@ end
 abbrev Derives {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
     (category : Category) : Prop := Judges lexicon tree category []
 
+/-- Punctuation, capitalization and line boundaries are owned by document productions. -/
+inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Prop where
+  | sentence {first : Atom} {tail : Surface} : DocumentLinearizes .sentence
+      [first :: tail] (Surface.finishSentence (first.capitalize :: tail))
+  | body {a : Surface} : DocumentLinearizes .body [a] a
+  | bodyJoin {a b : Surface} : DocumentLinearizes .bodyJoin [a, b] (a ++ b)
+  | ordinary {a : Surface} : DocumentLinearizes .ordinary [a] a
+  | document {a : Surface} : DocumentLinearizes .document [a] a
+  | append {a b : Surface} : DocumentLinearizes .append [a, b] (a ++ [.lineBreak] ++ b)
+  | costAction {first : Atom} {tail : Surface} :
+      DocumentLinearizes .costAction [first :: tail] (first.capitalize :: tail)
+  | costSymbol {a : Surface} : DocumentLinearizes .costSymbol [a] a
+  | costJoin {a b : Surface} :
+      DocumentLinearizes .costJoin [a, b] (a ++ ([.closing ","] : Surface) ++ b)
+  | activated {a b : Surface} :
+      DocumentLinearizes .activated [a, b] (a ++ ([.closing ":"] : Surface) ++ b)
+  | triggered {first : Atom} {tail b : Surface} : DocumentLinearizes .triggered [first :: tail, b]
+      (Surface.finishSentence (first.capitalize :: (tail ++ ([.closing ","] : Surface) ++ b)))
+  | keywordLine {first : Atom} {tail : Surface} :
+      DocumentLinearizes .keywordLine [first :: tail] (first.capitalize :: tail)
+  | keywordJoin {a b : Surface} :
+      DocumentLinearizes .keywordJoin [a, b] (a ++ ([.closing ","] : Surface) ++ b)
+  | quote {a : Surface} : DocumentLinearizes .quote [a] a.quote
+  | reminder {a : Surface} :
+      DocumentLinearizes .reminder [a]
+        (([.opening "("] : Surface) ++ a ++ ([.closing ")"] : Surface))
+  | mode {a : Surface} : DocumentLinearizes .mode [a] ((["•"] : Surface) ++ a)
+  | modeJoin {a b : Surface} : DocumentLinearizes .modeJoin [a, b] (a ++ [.lineBreak] ++ b)
+  | modes {first : Atom} {tail b : Surface} : DocumentLinearizes .modes [first :: tail, b]
+      (first.capitalize :: (tail ++ (["—", .lineBreak] : Surface) ++ b))
+  | weightedMode {a b : Surface} :
+      DocumentLinearizes .weightedMode [a, b] ((["•"] : Surface) ++ a ++ (["—"] : Surface) ++ b)
+  | label {kind : LabelKind} {a b : Surface} :
+      DocumentLinearizes (.label kind) [a, b] (a ++ (["—"] : Surface) ++ b)
+  | chapter {a b : Surface} : DocumentLinearizes .chapter [a, b] (a ++ (["—"] : Surface) ++ b)
+  | classLevel {a b c : Surface} : DocumentLinearizes .classLevel [a, b, c]
+      (a ++ ([.closing ":", "Level"] : Surface) ++ b ++ [.lineBreak] ++ c)
+  | levelBand {a b c : Surface} : DocumentLinearizes .levelBand [a, b, c]
+      ((["LEVEL"] : Surface) ++ a ++ [.lineBreak] ++ b ++ [.lineBreak] ++ c)
+  | solve {a : Surface} : DocumentLinearizes .solve [a] ((["To", "solve", "—"] : Surface) ++ a)
+  | solved {a : Surface} : DocumentLinearizes .solved [a] ((["Solved", "—"] : Surface) ++ a)
+  | dieRow {a b : Surface} : DocumentLinearizes .dieRow [a, b] (a ++ (["|"] : Surface) ++ b)
+  | dieDashRow {a b : Surface} :
+      DocumentLinearizes .dieDashRow [a, b] (a ++ (["—"] : Surface) ++ b)
+  | station {a b : Surface} :
+      DocumentLinearizes .station [a, b] (a ++ ([.closing "+", "|"] : Surface) ++ b)
+  | supertype {a : Surface} : DocumentLinearizes .supertype [a] a
+  | type {a : Surface} : DocumentLinearizes .type [a] a
+  | subtype {a : Surface} : DocumentLinearizes .subtype [a] a
+  | noSupertypes : DocumentLinearizes .noSupertypes [] []
+  | supertypes {a b : Surface} : DocumentLinearizes .supertypes [a, b] (a ++ b)
+  | types {a b : Surface} : DocumentLinearizes .types [a, b] (a ++ b)
+  | subtypes {a b : Surface} : DocumentLinearizes .subtypes [a, b] (a ++ b)
+  | typeLine {a b : Surface} : DocumentLinearizes .typeLine [a, b] (a ++ b)
+  | subtypedLine {a b c : Surface} :
+      DocumentLinearizes .subtypedLine [a, b, c] (a ++ b ++ (["—"] : Surface) ++ c)
+
 /-- Surface order for local productions; fixed markers remain lexically declared. -/
 inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
     Construction Lexeme → List Surface → Surface → Prop where
+  | document {rule : DocumentRule} {children : List Surface} {surface : Surface} :
+      DocumentLinearizes rule children surface →
+      Linearizes lexicon (.document rule) children surface
+  | keywordBare {head : Lexeme} {surface : Surface} : lexicon.keywordForm head surface →
+      Linearizes lexicon (.keyword head none .free) [] surface
+  | keywordParameter {head : Lexeme} {parameter : Category} {a keywordSurface : Surface} :
+      lexicon.keywordForm head keywordSurface →
+      Linearizes lexicon (.keyword head (some parameter) .free) [a] (keywordSurface ++ a)
+  | keywordBound {head : Lexeme} {parameter : Category} {a : Surface} {suffix : String} :
+      lexicon.keywordSuffix head suffix →
+      Linearizes lexicon (.keyword head (some parameter) .boundSuffix) [a] (a ++ [.closing suffix])
   | determine {number : Number} {a b : Surface} :
       Linearizes lexicon (.determine number) [a, b] (a ++ b)
   | barePlural {a : Surface} : Linearizes lexicon .barePlural [a] a
@@ -326,7 +505,7 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       {voice selectedVoice : Voice} {a v : Surface} :
       lexicon.verbForm head form v →
       Linearizes lexicon (.auxiliary head form selected .negative voice selectedVoice) [a]
-        (v ++ ["not"] ++ a)
+        (v ++ (["not"] : Surface) ++ a)
   | finite {agreement : Agreement} {form : InflectionalForm} {voice : Voice} {a b : Surface} :
       Linearizes lexicon (.finite agreement form voice) [a, b] (a ++ b)
   | imperative {a : Surface} : Linearizes lexicon .imperative [a] a
@@ -370,7 +549,7 @@ mutual
           (a ++ coordinator.surface ++ b)
     | relative {number : Number} {head body : Syntax Lexeme} {a b : Surface} :
         Realizes lexicon head a → Realizes lexicon body b →
-        Realizes lexicon (.relative number head body) (a ++ ["that"] ++ b)
+        Realizes lexicon (.relative number head body) (a ++ (["that"] : Surface) ++ b)
     | ellipsis {antecedent : Syntax Lexeme} : Realizes lexicon (.ellipsis antecedent) []
   inductive RealizeChildren {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       List (Syntax Lexeme) → List Surface → Prop where
@@ -384,5 +563,10 @@ end
 def Admissible {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
     (category : Category) (surface : Surface) : Prop :=
   Derives lexicon tree category ∧ Realizes lexicon tree surface
+
+/-- Textual admissibility retains the annotated surface as evidence, independently of selection. -/
+def Written {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
+    (category : Category) (text : String) : Prop :=
+  ∃ surface, Admissible lexicon tree category surface ∧ Spells surface text
 
 end English

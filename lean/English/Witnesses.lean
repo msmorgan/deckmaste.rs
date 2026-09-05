@@ -15,11 +15,11 @@ def lexicon : Lexicon Lexeme where
   noun lexeme _ := lexeme = .creature ∨ lexeme = .artifact
   adjective lexeme := lexeme = .white
   nounForm lexeme number surface :=
-    (lexeme = .creature ∧ number = .singular ∧ surface = ["creature"]) ∨
-    (lexeme = .creature ∧ number = .plural ∧ surface = ["creatures"]) ∨
-    (lexeme = .artifact ∧ number = .singular ∧ surface = ["artifact"]) ∨
-    (lexeme = .artifact ∧ number = .plural ∧ surface = ["artifacts"])
-  adjectiveForm lexeme surface := lexeme = .white ∧ surface = ["white"]
+    (lexeme = .creature ∧ number = .singular ∧ surface = (["creature"] : Surface)) ∨
+    (lexeme = .creature ∧ number = .plural ∧ surface = (["creatures"] : Surface)) ∨
+    (lexeme = .artifact ∧ number = .singular ∧ surface = (["artifact"] : Surface)) ∨
+    (lexeme = .artifact ∧ number = .plural ∧ surface = (["artifacts"] : Surface))
+  adjectiveForm lexeme surface := lexeme = .white ∧ surface = (["white"] : Surface)
 
 def narrow : Syntax Lexeme :=
   .coordinate (.modify (.adjective .white) (.noun .creature .plural)) (.noun .artifact .plural)
@@ -27,7 +27,7 @@ def narrow : Syntax Lexeme :=
 def shared : Syntax Lexeme :=
   .modify (.adjective .white) (.coordinate (.noun .creature .plural) (.noun .artifact .plural))
 
-def surface : Surface := ["white", "creatures", "and", "artifacts"]
+def surface : Surface := (["white", "creatures", "and", "artifacts"] : Surface)
 
 theorem narrow_derives : Derives lexicon narrow (.nominal .plural) := by
   apply Judges.node Production.coordinate
@@ -42,13 +42,15 @@ theorem shared_derives : Derives lexicon shared (.nominal .plural) := by
   · exact Judges.adjective rfl
   · exact .node .coordinate (.cons (.noun (Or.inl rfl)) (.cons (.noun (Or.inr rfl)) .nil))
 
-private theorem white_realizes : Realizes lexicon (.adjective .white) ["white"] :=
+private theorem white_realizes : Realizes lexicon (.adjective .white) (["white"] : Surface) :=
   .adjective ⟨rfl, rfl⟩
 
-private theorem creatures_realizes : Realizes lexicon (.noun .creature .plural) ["creatures"] :=
+private theorem creatures_realizes :
+    Realizes lexicon (.noun .creature .plural) (["creatures"] : Surface) :=
   .noun (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))
 
-private theorem artifacts_realizes : Realizes lexicon (.noun .artifact .plural) ["artifacts"] :=
+private theorem artifacts_realizes :
+    Realizes lexicon (.noun .artifact .plural) (["artifacts"] : Surface) :=
   .noun (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩)))
 
 theorem narrow_realizes : Realizes lexicon narrow surface := by

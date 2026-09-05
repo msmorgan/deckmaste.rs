@@ -57,12 +57,21 @@ puts *not* before any finite verb.
 selection. Lexical licensing and word forms are distinct relations: neither
 lexical completeness nor disjoint spellings are assumed.
 
-`Surface` currently means a list of surface atoms represented by strings.
-The witness uses words as atoms. It is not a byte string, scanner contract, or
-normalized spelling; no byte-exact roundtrip claim follows. Linearization
-orders atoms. The document ticket must settle the relationship between atoms,
-word boundaries, bound forms, case, whitespace, punctuation, and exact text
-before making any claim about byte surfaces.
+`English.Surface` now defines annotated atoms: words, opening and closing
+boundaries, symbols, and line breaks. Ordinary string literals coerce to word
+atoms, preserving the earlier witnesses. `Spells` relates an annotated surface
+to an exact Lean string. Structural binding governs spaces: closing punctuation
+and bound suffixes attach left; opening punctuation attaches right; adjacent
+symbols bind; line breaks remain explicit. `Written` combines grammatical
+admissibility, realization and exact spelling independently of selection.
+No input normalization or Rust byte-roundtrip theorem is assumed.
+
+Document productions own sentence/keyword-line capitalization and punctuation.
+Sentence completion recognizes an already terminated quoted sentence, and
+quotation changes inner quote delimiters structurally. These small spelling
+helpers answer the boundary-ownership questions; they do not constitute an
+executable parser or complete renderer. Lexical forms retain internal case,
+apostrophes and declared symbols. Faces retain independent text boxes.
 
 ## Whole intended grammar and source map
 
@@ -191,6 +200,37 @@ for composition, but does not settle extraction constraints or antecedent
 accessibility. The review must challenge these before declaring a migration
 slice ready. No theorem here establishes global grammatical soundness.
 
+## Document decisions and evidence
+
+Document constructions use the same recursive `Syntax`, `Judges` and
+`Realizes` as clauses. A quoted Document can fill an ordinary lexical frame,
+so nesting does not require a separate quoted grammar. `English.Documents`
+contains typed witnesses carrying their concrete trees, derivations and
+surfaces, with independent exact-text assertions. `DocumentShape` contains
+only the structural vocabulary; the shared Grammar owns recursive licensing.
+
+| Source-map portion | Representation and evidence | Remaining review question |
+|---|---|---|
+| §§1–3, sentences and editorial boundaries | Sentence/body/ability/document composition; paragraph breaks; punctuation atoms and exact `Spells`; empty sentences have no surface derivation | Which source-level whitespace variants must be retained rather than canonicalized? No normalization is modeled here. |
+| §2, case | Sentence and keyword-line initial case; type-line lexical case remains independent of common-noun word forms | Pronunciation/onset and the full lexical case inventory remain lexical obligations. |
+| §3, quotation | A Document fills a quoted-text complement of an ordinary verb frame; nested quotes alternate straight double/single marks; terminal period is not duplicated | Literal-word quotations and punctuation other than terminal periods need their own boundary rules. |
+| §3, symbols and notation | Symbol atoms bind adjacent symbols; signs, slashes and numeric/range headers retain exact lexical notation surfaces | Decide whether ranges, scalar pairs and chapter lists become structured notation terms or lexically supplied notation. Current range witnesses assert exact strings, not a general numeral conversion theorem. |
+| §8, ability architecture | Ordinary bodies, typed cost lists and colon boundaries, triggered subordinate clause plus instruction; subsequent sentences group in bodies | Grammar does not infer semantic spell/static/triggered classifications from typography. Intervening-if and delayed/reflexive body attachment still need interaction challenges. |
+| §14, keywords | Bare, parameterized and bound-suffix declarations; keyword lists; the same parameterized/bound tree in a line and a verb frame | Keyword-specific separators and allowed quality categories remain declarations. Semi-colon lists and inline reminder fragments need review extensions. |
+| §14, labels/reminders | Ability-word versus flavor-word label kinds are retained; labels use spaced dashes; reminders contain grammatical bodies; nested reminders are rejected structurally | Full prescribed reminder templates and inline NP/condition reminders are not populated. Print italics are label metadata, not characters in source spelling. |
+| §10, modes | Introducer clause, separate mode bodies, bullet/newline boundaries and notation-weighted modes | The exact pawprint-symbol inventory and mode cardinality restrictions are declaration/layout questions; the synthetic weighted witness does not invent a card or symbol meaning. |
+| §15, Saga/Class/leveler | Chapter dash rows, cost-and-Level headers, level range/stat/body bands, with ordinary grammar inside each section | Populate validated numeral/range forms and challenge multi-chapter headers; grouping text by section is modeled, chapter/level game meaning is not. |
+| §15, Cases | Separate To solve and Solved sections, including an activated ability in the latter | The optional prescribed solve reminder uses the general reminder mechanism; exact template population remains lexical/document work. |
+| §15, dice/Stations | Distinct vertical-bar and em-dash die rows, en-dash range witness, and bound-plus Station thresholds | Check row coverage/order constraints and multiline sections against representative layouts before migration. |
+| §15, Rooms and faces/halves | `Faces` holds independent typed Documents for Room doors, transforming/modal/split/Adventure/aftermath/meld/prepare portions; no combined name is inserted into a sentence | Face counts, names, costs, prototype/flip/reversible/mutate layout metadata and which text box owns them must be pinned at the production correspondence boundary. |
+| §15, standalone frame reminders | A reminder can form an independent document paragraph, using the same grammar and nesting check | Exact source-specific templates, including siege reminders, need population; no semantic effect is inferred from parenthesization. |
+| §7, type lines | Supertypes precede a nonempty type group, then optional dash/subtypes; wrong group order is excluded | Lexical catalog completeness and capitalization conformance remain external evidence. |
+
+All example instructions and layouts are synthetic. The style-guide section
+references identify design evidence, not quotations of particular Oracle
+cards. These witnesses establish compositional shape and exact spelling under
+their lexical assumptions, not complete coverage of each template family.
+
 ## Inherited obligations and remaining decisions
 
 The [wayfinder](english-grammar-wayfinder.md) retains ticket identities;
@@ -219,10 +259,10 @@ are the first stress test. The composition ticket must record any revision
 with a cross-capability witness, rather than preserve the initial encoding at
 the cost of a second phrase grammar.
 
-**Less certain:** atom-level realization will be sufficient for structural
-scope proofs but its best extension to exact text is unresolved. The document
-ticket must choose bound-word composition and surface ownership before the
-selection ticket states textual rather than atom-level claims.
+**Less certain:** exact spelling is now connected through annotated atoms,
+but the full numeral/notation inventory and tolerated source whitespace are
+still review questions. Selection can state textual claims through `Written`
+without assuming this is a complete transcription model.
 
 Selection owes an independent model of candidate sets, admissibility,
 preference, ties, and canonical packing with retained readings. Its named

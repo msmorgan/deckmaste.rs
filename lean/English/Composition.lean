@@ -17,26 +17,26 @@ def lexicon : Lexicon Lexeme where
   noun lexeme _ := lexeme = .creature ∨ lexeme = .artifact ∨ lexeme = .turn
   adjective _ := False
   nounForm lexeme number surface :=
-    (lexeme = .creature ∧ number = .plural ∧ surface = ["creatures"]) ∨
-    (lexeme = .artifact ∧ number = .plural ∧ surface = ["artifacts"]) ∨
-    (lexeme = .turn ∧ number = .plural ∧ surface = ["turns"])
+    (lexeme = .creature ∧ number = .plural ∧ surface = (["creatures"] : Surface)) ∨
+    (lexeme = .artifact ∧ number = .plural ∧ surface = (["artifacts"] : Surface)) ∨
+    (lexeme = .turn ∧ number = .plural ∧ surface = (["turns"] : Surface))
   adjectiveForm _ _ := False
   word lexeme category :=
     (lexeme = .each ∧ category = .determinativePhrase .singular) ∨
     (lexeme = .two ∧ category = .cardinalNumeral .plural) ∨
     ((lexeme = .one ∨ lexeme = .two) ∧ category = .measurePhrase)
   wordForm lexeme category surface :=
-    (lexeme = .two ∧ category = .cardinalNumeral .plural ∧ surface = ["two"]) ∨
-    (lexeme = .one ∧ category = .measurePhrase ∧ surface = ["1"]) ∨
-    (lexeme = .two ∧ category = .measurePhrase ∧ surface = ["2"])
+    (lexeme = .two ∧ category = .cardinalNumeral .plural ∧ surface = (["two"] : Surface)) ∨
+    (lexeme = .one ∧ category = .measurePhrase ∧ surface = (["1"] : Surface)) ∨
+    (lexeme = .two ∧ category = .measurePhrase ∧ surface = (["2"] : Surface))
   verb lexeme form voice frame := voice = .active ∧ (
     (lexeme = .attack ∧ (form = .plain ∨ form = .thirdSingularPresent) ∧ frame = []) ∨
     (lexeme = .destroy ∧ form = .plain ∧ frame = objectFrame))
   verbForm lexeme form surface :=
-    (lexeme = .attack ∧ form = .plain ∧ surface = ["attack"]) ∨
-    (lexeme = .attack ∧ form = .thirdSingularPresent ∧ surface = ["attacks"]) ∨
-    (lexeme = .destroy ∧ form = .plain ∧ surface = ["destroy"]) ∨
-    (lexeme = .can ∧ form = .plain ∧ surface = ["can"])
+    (lexeme = .attack ∧ form = .plain ∧ surface = (["attack"] : Surface)) ∨
+    (lexeme = .attack ∧ form = .thirdSingularPresent ∧ surface = (["attacks"] : Surface)) ∨
+    (lexeme = .destroy ∧ form = .plain ∧ surface = (["destroy"] : Surface)) ∨
+    (lexeme = .can ∧ form = .plain ∧ surface = (["can"] : Surface))
   finite lexeme agreement form :=
     (lexeme = .attack ∧ FiniteForm agreement form) ∨ (lexeme = .can ∧ form = .plain)
   auxiliary lexeme form selected voice selectedVoice :=
@@ -45,8 +45,9 @@ def lexicon : Lexicon Lexeme where
   preposition lexeme category :=
     (lexeme = .during ∨ lexeme = .with_) ∧ category = .nounPhrase plural
   markerForm lexeme surface :=
-    (lexeme = .during ∧ surface = ["during"]) ∨
-    (lexeme = .with_ ∧ surface = ["with"]) ∨ (lexeme = .plus ∧ surface = ["plus"])
+    (lexeme = .during ∧ surface = (["during"] : Surface)) ∨
+    (lexeme = .with_ ∧ surface = (["with"] : Surface)) ∨
+    (lexeme = .plus ∧ surface = (["plus"] : Surface))
   measure lexeme := lexeme = .plus
 
 def creatures : Syntax Lexeme := .node .barePlural [.noun .creature .plural]
@@ -108,48 +109,48 @@ theorem noun_phrase_relations :
      (.argument (complement := ⟨.object, .nounPhrase plural⟩) creatures_derives .nil),
    .node (.preposition ⟨Or.inr rfl, rfl⟩) (.cons creatures_derives .nil)⟩
 
-theorem creatures_surface : Realizes lexicon creatures ["creatures"] :=
+theorem creatures_surface : Realizes lexicon creatures (["creatures"] : Surface) :=
   .node (.cons (.noun (Or.inl ⟨rfl, rfl, rfl⟩)) .nil) .barePlural
 
-theorem artifacts_surface : Realizes lexicon artifacts ["artifacts"] :=
+theorem artifacts_surface : Realizes lexicon artifacts (["artifacts"] : Surface) :=
   .node (.cons (.noun (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))) .nil) .barePlural
 
-theorem turns_surface : Realizes lexicon turns ["turns"] :=
+theorem turns_surface : Realizes lexicon turns (["turns"] : Surface) :=
   .node (.cons (.noun (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))) .nil) .barePlural
 
-theorem attack_surface : Realizes lexicon attack ["attack"] :=
-  .node .nil (.verb (v := ["attack"]) (Or.inl ⟨rfl, rfl, rfl⟩))
+theorem attack_surface : Realizes lexicon attack (["attack"] : Surface) :=
+  .node .nil (.verb (v := (["attack"] : Surface)) (Or.inl ⟨rfl, rfl, rfl⟩))
 
-theorem can_attack_surface : Realizes lexicon canAttack ["can", "attack"] :=
+theorem can_attack_surface : Realizes lexicon canAttack (["can", "attack"] : Surface) :=
   .node (.cons attack_surface .nil)
-    (.auxiliary (v := ["can"]) (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))))
+    (.auxiliary (v := (["can"] : Surface)) (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))))
 
-theorem during_surface : Realizes lexicon duringTurns ["during", "turns"] :=
-  .node (.cons turns_surface .nil) (.preposition (m := ["during"]) (Or.inl ⟨rfl, rfl⟩))
+theorem during_surface : Realizes lexicon duringTurns (["during", "turns"] : Surface) :=
+  .node (.cons turns_surface .nil) (.preposition (m := (["during"] : Surface)) (Or.inl ⟨rfl, rfl⟩))
 
 theorem relative_surface : Realizes lexicon relativeNominal
-    ["creatures", "that", "can", "attack", "during", "turns"] :=
-  .relative (.noun (surface := ["creatures"]) (Or.inl ⟨rfl, rfl, rfl⟩))
+    (["creatures", "that", "can", "attack", "during", "turns"] : Surface) :=
+  .relative (.noun (surface := (["creatures"] : Surface)) (Or.inl ⟨rfl, rfl, rfl⟩))
     (.node (.cons .gap (.cons
       (.node (.cons can_attack_surface (.cons during_surface .nil)) .adjunct) .nil)) .finite)
 
 theorem coordinated_surface : Realizes lexicon destroyObjects
-    ["destroy", "creatures", "and", "artifacts"] :=
+    (["destroy", "creatures", "and", "artifacts"] : Surface) :=
   .node (.cons (.node (.cons creatures_surface (.cons artifacts_surface .nil)) .coordinate) .nil)
-    (.verb (v := ["destroy"]) (Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))))
+    (.verb (v := (["destroy"] : Surface)) (Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))))
 
 /-- Negative polarity follows a licensed auxiliary. -/
 theorem negative_auxiliary :
     Admissible lexicon (.node (.auxiliary .can .plain .plain .negative) [attack])
-      (.verbPhrase .plain) ["can", "not", "attack"] :=
+      (.verbPhrase .plain) (["can", "not", "attack"] : Surface) :=
   ⟨.node (.auxiliary ⟨rfl, rfl, rfl, rfl, rfl⟩) (.cons attack_derives .nil),
    .node (.cons attack_surface .nil)
-     (.negativeAuxiliary (v := ["can"]) (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))))⟩
+     (.negativeAuxiliary (v := (["can"] : Surface)) (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))))⟩
 
 theorem quantity_np :
     Admissible lexicon (.node (.determine .plural)
       [.node (.quantify .plural) [.word .two (.cardinalNumeral .plural)], .noun .creature .plural])
-      (.nounPhrase plural) ["two", "creatures"] :=
+      (.nounPhrase plural) (["two", "creatures"] : Surface) :=
   ⟨.node .determine (.cons
       (.node .quantify (.cons (.word .quantity (Or.inr (Or.inl ⟨rfl, rfl⟩))) .nil))
       (.cons (.noun (Or.inl rfl)) .nil)),
@@ -196,8 +197,8 @@ def voiceLexicon : Lexicon Lexeme := { lexicon with
     ((head = .be ∧ voice = .passive ∧ selectedVoice = .passive) ∨
      (head = .have ∧ voice = .active ∧ selectedVoice = .active))
   verbForm := fun head form surface =>
-    (head = .destroy ∧ form = .pastParticiple ∧ surface = ["destroyed"]) ∨
-    (head = .be ∧ form = .thirdSingularPresent ∧ surface = ["is"]) }
+    (head = .destroy ∧ form = .pastParticiple ∧ surface = (["destroyed"] : Surface)) ∨
+    (head = .be ∧ form = .thirdSingularPresent ∧ surface = (["is"] : Surface)) }
 
 def passive : Syntax Lexeme :=
   .node (.auxiliary .be .thirdSingularPresent .pastParticiple .positive .passive .passive)
@@ -209,9 +210,9 @@ theorem passive_derives :
     (.cons (.verb (lexicon := voiceLexicon) (head := .destroy) (form := .pastParticiple)
       (voice := .passive) (frame := []) ⟨rfl, rfl, Or.inr ⟨rfl, rfl⟩⟩ .nil) .nil)
 
-theorem passive_surface : Realizes voiceLexicon passive ["is", "destroyed"] :=
-  .node (.cons (.node .nil (.verb (v := ["destroyed"]) (Or.inl ⟨rfl, rfl, rfl⟩))) .nil)
-    (.auxiliary (v := ["is"]) (Or.inr ⟨rfl, rfl, rfl⟩))
+theorem passive_surface : Realizes voiceLexicon passive (["is", "destroyed"] : Surface) :=
+  .node (.cons (.node .nil (.verb (v := (["destroyed"] : Surface)) (Or.inl ⟨rfl, rfl, rfl⟩))) .nil)
+    (.auxiliary (v := (["is"] : Surface)) (Or.inr ⟨rfl, rfl, rfl⟩))
 
 /-- A perfect auxiliary cannot select a passive frame by morphology alone. -/
 theorem perfect_rejects_passive :
@@ -243,25 +244,26 @@ theorem shared_relative_gap :
 
 theorem arithmetic : Admissible lexicon
     (.node (.measure .plus) [.word .one .measurePhrase, .word .two .measurePhrase])
-    .measurePhrase ["1", "plus", "2"] :=
+    .measurePhrase (["1", "plus", "2"] : Surface) :=
   ⟨.node (.measure rfl)
     (.cons (.word .measure (Or.inr (Or.inr ⟨Or.inl rfl, rfl⟩)))
       (.cons (.word .measure (Or.inr (Or.inr ⟨Or.inr rfl, rfl⟩))) .nil)),
    .node (.cons (.word (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩)))
       (.cons (.word (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))) .nil))
-    (.measure (m := ["plus"]) (Or.inr (Or.inr ⟨rfl, rfl⟩)))⟩
+    (.measure (m := (["plus"] : Surface)) (Or.inr (Or.inr ⟨rfl, rfl⟩)))⟩
 
 def comparisonLexicon : Lexicon Lexeme := { lexicon with
   comparison := fun head => head = .greaterThan
-  markerForm := fun head surface => head = .greaterThan ∧ surface = ["greater", "than"] }
+  markerForm := fun head surface =>
+    head = .greaterThan ∧ surface = (["greater", "than"] : Surface) }
 
 theorem comparison : Admissible comparisonLexicon
     (.node (.compare .greaterThan) [.word .two .measurePhrase])
-    .adjectivePhrase ["greater", "than", "2"] :=
+    .adjectivePhrase (["greater", "than", "2"] : Surface) :=
   ⟨.node (.compare rfl)
     (.cons (.word .measure (Or.inr (Or.inr ⟨Or.inr rfl, rfl⟩))) .nil),
    .node (.cons (.word (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))) .nil)
-     (.compare (m := ["greater", "than"]) ⟨rfl, rfl⟩)⟩
+     (.compare (m := (["greater", "than"] : Surface)) ⟨rfl, rfl⟩)⟩
 
 theorem nonfinite_clause : Derives lexicon
     (.node (.nonfinite .plain) [attack]) (.clause .nonfinite) :=

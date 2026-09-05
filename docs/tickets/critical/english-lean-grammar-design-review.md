@@ -15,7 +15,10 @@ The composition scope decisions in `docs/english-grammar-design.md` are
 explicit review inputs: extraction/relative form constraints, countability and
 modifier feature carriers, mixed agreement, temporal NP distribution, and
 antecedent accessibility. Challenge these before declaring a migration slice
-ready; a restricted illustrative lexicon does not discharge them.
+ready; a restricted illustrative lexicon does not discharge them. The document
+section adds explicit questions about source whitespace, structured notation,
+inline reminders and frame metadata; audit those alongside quotation and
+keyword boundary interactions.
 
 Resolve design-blocking findings with model changes and updated witnesses or
 proofs. Record a short conclusion in the design document: represented scope,
