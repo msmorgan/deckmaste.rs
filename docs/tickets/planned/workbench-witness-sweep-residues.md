@@ -30,6 +30,14 @@ named witness to its printed text once the shape lands:
   base power") and the text-box arm at the end of [CR#701.12] are not
   modelled. Add both as positional arms of `Exchanged`, bench the
   Squirrel-Whacker, pin an exchange of a value with itself.
+- **Secretly chosen numbers.** `Predicate.ChoseExtreme` (Menacing Ogre,
+  "each player who chose the highest number") carries no scope obligation;
+  it is not a vote [CR#701.38c], so the vote gate does not apply and
+  `ChosenNumber`'s singular gate does not transfer (the choice is plural:
+  `countManys (Quality Number) bs = 1`). Add the plural-choice gate, pin
+  the read with no choice in scope (residue of
+  `workbench-vote-scope-and-order`, 2026-09-04). The ballot-label read on
+  `VotesFor` stays open for the same reason the round recorded.
 - The remaining fifteen as recorded: a condition's nouns joining the read
   stack (Answered Prayers), the `AttackedBy` attacker for "that opponent is
   attacking" (Tahngarth), an as-you-activate rider (Keeper of the Flame), a
