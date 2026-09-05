@@ -1,5 +1,0 @@
-KeywordAction(
-    name: "SetInMotion",
-    spelling: "set in motion",
-    grammar: FixedTerm(surface: "set in motion"),
-)

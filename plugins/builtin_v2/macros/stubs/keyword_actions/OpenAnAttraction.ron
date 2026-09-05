@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "OpenAnAttraction",
-    spelling: "open an Attraction",
-    grammar: Verb(
-        bare: "open an Attraction",
-        third_person: "opens an Attraction",
-        frame_set: Intransitive,
-    ),
-)

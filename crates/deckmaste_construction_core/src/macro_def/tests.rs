@@ -77,6 +77,17 @@ fn texts(declaration: &NormalizedDeclaration) -> Vec<&str> {
         .collect()
 }
 
+fn featured_texts(declaration: &NormalizedDeclaration) -> Vec<(SurfaceFeature, &str)> {
+    declaration
+        .grammar
+        .as_ref()
+        .unwrap()
+        .surfaces
+        .iter()
+        .map(|surface| (surface.feature, surface.text.as_str()))
+        .collect()
+}
+
 #[test]
 fn normalization_freezes_bounded_and_authored_onsets_per_realized_form() {
     let cases = [
@@ -252,6 +263,67 @@ fn verb_participles_use_one_regular_surface_and_explicit_whole_surface_overrides
     )
     .expect("regular participles derive without a declaration callback");
     assert_eq!(texts(&turn), ["turn", "turns", "turned"]);
+}
+
+/// Re-spelled from the builtin-v2 nursery's retired `SetInMotion` stub, which
+/// was the only multi-word `FixedTerm` keyword action there: a fixed term whose
+/// surface spans several words still realizes as exactly one `Fixed` surface,
+/// with no verb morphology derived from it.
+#[test]
+fn multi_word_fixed_term_realizes_exactly_one_fixed_surface() {
+    let set_aside = read_str(
+        source_path("SetAside.ron"),
+        r#"KeywordAction(
+            name:"SetAside",
+            spelling:"set aside",
+            grammar:FixedTerm(surface:"set aside"),
+        )"#,
+    )
+    .expect("a multi-word fixed term is a finite declaration surface");
+
+    assert_eq!(
+        set_aside.grammar.as_ref().unwrap().recipe,
+        GrammarRecipe::FixedTerm
+    );
+    assert_eq!(
+        featured_texts(&set_aside),
+        [(SurfaceFeature::Fixed, "set aside")]
+    );
+}
+
+/// Re-spelled from the builtin-v2 nursery's retired
+/// `RollToVisitYourAttractions` stub, which was the only declaration there
+/// whose `third_person` override differed from `bare` by more than the verb
+/// inflection: the whole-surface override is carried through verbatim, pronoun
+/// shift included, while the participle stays the naive `…ed` append off the
+/// bare surface.
+#[test]
+fn third_person_override_carries_a_pronoun_shift_through_the_whole_surface() {
+    let reveal_your_hand = read_str(
+        source_path("RevealYourHand.ron"),
+        r#"KeywordAction(
+            name:"RevealYourHand",
+            spelling:"reveal your hand",
+            grammar:Verb(
+                bare:"reveal your hand",
+                third_person:"reveals their hand",
+                frame_set:Intransitive,
+            ),
+        )"#,
+    )
+    .expect("a whole-surface third-person override may shift more than the verb");
+
+    assert_eq!(
+        featured_texts(&reveal_your_hand),
+        [
+            (SurfaceFeature::PLAIN, "reveal your hand"),
+            (
+                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                "reveals their hand"
+            ),
+            (SurfaceFeature::PAST_PARTICIPLE, "reveal your handed"),
+        ]
+    );
 }
 
 #[test]

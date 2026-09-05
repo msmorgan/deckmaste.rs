@@ -10,7 +10,6 @@ use deckmaste_construction_core::macro_def::VerbFrameSet;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
-    "Abandon",
     "Activate",
     "Adapt",
     "Airbend",
@@ -54,19 +53,15 @@ const EXPECTED_NAMES: &[&str] = &[
     "Meld",
     "Mill",
     "Monstrosity",
-    "OpenAnAttraction",
-    "Planeswalk",
     "Play",
     "Populate",
     "Proliferate",
     "Recruit",
     "Regenerate",
     "Reveal",
-    "RollToVisitYourAttractions",
     "Sacrifice",
     "Scry",
     "Search",
-    "SetInMotion",
     "Shuffle",
     "Support",
     "Surveil",
@@ -264,16 +259,6 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         ]
     );
 
-    let set_in_motion = action(&declarations, "SetInMotion");
-    assert_eq!(
-        set_in_motion.grammar().unwrap().recipe(),
-        &GrammarRecipe::FixedTerm
-    );
-    assert_eq!(
-        surfaces(set_in_motion),
-        [(SurfaceFeature::Fixed, "set in motion")]
-    );
-
     let waterbend = action(&declarations, "Waterbend");
     assert_eq!(
         waterbend.grammar().unwrap().recipe(),
@@ -293,28 +278,6 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(ring),
         [(SurfaceFeature::Fixed, "the Ring tempts you")]
-    );
-}
-
-#[test]
-fn roll_to_visit_your_attractions_has_its_attested_agreeing_surface() {
-    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
-        .expect("builtin-v2 declarations must load");
-
-    assert_eq!(
-        surfaces(action(&declarations, "RollToVisitYourAttractions")),
-        [
-            (SurfaceFeature::PLAIN, "roll to visit your Attractions"),
-            (
-                SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
-                "rolls to visit their Attractions",
-            ),
-            (
-                SurfaceFeature::PAST_PARTICIPLE,
-                "roll to visit your Attractionsed",
-            ),
-        ]
     );
 }
 

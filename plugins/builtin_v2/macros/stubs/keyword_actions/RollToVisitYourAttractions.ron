@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "RollToVisitYourAttractions",
-    spelling: "roll to visit your Attractions",
-    grammar: Verb(
-        bare: "roll to visit your Attractions",
-        third_person: "rolls to visit their Attractions",
-        frame_set: Intransitive,
-    ),
-)
