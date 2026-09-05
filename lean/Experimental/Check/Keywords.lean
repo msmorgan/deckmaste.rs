@@ -287,10 +287,16 @@ def KeywordFamily.ok (c : KeywordFamily) : Bool :=
 def KeywordTerm.known : KeywordTerm → Bool
   | .the k => knownKeyword k
   | .anyIn c => c.ok
+  | .theWith k _ => (keywordParamShapes k).elem .number
 
 def KeywordTerm.bare : KeywordTerm → Bool
   | .the k => keywordParamless k
   | .anyIn c => c.ok
+  | .theWith _ _ => false
+
+def allKnownKeywordTerms : List KeywordTerm → Bool
+  | [] => true
+  | k :: ks => k.known && allKnownKeywordTerms ks
 
 def keywordCounterOk (k : KeywordLabel) : Bool := (keywordFactsFor k).elim false (·.counterEligible)
 def keywordStackRegime (k : KeywordLabel) : Option StackRegime := keywordFactsFor k >>= (·.regime)

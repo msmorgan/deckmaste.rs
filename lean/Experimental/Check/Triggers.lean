@@ -136,8 +136,8 @@ mutual
     | .paysLife _ => .lifePayment
     | .lifeChanges _ dir => dir.eventName
     | .verbedEvent _ v _ _ => .verbedAct v
-    | .tappedForMana _ _ => .tappedForMana
-    | .unlocksDoor _ _ => .verbedAct "Unlock"
+    | .tappedForMana _ _ _ => .tappedForMana
+    | .unlocksDoor _ _ => .verbedAct (deedLabel .unlocking)
     | .nthOccurrence _ _ ev => GameEvent.name ev
     | .triggers _ => .abilityTrigger
     | .commitsCrime _ => .crimeCommission
@@ -182,7 +182,7 @@ mutual
     | .lifeChanges who dir => outcomeB dir.outcome :: selfSubjIntro bs who
     | .verbedEvent who _ none _ => optAgentIntro bs who
     | .verbedEvent _ _ (some what) _ => selfSubjIntro bs what
-    | .tappedForMana _ what => selfSubjIntro bs what
+    | .tappedForMana _ what _ => selfSubjIntro bs what
     | .unlocksDoor _ door => door.intro bs
     | .nthOccurrence _ _ ev => GameEvent.intro bs ev
     | .triggers what => selfSubjIntro bs what
@@ -230,7 +230,7 @@ mutual
     | .verbedEvent who _ none _ => optAgentIntro bs who
     | .verbedEvent _ v (some what) _ =>
       moveIntro bs (some v) what ((actDestOf v).elim (NounPhrase.zone bs what) some)
-    | .tappedForMana _ what => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
+    | .tappedForMana _ what _ => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
     | .unlocksDoor _ door => door.intro bs
     | .nthOccurrence _ _ ev => GameEvent.after bs ev
     | .triggers what => nomIntro bs what
@@ -257,8 +257,8 @@ def GameEvent.subjectPlur : GameEvent → Plurality
   | .verbedEvent (some who) _ _ _ => who.plur
   | .verbedEvent none _ (some what) _ => what.plur
   | .verbedEvent none _ none _ => .one
-  | .tappedForMana (some who) _ => who.plur
-  | .tappedForMana none what => what.plur
+  | .tappedForMana (some who) _ _ => who.plur
+  | .tappedForMana none what _ => what.plur
   | .nthOccurrence _ _ ev => GameEvent.subjectPlur ev
   | .causes _ what => GameEvent.subjectPlur what
 
@@ -300,7 +300,7 @@ def headerCtx (bs : Bindings) (alts : List GameEvent) (ev : GameEvent) : Binding
 def interceptArmsOk (alts : List GameEvent) : Bool := alts.all fun a => interceptOk a.name
 
 def Duration.ok : Duration → Bool
-  | .untilEvent ev => spanEventOk ev.name
+  | .untilEvent ev => durationEventOk ev.name
   | _ => true
 
 def Duration.intro (bs : Bindings) : Duration → Bindings
@@ -311,7 +311,7 @@ def Duration.intro (bs : Bindings) : Duration → Bindings
   | .untilEvent ev => GameEvent.intro bs ev
   | .duringNextTurnOf who => nomIntro bs who
 
-def spanOk : Option Duration → Bool
+def durationOk : Option Duration → Bool
   | none => true
   | some d => d.ok
 
@@ -382,6 +382,14 @@ def HeaderPossessor.check (bs : Bindings) : HeaderPossessor → List Refusal
   | .byPlayer n => NounPhrase.check (some .player) bs n
   | .byTurn n => NounPhrase.check (some .turnRef) bs n
 
+def ManaTypeTerm.check (bs : Bindings) : ManaTypeTerm → List Refusal
+  | .colorless => []
+  | .ofColor c => ColorTerm.check bs c
+
+def OptManaTypeTerm.check (bs : Bindings) : Option ManaTypeTerm → List Refusal
+  | none => []
+  | some t => ManaTypeTerm.check bs t
+
 def OptEventSource.check (bs : Bindings) : Option EventSource → List Refusal
   | none => []
   | some src => EventSource.check bs src
@@ -405,8 +413,8 @@ mutual
         refuse (zoneFits (NounPhrase.zone bs n) (some .battlefield)) .zoneFits ++
         refuse (entrySourceOk from_) .lookbackSource
     | .combat .attackerOf n whom =>
-      NounPhrase.check (some .object) bs n ++ AttackDefender.check (nomIntro bs n) whom ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+      NounPhrase.check none bs n ++ AttackDefender.check (nomIntro bs n) whom ++
+        refuse (n.attackerOk bs) .attacker
     | .combat r n counterpart =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ OptNoun.check (some .object) bs' counterpart ++
@@ -486,10 +494,11 @@ mutual
         refuse (zoneFits (patientZone bs' what) (actZoneOf v)) .zoneFits ++
         refuse (verbedVoiceOk v who what) .verbedVoiceOk ++
         refuse (verbBecomesOk v becomes) .verbBecomesOk
-    | .tappedForMana who what =>
+    | .tappedForMana who what ty =>
       let bs' := optAgentIntro bs who
       OptNoun.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what ++
-        refuse (zoneFits (NounPhrase.zone bs' what) (some .battlefield)) .zoneFits
+        refuse (zoneFits (NounPhrase.zone bs' what) (some .battlefield)) .zoneFits ++
+        OptManaTypeTerm.check (nomIntro bs' what) ty
     | .unlocksDoor who door => NounPhrase.check (some .player) bs who ++ Door.check (nomIntro bs who) door
     | .nthOccurrence _ _ ev => GameEvent.check bs ev
     | .triggers what =>

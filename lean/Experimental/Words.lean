@@ -37,6 +37,8 @@ inductive QualitySort where
   | number
   | cardType
   | counterKind
+  /-- "an ability" chosen among keywords ("choose flying or trample"). -/
+  | ability
   deriving DecidableEq, Repr
 
 inductive Letter where
@@ -282,6 +284,8 @@ structure KeywordFamily where
 inductive KeywordTerm where
   | the (keyword : KeywordLabel)
   | anyIn (family : KeywordFamily)
+  /-- A keyword named with its number, as "rampage 3" is. -/
+  | theWith (keyword : KeywordLabel) (number : Nat)
   deriving DecidableEq, Repr
 
 inductive PaidCostName where
@@ -344,7 +348,7 @@ abbrev ManaCost := List ManaSymbol
 abbrev ProducedRun := List ColorOrColorless
 
 /-- The type space a "with every … type" quality ranges over. -/
-inductive TypeSpace where
+inductive SubtypeSpace where
   | basicLand | land | creature
   deriving DecidableEq, Repr
 
@@ -398,7 +402,7 @@ inductive Subtype where
   deriving DecidableEq, Repr
 
 inductive MarkerWord where
-  | token | emblem | spell | permanent
+  | token | emblem | spell | permanent | ability
   deriving DecidableEq, Repr
 
 /-- A change of a quantity: up by, down by, or set to. -/

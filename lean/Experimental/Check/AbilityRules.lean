@@ -56,6 +56,15 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
   | .zones a b =>
     ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.delta bs a ++ bs) b ++
       refuse (zoneSwapOk a.sort b.sort) .zoneSwap
+  | .values a b =>
+    let bs' := Amount.intro bs a
+    Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
+      refuse b.settableValue .settableValue ++ refuse (!selfExchanged a b) .selfExchanged
+  | .textBoxes a b =>
+    let bs' := nomIntro bs a
+    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
+      refuse (zoneIsB (NounPhrase.zone bs a) .battlefield) (.zoneIs .battlefield) ++
+      refuse (zoneIsB (NounPhrase.zone bs' b) .battlefield) (.zoneIs .battlefield)
 
 def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
@@ -142,6 +151,7 @@ def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
   | .basicTypesOnly | .nonbasicTypesOnly => .quality (.subtype .land)
   | .number _ => .quality .number
   | .players _ => .player
+  | .abilitiesAmong _ => .quality .ability
 
 def sortedDomainCheck (bs : Bindings) (q : ChoiceSort) (dom : Option ChoiceDomain) : List Refusal :=
   OptChoiceDomain.check bs dom ++
@@ -158,8 +168,8 @@ def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
 mutual
   def Instruction.check (bs : Bindings) : Instruction → List Refusal
     | .dealDamage src amt to =>
-      let bs' := nomIntro bs src
-      let bs'' := Amount.intro bs' amt
+      let bs' := selfSubjIntro bs src
+      let bs'' := Amount.delta bs' amt ++ nomIntro bs src
       NounPhrase.check (some .object) bs src ++ Amount.check bs' amt ++ NounPhrase.check none bs'' to ++
         refuse to.perMemberOk .perMember ++ refuse (to.damageRecipient bs'') .damageRecipient
     | .fights a b =>
@@ -221,10 +231,10 @@ mutual
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' grp ++
         refuse (facesFit faces piles) .facesFit ++ refuse (grp.plur == .many) .plural
-    | .choose first by_ n _ =>
+    | .choose first by_ n _ when =>
       OptNoun.check (some .player) bs first ++ OptNoun.check (some .player) bs by_ ++
         NounPhrase.check none (agentCtx bs by_) n ++ refuse (choiceOrderOk first by_) .choiceOrder ++
-        refuse (choiceClauseOk by_ n) .choiceClause
+        refuse (choiceClauseOk by_ n) .choiceClause ++ OptConcurrent.check bs when
     | .vote first voters _ ballot =>
       let bs' := optAgentIntro bs first
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
@@ -289,7 +299,7 @@ mutual
         refuse whose.plur.isOne .singular
     | .continuously se span =>
       StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
-        refuse (spanOk span) .spanOk ++ refuse se.clauseOk .clauseStatic
+        refuse (durationOk span) .durationOk ++ refuse se.clauseOk .clauseStatic
     | .create agent count spec riders =>
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
@@ -388,7 +398,7 @@ mutual
         refuse (q.modesFit modes.length) .modesFit ++ Instruction.checkModes bs modes
     | .delayed ev alts span body =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptDuration.check bs span ++
-        Instruction.check (delayedCtx bs alts ev) body ++ refuse (spanOk span) .spanOk
+        Instruction.check (delayedCtx bs alts ev) body ++ refuse (durationOk span) .durationOk
     | .insteadOf replaced repl =>
       Instruction.check bs replaced ++ Instruction.check (replaced.replacedCtx bs) repl ++
         refuse (!replaced.isInstead) .notInstead ++ refuse (!repl.isInstead) .notInstead
@@ -726,6 +736,9 @@ mutual
       Ability.check bs ab ++ refuse ab.keywordExtendable .keywordExtendable ++
         refuse (keywordListOk ab ks) .keywordListOk
     | .italicHead _ ab => Ability.check bs ab ++ refuse ab.notWordHeaded .notWordHeaded
+    | .thatAbility ref =>
+      let n := countChoice (.quality .ability) bs
+      refuse (ref.ok n) (.choiceRef ref (.quality .ability) n)
   termination_by structural ab => ab
 
   def Ability.checkAll (bs : Bindings) : List Ability → List Refusal

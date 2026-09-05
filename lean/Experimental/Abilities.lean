@@ -38,10 +38,14 @@ inductive Exchanged where
   | controlOf (left right : NounPhrase)
   | cardsAcross (left right : NounPhrase)
   | zones (left right : ZoneExpr)
+  /-- Two numerical values [CR#701.12g]: life totals, powers or toughnesses, rolled results. -/
+  | values (left right : Amount)
+  /-- Two permanents' text boxes. -/
+  | textBoxes (left right : NounPhrase)
   deriving Repr, BEq
 
 inductive TokenQuality where
-  | withEveryType (space : TypeSpace)
+  | withEveryType (space : SubtypeSpace)
   | withQuality (quality : Predicate)
   deriving Repr, BEq
 
@@ -201,7 +205,7 @@ mutual
 
   inductive QualityPayload where
     | bundle (characteristics : Characteristics) (retained : Option CardType)
-    | everyTypeOf (space : TypeSpace)
+    | everyTypeOf (space : SubtypeSpace)
     | chosenQuality (quality : Predicate)
     | colored (colors : ColorSpec)
 
@@ -337,8 +341,10 @@ mutual
     | restartsGame
     | separateIntoPiles (player : NounPhrase) (group : NounPhrase) (piles : Nat)
         (faces : List PileFace)
+    /-- The `when` rider is the printed "as you activate this ability": the announcement's
+    timing, not a condition on what may be chosen. -/
     | choose (first : Option NounPhrase) (by_ : Option NounPhrase) (chosen : NounPhrase)
-        (disclosure : Disclosure)
+        (disclosure : Disclosure) (when : Option Concurrent)
     | choicesRevealed (sort : HiddenSort)
     | vote (first : Option NounPhrase) (voters : NounPhrase) (disclosure : Disclosure)
         (ballot : Ballot)
@@ -432,6 +438,8 @@ mutual
     | alsoForKeywords (ability : Ability) (keywords : List KeywordTerm)
     /-- An italic head before an ability: an ability word or a flavor word. -/
     | italicHead (word : ItalicWord) (ability : Ability)
+    /-- "that ability", read off an ability chosen earlier in the same text. -/
+    | thatAbility (ref : ChoiceRef)
 end
 
 deriving instance Repr, BEq for Characteristics, QualityPayload, TokenSpec, StaticSpec,

@@ -59,6 +59,7 @@ def classAbilityOk : CardClass → Ability → Bool
   | .spellCard, .spell _ _ => true
   | .spellCard, .italicHead _ ab => classAbilityOk .spellCard ab
   | .spellCard, .mayBeginOnBattlefield => false
+  | _, .thatAbility _ => false
 
 def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))

@@ -171,7 +171,11 @@ inductive Refusal where
   | eventUnderway
   | headerNontarget
   | doorNamesHost
-  | spanOk
+  | durationOk
+  | settableValue
+  | selfExchanged
+  | attacker
+  | numberChoiceInScope
   | deonticBoundOk
   | deonticPatientOk
   | asThoughOk

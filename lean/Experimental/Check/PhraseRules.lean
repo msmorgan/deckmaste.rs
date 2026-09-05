@@ -105,7 +105,11 @@ mutual
     | .withMostVotes =>
       let n := countOutcomes .voteHeld bs
       refuse (n == 1) (.outcomeInScope .voteHeld n)
-    | .choseExtreme op => kindCheck k (some .player) ++ refuse op.isExtremal .isExtremal
+    /- "each player who chose the highest number": a plural choice, not a vote [CR#701.38c],
+    so the gate counts the pluralised number choice. -/
+    | .choseExtreme op =>
+      kindCheck k (some .player) ++ refuse op.isExtremal .isExtremal ++
+        refuse (countManys (.quality .number) bs != 0) .numberChoiceInScope
     | .compareOver dom measure _ bound =>
       refuse k.phrasal (.phrasal k) ++ Predicate.check k bs dom ++
         Amount.check (bindFor .the .one k dom :: (Predicate.delta bs dom ++ bs)) measure ++
@@ -168,6 +172,8 @@ mutual
     | some (.typeOtherThan s) => refuse (s.type == some .creature) .subtypeType
     | some (.number q) => refuse q.wellFormed .wellFormedQ ++ Quantity.check _bs q
     | some (.players p) => Predicate.check .player _bs p
+    | some (.abilitiesAmong ks) =>
+      refuse (!ks.isEmpty) .nonEmpty ++ refuse (allKnownKeywordTerms ks) .knownKeywordTerm
     | some _ => []
   termination_by structural d => d
 
@@ -293,7 +299,7 @@ mutual
       Amount.check bs a ++ Amount.check (Amount.intro bs a) b ++
         refuse (op != .times || a.nonZero) .amtNonZero
     | .thatMuch =>
-      let n := countQuantOutcomes bs
+      let n := countAmountOutcomes bs
       refuse (n == 1) (.quantOutcomeInScope n)
     | .chosenNumber ref =>
       let n := countChoice (.quality .number) bs

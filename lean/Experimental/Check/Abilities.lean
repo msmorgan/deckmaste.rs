@@ -37,6 +37,8 @@ def Exchanged.intro (bs : Bindings) : Exchanged → Bindings
   | .controlOf a b => nomIntro (nomIntro bs a) b
   | .cardsAcross a b => nomIntro (nomIntro bs a) b
   | .zones a b => ZoneExpr.delta (ZoneExpr.delta bs a ++ bs) b ++ ZoneExpr.delta bs a ++ bs
+  | .values a b => Amount.intro (Amount.intro bs a) b
+  | .textBoxes a b => nomIntro (nomIntro bs a) b
 
 def Exchanged.deed : Exchanged → List Binding
   | .lifeTotals _ => [outcomeB .lifeGained, outcomeB .lifeLost]
@@ -47,6 +49,25 @@ def Exchanged.costOk : Exchanged → Bool
   | .controlOf a b => a.costNounOk && b.costNounOk
   | .cardsAcross a b => a.costNounOk && b.costNounOk
   | .zones _ _ => true
+  | .values _ _ => true
+  | .textBoxes a b => a.costNounOk && b.costNounOk
+
+/-- The numerical values an exchange can set [CR#701.12g]: a life total, a power or
+toughness, or a rolled result. -/
+def Amount.settableValue : Amount → Bool
+  | .statOf (.playerStat .lifeTotal) _ => true
+  | .statOf (.stat .power) _ => true
+  | .statOf (.stat .toughness) _ => true
+  | .theOutcome .rollResult => true
+  | _ => false
+
+/-- Two halves naming one value: each would become equal to its own previous value, so the
+sentence states nothing. -/
+def selfExchanged : Amount → Amount → Bool
+  | .theOutcome a, .theOutcome b => a == b
+  | .statOf (.playerStat a) .you, .statOf (.playerStat b) .you => a == b
+  | .statOf (.stat a) (.asType t .this _), .statOf (.stat b) (.asType u .this _) => a == b && t == u
+  | _, _ => false
 
 def TokenQuality.hosted (tys : List CardType) : TokenQuality → Bool
   | .withEveryType space => tys.any fun t => spaceHosted space (some t)
@@ -223,8 +244,11 @@ def keepsOuterOf (outer out : Bindings) : Bool :=
 
 /-- A distributive deed either only adds to the agent stack, or closes the partitives its own
 agents' choices published [CR#700.8d], which spends nothing the table shares [CR#701.21a]. -/
+def closesOwnParts (outer out : Bindings) : Bool :=
+  out == partsClosed outer || spentDistributively outer out
+
 def eachStackOk (outer out : Bindings) : Bool :=
-  keepsOuterOf outer out || (partsDistributed outer && out == partsClosed outer)
+  keepsOuterOf outer out || (partsDistributed outer && closesOwnParts outer out)
 
 def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Binding :=
   pluralizeDelta (out.take (out.length - (agentIntro bs s).length))
@@ -356,6 +380,7 @@ def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
 def Ability.grantable : Ability → Bool
   | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ _ | .static _ => true
   | .italicHead _ ab => ab.grantable
+  | .thatAbility _ => true
   | _ => false
 
 def Characteristics.abilitiesOk (c : Characteristics) : Bool := c.text.all Ability.grantable
@@ -663,7 +688,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .continuously (.gainsControl _ _) _ => .reflexive
   | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .create _ _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
-  | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ | .vote _ _ _ _
+  | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
   | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
   | .rerollStored _ _ _ => .reflexive
   | .resultsTable _ => .notOneAction
@@ -718,7 +743,7 @@ mutual
     | .copy _ _ what _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
     | .copyTargets cp _ => cp.costNounOk
-    | .choose _ _ n _ => n.costNounOk
+    | .choose _ _ n _ _ => n.costNounOk
     | .move what _ _ => what.costNounOk
     | .exchange what => what.costOk
     | .addMana who _ _ _ => who.costNounOk
@@ -805,10 +830,12 @@ def mayProfile (bodyP : InstrProfile) (didP : Option InstrProfile) (notd : Optio
 mutual
   def Instruction.profile (bs : Bindings) : Instruction → InstrProfile
     | .dealDamage src amt to =>
-      sameIntro (nomIntro (Amount.intro (nomIntro bs src) amt) to) [outcomeB .damageDealt]
+      sameIntro (nomIntro (Amount.delta (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
+        [outcomeB .damageDealt]
     | .controllerSacrifices n =>
       ⟨⟨.the, .player, .one, .player false⟩ :: selfSubjIntro bs n,
-       ⟨.the, .player, .one, .player false⟩ :: moveIntro bs (some "Sacrifice") n (some .graveyard),
+       ⟨.the, .player, .one, .player false⟩ ::
+         moveIntro bs (some (deedLabel .sacrificing)) n (some .graveyard),
        none, []⟩
     | .distribute v amt among =>
       let bs' := Amount.intro (v.intro bs) amt
@@ -853,7 +880,7 @@ mutual
           copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
-    | .choose _ by_ n _ => sameIntro (chooseIntro bs by_ n) []
+    | .choose _ by_ n _ _ => sameIntro (chooseIntro bs by_ n) []
     | .choicesRevealed _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what to _ =>
@@ -871,7 +898,8 @@ mutual
       let bs' := nomIntro bs who
       sameIntro (Quantity.delta bs' q ++ Predicate.delta bs' p ++ sc.delta bs' ++ bs')
         [⟨.a, .object, q.plur,
-          .object p.seedTy sc.zone (mkStamp (some "Search") none false) none none⟩]
+          .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
+            none⟩]
     | .shuffle whose => ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
     | .flipCoins who count => sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
     | .rollDice who count _ => sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB .rollResult]
@@ -1103,8 +1131,8 @@ def Ability.namesThisDoor : Ability → Bool
 
 mutual
   def Instruction.choiceDelta : Instruction → List Binding
-    | .choose _ _ (.described (.a _) p) _ => choiceDeltaAt (p.kindOr .object)
-    | .choose _ _ _ _ => []
+    | .choose _ _ (.described (.a _) p) _ _ => choiceDeltaAt (p.kindOr .object)
+    | .choose _ _ _ _ _ => []
     | .sequentially es => Instruction.choiceDeltaAll es
     | .may _ body _ _ => body.choiceDelta
     | .ifDone body _ _ => body.choiceDelta
@@ -1146,5 +1174,6 @@ def Ability.intro (bs : Bindings) : Ability → Bindings
   | .italicHead _ ab => Ability.intro bs ab
   | .spell _ instr => instr.choiceDelta ++ bs
   | .mayBeginOnBattlefield => bs
+  | .thatAbility _ => bs
 
 end Mtg

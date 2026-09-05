@@ -491,6 +491,10 @@ mutual
     | .withMostVotes => false
     | .choseExtreme _ => false
     | .inCombat .attackedBy _ => true
+    /- "the exiled card" is linked to the exiling ability printed on the same object
+    [CR#607.2a]; a singular reference still resolves when that ability exiled several cards
+    [CR#607.3]. -/
+    | .exiledWith _ => true
     | .castBy _ rank => rank.isSome
     | .and ps => Predicate.uniquifiesAny ps
     | _ => false
@@ -951,6 +955,7 @@ def NounPhrase.isAbility : NounPhrase → Bool
   | .described _ p => p.seedsAbility
   | .pro (.word .ability) _ _ => true
   | .pro (.word .abilityCopy) _ _ => true
+  | .asMarker .ability _ => true
   | .eachOf g => g.isAbility
   | .namesAgree _ g => g.isAbility
   | .resolvedPermanent n => n.isAbility
@@ -1334,9 +1339,17 @@ def attackableKind : Kind → HeadTy → Bool
   | .join a b, .sole t => attackableKind a (.sole t) && attackableKind b (.sole t)
   | _, _ => false
 
+/-- The attacker of an attacked player, planeswalker or battle: a creature on the battlefield,
+or the attacking player themself [CR#506.2]. -/
+def combatPartyKind : Kind → Option Zone → Bool
+  | .player, _ => true
+  | .object, z => zoneIsB z .battlefield
+  | .join a b, z => combatPartyKind a z && combatPartyKind b z
+  | _, _ => false
+
 def combatRelOk : CombatRelation → Kind → Kind → Option Zone → HeadTy → Bool
   | .attackerOf, k, km, _, tys => k == .object && attackableKind km tys
-  | .attackedBy, _, km, z, _ => km == .object && zoneIsB z .battlefield
+  | .attackedBy, _, km, z, _ => combatPartyKind km z
   | _, k, km, z, _ => k == .object && km == .object && zoneIsB z .battlefield
 
 def damageableKind : Kind → HeadTy → Bool
@@ -1418,6 +1431,15 @@ def deedNounOk (bs : Bindings) (v : VerbLabel) (r : Role) (n : NounPhrase) : Boo
 
 def featureNounOk (bs : Bindings) (f : DeedFeature) (r : Role) (n : NounPhrase) : Bool :=
   (featureLabel f).elim false fun v => deedNounOk bs v r n
+
+/-- Who declares an attack: the active player [CR#508.1] or a creature they control
+[CR#508.1a]. The deed table's agent role decides which kinds attack, the `attacking` feature
+keeps the object reading's type gate, and an object attacker is a battlefield permanent:
+`attackableKind`'s counterpart on the declaring side. -/
+def NounPhrase.attackerOk (bs : Bindings) (n : NounPhrase) : Bool :=
+  let k := n.kindOr .object
+  featureKindOk .attacking .agent k && featureNounOk bs .attacking .agent n &&
+    combatPartyKind k (NounPhrase.zone bs n)
 
 /-! ## Agents, choices, and the stacks they leave -/
 

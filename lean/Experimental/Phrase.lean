@@ -54,6 +54,8 @@ mutual
     | nonbasicTypesOnly
     | number (quantity : Quantity)
     | players (predicate : Predicate)
+    /-- "choose flying or trample": an ability chosen among named keywords. -/
+    | abilitiesAmong (keywords : List KeywordTerm)
 
   inductive EventSource where
     | anywhere

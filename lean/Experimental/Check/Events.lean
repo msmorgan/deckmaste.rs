@@ -47,7 +47,7 @@ structure EventFacts where
   hasMagnitude : Bool
   interceptable : Bool
   countable : Bool
-  spannable : Bool
+  boundsDuration : Bool
   underway : Bool
   deriving Repr, BEq
 
@@ -127,7 +127,7 @@ def kindPairIn : Kind → Kind → List (Kind × Kind) → Bool
 
 def interceptOk (ev : EventName) : Bool := ev.facts.interceptable
 def triggerCountOk (ev : EventName) : Bool := ev.facts.countable
-def spanEventOk (ev : EventName) : Bool := ev.facts.spannable
+def durationEventOk (ev : EventName) : Bool := ev.facts.boundsDuration
 def eventUnderwayOk (ev : EventName) : Bool := ev.facts.underway
 def eventHasMagnitude (ev : EventName) : Bool := ev.facts.hasMagnitude
 
@@ -149,6 +149,9 @@ def deedRoleOf (v : VerbLabel) : Role → DeedRole
   | .patient => (actFactsFor v).elim noRole (·.patientRole)
 
 def deedKindOk (v : VerbLabel) (r : Role) (k : Kind) : Bool := (deedRoleOf v r).kinds.elem k
+
+def featureKindOk (f : DeedFeature) (r : Role) (k : Kind) : Bool :=
+  (featureLabel f).elim false fun v => deedKindOk v r k
 
 /-- An effect can make a permanent of any type a creature that is still its other types
 [CR#205.1b], and an effect written on a noncreature permanent is created even while it isn't

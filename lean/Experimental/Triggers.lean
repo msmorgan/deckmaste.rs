@@ -11,6 +11,13 @@ day/night shift is the game gaining a designation.
 
 namespace Mtg
 
+/-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
+color written or chosen; the six types of [CR#106.1b]. -/
+inductive ManaTypeTerm where
+  | colorless
+  | ofColor (color : ColorTerm)
+  deriving Repr, BEq
+
 inductive Door where
   | thisDoor
   | doorOf (state : Option LockState) (room : NounPhrase)
@@ -88,6 +95,7 @@ mutual
         (becomes : Option Predicate)
     /-- A mana ability with {T} in its cost resolving and producing mana [CR#106.12a]. -/
     | tappedForMana (player : Option NounPhrase) (source : NounPhrase)
+        (type : Option ManaTypeTerm)
     | unlocksDoor (player : NounPhrase) (door : Door)
     | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
     | triggers (ability : NounPhrase)

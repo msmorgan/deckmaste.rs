@@ -42,6 +42,7 @@ def QualitySort.chosenReadOk : QualitySort → Bool
   | .number => false
   | .cardType => true
   | .counterKind => false
+  | .ability => true
 
 /-! ## Kinds -/
 
@@ -132,7 +133,7 @@ inductive PremiseSort where
 /-- The deeds a core constructor must name structurally, declared so a guard reads a feature
 rather than a verb's spelling. -/
 inductive DeedFeature where
-  | attacking | blocking | targeting | controlGrant | librarySearch
+  | attacking | blocking | targeting | controlGrant | librarySearch | sacrificing | unlocking
   deriving DecidableEq, Repr
 
 structure ActFacts where
@@ -165,10 +166,10 @@ private def allTypes : List CardType :=
 keyword abilities of the keyword facts table. -/
 def actFacts : List ActFacts :=
   [ { label := "Destroy", participle := some "destroyed", dest := some .graveyard,
-      patientRole := fieldObject },
+      agentRole := playerAgent, patientRole := fieldObject },
     { label := "Sacrifice", participle := some "sacrificed", dest := some .graveyard,
       agentRole := playerAgent, patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩,
-      bounded := true },
+      feature := some .sacrificing, bounded := true },
     { label := "Exile", participle := some "exiled", dest := some .exile, agentRole := playerAgent,
       patientRole := ⟨[.object], [], false, none⟩ },
     { label := "Discard", participle := some "discarded", dest := some .graveyard,
@@ -177,24 +178,31 @@ def actFacts : List ActFacts :=
       agentRole := playerAgent, patientRole := ⟨[.object], [], false, some .library⟩ },
     { label := "Scry", stepwise := true, agentRole := playerAgent },
     { label := "Surveil", stepwise := true, agentRole := playerAgent },
-    { label := "Tap", participle := some "tapped", patientRole := fieldObject },
+    { label := "Tap", participle := some "tapped", agentRole := playerAgent,
+      patientRole := fieldObject },
     { label := "Untap", participle := some "untapped", agentRole := playerAgent,
       patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, bounded := true },
-    { label := "Return", patientRole := ⟨[.object], [], false, none⟩ },
-    { label := "GainControl", patientRole := fieldObject, feature := some .controlGrant },
+    { label := "Return", agentRole := playerAgent, patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "GainControl", agentRole := playerAgent, patientRole := fieldObject,
+      feature := some .controlGrant },
     { label := "Put", agentRole := playerAgent, patientRole := ⟨[.object], [], false, none⟩ },
     { label := "Search",
       loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
       agentRole := playerAgent, feature := some .librarySearch, bounded := true },
     { label := "Shuffle", loci := [.library], agentRole := playerAgent },
-    { label := "Proliferate" },
+    { label := "Proliferate", agentRole := playerAgent },
     { label := "The Ring Tempts You" },
-    { label := "Transform", intransitive := true, patientRole := fieldObject },
-    { label := "Convert", intransitive := true, patientRole := fieldObject },
+    { label := "Transform", intransitive := true, agentRole := playerAgent,
+      patientRole := fieldObject },
+    { label := "Convert", intransitive := true, agentRole := playerAgent,
+      patientRole := fieldObject },
     { label := "Meld", dest := some .battlefield, patientRole := ⟨[.object], [], false, none⟩ },
-    { label := "Unlock", patientRole := ⟨[], [], false, some .battlefield⟩ },
-    { label := "Fully Unlock", patientRole := fieldObject },
-    { label := "Attack", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
+    { label := "Unlock", agentRole := playerAgent, patientRole := ⟨[], [], false, some .battlefield⟩,
+      feature := some .unlocking },
+    { label := "Fully Unlock", agentRole := playerAgent, patientRole := fieldObject },
+    /- The declaring side of an attack is the active player or a creature they control
+    [CR#508.1,508.1a]. -/
+    { label := "Attack", agentRole := ⟨[.object, .player], [.creature], true, some .battlefield⟩,
       patientRole := ⟨[.object], [.planeswalker, .battle], false, some .battlefield⟩,
       feature := some .attacking, counterfactual := some .object, bounded := true },
     { label := "Block", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
@@ -235,52 +243,52 @@ def actFacts : List ActFacts :=
     { label := "Venture Into The Dungeon" },
     { label := "Abandon" },
     { label := "Adapt" },
-    { label := "Airbend", dest := some .exile },
-    { label := "Amass" },
+    { label := "Airbend", dest := some .exile, agentRole := playerAgent },
+    { label := "Amass", agentRole := playerAgent },
     { label := "Assemble" },
-    { label := "Attach" },
-    { label := "Behold" },
-    { label := "Blight" },
+    { label := "Attach", agentRole := playerAgent },
+    { label := "Behold", agentRole := playerAgent },
+    { label := "Blight", agentRole := playerAgent },
     { label := "Bolster" },
-    { label := "Clash" },
-    { label := "Cloak", dest := some .battlefield },
-    { label := "Collect Evidence", dest := some .exile },
+    { label := "Clash", agentRole := playerAgent },
+    { label := "Cloak", dest := some .battlefield, agentRole := playerAgent },
+    { label := "Collect Evidence", dest := some .exile, agentRole := playerAgent },
     { label := "Connive" },
-    { label := "Create", dest := some .battlefield },
+    { label := "Create", dest := some .battlefield, agentRole := playerAgent },
     { label := "Detain" },
-    { label := "Discover" },
+    { label := "Discover", agentRole := playerAgent },
     { label := "Double" },
-    { label := "Earthbend" },
+    { label := "Earthbend", agentRole := playerAgent },
     { label := "Endure" },
-    { label := "Exchange" },
-    { label := "Exert" },
+    { label := "Exchange", agentRole := playerAgent },
+    { label := "Exert", agentRole := playerAgent },
     { label := "Explore" },
-    { label := "Face A Villainous Choice" },
-    { label := "Fateseal", agentRole := playerAgent },
+    { label := "Face A Villainous Choice", agentRole := playerAgent },
+    { label := "Fateseal", stepwise := true, agentRole := playerAgent },
     { label := "Fight" },
-    { label := "Forage" },
-    { label := "Goad" },
+    { label := "Forage", agentRole := playerAgent },
+    { label := "Goad", agentRole := playerAgent },
     { label := "Harness" },
     { label := "Heal" },
-    { label := "Incubate", dest := some .battlefield },
-    { label := "Investigate", dest := some .battlefield },
+    { label := "Incubate", dest := some .battlefield, agentRole := playerAgent },
+    { label := "Investigate", dest := some .battlefield, agentRole := playerAgent },
     { label := "Learn" },
-    { label := "Manifest", dest := some .battlefield },
-    { label := "Manifest Dread" },
+    { label := "Manifest", dest := some .battlefield, agentRole := playerAgent },
+    { label := "Manifest Dread", agentRole := playerAgent },
     { label := "Monstrosity" },
     { label := "Open An Attraction" },
-    { label := "Planeswalk" },
+    { label := "Planeswalk", agentRole := playerAgent },
     { label := "Populate" },
-    { label := "Recruit" },
-    { label := "Reveal" },
+    { label := "Recruit", agentRole := playerAgent },
+    { label := "Reveal", agentRole := playerAgent },
     { label := "Roll To Visit Your Attractions" },
     { label := "Set In Motion" },
     { label := "Support" },
-    { label := "Suspect" },
+    { label := "Suspect", agentRole := playerAgent },
     { label := "Time Travel" },
     { label := "Triple" },
     { label := "Phase In", intransitive := true, agentRole := ⟨[.object], [], true, some .battlefield⟩ },
-    { label := "Waterbend" } ]
+    { label := "Waterbend", agentRole := playerAgent } ]
 
 def distinctActLabels : List ActFacts → Bool
   | [] => true
@@ -292,6 +300,9 @@ def knownAct (v : VerbLabel) : Bool := (actFactsFor v).isSome
 def deedFeatureOf (v : VerbLabel) : Option DeedFeature := actFactsFor v >>= (·.feature)
 def featureLabel (f : DeedFeature) : Option VerbLabel :=
   (actFacts.find? (·.feature == some f)).map (·.label)
+/-- The table's own label for a structurally named deed, where a guard needs the label itself
+rather than the feature; the empty label where the table names none. -/
+def deedLabel (f : DeedFeature) : VerbLabel := (featureLabel f).getD ""
 def participleOf (v : VerbLabel) : Option String := actFactsFor v >>= (·.participle)
 def actPatientKindsOf (v : VerbLabel) : List Kind := (actFactsFor v).elim [] (·.patientRole.kinds)
 def actNamesPatient (v : VerbLabel) : Bool := !(actPatientKindsOf v).isEmpty
@@ -470,16 +481,16 @@ def coinFlipInScope (bs : Bindings) : Bool := outcomeInScope .coinFlipped bs
 def ignorableInScope (bs : Bindings) : Bool :=
   countOutcomes .rollResult bs == 1 || coinFlipInScope bs
 
-def OutcomeSort.isQuantity : OutcomeSort → Bool
+def OutcomeSort.isAmount : OutcomeSort → Bool
   | .coinFlipped | .manaAdded | .manaProduced | .ceilingShortfall | .voteHeld =>
     false
   | _ => true
 
-def countQuantOutcomes : Bindings → Nat
+def countAmountOutcomes : Bindings → Nat
   | [] => 0
   | ⟨_, .outcome, .one, .outcome s⟩ :: bs =>
-    if s.isQuantity then countQuantOutcomes bs + 1 else countQuantOutcomes bs
-  | _ :: bs => countQuantOutcomes bs
+    if s.isAmount then countAmountOutcomes bs + 1 else countAmountOutcomes bs
+  | _ :: bs => countAmountOutcomes bs
 
 def countChoice (s : ChoiceSort) : Bindings → Nat
   | [] => 0
@@ -579,6 +590,16 @@ def groupSpent (k : Kind) : Bindings → Bindings
   | [] => []
   | ⟨.part, j, pl, p⟩ :: bs => ⟨.the, j, pl, p⟩ :: groupSpent k bs
   | b :: bs => if objGroup k b then groupSpent k bs else b :: groupSpent k bs
+
+/-- `out` re-places bindings of `outer` without touching the table: every binding keeps its
+determiner, kind and plurality, and only plural ones, one object per agent, may have moved
+[CR#701.21a]. -/
+def spentDistributively : Bindings → Bindings → Bool
+  | [], [] => true
+  | a :: as_, b :: bs =>
+    a.det == b.det && a.kind == b.kind && a.plur == b.plur &&
+      (a.payload == b.payload || !a.plur.isOne) && spentDistributively as_ bs
+  | _, _ => false
 
 def partsClosed : Bindings → Bindings
   | [] => []
@@ -1005,7 +1026,7 @@ def basicLandTypes : List Subtype :=
 
 def Subtype.isBasicLand (s : Subtype) : Bool := basicLandTypes.elem s
 
-def spaceHosted : TypeSpace → Option CardType → Bool
+def spaceHosted : SubtypeSpace → Option CardType → Bool
   | .basicLand, ty => tyIs .land ty
   | .land, ty => tyIs .land ty
   | .creature, ty => tyIs .creature ty || tyIs .kindred ty
@@ -1023,6 +1044,7 @@ def MarkerWord.zone : MarkerWord → Zone
   | .emblem => .command
   | .spell => .stack
   | .permanent => .battlefield
+  | .ability => .stack
 
 def ascriptionOk (t : CardType) : Option Subtype → Bool
   | none => t.ascribesAs

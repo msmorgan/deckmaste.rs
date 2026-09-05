@@ -1,4 +1,5 @@
 import Experimental.Proofs.Description
+import Experimental.Proofs.Refresh
 
 /-!
 # Experimental.Proofs

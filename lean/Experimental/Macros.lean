@@ -23,6 +23,9 @@ def it : NounPhrase := .pro .bare .one .whole
 /-- "them" -/
 def them : NounPhrase := .pro .bare .many .whole
 
+/-- "it", read at the card slot: the card a looked-at or revealed slice named. -/
+def itCard : NounPhrase := .pro (.atSlot .card) .one .whole
+
 /-- "that <word>", e.g. `that .player`. -/
 def that (w : NounWord) : NounPhrase := .pro (.word w) .one .whole
 
@@ -126,6 +129,14 @@ def partyRoles : List Predicate :=
 def anyTarget : Predicate :=
   .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
 
+/-- "a color", "a creature type": a quality noun. -/
+def quality (sort : QualitySort) : Predicate := .qualityNoun sort none
+/-- A quality noun with its domain: "a color other than blue". -/
+def qualityFrom (sort : QualitySort) (domain : ChoiceDomain) : Predicate :=
+  .qualityNoun sort (some domain)
+/-- "the chosen color" -/
+def thatColor : ColorTerm := .chosen .theChoice
+
 def creatureType (label : String) : Subtype := .of .creature label
 def artifactType (label : String) : Subtype := .of .artifact label
 def landType (label : String) : Subtype := .of .land label
@@ -137,6 +148,7 @@ def spellType (label : String) : Subtype := .spell label
 def anOpponent : NounPhrase := a .opponent
 def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
+def thisAbility : NounPhrase := .asMarker .ability .this
 def theDefendingPlayer : NounPhrase := .combatPlayer .defending
 def theAttackingPlayer : NounPhrase := .combatPlayer .attacking
 def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
@@ -194,6 +206,17 @@ def shuffleInto (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) "Shuffle" (.move subject (.library .shuffled none none .bare) [])
 def if_ (condition : Condition) (instruction : Instruction) : Instruction :=
   .if_ condition instruction none
+/-- "choose <subject>" -/
+def choose (subject : NounPhrase) : Instruction := .choose none none subject .openly none
+/-- "<player> chooses <subject>" -/
+def chooses (player : NounPhrase) (subject : NounPhrase) : Instruction :=
+  .choose none (some player) subject .openly none
+/-- "<player> secretly chooses <subject>" -/
+def secretlyChooses (player : NounPhrase) (subject : NounPhrase) : Instruction :=
+  .choose none (some player) subject .secretly none
+/-- "choose <subject> as you <event>" -/
+def chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
+  .choose none none subject .openly (some while_)
 def rollDice (player : NounPhrase) (count sides : Nat) : Instruction :=
   .rollDice player (.lit count) (.sides sides)
 
