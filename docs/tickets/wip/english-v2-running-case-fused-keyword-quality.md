@@ -272,6 +272,38 @@ than done. Nothing is owed: no coverage is lost and no gate is weakened.
 
 #### Review gates
 
-Re-run after the corrections and after the final `kata refresh`; artifacts are
-pasted in
-`docs/memory/scratch/plan09-postmortem/english-v2-running-case-fused-keyword-quality-landing-review.md`.
+Re-run once on review change `kzznpxol` (lock `covered` 20,054), after the
+final `kata refresh`, which was a no-op — `jj diff --from wlpmzlsm --to
+default@` is 0 files, so trunk did not move under this claim and no incoming
+diff needed re-gating. The review commit's only Rust change is a `#[cfg(test)]`
+test at `crates/deckmaste_construction_core/src/emit/render.rs:7449`;
+production code is byte-identical to `tttnptln`, so the implementer's stamped
+selection-neutrality proof (0 changed paths of 20,002; 0 of 102 prior Bound
+Keyword Surfaces) carries to this tree without re-measurement.
+
+- `cargo fmt --all -- --check`: clean.
+- `cargo xtask gate --changed` printed, and this ran:
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  — 39 test binaries, all `test result: ok`, 0 failed, 1 pre-existing ignored.
+- `cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings`: clean.
+- `coverage --check` (`DECKMASTE_COVERAGE_LOCK=report`): 32,641 total; 20,054
+  selected and covered; 0 selected-uncovered, ties, internal failures,
+  exception resolutions/uses, roundtrip mismatches, ownership failures,
+  traversal or leaf-traversal failures, gaps, overlaps, synthetic claims,
+  provenance-plan mismatches; 890,915/890,915 nodes; 311,251/311,251 leaves;
+  23 permitted and 0 forbidden licensing checkers. No newly-covered and no
+  no-longer-covered section printed: the lock is exactly this tree.
+- `ambiguity --require-resolved`: 0 unresolved ties, 0 internal failures, 0
+  exception resolutions, 0 exception uses, 12,587 parse failures.
+- `roundtrip --require-clean`: 20,054 accepted, 20,054 clean, 0 mismatched.
+- `cargo xtask catalogs check`: `catalogs are up to date`.
+- `cargo xtask cite check --list-noncompliant`: 0 non-compliant.
+  `cargo xtask cite check`: 14,490 citations, 0 stale. No citation was added or
+  changed by the landing or the review.
+
+Review-side performance advisory, workers 8, on review change `kzznpxol`,
+under the true contention above: `coverage --check` 161,243 ms,
+**205,323 ns/B**, host load 18.96 / 25.66 / 23.78; `ambiguity` 151,963 ms,
+**181,929 ns/B**, host load 20.23 / 24.19 / 23.54; `roundtrip` 155,197 ms,
+**151,470 ns/B**, host load 26.76 / 22.73 / 22.91. Each exceeds the 16,260 ms
+quiet-host ceiling under that load; advisory, not fitted.
