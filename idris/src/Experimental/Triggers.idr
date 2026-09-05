@@ -4,6 +4,13 @@ import public Experimental.Phrase
 
 %default total
 
+||| The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]:
+||| colorless, or a color written or chosen — the six types of [CR#106.1b].
+public export
+data ManaTypeTerm : Bindings -> Type where
+  ColorlessMana : ManaTypeTerm bs
+  ManaOfColor : ColorTerm bs -> ManaTypeTerm bs
+
 mutual
   public export
   data Duration : Bindings -> Type where
@@ -291,6 +298,7 @@ mutual
     ||| [CR#106.12a].
     TappedForMana : (who : Maybe (Noun bs Player)) ->
                     (what : Noun (agentIntro who) Object) ->
+                    (ty : Maybe (ManaTypeTerm (agentIntro who))) ->
                     {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
                     GameEvent bs
     UnlocksDoor : (who : Noun bs Player) -> (door : Door (nomIntro who)) ->
@@ -353,7 +361,7 @@ mutual
   eventName (PaysLife _) = LifePayment
   eventName (LifeChanges _ dir) = lifeEventName dir
   eventName (VerbedEvent _ v _ _) = VerbedAct v
-  eventName (TappedForMana _ _) = TappedForMana
+  eventName (TappedForMana _ _ _) = TappedForMana
   eventName (UnlocksDoor _ _) = VerbedAct "Unlock"
   eventName (NthOccurrence _ _ ev) = eventName ev
   eventName (Triggers _) = AbilityTrigger
@@ -405,7 +413,7 @@ mutual
     outcomeB (lifeMoveOutcome dir) :: selfSubjIntro who
   eventIntro (VerbedEvent who _ Nothing _) = agentIntro who
   eventIntro (VerbedEvent _ _ (Just what) _) = selfSubjIntro what
-  eventIntro (TappedForMana _ what) = selfSubjIntro what
+  eventIntro (TappedForMana _ what _) = selfSubjIntro what
   eventIntro (UnlocksDoor who door) = doorIntro door
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
   eventIntro (Triggers what) = selfSubjIntro what
@@ -457,7 +465,7 @@ mutual
   eventAfter (VerbedEvent who _ Nothing _) = agentIntro who
   eventAfter (VerbedEvent _ v (Just what) _) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
-  eventAfter (TappedForMana _ what) =
+  eventAfter (TappedForMana _ what _) =
     outcomeB ManaProduced :: stampIntro (Just "Tap") what
   eventAfter (UnlocksDoor who door) = doorIntro door
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
@@ -502,8 +510,8 @@ mutual
   eventSubjectPlur (VerbedEvent (Just who) _ _ _) = nounPlur who
   eventSubjectPlur (VerbedEvent Nothing _ (Just what) _) = nounPlur what
   eventSubjectPlur (VerbedEvent Nothing _ Nothing _) = OneOf
-  eventSubjectPlur (TappedForMana (Just who) _) = nounPlur who
-  eventSubjectPlur (TappedForMana Nothing what) = nounPlur what
+  eventSubjectPlur (TappedForMana (Just who) _ _) = nounPlur who
+  eventSubjectPlur (TappedForMana Nothing what _) = nounPlur what
   eventSubjectPlur (UnlocksDoor who _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
   eventSubjectPlur (Triggers what) = nounPlur what

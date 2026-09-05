@@ -414,20 +414,48 @@ badOpponentPaysYourCost Oh impossible
 public export
 okTappedForMana : GameEvent []
 okTappedForMana =
-  TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land)
+  TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land) Nothing
 
 ||| "Whenever a card in a graveyard is tapped for mana, …" — only a permanent
 ||| is tapped for mana [CR#106.12].
 public export
 badTappedForManaOffField : Unspellable (GameEvent []) (\ok =>
-  TappedForMana (Just You) (Macros.a (InZone Macros.graveyardZ)) {zn = ok})
+  TappedForMana (Just You) (Macros.a (InZone Macros.graveyardZ)) Nothing {zn = ok})
 badTappedForManaOffField Oh impossible
+
+||| "As this artifact enters, choose a color. Whenever a basic land is tapped
+||| for mana of the chosen color, draw a card."
+public export
+okTapForChosenColorMana : Card
+okTapForChosenColorMana =
+  Macros.card "" Nothing [] (MkTypeLine [] [Artifact])
+       [ Static (Macros.entersChoosing Macros.thisArtifact Color)
+       , Macros.triggered Whenever
+           (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
+                          (Just (ManaOfColor Macros.thatColor)))
+           (Draw You (Lit 1)) ]
+       Nothing
+
+||| "As this artifact enters, choose a creature type. Whenever a basic land is
+||| tapped for mana of the chosen type, draw a card." — the six mana types are
+||| the five colors and colorless [CR#106.1b], so `ManaOfColor` reads a chosen
+||| COLOR alone; "mana of the chosen color" is `okTapForChosenColorMana`.
+public export
+badTapForChosenNonManaType : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Artifact])
+       [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
+       , Macros.triggered Whenever
+           (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
+                          (Just (ManaOfColor (ThatColor TheChoice {ok}))))
+           (Draw You (Lit 1)) ]
+       Nothing)
+badTapForChosenNonManaType Refl impossible
 
 public export
 afterALandTapForMana : Bindings
 afterALandTapForMana =
   eventAfter (the (GameEvent [])
-    (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land)))
+    (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land) Nothing))
 
 public export
 afterAPlainLandTap : Bindings

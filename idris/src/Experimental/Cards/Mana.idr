@@ -1309,7 +1309,7 @@ manaFlare =
   Macros.card "Mana Flare" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land))
+           (TappedForMana (Just (Macros.a AnyPlayer)) (Macros.a Macros.land) Nothing)
            (AddMana (Macros.That PlayerW OneOf) (Lit 1)
                     (ProducedByEvent (Macros.That (TypeW Land) OneOf)) []) ]
        Nothing
@@ -1324,7 +1324,23 @@ shimmerwildsGrowth =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (Becomes (AttachHost Enchanted (TypeW Land)) Sets (ChosenQuality (Macros.ofChosen Color)))
        , Macros.triggered Whenever
-           (TappedForMana Nothing (AttachHost Enchanted (TypeW Land)))
+           (TappedForMana Nothing (AttachHost Enchanted (TypeW Land)) Nothing)
+           (AddMana (Macros.controllerOf (Macros.That (TypeW Land) OneOf)) (Lit 1)
+                    (OfChosenColor Nothing) []) ]
+       Nothing
+
+||| Gauntlet of Power
+public export
+gauntletOfPower : Card
+gauntletOfPower =
+  Macros.card "Gauntlet of Power" (Just [Macros.generic 5]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (Macros.entersChoosing Macros.thisArtifact Color)
+       , Static (Macros.getsPt (Macros.allOf (And [Macros.creature, Macros.ofChosen Color]))
+                      (Up (Lit 1)) (Up (Lit 1)))
+       , Macros.triggered Whenever
+           (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
+                          (Just (ManaOfColor Macros.thatColor)))
            (AddMana (Macros.controllerOf (Macros.That (TypeW Land) OneOf)) (Lit 1)
                     (OfChosenColor Nothing) []) ]
        Nothing
