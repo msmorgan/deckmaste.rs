@@ -142,6 +142,30 @@ jobs:
           cargo xtask cite check
           cargo xtask cite check --list-noncompliant
 
+  lean:
+    name: Lean workbench
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: install elan and the pinned Lean toolchain
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSfL https://elan.lean-lang.org/elan-init.sh \
+            -o "$RUNNER_TEMP/elan-init.sh"
+          sh "$RUNNER_TEMP/elan-init.sh" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install "$(cat lean/lean-toolchain)"
+      - name: cache Lake dependencies and build outputs
+        uses: actions/cache@v4
+        with:
+          path: lean/.lake
+          key: lean-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-${{ hashFiles('lean/**/*.lean', 'lean/lakefile.toml') }}
+          restore-keys: |
+            lean-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-
+      - name: build Lean model and proof suite
+        run: lean/scripts/build
+
   idris:
     name: Idris mirror
     runs-on: ubuntu-24.04
