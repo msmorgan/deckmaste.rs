@@ -9,6 +9,7 @@ import Semantics.Proofs.Keyword
 import Semantics.Proofs.Mana
 import Semantics.Proofs.Piles
 import Semantics.Proofs.Static
+import Semantics.Proofs.Tables
 import Semantics.Proofs.Trigger
 import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone

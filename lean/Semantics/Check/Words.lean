@@ -1103,6 +1103,10 @@ def findDesignation (label : DesignationLabel) : List DesignationFacts → Optio
   | [] => none
   | f :: fs => if f.label == label then some f else findDesignation label fs
 
+def distinctDesignationLabels : List DesignationFacts → Bool
+  | [] => true
+  | f :: fs => !(fs.map (·.label)).elem f.label && distinctDesignationLabels fs
+
 def DesignationLabel.facts (label : DesignationLabel) : Option DesignationFacts :=
   findDesignation label designationTable
 
