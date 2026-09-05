@@ -24,6 +24,12 @@ named witness to its printed text once the shape lands:
   object bound outside the agent phrase. Extend the `EachClosesOwnParts`
   case to a group the same loop published (residue of
   `workbench-foreach-group-survives`, 2026-09-04); bench the card whole.
+- **The last two `Exchanged` arms.** `workbench-exchange-row` (2026-09-04)
+  landed life totals, control, cards and zones; the numerical-values arm
+  (Vedalken Squirrel-Whacker's "exchange one result with this creature's
+  base power") and the text-box arm at the end of [CR#701.12] are not
+  modelled. Add both as positional arms of `Exchanged`, bench the
+  Squirrel-Whacker, pin an exchange of a value with itself.
 - The remaining fifteen as recorded: a condition's nouns joining the read
   stack (Answered Prayers), the `AttackedBy` attacker for "that opponent is
   attacking" (Tahngarth), an as-you-activate rider (Keeper of the Flame), a
