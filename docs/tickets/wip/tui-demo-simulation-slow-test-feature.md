@@ -48,3 +48,47 @@ Measured on refreshed change `zxwtnrqroovp` (refresh was a no-op) with
 - Assurance counts: restored 0; re-spelled 0; ignored 0; added 0; removed 0.
   The existing test is feature-gated, not ignored, deleted, or weakened.
 - Deviations and additions: none. STOP: none. Glossary gap: none.
+
+### Review corrections
+
+Re-gated on the refreshed tree: change `zxwtnrqroovp`, working-copy content
+`e4bd665c` after `kata refresh` pulled in `english-v2-tail-restrictive-focus-adverb`
+(the implementer's no-op refresh predates that landing, so its numbers were
+measured on an earlier tree; the re-gate below supersedes them). No corpus gate
+applies — the diff touches no grammar, catalog, or xtask path, so the coverage
+lock, construction count and selection census are untouched and none was run.
+
+- Finding (MEDIUM, record accuracy — fixed here, remainder routed): the ticket's
+  premise that no other test exceeds 20 s is false, and the record did not say
+  where the remaining wall time goes. Feature OFF, the `deckmaste_tui` lib target
+  is 203.71 s of a 310 s `cargo test --workspace` — about two thirds of the run.
+  Feature ON the same target is 287.80 s, so the gated demo test is worth ~84 s
+  of workspace wall time, not the ~45% the ticket assumed. Two more whole-game
+  simulations stay in the default set and each trips libtest's 60-second notice:
+  `driver::tests::auto_play_produces_only_legal_decisions` and
+  `interact::tests::interactive_path_produces_only_legal_decisions`. Extending
+  the gate to them is beyond this ticket's pinned shape (one named test), so it
+  is routed to `docs/tickets/planned/tui-remaining-slow-simulation-tests.md`
+  rather than done here.
+- Gate artifacts (this review, foreground, `CARGO_BUILD_JOBS=8`): `cargo fmt
+  --all` clean; `cargo clippy -p deckmaste_tui --all-targets -- -D warnings` and
+  the same with `--features slow-tests` both clean; `cargo test --workspace`
+  128 targets, 6178 passed, 0 failed, 6 ignored, 310 s wall; `cargo test -p
+  deckmaste_tui --features slow-tests` 76 passed, 0 failed, 287.80 s, with
+  `demo_auto_plays_to_completion ... ok`; `--list` shows 75 tests without the
+  feature and the gated test absent, 76 and present with it; `.github/workflows/
+  ci.yml` parses (PyYAML via `uvx`) and the new step is step 16 of 19 in the
+  `clippy-test` job, between `test` and the noncanon WC99 gate.
+- Performance advisory: measured under real contention — 2 concurrent executors
+  plus this review on the shared 24-core host. Workspace-suite wall 310 s
+  (implementer measured 332 s pre-refresh; 486 s before the change). The
+  slow-tests suite was executed 3 times in total across the landing (implementer
+  2, review 1); no per-byte coverage telemetry line applies, as no corpus
+  command ran.
+- Assurance counts re-checked against the diff: restored 0; re-spelled 0;
+  ignored 0; added 0; removed 0 — the diff adds one `#[cfg]` line and changes no
+  test body. Confirmed the seed claim: `game::build_game` calls
+  `build_game_with_seed(SEED)` with the fixed suite seed, so the 22 s spread
+  between runs is host load, not a nondeterministic seed.
+- Deviations and additions (review): one planned ticket minted,
+  `tui-remaining-slow-simulation-tests`. STOP: none. Glossary gap: none.
