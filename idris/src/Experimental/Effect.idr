@@ -45,6 +45,56 @@ twoPartiesOk _ = False
 
 
 public export
+controlExchangeZone : Maybe Zone -> Bool
+controlExchangeZone z = onFieldZone z || onStackZone z
+
+public export
+cardSwapZonesOk : Maybe Zone -> Maybe Zone -> Bool
+cardSwapZonesOk (Just a) (Just b) = a /= b
+cardSwapZonesOk _ _ = False
+
+public export
+zoneSwapOk : Zone -> Zone -> Bool
+zoneSwapOk a b = isCardZone (Just a) && isCardZone (Just b) && a /= b
+
+||| [CR#701.12]: one instruction states both halves, so an exchange that can't
+||| be completed in its entirety happens not at all [CR#701.12a]. The attachment
+||| transfer [CR#701.12e] and the empty-zone case [CR#701.12f] are engine
+||| behaviour, not obligations on the sentence.
+public export
+data Exchanged : Bindings -> Type where
+  LifeTotals : (parties : Noun bs Player) ->
+               {auto 0 tp : So (twoPartiesOk parties)} -> Exchanged bs
+  ControlOf : (a : Noun bs Object) -> (b : Noun (nomIntro a) Object) ->
+              {auto 0 az : So (controlExchangeZone (nounZone a))} ->
+              {auto 0 bz : So (controlExchangeZone (nounZone b))} -> Exchanged bs
+  CardsAcross : (a : Noun bs Object) -> (b : Noun (nomIntro a) Object) ->
+                {auto 0 dz : So (cardSwapZonesOk (nounZone a) (nounZone b))} ->
+                Exchanged bs
+  Zones : (a : ZoneExpr bs) -> (b : ZoneExpr (zoneDelta a ++ bs)) ->
+          {auto 0 zs : So (zoneSwapOk (zoneSort a) (zoneSort b))} -> Exchanged bs
+
+public export
+exchangedIntro : {bs : Bindings} -> Exchanged bs -> Bindings
+exchangedIntro (LifeTotals parties) = nomIntro parties
+exchangedIntro (ControlOf a b) = nomIntro b
+exchangedIntro (CardsAcross a b) = nomIntro b
+exchangedIntro (Zones a b) = zoneDelta b ++ zoneDelta a ++ bs
+
+public export
+exchangedDeed : {0 bs : Bindings} -> Exchanged bs -> List Binding
+exchangedDeed (LifeTotals _) = [outcomeB LifeGained, outcomeB LifeLost]
+exchangedDeed _ = []
+
+public export
+exchangedCostOk : {0 bs : Bindings} -> Exchanged bs -> Bool
+exchangedCostOk (LifeTotals parties) = costNounOk parties
+exchangedCostOk (ControlOf a b) = costNounOk a && costNounOk b
+exchangedCostOk (CardsAcross a b) = costNounOk a && costNounOk b
+exchangedCostOk (Zones _ _) = True
+
+
+public export
 data TokenQuality : Bindings -> Type where
   WithEveryType : (space : TypeSpace) -> TokenQuality bs
   WithQuality : (q : Predicate bs Object) ->
@@ -1169,8 +1219,7 @@ mutual
                   {auto 0 cp : Copiable copy} ->
                   {auto 0 tk : Targetable kt} -> Instruction bs
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Instruction bs
-    ExchangeLife : (parties : Noun bs Player) ->
-                   {auto 0 tp : So (twoPartiesOk parties)} -> Instruction bs
+    Exchange : (what : Exchanged bs) -> Instruction bs
     AddMana : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
               (prod : ProducedMana (amtIntro amt)) ->
               (riders : List (ManaRider (amtIntro amt))) ->
@@ -1474,7 +1523,7 @@ mutual
   costActionOk (CopyTargets copy _) = costNounOk copy
   costActionOk (Choose _ _ n _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
-  costActionOk (ExchangeLife parties) = costNounOk parties
+  costActionOk (Exchange what) = exchangedCostOk what
   costActionOk (ChangeLife _ _) = True
   costActionOk (AddMana who _ _ _) = costNounOk who
   costActionOk (Draw _ _) = True
@@ -1815,9 +1864,7 @@ mutual
                  (afterMoveTo to (moveIntro Nothing what (Just (zoneSort to))))
                  Nothing
                  ([])
-  instrProfile (ExchangeLife parties) =
-    sameIntro (nomIntro parties)
-              ([outcomeB LifeGained, outcomeB LifeLost])
+  instrProfile (Exchange what) = sameIntro (exchangedIntro what) (exchangedDeed what)
   instrProfile (ChangeLife who (LifeUp a)) = sameIntro (lifeIntro (LifeUp a)) [outcomeB LifeGained]
   instrProfile (ChangeLife who (LifeDown a)) = sameIntro (lifeIntro (LifeDown a)) [outcomeB LifeLost]
   instrProfile (ChangeLife who (Set a)) = sameIntro (lifeIntro (Set a)) []

@@ -2357,28 +2357,6 @@ lastCounterRemovedBy kind n who =
                {kn = Present {ok = sc}} {ag}
 
 public export
-0 ExchangeCtx : {bs : Bindings} -> (t : CardType) -> (other : Noun bs Object) ->
-                (0 one : nounPlur other = OneOf) -> (0 way : So (ascriptionOk t Nothing)) ->
-                Bindings
-ExchangeCtx t other one way =
-  annIntro (gainControl (controllerOf other) (AsType t This Nothing {way}) Nothing)
-
-public export
-exchangeControlOfThis : {bs : Bindings} -> (t : CardType) -> (other : Noun bs Object) ->
-                        {auto 0 one : nounPlur other = OneOf} ->
-                        {auto 0 way : So (ascriptionOk t Nothing)} ->
-                        {auto 0 pw : countReach (Word PermanentW) OneOf
-                                       (ExchangeCtx t other one way) = 1} ->
-                        {auto 0 zw : So (zoneIsB (zoneOfReach (Word PermanentW) OneOf
-                                          (ExchangeCtx t other one way)) Battlefield)} ->
-                        Instruction bs
-exchangeControlOfThis t other =
-  Simultaneously
-    [ gainControl (controllerOf other) (AsType t This Nothing {way}) Nothing
-    , gainControl (controllerOf (AsType t This Nothing {way}))
-                  (That PermanentW OneOf {ok = pw}) Nothing {zn = zw} ]
-
-public export
 choose : {k : Kind} -> (n : Noun bs k) ->
          {auto 0 ch : So (choiceClauseOk (the (Maybe (Noun bs Player)) Nothing) n)} ->
          Instruction bs

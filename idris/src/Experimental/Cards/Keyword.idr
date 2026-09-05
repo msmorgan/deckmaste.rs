@@ -1944,7 +1944,18 @@ amassZombiesTwo = Macros.amass "Zombie" 2
 ||| Avarice Totem
 avariceTotemExchange : Instruction []
 avariceTotemExchange =
-  Macros.exchangeControlOfThis Artifact (Macros.target (And [Permanent, Not Macros.land]))
+  Exchange (ControlOf Macros.thisArtifact
+                      (Macros.target (And [Permanent, Not Macros.land])))
+
+||| Arcanum Wings -- aura swap [CR#702.65a]
+public export
+arcanumWingsAuraSwap : Ability
+arcanumWingsAuraSwap =
+  Macros.activated (Mana [Macros.generic 2, Macros.pip Blue])
+    (Macros.may You
+       (Exchange (CardsAcross Macros.thisAura
+                    (Macros.a (And [HasSubtype (enchantmentType "Aura"),
+                                    InZone Macros.handZ])))))
 
 ||| Tovolar, Dire Overlord
 tovolarNightfall : Instruction []

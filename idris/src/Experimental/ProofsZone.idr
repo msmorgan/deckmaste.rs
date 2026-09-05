@@ -982,3 +982,57 @@ badAbilityMovedToAZone : Unspellable (Instruction []) (\ok =>
   Move (Macros.target (AbilityHead AnyActivated)) Macros.exileZ []
        {mk = ObjectMoves {nb = ok}})
 badAbilityMovedToAZone PayloadIsObject impossible
+
+||| "Exchange control of target artifact and target creature."
+public export
+okExchangeControlOnField : Instruction []
+okExchangeControlOnField =
+  Exchange (ControlOf (Macros.target Macros.artifact)
+                      (Macros.target Macros.creature))
+
+||| "Exchange control of target artifact and target creature card in your
+||| graveyard." A card that isn't a permanent or a spell has no controller
+||| [CR#108.4], so there is nothing to exchange [CR#701.12b].
+public export
+badExchangeControlInGraveyard : Unspellable (Instruction []) (\ok =>
+  Exchange (ControlOf (Macros.target Macros.artifact)
+                      (Macros.target (And [Macros.creature,
+                                           InZone (Macros.graveyardOf You)]))
+                      {bz = ok}))
+badExchangeControlInGraveyard Oh impossible
+
+||| "Exchange this Aura with an Aura card in your hand." (aura swap,
+||| [CR#702.65a])
+public export
+okExchangeCardsAcrossZones : Instruction []
+okExchangeCardsAcrossZones =
+  Exchange (CardsAcross Macros.thisAura
+              (Macros.a (And [HasSubtype (enchantmentType "Aura"),
+                              InZone Macros.handZ])))
+
+||| "Exchange a card in your hand with a card in your hand." Cards are
+||| exchanged with cards in a DIFFERENT zone [CR#701.12d].
+public export
+badExchangeCardsSameZone : Unspellable (Instruction []) (\ok =>
+  Exchange (CardsAcross (Macros.a (InZone Macros.handZ))
+                        (Macros.a (InZone Macros.handZ)) {dz = ok}))
+badExchangeCardsSameZone Oh impossible
+
+||| "Exchange your hand and graveyard."
+public export
+okExchangeTwoZones : Instruction []
+okExchangeTwoZones = Exchange (Zones Macros.handZ Macros.graveyardZ)
+
+||| "Exchange your hand and your hand." An exchange of two zones puts each
+||| zone's cards in the other zone [CR#701.12d,701.12f].
+public export
+badExchangeZoneWithItself : Unspellable (Instruction []) (\ok =>
+  Exchange (Zones Macros.handZ Macros.handZ {zs = ok}))
+badExchangeZoneWithItself Oh impossible
+
+||| "Exchange your hand and the battlefield." Only cards are exchanged between
+||| zones this way [CR#701.12d]; the battlefield holds permanents [CR#110.1].
+public export
+badExchangeBattlefieldZone : Unspellable (Instruction []) (\ok =>
+  Exchange (Zones Macros.handZ Macros.battlefieldZ {zs = ok}))
+badExchangeBattlefieldZone Oh impossible

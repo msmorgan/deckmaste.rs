@@ -273,18 +273,20 @@ badMultipliedNonTrigger Oh impossible
 ||| "Exchange life totals with target opponent."
 public export
 okExchangeTwoParties : Instruction []
-okExchangeTwoParties = ExchangeLife (Both You (Macros.target Opponent))
+okExchangeTwoParties = Exchange (LifeTotals (Both You (Macros.target Opponent)))
 
-||| "Exchange life totals with target opponent"
+||| "Exchange life totals with target opponent" with one party: the row states
+||| both halves at once, so an exchange that can't be completed in its entirety
+||| is unwritable rather than half-done [CR#701.12a,701.12c].
 public export
 badExchangeOneParty : Unspellable (Instruction []) (\ok =>
-  ExchangeLife (Macros.target Opponent) {tp = ok})
+  Exchange (LifeTotals (Macros.target Opponent) {tp = ok}))
 badExchangeOneParty Oh impossible
 
 ||| "You and your opponents exchange life totals."
 public export
 badExchangePluralParty : Unspellable (Instruction []) (\ok =>
-  ExchangeLife (Both You (PlayerGroup YourOpponents)) {tp = ok})
+  Exchange (LifeTotals (Both You (PlayerGroup YourOpponents)) {tp = ok}))
 badExchangePluralParty Oh impossible
 
 ||| "Whenever an opponent commits a crime, draw a card."

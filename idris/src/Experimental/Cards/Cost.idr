@@ -1076,7 +1076,7 @@ public export
 soulConduitExchange : Ability
 soulConduitExchange =
   Macros.activated (Compound [Mana [Macros.generic 6], TapSymbol])
-                   (ExchangeLife (Described (TargetDet (Macros.exactly 2)) AnyPlayer))
+                   (Exchange (LifeTotals (Described (TargetDet (Macros.exactly 2)) AnyPlayer)))
 
 ||| Death-Mask Duplicant
 public export

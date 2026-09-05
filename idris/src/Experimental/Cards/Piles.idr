@@ -246,6 +246,11 @@ lilianaOfTheVeil =
                                InPile (Macros.pileOfChoice They)])) ]) ]
        (Macros.loyaltyBox 3)
 
+||| Harness Infinity
+public export
+harnessInfinityExchange : Instruction []
+harnessInfinityExchange = Exchange (Zones Macros.handZ Macros.graveyardZ)
+
 public export
 countedAtRandomIsPlural : nounPlur Piles.twoCardsAtRandom = ManyOf
 countedAtRandomIsPlural = Refl

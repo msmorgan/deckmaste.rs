@@ -456,7 +456,7 @@ mirrorUniverse =
        (MkTypeLine [] [Artifact])
        [ Macros.activatedOnlyDuring
            (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
-           (ExchangeLife (Both You (Macros.target Opponent)))
+           (Exchange (LifeTotals (Both You (Macros.target Opponent))))
            (DuringPart Upkeep (Just You)) ]
        Nothing
 
