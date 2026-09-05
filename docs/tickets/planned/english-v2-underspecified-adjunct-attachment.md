@@ -102,3 +102,13 @@ residue for this item only.
 
 Standard constraints apply. Gate scope: `cargo test --workspace` (the device is
 a declaration-compiler field kind).
+
+2026-09-04 (OPEN items ruled, user-verified): Move S verification = identity
+erasure inside the affected region, tested in both failure directions; the
+distributive axis lives on the Determiner vocabulary; joint realizability of two
+mobiles is proven by a phase-1 test (fallback: pack per mobile, outermost first,
+as an amendment); the collapse runs at the root first and moves per-node only on
+a measured >~10% ns/B cost; the `AdmissibleSites` slot is always present; the
+shared-operator case is packed, not a fifth principle. Design:
+docs/memory/scratch/plan09-postmortem/b7-scope-device-design.md (gitignored);
+phases per its §G.2 — phases 1 and 3 never share a round.
