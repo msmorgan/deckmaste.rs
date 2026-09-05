@@ -656,7 +656,7 @@ fn emit_form_literal_surfaces(plan: &SemanticPlan) -> GeneratedItem {
 }
 
 fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
-    vec![
+    let mut types = vec![
         named_type(
             "VerbFrameRolePreposition",
             quote! {
@@ -792,6 +792,51 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                                         },
                                     )
                             }),
+                        }
+                    }
+                }
+            },
+        ),
+    ];
+    types.extend(emit_verb_frame_role_preemption_types());
+    types
+}
+
+fn emit_verb_frame_role_preemption_types() -> [GeneratedItem; 2] {
+    [
+        named_type(
+            "VerbFrameRolePreemption",
+            quote! {
+                pub(crate) struct VerbFrameRolePreemption {
+                    roles: &'static [VerbFrameRolePreposition],
+                    next: usize,
+                }
+            },
+        ),
+        impl_item(
+            None,
+            "VerbFrameRolePreemption",
+            quote! {
+                impl VerbFrameRolePreemption {
+                    pub(crate) const fn new(
+                        roles: &'static [VerbFrameRolePreposition],
+                    ) -> Self {
+                        Self { roles, next: 0 }
+                    }
+
+                    pub(crate) fn is_pending(
+                        &self,
+                        role: VerbFrameRolePreposition,
+                    ) -> bool {
+                        self.roles[self.next..].contains(&role)
+                    }
+
+                    pub(crate) fn fill(&mut self, role: VerbFrameRolePreposition) {
+                        if let Some(offset) = self.roles[self.next..]
+                            .iter()
+                            .position(|candidate| *candidate == role)
+                        {
+                            self.next += offset + 1;
                         }
                     }
                 }

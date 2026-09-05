@@ -3655,6 +3655,48 @@ fn frame_complement_preemption_removes_forge_devils_incoherent_bracketing() {
 }
 
 #[test]
+fn first_eligible_frame_role_preserves_later_same_preposition_postmodifier() {
+    let parser = parser();
+    let context = context();
+
+    for (text, objects_before_modifier) in [
+        (
+            "Put a spore counter on each creature on the battlefield.",
+            2,
+        ),
+        (
+            "Put a +1/+1 counter on each creature that has a +1/+1 counter on it.",
+            3,
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert!(analysis.selected().is_some(), "{text:?}: {analysis:#?}");
+        let decision = analysis.decision().expect("selected parse has a decision");
+        let selected = &decision.candidates()[decision
+            .selected()
+            .expect("selected decision identifies its candidate")];
+        let put_on = selected
+            .construction_path()
+            .iter()
+            .position(|construction| construction == "VerbPhrasePutOn")
+            .expect("the selected analysis uses the declared frame");
+        let governed = &selected.construction_path()[put_on + 1..];
+        let modifier = governed
+            .iter()
+            .position(|construction| construction.ends_with("PrepositionalQualifiedReference"))
+            .expect("the later phrase remains a Postmodifier");
+        assert_eq!(
+            governed[..modifier]
+                .iter()
+                .filter(|construction| *construction == "ObjectObjectNominal")
+                .count(),
+            objects_before_modifier,
+            "the first role marker must fill the frame before the later Postmodifier: {text:?}: {selected:#?}",
+        );
+    }
+}
+
+#[test]
 fn location_state_and_object_control_frames_select_exact_products() {
     let parser = parser();
     let context = context();

@@ -247,10 +247,21 @@ fn emit_arm_from_plan(
     }
     lower_feature_guards(plan, row, form, &mut lowering)?;
     lower_following_onset_constraints(form, &mut lowering);
+    if let Some(guard) = lower_ordered_role_preemption_guard(plan, row, form, &lowering)? {
+        lowering.guards.push(guard);
+    }
     for field in row.fields() {
         let Some((function, arguments)) = field.field_check() else {
             continue;
         };
+        if arguments.iter().any(|argument| {
+            matches!(
+                argument,
+                FieldCheckArgumentPlan::VerbFrameRolePrepositions { .. }
+            )
+        }) {
+            continue;
+        }
         let value = lowering
             .field_values
             .get(&field.name_key())
@@ -260,9 +271,12 @@ fn emit_arm_from_plan(
             plan,
             row,
             &lowering,
-            &field.name_key(),
-            &value,
-            field.is_zeroable(),
+            &CheckedFieldArgumentContext {
+                owner: &field.name_key(),
+                owner_value: &value,
+                zeroable_owner: field.is_zeroable(),
+                role_preemption: None,
+            },
             arguments,
         )?;
         let checked_value = if field.is_zeroable() {
@@ -437,13 +451,18 @@ fn lower_following_onset_constraints(form: &crate::semantic::FormPlan, lowering:
     lowering.output_following_onset = merged;
 }
 
+struct CheckedFieldArgumentContext<'a> {
+    owner: &'a str,
+    owner_value: &'a TokenStream,
+    zeroable_owner: bool,
+    role_preemption: Option<&'a TokenStream>,
+}
+
 fn lower_checked_field_arguments(
     plan: &SemanticPlan,
     row: &ConstructionPlan,
     lowering: &Lowering,
-    owner: &str,
-    owner_value: &TokenStream,
-    zeroable_owner: bool,
+    context: &CheckedFieldArgumentContext<'_>,
     arguments: &[FieldCheckArgumentPlan],
 ) -> syn::Result<Vec<TokenStream>> {
     arguments
@@ -453,8 +472,11 @@ fn lower_checked_field_arguments(
                 let FieldCheckArgumentPlan::VerbFrameRolePrepositions { role } = argument else {
                     unreachable!("sealed field-check argument changed variant")
                 };
-                let value = if role == owner {
-                    owner_value.clone()
+                if let Some(role_preemption) = context.role_preemption {
+                    return Ok(role_preemption.clone());
+                }
+                let value = if role == context.owner {
+                    context.owner_value.clone()
                 } else {
                     lowering
                         .field_values
@@ -475,17 +497,17 @@ fn lower_checked_field_arguments(
                 .map(local_feature_value)
             {
                 let value = resolved_feature_value_tokens(&value);
-                return Ok(if zeroable_owner && role == owner {
+                return Ok(if context.zeroable_owner && role == context.owner {
                     quote! { Some(#value) }
                 } else {
                     value
                 });
             }
-            if zeroable_owner && role == owner {
+            if context.zeroable_owner && role == context.owner {
                 return Ok(quote! { None });
             }
-            let value = if role == owner {
-                owner_value.clone()
+            let value = if role == context.owner {
+                context.owner_value.clone()
             } else {
                 lowering
                     .field_values
@@ -524,6 +546,221 @@ fn lower_checked_field_arguments(
             }
         })
         .collect()
+}
+
+fn lower_ordered_role_preemption_guard(
+    plan: &SemanticPlan,
+    row: &ConstructionPlan,
+    form: &crate::semantic::FormPlan,
+    lowering: &Lowering,
+) -> syn::Result<Option<TokenStream>> {
+    let checked_fields = row
+        .fields()
+        .iter()
+        .filter_map(|field| {
+            let (function, arguments) = field.field_check()?;
+            arguments
+                .iter()
+                .any(|argument| {
+                    matches!(
+                        argument,
+                        FieldCheckArgumentPlan::VerbFrameRolePrepositions { .. }
+                    )
+                })
+                .then_some((field, function, arguments))
+        })
+        .collect::<Vec<_>>();
+    if checked_fields.is_empty() {
+        return Ok(None);
+    }
+
+    let mut projection_sources = checked_fields.iter().flat_map(|(_, _, arguments)| {
+        arguments.iter().filter_map(|argument| match argument {
+            FieldCheckArgumentPlan::VerbFrameRolePrepositions { role } => Some(role.as_str()),
+            FieldCheckArgumentPlan::Feature { .. } => None,
+        })
+    });
+    let source_role = projection_sources
+        .next()
+        .ok_or_else(|| internal("ordered role preemption has no projection source"))?;
+    if projection_sources.any(|role| role != source_role) {
+        return Err(internal(
+            "ordered role preemption has multiple projection sources",
+        ));
+    }
+    let source_value = lowering
+        .field_values
+        .get(source_role)
+        .ok_or_else(|| internal("ordered role preemption source has no lowered value"))?;
+    let source = row.field(source_role)?;
+    let accessor = ident(&feature_helper(
+        "verb_frame_role_prepositions",
+        source.terminal(),
+    ));
+    let role_preemption = quote! { &mut role_preemption };
+    let mut operations = Vec::new();
+    let mut checked_roles = HashSet::new();
+
+    for atom in form.atoms() {
+        match atom.value_atom() {
+            AtomPlan::LexFixed {
+                terminal, variant, ..
+            } => {
+                let terminal = syn::LitStr::new(terminal, Span::call_site());
+                let variant = syn::LitStr::new(variant, Span::call_site());
+                operations.push(quote! {
+                    role_preemption.fill(VerbFrameRolePreposition::new(#terminal, #variant));
+                });
+            }
+            AtomPlan::Marked {
+                role,
+                terminal,
+                variant,
+                ..
+            } => {
+                let value = lowering
+                    .field_values
+                    .get(role)
+                    .ok_or_else(|| internal("marked role preemption field has no lowered value"))?;
+                let terminal = syn::LitStr::new(terminal, Span::call_site());
+                let variant = syn::LitStr::new(variant, Span::call_site());
+                let field = row.field(role)?;
+                if field.is_optional() || field.is_zeroable() {
+                    operations.push(quote! {
+                        if (#value).is_some() {
+                            role_preemption.fill(VerbFrameRolePreposition::new(#terminal, #variant));
+                        }
+                    });
+                } else {
+                    operations.push(quote! {
+                        role_preemption.fill(VerbFrameRolePreposition::new(#terminal, #variant));
+                    });
+                }
+                if let Some(operation) =
+                    lower_ordered_role_field_check(plan, row, lowering, role, &role_preemption)?
+                {
+                    operations.push(operation);
+                    checked_roles.insert(role.clone());
+                }
+            }
+            AtomPlan::Lex { role, terminal } => {
+                let value = lowering.field_values.get(role).ok_or_else(|| {
+                    internal("lexical role preemption field has no lowered value")
+                })?;
+                let field = row.field(role)?;
+                if plan.terminal_has_feature(terminal, Feature::PrepositionComplementKind) {
+                    let helper = ident(&feature_helper("verb_frame_role_preposition", terminal));
+                    if field.is_optional() || field.is_zeroable() {
+                        operations.push(quote! {
+                            if let Some(value) = (#value).as_ref() {
+                                role_preemption.fill(#helper(*value));
+                            }
+                        });
+                    } else {
+                        operations.push(quote! {
+                            role_preemption.fill(#helper(#value));
+                        });
+                    }
+                }
+                if let Some(operation) =
+                    lower_ordered_role_field_check(plan, row, lowering, role, &role_preemption)?
+                {
+                    operations.push(operation);
+                    checked_roles.insert(role.clone());
+                }
+            }
+            AtomPlan::Category { role, .. }
+            | AtomPlan::Identity { role, .. }
+            | AtomPlan::Noun { role, .. } => {
+                if let Some(operation) =
+                    lower_ordered_role_field_check(plan, row, lowering, role, &role_preemption)?
+                {
+                    operations.push(operation);
+                    checked_roles.insert(role.clone());
+                }
+            }
+            AtomPlan::Literal(_)
+            | AtomPlan::SentenceInitialLiteral(_)
+            | AtomPlan::StructuralLiteral(_)
+            | AtomPlan::VerbFixed { .. }
+            | AtomPlan::OpenDeclaration(_)
+            | AtomPlan::Bound { .. }
+            | AtomPlan::Circumfix { .. } => {}
+        }
+    }
+
+    if checked_fields
+        .iter()
+        .any(|(field, _, _)| !checked_roles.contains(&field.name_key()))
+    {
+        return Err(internal(
+            "ordered role preemption field is absent from its form",
+        ));
+    }
+
+    Ok(Some(quote! {
+        {
+            let mut role_preemption = VerbFrameRolePreemption::new(
+                #accessor(&#source_value)
+            );
+            let mut accepted = true;
+            #(#operations)*
+            accepted
+        }
+    }))
+}
+
+fn lower_ordered_role_field_check(
+    plan: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+    role: &str,
+    role_preemption: &TokenStream,
+) -> syn::Result<Option<TokenStream>> {
+    let field = row.field(role)?;
+    let Some((function, arguments)) = field.field_check() else {
+        return Ok(None);
+    };
+    if !arguments.iter().any(|argument| {
+        matches!(
+            argument,
+            FieldCheckArgumentPlan::VerbFrameRolePrepositions { .. }
+        )
+    }) {
+        return Ok(None);
+    }
+    let value = lowering
+        .field_values
+        .get(role)
+        .cloned()
+        .ok_or_else(|| internal("ordered role preemption field has no lowered value"))?;
+    let arguments = lower_checked_field_arguments(
+        plan,
+        row,
+        lowering,
+        &CheckedFieldArgumentContext {
+            owner: role,
+            owner_value: &value,
+            zeroable_owner: field.is_zeroable(),
+            role_preemption: Some(role_preemption),
+        },
+        arguments,
+    )?;
+    let checked_value = if field.is_zeroable() {
+        quote! { (#value).as_ref() }
+    } else {
+        quote! { &#value }
+    };
+    let check = if field.is_optional() {
+        quote! {
+            (#value).as_ref().as_ref().map_or(true, |checked| {
+                #function(checked, #(#arguments),*)
+            })
+        }
+    } else {
+        quote! { #function(#checked_value, #(#arguments),*) }
+    };
+    Ok(Some(quote! { accepted = accepted && #check; }))
 }
 
 fn emit_product_arm(
@@ -4506,9 +4743,19 @@ mod tests {
             source
                 .matches("verb_frame_role_prepositions_for_framed_verb (& head . clone ())",)
                 .count(),
-            2,
-            "each governed field reads the same generated accessor: {source}",
+            1,
+            "the governed fields share one ordered role state: {source}",
         );
+        let direct_object_check = source
+            .find("accepts_role_prepositions (& direct_object . clone () , & mut role_preemption)")
+            .expect("the object is checked before the selected role");
+        let selected_role = source
+            .find("role_preemption . fill (VerbFrameRolePreposition :: new (\"Relation\" , \"Selected\"))")
+            .expect("the selected role advances the ordered state");
+        let complement_check = source
+            .find("accepts_role_prepositions (& object . clone () , & mut role_preemption)")
+            .expect("the complement is checked after the selected role");
+        assert!(direct_object_check < selected_role && selected_role < complement_check);
     }
 
     #[test]

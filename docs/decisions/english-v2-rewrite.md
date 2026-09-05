@@ -1375,6 +1375,11 @@ no `from`) attaches it to the noun. Absence of an optional role still
 satisfies its predicate. Frame-role wrapper constructions that exist only
 to spell a preposition (`SourcePhrase`, `ControlPhrase`) are dissolved.
 
+Amended 2026-09-04: each declared role is filled by exactly the first eligible
+Prepositional Phrase after the object in linear order, so preemption removes only
+that candidate and preserves later same-preposition Postmodifiers inside governed
+material.
+
 ## Ruling: adjunct licences removed; attachment misselection is a recorded class (2026-09-03)
 
 Verb valence rows carry no adjunct licence. A temporal, manner, or locative

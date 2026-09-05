@@ -5196,11 +5196,19 @@ fn nominal_preposition_is_licensed(
 
 trait GovernedMaterial {
     fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V);
+
+    fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
+        None
+    }
 }
 
 impl<T: GovernedMaterial + ?Sized> GovernedMaterial for &T {
     fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
         (*self).walk_governed(visitor);
+    }
+
+    fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
+        (*self).leading_role_preposition()
     }
 }
 
@@ -5220,6 +5228,10 @@ impl GovernedMaterial for PrepositionalPhrase {
     fn walk_governed<V: Visitor + ?Sized>(&self, visitor: &mut V) {
         walk_prepositional_phrase(visitor, self);
     }
+
+    fn leading_role_preposition(&self) -> Option<VerbFrameRolePreposition> {
+        Some(role_preposition_for_phrase(self))
+    }
 }
 
 impl GovernedMaterial for PredicativeComplement {
@@ -5236,29 +5248,29 @@ impl GovernedMaterial for ScalarEquality {
 
 fn governed_material_has_no_selected_role_postmodifier<T: GovernedMaterial + ?Sized>(
     material: &T,
-    selected: &[VerbFrameRolePreposition],
+    role_preemption: &mut VerbFrameRolePreemption,
 ) -> bool {
-    let mut right_edge = RightEdgePostmodifier::default();
-    material.walk_governed(&mut right_edge);
-    right_edge
-        .preposition
-        .is_none_or(|preposition| !selected.contains(&preposition))
-}
-
-#[derive(Default)]
-struct RightEdgePostmodifier {
-    preposition: Option<VerbFrameRolePreposition>,
-}
-
-impl Visitor for RightEdgePostmodifier {
-    fn enter_leaf(&mut self, _terminal: &'static str) {
-        self.preposition = None;
+    if let Some(preposition) = material.leading_role_preposition() {
+        role_preemption.fill(preposition);
     }
+    let mut visitor = PendingRolePostmodifier {
+        role_preemption,
+        found: false,
+    };
+    material.walk_governed(&mut visitor);
+    !visitor.found
+}
 
+struct PendingRolePostmodifier<'a> {
+    role_preemption: &'a VerbFrameRolePreemption,
+    found: bool,
+}
+
+impl Visitor for PendingRolePostmodifier<'_> {
     fn visit_postmodified_reference(&mut self, reference: &PostmodifiedReference) {
         walk_postmodified_reference(self, reference);
         if let Some(preposition) = right_edge_postmodifier_preposition(reference) {
-            self.preposition = Some(preposition);
+            self.found |= self.role_preemption.is_pending(preposition);
         }
     }
 }

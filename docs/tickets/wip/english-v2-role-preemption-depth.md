@@ -63,163 +63,196 @@ bracketing here, and minted by `english-v2-frame-complement-coordination`.
 
 Standard constraints apply.
 
-## Landing record (2026-09-04 — STOP)
+## Landing record
 
-Measured on feature change `mzputsyo` after `kata refresh`, atop claim change
-`slqupuzy`. The refresh completed without a conflict. Implementation and the
-refreshed-tree gate run were performed from 20:12:59 to 21:27:12 PDT.
+Measured on feature changes `mzputsyo` and `ozmvzwnw` after `kata refresh`,
+atop refreshed claim change `slqupuzy`. The refresh completed without a
+conflict and preserved the adjacent phase-1 `mobile` field work.
+Implementation, ruling refinement, refreshed-tree gates, and corpus audit ran
+from 20:12:59 to 22:17:04 PDT; the resumed ruling work began at 21:31:23 PDT.
 
-The implementation is the requested structural elimination. A checked field
-argument can project the selected declaration verb's generated role-preposition
-accessor; generation derives that accessor exhaustively from the frame's typed
-and optional typed role atoms. One `GovernedMaterial` traversal applies the
-same checker to a frame's object and selected Complements. The checker follows
-the `PostmodifiedReference` structure and rejects a right-peripheral
-Postmodifier when its preposition occurs in the frame accessor. No
-per-preposition table, per-Complement-kind table, dominance edge, selection
-exception, narrowed form, or word-naming guard was added.
+The 2026-09-04 coordinator ruling resolves the prior STOP. The generated
+Verb-Frame accessor supplies one declaration-ordered role slice. Generated
+construction lowering creates one ordered preemption state and passes it
+through the object and every selected Complement in form order. A
+`PostmodifiedReference` traversal rejects a role-matching Postmodifier only
+while that role is pending; the first eligible phrase fills the role, and later
+same-preposition Postmodifiers remain available. This is one structural
+elimination over the frame declaration. No preposition, verb, lexeme,
+Construction, card, or Complement kind is named by a checker or `require`; no
+per-preposition or per-Complement-kind table, dominance edge, exception,
+narrowed form, or census gate was added.
 
 ### Refreshed-tree numbers
 
-- Coverage: 17,601 -> 17,600 selected and covered identities; ordinary parse
-  failures 15,040 -> 15,041; selected-uncovered identities remain 0. Report
-  mode printed `no longer covered 1 corpus identity` and named
-  `84d4266094836935360ad9e25a5c2acdeddaec5e84c7c2efbf77143096b85602`,
-  Thelon of Havenwood. There are no newly covered identities. The lock delta
-  is therefore +0/-1. Because the loss is a STOP below, `--bless` was not run
-  and the checked-in lock remains at 17,601 identities.
-- Selection census: 32,641 total; selected 17,601 -> 17,600; unique 13,759 ->
-  13,776; specificity-resolved 3,842 -> 3,824; parse failures 15,040 ->
-  15,041. Exception-resolved selections, exception uses, unresolved ties and
-  internal failures remain 0. A reflink copy of the exact parent tree under
-  `~/Dump/english-v2-role-preemption-depth-parent` was verified against
-  `jj file show -r @-`; its complete 32,641-row ambiguity JSON was compared
-  with the refreshed tree by status, selected construction path, resolution
-  and candidate count.
+- Coverage: 17,601 -> 17,599 selected and covered identities; ordinary parse
+  failures 15,040 -> 15,042; selected-uncovered identities remain 0. Report
+  mode printed `no longer covered 2 corpus identities`, naming Trygon Prime
+  (`0ac2cee119a90b4568326faa52079b2cb81dc732ac34114a739978f1abb13110`)
+  and Sumala Sentry
+  (`31b2e614a3addb70d8fe7733e1c1bdb67b07c18245bcd72b7b0a56ca29308bcc`).
+  There are no newly covered identities. The lock delta is +0/-2, and report
+  mode blessed the lock to exactly 17,599 identities.
+- Selection census: 32,641 total; selected 17,601 -> 17,599; unique 13,759 ->
+  13,784; specificity-resolved 3,842 -> 3,815; parse failures 15,040 ->
+  15,042. Exception-resolved selections, exception uses, unresolved ties, and
+  internal failures remain 0. The exact parent was recreated as a reflink
+  probe under `~/Dump/english-v2-role-preemption-depth-parent`; the complete
+  parent and feature JSON reports were compared by identity, status, selected
+  construction path, resolution, and candidate count.
+- Fifty-seven identities changed census state and 128 candidate derivations
+  were eliminated. Twenty-five specificity decisions became unique, 11
+  selected construction paths changed, and two selected identities became
+  explained parse failures. No identity was gained and no genuine two-reading
+  tie appeared.
 - Construction declarations remain 387. Licensed vocabulary/lexicon
   homographs remain 2; form-literal/vocabulary overlaps remain 9. Licensing
-  checkers are 20 permitted and 0 forbidden. Round trip is 17,600 clean of
-  17,600 accepted, with 0 mismatches.
-- Coverage provenance remains internally clean: 0 unresolved ties, internal
-  failures, exception resolutions, round-trip mismatches, ownership failures,
-  gap spans, overlap spans, traversal failures, synthetic claims, or
-  provenance-plan mismatches.
+  checkers remain 20 permitted and 0 forbidden. Coverage provenance has 0
+  round-trip mismatches, ownership failures, gap spans, overlap spans,
+  traversal failures, synthetic claims, or provenance-plan mismatches.
 
-### Per-preposition selection delta
+### Selection audit
 
-`from`: 13 identities affected and 17 candidates eliminated.
+The per-preposition census is `from`: 37 identities / 56 eliminated
+derivations; `on`: 20 identities / 72 eliminated derivations. No other
+declared role preposition changed a corpus decision.
 
-- Specificity -> unique with the selected frame-source analysis unchanged:
-  Druidic Ritual, Edgewall Inn, Eivor, Wolf-Kissed, Michelangelo, Improviser,
-  Pull from the Deep, Reconstruct History, Restoration Specialist, Retrieve,
-  Shreds of Sanity, and Sudden Reclamation.
-- Selected analysis and resolution unchanged while losing only competing
-  Postmodifier derivations: Rise from the Wreck and Sandman, Shifting
-  Scoundrel.
-- Mantle of the Ancients changes selected construction path. The parent
-  selected a full-Noun-Phrase coordination in which `from your graveyard`
-  occurred inside one coordinated arm; the measured tree selects the
-  shared-head `Aura and/or Equipment cards` Nominal and realizes `from your
-  graveyard` as the Return frame's source. This is the correct analysis and is
-  decided by principle (ii).
+Forty-four winners keep the identical selected construction path. The
+following 25 change from specificity-resolved to unique because principle
+(ii) removes only competing role-as-Postmodifier derivations: Tempered
+Veteran; Belbe's Portal; Dueling Coach; Twisted Spider-Clone; Lockjaw Snapper;
+Restoration Specialist; Sudden Reclamation; Druidic Ritual; Oran-Rief Ooze;
+Michelangelo, Improviser; Patron of the Valiant; Bloodline Bidding; Tasigur,
+the Golden Fang; Creeping Renaissance; Edgewall Inn; Thelon of Havenwood;
+Pull from the Deep; Reconstruct History; Retrieve; Mausoleum Turnkey; Shreds
+of Sanity; Dawn-Blessed Pennant; Aphetto Dredging; Eivor, Wolf-Kissed; and
+Lifecrafter's Gift.
 
-`on`: 18 identities affected and 73 candidates eliminated.
+The following 19 keep both their selected construction path and a
+specificity resolution while losing only competing derivations, again
+decided by principle (ii): Bone Harvest; All Suns' Dawn; Patriarch's Bidding;
+Grave Sifter; Rogues' Gallery; Gravepurge; Oblivion Sower; Sandman, Shifting
+Scoundrel; Iname, Life Aspect; Rise from the Wreck; Slurrk, All-Ingesting;
+Through the Forest Gate; Frantic Salvage; Last March of the Ents; Forever
+Young; Ghalta, Stampede Tyrant; Drafna's Restoration; Nissa, Genesis Mage;
+and Footbottom Feast.
 
-- Specificity -> unique with the selected frame-destination analysis
-  unchanged: Dueling Coach, Lifecrafter's Gift, Lockjaw Snapper, Oran-Rief
-  Ooze, Patron of the Valiant, Tempered Veteran, and Twisted Spider-Clone.
-- Selected analysis and resolution unchanged while losing only competing
-  Postmodifier derivations: Ajani, the Greathearted; Brokers Ascendancy;
-  Evolutionary Escalation; Filigree Vector; Juniper Order Ranger; River
-  Heralds' Boon; Serrated Biskelion; Stand Together; and X-23, Deadly Weapon.
-- Slurrk, All-Ingesting changes selected construction path to a wrong
-  bracketing: the parent has `put [a +1/+1 counter] on [each creature you
-  control that has [a +1/+1 counter on it]]`; the measured tree instead has
-  `put [a +1/+1 counter on each creature you control that has a +1/+1
-  counter] on [it]`. The first `on` is no longer right-peripheral to the new
-  object, so the literal rule preserves this derivation and makes the final
-  `on it` the frame destination. This is an `other` selection change and a
-  STOP.
-- Thelon of Havenwood loses its only correct selected analysis. The parent has
-  `put [a spore counter] on [each Fungus on the battlefield]`: the first `on`
-  realizes the frame destination and the second genuinely postmodifies
-  `each Fungus`. Because both have the frame-declared preposition, the
-  governed-Complement widening eliminates the second and leaves no complete
-  derivation. This is not the absent-role case from the original depth pin and
-  not argument-cluster Coordination. It has no authorized live-ticket route,
-  so it is an `other` loss and a STOP.
+Eleven selected construction paths change, all decided by the coordinator's
+linear-order refinement:
 
-The explicit witnesses behave as pinned. `Return target creature card from
-your graveyard to your hand.` and the nested wrapper witness select the Return
-frame's source uniquely; `Destroy target creature card from your graveyard.`
-retains its noun Postmodifier uniquely. Forge Devil's `It deals 1 damage to
-target creature and 1 damage to you.` has no derivation: the incoherent
-bracketing is eliminated, and re-coverage is explicitly owed to
+- Evolutionary Escalation; X-23, Deadly Weapon; Ajani, the Greathearted;
+  Stand Together; Serrated Biskelion; Filigree Vector; Juniper Order Ranger;
+  Brokers Ascendancy; and River Heralds' Boon move from an object coordination
+  whose first `on` was a Postmodifier to a frame analysis in which the first
+  `on` fills the destination role. The later `on` remains a Postmodifier in
+  the destination coordination, exactly as the amendment requires.
+- Rise // Fall (Rise) moves from
+  `return [target creature card from a graveyard and target creature on the battlefield] to [...]`
+  to
+  `return [target creature card] from [a graveyard and target creature on the battlefield] to [...]`:
+  the first eligible `from` fills the declared source, while the later `on`
+  remains a Postmodifier.
+- Mantle of the Ancients moves from a full-Noun-Phrase coordination in which
+  `from your graveyard` occurred inside one coordinated arm to the
+  shared-head `Aura and/or Equipment cards` Nominal with `from your
+  graveyard` filling Return's source role. This is the intended analysis.
+
+The two losses are explained and routed by name to
+`english-v2-frame-complement-coordination`:
+
+- Trygon Prime previously selected
+  `put [a +1/+1 counter on it and a +1/+1 counter] on [up to one other target attacking creature]`.
+  Removing that incoherent object/Postmodifier bracketing leaves no derivation
+  until frame-Complement coordination lands.
+- Sumala Sentry previously selected
+  `put [a +1/+1 counter on it and a +1/+1 counter] on [this creature]`.
+  Removing the same incoherent bracketing leaves no derivation until the same
+  named ticket lands.
+
+The prior 31-identity `from`/`on` census is re-derived: Thelon of Havenwood
+and Slurrk, All-Ingesting change back to their correct parent selections under
+the first-eligible refinement; all other 29 remain affected. Thelon selects
+`put [a spore counter] on [each Fungus on the battlefield]`, with the first
+`on` filling the destination and the later `on` Postmodifying `each
+Fungus`. Slurrk selects
+`put [a counter] on [each creature that has a counter on it]` with the same
+role-then-later-Postmodifier order. The 26 additional all-depth census
+identities are Trygon Prime; Belbe's Portal; Bone Harvest; Sumala Sentry; All
+Suns' Dawn; Patriarch's Bidding; Grave Sifter; Rogues' Gallery; Rise // Fall
+(Rise); Gravepurge; Bloodline Bidding; Oblivion Sower; Tasigur, the Golden
+Fang; Creeping Renaissance; Iname, Life Aspect; Through the Forest Gate;
+Frantic Salvage; Last March of the Ents; Forever Young; Ghalta, Stampede
+Tyrant; Drafna's Restoration; Mausoleum Turnkey; Nissa, Genesis Mage;
+Dawn-Blessed Pennant; Footbottom Feast; and Aphetto Dredging. The two named
+losses are explained above; every other additional identity keeps coverage
+and is decided by principle (ii).
+
+The explicit witnesses satisfy the ruling. `Return target creature card from
+your graveyard to your hand.` assigns `from` to the frame source;
+`Destroy target creature card from your graveyard.` retains the noun
+Postmodifier. Forge Devil's
+`It deals 1 damage to target creature and 1 damage to you.` still has no
+derivation: its incoherent second-complement-as-Postmodifier bracketing is
+removed, and re-coverage is explicitly owed to
 `english-v2-frame-complement-coordination`.
 
 ### Positive gate artifacts
 
-- `cargo fmt --all` exited 0. Strict all-target Clippy for both touched crates
-  finished successfully with `-D warnings`.
-- `cargo test --workspace` exited 0. Representative suite lines were
-  `test result: ok. 406 passed; 0 failed; 0 ignored` for construction core,
-  `test result: ok. 108 passed; 0 failed; 0 ignored` for the predicate grammar,
-  `test result: ok. 753 passed; 0 failed; 1 ignored` for the engine suite, and
-  `test result: ok. 454 passed; 0 failed; 1 ignored` for xtask; all remaining
-  unit and doc-test suites likewise reported `ok` with 0 failures.
-- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
-  --workers 8` exited 0 and printed 17,600 selected/covered, 15,041 parse
-  failures, and 0 unresolved ties, internal failures, round-trip mismatches,
-  ownership failures, gaps, overlaps, or forbidden checkers, followed by the
-  +0/-1 delta above.
-- `cargo xtask english_v2 ambiguity --require-resolved --workers 8 --json`
-  exited 0 with the selection census above. The corresponding parent command
-  also exited 0 with 17,601 selected and 0 ties.
-- `cargo xtask english_v2 roundtrip --require-clean --workers 8` exited 0 and
-  printed `parse accepted 17600`, `clean 17600`, `mismatched 0`, and
-  `not parse accepted 15041`.
-- No citation-bearing source changed, so the cite gates were not in scope.
+- `cargo fmt --all` exited 0. Strict all-target Clippy for both touched
+  crates finished with
+  `Finished dev profile [unoptimized + debuginfo] target(s) in 25.06s`
+  under `-D warnings`.
+- `CARGO_BUILD_JOBS=8 cargo test --workspace` exited 0. Representative
+  artifacts include
+  `test result: ok. 753 passed; 0 failed; 1 ignored`,
+  `test result: ok. 76 passed; 0 failed; 0 ignored`,
+  `test result: ok. 459 passed; 0 failed; 1 ignored`, and
+  `test result: ok. 2 passed; 0 failed; 0 ignored`; every remaining unit,
+  integration, compile-fail, and doc-test suite likewise reported `ok` with
+  0 failures.
+- `DECKMASTE_COVERAGE_LOCK=report CARGO_BUILD_JOBS=8 cargo xtask english_v2
+  coverage --check --workers 8` exited 0 with 17,599 selected/covered,
+  15,042 parse failures, and 0 unresolved ties, internal failures,
+  round-trip mismatches, ownership failures, gaps, overlaps, or forbidden
+  checkers. It printed `no longer covered 2 corpus identities` followed by
+  the two exact identities above. The corresponding `--bless` exited 0,
+  reproduced the +0/-2 delta, and wrote the exact 17,599-identity lock.
+- `CARGO_BUILD_JOBS=8 cargo xtask english_v2 ambiguity --require-resolved
+  --workers 8 --json` exited 0 with 17,599 selected, 13,784 unique, 3,815
+  specificity-resolved, 15,042 parse failures, and 0 unresolved ties. The
+  matching parent probe exited 0 with 17,601 selected, 13,759 unique, 3,842
+  specificity-resolved, 15,040 parse failures, and 0 ties.
+- `CARGO_BUILD_JOBS=8 cargo xtask english_v2 roundtrip --require-clean
+  --workers 8` exited 0 and printed `parse accepted 17599`, `clean 17599`,
+  `mismatched 0`, and `not parse accepted 15042`.
+- No citation-bearing source or CR citation changed, so the cite gates were
+  not in scope.
 
 Performance advisory, all with 8 workers and the 16.26 s quiet-host ceiling:
-coverage took 201.009839162 s at 229,734 integer ns/B under host load
-25.56/32.04/31.58; ambiguity took 127.690250344 s at 156,202 ns/B under load
-19.00/21.63/26.73; round trip took 119.560442710 s at 158,661 ns/B under load
-21.49/18.92/23.21. All exceeded the ceiling under reported host contention.
-The sandbox cannot observe sibling processes, so the concurrent-process count
-is unavailable and remains for the reviewer to stamp.
+coverage check took 117.164080649 s at 155,187 integer ns/B under host load
+14.82/16.34/16.41; coverage bless took 114.416800719 s at 139,065 ns/B under
+load 20.28/16.69/16.42; ambiguity took 113.156324917 s at 129,770 ns/B under
+load 11.49/14.97/15.85; round trip took 201.689381154 s at 227,530 ns/B under
+load 26.81/25.48/19.91. Each exceeded the advisory ceiling under reported
+host contention. The sandbox cannot observe sibling processes, so the
+concurrent-process count is unavailable for the reviewer to stamp.
 
-### Deviations, additions and assurance
+### Deviations, additions, assurance, and STOP disposition
 
 - No grammar Construction was added or deleted. The generated-accessor seam
   required minimal construction-core changes in `model.rs`, `parse.rs`,
   `semantic.rs`, `validate.rs`, `emit/build.rs`, `emit/runtime.rs`, and
-  `emit/terminal.rs`. In particular, a checked argument can name the generated
-  frame-role projection, and a checker on an optional category runs only when
-  the field is present. These overlap the concurrently running phase-1 field
-  work in `parse.rs`, `semantic.rs`, and `validate.rs`; the refresh found no
+  `emit/terminal.rs`. A checked argument can name the generated frame-role
+  projection, an optional checked category runs only when present, and the
+  emitter orders all uses through one role state. This overlaps the phase-1
+  field-kind files only at that seam; refresh preserved both changes without
   conflict.
-- Assurance counts: restored 0; re-spelled 1 existing witness test
-  (`declared_optional_source_preempts_the_same_noun_postmodifier_derivation`)
-  to cover the nested wrapper and selected construction path; ignored with
-  blockers 0; added 5 tests
-  (`parses_checked_verb_frame_role_preposition_projection`,
-  `checked_field_reads_declared_verb_frame_role_prepositions`,
-  `checked_optional_category_calls_the_guard_only_when_present`,
-  `verb_frame_role_preposition_projection_requires_a_declared_verb_frame`,
-  `frame_complement_preemption_removes_forge_devils_incoherent_bracketing`);
-  removed 0.
+- Assurance counts: restored 0; re-spelled 1 existing Return witness; ignored
+  with blockers 0; added 6 tests (parse projection, generated accessor/order,
+  optional checker, invalid projection, Forge Devil elimination, and repeated
+  same-preposition preservation); removed 0.
+- Deviations and additions beyond the ticket letter: none.
 - Glossary gap: right-peripheral.
 - Glossary gap: bracketing.
-
-### STOP and decision wanted
-
-Thelon of Havenwood's correct loss and Slurrk, All-Ingesting's wrong selected
-analysis demonstrate that principle (ii), as widened to every selected
-Complement's interior without regard to an already-realized role, contradicts
-correct English. Both are direct consequences of the required general rule;
-an exception, named guard, per-preposition special case, or narrowed form would
-violate this ticket's fences. The implementation, tests and record are
-committed for review, but the coverage lock is deliberately not blessed and
-this change must not be integrated without a coordinator ruling that revises
-the principle or explicitly supplies a structural distinction for repeated
-same-preposition material.
+- The prior STOP is resolved by the dated coordinator amendment recorded in
+  the rewrite ADR. Current STOPs: none. Decisions wanted: none.
