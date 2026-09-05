@@ -30,9 +30,12 @@ Standard constraints apply.
 
 ## Landing record
 
-Measured on feature change `mkvwwvzuwytwyrrupsokssqqvomvqktx` after the
-required `kata refresh`, against refreshed parent change
-`vxlqpmnknkpwtqqomqrypsrvlkosrkxo`. The source fingerprint on both reports is
+Measured on feature change `mkvwwvzuwytwyrrupsokssqqvomvqktx` against parent
+change `vxlqpmnknkpwtqqomqrypsrvlkosrkxo`. Every figure below was re-measured by
+the landing reviewer after a second `kata refresh` onto the default line that
+now carries the colorless-vocabulary landing; the implementer's pre-refresh
+figures (parent 19,198 covered, +94) are superseded and are restated in
+`### Review corrections`. The source fingerprint on both reports is
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`.
 
 ### PROVE
@@ -96,15 +99,15 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 - `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
-  --workers 8` exited 0 and reported: `newly covered 94 corpus identities`;
-  19,292 selected and covered, 13,349 parse failures, and zero selected-uncovered
+  --workers 8` exited 0 and reported: `newly covered 95 corpus identities`;
+  19,564 selected and covered, 13,077 parse failures, and zero selected-uncovered
   units, unresolved ties, internal failures, exception uses, round-trip
   mismatches, ownership failures, traversal failures, gaps, overlaps, synthetic
   claims, and provenance-plan mismatches. The following `--bless` wrote exactly
   that covered set.
 - `cargo xtask english_v2 ambiguity --json --require-resolved --workers 8`
   exited 0 with 0 unresolved ties. `cargo xtask english_v2 roundtrip
-  --require-clean --workers 8` exited 0 with 19,292 accepted, 19,292 clean, and
+  --require-clean --workers 8` exited 0 with 19,564 accepted, 19,564 clean, and
   0 mismatched.
 - No citation-bearing source changed, so no citation gate or lock operation was
   required.
@@ -114,29 +117,31 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 | measure | refreshed parent | measured tree |
 | --- | ---: | ---: |
 | corpus units | 32,641 | 32,641 |
-| selected and covered | 19,198 | 19,292 |
-| ordinary parse failures | 13,443 | 13,349 |
-| unique selections | 15,056 | 15,137 |
-| specificity-resolved selections | 4,142 | 4,155 |
+| selected and covered | 19,469 | 19,564 |
+| ordinary parse failures | 13,172 | 13,077 |
+| unique selections | 15,271 | 15,353 |
+| specificity-resolved selections | 4,198 | 4,211 |
 | unresolved ties | 0 | 0 |
 | construction declarations | 393 | 394 |
 | licensing checkers permitted / forbidden | 21 / 0 | 21 / 0 |
-| coverage-lock identities | 19,198 | 19,292 |
+| coverage-lock identities | 19,469 | 19,564 |
 
-The report-mode lock delta is exactly +94/-0 identities. The lock moved from
-51,848 lines and SHA-256
-`a2eca6150014da8fbd2349f501e80e4b62e6eaa511b471352bcaafd84bf64d3b`
-to 51,942 lines and SHA-256
-`690f7a8876c654c466b683b622caffbf64dc6c2a9d9e3d1bbda06f1c55b9ca6c`.
+The report-mode lock delta is exactly +95/-0 identities. The lock moved from
+52,119 lines and SHA-256
+`2e5687ade92519966717ab650929aa4bfbef2b8d16ed4267dafc842fca9f9b34`
+to 52,214 lines and SHA-256
+`87170db56144824a4a7703b4511dccd5dbfcc4e741290692ff087c5c11fd3d0a`.
 No identity stopped being covered, so no retirement or re-coverage obligation
 is owed.
 
-The refreshed-parent and measured-tree ambiguity JSON reports were diffed by
-identity. Exactly 94 parse failures became selected: 81 unique and 13
-specificity-resolved. There are 0 losses and 0 changed selected paths among
-previously selected identities. In the gained analysis, the qualified
-frequency member directly contains the existing Duration Predicate Adjunct for
-87 identities and the existing temporal Prepositional Predicate Adjunct for 7.
+The parent and measured-tree ambiguity JSON reports were diffed by identity.
+Exactly 95 parse failures became selected: 82 unique and 13
+specificity-resolved. There are 0 losses, 0 changed selected paths and 0
+changed resolution kinds among previously selected identities. Every one of the
+95 gained analyses contains `PredicateAdjunctQualifiedFrequencyPredicateAdjunct`,
+whose complement is the existing Duration Predicate Adjunct for 88 identities
+and the existing temporal Prepositional Predicate Adjunct for 7; no gain reaches
+the member through any other complement category.
 Every gained selected analysis was read; all are the intended positive oracle,
 and none is wrong or negative. This per-identity list is corpus provenance, not
 grammar authority:
@@ -165,6 +170,7 @@ grammar authority:
 - **Cutthroat Contender** (e55a1fce962a0f61a53af95166d520e59cad7fe28e885d0a7144035eab94cff9): selected analysis "Pay 1 life: This creature gets +1/+0 until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
 - **Dai Li Censor** (bcc8d54fa625a9ff4a2b346fa5e7b65ede101ec5d6fc536f45cb456a949d1f18): selected analysis "{1}, Sacrifice another creature: This creature gets +2/+2 until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
 - **Danitha, New Benalia's Light** (9a82687b15b3aa674cef23a68be18b21cb06f6e4e28406440633c176943744db): selected analysis "Vigilance, trample, lifelink\nOnce during each of your turns, you may cast an Aura or Equipment spell from your graveyard."; specificity, qualified frequency > temporal prepositional.
+- **Darksteel Monolith** (eb9e6d45a2937a4e1e666be8f2d6921ccd1abeb7b7124e3713b71c3e153b0cd3): selected analysis "Indestructible\nOnce each turn, you may pay {0} rather than pay the mana cost for a colorless spell you cast from your hand."; unique, qualified frequency > duration. Gained only on the reviewer's refreshed tree: it needs both this member and the colorless color property that landed on the default line meanwhile.
 - **Darkthicket Wolf** (e4b7c7de662a6aa94d59b55199d81a83f734ecf16b7d2c582884838570daa4f9): selected analysis "{2}{G}: This creature gets +2/+2 until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
 - **Desolation Prowler** (4c12472d920c30c76c34453f76ab1dc8c82b89427642c9453eb03a4dad075531): selected analysis "Pay 2 life: This creature gets +2/+2 until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
 - **Dire Wolf Prowler** (e2d001b8cb02e1e75d3d715b92593c97a7d91d7fa5788bf86557dd9f6dc8490b): selected analysis "{1}{G}: This creature gets +2/+2 and gains haste until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
@@ -236,6 +242,24 @@ grammar authority:
 - **Wolfsbane, Highland Hero** (50119e021758c372d7278441c12c8c88274a941817adf07dd878bf6366047e45): selected analysis "Trample\n{2}{G}: Wolfsbane gets +2/+2 until end of turn. Activate only once each turn."; unique, qualified frequency > duration.
 - **Zaffai and the Tempests** (362f187fd3e5f038e2cde743560bfe7a8740c1e018d5fdc99d796144fcb0b20a): selected analysis "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost."; specificity, qualified frequency > temporal prepositional.
 
+Block accounting for the census family this ticket inherited. The
+`english-v2-tail-restrictive-focus-adverb` landing routed a 101-unit
+`only once each turn` block here; the tail-family register re-measured the same
+family at 79 units on 2026-09-05. Of the 95 gains, 84 carry
+`only once each turn`, 7 carry `Once during each of your turns`, and 4 carry a
+sentence-initial `Once each turn,`. 278 corpus units print
+`only once each turn`; 194 of them still fail, and exactly 20 of those fail
+INSIDE the frequency phrase: 18 are the `Do this only once each turn.` shape and
+2 are a coordinated focus tail (`… and only once each turn`, on Nature's Chosen
+and Sawback Manticore). The 18 are blocked independently of this family —
+`Do this.` on its own is a parse failure at its final period, so what they wait
+on is the pro-verb predicate, not the frequency adverbial. The remaining 174
+fail earlier, elsewhere in the unit. `twice each turn` prints on 8 units, all
+still failing outside the phrase; its unit witness `Draw a card twice each
+turn.` selects. The comparative `FrequencyReference` shapes are untouched:
+`more than once` selects on the same 10 units and fails on the same 13 before
+and after.
+
 ### REPORT
 
 The canonical `cargo xtask english_v2 report` construction count is 393 ->
@@ -251,13 +275,21 @@ beside `CommonNoun::Target`. The nine form-literal/vocabulary overlaps are:
 fitted to. Licensing checkers remain 21 permitted and 0 forbidden; no checker
 names a word, lexeme, construction, or card.
 
-Performance advisory, all at 8 workers: coverage `--check` took 113.095 s at
-139,494 ns/B under host load 14.14/15.98/14.07; ambiguity took 107.062 s at
-123,283 ns/B under load 7.15/11.19/12.53; roundtrip took 101.941 s at 125,171
-ns/B under load 8.56/10.57/12.09. Each exceeded the 16.260 s quiet-host ceiling
-under load and is advisory, not a STOP. The sandbox-visible post-gate process
-count was 4; sibling-executor contention is not visible and remains for the
-reviewer to stamp.
+Performance advisory, all at 8 workers on the reviewer's refreshed tree:
+coverage `--check` took 129 s (128,826 ms) at 159,997 ns/B under 1-minute host
+load 15; the following `--bless` took 117 s (116,579 ms) at 122,305 ns/B under
+load 19; ambiguity took 131 s (130,820 ms) at 149,321 ns/B under load 17;
+roundtrip took 183 s (183,190 ms) at 224,129 ns/B under load 16. Each exceeded
+the 16,260 ms quiet-host ceiling under load and is advisory, not a STOP. The
+per-byte figures are thread-CPU, so they scale with the contention rather than
+with this diff: the one added construction cannot account for them.
+
+Contention stamp (reviewer): three sibling executors held live claims during
+these gates — `english-v2-scope-device-collapse`,
+`english-v2-bare-duration-adjunct-licence` and
+`english-v2-affinity-quality-surface` — plus this review's own gate run, four
+concurrent workloads on the shared host. The implementer's sandbox-visible
+count of 4 processes measures nothing about that.
 
 Assurance census: restored 0; re-spelled 0; ignored with blockers 0; added 1
 test function; removed 0. The one added test function carries four positive
@@ -277,6 +309,54 @@ STOPs: none. The ticket and the 2026-09-04/05 rewrite rulings agree; there is no
 selection tie, wrong or negative newly covered analysis, loss, roundtrip
 mismatch, or prohibited guard.
 
-glossary gap: none.
+glossary gap: **Frequency Adverb**. `docs/contexts/oracle-english/CONTEXT.md`
+defines Adverb, Adverb Phrase, Focus Adverb and Adjunct, but no frequency term,
+so the category this landing's member is headed by — and the qualified
+frequency adverbial itself — have no glossary entry. The vocabulary predates
+this landing, so no entry was added here; naming it is owed to whichever ticket
+next amends that glossary.
 
 decision wanted: none.
+
+### Review corrections
+
+Landing review (Opus reviewer/integrator), applied in this workspace after a
+second `kata refresh` onto the default line carrying the colorless-vocabulary
+landing.
+
+- MEDIUM — the record's whole measurement was stamped on the pre-refresh
+  parent (19,198 covered, +94, lock 51,942 lines). The refresh moved every
+  corpus figure. Fix: re-ran the full gates on the refreshed tree and replaced
+  the PROVE artifacts, the DISCLOSE table, the lock delta, and the ambiguity
+  diff paragraph with the re-measured numbers (parent 19,469 → tree 19,564,
+  +95/-0). The gain count rose by one because Darksteel Monolith needs this
+  member *and* the colorless color property; that identity was added to the
+  per-identity list and the lock was re-blessed to include it.
+- MEDIUM — every wall-time figure was written with a three-digit fractional
+  part (the coverage, ambiguity, roundtrip and ceiling seconds), the shape the
+  cite checker reads as a rule number and the shape that has failed three
+  landings. Fix: all times are integers with units.
+- MEDIUM — the record left the contention stamp to the reviewer and the
+  inherited `only once each turn` block unaccounted. Fix: the true contention
+  is stamped in the performance advisory, and DISCLOSE now carries the block
+  accounting, including that the 18 residual `Do this only once each turn.`
+  units are blocked by the pro-verb predicate (`Do this.` fails alone), not by
+  this family.
+- LOW — `glossary gap: none` was wrong: Oracle English defines no Frequency
+  Adverb. Fix: the gap is recorded.
+- Verified and NOT changed: the new member is one construction over the
+  existing `PredicateAdjunct` sum — the same complement category
+  `focused_predicate_adjunct` already takes — with no new temporal category and
+  no form literal spelling `turn`; its single `require` reads the complement's
+  declared `focus` feature and names nothing lexical. The
+  `Activate` test fixture change matches
+  `plugins/builtin_v2/macros/stubs/keyword_actions/Activate.ron` exactly, so it
+  is an alignment, not a fixture fitted to the witness. Assurance counts are
+  true against the diff (added 1, removed 0). Reading the whole gain set
+  identity by identity confirmed all 95 select through the qualified member on
+  a Duration or temporal Prepositional complement; none is a negative oracle.
+
+Residue routed at review: the 18-unit `Do this only once each turn.` shape and
+the 2-unit coordinated `… and only once each turn` tail are recorded in the
+tail-family register's routed-residue note in `docs/tickets/fog.md`; neither is
+owed to this ticket.

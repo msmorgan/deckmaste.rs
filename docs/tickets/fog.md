@@ -179,7 +179,7 @@ Families at >= 15 units:
 | sentence-initial `Otherwise,` | 84 | STRUCTURAL | UNOWNED |
 | `amount of X equal to Y` | 83 | STRUCTURAL | UNOWNED |
 | `win` | 77 | LEXICAL | batched |
-| `Activate only once each turn.` | 79 | STRUCTURAL | `english-v2-frequency-adverbial-family` |
+| `Do this only once each turn.` | 18 | STRUCTURAL | UNOWNED — residue of `english-v2-frequency-adverbial-family` (landed 2026-09-05); blocked by the pro-verb predicate, not the frequency adverbial: `Do this.` fails on its own |
 | `the greatest X` (superlative measure) | 76 | unresolved | UNOWNED |
 | `This ability triggers only once` | 74 | STRUCTURAL | UNOWNED (the frequency ticket does not quote this shape) |
 | `Affinity for X` | 73 | STRUCTURAL | `english-v2-affinity-quality-surface` |
@@ -217,6 +217,12 @@ selecting; `named` had zero units under this key and was dropped.
 
 Routed residue: `vocab Color` is misnamed ([CR#105.4]) — `english-v2-rename-color-vocabulary`,
 not folded into the lexical batch because its replacement name is unpinned.
+The `only … each turn` family landed 2026-09-05 as
+`english-v2-frequency-adverbial-family` (95 units gained, measured on change
+`mkvwwvzuwytw`, lock `covered` 19,564); what remains of it is the 18-unit
+`Do this only once each turn.` row above and a 2-unit coordinated focus tail
+(`… and only once each turn`, Nature's Chosen and Sawback Manticore), both
+UNOWNED.
 Coordination families generally: v1's coordination modules are a phenomenon
 checklist, never code or vocabulary to import.
 
