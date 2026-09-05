@@ -114,6 +114,7 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 
 ## Gate scope for compiler changes
 
+- `cargo test --workspace` excludes `slow-tests`; CI's full job runs `cargo test -p deckmaste_tui --features slow-tests`.
 - Any diff touching `crates/deckmaste_construction_core/src/emit/` (or the
   emitter↔environment contract the generated code relies on), any declaration
   data under `plugins/builtin_v2/` (keyword-action stubs, catalog rows), or

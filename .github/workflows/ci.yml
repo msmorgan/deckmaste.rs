@@ -124,6 +124,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: test
         run: cargo test --workspace
+      - name: slow TUI simulation test
+        run: cargo test -p deckmaste_tui --features slow-tests
       # Exercise the data-driven WC99 strategy gate with its fixed seed. The
       # 50-game matchup in the same test target is ignored and stays opt-in.
       - name: noncanon WC99 fixed-seed gate

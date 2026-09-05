@@ -322,6 +322,7 @@ mod tests {
     /// exercises the continuous-effect carrier (engine-static-scope-carrier)
     /// that used to panic every layer rebuild — so this finishing at all is the
     /// demo's real proof of life.
+    #[cfg(feature = "slow-tests")]
     #[test]
     #[cfg_attr(
         not(wizards_corpus),
