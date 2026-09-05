@@ -1310,7 +1310,7 @@ def eventAgentOk (bs : Bindings) : Option NounPhrase → Bool
 
 def attackableKind : Kind → HeadTy → Bool
   | .player, _ => true
-  | .object, .sole t => featureAltOk .attacking .patient (optCT t)
+  | .object, .sole t => deedAltOk (.core .attack) .patient (optCT t)
   | .join a b, .join l r => attackableKind a l && attackableKind b r
   | .join a b, .sole t => attackableKind a (.sole t) && attackableKind b (.sole t)
   | _, _ => false
@@ -1400,21 +1400,18 @@ def NounPhrase.discardOk (bs : Bindings) : NounPhrase → Bool
   | .this => true
   | n => NounPhrase.zone bs n == some .hand
 
-def deedNounOk (bs : Bindings) (v : VerbLabel) (r : Role) (n : NounPhrase) : Bool :=
+def deedNounOk (bs : Bindings) (v : Deed) (r : Role) (n : NounPhrase) : Bool :=
   match NounPhrase.headTys bs n with
   | [] => n.det.isNone && deedBareOk v r
   | ts => deedHeadTysOk v r ts
 
-def featureNounOk (bs : Bindings) (f : DeedFeature) (r : Role) (n : NounPhrase) : Bool :=
-  (featureLabel f).elim false fun v => deedNounOk bs v r n
-
 /-- Who declares an attack: the active player [CR#508.1] or a creature they control
-[CR#508.1a]. The deed table's agent role decides which kinds attack, the `attacking` feature
-keeps the object reading's type gate, and an object attacker is a battlefield permanent:
-`attackableKind`'s counterpart on the declaring side. -/
+[CR#508.1a]. The attack deed's agent role decides which kinds attack and keeps the object
+reading's type gate, and an object attacker is a battlefield permanent: `attackableKind`'s
+counterpart on the declaring side. -/
 def NounPhrase.attackerOk (bs : Bindings) (n : NounPhrase) : Bool :=
   let k := n.kindOr .object
-  featureKindOk .attacking .agent k && featureNounOk bs .attacking .agent n &&
+  deedKindOk (.core .attack) .agent k && deedNounOk bs (.core .attack) .agent n &&
     combatPartyKind k (NounPhrase.zone bs n)
 
 /-! ## Agents, choices, and the stacks they leave -/
@@ -1603,24 +1600,24 @@ def atLeastTwoCs : List Condition → Bool
 
 /-! ## Moving a binding -/
 
-def setZone (p : Option VerbLabel) (z : Option Zone) (b : Binding) : Binding :=
+def setZone (p : Option Deed) (z : Option Zone) (b : Binding) : Binding :=
   match b.payload with
   | .object ty oldZn _ og sz =>
     { b with payload := .object ty z (mkStamp p oldZn (oldZn != z)) og sz }
   | .pile _ sz fc => { b with payload := .pile z sz fc }
   | _ => b
 
-def setZoneHead (p : Option VerbLabel) (z : Option Zone) : Bindings → Bindings
+def setZoneHead (p : Option Deed) (z : Option Zone) : Bindings → Bindings
   | [] => []
   | b :: bs => setZone p z b :: bs
 
-def setZoneReach (r : Reach) (pl : Plurality) (p : Option VerbLabel) (z : Option Zone) :
+def setZoneReach (r : Reach) (pl : Plurality) (p : Option Deed) (z : Option Zone) :
     Bindings → Bindings
   | [] => []
   | b :: bs => if reaches r pl b then setZone p z b :: bs else b :: setZoneReach r pl p z bs
 
 /-- The stack after `n` moves to `z` under verb `p`, Idris `moveIntro`. -/
-def moveIntro (bs : Bindings) (p : Option VerbLabel) (n : NounPhrase) (z : Option Zone) : Bindings :=
+def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zone) : Bindings :=
   match n with
   | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .oneEachOf _ _ | .pileOf _ _ =>
     setZoneHead p z (nomIntro bs n)
@@ -1659,7 +1656,7 @@ def moveIntro (bs : Bindings) (p : Option VerbLabel) (n : NounPhrase) (z : Optio
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
 termination_by structural n
 
-def stampIntro (bs : Bindings) (p : Option VerbLabel) (n : NounPhrase) : Bindings :=
+def stampIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) : Bindings :=
   moveIntro bs p n (NounPhrase.zone bs n)
 
 end Semantics

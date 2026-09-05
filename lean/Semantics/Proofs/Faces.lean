@@ -84,7 +84,7 @@ theorem badCastWindowAsDeonticStatic :
           text :=
             [ .static
                 (.onlyDuring .declareAttackers none
-                  (deontic .this .permit ["Cast"] .patient .noPatient)),
+                  (deontic .this .permit [.action "Cast"] .patient .noPatient)),
               .spell none (draw .you (.lit 1)) ] }) = [.cardText] := by
   decide
 
@@ -315,7 +315,8 @@ theorem badKindredAlone :
 theorem okEnchantedCreatureCantAttack :
     Ability.check []
       (.static
-        (deontic (.attachHost .enchanted (.type .creature)) .forbid ["Attack"] .agent .noPatient))
+        (deontic (.attachHost .enchanted (.type .creature)) .forbid [.core .attack] .agent
+          .noPatient))
       = [] := by
   decide
 
@@ -324,7 +325,7 @@ attack [CR#205.1b], and the restriction is created even while it is not one [CR#
 theorem okPlaneswalkerAttacks :
     Ability.check []
       (.static
-        (deontic (.attachHost .enchanted (.type .planeswalker)) .forbid ["Attack"] .agent
+        (deontic (.attachHost .enchanted (.type .planeswalker)) .forbid [.core .attack] .agent
           .noPatient)) = [] := by
   decide
 
@@ -782,7 +783,7 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Instruction.check []
       (.sequentially
-        [ .enact (some (each .opponent)) "Shuffle" (.shuffle they),
+        [ .enact (some (each .opponent)) (.action "Shuffle") (.shuffle they),
           .changeLife (those .player) (.down (.lit 1)) ]) = [] := by
   decide
 

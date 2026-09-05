@@ -250,13 +250,13 @@ def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
   | _ => none
 
 /-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
-def enactLibraryOwnerOk (v : VerbLabel) (e : Instruction) : Bool :=
+def enactLibraryOwnerOk (v : Deed) (e : Instruction) : Bool :=
   !actOpponentsLibrary v || e.lookedLibraryOwner.elim true NounPhrase.opponentOnly
 
 /-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
 battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
 The Idris carried this on each verb's macro. -/
-def enactPatientZoneOk (bs : Bindings) (v : VerbLabel) (e : Instruction) : Bool :=
+def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
   match e.enactPatient with
   | none => true
   | some .this => true
@@ -276,7 +276,7 @@ def Amount.forEach : Amount → Bool
 
 /-- An enacted act names a subject only where the act's facts row gives its agent role a
 player, the way `verbedVoiceOk` gates a verbed event. -/
-def enactAgentOk : Option NounPhrase → VerbLabel → Bool
+def enactAgentOk : Option NounPhrase → Deed → Bool
   | none, _ => true
   | some _, v => deedKindOk v .agent .player
 
@@ -834,7 +834,7 @@ def ifDoneArmed : Option Instruction → Option Instruction → Bool
 
 /-- Idris `doesProfile` over the enacted clause's own profile `ep`, so the block below stays
 structural. -/
-def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : VerbLabel) (e : Instruction)
+def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : Deed) (e : Instruction)
     (ep : InstrProfile) : InstrProfile :=
   let bs' := agentIntro bs s
   match pl, e with
@@ -1050,7 +1050,7 @@ mutual
     | .becomesCopy n _ _ => selfSubjIntro bs n
     | .losesAllAbilities n _ => selfSubjIntro bs n
     | .losesAbilities n _ => selfSubjIntro bs n
-    | .gainsControl who what => stampIntro (nomIntro bs who) (featureLabel .controlGrant) what
+    | .gainsControl who what => stampIntro (nomIntro bs who) (some (.core .gainControl)) what
     | .intercepts ev alts _ _ _ _ => interceptCtx bs alts ev
     | .damageRule _ src scope op _ => op.intro (scope.intro (src.intro bs))
     | .cantPrevent _ what _ => what.intro bs

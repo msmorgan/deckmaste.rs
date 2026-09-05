@@ -19,12 +19,13 @@ inductive EventName where
   | chapterArrival | abilityActivation | statValueChange | flipWin | flipLoss
   | coinFlip | diceRoll | costPayment | costNonpayment | lifePayment | becomesTarget
   | damageDealing
-  | verbedAct (verb : VerbLabel)
+  | verbedAct (verb : Deed)
   | stateMatch | abilityTrigger | crimeCommission | tappedForMana
   deriving DecidableEq, Repr
 
-/-- The verbs a deontic rule ranges over ("can't attack or block"). -/
-abbrev Deeds := List VerbLabel
+/-- The deeds a deontic rule ranges over ("can't attack or block"): each is a core rules deed,
+a declared keyword action, or the verb a keyword ability defines. -/
+abbrev Deeds := List Deed
 
 inductive CounterMove where
   | put | removed

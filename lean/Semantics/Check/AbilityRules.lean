@@ -175,10 +175,10 @@ mutual
     | .fights a b =>
       let bs' := nomIntro bs a
       NounPhrase.check (some .object) bs a ++ zoneIsCheck (NounPhrase.zone bs a) .battlefield ++
-        refuse (featureNounOk bs .attacking .agent a) (.featureNounOk .attacking) ++
+        refuse (deedNounOk bs (.core .attack) .agent a) (.deedNounOk (.core .attack)) ++
         refuse a.plur.isOne .singular ++ NounPhrase.check (some .object) bs' b ++
         zoneIsCheck (NounPhrase.zone bs' b) .battlefield ++
-        refuse (featureNounOk bs' .attacking .agent b) (.featureNounOk .attacking) ++
+        refuse (deedNounOk bs' (.core .attack) .agent b) (.deedNounOk (.core .attack)) ++
         refuse b.plur.isOne .singular
     | .setStatus v n =>
       let k := n.kindOr .object
@@ -195,18 +195,18 @@ mutual
     | .becomesBlocking n what =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (featureNounOk bs .blocking .agent n) (.featureNounOk .blocking) ++
+        refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
         NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
-        refuse (featureNounOk bs' .blocking .patient what) (.featureNounOk .blocking)
+        refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block))
     | .stopsBlocking n what =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (featureNounOk bs .blocking .agent n) (.featureNounOk .blocking) ++
+        refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
         NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
-        refuse (featureNounOk bs' .blocking .patient what) (.featureNounOk .blocking)
+        refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block))
     | .becomesAttacking n whom =>
       NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (featureNounOk bs .attacking .agent n) (.featureNounOk .attacking) ++
+        refuse (deedNounOk bs (.core .attack) .agent n) (.deedNounOk (.core .attack)) ++
         AttackDefender.check (nomIntro bs n) whom
     | .regenerate n => NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .cantBe e deed what =>

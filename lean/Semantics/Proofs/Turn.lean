@@ -91,31 +91,31 @@ theorem badDeadCreatureRead :
 theorem okVerbedDiscardedCard :
     Ability.check []
       (act (.perform (discard .you (a (.inZone hand))))
-        (move (theVerbed "Discard" .card .attributive .one) battlefield)) = [] := by
+        (move (theVerbed (.action "Discard") .card .attributive .one) battlefield)) = [] := by
   decide
 
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badVerbedWrongVerb :
     Ability.check []
       (act (.perform (discard .you (a (.inZone hand))))
-        (move (theVerbed "Sacrifice" .card .attributive .one) battlefield))
-      = [.anaphor (.verbed "Sacrifice" .card .attributive) .one 0] := by
+        (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
+      = [.anaphor (.verbed (.action "Sacrifice") .card .attributive) .one 0] := by
   decide
 
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
 theorem badVerbedWrongNoun :
     Ability.check []
       (act (.perform (sacrifice .you (a artifact)))
-        (move (theVerbed "Sacrifice" (.type .creature) .attributive .one) battlefield))
-      = [.anaphor (.verbed "Sacrifice" (.type .creature) .attributive) .one 0] := by
+        (move (theVerbed (.action "Sacrifice") (.type .creature) .attributive .one) battlefield))
+      = [.anaphor (.verbed (.action "Sacrifice") (.type .creature) .attributive) .one 0] := by
   decide
 
 theorem badVerbedAmbig :
     Ability.check []
       (act
         (.compound [.perform (sacrifice .you (a creature)), .perform (sacrifice .you (a creature))])
-        (move (theVerbed "Sacrifice" .card .attributive .one) battlefield))
-      = [.anaphor (.verbed "Sacrifice" .card .attributive) .one 2] := by
+        (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
+      = [.anaphor (.verbed (.action "Sacrifice") .card .attributive) .one 2] := by
   decide
 
 theorem badBareCardRead :
@@ -338,20 +338,22 @@ theorem badAdditionalTurn :
 
 /-- "Spells with the chosen name can't be cast." -/
 theorem okCastSpellClass :
-    StaticSpec.check [qualityB .cardName] (objectCant "Cast" (allOf (.and [spell, .named .chosen])))
+    StaticSpec.check [qualityB .cardName]
+      (objectCant (.action "Cast") (allOf (.and [spell, .named .chosen])))
       = [] := by
   decide
 
 /-- "Spells with the chosen name can't be activated." -/
 theorem badActivatedSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (objectCant "Activate" (allOf (.and [spell, .named .chosen]))) = [.deedFits] := by
+      (objectCant (.action "Activate") (allOf (.and [spell, .named .chosen]))) = [.deedFits] := by
   decide
 
 /-- "Activated abilities of artifacts can't be cast." -/
 theorem badCastAbilityClass :
     StaticSpec.check []
-      (objectCant "Cast" (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf artifact)])))
+      (objectCant (.action "Cast")
+        (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf artifact)])))
       = [.deedFits] := by
   decide
 
@@ -359,14 +361,16 @@ theorem badCastAbilityClass :
 when every arm does, so the deed's ability role is met [CR#113.1c]. -/
 theorem okAbilityDisjunctionActivated :
     StaticSpec.check []
-      (objectCant "Activate" (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered])))
+      (objectCant (.action "Activate")
+        (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered])))
       = [] := by
   decide
 
 /-- "Activated abilities and creatures can't be activated.": one arm is no ability, so the
 disjunction seeds none, and the arms do not parallel each other either. -/
 theorem badMixedDisjunctionActivated :
-    StaticSpec.check [] (objectCant "Activate" (allOf (.or [.abilityHead .anyActivated, creature])))
+    StaticSpec.check []
+      (objectCant (.action "Activate") (allOf (.or [.abilityHead .anyActivated, creature])))
       = [.parallelDisjuncts, .deedFits] := by
   decide
 

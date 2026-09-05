@@ -140,15 +140,12 @@ def Role.counter : Role → Role
   | .agent => .patient
   | .patient => .agent
 
-def deedRoleOf (v : VerbLabel) : Role → DeedRole
-  | .agent => (actFactsFor v).elim noRole (·.agentRole)
-  | .patient => (actFactsFor v).elim noRole (·.patientRole)
+def deedRoleOf (v : Deed) : Role → DeedRole
+  | .agent => (deedFacts v).elim noRole (·.agentRole)
+  | .patient => (deedFacts v).elim noRole (·.patientRole)
 
-def deedKindOk (v : VerbLabel) (r : Role) (k : Kind) : Bool :=
+def deedKindOk (v : Deed) (r : Role) (k : Kind) : Bool :=
   (deedRoleOf v r).sort.elim false (·.domain.admits k)
-
-def featureKindOk (f : DeedFeature) (r : Role) (k : Kind) : Bool :=
-  (featureLabel f).elim false fun v => deedKindOk v r k
 
 /-- An effect can make a permanent of any type a creature that is still its other types
 [CR#205.1b], and an effect written on a noncreature permanent is created even while it isn't
@@ -158,30 +155,29 @@ def deedAnimatedOk (dr : DeedRole) : Role → CardType → Bool
   | .agent, t => dr.types.elem .creature && t.permanent
   | .patient, _ => false
 
-def deedTypeOk (v : VerbLabel) (r : Role) (t : CardType) : Bool :=
+def deedTypeOk (v : Deed) (r : Role) (t : CardType) : Bool :=
   (deedRoleOf v r).types.elem t || deedAnimatedOk (deedRoleOf v r) r t
 
-def deedBareOk (v : VerbLabel) (r : Role) : Bool := (deedRoleOf v r).bare
+def deedBareOk (v : Deed) (r : Role) : Bool := (deedRoleOf v r).bare
 
-def deedAltOk (v : VerbLabel) (r : Role) : List CardType → Bool
+def deedAltOk (v : Deed) (r : Role) : List CardType → Bool
   | [] => deedBareOk v r
   | ts => ts.any (deedTypeOk v r)
 
-def deedHeadTysOk (v : VerbLabel) (r : Role) : List (List CardType) → Bool
+def deedHeadTysOk (v : Deed) (r : Role) : List (List CardType) → Bool
   | [] => deedBareOk v r
   | alts => alts.all (deedAltOk v r)
 
-def featureAltOk (f : DeedFeature) (r : Role) (ts : List CardType) : Bool :=
-  (featureLabel f).elim false (fun v => deedAltOk v r ts)
-
-def deedZoneOf (v : VerbLabel) (r : Role) : Option Zone := (deedRoleOf v r).zone
-def deedDefendsOk (v : VerbLabel) : Bool := deedFeatureOf v == some .attacking
-def deedTargetedOk (v : VerbLabel) : Bool := deedFeatureOf v == some .targeting
-def deedPremiseSort (v : VerbLabel) : Option PremiseSort := actFactsFor v >>= (·.counterfactual)
-def deedPremiseOk (s : PremiseSort) (v : VerbLabel) : Bool := deedPremiseSort v == some s
-def deedRidesOk (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.rides)
-def deedPlaysOk (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.plays)
-def deedBoundedOk (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.bounded)
+def deedZoneOf (v : Deed) (r : Role) : Option Zone := (deedRoleOf v r).zone
+/-- The deed a defender is declared against: attacking, the turn-based action [CR#508.1b]. -/
+def deedDefendsOk (v : Deed) : Bool := v == .core .attack
+/-- The deed that makes an object a target [CR#115.1]. -/
+def deedTargetedOk (v : Deed) : Bool := v == .core .target
+def deedPremiseSort (v : Deed) : Option PremiseSort := deedFacts v >>= (·.counterfactual)
+def deedPremiseOk (s : PremiseSort) (v : Deed) : Bool := deedPremiseSort v == some s
+def deedRidesOk (v : Deed) : Bool := (deedFacts v).elim false (·.rides)
+def deedPlaysOk (v : Deed) : Bool := (deedFacts v).elim false (·.plays)
+def deedBoundedOk (v : Deed) : Bool := (deedFacts v).elim false (·.bounded)
 
 def knownActs (ds : Deeds) : Bool := ds.all knownAct
 
@@ -196,7 +192,7 @@ and nothing else, so they take an ability and nothing else; a role whose classes
 `.ability` alongside another class, as Counter's and Copy's patients do [CR#113.9], takes either.
 Classes other than `.ability` are declared but not yet checked against the noun beyond this
 ability/non-ability split (the zone field carries permanent-ness today). -/
-def deedClassOk (v : VerbLabel) (r : Role) (ab : Bool) : Bool :=
+def deedClassOk (v : Deed) (r : Role) (ab : Bool) : Bool :=
   let classes := (deedRoleOf v r).sort.elim [] (·.classes)
   if classes.isEmpty then !ab
   else if ab then classes.elem .ability

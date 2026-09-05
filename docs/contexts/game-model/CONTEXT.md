@@ -167,7 +167,24 @@ grouped by the relevant observer.
 **Keyword Action**:
 One of the specialized verbs whose meaning a game rule supplies rather than
 ordinary English ([CR#701.1]). A Keyword Action names something done; a Keyword
-Ability names a quality an Object has.
+Ability names a quality an Object has. The set is open: a set release adds one,
+so a Keyword Action is named by its declared label, never by a constructor.
+
+**Deed**:
+Something a card's text says is done, from one of exactly three sources: the
+core rules (a Core Deed), a Keyword Action ([CR#701.1]), or the verb a Keyword
+Ability defines for itself — crewing, saddling, phasing in
+([CR#702.122b,702.171a,702.26a]). Deed is what a rule about "what is done"
+ranges over ("can't attack or block"); Action is the wider notion that also
+covers what the game does with no text naming it.
+_Avoid_: verb for the whole union — a verb is the word, a Deed is what it names
+
+**Core Deed**:
+A Deed the core rules define outside [CR#701.1]: attacking and blocking as
+Turn-Based Actions ([CR#508.1,509.1]), unlocking and fully unlocking a Room's
+door ([CR#709.5f,709.5i]), and drawing, targeting, copying, spending and the
+rest, each defined in its own rules section. The set is closed — no set release
+adds one — so a rule may match a Core Deed structurally instead of by name.
 
 **Special Action**:
 An Action a Player may take while they have priority that does not use the stack

@@ -27,7 +27,7 @@ theorem badCostReadsSiblingDeed :
       (act
         (.compound
           [ .perform (sacrifice .you (a creature)),
-            .perform (exile (theVerbed "Sacrifice" .card .attributive .one)) ])
+            .perform (exile (theVerbed (.action "Sacrifice") .card .attributive .one)) ])
         (draw .you (.lit 1))) = [.costAction] := by
   decide
 
@@ -342,7 +342,7 @@ theorem okSharedSubjectDelta :
   decide
 
 theorem badSharedSubjectEmptyDelta :
-    NounPhrase.check (some .object) [] (ownSubject (itVerbed "Untap"))
+    NounPhrase.check (some .object) [] (ownSubject (itVerbed (.action "Untap")))
       = [.anaphor .bare .one 0] := by
   decide
 

@@ -121,7 +121,7 @@ theorem okFightLand :
 /-- "Target permanent fights target creature." [CR#701.14a] -/
 theorem badFightPermanent :
     Instruction.check [] (.fights (target permanent) (target creature))
-      = [.featureNounOk .attacking] := by
+      = [.deedNounOk (.core .attack)] := by
   decide
 
 /-- "This deals 3 damage to target creature." -/

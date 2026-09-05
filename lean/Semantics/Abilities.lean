@@ -77,7 +77,7 @@ inductive CountBound where
   deriving Repr, BEq
 
 structure DeedComplement where
-  deed : VerbLabel
+  deed : Deed
   counterpart : NounPhrase
   deriving Repr, BEq
 
@@ -335,7 +335,8 @@ mutual
     | stopsBlocking (subject : NounPhrase) (blocked : NounPhrase)
     | becomesAttacking (subject : NounPhrase) (defender : Option NounPhrase)
     | regenerate (subject : NounPhrase)
-    | cantBe (instruction : Instruction) (deed : VerbLabel) (subject : NounPhrase)
+    /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
+    | cantBe (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
     | gainsDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (conferral : Conferral) (duration : Option Duration)
     | unlock (door : Door)
@@ -385,7 +386,9 @@ mutual
         (destination : NounPhrase)
     | doubleCounters (on : NounPhrase)
     | losesCounters (player : NounPhrase) (kind : Option CounterKindSource) (amount : Option Amount)
-    | enact (agent : Option NounPhrase) (verb : VerbLabel) (instruction : Instruction)
+    /-- A named deed done: the deed's own facts row gates the agent, the patient and the zones
+    the sentence may name, whichever of the three sources defines it. -/
+    | enact (agent : Option NounPhrase) (verb : Deed) (instruction : Instruction)
     | controllerSacrifices (subject : NounPhrase)
     | pay (player : NounPhrase) (cost : Cost) (times : PayTimes)
     | may (player : NounPhrase) (body : Instruction) (ifDid : Option Instruction)

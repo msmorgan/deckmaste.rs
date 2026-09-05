@@ -91,7 +91,7 @@ mutual
         (keyword : KeywordLabel)
     | paysLife (player : NounPhrase)
     | lifeChanges (player : NounPhrase) (move : LifeMove)
-    | verbedEvent (agent : Option NounPhrase) (verb : VerbLabel) (patient : Option NounPhrase)
+    | verbedEvent (agent : Option NounPhrase) (verb : Deed) (patient : Option NounPhrase)
         (becomes : Option Predicate)
     /-- A mana ability with {T} in its cost resolving and producing mana [CR#106.12a]. -/
     | tappedForMana (player : Option NounPhrase) (source : NounPhrase)

@@ -157,11 +157,31 @@ holds and does, is the designation facts table, generated like the keyword table
 carries only the mechanism. -/
 abbrev DesignationLabel := String
 
-abbrev VerbLabel := String
 abbrev KeywordLabel := String
 abbrev AbilityWordLabel := String
 abbrev FlavorWordLabel := String
 abbrev VoteLabel := String
+
+/-- A keyword action's name [CR#701.1]. The keyword actions are an open set the registry
+declares, so a deed of that source is keyed by its written label, as a designation is. -/
+abbrev KeywordActionLabel := String
+
+/-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
+[CR#508.1,509.1] and the other actions the rules define in their own sections. Closed, so a law
+matches them structurally instead of naming a lexeme. -/
+inductive CoreDeed where
+  | attack | block | target | copy | draw | gainLife | loseGame | winGame | spend | trigger
+  | put | return_ | gainControl | unlock | fullyUnlock
+  deriving DecidableEq, Repr
+
+/-- A deed: something a card's text says is done. Three sources define one, and only the middle
+one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the registry declares
+[CR#701.1], and the verb a keyword ability defines for itself [CR#702.122b,702.171a,702.26a]. -/
+inductive Deed where
+  | core (deed : CoreDeed)
+  | action (label : KeywordActionLabel)
+  | ofAbility (keyword : KeywordLabel)
+  deriving DecidableEq, Repr
 
 inductive PileFace where
   | faceDown | faceUp
@@ -228,11 +248,11 @@ inductive SlotCarrier where
 inductive Reach where
   | bare
   | atSlot (slot : SlotCarrier)
-  | stamped (verb : VerbLabel)
+  | stamped (verb : Deed)
   | tokenBorn
   | word (word : NounWord)
   | unionHalf (word : NounWord)
-  | verbed (verb : VerbLabel) (word : NounWord) (marking : VerbedMarking)
+  | verbed (verb : Deed) (word : NounWord) (marking : VerbedMarking)
   | thatTurn
   deriving DecidableEq, Repr
 
@@ -436,7 +456,7 @@ in a keyword action's (deed's) expansion, named by the conferrer. -/
 inductive Conferral where
   | instructed
   | byKeyword (keyword : KeywordLabel)
-  | byDeed (deed : VerbLabel)
+  | byDeed (deed : Deed)
   deriving DecidableEq, Repr
 
 inductive AttachWord where

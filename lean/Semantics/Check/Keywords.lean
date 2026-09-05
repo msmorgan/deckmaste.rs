@@ -345,6 +345,6 @@ Lives here, not in `Check.Words`, because it is the first module that can see bo
 def conferralOk (label : DesignationLabel) : Conferral → Bool
   | .instructed => label.checked
   | .byKeyword keyword => (keywordFactsFor keyword).bind (·.confers) == some label
-  | .byDeed deed => (actFactsFor deed).bind (·.confers) == some label
+  | .byDeed deed => (deedFacts deed).bind (·.confers) == some label
 
 end Semantics

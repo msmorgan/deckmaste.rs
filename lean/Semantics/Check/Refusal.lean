@@ -148,7 +148,7 @@ inductive Refusal where
   | kindDomainOk
   | kindAxisSort
   /- tables -/
-  | knownAct (v : VerbLabel)
+  | knownAct (v : Deed)
   | knownKeyword (k : KeywordLabel)
   | knownKeywordTerm
   | knownCounter
@@ -167,7 +167,8 @@ inductive Refusal where
   | verbedVoiceOk
   | verbBecomesOk
   | enactAgentOk
-  | featureNounOk (f : DeedFeature)
+  /-- A noun in a deed's agent or patient role does not fit what that deed takes there. -/
+  | deedNounOk (d : Deed)
   | nontarget
   | counterBatchOk
   | causedByOk

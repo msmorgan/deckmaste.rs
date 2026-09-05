@@ -55,11 +55,12 @@ theorem badFortifiedCreature :
 
 /-- "You can't lose the game." -/
 theorem okUntargetedOutcomeGate :
-    Ability.check [] (.static (playerCant "LoseGame" .you)) = [] := by decide
+    Ability.check [] (.static (playerCant (.core .loseGame) .you)) = [] := by decide
 
 /-- "Target player can't lose the game." -/
 theorem badTargetedOutcomeGate :
-    Ability.check [] (.static (playerCant "LoseGame" (target .anyPlayer))) = [.nontarget] := by
+    Ability.check [] (.static (playerCant (.core .loseGame) (target .anyPlayer)))
+      = [.nontarget] := by
   decide
 
 /-- "where X is the number of creatures you control." -/
@@ -117,7 +118,8 @@ theorem badGoadedPlayer :
 
 /-- "… it becomes monstrous," conferred by the Monstrosity keyword action's own expansion. -/
 theorem okMonstrousByDeed :
-    Instruction.check [] (.gainsDesignation thisCreature "monstrous" (.byDeed "Monstrosity") none)
+    Instruction.check []
+      (.gainsDesignation thisCreature "monstrous" (.byDeed (.action "Monstrosity")) none)
       = [] := by
   decide
 
@@ -228,7 +230,7 @@ theorem okLandBecomesBlocking :
 /-- "This creature blocks target planeswalker." -/
 theorem badBecomesBlockingPlaneswalker :
     Instruction.check [] (.becomesBlocking thisCreature (target (.hasType .planeswalker)))
-      = [.featureNounOk .blocking] := by
+      = [.deedNounOk (.core .block)] := by
   decide
 
 /-- "this creature gets +1/+0" -/
@@ -271,6 +273,7 @@ theorem badSkipDuringUnboundNextTurn :
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the
 bench. -/
 theorem opponentsCantGainLife :
-    StaticSpec.check [] (playerCant "GainLife" (.playerGroup .yourOpponents)) = [] := by decide
+    StaticSpec.check [] (playerCant (.core .gainLife) (.playerGroup .yourOpponents)) = [] := by
+  decide
 
 end Semantics.Proofs.Static

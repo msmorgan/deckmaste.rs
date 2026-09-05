@@ -77,15 +77,15 @@ def patientZoneIsB (bs : Bindings) : Option NounPhrase → Zone → Bool
   | none, _ => true
   | some n, z => zoneIsB (NounPhrase.zone bs n) z
 
-def verbPatientOk (v : VerbLabel) : Option NounPhrase → Bool
+def verbPatientOk (v : Deed) : Option NounPhrase → Bool
   | none => (actPatientKindsOf v).isEmpty
   | some _ => (actPatientKindsOf v).elem .object
 
-def verbBecomesOk (v : VerbLabel) : Option Predicate → Bool
+def verbBecomesOk (v : Deed) : Option Predicate → Bool
   | none => true
   | some p => actIntransitiveOf v && p.says
 
-def verbedVoiceOk (v : VerbLabel) : Option NounPhrase → Option NounPhrase → Bool
+def verbedVoiceOk (v : Deed) : Option NounPhrase → Option NounPhrase → Bool
   | some _, _ => true
   | none, what => what.isSome && (actNamesParticiple v || actIntransitiveOf v)
 
@@ -136,7 +136,7 @@ def GameEvent.name : GameEvent → EventName
   | .lifeChanges _ dir => dir.eventName
   | .verbedEvent _ v _ _ => .verbedAct v
   | .tappedForMana _ _ _ => .tappedForMana
-  | .unlocksDoor _ _ => .verbedAct (deedLabel .unlocking)
+  | .unlocksDoor _ _ => .verbedAct (.core .unlock)
   | .nthOccurrence _ _ ev => GameEvent.name ev
   | .triggers _ => .abilityTrigger
   | .commitsCrime _ => .crimeCommission

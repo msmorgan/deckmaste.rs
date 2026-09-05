@@ -162,12 +162,14 @@ theorem badRetargetPermanent :
 
 /-- "Your opponents can't gain life." -/
 theorem okStaticPlayerCant :
-    Ability.check [] (.static (playerCant "GainLife" (.playerGroup .yourOpponents))) = [] := by
+    Ability.check [] (.static (playerCant (.core .gainLife) (.playerGroup .yourOpponents)))
+      = [] := by
   decide
 
 /-- "Target player can't gain life." -/
 theorem badStaticPlayerCantTargets :
-    Ability.check [] (.static (playerCant "GainLife" (target .anyPlayer))) = [.nontarget] := by
+    Ability.check [] (.static (playerCant (.core .gainLife) (target .anyPlayer)))
+      = [.nontarget] := by
   decide
 
 /-- "the basic land type of your choice" -/
@@ -495,9 +497,9 @@ theorem playAndCastFromGraveyardThisTurn :
     Instruction.check []
       (.continuously
         (.andAlso none
-          [ mayPlayDeed "Play" .you (allOf land) none
+          [ mayPlayDeed (.action "Play") .you (allOf land) none
               (.play (some (graveyardOf .you)) none none false .itsOwnCost),
-            mayPlayDeed "Cast" .you (allOf spell) none
+            mayPlayDeed (.action "Cast") .you (allOf spell) none
               (.play (some (graveyardOf .you)) none none false .itsOwnCost) ])
         (some untilEndOfTurn)) = [] := by
   decide
@@ -514,7 +516,7 @@ theorem millThenPutFromAmongMilled :
       (.sequentially
         [ mills .you (.lit 3) .you,
           may .you
-            (move (fromAmong (exactly 1) artifact (theVerbed "Mill" .card .thisWay .many))
+            (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .card .thisWay .many))
               hand) ]) = [] := by
   decide
 
