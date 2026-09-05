@@ -143,6 +143,7 @@ def GameEvent.name : GameEvent → EventName
   | .causes _ what => GameEvent.name what
 termination_by structural ev => ev
 
+mutual
 /-- The stack a trigger's body reads while the event is happening. -/
 def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .dies n => selfSubjIntro bs n
@@ -184,7 +185,7 @@ def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .nthOccurrence _ _ ev => GameEvent.intro bs ev
   | .triggers what => selfSubjIntro bs what
   | .commitsCrime who => selfSubjIntro bs who
-  | .causes _ what => GameEvent.intro bs what
+  | .causes by_ what => GameEvent.intro (Causing.intro bs by_) what
 termination_by structural ev => ev
 
 /-- The stack a trigger's body reads after the event has happened. -/
@@ -233,13 +234,16 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .nthOccurrence _ _ ev => GameEvent.after bs ev
   | .triggers what => nomIntro bs what
   | .commitsCrime who => nomIntro bs who
-  | .causes _ what => GameEvent.after bs what
+  | .causes by_ what => GameEvent.after (Causing.intro bs by_) what
 termination_by structural ev => ev
 
+/-- The stack the caused event is spelled in (Idris `causingIntro`). -/
 def Causing.intro (bs : Bindings) : Causing → Bindings
   | .source src => nomIntro bs src
   | .event ev => GameEvent.after bs ev
   | .anEffect => bs
+termination_by structural c => c
+end
 
 def GameEvent.namesThisDoor : GameEvent → Bool
   | .unlocksDoor _ .thisDoor => true

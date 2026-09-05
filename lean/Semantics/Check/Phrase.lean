@@ -83,6 +83,12 @@ def Predicate.joins (ps : List Predicate) : Bool :=
 
 def Predicate.kindOr (d : Kind) (p : Predicate) : Kind := p.kind?.getD d
 
+/-- Whether a disjunct belongs to the `k` half of a join: its kind is `k`, or unnamed. -/
+def Predicate.inKind (p : Predicate) (k : Kind) : Bool :=
+  match p.kind? with
+  | some k' => k == k'
+  | none => true
+
 def NounPhrase.kind? : NounPhrase → Option Kind
   | .you | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
   | .described _ p => p.kind?
@@ -258,15 +264,35 @@ mutual
     | .hasType t => some t
     | .hasSubtype s => s.type
     | .and ps => Predicate.seedTyAll ps
-    | .or ps => if Predicate.joins ps then Predicate.seedTyJoined ps else Predicate.seedTyJoin ps
+    | .or ps =>
+      if Predicate.joins ps then
+        (Predicate.disjunctKinds ps).foldr
+          (fun k acc => Payload.joinSeed (Predicate.seedTyJoinOfKind k ps) acc) none
+      else Predicate.seedTyJoin ps
     | .compareOver dom _ _ _ => dom.seedTy
     | _ => none
 
-  /-- Idris `seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)`: across kinds, the typed
-  half seeds the join ("target player or planeswalker" reads as a planeswalker). -/
-  def Predicate.seedTyJoined : List Predicate → Option CardType
+  /-- Idris `seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)`, one half per kind: each
+  half seeds as `seedTyJoin` over its own disjuncts (an unnamed disjunct belongs to every
+  half), and the halves fold by `joinSeed`, so "target player or planeswalker" reads as a
+  planeswalker while "any target" stays untyped. -/
+  def Predicate.seedTyJoinOfKind (k : Kind) : List Predicate → Option CardType
     | [] => none
-    | p :: ps => Payload.joinSeed p.seedTy (Predicate.seedTyJoined ps)
+    | p :: ps =>
+      if p.inKind k then
+        match p.seedTy with
+        | none => none
+        | some t => if Predicate.allSeedTyOfKind k t ps then some t else none
+      else Predicate.seedTyJoinOfKind k ps
+
+  def Predicate.allSeedTyOfKind (k : Kind) (t : CardType) : List Predicate → Bool
+    | [] => true
+    | p :: ps =>
+      if p.inKind k then
+        match p.seedTy with
+        | none => false
+        | some u => t == u && Predicate.allSeedTyOfKind k t ps
+      else Predicate.allSeedTyOfKind k t ps
 
   def Predicate.seedTyAll : List Predicate → Option CardType
     | [] => none
