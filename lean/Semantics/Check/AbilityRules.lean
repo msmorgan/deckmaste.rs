@@ -353,6 +353,7 @@ mutual
     | .enact subj v e =>
       OptNoun.check (some .player) bs subj ++ Instruction.check (agentCtx bs subj) e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk subj v) .enactAgentOk ++
+        refuse (enactPatientZoneOk (agentCtx bs subj) v e) .zoneFits ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .controllerSacrifices n =>
       NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular ++

@@ -106,6 +106,9 @@ def stack : ZoneExpr := .zone .stack .bare
 def command : ZoneExpr := .zone .command .bare
 def libraryOf (player : NounPhrase) : ZoneExpr := .zone .library (.possessedBy player)
 def yourLibrary : ZoneExpr := libraryOf .you
+/-- "on the bottom of your library in <arrangement>" -/
+def onBottomIn (arrangement : Arrangement) : ZoneExpr :=
+  .library (.oneEnd .bottom) (some arrangement) none .bare
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 def graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
@@ -120,6 +123,9 @@ def land : Predicate := .hasType .land
 def instant : Predicate := .hasType .instant
 def sorcery : Predicate := .hasType .sorcery
 def instantOrSorcery : Predicate := .or [instant, sorcery]
+def tapped : Predicate := .hasStatus .tapped
+/-- "another player": any player other than you. -/
+def otherPlayer : Predicate := .and [.anyPlayer, .otherThan .you]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
 def spell : Predicate := .and [.inZone stack, .not (.abilityHead .anyOnStack)]
 def untapped : Predicate := .hasStatus .untapped
@@ -178,6 +184,9 @@ def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
 def thisAbility : NounPhrase := .asMarker .ability .this
 def thisEnchantment : NounPhrase := .asType .enchantment .this none
+def thisAura : NounPhrase := .asType .enchantment .this (some (enchantmentType "Aura"))
+/-- "a card exiled with this artifact" -/
+def exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
 /-- "the rest of them" -/
 def theRest (kind : Kind) : NounPhrase := .theRest kind .many
 /-- "N of <group>" -/
@@ -220,6 +229,8 @@ def minus (left right : Amount) : Amount := .arith .minus left right
 def times (per amount : Amount) : Amount := .arith .times per amount
 /-- "that much damage prevented this way" -/
 def preventedThisWay : Amount := .theOutcome .damagePrevented
+/-- "N for each <p>" -/
+def forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) (countOf p)
 
 /-! ## Counters -/
 
@@ -238,6 +249,22 @@ def tap (subject : NounPhrase) : Instruction := .enact none "Tap" (.setStatus .t
 def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) "Discard" (.move subject graveyard [])
 def shuffle : Instruction := .shuffle .you
+def untap (subject : NounPhrase) : Instruction := .enact none "Untap" (.setStatus .untapped subject)
+/-- "<agent> exiles <subject>" -/
+def exiles (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
+  .enact (some agent) "Exile" (.move subject exileZone [])
+/-- "Exile <subject> until <event>." -/
+def exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
+  .heldUntil (exile subject) event
+/-- "<agent> mills <amount> cards" from <whose> library. -/
+def mills (agent : NounPhrase) (amount : Amount) (whose : NounPhrase) : Instruction :=
+  .enact (some agent) "Mill" (.move (.librarySlice .top amount whose) graveyard [])
+def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
+def putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
+  .move subject battlefield [.entersAs .tapped]
+/-- "Search your library for <quantity> <p>" -/
+def searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
+  .search .you (.oneZone yourLibrary) quantity p
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
 def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.down amount)
@@ -247,6 +274,8 @@ def draw (player : NounPhrase) (amount : Amount) : Instruction := .draw player a
 
 def lookAt (cards : NounPhrase) : Instruction := .expose .lookAt .you (.cards cards)
 def revealCards (cards : NounPhrase) : Instruction := .expose .reveal .you (.cards cards)
+/-- "reveal it": the card a search found. -/
+def revealsIt : Instruction := revealCards (itVerbed "Search")
 def shuffleInto (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) "Shuffle" (.move subject (.library .shuffled none none .bare) [])
 def if_ (condition : Condition) (instruction : Instruction) : Instruction :=
@@ -357,6 +386,22 @@ def sharedSubject (subject : NounPhrase) (parts : List StaticSpec) (duration : O
 def ifWouldInstead (event : GameEvent) (replacement : Instruction) (duration : Option Duration) :
     Instruction :=
   .continuously (.intercepts event [] none replacement .repeatedly none) duration
+/-- "The next time <event> would happen, <replacement> instead [duration]." -/
+def nextTimeWouldInstead (event : GameEvent) (replacement : Instruction)
+    (duration : Option Duration) : Instruction :=
+  .continuously (.intercepts event [] none replacement .nextTimeOnly none) duration
+/-- "<player> gains control of <subject> [duration]" -/
+def gainControl (player : NounPhrase) (subject : NounPhrase) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.gainsControl player subject) duration
+/-- "<subject> can't be <deed>ed" -/
+def objectCant (deed : VerbLabel) (subject : NounPhrase) : StaticSpec :=
+  .deontic subject .forbid [deed] .patient none .noPatient none .noRider
+/-- "<player> can't <deed> more than N <p>" -/
+def cantMoreThan (player : NounPhrase) (deed : VerbLabel) (bound : Nat) (p : Predicate) :
+    StaticSpec :=
+  .deontic player .forbid [deed] .agent (some (.moreThan (.lit bound))) (.counterpart (allOf p))
+    none .noRider
 
 /-! ## Events -/
 
@@ -371,6 +416,9 @@ def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent 
   .combat .blockedBy subject by_
 def becomesAttached (subject : NounPhrase) (host : NounPhrase) : GameEvent :=
   .attachment .attached subject host
+/-- "the last <kind> counter is removed from <subject>" -/
+def lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
+  .counterEvent .removed (some kind) subject .last none false
 /-- "<subject> regenerates": the verb as an event. -/
 def regenerates (subject : NounPhrase) : GameEvent :=
   .verbedEvent none "Regenerate" (some subject) none

@@ -224,6 +224,23 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
   | .damage src => nomIntro bs src
   | .counters _ => bs
 
+/-- The object an enacted move is done to; a status change carries its own zone law. -/
+def Instruction.enactPatient : Instruction → Option NounPhrase
+  | .move n _ _ => some n
+  | _ => none
+
+/-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
+battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
+The Idris carried this on each verb's macro. -/
+def enactPatientZoneOk (bs : Bindings) (v : VerbLabel) (e : Instruction) : Bool :=
+  match e.enactPatient with
+  | none => true
+  | some .this => true
+  | some n =>
+    match actZoneOf v with
+    | none => true
+    | some z => zoneIsB (NounPhrase.zone bs n) z
+
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
 def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
   | .possessorOf ax _ => possessorKind ax .object

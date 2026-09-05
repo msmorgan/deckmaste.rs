@@ -1,6 +1,7 @@
 import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Description
 import Semantics.Proofs.Refresh
+import Semantics.Proofs.Zone
 
 /-!
 # Semantics.Proofs
