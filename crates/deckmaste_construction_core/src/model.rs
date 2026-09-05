@@ -241,6 +241,7 @@ pub enum Feature {
     ConcordClass,
     BareLocativeComplement,
     BareLocativeLicense,
+    BareDurationLicense,
     Cardinality,
     Compoundability,
     Countability,
@@ -470,6 +471,7 @@ pub struct DeclarationDeterminativeMemberSource {
     pub number_license_slots: Vec<GeneratedIdentSlot>,
     pub fused_head_license_slots: Vec<GeneratedIdentSlot>,
     pub nominal_license_slots: Vec<GeneratedIdentSlot>,
+    pub bare_duration_license_slots: Vec<GeneratedIdentSlot>,
     pub realization_slots: Vec<DeclarationDeterminativeRealizationsSource>,
 }
 

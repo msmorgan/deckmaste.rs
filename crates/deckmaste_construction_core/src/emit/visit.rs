@@ -2335,6 +2335,7 @@ mod tests {
                 generate declaration_determinative {
                     closed = [
                         Each {
+                            bare_duration_license = BareDurationLicensed;
                             number_license = SingularOnly;
                             fused_head_license = FusedHead;
                             nominal_license = CountNominal;

@@ -413,7 +413,11 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 crate::macro_def::DeterminativeFusedHeadLicense::FusedHead => quote! { FusedHeadLicense::FusedHead },
                 crate::macro_def::DeterminativeFusedHeadLicense::PluralPredeterminer => quote! { FusedHeadLicense::PluralPredeterminer },
             };
-            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
+            let bare_duration_license = match member.bare_duration_license() {
+                crate::macro_def::DeterminativeBareDurationLicense::BareDurationLicensed => quote! { BareDurationLicense::BareDurationLicensed },
+                crate::macro_def::DeterminativeBareDurationLicense::MarkerRequired => quote! { BareDurationLicense::MarkerRequired },
+            };
+            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal, bare_duration_license: #bare_duration_license }, owner: None }); } }
         }));
         {
             quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* matches } }
@@ -568,6 +572,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
             crate::feature::Feature::ConcordClass
+            | crate::feature::Feature::BareDurationLicense
             | crate::feature::Feature::BareLocativeLicense
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Compoundability
@@ -1087,6 +1092,7 @@ mod tests {
             codec Head {
                 generate declaration_determinative {
                     closed = [Article {
+                        bare_duration_license = MarkerRequired;
                         number_license = SingularOnly;
                         fused_head_license = NominalOnly;
                         nominal_license = CountNominal;

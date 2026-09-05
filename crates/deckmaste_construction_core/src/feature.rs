@@ -32,6 +32,7 @@ macro_rules! feature_inventory {
 
 feature_inventory! {
     ConcordClass => "concord_class",
+    BareDurationLicense => "bare_duration_license",
     BareLocativeComplement => "bare_locative_complement",
     BareLocativeLicense => "bare_locative_license",
     Cardinality => "cardinality",
@@ -62,6 +63,8 @@ pub(crate) enum FeatureValue {
     ThirdPersonSingular,
     QualifiedOnly,
     BareAllowed,
+    BareDurationLicensed,
+    MarkerRequired,
     No,
     Yes,
     Singular,
@@ -175,6 +178,10 @@ impl Feature {
                 FeatureValue::ConcordOther,
                 FeatureValue::ThirdPersonSingular,
             ],
+            Self::BareDurationLicense => &[
+                FeatureValue::BareDurationLicensed,
+                FeatureValue::MarkerRequired,
+            ],
             Self::BareLocativeComplement => &[FeatureValue::No, FeatureValue::Yes],
             Self::BareLocativeLicense => &[FeatureValue::QualifiedOnly, FeatureValue::BareAllowed],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
@@ -279,6 +286,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
+            Self::BareDurationLicensed => "BareDurationLicensed",
+            Self::MarkerRequired => "MarkerRequired",
             Self::No => "No",
             Self::Yes => "Yes",
             Self::Singular => "Singular",
@@ -485,6 +494,8 @@ impl FeatureValue {
             Self::ThirdPersonSingular => "ThirdPersonSingular",
             Self::QualifiedOnly => "QualifiedOnly",
             Self::BareAllowed => "BareAllowed",
+            Self::BareDurationLicensed => "BareDurationLicensed",
+            Self::MarkerRequired => "MarkerRequired",
             Self::No => "No",
             Self::Yes => "Yes",
             Self::Singular => "Singular",
@@ -588,6 +599,10 @@ pub(crate) fn lower_constant(
         (model::Feature::BareLocativeComplement, "Yes") => FeatureValue::Yes,
         (model::Feature::BareLocativeLicense, "QualifiedOnly") => FeatureValue::QualifiedOnly,
         (model::Feature::BareLocativeLicense, "BareAllowed") => FeatureValue::BareAllowed,
+        (model::Feature::BareDurationLicense, "BareDurationLicensed") => {
+            FeatureValue::BareDurationLicensed
+        }
+        (model::Feature::BareDurationLicense, "MarkerRequired") => FeatureValue::MarkerRequired,
         (model::Feature::Number, "Singular") => FeatureValue::Singular,
         (model::Feature::Number, "Plural") => FeatureValue::Plural,
         (model::Feature::Onset, "Consonant") => FeatureValue::Consonant,
@@ -703,6 +718,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a bare-locative-license value"),
+            ));
+        }
+        (model::Feature::BareDurationLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a bare-duration-license value"),
             ));
         }
         (model::Feature::Cardinality, _) => {
@@ -835,6 +856,7 @@ impl From<model::Feature> for Feature {
             model::Feature::ConcordClass => Self::ConcordClass,
             model::Feature::BareLocativeComplement => Self::BareLocativeComplement,
             model::Feature::BareLocativeLicense => Self::BareLocativeLicense,
+            model::Feature::BareDurationLicense => Self::BareDurationLicense,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
             model::Feature::Countability => Self::Countability,

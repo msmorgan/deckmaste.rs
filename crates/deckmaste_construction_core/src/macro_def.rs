@@ -338,6 +338,13 @@ pub enum DeterminativeFusedHeadLicense {
     PluralPredeterminer,
 }
 
+/// Whether a Determinative licenses its Nominal as a marker-less Duration Phrase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativeBareDurationLicense {
+    BareDurationLicensed,
+    MarkerRequired,
+}
+
 /// The phrase-number condition of one Determinative surface realization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativePhraseNumber {

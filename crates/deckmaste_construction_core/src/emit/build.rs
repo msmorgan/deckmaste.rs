@@ -1411,7 +1411,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, following_onset: _, number_license: _, fused_head_license: _, nominal_license: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, following_onset: _, number_license: _, fused_head_license: _, nominal_license: _, bare_duration_license: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -3008,6 +3008,9 @@ fn lower_terminal_role(
             let nominal_license = lowering
                 .binders
                 .allocate(&format!("{}_nominal_license", identifier_key(&role)));
+            let bare_duration_license = lowering
+                .binders
+                .allocate(&format!("{}_bare_duration_license", identifier_key(&role)));
             lowering.role_features.insert(
                 (identifier_key(&role), Feature::Onset),
                 LocalFeatureValue::Bound(onset.clone()),
@@ -3027,7 +3030,11 @@ fn lower_terminal_role(
                 (identifier_key(&role), Feature::NominalLicense),
                 LocalFeatureValue::Bound(nominal_license.clone()),
             );
-            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, following_onset: #following_onset, number_license: #number_license, fused_head_license: #fused_head_license, nominal_license: #nominal_license }) });
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::BareDurationLicense),
+                LocalFeatureValue::Bound(bare_duration_license.clone()),
+            );
+            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, following_onset: #following_onset, number_license: #number_license, fused_head_license: #fused_head_license, nominal_license: #nominal_license, bare_duration_license: #bare_duration_license }) });
             lowering
                 .field_values
                 .insert(identifier_key(&role), quote! { #value.clone() });
@@ -4157,6 +4164,7 @@ fn resolve_feature_place(
                 }
                 FeaturePlace::Construction(
                     Feature::BareLocativeLicense
+                    | Feature::BareDurationLicense
                     | Feature::Compoundability
                     | Feature::Countability
                     | Feature::HomographLicense
@@ -4169,6 +4177,7 @@ fn resolve_feature_place(
                 | FeaturePlace::Role {
                     feature:
                         Feature::BareLocativeLicense
+                        | Feature::BareDurationLicense
                         | Feature::Compoundability
                         | Feature::Countability
                         | Feature::HomographLicense
@@ -4386,6 +4395,10 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
+        FeatureValue::BareDurationLicensed => {
+            quote! { BareDurationLicense::BareDurationLicensed }
+        }
+        FeatureValue::MarkerRequired => quote! { BareDurationLicense::MarkerRequired },
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
         FeatureValue::Consonant => quote! { Onset::Consonant },
@@ -4498,6 +4511,7 @@ mod tests {
                     generate declaration_determinative {
                         closed = [
                             Article {
+                                bare_duration_license = MarkerRequired;
                                 number_license = SingularOnly;
                                 fused_head_license = NominalOnly;
                                 nominal_license = CountNominal;
@@ -4507,6 +4521,7 @@ mod tests {
                                 ];
                             },
                             Unconditioned {
+                                bare_duration_license = MarkerRequired;
                                 number_license = SingularOnly;
                                 fused_head_license = NominalOnly;
                                 nominal_license = CountNominal;
@@ -4685,6 +4700,7 @@ mod tests {
                     generate declaration_determinative {
                         closed = [
                             Each {
+                                bare_duration_license = BareDurationLicensed;
                                 number_license = SingularOnly;
                                 fused_head_license = FusedHead;
                                 nominal_license = CountNominal;

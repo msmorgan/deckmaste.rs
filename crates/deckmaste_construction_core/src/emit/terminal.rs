@@ -81,6 +81,12 @@ pub(crate) fn emit(
                     items.push(emit_vocab_nominal_license_helper(row, origin.clone()));
                 }
                 if row
+                    .feature_members(crate::feature::Feature::BareDurationLicense)
+                    .is_some()
+                {
+                    items.push(emit_vocab_bare_duration_license_helper(row, origin.clone()));
+                }
+                if row
                     .feature_members(crate::feature::Feature::BareLocativeComplement)
                     .is_some()
                 {
@@ -676,6 +682,9 @@ pub(crate) fn emit(
                 items.push(emit_declaration_determinative_fused_head_license_helper(
                     row,
                 ));
+                items.push(emit_declaration_determinative_bare_duration_license_helper(
+                    row,
+                ));
             }
             TerminalPlan::DeclarationTerm(row) => {
                 let origin = row.origin().clone();
@@ -836,6 +845,41 @@ fn emit_declaration_determinative_fused_head_license_helper(
     )
 }
 
+fn emit_declaration_determinative_bare_duration_license_helper(
+    determinative: &crate::semantic::DeclarationDeterminativePlan,
+) -> GeneratedItem {
+    let function_name = feature_helper("bare_duration_license", determinative.codec_name());
+    let function = emitted_ident(&function_name, determinative.codec_ident().span());
+    let ty = determinative.codec_ident();
+    let lemma = determinative.lemma_ident();
+    let members = determinative.closed().iter().map(|member| {
+        let member_name = member.lemma();
+        let value = match member.bare_duration_license() {
+            crate::macro_def::DeterminativeBareDurationLicense::BareDurationLicensed => {
+                quote! { BareDurationLicense::BareDurationLicensed }
+            }
+            crate::macro_def::DeterminativeBareDurationLicense::MarkerRequired => {
+                quote! { BareDurationLicense::MarkerRequired }
+            }
+        };
+        quote! { #lemma::#member_name => #value }
+    });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: impl ::std::borrow::Borrow<#ty>) -> BareDurationLicense {
+                match ::std::borrow::Borrow::borrow(&value) {
+                    #ty::Closed(lemma) => match lemma { #(#members),* },
+                }
+            }
+        },
+        vec![determinative.origin().clone()],
+    )
+}
+
 fn emit_vocab_modifier_license_helper(
     vocab: &crate::semantic::VocabPlan,
     origin: DeclarationKey,
@@ -941,6 +985,40 @@ fn emit_vocab_nominal_license_helper(
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> NominalLicense { match value { #(#members),* } } },
+        vec![origin],
+    )
+}
+
+fn emit_vocab_bare_duration_license_helper(
+    vocab: &crate::semantic::VocabPlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("bare_duration_license", vocab.name());
+    let function = emitted_ident(&function_name, vocab.name_ident().span());
+    let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
+    let members = vocab
+        .feature_members(crate::feature::Feature::BareDurationLicense)
+        .expect("requested sealed bare-duration-license metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, vocab.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::BareDurationLicensed => {
+                    quote! { BareDurationLicense::BareDurationLicensed }
+                }
+                crate::feature::FeatureValue::MarkerRequired => {
+                    quote! { BareDurationLicense::MarkerRequired }
+                }
+                _ => unreachable!("sealed bare-duration license has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> BareDurationLicense { match value { #(#members),* } } },
         vec![origin],
     )
 }
@@ -1253,6 +1331,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
+        | crate::Feature::BareDurationLicense
         | crate::Feature::BareLocativeComplement
         | crate::Feature::BareLocativeLicense
         | crate::Feature::Compoundability

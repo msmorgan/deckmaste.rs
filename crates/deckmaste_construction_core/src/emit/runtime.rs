@@ -269,6 +269,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum Focus { Unfocused, Focused } },
         ),
         named_type(
+            "BareDurationLicense",
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum BareDurationLicense { BareDurationLicensed, MarkerRequired } },
+        ),
+        named_type(
             crate::identifier::MANNER_ANAPHOR_CLASS_TYPE,
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum MannerAnaphorClass { OtherNoun, MannerAnaphor } },
         ),
@@ -1575,7 +1579,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
         let ty = codec.codec_ident();
-        quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense }, }
+        quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense, bare_duration_license: BareDurationLicense }, }
     });
     let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty())
         .then(|| quote! { DeclarationDeterminative(usize), });

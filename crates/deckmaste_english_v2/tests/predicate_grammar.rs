@@ -4488,17 +4488,25 @@ fn cost_frame_reciprocals_reject_crossed_boundaries() {
     let parser = parser();
     let context = context();
 
-    let unfocused = parser.analyze("Cast this spell your turn.", &context);
-    let focused = parser.analyze("Cast this spell only your turn.", &context);
-    assert!(
-        unfocused.selected().is_some(),
-        "the pre-existing bare-duration defect changed: {unfocused:#?}",
-    );
-    assert_eq!(
-        focused.selected().is_some(),
-        unfocused.selected().is_some(),
-        "focus must preserve the host's duration decision: focused={focused:#?}, unfocused={unfocused:#?}",
-    );
+    for text in [
+        "Cast this spell during your turn.",
+        "Cast this spell only during your turn.",
+        "Cast this spell this turn.",
+        "Cast this spell only this turn.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for text in [
+        "Cast this spell your turn.",
+        "Cast this spell only your turn.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert!(
+            analysis.selected().is_none(),
+            "possessive determination must require an overt temporal marker for {text:?}: {analysis:#?}",
+        );
+    }
 
     for text in [
         "As an additional cost cast this spell, discard a card.",

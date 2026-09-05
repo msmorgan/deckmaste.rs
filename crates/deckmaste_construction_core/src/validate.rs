@@ -2109,7 +2109,8 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
     for default in &vocab.feature_defaults {
         if !matches!(
             default.feature,
-            crate::model::Feature::BareLocativeComplement
+            crate::model::Feature::BareDurationLicense
+                | crate::model::Feature::BareLocativeComplement
                 | crate::model::Feature::DeterminerNumber
                 | crate::model::Feature::ModifierLicense
                 | crate::model::Feature::NominalLicense
@@ -2121,7 +2122,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed vocab metadata supports only BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
+                    "closed vocab metadata supports only BareDurationLicense, BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
                 ),
             );
         }
@@ -2146,7 +2147,8 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
         for override_ in &variant.feature_overrides {
             if !matches!(
                 override_.feature,
-                crate::model::Feature::BareLocativeComplement
+                crate::model::Feature::BareDurationLicense
+                    | crate::model::Feature::BareLocativeComplement
                     | crate::model::Feature::DeterminerNumber
                     | crate::model::Feature::ModifierLicense
                     | crate::model::Feature::NominalLicense
@@ -2158,7 +2160,7 @@ fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Op
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed vocab metadata supports only BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
+                        "closed vocab metadata supports only BareDurationLicense, BareLocativeComplement, DeterminerNumber, HomographLicense, ModifierLicense, NominalLicense, PrepositionAttachment, and PrepositionComplementKind",
                     ),
                 );
             }
@@ -2785,6 +2787,13 @@ fn validate_determinative_member(
             "BareSingularNoun",
             "MassOrPluralCount",
         ],
+        errors,
+    );
+    validate_determinative_member_slot(
+        &member.bare_duration_license_slots,
+        &member.lemma,
+        "bare_duration_license",
+        &["BareDurationLicensed", "MarkerRequired"],
         errors,
     );
     match member.realization_slots.as_slice() {
@@ -5478,6 +5487,9 @@ fn generated_name_inventory(
                     };
                     let (spelling, display) = match feature {
                         ParsedFeature::ConcordClass => ("concord_class", "ConcordClass"),
+                        ParsedFeature::BareDurationLicense => {
+                            ("bare_duration_license", "BareDurationLicense")
+                        }
                         ParsedFeature::BareLocativeLicense => {
                             ("bare_locative_license", "BareLocativeLicense")
                         }
@@ -6111,6 +6123,7 @@ fn owner_rule_variant_names(
 fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
     let parsed_feature = match feature {
         Feature::ConcordClass => ParsedFeature::ConcordClass,
+        Feature::BareDurationLicense => ParsedFeature::BareDurationLicense,
         Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
@@ -6173,6 +6186,7 @@ fn raw_sequence_reads_inherent_category_feature(
     }
     let parsed_feature = match feature {
         Feature::ConcordClass => ParsedFeature::ConcordClass,
+        Feature::BareDurationLicense => ParsedFeature::BareDurationLicense,
         Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
@@ -6448,6 +6462,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ParsedFeature::Number => role_provides_number(raw, &fields, field)
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::ConcordClass
+                | ParsedFeature::BareDurationLicense
                 | ParsedFeature::BareLocativeLicense
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
@@ -10342,6 +10357,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
     for (category, constructions) in categories {
         for feature in [
             ParsedFeature::ConcordClass,
+            ParsedFeature::BareDurationLicense,
             ParsedFeature::BareLocativeComplement,
             ParsedFeature::Cardinality,
             ParsedFeature::ModifierLicense,
@@ -10391,6 +10407,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(_))
         ) {
             let terminal = identifier_key(&binding.name);
+            providers.insert((terminal.clone(), ParsedFeature::BareDurationLicense));
             providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
             providers.insert((terminal.clone(), ParsedFeature::FusedHeadLicense));
             providers.insert((terminal, ParsedFeature::NominalLicense));
@@ -10444,6 +10461,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let sum_name = identifier_key(&sum.name);
             for feature in [
                 ParsedFeature::ConcordClass,
+                ParsedFeature::BareDurationLicense,
                 ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::FusedHeadLicense,
@@ -10483,6 +10501,7 @@ fn place_key(place: &ParsedFeaturePlace) -> String {
 fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::ConcordClass => "concord_class",
+        ParsedFeature::BareDurationLicense => "bare_duration_license",
         ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
@@ -10943,7 +10962,8 @@ fn validate_lowerable_feature_compositions(
             ) => false,
             (
                 ParsedFeaturePlace::Construction(
-                    ParsedFeature::DeterminerNumber
+                    ParsedFeature::BareDurationLicense
+                    | ParsedFeature::DeterminerNumber
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::Focus
                     | ParsedFeature::PrepositionComplementKind
@@ -11017,7 +11037,8 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Role {
                     feature:
-                        ParsedFeature::DeterminerNumber
+                        ParsedFeature::BareDurationLicense
+                        | ParsedFeature::DeterminerNumber
                         | ParsedFeature::FusedHeadLicense
                         | ParsedFeature::Focus
                         | ParsedFeature::PrepositionComplementKind
@@ -11256,6 +11277,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
 fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::ConcordClass => "concord_class",
+        ParsedFeature::BareDurationLicense => "bare_duration_license",
         ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
@@ -11460,6 +11482,7 @@ pub(crate) mod tests {
                 generate declaration_determinative {
                     closed = [
                         Each {
+                            bare_duration_license = BareDurationLicensed;
                             number_license = SingularOnly;
                             fused_head_license = FusedHead;
                             nominal_license = CountNominal;
@@ -11478,6 +11501,30 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("feature-bearing lexical field accepts a build-only check");
+    }
+
+    #[test]
+    fn declaration_determinatives_require_bare_duration_metadata() {
+        let diagnostic = error(quote! {
+            codec DeterminativeHead {
+                generate declaration_determinative {
+                    closed = [
+                        Each {
+                            number_license = SingularOnly;
+                            fused_head_license = FusedHead;
+                            nominal_license = CountNominal;
+                            realizations = [{ surface = "each"; }];
+                        },
+                    ];
+                }
+            }
+        });
+        assert!(
+            diagnostic.contains(
+                "declaration_determinative member requires one `bare_duration_license` field"
+            ),
+            "{diagnostic}",
+        );
     }
 
     #[test]
@@ -17952,7 +17999,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 149);
+        assert_eq!(expansion.plan().items().len(), 150);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18317,7 +18364,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 149);
+        assert_eq!(expansion.plan().items().len(), 150);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18459,7 +18506,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 149);
+        assert_eq!(emission.items().len(), 150);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

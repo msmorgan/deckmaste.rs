@@ -810,6 +810,7 @@ pub(crate) struct ClosedDeterminativePlan {
     number_license: crate::macro_def::DeterminativeNumberLicense,
     fused_head_license: crate::macro_def::DeterminativeFusedHeadLicense,
     nominal_license: crate::macro_def::DeterminativeNominalLicense,
+    bare_duration_license: crate::macro_def::DeterminativeBareDurationLicense,
     realizations: Vec<DeterminativeRealizationPlan>,
 }
 
@@ -1906,7 +1907,11 @@ impl SemanticPlan {
                         .is_some_and(|closed| closed.feature_members(feature).is_some())
             }
             TerminalPlan::DeclarationDeterminative(codec) => {
-                codec.codec_name() == name && feature == Feature::FusedHeadLicense
+                codec.codec_name() == name
+                    && matches!(
+                        feature,
+                        Feature::BareDurationLicense | Feature::FusedHeadLicense
+                    )
             }
             TerminalPlan::Binding(_)
             | TerminalPlan::ContextIdentity(_)
@@ -6448,6 +6453,16 @@ impl DeclarationDeterminativePlan {
                         }
                         _ => unreachable!("validated fused-head license is closed"),
                     };
+                let bare_duration_license =
+                    match identifier_key(&member.bare_duration_license_slots[0].value).as_str() {
+                        "BareDurationLicensed" => {
+                            crate::macro_def::DeterminativeBareDurationLicense::BareDurationLicensed
+                        }
+                        "MarkerRequired" => {
+                            crate::macro_def::DeterminativeBareDurationLicense::MarkerRequired
+                        }
+                        _ => unreachable!("validated bare-duration license is closed"),
+                    };
                 let realizations = member.realization_slots[0]
                     .realizations
                     .iter()
@@ -6482,6 +6497,7 @@ impl DeclarationDeterminativePlan {
                     number_license,
                     fused_head_license,
                     nominal_license,
+                    bare_duration_license,
                     realizations,
                 }
             })
@@ -6530,6 +6546,11 @@ impl ClosedDeterminativePlan {
     }
     pub(crate) fn nominal_license(&self) -> crate::macro_def::DeterminativeNominalLicense {
         self.nominal_license
+    }
+    pub(crate) fn bare_duration_license(
+        &self,
+    ) -> crate::macro_def::DeterminativeBareDurationLicense {
+        self.bare_duration_license
     }
     pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] {
         &self.realizations

@@ -516,6 +516,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
 
     for feature in [
         Feature::ConcordClass,
+        Feature::BareDurationLicense,
         Feature::Cardinality,
         Feature::FusedHeadLicense,
         Feature::Focus,
@@ -532,7 +533,8 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         for (category, members) in &categories {
             let provider_helper = matches!(
                 feature,
-                Feature::DeterminerNumber
+                Feature::BareDurationLicense
+                    | Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
                     | Feature::Focus
                     | Feature::PrepositionComplementKind
@@ -575,6 +577,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_sum_concord_class_match_helper(validated, sum)?);
     }
     for feature in [
+        Feature::BareDurationLicense,
         Feature::FusedHeadLicense,
         Feature::Focus,
         Feature::PrepositionComplementKind,
@@ -1798,6 +1801,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let return_ty = match helper.feature {
         Feature::ConcordClass => quote! { ConcordClass },
         Feature::BareLocativeLicense => quote! { BareLocativeLicense },
+        Feature::BareDurationLicense => quote! { BareDurationLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
@@ -2151,7 +2155,8 @@ fn reserve_feature_callees(
     }
     if matches!(
         *source_feature,
-        Feature::BareLocativeComplement
+        Feature::BareDurationLicense
+            | Feature::BareLocativeComplement
             | Feature::FusedHeadLicense
             | Feature::PrepositionComplementKind
             | Feature::LocativeTemporalLicense
@@ -4118,6 +4123,9 @@ fn feature_expr(
                 return match source_feature {
                     Feature::ConcordClass => Ok(quote! { concord_class }),
                     Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
+                    Feature::BareDurationLicense => {
+                        Err(internal("verb slot does not provide bare-duration license"))
+                    }
                     Feature::DeterminerNumber => {
                         Err(internal("verb slot does not provide determiner number"))
                     }
@@ -4292,9 +4300,23 @@ fn feature_expr(
                     locals,
                 );
             }
+            if *source_feature == Feature::BareDurationLicense && field.is_zeroable() {
+                let wrapper = field.value_type();
+                let function = ident(&feature_helper(
+                    feature_name(*source_feature),
+                    field.terminal(),
+                ));
+                return Ok(quote! {
+                    match #role_value {
+                        #wrapper::Zero => BareDurationLicense::MarkerRequired,
+                        #wrapper::Headed(value) => #function(value),
+                    }
+                });
+            }
             if matches!(
                 *source_feature,
-                Feature::BareLocativeComplement
+                Feature::BareDurationLicense
+                    | Feature::BareLocativeComplement
                     | Feature::FusedHeadLicense
                     | Feature::PrepositionComplementKind
                     | Feature::LocativeTemporalLicense
@@ -5110,6 +5132,7 @@ fn emit_feature_helper(
     let return_ty = match feature {
         Feature::ConcordClass => quote! { ConcordClass },
         Feature::BareLocativeLicense => quote! { BareLocativeLicense },
+        Feature::BareDurationLicense => quote! { BareDurationLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
@@ -5725,6 +5748,10 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::ThirdPersonSingular => quote! { ConcordClass::ThirdPersonSingular },
         FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
         FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
+        FeatureValue::BareDurationLicensed => {
+            quote! { BareDurationLicense::BareDurationLicensed }
+        }
+        FeatureValue::MarkerRequired => quote! { BareDurationLicense::MarkerRequired },
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
         FeatureValue::Consonant => quote! { Onset::Consonant },
@@ -6034,6 +6061,7 @@ fn feature_name(feature: Feature) -> &'static str {
     match feature {
         Feature::ConcordClass => "concord_class",
         Feature::BareLocativeLicense => "bare_locative_license",
+        Feature::BareDurationLicense => "bare_duration_license",
         Feature::Cardinality => "cardinality",
         Feature::Compoundability => "compoundability",
         Feature::Countability => "countability",
@@ -6104,6 +6132,7 @@ mod tests {
                 generate declaration_determinative {
                     closed = [
                         Amount {
+                            bare_duration_license = MarkerRequired;
                             number_license = SingularOnly;
                             fused_head_license = NominalOnly;
                             nominal_license = CountNominal;

@@ -1190,7 +1190,17 @@ fn resolve_constructor_feature(
                 proc_macro2::Span::call_site(),
             );
             let field = borrowed_field_expression(plan, construction, stored, locals)?;
-            quote! { #function(#field) }
+            if *feature == crate::feature::Feature::BareDurationLicense && stored.is_zeroable() {
+                let wrapper = stored.value_type();
+                quote! {
+                    match #field {
+                        #wrapper::Zero => BareDurationLicense::MarkerRequired,
+                        #wrapper::Headed(value) => #function(value),
+                    }
+                }
+            } else {
+                quote! { #function(#field) }
+            }
         }
     } else {
         return Err(internal(
@@ -1254,6 +1264,12 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         }
         crate::feature::FeatureValue::BareAllowed => {
             quote! { BareLocativeLicense::BareAllowed }
+        }
+        crate::feature::FeatureValue::BareDurationLicensed => {
+            quote! { BareDurationLicense::BareDurationLicensed }
+        }
+        crate::feature::FeatureValue::MarkerRequired => {
+            quote! { BareDurationLicense::MarkerRequired }
         }
         crate::feature::FeatureValue::Singular => quote! { Number::Singular },
         crate::feature::FeatureValue::Plural => quote! { Number::Plural },
@@ -2457,6 +2473,7 @@ mod tests {
                 "DeterminerNumber",
                 "FusedHeadLicense",
                 "Focus",
+                "BareDurationLicense",
                 "MannerAnaphorClass",
                 "NominalForm",
                 "NominalLicense",

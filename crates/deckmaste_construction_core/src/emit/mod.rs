@@ -375,6 +375,7 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
     match feature {
         crate::feature::Feature::ConcordClass => quote! { ConcordClass },
         crate::feature::Feature::BareLocativeLicense => quote! { BareLocativeLicense },
+        crate::feature::Feature::BareDurationLicense => quote! { BareDurationLicense },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
         crate::feature::Feature::Compoundability => quote! { Compoundability },
         crate::feature::Feature::Countability => quote! { Countability },
@@ -501,6 +502,7 @@ fn emit_predicate_atom(
             let feature_type = match feature {
                 crate::feature::Feature::ConcordClass => local_ident("ConcordClass"),
                 crate::feature::Feature::BareLocativeLicense => local_ident("BareLocativeLicense"),
+                crate::feature::Feature::BareDurationLicense => local_ident("BareDurationLicense"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Compoundability => local_ident("Compoundability"),
                 crate::feature::Feature::Countability => local_ident("Countability"),
