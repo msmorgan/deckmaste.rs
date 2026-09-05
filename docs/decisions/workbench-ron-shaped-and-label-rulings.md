@@ -198,3 +198,11 @@ one stops first.
   never reminder text [CR#207.2a]; a count of printed cards never refuses a
   rules-meaningful shape; every pin has a same-module positive twin; witnesses
   are VINTAGE-legal cards.
+
+### Clarification 2026-09-04: pairs versus printed words
+
+"One macro per lemma, no agreement or arity pairs" forbids macro pairs that
+encode forms of one printed word (verb agreement, argument counts). Two
+distinct printed words are two macros: `It` and `Them`, `That` and `Those`.
+References are spelled as written on the card; a `Plurality` argument on a
+macro is never a stand-in for a different word (`workbench-pronouns-as-written`).
