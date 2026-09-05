@@ -148,6 +148,7 @@ def instant : Predicate := .hasType .instant
 def sorcery : Predicate := .hasType .sorcery
 def instantOrSorcery : Predicate := .or [instant, sorcery]
 def tapped : Predicate := .hasStatus .tapped
+def faceDown : Predicate := .hasStatus .faceDown
 /-- "another player": any player other than you. -/
 def otherPlayer : Predicate := .and [.anyPlayer, .otherThan .you]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
@@ -176,6 +177,8 @@ def blocked : Predicate := .inCombat .blockedBy none
 def unblocked : Predicate := .not blocked
 def creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
 def creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
+def creatureYourOpponentsControl : Predicate :=
+  .and [creature, .hasPossessor .controller (.playerGroup .yourOpponents)]
 /-- "another creature you control", anchored on <n>. -/
 def otherCreatureYouControl (n : NounPhrase) : Predicate :=
   .and [creature, .hasPossessor .controller .you, .otherThan n]
@@ -241,6 +244,8 @@ def thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
 def thisAbility : NounPhrase := .asMarker .ability .this
 def thisEnchantment : NounPhrase := .asType .enchantment .this none
 def thisAura : NounPhrase := .asType .enchantment .this (some (enchantmentType "Aura"))
+def thisEquipment : NounPhrase := .asType .artifact .this (some (artifactType "Equipment"))
+def thisSiege : NounPhrase := .asType .battle .this (some (.of .battle "Siege"))
 /-- "a card exiled with this artifact" -/
 def exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
 /-- "the rest of them" -/
@@ -322,6 +327,7 @@ def forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) (countOf p)
 /-! ## Counters -/
 
 def plusOnePlusOne : CounterKind := .boost (.up 1) (.up 1)
+def flyingCounter : CounterKind := .keyword "Flying"
 
 /-! ## Instructions -/
 
@@ -345,6 +351,15 @@ def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List Toke
   .enact none (.core .return_) (.move subject destination riders)
 /-- "return <subject> to the battlefield" -/
 def returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
+/-- "return <subject> to the battlefield transformed under <controller>'s control" -/
+def returnToBattlefieldTransformed (subject controller : NounPhrase) : Instruction :=
+  returnTo subject battlefield [.entersTransformed, .under controller]
+/-- "transform <subject>" -/
+def transform (subject : NounPhrase) : Instruction :=
+  .enact none (.action "Transform") (.turnOver subject)
+/-- "meld <subject> into <name>" -/
+def meldInto (subject : NounPhrase) (into : String) : Instruction :=
+  .enact none (.action "Meld") (.move subject battlefield [.entersMelded into])
 def tap (subject : NounPhrase) : Instruction :=
   .enact none (.action "Tap") (.setStatus .tapped subject)
 def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
@@ -385,8 +400,10 @@ def draw (player : NounPhrase) (amount : Amount) : Instruction := .draw player a
 
 def lookAt (cards : NounPhrase) : Instruction := .expose .lookAt .you (.cards cards)
 def revealCards (cards : NounPhrase) : Instruction := .expose .reveal .you (.cards cards)
+/-- "the card found by a search" -/
+def foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
-def revealsIt : Instruction := revealCards (itVerbed (.action "Search"))
+def revealsIt : Instruction := revealCards foundCard
 def shuffleInto (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) (.action "Shuffle") (.move subject (.library .shuffled none none .bare) [])
 def if_ (condition : Condition) (instruction : Instruction) : Instruction :=
@@ -408,6 +425,8 @@ def rollDice (player : NounPhrase) (count sides : Nat) : Instruction :=
 def rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
 def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
   .flipCoins player (.count (.lit count))
+/-- "<player> flips a coin" as an event -/
+def flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
 /-- "<decider> may <body>" -/
 def may (decider : NounPhrase) (body : Instruction) : Instruction := .may decider body none none
 /-- "the chosen number" -/
@@ -531,11 +550,23 @@ def unless_ (player : NounPhrase) (instruction : Instruction) (cost : Cost) : In
 def itOrThem : Plurality → NounPhrase
   | .one => it
   | .many => them
+/-- The window over exactly what a phrase introduced; a phrase that introduced nothing (a
+pronoun) is read again through the whole stack. -/
+def sameWindow : Nat → Window
+  | 0 => .whole
+  | n + 1 => .top (n + 1)
+/-- "it" (or "them"): the subject of a stat change, read back through a window holding only
+what that subject and the change's amount announced. -/
+def itsOther (subject : NounPhrase) (delta : Delta Amount) : NounPhrase :=
+  .pro .bare subject.plur
+    (sameWindow
+      (Delta.introduced (selfSubjIntro [] subject) delta ++
+        NounPhrase.selfSubjIntroduced subject ++ NounPhrase.introduced [] subject).length)
 /-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
 half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .andAlso none
-    [.modify subject .power power, .modify (itOrThem subject.plur) .toughness toughness]
+    [.modify subject .power power, .modify (itsOther subject power) .toughness toughness]
 
 /-- The shared subject of a clause, read back as a pronoun that sees only what the subject
 itself announced. -/
@@ -644,6 +675,11 @@ def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
 /-- "<keyword> <quality>", e.g. "protection from red" -/
 def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
   .keyword label (some (.quality quality)) none
+/-- "<keyword> N", e.g. "bushido 2" -/
+def keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
+  .keyword label (some (.number amount)) none
+/-- "Level up [cost]" [CR#702.87a] -/
+def levelUp (cost : Cost) : Ability := keywordCosting "LevelUp" cost
 /-- "When <event>, if <condition>, <instruction>" -/
 def triggeredIf (event : GameEvent) (condition : Condition)
     (instruction : Instruction) : Ability :=
@@ -657,9 +693,19 @@ def itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   .entersChoice subject (.quality sort) none .openly
+/-- "<subject> enters with N <kind> counters on it" -/
+def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
+    StaticSpec :=
+  .entersRider subject (.withCounters amount (.printed kind) .fresh)
 
 def triggered (event : GameEvent) (instruction : Instruction) : Ability :=
   .triggered event [] none [] none none none instruction
+/-- "Whenever <event> and whenever <joined events>, <instruction>" -/
+def triggeredJoined (event : GameEvent) (joins : List JoinedHeader) (instruction : Instruction) :
+    Ability :=
+  .triggered event [] none joins none none none instruction
+/-- A further "whenever <event>" header joined onto a trigger. -/
+def joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
 /-- "When <event>, <instruction>" -/
 def when (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
 /-- "Whenever <event>, <instruction>" -/
@@ -698,5 +744,11 @@ def activatedOnlyDuring (cost : Cost) (instruction : Instruction) (timing : Timi
 
 /-- A printed power, toughness, loyalty, or defense. -/
 def stat (value : Nat) : Option Amount := some (.lit value)
+/-- One level band of a leveler: its range, power/toughness box, and text [CR#711.2a]. -/
+def levelBand (range : LevelRange) (power toughness : Nat) (text : List Ability) : LevelBand :=
+  { range, text, power := stat power, toughness := stat toughness }
+/-- A prototype frame's inset set: its mana cost and power/toughness box [CR#718.1]. -/
+def prototypeAlt (cost : ManaCost) (power toughness : Nat) : PrototypeFrame :=
+  { cost := some cost, power := stat power, toughness := stat toughness }
 
 end Semantics.Macros

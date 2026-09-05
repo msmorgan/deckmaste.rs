@@ -4,6 +4,7 @@ import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Copy
 import Semantics.Cards.Description
+import Semantics.Cards.Faces
 import Semantics.Cards.Piles
 
 /-!
