@@ -121,6 +121,10 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAbility(name:"Deathtouch",spelling:"deathtouch",grammar:FixedKeyword(surface:"deathtouch"))"#,
         ),
         (
+            "/synthetic/keyword_abilities/Flying.ron",
+            r#"KeywordAbility(name:"Flying",spelling:"flying",grammar:FixedKeyword(surface:"flying"))"#,
+        ),
+        (
             "/synthetic/keyword_abilities/Haste.ron",
             r#"KeywordAbility(name:"Haste",spelling:"haste",grammar:FixedKeyword(surface:"haste"))"#,
         ),
@@ -131,6 +135,10 @@ fn environment() -> ParserEnvironment {
         (
             "/synthetic/keyword_abilities/Trample.ron",
             r#"KeywordAbility(name:"Trample",spelling:"trample",grammar:FixedKeyword(surface:"trample"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Vigilance.ron",
+            r#"KeywordAbility(name:"Vigilance",spelling:"vigilance",grammar:FixedKeyword(surface:"vigilance"))"#,
         ),
         (
             "/synthetic/types/Creature.ron",
@@ -797,9 +805,9 @@ impl Visitor for ObjectFrameVisitor {
         deckmaste_english_v2::visit::walk_get_power_toughness(self, value);
     }
 
-    fn visit_quoted_ability_predicate(&mut self, value: &QuotedAbilityPredicate) {
+    fn visit_quoted_ability_value(&mut self, value: &QuotedAbilityValue) {
         self.0.push("quoted-ability");
-        deckmaste_english_v2::visit::walk_quoted_ability_predicate(self, value);
+        deckmaste_english_v2::visit::walk_quoted_ability_value(self, value);
     }
 
     fn visit_transitive_predicate(&mut self, value: &TransitivePredicate) {
@@ -891,14 +899,22 @@ fn quote_boundary_discharges_the_enclosing_sentence_terminator() {
     let Predicate::Atomic(predicate) = statement.predicate() else {
         panic!("quoted complement witness ends in an atomic predicate")
     };
-    let VerbPhrase::QuotedAbilityPredicate(predicate) = predicate.as_ref() else {
-        panic!("quoted complement witness ends in the direct quoted predicate")
+    let VerbPhrase::BaseVerbPhrase(base) = predicate.as_ref() else {
+        panic!("quoted complement witness ends in a base verb phrase")
+    };
+    let LexicalVerbPhrase::GrantedAbilityLexicalVerbPhrase(predicate) = base.frame.as_ref() else {
+        panic!("quoted complement witness ends in the granted-ability verb frame")
+    };
+    let GrantedAbilityLexicalVerbPhrase::GrantedAbilityLexicalVerbPhrase(predicate) =
+        predicate.as_ref();
+    let GrantedAbility::Quoted(granted) = predicate.ability.as_ref() else {
+        panic!("quoted complement witness stores a quoted granted ability")
     };
     assert!(matches!(
         predicate.head.reference(),
         VerbInventoryRef::Core(CoreVerbIdentity::Have)
     ));
-    let QuotedAbility::QuotedAbility(quoted) = &predicate.ability;
+    let QuotedAbility::QuotedAbility(quoted) = granted.as_ref();
     let QuotedBlock::QuotedBlock(quoted_block) = &quoted.block;
     let [DocumentBlock::Ability(quoted_ability)] = quoted_block.block.blocks.as_slice() else {
         panic!("quoted complement stores a one-block ability document")
@@ -1034,7 +1050,9 @@ fn ability_expressions_use_the_general_coordination_algebra() {
                 selected
                     .construction_path()
                     .iter()
-                    .any(|name| name == "VerbPhraseAbilityExpressionPredicate"),
+                    .any(|name| {
+                        name == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
+                    }),
                 "{text:?}: {:#?}",
                 selected.construction_path(),
             );
@@ -1072,7 +1090,10 @@ fn quoted_deferred_interiors_remain_exact_ordinary_failures() {
                     !candidate
                         .construction_path()
                         .iter()
-                        .any(|identity| identity == "VerbPhraseQuotedAbilityPredicate")
+                        .any(|identity| {
+                            identity
+                                == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
+                        })
                 }));
             }
             let error = analysis
@@ -1479,7 +1500,7 @@ fn adjustment_sign_slash_pairing_and_concord_class_boundaries_are_reciprocal() {
 }
 
 #[test]
-fn ordinary_ability_nouns_parse_while_keyword_interiors_remain_deferred() {
+fn ordinary_ability_nouns_and_keyword_grants_use_distinct_verb_frames() {
     let parser = parser();
     let context = context();
     let text = "Target creature loses all abilities.";
@@ -1494,13 +1515,26 @@ fn ordinary_ability_nouns_parse_while_keyword_interiors_remain_deferred() {
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["lose-abilities"]);
 
-    for deferred_keyword_interior in [
+    for keyword_grant in [
         "Target creature gains flying until end of turn.",
         "Creatures you control have vigilance.",
     ] {
+        let analysis = parser.analyze(keyword_grant, &context);
+        assert_selected_with_specificity(&parser, &context, keyword_grant, true);
+        let decision = analysis
+            .decision()
+            .expect("keyword grant has a selection decision");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| Some(candidate.ordinal()) == decision.selected())
+            .expect("keyword grant has one selected candidate");
         assert!(
-            parser.parse(deferred_keyword_interior, &context).is_err(),
-            "bare keyword ability remains a deferred boundary: {deferred_keyword_interior:?}",
+            selected.construction_path().iter().any(|name| {
+                name == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
+            }),
+            "{keyword_grant:?}: {:#?}",
+            selected.construction_path(),
         );
     }
 }

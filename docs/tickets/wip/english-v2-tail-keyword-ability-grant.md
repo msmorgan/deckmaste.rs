@@ -41,8 +41,14 @@ flipping adjunct-licence flags on the grant verb rows.
 STOP-and-report: any `checked by` or `require` naming a keyword lexeme, a verb
 identity, or a card; a closed list of duration-taking or argument-taking
 keywords; any dominance edge or exception entry added to break the `gains
-protection from black` keyword-argument versus generic nominal-PP rivalry; any
-coverage loss.
+protection from black` keyword-argument versus generic nominal-PP rivalry.
+
+2026-09-04 coordinator ruling, was: "any coverage loss." Superseded by ADR
+amendment "what a landing proves, discloses, and reports (2026-09-04)": a
+decrease is normal when every lost identity is named, classified (wrong
+analysis retired / re-coverage owed to a named live ticket / regression), and
+routed; an unexplained loss is the defect. A wrong or negative newly covered
+analysis remains a STOP.
 
 Acceptance: the standard landing record (coverage, selection census, lock
 state, construction count, all before/after and stamped with the measured
@@ -69,11 +75,11 @@ that a decrease with a complete, classified, and routed identity list is
 normal. `CLAUDE.md` repeats the ADR rule. These instructions disagree about
 whether a fully explained coverage decrease stops this landing.
 
-The task's stop protocol requires a STOP for a ticket-versus-ruling
-contradiction even when the executor could choose a resolution. No grammar,
-declaration, test, coverage lock, or citation was changed; the frontier and
-landing metrics were not measured, and no implementation gates were run after
-the contradiction was found.
+The task's stop protocol required a STOP for a ticket-versus-ruling
+contradiction even when the executor could choose a resolution. Coordinator
+ruling 2026-09-04 resolved it: the ADR and `CLAUDE.md` govern, and the ticket's
+older sentence is superseded as recorded above. Implementation resumed after
+that ruling.
 
 ### PROVE / DISCLOSE / REPORT
 

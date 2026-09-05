@@ -1093,7 +1093,7 @@ enum NonterminalKind {
     AbilityExpression,
     AbilityExpressionMember,
     AbilityQuotedAbility,
-    GrantedKeywordLine,
+    GrantedAbility,
     DegreeMeasure,
     PostmodifiedReference,
     VerbPhrase,
@@ -1101,6 +1101,7 @@ enum NonterminalKind {
     PredicativeComplementLexicalVerbPhrase,
     IntransitiveLexicalVerbPhrase,
     TransitiveLexicalVerbPhrase,
+    GrantedAbilityLexicalVerbPhrase,
     GetPowerToughnessLexicalVerbPhrase,
     MeasureComplementLexicalVerbPhrase,
     PossessiveOwner,
@@ -1829,7 +1830,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::AbilityExpression => NonterminalKind::AbilityExpression,
         NonterminalCategory::AbilityExpressionMember => NonterminalKind::AbilityExpressionMember,
         NonterminalCategory::AbilityQuotedAbility => NonterminalKind::AbilityQuotedAbility,
-        NonterminalCategory::GrantedKeywordLine => NonterminalKind::GrantedKeywordLine,
+        NonterminalCategory::GrantedAbility => NonterminalKind::GrantedAbility,
         NonterminalCategory::DegreeMeasure => NonterminalKind::DegreeMeasure,
         NonterminalCategory::PostmodifiedReference => NonterminalKind::PostmodifiedReference,
         NonterminalCategory::LocativeNounPhraseCoordination => {
@@ -1845,6 +1846,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::TransitiveLexicalVerbPhrase => {
             NonterminalKind::TransitiveLexicalVerbPhrase
+        }
+        NonterminalCategory::GrantedAbilityLexicalVerbPhrase => {
+            NonterminalKind::GrantedAbilityLexicalVerbPhrase
         }
         NonterminalCategory::GetPowerToughnessLexicalVerbPhrase => {
             NonterminalKind::GetPowerToughnessLexicalVerbPhrase

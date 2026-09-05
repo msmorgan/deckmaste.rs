@@ -72,20 +72,16 @@
     (identity: Gain, bare: "gain", third_person: "gains", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
-        Predicate([Role("QuotedAbility")]),
-        Predicate([Role("KeywordAbility")]),
-        Predicate([Role("AbilityExpression")]),
+        Predicate([Role("GrantedAbility")]),
     ]),
     (identity: Get, bare: "get", third_person: "gets", frames: [
         Predicate([Role("PowerToughnessAdjustment")]),
     ]),
     (identity: Have, bare: "have", third_person: "has", frames: [
-        Predicate([Role("QuotedAbility")]),
-        Predicate([Role("AbilityExpression")]),
+        Predicate([Role("GrantedAbility")]),
         Predicate([ObjectNounPhrase, PredicativeComplement]),
         Predicate([Role("Object"), Role("VerbPhrase")]),
         Predicate([ObjectNounPhrase]),
-        Predicate([Role("KeywordAbility")]),
     ]),
     (identity: Leave, bare: "leave", third_person: "leaves", frames: [
         Predicate([]),

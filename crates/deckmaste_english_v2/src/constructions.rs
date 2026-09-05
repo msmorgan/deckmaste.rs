@@ -696,19 +696,11 @@ constructions! {
             feature = ConcordClass;
         }
     }
-    codec AbilityExpressionVerb {
+    codec GrantedAbilityVerb {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [AbilityExpression];
-            feature = ConcordClass;
-        }
-    }
-    codec HaveKeywordAbilityVerb {
-        generate declaration_verb {
-            class = Predicate;
-            position = Verb;
-            tail = [KeywordAbility];
+            tail = [GrantedAbility];
             feature = ConcordClass;
         }
     }
@@ -753,13 +745,6 @@ constructions! {
         generate declaration_verb {
             position = Verb;
             tail = [lex(Preposition::At), Object];
-            feature = ConcordClass;
-        }
-    }
-    codec QuotedAbilityVerb {
-        generate declaration_verb {
-            position = Verb;
-            tail = [QuotedAbility];
             feature = ConcordClass;
         }
     }
@@ -834,12 +819,6 @@ constructions! {
             position = FixedKeyword;
             kinds = [KeywordAbility];
             params = Any;
-        }
-    }
-    codec BareKeywordAbility {
-        generate declaration_term {
-            position = FixedKeyword;
-            kinds = [KeywordAbility];
         }
     }
     codec DeclaredKeywordParticiple {
@@ -1053,6 +1032,7 @@ constructions! {
     abstract sum LexicalVerbPhrase {
         IntransitiveLexicalVerbPhrase,
         TransitiveLexicalVerbPhrase,
+        GrantedAbilityLexicalVerbPhrase,
         GetPowerToughnessLexicalVerbPhrase,
         MeasureComplementLexicalVerbPhrase,
         ObjectAmountLexicalVerbPhrase,
@@ -1107,9 +1087,7 @@ constructions! {
     abstract sum PrepositionalComplement {
         Object: Object,
         Edge: EdgeOfPhrase,
-        Keyword: GrantedKeywordLine,
-        Quoted: QuotedAbility,
-        Ability: AbilityExpression,
+        Granted: GrantedAbility,
         ScalarMeasure: ScalarMeasureValue,
         DegreeMeasure: DegreeMeasure,
         PowerToughness: PowerToughnessValue,
@@ -4602,23 +4580,13 @@ constructions! {
         derive locative_temporal_license = Values::Unlicensed;
         form quoted_ability = sentence_initial(" \"") suffix(block, "\"");
     }
-    construction quoted_ability_predicate: VerbPhrase {
-        element QuotedAbilityPredicate { head: lex QuotedAbilityVerb, ability: QuotedAbility, }
-        derive concord_class = head.concord_class;
-        form quoted_ability_predicate = verb(head) ability;
-    }
-    construction have_keyword_ability: VerbPhrase {
-        element HaveKeywordAbility { head: lex HaveKeywordAbilityVerb, ability: lex KeywordAbility, }
-        derive concord_class = head.concord_class;
-        form have_keyword_ability = verb(head) lex(ability);
-    }
-    construction ability_expression_predicate: VerbPhrase {
-        element AbilityExpressionPredicate {
-            head: lex AbilityExpressionVerb,
-            abilities: AbilityExpression,
+    construction granted_ability_lexical_verb_phrase: GrantedAbilityLexicalVerbPhrase {
+        element GrantedAbilityLexicalVerbPhraseValue {
+            head: lex GrantedAbilityVerb,
+            ability: GrantedAbility,
         }
         derive concord_class = head.concord_class;
-        form ability_expression_predicate = verb(head) abilities;
+        form granted_ability_lexical_verb_phrase = verb(head) ability;
     }
     construction quote_terminated_statement: AbilityBody {
         element QuoteTerminatedStatement {
@@ -4724,6 +4692,11 @@ constructions! {
         QualityCosted: QualityCostKeywordLineItem,
         Subject: SubjectKeywordLineItem,
     }
+    abstract sum GrantedAbility {
+        Keyword: KeywordLineItem,
+        Quoted: QuotedAbility,
+        Coordination: AbilityExpression,
+    }
     abstract sum AbilityExpressionMember {
         Keyword: KeywordLineItem,
         Quoted: AbilityQuotedAbility,
@@ -4742,7 +4715,7 @@ constructions! {
         Coordination: KeywordQualityCoordination,
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
-        element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
+        element BareKeywordLineItemValue { keyword: lex KeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form bare_keyword_line_item = lex(keyword);
@@ -4840,12 +4813,6 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form subject_keyword_line_item = lex(keyword) subject;
-    }
-    construction granted_keyword_line: GrantedKeywordLine {
-        element GrantedKeywordLineValue { item: KeywordLineItem, }
-        derive relationality = Values::NonRelational;
-        derive locative_temporal_license = Values::Unlicensed;
-        form granted_keyword_line = item;
     }
     construction ability_quoted_ability: AbilityQuotedAbility {
         element AbilityQuotedAbilityValue { block: QuotedBlock, }
