@@ -321,6 +321,7 @@ pub(crate) fn emit(
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
                             reference: crate::environment::VerbInventoryRef,
+                            inflectional_form: Option<::deckmaste_construction_core::macro_def::InflectionalForm>,
                             #pair_field
                         }
                     },
@@ -353,12 +354,55 @@ pub(crate) fn emit(
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
                                 .then_some(Self {
                                     reference,
+                                    inflectional_form: None,
+                                    #pair_initializer
+                                })
+                            }
+
+                            pub(crate) fn from_inflectional_form(
+                                environment: &crate::environment::ParserEnvironment,
+                                reference: crate::environment::VerbInventoryRef,
+                                inflectional_form: ::deckmaste_construction_core::macro_def::InflectionalForm,
+                                #pair_parameter
+                            ) -> Option<Self> {
+                                let frame = VerbFrameKey::with_class(
+                                    #frame_class,
+                                    &[#(#frame_atoms),*],
+                                );
+                                let has_required_forms = match inflectional_form {
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Plain
+                                    | ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent => [
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                        ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                                    ]
+                                    .into_iter()
+                                    .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some()),
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite => environment
+                                        .verb_inventory_surface(
+                                            &reference,
+                                            ::deckmaste_construction_core::macro_def::SurfaceFeature::PRETERITE,
+                                        )
+                                        .is_some(),
+                                    ::deckmaste_construction_core::macro_def::InflectionalForm::GerundParticiple
+                                    | ::deckmaste_construction_core::macro_def::InflectionalForm::PastParticiple => false,
+                                };
+                                (environment.verb_frame_licenses(&reference, frame)
+                                    && has_required_forms)
+                                .then_some(Self {
+                                    reference,
+                                    inflectional_form: Some(inflectional_form),
                                     #pair_initializer
                                 })
                             }
 
                             pub fn reference(&self) -> &crate::environment::VerbInventoryRef {
                                 &self.reference
+                            }
+
+                            pub(crate) const fn inflectional_form(
+                                &self,
+                            ) -> Option<::deckmaste_construction_core::macro_def::InflectionalForm> {
+                                self.inflectional_form
                             }
 
                         }

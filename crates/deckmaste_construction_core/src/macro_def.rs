@@ -249,6 +249,10 @@ pub enum Grammar {
         third_person: DerivedSurface,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         third_person_onset: Option<Onset>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        preterite: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        preterite_onset: Option<Onset>,
         #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
         participle: DerivedSurface,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -726,6 +730,7 @@ impl SurfaceFeature {
     pub const PLAIN: Self = Self::Inflectional(InflectionalForm::Plain);
     pub const THIRD_PERSON_SINGULAR_PRESENT: Self =
         Self::Inflectional(InflectionalForm::ThirdPersonSingularPresent);
+    pub const PRETERITE: Self = Self::Inflectional(InflectionalForm::Preterite);
     pub const PAST_PARTICIPLE: Self = Self::Inflectional(InflectionalForm::PastParticiple);
 
     /// Returns the verb Inflectional Form without inventing a Concord Class.
@@ -821,6 +826,7 @@ enum GrammarSourceMap {
     Verb {
         bare: SourcePosition,
         third_person: Option<SourcePosition>,
+        preterite: Option<SourcePosition>,
         participle: Option<SourcePosition>,
         frame_set: SourcePosition,
     },
@@ -897,6 +903,8 @@ enum DiagnosticGrammar<'a> {
         bare: &'a RawValue,
         #[serde(default, borrow)]
         third_person: Option<&'a RawValue>,
+        #[serde(default, borrow)]
+        preterite: Option<&'a RawValue>,
         #[serde(default, borrow)]
         participle: Option<&'a RawValue>,
         #[serde(borrow)]
@@ -1208,11 +1216,15 @@ impl GrammarSourceMap {
             DiagnosticGrammar::Verb {
                 bare,
                 third_person,
+                preterite,
                 participle,
                 frame_set,
             } => Ok(Self::Verb {
                 bare: raw_position(path, source, bare, declaration)?,
                 third_person: third_person
+                    .map(|value| raw_position(path, source, value, declaration))
+                    .transpose()?,
+                preterite: preterite
                     .map(|value| raw_position(path, source, value, declaration))
                     .transpose()?,
                 participle: participle
@@ -1839,6 +1851,8 @@ fn normalize_grammar(
                     bare_onset,
                     third_person,
                     third_person_onset,
+                    preterite,
+                    preterite_onset,
                     participle,
                     participle_onset,
                     frame_set,
@@ -1846,6 +1860,7 @@ fn normalize_grammar(
                 GrammarSourceMap::Verb {
                     bare: bare_position,
                     third_person: third_person_position,
+                    preterite: preterite_position,
                     participle: participle_position,
                     frame_set: frame_set_position,
                 },
@@ -1860,6 +1875,14 @@ fn normalize_grammar(
                     english_verb(&bare),
                     third_person,
                 )?;
+                if let Some(preterite) = &preterite {
+                    validate_surface(
+                        path,
+                        preterite_position.unwrap_or(*bare_position),
+                        "preterite",
+                        preterite,
+                    )?;
+                }
                 let participle = realize_derived_surface(
                     path,
                     *bare_position,
@@ -1880,6 +1903,15 @@ fn normalize_grammar(
                         feature: SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                         onset: normalized_onset(path, position, &text, third_person_onset)?,
                         onset_override: third_person_onset,
+                        text,
+                    });
+                }
+                if let Some(text) = preterite {
+                    let position = preterite_position.unwrap_or(*bare_position);
+                    surfaces.push(RealizedSurface {
+                        feature: SurfaceFeature::PRETERITE,
+                        onset: normalized_onset(path, position, &text, preterite_onset)?,
+                        onset_override: preterite_onset,
                         text,
                     });
                 }

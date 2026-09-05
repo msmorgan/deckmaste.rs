@@ -66,7 +66,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Search.ron",
-            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",frame_set:Custom(frames:[[ObjectNounPhrase],[Lex("Preposition","For"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",preterite:"searched",frame_set:Custom(frames:[[ObjectNounPhrase],[Lex("Preposition","For"),ObjectNounPhrase],[ObjectNounPhrase,Lex("Preposition","For"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Reveal.ron",
@@ -1792,6 +1792,28 @@ fn preterite_copulas_keep_every_supported_construction_path() {
             path.iter().any(|actual| actual == required_path),
             "{text:?} must retain {required_path}: {path:?}",
         );
+    }
+}
+
+#[test]
+fn declared_preterites_reach_general_finite_clause_hosts() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "Whenever a creature you control attacked, draw a card.",
+        "Whenever creatures you control attacked, draw a card.",
+        "Draw a card only if a creature died this turn.",
+        "Draw a card only if a creature attacked this turn.",
+        "Each player that searched a library shuffles.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for text in [
+        "Whenever a creature you control attacks, draw a card.",
+        "Whenever creatures you control attack, draw a card.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
 }
 

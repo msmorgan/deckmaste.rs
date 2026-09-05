@@ -3834,6 +3834,8 @@ fn render_declaration_verb_atom(
             ));
         }
         let surface = ident(&lexeme_surface_helper(lexeme.name()));
+        let declaration_feature =
+            declaration_verb_surface_feature(&quote! { declaration }, &feature);
         return Ok(quote! {
             match #value {
                 #verb::Lexeme(lexeme) => {
@@ -3842,13 +3844,14 @@ fn render_declaration_verb_atom(
                 #verb::Declaration(declaration) => {
                     #method_writer.word(
                         environment
-                            .verb_inventory_surface(declaration.reference(), #feature)
+                            .verb_inventory_surface(declaration.reference(), #declaration_feature)
                             .expect("stored declaration verb remains in its parser environment"),
                     );
                 }
             }
         });
     }
+    let feature = declaration_verb_surface_feature(value, &feature);
     Ok(quote! {
         #method_writer.word(
             environment
@@ -3856,6 +3859,18 @@ fn render_declaration_verb_atom(
                 .expect("stored declaration verb remains in its parser environment"),
         );
     })
+}
+
+fn declaration_verb_surface_feature(
+    declaration: &TokenStream,
+    fallback: &TokenStream,
+) -> TokenStream {
+    quote! {
+        (#declaration)
+            .inflectional_form()
+            .map(::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional)
+            .unwrap_or(#fallback)
+    }
 }
 
 fn declaration_verb_owner(
@@ -3920,6 +3935,8 @@ fn declaration_verb_owner(
                 )
             }
         });
+        let declaration_feature =
+            declaration_verb_surface_feature(&quote! { declaration }, &feature);
         return Ok(quote! {
             match (#value, #axis_value) {
                 #(#arms,)*
@@ -3930,12 +3947,13 @@ fn declaration_verb_owner(
                             .expect("a core inventory verb has a stable owner"),
                     ),
                     crate::environment::VerbInventoryRef::Declaration(id) => {
-                        LexicalOwner::declaration_owner(id.clone(), #feature)
+                        LexicalOwner::declaration_owner(id.clone(), #declaration_feature)
                     }
                 },
             }
         });
     }
+    let feature = declaration_verb_surface_feature(value, &feature);
     Ok(quote! {
         match (#value).reference() {
             crate::environment::VerbInventoryRef::Core(_) => LexicalOwner::static_owner(

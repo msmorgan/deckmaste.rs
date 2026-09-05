@@ -2498,10 +2498,16 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 LexicalProvenanceKind::Lexeme,
                                 identity.owner_id(),
                             ),
-                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), match concord_class {
-                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
-                                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
-                            }),
+                            crate::environment::VerbInventoryRef::Declaration(id) => {
+                                let feature = declaration
+                                    .inflectional_form()
+                                    .map(::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional)
+                                    .unwrap_or_else(|| match concord_class {
+                                        ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
+                                        ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
+                                    });
+                                LexicalOwner::declaration_owner(id.clone(), feature)
+                            }
                         }),
                     },
                     crate::feature::Feature::Participle => quote! {

@@ -161,6 +161,22 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         ]
     );
 
+    for (name, expected) in [(
+        "Search",
+        vec![
+            (SurfaceFeature::PLAIN, "search"),
+            (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "searches"),
+            (SurfaceFeature::PRETERITE, "searched"),
+            (SurfaceFeature::PAST_PARTICIPLE, "searched"),
+        ],
+    )] {
+        assert_eq!(
+            surfaces(action(&declarations, name)),
+            expected,
+            "homographic Inflectional Forms remain distinct declaration rows",
+        );
+    }
+
     assert_eq!(
         action(&declarations, "Explore").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {

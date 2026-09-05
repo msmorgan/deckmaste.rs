@@ -215,6 +215,8 @@ struct CoreVerbDeclaration {
     bare: String,
     third_person: String,
     #[serde(default)]
+    preterite: Option<String>,
+    #[serde(default)]
     participle: Option<String>,
     frames: Vec<CoreVerbFrame>,
 }
@@ -1491,6 +1493,7 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             identity,
             bare,
             third_person,
+            preterite,
             participle,
             frames: declared_frames,
         } = declaration;
@@ -1519,6 +1522,9 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             surface(SurfaceFeature::PLAIN, bare)?,
             surface(SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, third_person)?,
         ];
+        if let Some(preterite) = preterite {
+            surfaces.push(surface(SurfaceFeature::PRETERITE, preterite)?);
+        }
         if let Some(participle) = participle {
             surfaces.push(surface(SurfaceFeature::PAST_PARTICIPLE, participle)?);
         }

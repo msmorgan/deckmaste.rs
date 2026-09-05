@@ -4,6 +4,7 @@ KeywordAction(
     grammar: Verb(
         bare: "search",
         third_person: "searches",
+        preterite: "searched",
         frame_set: Custom(
             frames: [
                 [ObjectNounPhrase],

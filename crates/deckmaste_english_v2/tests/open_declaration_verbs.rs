@@ -27,11 +27,11 @@ fn synthetic_verb_rows() -> Vec<NormalizedDeclaration> {
     vec![
         declaration(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",preterite:"frindled",participle:"frindled",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/Connive.ron",
-            r#"KeywordAction(name:"Connive",spelling:"zorble",grammar:Verb(bare:"zorble",third_person:"zurbles",frame_set:Intransitive))"#,
+            r#"KeywordAction(name:"Connive",spelling:"zorble",grammar:Verb(bare:"zorble",third_person:"zurbles",preterite:"zorbled",frame_set:Intransitive))"#,
         ),
     ]
 }
@@ -256,6 +256,23 @@ fn open_declaration_synthetic_verbs_parse_and_render_both_concord_classes_exactl
             parser.parse(text, &context).is_err(),
             "wrong concord_class parsed: {text}"
         );
+    }
+}
+
+#[test]
+fn declared_preterites_parse_and_render_through_both_concord_classes() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "You frindled target player.",
+        "That player frindled target player.",
+        "It zorbled.",
+        "They zorbled.",
+    ] {
+        let ability = parser
+            .parse(text, &context)
+            .unwrap_or_else(|error| panic!("declared preterite must parse `{text}`: {error}"));
+        assert_eq!(ability.render(&context, parser.environment()), text);
     }
 }
 

@@ -867,39 +867,40 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         {
                             continue;
                         }
-                        for (end, reading) in input.declaration_verb_readings(
-                            input.position.byte_offset,
-                            &frame,
-                            match concord_class {
-                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
-                                ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
-                            },
-                        ) {
-                            let reference = reading.reference().clone();
-                            let feature = match concord_class {
-                                ConcordClass::Other => ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
-                                ConcordClass::ThirdPersonSingular => {
-                                    ::deckmaste_construction_core::macro_def::SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT
-                                }
-                            };
-                            let onset = reading.onset();
-                            #pair_preposition
-                            let Some(declaration) = #declaration::new(
-                                input.environment,
-                                reference,
-                                #pair_argument
-                            ) else {
-                                continue;
-                            };
-                            matches.push(LexicalMatch {
-                                end,
-                                value: Leaf::#verb {
-                                    verb: #open_value,
-                                    concord_class,
-                                    onset,
-                                },
-                                owner: None,
-                            });
+                        let present_form = match concord_class {
+                            ConcordClass::Other => ::deckmaste_construction_core::macro_def::InflectionalForm::Plain,
+                            ConcordClass::ThirdPersonSingular => ::deckmaste_construction_core::macro_def::InflectionalForm::ThirdPersonSingularPresent,
+                        };
+                        for inflectional_form in [
+                            present_form,
+                            ::deckmaste_construction_core::macro_def::InflectionalForm::Preterite,
+                        ] {
+                            for (end, reading) in input.declaration_verb_readings(
+                                input.position.byte_offset,
+                                &frame,
+                                ::deckmaste_construction_core::macro_def::SurfaceFeature::Inflectional(inflectional_form),
+                            ) {
+                                let reference = reading.reference().clone();
+                                let onset = reading.onset();
+                                #pair_preposition
+                                let Some(declaration) = #declaration::from_inflectional_form(
+                                    input.environment,
+                                    reference,
+                                    inflectional_form,
+                                    #pair_argument
+                                ) else {
+                                    continue;
+                                };
+                                matches.push(LexicalMatch {
+                                    end,
+                                    value: Leaf::#verb {
+                                        verb: #open_value,
+                                        concord_class,
+                                        onset,
+                                    },
+                                    owner: None,
+                                });
+                            }
                         }
                     }
                     matches

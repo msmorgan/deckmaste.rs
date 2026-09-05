@@ -12,6 +12,7 @@ KeywordAction(
     grammar: Verb(
         bare: "scry",
         third_person: "scries",
+        preterite: "scried",
         frame_set: MeasureComplement,
     ),
     body: Scry(Param(0)),
@@ -298,6 +299,12 @@ fn graduated_declaration_expands_and_normalizes() {
             RealizedSurface {
                 feature: SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT,
                 text: "scries".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
+            },
+            RealizedSurface {
+                feature: SurfaceFeature::PRETERITE,
+                text: "scried".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },

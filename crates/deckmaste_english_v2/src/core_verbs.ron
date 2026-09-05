@@ -1,33 +1,33 @@
 [
-    (identity: Add, bare: "add", third_person: "adds", frames: [
+    (identity: Add, bare: "add", third_person: "adds", preterite: Some("added"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),
     ]),
-    (identity: Attack, bare: "attack", third_person: "attacks", participle: Some("attacked"), frames: [
+    (identity: Attack, bare: "attack", third_person: "attacks", preterite: Some("attacked"), participle: Some("attacked"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Become, bare: "become", third_person: "becomes", frames: [
+    (identity: Become, bare: "become", third_person: "becomes", preterite: Some("became"), frames: [
         Predicate([PredicativeComplement]),
     ]),
-    (identity: Block, bare: "block", third_person: "blocks", participle: Some("blocked"), frames: [
+    (identity: Block, bare: "block", third_person: "blocks", preterite: Some("blocked"), participle: Some("blocked"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Can, bare: "can", third_person: "can", frames: [Auxiliary]),
     (identity: Cant, bare: "can't", third_person: "can't", frames: [Auxiliary]),
-    (identity: Cause, bare: "cause", third_person: "causes", frames: [
+    (identity: Cause, bare: "cause", third_person: "causes", preterite: Some("caused"), frames: [
         Predicate([Role("Object"), Literal("to"), Role("VerbPhrase")]),
     ]),
-    (identity: Choose, bare: "choose", third_person: "chooses", participle: Some("chosen"), frames: [
+    (identity: Choose, bare: "choose", third_person: "chooses", preterite: Some("chose"), participle: Some("chosen"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Literal("among"), Role("Object")]),
         Predicate([Role("InfinitiveComplement")]),
     ]),
-    (identity: Control, bare: "control", third_person: "controls", frames: [
+    (identity: Control, bare: "control", third_person: "controls", preterite: Some("controlled"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Copy, bare: "copy", third_person: "copies", frames: [
+    (identity: Copy, bare: "copy", third_person: "copies", preterite: Some("copied"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Cost, bare: "cost", third_person: "costs", frames: [
@@ -37,7 +37,7 @@
             Role("ControlledCostAction"),
         ]),
     ]),
-    (identity: Cycle, bare: "cycle", third_person: "cycles", frames: [Predicate([]), Predicate([ObjectNounPhrase])]),
+    (identity: Cycle, bare: "cycle", third_person: "cycles", preterite: Some("cycled"), frames: [Predicate([]), Predicate([ObjectNounPhrase])]),
     (identity: Deal, bare: "deal", third_person: "deals", participle: Some("dealt"), frames: [
         Predicate([
             Amount,
@@ -51,30 +51,30 @@
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
     ]),
-    (identity: Die, bare: "die", third_person: "dies", frames: [Predicate([])]),
+    (identity: Die, bare: "die", third_person: "dies", preterite: Some("died"), frames: [Predicate([])]),
     (identity: Didnt, bare: "didn't", third_person: "didn't", frames: [Auxiliary]),
-    (identity: Do, bare: "do", third_person: "does", frames: [ProVerb]),
-    (identity: Draw, bare: "draw", third_person: "draws", participle: Some("drawn"), frames: [
+    (identity: Do, bare: "do", third_person: "does", preterite: Some("did"), frames: [ProVerb]),
+    (identity: Draw, bare: "draw", third_person: "draws", preterite: Some("drew"), participle: Some("drawn"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Amount]),
     ]),
-    (identity: Enter, bare: "enter", third_person: "enters", frames: [
+    (identity: Enter, bare: "enter", third_person: "enters", preterite: Some("entered"), frames: [
         Predicate([]),
         Predicate([PredicativeComplement]),
         Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition", "On"), Role("FrameComplement")]),
         Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
     ]),
-    (identity: Flip, bare: "flip", third_person: "flips", frames: [
+    (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Gain, bare: "gain", third_person: "gains", frames: [
+    (identity: Gain, bare: "gain", third_person: "gains", preterite: Some("gained"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Role("GrantedAbility")]),
     ]),
-    (identity: Get, bare: "get", third_person: "gets", frames: [
+    (identity: Get, bare: "get", third_person: "gets", preterite: Some("got"), frames: [
         Predicate([Role("PowerToughnessAdjustment")]),
     ]),
     (identity: Have, bare: "have", third_person: "has", frames: [
@@ -83,27 +83,27 @@
         Predicate([Role("Object"), Role("VerbPhrase")]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Leave, bare: "leave", third_person: "leaves", frames: [
+    (identity: Leave, bare: "leave", third_person: "leaves", preterite: Some("left"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Look, bare: "look", third_person: "looks", frames: [
+    (identity: Look, bare: "look", third_person: "looks", preterite: Some("looked"), frames: [
         Predicate([Lex("Preposition", "At"), Role("Object")]),
     ]),
-    (identity: Lose, bare: "lose", third_person: "loses", frames: [
+    (identity: Lose, bare: "lose", third_person: "loses", preterite: Some("lost"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
     ]),
     (identity: May, bare: "may", third_person: "may", frames: [Auxiliary]),
     (identity: Must, bare: "must", third_person: "must", frames: [Auxiliary]),
-    (identity: Own, bare: "own", third_person: "owns", frames: [
+    (identity: Own, bare: "own", third_person: "owns", preterite: Some("owned"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Pay, bare: "pay", third_person: "pays", frames: [
+    (identity: Pay, bare: "pay", third_person: "pays", preterite: Some("paid"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),
     ]),
-    (identity: Prevent, bare: "prevent", third_person: "prevents", participle: Some("prevented"), frames: [
+    (identity: Prevent, bare: "prevent", third_person: "prevents", preterite: Some("prevented"), participle: Some("prevented"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Put, bare: "put", third_person: "puts", participle: Some("put"), frames: [
@@ -129,10 +129,10 @@
             Literal("order"),
         ]),
     ]),
-    (identity: Remove, bare: "remove", third_person: "removes", frames: [
+    (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
         Predicate([ObjectNounPhrase, Lex("Preposition", "From"), Role("FrameComplement")]),
     ]),
-    (identity: Return, bare: "return", third_person: "returns", frames: [
+    (identity: Return, bare: "return", third_person: "returns", preterite: Some("returned"), frames: [
         Predicate([
             Role("Object"),
             OptionalLex("Preposition", "From"),
@@ -142,20 +142,20 @@
             OptionalMarkedRole("Preposition", "Under", "Object"),
         ]),
     ]),
-    (identity: Roll, bare: "roll", third_person: "rolls", frames: [
+    (identity: Roll, bare: "roll", third_person: "rolls", preterite: Some("rolled"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Share, bare: "share", third_person: "shares", frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "With"), ObjectNounPhrase]),
     ]),
-    (identity: Skip, bare: "skip", third_person: "skips", frames: [
+    (identity: Skip, bare: "skip", third_person: "skips", preterite: Some("skipped"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Turn, bare: "turn", third_person: "turns", participle: Some("turned"), frames: [
+    (identity: Turn, bare: "turn", third_person: "turns", preterite: Some("turned"), participle: Some("turned"), frames: [
         Predicate([Literal("face"), Literal("up")]),
     ]),
-    (identity: Unattach, bare: "unattach", third_person: "unattaches", frames: [
+    (identity: Unattach, bare: "unattach", third_person: "unattaches", preterite: Some("unattached"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Unlock, bare: "unlock", third_person: "unlocks", frames: [
