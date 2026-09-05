@@ -1035,9 +1035,13 @@ impl ScanInput<'_> {
             left.0
                 .cmp(&right.0)
                 .then_with(|| left.1.reference().cmp(right.1.reference()))
+                .then_with(|| {
+                    left.1
+                        .frame_complement_pair_preposition()
+                        .cmp(&right.1.frame_complement_pair_preposition())
+                })
         });
-        results
-            .dedup_by(|left, right| left.0 == right.0 && left.1.reference() == right.1.reference());
+        results.dedup_by(|left, right| left.0 == right.0 && left.1 == right.1);
         results
     }
 }

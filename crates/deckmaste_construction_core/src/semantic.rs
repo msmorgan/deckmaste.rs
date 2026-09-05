@@ -841,6 +841,7 @@ pub(crate) enum VerbFrameAtom {
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
+    FrameComplementPair,
     Role(String),
     OptionalRole(String),
 }
@@ -6710,6 +6711,9 @@ impl DeclarationVerbPlan {
                         } else {
                             VerbFrameAtom::PredicativeComplement
                         }
+                    }
+                    crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(_) => {
+                        VerbFrameAtom::FrameComplementPair
                     }
                     crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
                         if atom.optional {

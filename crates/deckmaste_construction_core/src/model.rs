@@ -543,6 +543,10 @@ pub enum DeclarationVerbTailAtomKindSource {
     Amount(Ident),
     ObjectNounPhrase(Ident),
     PredicativeComplement(Ident),
+    /// A structural declaration-verb pattern matching an object followed by
+    /// one declared marked complement, with only optional frame material
+    /// around the marker.
+    FrameComplementPair(Ident),
     /// A compiler-side grammar role.  These atoms are deliberately separate
     /// from macro-RON's small plugin-facing `CustomTailAtom` vocabulary.
     Role(Ident),

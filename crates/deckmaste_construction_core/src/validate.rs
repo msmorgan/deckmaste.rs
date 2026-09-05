@@ -3424,6 +3424,9 @@ fn declaration_verb_domain(
                 crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
                     "PredicativeComplement".to_owned()
                 }
+                crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(_) => {
+                    "FrameComplementPair".to_owned()
+                }
                 crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
                     format!("Role({})", identifier_key(role))
                 }
@@ -3574,6 +3577,7 @@ fn validate_declaration_verb_source(
         errors,
     );
     validate_declaration_verb_tail(raw, source, errors);
+    validate_frame_complement_pair_recipe(source, closed, class, feature, errors);
 
     if let Some(position) = position
         && position != "Verb"
@@ -3667,6 +3671,54 @@ fn validate_declaration_verb_source(
                 ),
             ),
         }
+    }
+}
+
+fn validate_frame_complement_pair_recipe(
+    source: &crate::model::DeclarationVerbSource,
+    closed: Option<&syn::Ident>,
+    class: Option<&syn::Ident>,
+    feature: Option<&syn::Ident>,
+    errors: &mut Option<syn::Error>,
+) {
+    let is_pair = source.tail_slots.first().is_some_and(|tail| {
+        matches!(
+            tail.atoms.as_slice(),
+            [crate::model::DeclarationVerbTailAtomSource {
+                kind: crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(_),
+                ..
+            }]
+        )
+    });
+    if !is_pair {
+        return;
+    }
+    for (actual, expected, message) in [
+        (
+            class,
+            "Predicate",
+            "FrameComplementPair declaration_verb patterns must have Predicate class",
+        ),
+        (
+            feature,
+            "ConcordClass",
+            "FrameComplementPair declaration_verb patterns must have ConcordClass feature",
+        ),
+    ] {
+        if let Some(actual) = actual
+            && identifier_key(actual) != expected
+        {
+            combine(errors, syn::Error::new(actual.span(), message));
+        }
+    }
+    if let Some(closed) = closed {
+        combine(
+            errors,
+            syn::Error::new(
+                closed.span(),
+                "FrameComplementPair declaration_verb patterns cannot have a closed branch",
+            ),
+        );
     }
 }
 
@@ -3857,6 +3909,21 @@ fn validate_declaration_verb_tail(
                     .or_default()
                     .push(atom);
             }
+            crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(ident) => {
+                nonliteral_occurrences
+                    .entry("FrameComplementPair".to_owned())
+                    .or_default()
+                    .push(atom);
+                if tail.atoms.len() != 1 || atom.optional || atom.label.is_some() {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            ident.span(),
+                            "FrameComplementPair must be the sole, required, unlabeled declaration_verb tail pattern",
+                        ),
+                    );
+                }
+            }
             crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
                 nonliteral_occurrences
                     .entry(format!("Role({})", identifier_key(role)))
@@ -3873,6 +3940,7 @@ fn validate_declaration_verb_tail(
             crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
+            | crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => atom.span(),
             crate::model::DeclarationVerbTailAtomKindSource::Marked { marker, .. } => marker.span(),
             crate::model::DeclarationVerbTailAtomKindSource::Literal(_)
@@ -6436,13 +6504,14 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     FieldKind::Category(_)
                         | FieldKind::Zeroable { .. }
                         | FieldKind::Optional(_)
+                        | FieldKind::Sequence { .. }
                         | FieldKind::Lex(_)
                 ) {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             field.name.span(),
-                            "checked fields require a category, lexical, zeroable category, or optional category value",
+                            "checked fields require a category, lexical, zeroable category, optional category, or sequence value",
                         ),
                     );
                 }
@@ -12725,6 +12794,19 @@ pub(crate) mod tests {
         super::validate_generated_codecs(&labeled_repetition)
             .expect("distinct labels authorize the repeated nonliteral kind");
 
+        let frame_complement_pair = crate::parse_declarations(quote! {
+            codec PairVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    tail = [FrameComplementPair];
+                    feature = ConcordClass;
+                }
+            }
+        })
+        .expect("the structural pair pattern parses");
+        super::validate_generated_codecs(&frame_complement_pair)
+            .expect("the sole Predicate/ConcordClass pair pattern validates");
+
         for (body, expected) in [
             (
                 quote! {
@@ -12911,6 +12993,40 @@ pub(crate) mod tests {
                     frame_set = Transitive;
                 },
                 "recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    tail = [FrameComplementPair, Amount];
+                    feature = ConcordClass;
+                },
+                "FrameComplementPair must be the sole, required, unlabeled declaration_verb tail pattern",
+            ),
+            (
+                quote! {
+                    closed = CoreVerb;
+                    position = Verb;
+                    tail = [FrameComplementPair];
+                    feature = ConcordClass;
+                },
+                "FrameComplementPair declaration_verb patterns cannot have a closed branch",
+            ),
+            (
+                quote! {
+                    class = Auxiliary;
+                    position = Verb;
+                    tail = [FrameComplementPair];
+                    feature = ConcordClass;
+                },
+                "FrameComplementPair declaration_verb patterns must have Predicate class",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    tail = [FrameComplementPair];
+                    feature = Participle;
+                },
+                "FrameComplementPair declaration_verb patterns must have ConcordClass feature",
             ),
         ] {
             let message = declaration_verb_source_error(&body);

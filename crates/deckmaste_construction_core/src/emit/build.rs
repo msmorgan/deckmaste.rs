@@ -230,6 +230,7 @@ fn emit_arm_from_plan(
                         row.element_type(),
                         field,
                         state,
+                        row.field(field.name())?.field_check().is_some(),
                         &mut lowering,
                     )?;
                 }
@@ -786,6 +787,7 @@ fn emit_product_arm(
                         product.name(),
                         field,
                         state,
+                        false,
                         &mut binders,
                     )?;
                     debug_assert!(features.is_empty());
@@ -1660,10 +1662,18 @@ fn lower_sequence_owner_field(
     owner: &str,
     field: &StructuralFieldPlan,
     state: &super::rules::OwnerFieldBuildPlan,
+    checked: bool,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    let (patterns, value, sequence_feature, guards) =
-        lower_sequence_owner_value(plan, rule, owner, field, state, &mut lowering.binders)?;
+    let (patterns, value, sequence_feature, guards) = lower_sequence_owner_value(
+        plan,
+        rule,
+        owner,
+        field,
+        state,
+        checked,
+        &mut lowering.binders,
+    )?;
     lowering.patterns.extend(patterns);
     lowering.field_values.insert(field.name().to_owned(), value);
     for (feature, value) in sequence_feature {
@@ -1689,6 +1699,7 @@ fn lower_sequence_owner_value(
     owner: &str,
     field: &StructuralFieldPlan,
     state: &super::rules::OwnerFieldBuildPlan,
+    checked: bool,
     binders: &mut LocalAllocator,
 ) -> syn::Result<LoweredSequenceOwnerValue> {
     let StructuralFieldKindPlan::Sequence { .. } = field.kind() else {
@@ -1726,7 +1737,12 @@ fn lower_sequence_owner_value(
                     && parts.possessive_endings.is_empty()
             );
             let values = parts.values;
-            (quote! { vec![#(#values),*] }, Vec::new(), Vec::new())
+            let value = if checked {
+                quote! { Vec::from([#(#values),*]) }
+            } else {
+                quote! { vec![#(#values),*] }
+            };
+            (value, Vec::new(), Vec::new())
         }
         super::rules::SequenceOwnerState::UniformNonEmpty => {
             let parts = prefixed_sequence_parts(lowered, 0, &rule.state)?;
@@ -1763,7 +1779,12 @@ fn lower_sequence_owner_value(
                     tail_possessive_ending: None,
                 },
             )?;
-            (quote! { vec![#(#values),*] }, feature_value, guards)
+            let value = if checked {
+                quote! { Vec::from([#(#values),*]) }
+            } else {
+                quote! { vec![#(#values),*] }
+            };
+            (value, feature_value, guards)
         }
         super::rules::SequenceOwnerState::PositionalPair => {
             let parts = exact_sequence_parts(lowered, 2, &rule.state)?;
@@ -1781,7 +1802,12 @@ fn lower_sequence_owner_value(
                     tail_possessive_ending: None,
                 },
             )?;
-            (quote! { vec![#(#values),*] }, feature_value, guards)
+            let value = if checked {
+                quote! { Vec::from([#(#values),*]) }
+            } else {
+                quote! { vec![#(#values),*] }
+            };
+            (value, feature_value, guards)
         }
         super::rules::SequenceOwnerState::PositionalThreePlus
         | super::rules::SequenceOwnerState::PositionalMinimumPlus(_) => {
@@ -4756,6 +4782,73 @@ mod tests {
             .find("accepts_role_prepositions (& object . clone () , & mut role_preemption)")
             .expect("the complement is checked after the selected role");
         assert!(direct_object_check < selected_role && selected_role < complement_check);
+    }
+
+    #[test]
+    fn checked_sequence_reads_a_structurally_matched_frame_role() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Marker {
+                At = "at" {
+                    feature PrepositionComplementKind = UnrestrictedComplement;
+                },
+            }
+            codec PairVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    tail = [FrameComplementPair];
+                    feature = ConcordClass;
+                }
+            }
+            construction object: Object {
+                element ObjectValue {}
+                form object = "object";
+            }
+            construction complement: Complement {
+                element ComplementValue {}
+                form complement = "complement";
+            }
+            construction pair: Pair {
+                element PairValue {
+                    object: Object,
+                    marker: lex Marker,
+                    complement: Complement,
+                }
+                form pair = object lex(marker) complement;
+            }
+            construction coordinated: Root {
+                element Coordinated {
+                    head: lex PairVerb,
+                    members: seq Pair separated by position {
+                        pair = " and ";
+                        first = ", ";
+                        middle = ", ";
+                        last = ", and ";
+                    } checked by accepts_role_prepositions(
+                        head.verb_frame_role_prepositions
+                    ),
+                }
+                require len(members) >= 2;
+                derive head.concord_class = Values::Other;
+                form coordinated = verb(head) members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("structurally matched checked-sequence fixture generates");
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        for required in [
+            "frame_complement_pair_role_from_keys",
+            "FRAME_COMPLEMENT_PAIR_ROLE_PREPOSITIONS",
+            "Vec :: from ([item_0 . clone () , item_2 . clone ()])",
+            "accepts_role_prepositions (& Vec :: from",
+        ] {
+            assert!(source.contains(required), "missing `{required}`: {source}");
+        }
     }
 
     #[test]

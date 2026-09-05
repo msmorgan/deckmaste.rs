@@ -231,6 +231,8 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
                 let declaration = row.declaration_value_ident();
+                let frame_complement_pair = row.frame_key().atoms()
+                    == [crate::semantic::VerbFrameAtom::FrameComplementPair];
                 let frame_class = match row.frame_key().class() {
                     crate::semantic::VerbFrameClass::Predicate => {
                         quote! { VerbFrameClass::Predicate }
@@ -284,6 +286,9 @@ pub(crate) fn emit(
                         crate::semantic::VerbFrameAtom::PredicativeComplement => {
                             quote! { VerbFrameAtom::PredicativeComplement }
                         }
+                        crate::semantic::VerbFrameAtom::FrameComplementPair => {
+                            quote! { VerbFrameAtom::FrameComplementPair }
+                        }
                         crate::semantic::VerbFrameAtom::Role(role) => {
                             let role = syn::LitStr::new(role, Span::call_site());
                             quote! { VerbFrameAtom::Role(#role) }
@@ -294,12 +299,22 @@ pub(crate) fn emit(
                         }
                     })
                     .collect::<Vec<_>>();
+                let pair_field = frame_complement_pair.then(|| {
+                    quote! { frame_complement_pair_role: usize, }
+                });
+                let pair_parameter = frame_complement_pair.then(|| {
+                    quote! { frame_complement_pair_role: usize, }
+                });
+                let pair_initializer = frame_complement_pair.then(|| {
+                    quote! { frame_complement_pair_role, }
+                });
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.declaration_value_ident().to_string()),
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
                             reference: crate::environment::VerbInventoryRef,
+                            #pair_field
                         }
                     },
                     vec![origin.clone()],
@@ -314,6 +329,7 @@ pub(crate) fn emit(
                             pub fn new(
                                 environment: &crate::environment::ParserEnvironment,
                                 reference: crate::environment::VerbInventoryRef,
+                                #pair_parameter
                             ) -> Option<Self> {
                                 let frame = VerbFrameKey::with_class(
                                     #frame_class,
@@ -330,6 +346,7 @@ pub(crate) fn emit(
                                 .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
                                 .then_some(Self {
                                     reference,
+                                    #pair_initializer
                                 })
                             }
 
@@ -769,6 +786,12 @@ pub(crate) fn emit(
             origins,
         ));
     }
+    if validated.runtime_declaration_verbs().any(|(_, verb)| {
+        verb.frame_key().atoms() == [crate::semantic::VerbFrameAtom::FrameComplementPair]
+    }) {
+        items.extend(emit_frame_complement_pair_role_resolver(validated));
+    }
+
     Ok((items, contributions))
 }
 
@@ -1078,6 +1101,30 @@ fn emit_declaration_verb_role_prepositions_helper(
     let constant_name = format!("{function_name}_values").to_ascii_uppercase();
     let constant = emitted_ident(&constant_name, verb.codec_ident().span());
     let ty = verb.codec_ident();
+    if verb.frame_key().atoms() == [crate::semantic::VerbFrameAtom::FrameComplementPair] {
+        return [
+            GeneratedItem::new(
+                ItemKey::Named {
+                    kind: NamedKind::Constant,
+                    name: constant_name,
+                },
+                quote! { const #constant: &[VerbFrameRolePreposition] = &[]; },
+                vec![origin.clone()],
+            ),
+            GeneratedItem::new(
+                ItemKey::Named {
+                    kind: NamedKind::Function,
+                    name: function_name,
+                },
+                quote! {
+                    fn #function(value: &#ty) -> &'static [VerbFrameRolePreposition] {
+                        &FRAME_COMPLEMENT_PAIR_ROLE_PREPOSITIONS[value.frame_complement_pair_role]
+                    }
+                },
+                vec![origin],
+            ),
+        ];
+    }
     let mut seen = std::collections::HashSet::new();
     let prepositions = verb.frame_key().atoms().iter().filter_map(|atom| {
         let (terminal, member) = match atom {
@@ -1091,6 +1138,7 @@ fn emit_declaration_verb_role_prepositions_helper(
             | crate::semantic::VerbFrameAtom::Amount
             | crate::semantic::VerbFrameAtom::ObjectNounPhrase
             | crate::semantic::VerbFrameAtom::PredicativeComplement
+            | crate::semantic::VerbFrameAtom::FrameComplementPair
             | crate::semantic::VerbFrameAtom::Role(_)
             | crate::semantic::VerbFrameAtom::OptionalRole(_) => return None,
         };
@@ -1125,6 +1173,70 @@ fn emit_declaration_verb_role_prepositions_helper(
             }
             },
             vec![origin],
+        ),
+    ]
+}
+
+fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedItem; 2] {
+    let mut origins = Vec::new();
+    let mut arms = Vec::new();
+    let mut values = Vec::new();
+    for terminal in plan.terminals() {
+        let TerminalPlan::Vocab(vocab) = terminal else {
+            continue;
+        };
+        if vocab
+            .feature_members(crate::feature::Feature::PrepositionComplementKind)
+            .is_none()
+        {
+            continue;
+        }
+        origins.push(DeclarationKey::new(
+            SourceDeclarationKind::Vocab,
+            vocab.name(),
+        ));
+        let terminal_name = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
+        for variant in vocab.variants() {
+            let member_name = identifier_key(variant.name());
+            let member = syn::LitStr::new(&member_name, variant.name().span());
+            let index = syn::Index::from(values.len());
+            arms.push(quote! {
+                (#terminal_name, #member) => Some(#index),
+            });
+            values.push(quote! {
+                [VerbFrameRolePreposition::new(#terminal_name, #member)]
+            });
+        }
+    }
+    [
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Constant,
+                name: "FRAME_COMPLEMENT_PAIR_ROLE_PREPOSITIONS".to_owned(),
+            },
+            quote! {
+                const FRAME_COMPLEMENT_PAIR_ROLE_PREPOSITIONS:
+                    &[[VerbFrameRolePreposition; 1]] = &[#(#values),*];
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: "frame_complement_pair_role_from_keys".to_owned(),
+            },
+            quote! {
+                fn frame_complement_pair_role_from_keys(
+                    terminal: &str,
+                    member: &str,
+                ) -> Option<usize> {
+                    match (terminal, member) {
+                        #(#arms)*
+                        _ => None,
+                    }
+                }
+            },
+            origins,
         ),
     ]
 }

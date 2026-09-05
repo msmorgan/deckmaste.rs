@@ -690,6 +690,18 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         .map(|(terminal_index, codec)| {
             let verb = codec.codec_ident();
             let declaration = codec.declaration_value_ident();
+            let frame_complement_pair =
+                codec.frame_key().atoms() == [crate::semantic::VerbFrameAtom::FrameComplementPair];
+            let pair_preposition = frame_complement_pair.then(|| quote! {
+                let Some((terminal, member)) = reading.frame_complement_pair_preposition() else {
+                    continue;
+                };
+                let Some(frame_complement_pair_role) = frame_complement_pair_role_from_keys(terminal, member) else {
+                    continue;
+                };
+            });
+            let pair_argument = frame_complement_pair
+                .then(|| quote! { frame_complement_pair_role, });
             let frame_class = match codec.frame_key().class() {
                 crate::semantic::VerbFrameClass::Predicate => {
                     quote! { VerbFrameClass::Predicate }
@@ -738,6 +750,9 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     }
                     crate::semantic::VerbFrameAtom::PredicativeComplement => {
                         quote! { VerbFrameAtom::PredicativeComplement }
+                    }
+                    crate::semantic::VerbFrameAtom::FrameComplementPair => {
+                        quote! { VerbFrameAtom::FrameComplementPair }
                     }
                     crate::semantic::VerbFrameAtom::Role(role) => {
                         let role = syn::LitStr::new(role, Span::call_site());
@@ -837,7 +852,12 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 }
                             };
                             let onset = reading.onset();
-                            let Some(declaration) = #declaration::new(input.environment, reference) else {
+                            #pair_preposition
+                            let Some(declaration) = #declaration::new(
+                                input.environment,
+                                reference,
+                                #pair_argument
+                            ) else {
                                 continue;
                             };
                             matches.push(LexicalMatch {
@@ -868,7 +888,12 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             ::deckmaste_construction_core::macro_def::SurfaceFeature::PAST_PARTICIPLE,
                         ) {
                             let onset = reading.onset();
-                            let Some(declaration) = #declaration::new(input.environment, reading.reference().clone()) else { continue; };
+                            #pair_preposition
+                            let Some(declaration) = #declaration::new(
+                                input.environment,
+                                reading.reference().clone(),
+                                #pair_argument
+                            ) else { continue; };
                             matches.push(LexicalMatch { end, value: Leaf::#verb {
                                 verb: #open_value,
                                 onset,

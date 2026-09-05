@@ -3597,6 +3597,69 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
 }
 
 #[test]
+fn declared_frame_complement_pairs_coordinate_for_every_coordinator() {
+    let parser = parser();
+    let context = context();
+
+    for (text, coordination) in [
+        (
+            "Deal 1 damage to target creature and 1 damage to you.",
+            "VerbPhraseAndFrameComplementPairCoordination",
+        ),
+        (
+            "Deal 1 damage to target creature or 1 damage to you.",
+            "VerbPhraseOrFrameComplementPairCoordination",
+        ),
+        (
+            "Deal 1 damage to target creature and/or 1 damage to you.",
+            "VerbPhraseAndOrFrameComplementPairCoordination",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("declared pair must select {text:?}: {analysis:#?}"));
+        let decision = analysis.decision().expect("selected pair has a decision");
+        assert_eq!(decision.survivors().len(), 1, "{text:?}: {decision:#?}");
+        let candidate = &decision.candidates()[decision
+            .selected()
+            .expect("selected decision identifies its candidate")];
+        assert!(
+            candidate
+                .construction_path()
+                .iter()
+                .any(|construction| construction == coordination),
+            "the declared pair uses its positional coordinator arm: {text:?}: {candidate:#?}",
+        );
+        assert_eq!(
+            candidate
+                .construction_path()
+                .iter()
+                .filter(|construction| *construction == "FrameComplementPairFrameComplementPair")
+                .count(),
+            2,
+            "each Conjunct is one object-plus-marked-complement tuple: {text:?}: {candidate:#?}",
+        );
+        assert_eq!(selected.render(&context, parser.environment()), text);
+    }
+
+    let mismatched = parser.analyze(
+        "Deal 1 damage to target creature and 1 damage on you.",
+        &context,
+    );
+    let decision = mismatched
+        .decision()
+        .expect("the sentence retains its independently licensed analysis");
+    assert!(
+        decision.candidates().iter().all(|candidate| candidate
+            .construction_path()
+            .iter()
+            .all(|construction| !construction.contains("FrameComplementPairCoordination"))),
+        "Conjuncts with different markers do not form a declared frame-complement pair Coordination: {mismatched:#?}",
+    );
+}
+
+#[test]
 fn movement_control_role_rejects_an_undeclared_marker() {
     let parser = parser();
     let context = context();

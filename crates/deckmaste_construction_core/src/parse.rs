@@ -2030,6 +2030,9 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                     "PredicativeComplement" => {
                                         crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
                                     }
+                                    "FrameComplementPair" => {
+                                        crate::model::DeclarationVerbTailAtomKindSource::FrameComplementPair(atom)
+                                    }
                                     _ => crate::model::DeclarationVerbTailAtomKindSource::Role(atom),
                                 }
                             }
@@ -4443,6 +4446,37 @@ mod tests {
         assert!(matches!(
             sought.kind,
             crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_)
+        ));
+    }
+
+    #[test]
+    fn parses_frame_complement_pair_as_a_structural_verb_frame_pattern() {
+        let declarations = parse(
+            r"
+                codec PairVerb {
+                    generate declaration_verb {
+                        position = Verb;
+                        tail = [FrameComplementPair];
+                        feature = ConcordClass;
+                    }
+                }
+            ",
+        )
+        .expect("the structural pair pattern parses");
+
+        let Declaration::Codec(binding) = &declarations.declarations[0] else {
+            panic!("the declaration is a generated codec")
+        };
+        let Some(crate::GeneratedCodecRecipe::DeclarationVerb(source)) = &binding.generated else {
+            panic!("the codec retains a typed declaration_verb recipe")
+        };
+        assert!(matches!(
+            source.tail_slots[0].atoms.as_slice(),
+            [crate::DeclarationVerbTailAtomSource {
+                label: None,
+                optional: false,
+                kind: crate::DeclarationVerbTailAtomKindSource::FrameComplementPair(_),
+            }]
         ));
     }
 

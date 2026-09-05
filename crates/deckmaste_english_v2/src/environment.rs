@@ -262,6 +262,7 @@ enum OwnedVerbFrameAtom {
 pub(crate) struct VerbInventoryReading {
     reference: VerbInventoryRef,
     onset: Onset,
+    frame_complement_pair_preposition: Option<(String, String)>,
 }
 
 impl VerbInventoryReading {
@@ -271,6 +272,12 @@ impl VerbInventoryReading {
 
     pub(crate) const fn onset(&self) -> Onset {
         self.onset
+    }
+
+    pub(crate) fn frame_complement_pair_preposition(&self) -> Option<(&str, &str)> {
+        self.frame_complement_pair_preposition
+            .as_ref()
+            .map(|(terminal, member)| (terminal.as_str(), member.as_str()))
     }
 }
 
@@ -777,7 +784,7 @@ impl ParserEnvironment {
                 record
                     .frames
                     .iter()
-                    .any(|candidate| candidate.matches(frame))
+                    .any(|candidate| candidate.matches(frame).is_some())
             })
     }
 
@@ -853,13 +860,14 @@ impl ParserEnvironment {
             .into_iter()
             .flatten()
             .filter(|indexed| indexed.feature == feature)
-            .filter(|indexed| {
-                indexed
-                    .frames
-                    .iter()
-                    .any(|candidate| candidate.matches(frame))
+            .flat_map(|indexed| {
+                indexed.frames.iter().filter_map(move |candidate| {
+                    let matched = candidate.matches(frame)?;
+                    let mut reading = indexed.reading.clone();
+                    reading.frame_complement_pair_preposition = matched.pair_preposition;
+                    Some(reading)
+                })
             })
-            .map(|indexed| indexed.reading.clone())
             .collect()
     }
 
@@ -1223,18 +1231,76 @@ fn frame_set_licenses_frame(frame_set: &VerbFrameSet, candidate: &[CustomTailAto
 }
 
 impl OwnedVerbFrameKey {
-    fn matches(&self, frame: VerbFrameKey) -> bool {
-        self.class == frame.class()
-            && self.atoms.len() == frame.atoms().len()
+    fn matches(&self, frame: VerbFrameKey) -> Option<OwnedVerbFrameMatch> {
+        if self.class != frame.class() {
+            return None;
+        }
+        if frame.atoms() == [VerbFrameAtom::FrameComplementPair] {
+            return self
+                .frame_complement_pair_preposition()
+                .map(|pair_preposition| OwnedVerbFrameMatch {
+                    pair_preposition: Some(pair_preposition),
+                });
+        }
+        (self.atoms.len() == frame.atoms().len()
             && self
                 .atoms
                 .iter()
                 .zip(frame.atoms())
-                .all(|(owned, runtime)| owned.matches(*runtime))
+                .all(|(owned, runtime)| owned.matches(*runtime)))
+        .then_some(OwnedVerbFrameMatch {
+            pair_preposition: None,
+        })
+    }
+
+    fn frame_complement_pair_preposition(&self) -> Option<(String, String)> {
+        let [object, rest @ ..] = self.atoms.as_slice() else {
+            return None;
+        };
+        if !matches!(object, OwnedVerbFrameAtom::ObjectNounPhrase)
+            && !matches!(object, OwnedVerbFrameAtom::Role(role) if role == "Object")
+        {
+            return None;
+        }
+        let marker_index = rest
+            .iter()
+            .position(|atom| !matches!(atom, OwnedVerbFrameAtom::OptionalLex(_, _)))?;
+        let marker = &rest[marker_index];
+        let following = &rest[marker_index + 1..];
+        let (terminal, member, trailing) = match (marker, following) {
+            (OwnedVerbFrameAtom::Lex(terminal, member), [complement, trailing @ ..])
+                if complement.is_required_complement() =>
+            {
+                (terminal, member, trailing)
+            }
+            (OwnedVerbFrameAtom::MarkedRole(terminal, member, _), trailing) => {
+                (terminal, member, trailing)
+            }
+            _ => return None,
+        };
+        trailing
+            .iter()
+            .all(OwnedVerbFrameAtom::is_optional)
+            .then(|| (terminal.clone(), member.clone()))
     }
 }
 
+struct OwnedVerbFrameMatch {
+    pair_preposition: Option<(String, String)>,
+}
+
 impl OwnedVerbFrameAtom {
+    fn is_required_complement(&self) -> bool {
+        matches!(self, Self::ObjectNounPhrase | Self::Role(_))
+    }
+
+    fn is_optional(&self) -> bool {
+        matches!(
+            self,
+            Self::OptionalLex(_, _) | Self::OptionalMarkedRole(_, _, _) | Self::OptionalRole(_)
+        )
+    }
+
     fn matches(&self, runtime: VerbFrameAtom) -> bool {
         match (self, runtime) {
             (Self::Literal(owned), VerbFrameAtom::Literal(runtime))
@@ -1340,6 +1406,7 @@ fn index_verb_inventory_readings(
                 reading: VerbInventoryReading {
                     reference: record.reference.clone(),
                     onset: *onset,
+                    frame_complement_pair_preposition: None,
                 },
             };
             running
@@ -1536,6 +1603,37 @@ mod tests {
     use std::fs;
 
     use super::*;
+
+    #[test]
+    fn frame_complement_pair_pattern_reads_the_declared_marker_structurally() {
+        let pattern = VerbFrameKey::new(&[VerbFrameAtom::FrameComplementPair]);
+        let frame = OwnedVerbFrameKey {
+            class: VerbFrameClass::Predicate,
+            atoms: vec![
+                OwnedVerbFrameAtom::Role("Object".to_owned()),
+                OwnedVerbFrameAtom::OptionalLex("Preposition".to_owned(), "From".to_owned()),
+                OwnedVerbFrameAtom::Lex("Preposition".to_owned(), "On".to_owned()),
+                OwnedVerbFrameAtom::Role("FrameComplement".to_owned()),
+                OwnedVerbFrameAtom::OptionalMarkedRole(
+                    "Preposition".to_owned(),
+                    "Under".to_owned(),
+                    "Object".to_owned(),
+                ),
+            ],
+        };
+        assert_eq!(
+            frame
+                .matches(pattern)
+                .and_then(|matched| matched.pair_preposition),
+            Some(("Preposition".to_owned(), "On".to_owned())),
+        );
+
+        let mut required_trailer = frame;
+        required_trailer
+            .atoms
+            .push(OwnedVerbFrameAtom::Role("ScalarEquality".to_owned()));
+        assert!(required_trailer.matches(pattern).is_none());
+    }
 
     #[test]
     fn core_verb_declarations_have_exact_surfaces_and_deduplicated_frames() {

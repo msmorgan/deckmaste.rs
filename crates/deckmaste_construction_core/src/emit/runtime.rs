@@ -705,6 +705,7 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                     Amount,
                     ObjectNounPhrase,
                     PredicativeComplement,
+                    FrameComplementPair,
                     Role(&'static str),
                     OptionalRole(&'static str),
                 }
@@ -808,7 +809,7 @@ fn emit_verb_frame_role_preemption_types() -> [GeneratedItem; 2] {
             "VerbFrameRolePreemption",
             quote! {
                 pub(crate) struct VerbFrameRolePreemption {
-                    roles: &'static [VerbFrameRolePreposition],
+                    roles: Box<[VerbFrameRolePreposition]>,
                     next: usize,
                 }
             },
@@ -818,10 +819,10 @@ fn emit_verb_frame_role_preemption_types() -> [GeneratedItem; 2] {
             "VerbFrameRolePreemption",
             quote! {
                 impl VerbFrameRolePreemption {
-                    pub(crate) const fn new(
-                        roles: &'static [VerbFrameRolePreposition],
+                    pub(crate) fn new(
+                        roles: &[VerbFrameRolePreposition],
                     ) -> Self {
-                        Self { roles, next: 0 }
+                        Self { roles: roles.into(), next: 0 }
                     }
 
                     pub(crate) fn is_pending(

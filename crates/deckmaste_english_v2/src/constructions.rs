@@ -513,6 +513,13 @@ constructions! {
             feature = ConcordClass;
         }
     }
+    codec FrameComplementPairVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [FrameComplementPair];
+            feature = ConcordClass;
+        }
+    }
     codec MeasureComplementVerb {
         generate declaration_verb {
             position = Verb;
@@ -4189,6 +4196,62 @@ constructions! {
         derive concord_class = frame.concord_class;
         form base_verb_phrase = frame;
     }
+    construction frame_complement_pair: FrameComplementPair {
+        element ObjectMarkedFrameComplement {
+            object: Object,
+            marker: lex Preposition,
+            complement: FrameComplement,
+        }
+        form frame_complement_pair = object lex(marker) complement;
+    }
+    construction and_frame_complement_pair_coordination: VerbPhrase {
+        element AndFrameComplementPairCoordination {
+            head: lex FrameComplementPairVerb,
+            members: seq FrameComplementPair separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            } checked by members_fill_declared_role(
+                head.verb_frame_role_prepositions
+            ),
+        }
+        require len(members) >= 2;
+        derive concord_class = head.concord_class;
+        form and_frame_complement_pair_coordination = verb(head) members;
+    }
+    construction or_frame_complement_pair_coordination: VerbPhrase {
+        element OrFrameComplementPairCoordination {
+            head: lex FrameComplementPairVerb,
+            members: seq FrameComplementPair separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            } checked by members_fill_declared_role(
+                head.verb_frame_role_prepositions
+            ),
+        }
+        require len(members) >= 2;
+        derive concord_class = head.concord_class;
+        form or_frame_complement_pair_coordination = verb(head) members;
+    }
+    construction and_or_frame_complement_pair_coordination: VerbPhrase {
+        element AndOrFrameComplementPairCoordination {
+            head: lex FrameComplementPairVerb,
+            members: seq FrameComplementPair separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            } checked by members_fill_declared_role(
+                head.verb_frame_role_prepositions
+            ),
+        }
+        require len(members) >= 2;
+        derive concord_class = head.concord_class;
+        form and_or_frame_complement_pair_coordination = verb(head) members;
+    }
     construction pro_verb_predicate: VerbPhrase {
         element ProVerbPredicate { head: lex ProVerbHead, }
         derive concord_class = head.concord_class;
@@ -5330,6 +5393,32 @@ fn role_preposition_for_phrase(phrase: &PrepositionalPhrase) -> VerbFrameRolePre
         PrepositionalPhrase::FromAmongPrepositionalPhrase(value) => value.source_relation(),
     };
     verb_frame_role_preposition_for_preposition(preposition)
+}
+
+fn frame_complement_pair_preposition(pair: &FrameComplementPair) -> VerbFrameRolePreposition {
+    match pair {
+        FrameComplementPair::FrameComplementPair(value) => {
+            verb_frame_role_preposition_for_preposition(value.marker)
+        }
+    }
+}
+
+fn members_fill_declared_role(
+    members: &[FrameComplementPair],
+    role_preemption: &mut VerbFrameRolePreemption,
+) -> bool {
+    let Some(first) = members.first().map(frame_complement_pair_preposition) else {
+        return false;
+    };
+    if !role_preemption.is_pending(first)
+        || members
+            .iter()
+            .any(|member| frame_complement_pair_preposition(member) != first)
+    {
+        return false;
+    }
+    role_preemption.fill(first);
+    true
 }
 
 fn predicate_preposition_is_licensed(
