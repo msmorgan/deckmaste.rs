@@ -1851,7 +1851,7 @@ mutual
   instrProfile (ControllerSacrifices n) =
     MkInstrProfile (MkBinding TheD Player OneOf (PlayerP False) :: selfSubjIntro n)
                  (MkBinding TheD Player OneOf (PlayerP False)
-                    :: moveIntro (Just "Sacrifice") n (Just Graveyard))
+                    :: moveIntro (Just (deedLabel Sacrificing)) n (Just Graveyard))
                  Nothing
                  ([])
   instrProfile (Distribute (DividedDamage _) amt among) =
@@ -1920,7 +1920,8 @@ mutual
     sameIntro (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
               ([MkBinding AD Object (quantPlur q)
                           (ObjectP (seedTy p) (searchZone sc)
-                                   (mkStamp (Just "Search") Nothing False) Nothing Nothing)])
+                                   (mkStamp (Just (deedLabel LibrarySearch)) Nothing False)
+                                   Nothing Nothing)])
   instrProfile (Shuffle whose) =
     MkInstrProfile (nomIntro whose) (afterShuffle (nomIntro whose)) Nothing ([])
   instrProfile (FlipCoins who count) = sameIntro (flipScopeIntro count) [outcomeB CoinFlipped]

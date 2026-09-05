@@ -465,3 +465,16 @@ badCompanionSharedCounterKind ComparesCharacteristic impossible
 public export
 okEachPlayerScriesOne : Instruction []
 okEachPlayerScriesOne = Macros.scry (Macros.each AnyPlayer) (Lit 1)
+
+||| "Fateseal 2.": the sorted library is an opponent's [CR#701.29a].
+public export
+okFatesealAnOpponent : Instruction []
+okFatesealAnOpponent = Macros.fateseal You Macros.anOpponent (Lit 2)
+
+||| "Fateseal 2" over your own library: fateseal is defined only over an
+||| opponent's library [CR#701.29a]; looking at your own top cards and sorting
+||| them is scry [CR#701.22a], spelled `Macros.scry`.
+public export
+badFatesealYourOwnLibrary : Unspellable (Instruction []) (\ok =>
+  Macros.fateseal You You (Lit 2) {op = ok})
+badFatesealYourOwnLibrary Oh impossible

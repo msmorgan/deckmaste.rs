@@ -494,6 +494,7 @@ Eq Role where
 ||| reads a feature rather than a verb's spelling.
 public export
 data DeedFeature = Attacking | Blocking | Targeting | ControlGrant | LibrarySearch
+                 | Sacrificing | Unlocking
 
 public export
 deedFeatureIx : DeedFeature -> Nat
@@ -502,6 +503,8 @@ deedFeatureIx Blocking = 1
 deedFeatureIx Targeting = 2
 deedFeatureIx ControlGrant = 3
 deedFeatureIx LibrarySearch = 4
+deedFeatureIx Sacrificing = 5
+deedFeatureIx Unlocking = 6
 
 public export
 Eq DeedFeature where
@@ -551,6 +554,7 @@ actFacts : List ActFacts
 actFacts =
   [ { participle := Just "destroyed"
     , actDest := Just Graveyard
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Destroy")
   , { participle := Just "sacrificed"
@@ -558,6 +562,7 @@ actFacts =
     , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [Creature, Artifact, Land, Enchantment, Planeswalker,
                      Battle] True (Just Battlefield)
+    , actFeature := Just Sacrificing
     , actBounded := True
     } (plainAct "Sacrifice")
   , { participle := Just "exiled"
@@ -582,6 +587,7 @@ actFacts =
     , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Surveil")
   , { participle := Just "tapped"
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Tap")
   , { participle := Just "untapped"
@@ -590,9 +596,11 @@ actFacts =
                      Battle] True (Just Battlefield)
     , actBounded := True
     } (plainAct "Untap")
-  , { patientRole := MkDeedRole [Object] [] False Nothing
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] False Nothing
     } (plainAct "Return")
-  , { patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     , actFeature := Just ControlGrant
     } (plainAct "GainControl")
   , { agentRole := MkDeedRole [Player] [] True Nothing
@@ -606,20 +614,26 @@ actFacts =
   , { actLoci := [Library]
     , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Shuffle")
-  , plainAct "Proliferate"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Proliferate")
   , plainAct "The Ring Tempts You"
   , { actIntransitive := True
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Transform")
   , { actIntransitive := True
+    , agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Convert")
   , { actDest := Just Battlefield
     , patientRole := MkDeedRole [Object] [] False Nothing
     } (plainAct "Meld")
-  , { patientRole := MkDeedRole [] [] False (Just Battlefield)
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [] [] False (Just Battlefield)
+    , actFeature := Just Unlocking
     } (plainAct "Unlock")
-  , { patientRole := MkDeedRole [Object] [] False (Just Battlefield)
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Fully Unlock")
   , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
     , patientRole := MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield)
@@ -714,61 +728,87 @@ actFacts =
   , plainAct "Abandon"
   , plainAct "Adapt"
   , { actDest := Just Exile
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Airbend")
-  , plainAct "Amass"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Amass")
   , plainAct "Assemble"
-  , plainAct "Attach"
-  , plainAct "Behold"
-  , plainAct "Blight"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Attach")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Behold")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Blight")
   , plainAct "Bolster"
-  , plainAct "Clash"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Clash")
   , { actDest := Just Battlefield
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Cloak")
   , { actDest := Just Exile
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Collect Evidence")
   , plainAct "Connive"
   , { actDest := Just Battlefield
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Create")
   , plainAct "Detain"
-  , plainAct "Discover"
-  , plainAct "Double"
-  , plainAct "Earthbend"
-  , plainAct "Endure"
-  , plainAct "Exchange"
-  , plainAct "Exert"
-  , plainAct "Explore"
-  , plainAct "Face A Villainous Choice"
   , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Discover")
+  , plainAct "Double"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Earthbend")
+  , plainAct "Endure"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Exchange")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Exert")
+  , plainAct "Explore"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Face A Villainous Choice")
+  , { actStepwise := True
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Fateseal")
   , plainAct "Fight"
-  , plainAct "Forage"
-  , plainAct "Goad"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Forage")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Goad")
   , plainAct "Harness"
   , plainAct "Heal"
   , { actDest := Just Battlefield
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Incubate")
   , { actDest := Just Battlefield
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Investigate")
   , plainAct "Learn"
   , { actDest := Just Battlefield
+    , agentRole := MkDeedRole [Player] [] True Nothing
     } (plainAct "Manifest")
-  , plainAct "Manifest Dread"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Manifest Dread")
   , plainAct "Monstrosity"
   , plainAct "Open An Attraction"
-  , plainAct "Planeswalk"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Planeswalk")
   , plainAct "Populate"
-  , plainAct "Recruit"
-  , plainAct "Reveal"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Recruit")
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Reveal")
   , plainAct "Roll To Visit Your Attractions"
   , plainAct "Set In Motion"
   , plainAct "Support"
-  , plainAct "Suspect"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Suspect")
   , plainAct "Time Travel"
   , plainAct "Triple"
   , { actIntransitive := True
     , agentRole := MkDeedRole [Object] [] True (Just Battlefield)
     } (plainAct "Phase In")
-  , plainAct "Waterbend"
+  , { agentRole := MkDeedRole [Player] [] True Nothing
+    } (plainAct "Waterbend")
   ]
 
 public export
@@ -806,6 +846,18 @@ labelWith f (a :: as) = if actFeature a == Just f then Just (label a) else label
 public export
 featureLabel : DeedFeature -> Maybe VerbLabel
 featureLabel f = labelWith f actFacts
+
+public export
+labelIn : (m : Maybe VerbLabel) -> {auto 0 ok : So (isJust m)} -> VerbLabel
+labelIn (Just v) = v
+labelIn Nothing impossible
+
+||| The table's own label for a structurally named deed, where a guard needs
+||| the label itself rather than the feature.
+public export
+deedLabel : (f : DeedFeature) ->
+            {auto 0 ok : So (isJust (Experimental.Words.featureLabel f))} -> VerbLabel
+deedLabel f = labelIn (featureLabel f)
 
 public export
 data KnownAct : VerbLabel -> Type where

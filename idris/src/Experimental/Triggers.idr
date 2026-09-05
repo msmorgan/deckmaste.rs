@@ -362,7 +362,7 @@ mutual
   eventName (LifeChanges _ dir) = lifeEventName dir
   eventName (VerbedEvent _ v _ _) = VerbedAct v
   eventName (TappedForMana _ _ _) = TappedForMana
-  eventName (UnlocksDoor _ _) = VerbedAct "Unlock"
+  eventName (UnlocksDoor _ _) = VerbedAct (deedLabel Unlocking)
   eventName (NthOccurrence _ _ ev) = eventName ev
   eventName (Triggers _) = AbilityTrigger
   eventName (CommitsCrime _) = CrimeCommission

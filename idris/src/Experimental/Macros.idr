@@ -1912,6 +1912,38 @@ scry agent amt =
            (onBottomIn AnyOrder {af = Oh})
            (LibraryPosOk {af = Oh} {nf = Oh}) Oh ps tr pr) {ke}
 
+mutual
+  ||| A player description that names an opponent.
+  public export
+  opponentPred : {0 bs : Bindings} -> Predicate bs Player -> Bool
+  opponentPred Opponent = True
+  opponentPred (And ps) = anyOpponentPred ps
+  opponentPred (Or ps) = allOpponentPred ps
+  opponentPred _ = False
+
+  public export
+  anyOpponentPred : {0 bs : Bindings} -> List (Predicate bs Player) -> Bool
+  anyOpponentPred [] = False
+  anyOpponentPred (p :: ps) = opponentPred p || anyOpponentPred ps
+
+  public export
+  allOpponentPred : {0 bs : Bindings} -> List (Predicate bs Player) -> Bool
+  allOpponentPred [] = True
+  allOpponentPred (p :: ps) = opponentPred p && allOpponentPred ps
+
+||| Fateseal names an opponent's library [CR#701.29a]; the agent's own library
+||| is the scry shape [CR#701.22a].
+public export
+fatesealPossessorOk : {0 bs : Bindings} -> Noun bs Player -> Bool
+fatesealPossessorOk (Described _ p) = opponentPred p
+fatesealPossessorOk (PlayerGroup YourOpponents) = True
+fatesealPossessorOk (EachOf grp) = fatesealPossessorOk grp
+fatesealPossessorOk _ = False
+
+public export
+FatesealPossessor : {0 bs : Bindings} -> Noun bs Player -> Type
+FatesealPossessor n = So (fatesealPossessorOk n)
+
 ||| "fateseal N" [CR#701.29a]: the agent looks at the top N cards of the
 ||| named library and sorts them.
 public export
@@ -1921,6 +1953,7 @@ fateseal : {bs : Bindings} -> (agent : Noun bs Player) ->
            {auto 0 ar : Macros.AgentRefOk agent} ->
            {auto 0 nd : Experimental.Phrase.nounDelta (Macros.agentRef agent ar) = []} ->
            {auto 0 sp : SlicePossessor whose} ->
+           {auto 0 op : Macros.FatesealPossessor whose} ->
            {auto 0 mn : countReach Bare (Macros.lookedSlicePlurOf (Macros.agentRef agent ar) nd whose sp amt)
                                     (view (Top (Macros.lookedSliceCountOf (Macros.agentRef agent ar) nd whose sp amt)) (Macros.lookedScopeOf (Macros.agentRef agent ar) nd whose sp amt)) = 1} ->
            {auto 0 ps : Placeable (tyOfReach Bare (Macros.lookedSlicePlurOf (Macros.agentRef agent ar) nd whose sp amt)

@@ -262,12 +262,23 @@ okAgentedKnownAct =
   Enact (Just You) "Exile"
         (Move (Macros.a (InZone Macros.handZ)) Macros.exileZ [])
 
-||| "You transform target creature." `"Transform"`'s facts row gives its agent
-||| role no player, so the agented voice is refused; the printed sentence is
-||| the agentless `Macros.transform`.
+||| "You destroy target creature.": printed cards give Destroy a player
+||| subject ("You destroy four lands", Burning of Xinye), so its facts row's
+||| agent role names a player.
+public export
+okAgentedDestroy : Instruction []
+okAgentedDestroy =
+  Enact (Just You) "Destroy"
+        (Move (Macros.target Macros.creature) Macros.graveyardZ [])
+
+||| "You fight target creature." A spell or ability instructs a CREATURE to
+||| fight [CR#701.14a], so `"Fight"`'s facts row gives its agent role no
+||| player and the agented voice is refused; the printed sentence names the
+||| fighting creatures, `Effect.Fights`.
 public export
 badAgentedAgentlessAct : Unspellable (Instruction []) (\ok =>
-  Enact (Just You) "Transform" (TurnOver (Macros.target Macros.creature)) {ag = ok})
+  Enact (Just You) "Fight"
+        (Fights (Macros.target Macros.creature) (Macros.target Macros.creature)) {ag = ok})
 badAgentedAgentlessAct Oh impossible
 
 ||| "1 life for each creature"
