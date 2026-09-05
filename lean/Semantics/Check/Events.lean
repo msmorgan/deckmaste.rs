@@ -57,7 +57,8 @@ def EventName.facts : EventName → EventFacts
     ⟨[.object, .player], [(.player, .object), (.player, .player), (.object, .player)], [],
      false, true, false, true, false⟩
   | .blockDeclaration => ⟨[.object], [(.object, .object)], [], false, true, false, true, false⟩
-  | .combatDamage => ⟨[.object], [(.object, .player)], [], true, true, false, true, false⟩
+  | .combatDamage =>
+    ⟨[.object], [(.object, .object), (.object, .player)], [], true, true, false, true, false⟩
   | .partBeginning => ⟨[.object, .player], [], [], false, true, false, false, false⟩
   | .spellCast => ⟨[.player], [(.player, .object)], [], false, true, false, true, true⟩
   | .statusChange => ⟨[], [], [], false, true, false, true, false⟩

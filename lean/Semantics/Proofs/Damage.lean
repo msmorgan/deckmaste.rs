@@ -731,6 +731,19 @@ theorem okDestroyCreature : Instruction.check [] (destroy (target creature)) = [
 theorem badDestroySource : Instruction.check [] (destroy (target source)) = [.zoneFits] := by
   decide
 
+/-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
+theorem okCombatDamageComplement :
+    Predicate.check .object []
+      (.happenedTo (.mk .combatDamage .thisTurn (some (.involving thisCreature)))) = [] := by
+  decide
+
+/-- "creature that was dealt combat damage by a color this turn" -/
+theorem badCombatDamageComplement :
+    Predicate.check .object []
+      (.happenedTo (.mk .combatDamage .thisTurn (some (.involving (a (quality .color))))))
+      = [.lookbackComplement] := by
+  decide
+
 /-- "Target creature gets +1/+1 until end of turn." -/
 theorem okGetsCreature :
     Instruction.check []
