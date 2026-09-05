@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-require-through-optional-role, english-v2-attachment-class-declared]
+needs: [english-v2-require-through-optional-role, english-v2-underspecified-adjunct-attachment]
 ---
 Frame-role preemption must be structural at every depth (require-through
 landing review HIGH-2). `right_edge_nominal_postmodifier_kind` in
@@ -49,7 +49,16 @@ Frame, not one checker per preposition and not a list of complement kinds. The
 four call sites collapse to that rule. Report the census for every affected
 preposition separately, and STOP on any unit whose nested PP is genuinely not the
 frame role while the frame role is absent (unchanged from the depth pin).
-`english-v2-attachment-class-declared` lands first: widening attachment classes
-changes which PPs are candidates at these sites.
+
+2026-09-04 (third), by coordinator ruling Q6: this ticket is principle 2 of the
+scope device's ordered principle set, so it lands as part of
+`english-v2-underspecified-adjunct-attachment` (B7) or immediately after it —
+was: "`english-v2-attachment-class-declared` lands first". R1 is parked behind
+B7 for the same reason; widening attachment classes changes which prepositional
+phrases are candidates at these sites, and the preemption is what keeps the
+widened set from buying incoherent bracketings. The preemption reaches the whole
+complement the frame governs, not the object position alone: the frame-complement
+pair coordination the review found missing is eliminated at its incoherent
+bracketing here, and minted by `english-v2-frame-complement-coordination`.
 
 Standard constraints apply.

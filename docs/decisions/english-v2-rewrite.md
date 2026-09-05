@@ -1393,6 +1393,57 @@ one packed candidate; the adjunct node is hoisted to the highest site and
 carries the set of admissible lower sites as a value. Semantics chooses. An
 attachment-only tie is therefore one candidate, not a STOP; any other tie
 remains a STOP. Ticket: `english-v2-underspecified-adjunct-attachment`.
+
+## Amendment: one scope device, principles before packing (2026-09-04)
+
+Widens the 2026-09-03 resolution above from right-peripheral Adjunct attachment
+to the scope of every right-peripheral or shared Constituent, and orders it
+against the principles that decide before it. Coordinator rulings Q1-Q4,
+2026-09-04. Ticket: `english-v2-underspecified-adjunct-attachment`.
+
+**Q1 — one class, one device.** Two candidates that differ only in where a
+right-peripheral Constituent attaches, or in how far a Constituent realized once
+beside a Coordination scopes over it, are one ambiguity class: *scope of a
+right-peripheral or shared Constituent*. Adjunct height, Postmodifier scope over
+a Coordination, a shared Determiner, a shared Modifier, a shared head and a
+shared preposition are that one class, and get one device, not four.
+
+**Q2 — declared principles decide before packing.** An ordered set of declared
+English principles runs first; whatever survives it is packed. Each principle is
+one general rule over derivation shapes and declared features, stated once. No
+principle may be a corpus count, name a word, or be a dominance edge between
+named constructions. The admitted set, in order:
+
+1. A qualification Complement — scalar comparison, degree measure, power and
+   toughness value, granted keyword line, quoted ability — predicates a property
+   of a Nominal and has no verb-Adjunct site at all. Landed as the
+   complement-kind site capability.
+2. A frame-selected role preempts the Postmodifier derivation of the same
+   preposition, at every preposition the Verb Frame declares and at every depth
+   of the complement it governs. The 2026-09-03 amendment above, extended;
+   `english-v2-role-preemption-depth`.
+3. An identity claim outranks a lexeme claim over the same bytes. Landed as the
+   Identity specificity tier.
+4. A distributive measure attaches to the Predicate as its multiplier and has no
+   Nominal-Postmodifier derivation.
+
+Not admitted, and therefore packed: the scope of a shared Determiner over a
+Coordination. English is ambiguous there and Semantics chooses.
+
+**Q3 — representation.** The ambiguous Constituent is hoisted to its highest
+admissible host and carries the set of admissible lower hosts as a derived value
+on that host, in the manner of the zero Determiner: a declared field kind, no
+new AST category, no bytes in any Realization. Every host renders the same
+bytes, so Linearization and the roundtrip law are untouched, leaf traversal is
+unchanged, and the canonical construction path is the hoisted one. Consumers —
+the semantics workbench and the xtask diagnostic display — read the slot. A
+first-class packed AST node holding alternative subtrees is deferred to the
+re-layering wayfinder, not built here.
+
+**Q4 — census.** A packed candidate is one candidate: not a tie, never a STOP.
+The packed-unit count is a REPORT figure, listed with its identities. A tie that
+is not a scope tie remains a STOP.
+
 ## Amendment: closed-class ownership and the licensed form atom (2026-09-04)
 
 One closed-class word has one owner. Where a form literal spells a word a
