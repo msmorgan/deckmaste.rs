@@ -692,6 +692,9 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             let declaration = codec.declaration_value_ident();
             let frame_complement_pair =
                 codec.frame_key().atoms() == [crate::semantic::VerbFrameAtom::FrameComplementPair];
+            // A consumer that declares a `FrameComplementPair` codec must give
+            // its verb-inventory reading a `frame_complement_pair_preposition`
+            // accessor returning the matched frame's marker keys.
             let pair_preposition = frame_complement_pair.then(|| quote! {
                 let Some((terminal, member)) = reading.frame_complement_pair_preposition() else {
                     continue;

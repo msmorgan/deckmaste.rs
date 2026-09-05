@@ -117,12 +117,13 @@ select the coherent `VerbPhraseAndFrameComplementPairCoordination` analysis:
 | `f3e03d23…` | Brokers Ascendancy | `put [a +1/+1 counter on each creature you control] and [a loyalty counter on each planeswalker you control]` |
 | `f7c6a215…` | River Heralds' Boon | `put [a +1/+1 counter on target creature] and [a +1/+1 counter on up to one target Merfolk]` |
 
-The other two already-covered selections whose paths changed are also coherent:
+Two already-covered selections also changed path. One is a correction; the
+other, corrected in review, is **not** (see `### Review corrections`, R1):
 
-| Identity | Card | Selected analysis |
-| --- | --- | --- |
-| `f9afecf8…` | Arwen, Mortal Queen | `put [a +1/+1 counter and a lifelink counter on that creature] and [a +1/+1 counter and a lifelink counter on Arwen]` |
-| `9fd0a1ad…` | Captain America, Team Leader | `put [a +1/+1 counter on that Hero] and [a +1/+1 counter on Captain America]` |
+| Identity | Card | Selected analysis | Verdict |
+| --- | --- | --- | --- |
+| `9fd0a1ad…` | Captain America, Team Leader | `put [a +1/+1 counter on that Hero] and [a +1/+1 counter on Captain America]` | correction |
+| `f9afecf8…` | Arwen, Mortal Queen | `put [[a +1/+1 counter and a lifelink counter] on [that creature and a +1/+1 counter]] and [[a lifelink counter] on [Arwen]]` | still incoherent — wrong before, wrong after |
 
 For all thirteen path changes, the parent selected
 `VerbPhrasePutOn > LocativeNounPhraseCoordination`; the landing selects
@@ -226,7 +227,9 @@ Report-mode coverage changed from 18,917 to 19,002 selected and covered units:
 ### Verification and inventories
 
 - Refreshed feature basis: parent tip `ykrsttlu`, claim change `uxxyspmv`;
-  gates were run after that refresh.
+  gates were run after that refresh. **Superseded by the review's own refresh
+  and gate run — see `### Review corrections`; the numbers below were confirmed
+  unchanged there.**
 - `cargo fmt --all`: exit 0.
 - Strict clippy for the three touched crates and all targets: exit 0,
   `Finished` in 7.76s.
@@ -263,8 +266,11 @@ was exceeded under load and is reported, not fitted):
 | ambiguity | 109.382890062s | 129,249 | 10.76 / 9.96 / 9.02 |
 | roundtrip | 104.074313723s | 117,053 | 5.94 / 8.72 / 8.69 |
 
-Concurrent-process count is unavailable because the sandbox cannot observe
-sibling executors; the reviewer must stamp contention.
+Contention stamp (reviewer): 4 concurrent workers on the host during the
+review's gate run — three sol executors (`english-v2-scope-device-collapse`,
+`english-v2-tail-restrictive-focus-adverb`, and this feature's own successor
+work) plus this review. The implementer could not observe them from its
+sandbox.
 
 ### Assurance accounting
 
@@ -279,6 +285,115 @@ sibling executors; the reviewer must stamp contention.
   coordinator arms plus a mismatched-marker negative.
 - Removed: 0.
 
+### Review corrections
+
+Opus landing review, 2026-09-05, on the refreshed tree (parent `xxqrqrpk`).
+Findings and the fix applied to each. No HIGH.
+
+**R1 (MEDIUM, record + routed defect). The Arwen row was false.** The record
+listed `f9afecf8…` (Arwen, Mortal Queen) among the coherent path changes. It is
+not: the landing selects
+`Put [[a +1/+1 counter and a lifelink counter] on [that creature and a +1/+1
+counter]] and [[a lifelink counter] on [Arwen]]` — the second Conjunct's first
+Nominal is swallowed by the first Conjunct's Complement, which is the very
+grouping this ticket exists to remove. Evidence: `english_v2 inspect --id
+f9afecf8… --json`; the Coordination's separator claim sits at bytes 245..250,
+and node `AndFrameComplementPairCoordinationMembersSequencePair` carries two
+families (the coherent split at 225..230 is family 1, materialized as candidate
+20 and beaten by candidate 19 on the generic specificity ordering).
+
+Not a regression: the parent selected `VerbPhrasePutOn >
+LocativeNounPhraseCoordination` for the same identity, the same grouping under
+the pre-B7a spelling. It is the only corpus unit whose pair Coordination carries
+a second same-Coordinator Conjunct boundary; a scan of all 85 gains finds three
+sentences with a second connective and all three are `or`, structurally unable
+to split. B6 principle (ii) does not reach the shape because the swallowed
+material carries no role preposition.
+
+Fixed: the record now states the true selected analysis, and the residue is
+routed to the minted `docs/tickets/planned/english-v2-frame-complement-pair-nesting.md`
+(design ticket: the ticket's pin does not say how the Conjunct boundary is fixed
+when a Conjunct's own material can absorb the next Conjunct's Object, so
+inventing the device in review would have been an unpinned design choice).
+
+**R2 (MEDIUM, undisclosed hot-path allocation).** `emit/runtime.rs` changed
+`VerbFrameRolePreemption`'s `roles` field from `&'static [VerbFrameRolePreposition]`
+to `Box<[VerbFrameRolePreposition]>` and dropped `const` from `new`, adding a
+heap allocation to every ordered-role field check in the parser. It was not
+needed and was not disclosed: both accessor arms — the pre-existing constant one
+and the new `&FRAME_COMPLEMENT_PAIR_ROLE_PREPOSITIONS[..]` one — return
+`&'static`. Fixed: reverted to the borrowed `&'static` slice and the `const fn`;
+`deckmaste_construction_core`, `deckmaste_construction --all-targets`,
+`deckmaste_english_v2` and `cargo test --workspace` all build and pass on it.
+
+**R3 (LOW, routed).** The compiled-consumer fixture
+(`crates/deckmaste_construction/tests/compiled_consumer.rs`,
+`declaration_verb_fixture`) has no `FrameComplementPair` case, so the new
+consumer seam — a verb-inventory reading must supply
+`frame_complement_pair_preposition()` — is not exercised there. Adding one needs
+a positional checked sequence inside that fixture, machinery it does not yet
+have; that is beyond this ticket's letter. Fixed as far as is cheap: the emitter
+now states the seam requirement at the point that generates the call
+(`emit/scanner.rs`), and the fixture case is carried on the routed ticket. The
+seam is exercised end to end by `predicate_grammar.rs`
+(`declared_frame_complement_pairs_coordinate_for_every_coordinator`, three
+positive arms plus a mismatched-marker negative) and at generation level by
+`emit/build.rs::checked_sequence_reads_a_structurally_matched_frame_role`.
+
+**R4 (LOW, record).** The record's stamp named a refresh basis rather than the
+change id and lock `covered` count of the gated tree; the contention stamp was
+left to the reviewer; the glossary-gap line said `none` although the landing
+mints a term the vocabulary does not carry. All three are corrected above and in
+the stamp below.
+
+#### Review verification (this is the stamped run)
+
+Gated tree: change `knmwxntm` (this commit), rebased on trunk `xxqrqrpk`; lock
+`covered` = 19,002, matching the gate's `covered_units`. `kata refresh` before
+the run was a clean rebase with no conflicts.
+
+- `cargo fmt --all`: exit 0, no diff.
+- `cargo clippy -p {deckmaste_construction_core,deckmaste_english_v2,xtask}
+  --all-targets -- -D warnings`: exit 0 each (`Finished` in 10.53s / 12.96s /
+  15.04s).
+- `cargo test --workspace`: exit 0; every `test result:` line reports
+  `0 failed` (highest suites 757, 736, 459, 426, 90, 76 passed; 3 ignored, all
+  pre-existing).
+- `cargo xtask english_v2 coverage --check --workers 8`
+  (`DECKMASTE_COVERAGE_LOCK=report`): `selected_units=19002 covered_units=19002
+  selected_uncovered_units=0 unresolved_ties=0 internal_failures=0
+  roundtrip_mismatch_units=0 ownership_failure_units=0 gap_spans=0
+  overlap_spans=0 synthetic_claims=0 provenance_plan_mismatches=0
+  licensing_checker_permitted=21 licensing_checker_forbidden=0`. Zero newly
+  covered, zero drops, lock exactly current.
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8`:
+  `unique=14943 specificity_resolved=4059 exception_resolved=0
+  unresolved_ties=0 internal_failures=0 exception_uses=0`.
+- No citation changed in the feature diff, so no cite gate was required.
+- The eight-frame census above was re-derived independently from
+  `core_verbs.ron` by the reviewer and is exact: `Deal` ×1, `Put` ×5, `Remove`
+  ×1, `Return` ×1, markers `To`, `Into`, `On`, `Onto`, `From`.
+- Bracketing spot checks by `english_v2 inspect`, separator byte offsets read
+  against the oracle text: Forge Devil, Kruphix's Insight, Chandra's Fury,
+  Murmurs from Beyond, Tropical Storm, Ancestral Memories, Captain America — all
+  place the Conjunct boundary exactly between a Complement and the next Object.
+  `Deal 1 damage to target creature, 1 damage to target player, and 1 damage to
+  you.` selects the three-member arm with the `first`/`last` separators.
+  `deals 2 damage to you and 2 to each creature.` (elided second Complement
+  head) has no derivation and no ownership — it fails cleanly rather than
+  mis-bracketing.
+
+Review performance advisory (8 workers, 16.26s ceiling exceeded under load and
+reported, not fitted; contention as stamped above):
+
+| Gate | Wall time | Integer ns/B | Host load (1m/5m/15m) |
+| --- | ---: | ---: | --- |
+| coverage check | 104.941013658s | 120,621 | 9.11 / 7.74 / 6.70 |
+| ambiguity | 108.946093587s | 126,024 | 7.51 / 7.68 / 6.82 |
+
+Review assurance accounting: restored 0, re-spelled 0, ignored 0, added 0,
+removed 0. The review changed no test.
+
 ### Deviations, additions, and disclosures
 
 - Necessary supporting additions within the ticket's seam: generated
@@ -292,5 +407,10 @@ sibling executors; the reviewer must stamp contention.
 - STOP: none. No selection tie, contradictory authority, unexplained loss,
   word-naming guard, wrong newly covered analysis, negative oracle, or
   roundtrip mismatch was found.
-- Glossary gap: none.
+- Glossary gap: **Frame Complement Pair** — the Conjunct shape this landing
+  mints (an Object with its own marked Complement, the unit the Coordination
+  joins) has no entry in `docs/contexts/oracle-english/CONTEXT.md`, and neither
+  does the pre-existing role name **Frame Complement**. Conjunct, Coordination,
+  Coordinator and Complement are all present and are used as the glossary
+  defines them.
 - Decision wanted: none.

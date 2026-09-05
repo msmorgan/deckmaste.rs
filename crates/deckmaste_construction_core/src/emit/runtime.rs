@@ -809,7 +809,7 @@ fn emit_verb_frame_role_preemption_types() -> [GeneratedItem; 2] {
             "VerbFrameRolePreemption",
             quote! {
                 pub(crate) struct VerbFrameRolePreemption {
-                    roles: Box<[VerbFrameRolePreposition]>,
+                    roles: &'static [VerbFrameRolePreposition],
                     next: usize,
                 }
             },
@@ -819,10 +819,10 @@ fn emit_verb_frame_role_preemption_types() -> [GeneratedItem; 2] {
             "VerbFrameRolePreemption",
             quote! {
                 impl VerbFrameRolePreemption {
-                    pub(crate) fn new(
-                        roles: &[VerbFrameRolePreposition],
+                    pub(crate) const fn new(
+                        roles: &'static [VerbFrameRolePreposition],
                     ) -> Self {
-                        Self { roles: roles.into(), next: 0 }
+                        Self { roles, next: 0 }
                     }
 
                     pub(crate) fn is_pending(
