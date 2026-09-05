@@ -17,10 +17,9 @@ Ported: the six grammar layers as syntax (`Words`, `Events`, `Phrase`,
 `Triggers`, `Abilities`, `Card`), the checker for all of them (`Check/*`, every
 obligation `Experimental/*.idr` put in a constructor type), the subset of
 `Macros` the bench and the pin suites use, a `Cards` bench of seven cards,
-and all fourteen `Proofs.<Family>` pin suites: `Description` (and the
-2026-09-04 exchange pins in `Refresh`) as `Pin` values, the other thirteen in
-theorem form (`theorem okX : … = []`, `theorem badX : … = [.reason]`, both by
-`decide`), with the Idris names and sentences kept. Three Idris pins are not
+and all fourteen `Proofs.<Family>` pin suites as `decide` theorems
+(`theorem okX : … = []`, `theorem badX : … = [.reason]`), with the Idris names
+and sentences kept. Three Idris pins are not
 ported, each named in its module docstring: two Planechase sentences and one
 Idris type error.
 
@@ -70,31 +69,22 @@ kind.
 
 ## Pins
 
-A pin is a value of `Pin check` (`Proofs/Pin.lean`): a `Witness` the checker
-admits beside the same sentence mis-stated in exactly one place, and the one
-refusal the mis-statement earns. Both verdicts close by `decide` at the
-definition, so a pin that does not hold does not define:
+A pin is a `decide` theorem naming the one refusal:
 
-    def controlledByGroup : Pin (Predicate.check .object []) :=
-      pin (says "a creature target opponent controls"
-            (.hasPossessor .controller (target .opponent)))
-          (says "a creature two target opponents control"
-            (.hasPossessor .controller (.described (.target (exactly 2)) .opponent)))
-          .soleHolder
+    /-- "a creature two target opponents control" -/
+    theorem badControlledByGroup :
+        Predicate.check .object []
+          (.hasPossessor .controller (.described (.target (exactly 2)) .opponent))
+          = [.soleHolder] := by decide
 
-Because a check lists every refusal, `reason :: also` states that `reason` is
-the obligation failing and `also` (empty for nearly every pin) is what a single
-mis-statement cascades into. An admitted spelling with no pin beside it is a
-`Spelling`. The sentence is data (`Sentence.printed card text` or
-`.synthetic text`), not a docstring, so a renderer can later be held to it. The
+and its twin is the same statement `= []`. Because a check lists every
+refusal, `= [r]` states that `r` is the *only* obligation failing, which is
+what a non-vacuous Idris pin claimed by elaborating the rest of the term. The
 VERIFY.md discipline (twin beside pin, same constructor at the same slot) is
-now the structure: a `Pin` cannot exist without its twin, and it is named for
-what it pins, with no `ok`/`bad` prefix, since it is the pair. `Proofs/Description`
-is `Proofs/Description.idr` clause for clause and runs in about two seconds;
-`Proofs/Refresh` holds the 2026-09-04 exchange pins beside the theorem-form
-`Proofs/Zone`. The theorem-form suites are a mechanical pass away from `Pin`
-values. `native_decide` is the lever for a suite that outgrows `decide`; none
-has: the largest suite, `Proofs/Faces` (129 theorems), builds in seconds.
+unchanged, and every suite keeps the Idris names and sentences: `Proofs/<Family>.lean`
+is `Proofs/<Family>.idr` clause for clause. `native_decide` is the lever for a
+suite that outgrows `decide`; none has: the largest, `Proofs/Faces` (129
+theorems), builds in about three seconds.
 
 ## Structural recursion is load-bearing
 
@@ -163,6 +153,6 @@ produces. The traps, all hit once:
 | `k \/ k'` | `Kind.join k k'` |
 | `Foo bs k` (indexed family) | `Foo` |
 | `{auto 0 ok : So (f x)}` | a rule `refuse (f x) .reason` in `Check/*Rules` |
-| `Unspellable T (\ok => term)` … `Oh impossible` | `def name : Pin (X.check …) := pin ok bad .reason` |
-| a twin `ok… : T = term` | the `ok` witness of the pin, or a `Spelling` |
+| `Unspellable T (\ok => term)` … `Oh impossible` | `theorem bad… : X.check … term = [.reason] := by decide` |
+| a twin `ok… : T = term` | `theorem ok… : X.check … term = [] := by decide` |
 | a bench card | `def c : Spelled := spelled <| .singleFaced { name := …, … }` |

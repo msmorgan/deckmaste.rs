@@ -1,449 +1,516 @@
 import Semantics.Macros
 import Semantics.Check.Card
-import Semantics.Proofs.Pin
 
 /-!
 # Semantics.Proofs.Description
 
 Port of `idris/src/Experimental/ProofsDescription.idr`: the pins of the Description family.
-A `Spelling` states that the checker admits a spelling (`= []`); a `Pin` states the one
-obligation the same sentence mis-stated in one place refuses, which is the Idris pin's claim
-(the term elaborates but for one obligation) made explicit. Every verdict is closed by
-`decide`, so the kernel runs the checker.
+A twin states that the checker admits a spelling (`= []`); a pin states the one obligation
+it refuses (`= [r]`), which is the Idris pin's claim (the term elaborates but for one
+obligation) made explicit. Every statement is closed by `decide`, so the kernel runs the
+checker.
 
-The pins keep the Idris names, and each witness carries the sentence it spells.
+The pins keep the Idris names and docstrings (the sentence each refuses).
 -/
 
 open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.Description
 
-def controlledByGroup : Pin (Predicate.check .object []) :=
-  pin (says "a creature target opponent controls"
-        (.hasPossessor .controller (target .opponent)))
-      (says "a creature two target opponents control"
-        (.hasPossessor .controller (.described (.target (exactly 2)) .opponent)))
-      .soleHolder
+/-- "a creature target opponent controls" -/
+theorem okControlledByOne :
+    Predicate.check .object [] (.hasPossessor .controller (target .opponent)) = [] := by decide
 
-def eachOfSingular : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "each of up to two target creatures"
-        (.eachOf (.described (.target (upTo 2)) creature)))
-      (says "each of target creature" (.eachOf (target creature)))
-      .plural
+/-- "a creature two target opponents control" -/
+theorem badControlledByGroup :
+    Predicate.check .object []
+      (.hasPossessor .controller (.described (.target (exactly 2)) .opponent)) = [.soleHolder] := by
+  decide
 
-def sliceOfCountedPossessor : Pin (Instruction.check []) :=
-  pin (says "Look at the top card of target player's library."
-        (lookAt (.librarySlice .top (.lit 1) (target .anyPlayer))))
-      (says "Look at the top card of two target players' library."
-        (lookAt (.librarySlice .top (.lit 1) (.described (.target (exactly 2)) .anyPlayer))))
-      .slicePossessor
+/-- "each of up to two target creatures" -/
+theorem okEachOfGroup :
+    NounPhrase.check (some .object) [] (.eachOf (.described (.target (upTo 2)) creature)) = [] := by decide
 
-def disjunctAntecedent : Pin (Instruction.check []) :=
-  pin (says "Tap target creature an opponent controls. That player loses 1 life."
-        (.sequentially
-          [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-            losesLife (that .player) (.lit 1) ]))
-      (says "Tap target creature an opponent controls or land you control. That player loses \
-              1 life."
-        (.sequentially
-          [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
-                                             .and [land, .hasPossessor .controller .you]])),
-            losesLife (that .player) (.lit 1) ]))
-      (.anaphor (.word .player) .one 0)
+/-- "each of target creature" -/
+theorem badEachOfSingular :
+    NounPhrase.check (some .object) [] (.eachOf (target creature)) = [.plural] := by decide
 
-def keywordConjunction : Spelling (Instruction.check []) :=
-  spelling (says "Tap target creature with flying."
-    (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying")]))))
+/-- "Look at the top card of target player's library." -/
+theorem okSliceOfOnePossessor :
+    Instruction.check [] (lookAt (.librarySlice .top (.lit 1) (target .anyPlayer))) = [] := by decide
 
-def keywordSelfNegation : Spelling (Instruction.check []) :=
-  spelling (says "Tap target creature with flying that doesn't have flying."
-    (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying"),
-                                       .not (.hasKeyword (.the "Flying"))]))))
+/-- "Look at the top card of two target players' library." -/
+theorem badSliceOfCountedPossessor :
+    Instruction.check []
+      (lookAt (.librarySlice .top (.lit 1) (.described (.target (exactly 2)) .anyPlayer)))
+      = [.slicePossessor] := by
+  decide
 
-def forestNonland : Pin (Instruction.check []) :=
-  pin (says "Tap target Forest." (.setStatus .tapped (target (.hasSubtype (landType "Forest")))))
-      (says "Tap target nonland Forest."
-        (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not land]))))
-      .contradictionFree
+/-- "Tap target creature an opponent controls. That player loses 1 life." -/
+theorem okThatPlayer :
+    Instruction.check []
+      (.sequentially
+        [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
+          losesLife (that .player) (.lit 1) ]) = [] := by
+  decide
 
-def contradictionFreeAnd : Spelling (Predicate.check .object []) :=
-  spelling (says "creature with power 2 or less"
-    (.and [creature, .compare [.stat .power] .atMost (.lit 2)]))
+/-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
+theorem badDisjunctAntecedent :
+    Instruction.check []
+      (.sequentially
+        [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
+                                           .and [land, .hasPossessor .controller .you]])),
+          losesLife (that .player) (.lit 1) ])
+      = [.anaphor (.word .player) .one 0] := by
+  decide
 
-def noncreatureAttackingOrBlocking : Pin (Predicate.check .object []) :=
-  pin (says "creature that is attacking or blocking" (.and [creature, .or [attacking, blocking]]))
-      (says "noncreature that is attacking or blocking"
-        (.and [.not creature, .or [attacking, blocking]]))
-      .contradictionFree
+/-- "Tap target creature with flying." -/
+theorem okKeywordConjunction :
+    Instruction.check []
+      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying")]))) = [] := by
+  decide
 
-def wrappedStatusLaunder : Pin (Predicate.check .object []) :=
-  pin (says "creature that is an attacking artifact or a blocking land"
-        (.and [.or [.and [artifact, attacking], .and [land, blocking]], creature]))
-      (says "noncreature that is an attacking artifact or a blocking land"
-        (.and [.or [.and [artifact, attacking], .and [land, blocking]], .not creature]))
-      .contradictionFree
+/-- "Tap target creature with flying that doesn't have flying." -/
+theorem okKeywordSelfNegation :
+    Instruction.check []
+      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying"),
+                                         .not (.hasKeyword (.the "Flying"))]))) = [] := by
+  decide
 
-def blockedAndUnblocked : Spelling (Predicate.check .object []) :=
-  spelling (says "blocked creature that's unblocked" (.and [creature, blocked, unblocked]))
+/-- "Tap target nonland Forest." -/
+theorem badForestNonland :
+    Instruction.check []
+      (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not land])))
+      = [.contradictionFree] := by
+  decide
 
-def descendingRange : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "between two and three target creatures"
-        (.described (.target (.range (some 2) (some 3))) creature))
-      (says "between three and two target creatures"
-        (.described (.target (.range (some 3) (some 2))) creature))
-      .wellFormedQ
+/-- "creature with power 2 or less" -/
+theorem okContradictionFreeAnd :
+    Predicate.check .object [] (.and [creature, .compare [.stat .power] .atMost (.lit 2)]) = [] := by
+  decide
 
-def partialZoneJoin : Pin (Predicate.check .object []) :=
-  pin (says "attacking artifact or attacking land"
-        (.or [.and [artifact, attacking], .and [land, attacking]]))
-      (says "attacking artifact or land" (.or [.and [artifact, attacking], land]))
-      .parallelDisjuncts
+/-- "noncreature that is attacking or blocking" -/
+theorem badNoncreatureAttackingOrBlocking :
+    Predicate.check .object [] (.and [.not creature, .or [attacking, blocking]])
+      = [.contradictionFree] := by
+  decide
 
-def distinctStructuredDisjuncts : Spelling (Predicate.check .object []) :=
-  spelling (says "creature you control or artifact you control"
-    (.or [.and [creature, .hasPossessor .controller .you],
-          .and [artifact, .hasPossessor .controller .you]]))
+/-- "noncreature that is an attacking artifact or a blocking land" -/
+theorem badWrappedStatusLaunder :
+    Predicate.check .object []
+      (.and [.or [.and [artifact, attacking], .and [land, blocking]], .not creature])
+      = [.contradictionFree] := by
+  decide
 
-def matchesTargetSubject : Pin (Condition.check []) :=
-  pin (says "if this creature is attacking" (.matches thisCreature attacking))
-      (says "if target creature is an artifact" (.matches (target creature) artifact))
-      .testSubject
+/-- "blocked creature that's unblocked" -/
+theorem okBlockedAndUnblocked :
+    Predicate.check .object [] (.and [creature, blocked, unblocked]) = [] := by decide
 
-def matchesNothing : Pin (Instruction.check []) :=
-  pin (says "Tap target creature. You gain 1 life if it's an artifact."
-        (.sequentially [.setStatus .tapped (target creature),
-                        .onlyIf (gainsLife .you (.lit 1)) (.matches it artifact) none]))
-      (says "Tap target creature. You gain 1 life if it's."
-        (.sequentially [.setStatus .tapped (target creature),
-                        .onlyIf (gainsLife .you (.lit 1)) (.matches it (.and [])) none]))
-      .predSays
+/-- "between two and three target creatures" -/
+theorem okAscendingRange :
+    NounPhrase.check (some .object) [] (.described (.target (.range (some 2) (some 3))) creature) = [] := by
+  decide
 
-def compareLiteralSubject : Pin (Condition.check []) :=
-  pin (says "if the number of artifacts you control is 4 or greater"
-        (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 4)))
-      (says "if 3 is 4 or greater" (.compareAmt (.lit 3) .atLeast (.lit 4)))
-      .readAmount
+/-- "between three and two target creatures" -/
+theorem badDescendingRange :
+    NounPhrase.check (some .object) [] (.described (.target (.range (some 3) (some 2))) creature)
+      = [.wellFormedQ] := by
+  decide
 
-def eachOfDistributive : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "each of up to two target creatures"
-        (.eachOf (.described (.target (upTo 2)) creature)))
-      (says "each of each creature" (.eachOf (each creature)))
-      .groupMention
+/-- "attacking artifact or attacking land" -/
+theorem okWholeZoneJoin :
+    Predicate.check .object [] (.or [.and [artifact, attacking], .and [land, attacking]]) = [] := by
+  decide
 
-def eachOfAll : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "each of up to two target creatures"
-        (.eachOf (.described (.target (upTo 2)) creature)))
-      (says "each of all creatures" (.eachOf (allOf creature)))
-      .groupMention
+/-- "attacking artifact or land" -/
+theorem badPartialZoneJoin :
+    Predicate.check .object [] (.or [.and [artifact, attacking], land]) = [.parallelDisjuncts] := by
+  decide
 
-def nestedEachOf : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "each of up to two target creatures"
-        (.eachOf (.described (.target (upTo 2)) creature)))
-      (says "each of each of up to two target creatures"
-        (.eachOf (.eachOf (.described (.target (upTo 2)) creature))))
-      .groupMention
+/-- "creature you control or artifact you control" -/
+theorem okDistinctStructuredDisjuncts :
+    Predicate.check .object []
+      (.or [.and [creature, .hasPossessor .controller .you],
+            .and [artifact, .hasPossessor .controller .you]]) = [] := by
+  decide
 
-def colorlessWhite : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "target white creature" (target (.and [creature, .colorIs .white])))
-      (says "target colorless white creature"
-        (target (.and [creature, colorless, .colorIs .white])))
-      .contradictionFree
+/-- "if this creature is attacking" -/
+theorem okMatchesThisCreature : Condition.check [] (.matches thisCreature attacking) = [] := by decide
 
-def doubleXRider : Pin (Instruction.check []) :=
-  pin (says "Draw X cards, where X is the number of creatures you control."
-        (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl)]))
-      (says "Draw X cards, where X is the number of creatures you control and X is the number \
-              of creatures."
-        (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl),
-                        .define .x (countOf creature)]))
-      (.openLetter .x)
+/-- "if target creature is an artifact" -/
+theorem badMatchesTargetSubject :
+    Condition.check [] (.matches (target creature) artifact) = [.testSubject] := by decide
 
-def unlicensedY : Pin (Instruction.check []) :=
-  pin (says "Draw X cards, where X is the number of creatures you control."
-        (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl)]))
-      (says "Draw Y cards, where X is the number of creatures you control."
-        (.sequentially [.draw .you (.letter .y), .define .x (countOf creatureYouControl)]))
-      (.openLetter .x)
+/-- "Tap target creature. You gain 1 life if it's an artifact." -/
+theorem okMatchesArtifact :
+    Instruction.check []
+      (.sequentially [.setStatus .tapped (target creature),
+                      .onlyIf (gainsLife .you (.lit 1)) (.matches it artifact) none]) = [] := by
+  decide
 
-/-- A noncreature permanent has no power [CR#208.3]. -/
-def landPower : Pin (Amount.check []) :=
-  pin (says "the power of target land creature"
-        (.statOf (.stat .power) (target (.and [land, creature]))))
-      (says "the power of target land" (.statOf (.stat .power) (target land)))
-      .statHeadTysOk
+/-- "Tap target creature. You gain 1 life if it's." -/
+theorem badMatchesNothing :
+    Instruction.check []
+      (.sequentially [.setStatus .tapped (target creature),
+                      .onlyIf (gainsLife .you (.lit 1)) (.matches it (.and [])) none])
+      = [.predSays] := by
+  decide
 
-/-- Loyalty is printed on planeswalkers [CR#209.1]. -/
-def battleLoyalty : Pin (Amount.check []) :=
-  pin (says "the loyalty of target planeswalker"
-        (.statOf (.stat .loyalty) (target (.hasType .planeswalker))))
-      (says "the loyalty of target battle"
-        (.statOf (.stat .loyalty) (target (.hasType .battle))))
-      .statHeadTysOk
+/-- "if the number of artifacts you control is 4 or greater" -/
+theorem okCompareCountSubject :
+    Condition.check []
+      (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 4))
+      = [] := by
+  decide
 
-def powerAmongPlayers : Pin (Amount.check []) :=
-  pin (says "the greatest power among creatures" (aggregate .max (.stat .power) creature))
-      (says "the greatest power among players" (aggregate .max (.stat .power) .anyPlayer))
-      (.projScope .player)
+/-- "if 3 is 4 or greater" -/
+theorem badCompareLiteralSubject :
+    Condition.check [] (.compareAmt (.lit 3) .atLeast (.lit 4)) = [.readAmount] := by decide
 
-def lifeTotalAmongObjects : Pin (Amount.check []) :=
-  pin (says "the greatest power among creatures" (aggregate .max (.stat .power) creature))
-      (says "the highest life total among creatures you control"
-        (aggregate .max (.playerStat .lifeTotal) creatureYouControl))
-      (.projScope .object)
+/-- "each of each creature" -/
+theorem badEachOfDistributive :
+    NounPhrase.check (some .object) [] (.eachOf (each creature)) = [.groupMention] := by decide
 
-def sumSelection : Pin (Predicate.check .object []) :=
-  pin (says "the creature with the greatest power"
-        (.superlative .max (.stat .power) creature))
-      (says "the creature with the total power among creatures you control"
-        (.superlative .sum (.stat .power) creature))
-      .isExtremal
+/-- "each of all creatures" -/
+theorem badEachOfAll :
+    NounPhrase.check (some .object) [] (.eachOf (allOf creature)) = [.groupMention] := by decide
 
-def bareDefinite : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "the creature with the least toughness among creatures you control"
-        (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl])))
-      (says "the creature" (the creature))
-      .uniquifying
+/-- "each of each of up to two target creatures" -/
+theorem badNestedEachOf :
+    NounPhrase.check (some .object) [] (.eachOf (.eachOf (.described (.target (upTo 2)) creature)))
+      = [.groupMention] := by
+  decide
 
-def playerStatSuperlative : Spelling (Predicate.check .player []) :=
-  spelling (says "the player with the highest life total"
-    (.superlative .max (.playerStat .lifeTotal) .anyPlayer))
+/-- "target white creature" -/
+theorem okWhiteCreature :
+    NounPhrase.check (some .object) [] (target (.and [creature, .colorIs .white])) = [] := by decide
 
-def lifeTotalSuperlative : Pin (Predicate.check .object []) :=
-  pin (says "the creature with the greatest power"
-        (.superlative .max (.stat .power) creature))
-      (says "the creature with the highest life total among creatures you control"
-        (.superlative .max (.playerStat .lifeTotal) creature))
-      (.projScope .object)
+/-- "target colorless white creature" -/
+theorem badColorlessWhite :
+    NounPhrase.check (some .object) [] (target (.and [creature, colorless, .colorIs .white]))
+      = [.contradictionFree] := by
+  decide
 
-def ascribeInstant : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "this creature" (.asType .creature .this none))
-      (says "this instant" (.asType .instant .this none))
-      .ascriptionOk
+/-- "Draw X cards, where X is the number of creatures you control." -/
+theorem okSingleXRider :
+    Instruction.check []
+      (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl)]) = [] := by
+  decide
 
-def ascribeSorcery : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "this creature" (.asType .creature .this none))
-      (says "this sorcery" (.asType .sorcery .this none))
-      .ascriptionOk
+theorem badDoubleXRider :
+    Instruction.check []
+      (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl),
+                      .define .x (countOf creature)]) = [.openLetter .x] := by
+  decide
 
-def ascribeKindred : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "this creature" (.asType .creature .this none))
-      (says "this kindred" (.asType .kindred .this none))
-      .ascriptionOk
+/-- "Draw Y cards, where X is the number of creatures you control." -/
+theorem badUnlicensedY :
+    Instruction.check []
+      (.sequentially [.draw .you (.letter .y), .define .x (countOf creatureYouControl)])
+      = [.openLetter .x] := by
+  decide
 
-def ascribeForeignSubtype : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "this Aura enchantment"
-        (.asType .enchantment .this (some (enchantmentType "Aura"))))
-      (says "this Aura land" (.asType .land .this (some (enchantmentType "Aura"))))
-      .ascriptionOk
+/-- "the power of target land creature": an animated land is a land AND a creature. -/
+theorem okAnimatedLandPower :
+    Amount.check [] (.statOf (.stat .power) (target (.and [land, creature]))) = [] := by decide
 
-def objectMonarch : Pin (Predicate.check .object []) :=
-  pin (says "target creature that's goaded" (.hasDesignation "goaded" none))
-      (says "target creature that is the monarch" (.hasDesignation "the monarch" none))
-      (.designationHolder "the monarch" .object)
+/-- "the power of target land": a noncreature permanent has no power [CR#208.3]. -/
+theorem badLandPower :
+    Amount.check [] (.statOf (.stat .power) (target land)) = [.statHeadTysOk] := by decide
 
-def partitiveOfCountedGroup : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "one of the top two cards of your library"
-        (.someOf (.counted (exactly 1)) none (.librarySlice .top (.lit 2) .you)))
-      (says "one of one or more creatures"
-        (.someOf (.counted (exactly 1)) none (counted (atLeast 1) creature)))
-      .partitiveBase
+/-- "the loyalty of target battle": loyalty is printed on planeswalkers [CR#209.1]. -/
+theorem badBattleLoyalty :
+    Amount.check [] (.statOf (.stat .loyalty) (target (.hasType .battle))) = [.statHeadTysOk] := by decide
 
-def itAfterAntecedent : Spelling (Instruction.check []) :=
-  spelling (says "Destroy target creature. Its controller loses life equal to its power."
-    (.sequentially
-      [destroy (target creature), losesLife (controllerOf it) (.statOf (.stat .power) it)]))
+/-- "the greatest power among creatures" -/
+theorem okPowerAmongObjects :
+    Amount.check [] (aggregate .max (.stat .power) creature) = [] := by decide
 
-/-- The "otherwise" arm cannot read the leading arm's token: it is not on the battlefield when
-the otherwise arm runs, and there is no antecedent for it. -/
-def otherwiseReadsLeadingArm : Pin (Instruction.check []) :=
-  pin (says "If you control a creature, create a 1/1 black Zombie creature token. Otherwise, \
-                tap target creature."
-          (.if_ (exists_ creatureYouControl)
-            (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
-            (some (.setStatus .tapped (target creature)))))
-      (says "If you control a creature, create a 1/1 black Zombie creature token. Otherwise, \
-              tap it."
-        (.if_ (exists_ creatureYouControl)
-          (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
-          (some (.setStatus .tapped it))))
-      (.anaphor .bare .one 0) [.zoneIs .battlefield]
+/-- "the greatest power among players" -/
+theorem badPowerAmongPlayers :
+    Amount.check [] (aggregate .max (.stat .power) .anyPlayer) = [.projScope .player] := by decide
 
-/-- A player mentioned only inside a leading condition is no antecedent for "that player". -/
-def leadingConditionAntecedent : Pin (Instruction.check []) :=
-  pin (says "Tap target creature an opponent controls. That player loses 1 life."
-        (.sequentially
-          [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-            losesLife (that .player) (.lit 1) ]))
-      (says "If your life total is less than an opponent's life total, you gain 6 life. That \
-              player loses 1 life."
-        (.sequentially
-          [ .if_ (.compareAmt (lifeTotalOf .you) .less
-                       (lifeTotalOf anOpponent))
-              (gainsLife .you (.lit 6)) none,
-            losesLife (that .player) (.lit 1) ]))
-      (.anaphor (.word .player) .one 0)
+/-- "the highest life total among creatures you control" -/
+theorem badLifeTotalAmongObjects :
+    Amount.check [] (aggregate .max (.playerStat .lifeTotal) creatureYouControl)
+      = [.projScope .object] := by
+  decide
 
-def singletonConjunction : Pin (Condition.check []) :=
-  pin (says "If you control an artifact and an enchantment, …"
-        (.and [exists_ (.and [artifact, .hasPossessor .controller .you]),
-               exists_ (.and [enchantment, .hasPossessor .controller .you])]))
-      (says "If you control an artifact, create a token."
-        (.and [exists_ (.and [artifact, .hasPossessor .controller .you])]))
-      .atLeastTwo
+/-- "the creature with the greatest power" -/
+theorem okExtremalSelection :
+    Predicate.check .object [] (.superlative .max (.stat .power) creature) = [] := by decide
 
-def nestedConjunction : Pin (Condition.check []) :=
-  pin (says "If you control an artifact and an enchantment, …"
-        (.and [exists_ (.and [artifact, .hasPossessor .controller .you]),
-               exists_ (.and [enchantment, .hasPossessor .controller .you])]))
-      (says "If you control an artifact and an enchantment, and you control a land, …"
-        (.and [ .and [exists_ (.and [artifact, .hasPossessor .controller .you]),
-                      exists_ (.and [enchantment, .hasPossessor .controller .you])],
-                exists_ (.and [land, .hasPossessor .controller .you]) ]))
-      .flatConjuncts
+/-- "the creature with the total power among creatures you control" -/
+theorem badSumSelection :
+    Predicate.check .object [] (.superlative .sum (.stat .power) creature) = [.isExtremal] := by decide
 
-def totalWithoutRoll : Pin (Instruction.check []) :=
-  pin (says "Roll two d6. If you rolled 7, sacrifice this creature."
-        (.sequentially [ rollDice .you 2 6,
-                         if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
-                                (sacrifice .you thisCreature) ]))
-      (says "If you rolled 7, sacrifice this creature."
-        (if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice .you thisCreature)))
-      (.outcomeInScope .rollResult 0)
+/-- "the creature with the least toughness among creatures you control" -/
+theorem okDefiniteSuperlative :
+    NounPhrase.check (some .object) []
+      (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl])) = [] := by
+  decide
+
+/-- "the creature" -/
+theorem badBareDefinite :
+    NounPhrase.check (some .object) [] (the creature) = [.uniquifying] := by decide
+
+/-- "the player with the highest life total" -/
+theorem okPlayerStatSuperlative :
+    Predicate.check .player [] (.superlative .max (.playerStat .lifeTotal) .anyPlayer) = [] := by
+  decide
+
+/-- "the creature with the highest life total among creatures you control" -/
+theorem badLifeTotalSuperlative :
+    Predicate.check .object [] (.superlative .max (.playerStat .lifeTotal) creature)
+      = [.projScope .object] := by
+  decide
+
+/-- "this creature" -/
+theorem okAscribeCreature : NounPhrase.check (some .object) [] (.asType .creature .this none) = [] := by decide
+
+/-- "this instant" -/
+theorem badAscribeInstant :
+    NounPhrase.check (some .object) [] (.asType .instant .this none) = [.ascriptionOk] := by decide
+
+/-- "this sorcery" -/
+theorem badAscribeSorcery :
+    NounPhrase.check (some .object) [] (.asType .sorcery .this none) = [.ascriptionOk] := by decide
+
+/-- "this kindred" -/
+theorem badAscribeKindred :
+    NounPhrase.check (some .object) [] (.asType .kindred .this none) = [.ascriptionOk] := by decide
+
+/-- "this Aura land" -/
+theorem badAscribeForeignSubtype :
+    NounPhrase.check (some .object) [] (.asType .land .this (some (enchantmentType "Aura")))
+      = [.ascriptionOk] := by
+  decide
+
+/-- "target creature that's goaded" -/
+theorem okObjectDesignation :
+    Predicate.check .object [] (.hasDesignation "goaded" none) = [] := by decide
+
+/-- "target creature that is the monarch" -/
+theorem badObjectMonarch :
+    Predicate.check .object [] (.hasDesignation "the monarch" none)
+      = [.designationHolder "the monarch" .object] := by
+  decide
+
+/-- "one of the top two cards of your library" -/
+theorem okPartitiveOfSlice :
+    NounPhrase.check (some .object) []
+      (.someOf (.counted (exactly 1)) none (.librarySlice .top (.lit 2) .you)) = [] := by
+  decide
+
+/-- "one of one or more creatures" -/
+theorem badPartitiveOfCountedGroup :
+    NounPhrase.check (some .object) []
+      (.someOf (.counted (exactly 1)) none (counted (atLeast 1) creature)) = [.partitiveBase] := by
+  decide
+
+/-- "Destroy target creature. Its controller loses life equal to its power." -/
+theorem okItAfterAntecedent :
+    Instruction.check []
+      (.sequentially [destroy (target creature), losesLife (controllerOf it) (.statOf (.stat .power) it)])
+      = [] := by
+  decide
+
+theorem badOtherwiseReadsLeadingArm :
+    Instruction.check []
+      (.if_ (exists_ creatureYouControl)
+        (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
+        (some (.setStatus .tapped it)))
+      = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+  decide
+
+theorem badLeadingConditionAntecedent :
+    Instruction.check []
+      (.sequentially
+        [ .if_ (.compareAmt (lifeTotalOf .you) .less
+                     (lifeTotalOf anOpponent))
+            (gainsLife .you (.lit 6)) none,
+          losesLife (that .player) (.lit 1) ])
+      = [.anaphor (.word .player) .one 0] := by
+  decide
+
+/-- "If you control an artifact and an enchantment, …" -/
+theorem okFlatConjunction :
+    Condition.check []
+      (.and [exists_ (.and [artifact, .hasPossessor .controller .you]),
+             exists_ (.and [enchantment, .hasPossessor .controller .you])]) = [] := by
+  decide
+
+/-- "If you control an artifact, create a token." -/
+theorem badSingletonConjunction :
+    Condition.check [] (.and [exists_ (.and [artifact, .hasPossessor .controller .you])])
+      = [.atLeastTwo] := by
+  decide
+
+/-- "If you control an artifact and an enchantment, and you control a land, …" -/
+theorem badNestedConjunction :
+    Condition.check []
+      (.and [ .and [exists_ (.and [artifact, .hasPossessor .controller .you]),
+                    exists_ (.and [enchantment, .hasPossessor .controller .you])],
+              exists_ (.and [land, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
+  decide
+
+/-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
+theorem okTotalAfterRoll :
+    Instruction.check []
+      (.sequentially [ rollDice .you 2 6,
+                       if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
+                              (sacrifice .you thisCreature) ]) = [] := by
+  decide
+
+/-- "If you rolled 7, sacrifice this creature." -/
+theorem badTotalWithoutRoll :
+    Instruction.check []
+      (if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice .you thisCreature))
+      = [.outcomeInScope .rollResult 0] := by
+  decide
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
-def okReadsLookedAtLibraryCard :
-    Spelling
-      (NounPhrase.check (some .object) (Instruction.intro [] (lookAt (topSlice (.lit 1))))) :=
-  spelling (says "Look at the top card of your library. Put that card into your graveyard."
-    (that .card))
+theorem okReadsLookedAtLibraryCard :
+    NounPhrase.check (some .object) (Instruction.intro [] (lookAt (topSlice (.lit 1)))) (that .card)
+      = [] := by
+  decide
 
-/-- The shuffled-away card is read under different bindings from `okReadsLookedAtLibraryCard`,
-so the two cannot share a `Pin`. -/
 theorem badReadsShuffledIntoLibraryCard :
     NounPhrase.check (some .object)
       (Instruction.intro [] (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .you .this]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
 
-def compareCeilingSubject : Pin (Condition.check []) :=
-  pin (says "if the number of artifacts you control is 4 or greater"
-        (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 4)))
-      (says "if up to three is 4 or greater" (.compareAmt (.upTo (.lit 3)) .atLeast (.lit 4)))
-      .readAmount
+/-- "if up to three is 4 or greater" -/
+theorem badCompareCeilingSubject :
+    Condition.check [] (.compareAmt (.upTo (.lit 3)) .atLeast (.lit 4)) = [.readAmount] := by decide
 
-/-- "target monocolored permanent": exactly one color. -/
-def monocoloredIsOneColor : Spelling (Predicate.check .object []) :=
-  spelling (says "target monocolored permanent" (.colorCount .eq 1))
+/-- "target monocolored permanent": exactly one color -/
+theorem monocoloredIsOneColor : Predicate.check .object [] (.colorCount .eq 1) = [] := by decide
 
-/-- Zero colors is how "colorless" is spelled [CR#105.2c]. -/
-def exactlySixColors : Pin (Predicate.check .object []) :=
-  pin (says "target colorless permanent" (.colorCount .eq 0))
-      (says "target permanent that's exactly six colors" (.colorCount .eq 6))
-      .colorBoundOk
+/-- "target colorless permanent": zero colors is how "colorless" is spelled [CR#105.2c]. -/
+theorem okExactlyZeroColors :
+    Predicate.check .object [] (.colorCount .eq 0) = [] := by decide
 
-def paidCostOnCostlessKeyword : Pin (Amount.check []) :=
-  pin (says "if this creature's kicker cost was paid"
-        (.paid (.readback (.byKeyword "Kicker") none) .this))
-      (says "if this creature's flying cost was paid"
-        (.paid (.readback (.byKeyword "Flying") none) .this))
-      .paidFacetNamed
+/-- "target permanent that's exactly six colors" -/
+theorem badExactlySixColors :
+    Predicate.check .object [] (.colorCount .eq 6) = [.colorBoundOk] := by decide
 
-def timesPaidUnknownKeyword : Pin (Amount.check []) :=
-  pin (says "for each time it was kicked"
-        (.paid (.timesPaid (.byKeyword "Kicker")) thisCreature))
-      (says "for each time it was kickre'd"
-        (.paid (.timesPaid (.byKeyword "Kickre")) thisCreature))
-      .paidFacetNamed
+/-- "if this creature's kicker cost was paid" -/
+theorem okPaidCostOnKeywordWithACost :
+    Amount.check [] (.paid (.readback (.byKeyword "Kicker") none) .this) = [] := by decide
 
-def paidReadOffStack : Pin (Amount.check []) :=
-  pin (says "for each color of mana spent to cast this spell" (colorsSpentToCast .this))
-      (says "for each color of mana spent to cast a creature on the battlefield"
-        (.paid .colorsSpent (a creature)))
-      .paidSubject
+/-- "if this creature's flying cost was paid" -/
+theorem badPaidCostOnCostlessKeyword :
+    Amount.check [] (.paid (.readback (.byKeyword "Flying") none) .this) = [.paidFacetNamed] := by
+  decide
+
+/-- "for each time it was kickre'd" -/
+theorem badTimesPaidUnknownKeyword :
+    Amount.check [] (.paid (.timesPaid (.byKeyword "Kickre")) thisCreature) = [.paidFacetNamed] := by
+  decide
+
+/-- "for each color of mana spent to cast this spell" -/
+theorem okColorsSpentOnThis : Amount.check [] (colorsSpentToCast .this) = [] := by decide
+
+/-- "for each color of mana spent to cast a creature on the battlefield" -/
+theorem badPaidReadOffStack :
+    Amount.check [] (.paid .colorsSpent (a creature)) = [.paidSubject] := by decide
 
 /-- "if colored mana was spent to cast it" is a read of `paid colorsSpent` -/
 theorem coloredManaSpentIsPaidColorsSpent :
     coloredManaSpentToCast .this = .compareAmt (.paid .colorsSpent .this) .atLeast (.lit 1) := rfl
 
-def spellTargeter : Spelling (Predicate.check .object []) :=
-  spelling (says "spell that targets this creature" (.targets thisCreature .someTarget))
+/-- "spell that targets this creature" -/
+theorem okSpellTargeter :
+    Predicate.check .object [] (.targets thisCreature .someTarget) = [] := by decide
 
-/-- The player-domain refusal is checked under `Predicate.check .player`, not the `.object`
-kind `spellTargeter` is admitted in, so the two cannot share a `Pin`. -/
+/-- "player that targets this creature" -/
 theorem badPlayerTargeter :
-    Predicate.check .player [] (.targets thisCreature .someTarget) = [.targeter .player] := by
+    Predicate.check .player [] (.targets thisCreature .someTarget) = [.targeter .player] := by decide
+
+/-- "a creature with power or toughness 2 or greater" -/
+theorem okSingleScopeAxisComparison :
+    Predicate.check .object [] (.compare [.stat .power, .stat .toughness] .atLeast (.lit 2)) = [] := by
   decide
 
-def mixedAxisComparison : Pin (Predicate.check .object []) :=
-  pin (says "a creature with power or toughness 2 or greater"
-        (.compare [.stat .power, .stat .toughness] .atLeast (.lit 2)))
-      (says "a creature with power or life total 3 or greater"
-        (.compare [.stat .power, .playerStat .lifeTotal] .greater (.lit 1)))
-      (.axesAt .object)
+/-- "a creature with power or life total 3 or greater" -/
+theorem badMixedAxisComparison :
+    Predicate.check .object [] (.compare [.stat .power, .playerStat .lifeTotal] .greater (.lit 1))
+      = [.axesAt .object] := by
+  decide
 
-def playerReadInPlayerDomain : Spelling (Predicate.check .player []) :=
-  spelling (says "a player with 13 or less life"
-    (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .atMost (.lit 13)]))
+/-- "a player with 13 or less life" -/
+theorem okPlayerReadInPlayerDomain :
+    Predicate.check .player []
+      (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .atMost (.lit 13)]) = [] := by
+  decide
 
-def playerReadInObjectDomain : Pin (Predicate.check .object []) :=
-  pin (says "an object with 13 or less power" (.compare [.stat .power] .atMost (.lit 13)))
-      (says "an object with 13 or less life"
-        (.compare [.playerStat .lifeTotal] .atMost (.lit 13)))
-      (.axesAt .object)
+/-- "an object with 13 or less life" -/
+theorem badPlayerReadInObjectDomain :
+    Predicate.check .object [] (.compare [.playerStat .lifeTotal] .atMost (.lit 13))
+      = [.axesAt .object] := by
+  decide
 
-def cardToken : Pin (Predicate.check .object []) :=
-  pin (says "each token on the battlefield" tokenOnTheBattlefield)
-      (says "a card token" (.and [.isCard, .isToken]))
-      .contradictionFree
+/-- "target card on the stack" -/
+theorem okCardAndSpell : Predicate.check .object [] cardOnTheStack = [] := by decide
 
-def emblemPermanent : Pin (Predicate.check .object []) :=
-  pin (says "each token on the battlefield" tokenOnTheBattlefield)
-      (says "an emblem permanent" (.and [emblem, permanent]))
-      .zoneCoherent
+/-- "each token on the battlefield" -/
+theorem okTokenAndPermanent : Predicate.check .object [] tokenOnTheBattlefield = [] := by decide
 
-def cardCopyOfACard : Pin (Predicate.check .object []) :=
-  pin (says "target card on the stack" cardOnTheStack)
-      (says "a card that is a copy of a card" (.and [.isCard, copyOfACard]))
-      .contradictionFree
+/-- "a card token" -/
+theorem badCardToken :
+    Predicate.check .object [] (.and [.isCard, .isToken]) = [.contradictionFree] := by decide
 
-def cantAttackCreature : Spelling (Instruction.check []) :=
-  spelling (says "Target creature can't attack this turn."
-    (cantAttack (target creature) (some .thisTurn)))
+/-- "an emblem permanent" -/
+theorem badEmblemPermanent :
+    Predicate.check .object [] (.and [emblem, permanent]) = [.zoneCoherent] := by decide
 
-/-- [CR#508.1a,205.1b,208.3a] -/
-def cantAttackLand : Spelling (Instruction.check []) :=
-  spelling (says "Target land can't attack this turn." (cantAttack (target land) (some .thisTurn)))
+/-- "a card that is a copy of a card" -/
+theorem badCardCopyOfACard :
+    Predicate.check .object [] (.and [.isCard, copyOfACard]) = [.contradictionFree] := by decide
 
-def cantAttackLandNoSpan : Spelling (Instruction.check []) :=
-  spelling (says "Target land can't attack." (cantAttack (target land) none))
+/-- "Target creature can't attack this turn." -/
+theorem okCantAttackCreature :
+    Instruction.check [] (cantAttack (target creature) (some .thisTurn)) = [] := by decide
 
-def cantBlockCreature : Spelling (Instruction.check []) :=
-  spelling (says "Target creature can't block this turn."
-    (cantBlock (target creature) (some .thisTurn)))
+/-- "Target land can't attack this turn." [CR#508.1a,205.1b,208.3a] -/
+theorem okCantAttackLand :
+    Instruction.check [] (cantAttack (target land) (some .thisTurn)) = [] := by decide
 
-/-- [CR#205.1b,208.3a] -/
-def cantDisjunctSubject : Spelling (Instruction.check []) :=
-  spelling (says "Target creature or land can't block this turn."
-    (cantBlock (target (.or [creature, land])) (some .thisTurn)))
+/-- "Target land can't attack." -/
+theorem okCantAttackLandNoSpan : Instruction.check [] (cantAttack (target land) none) = [] := by decide
 
-/-- A repeated role counts one creature twice [CR#700.8b]. -/
-def repeatedPartyRole : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "your party" party)
-      (says "one each of Cleric and Cleric"
-        (.oneEachOf [.hasSubtype (creatureType "Cleric"), .hasSubtype (creatureType "Cleric")]
-          (allOf creatureYouControl)))
-      .rolesOk
+/-- "Target creature can't block this turn." -/
+theorem okCantBlockCreature :
+    Instruction.check [] (cantBlock (target creature) (some .thisTurn)) = [] := by decide
 
-/-- A party needs its roles [CR#700.8]. -/
-def emptyPartyRoles : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "your party" party)
-      (says "one each of nothing" (.oneEachOf [] (allOf creatureYouControl)))
-      .rolesOk
+/-- "Target creature or land can't block this turn." [CR#205.1b,208.3a] -/
+theorem okCantDisjunctSubject :
+    Instruction.check [] (cantBlock (target (.or [creature, land])) (some .thisTurn)) = [] := by decide
 
-/-- Fortification attaches to lands [CR#301.6,301.5]. -/
-def fortifiedCreature : Pin (NounPhrase.check (some .object) []) :=
-  pin (says "a fortified land" (a (.and [land, .isAttached (some .fortified)])))
-      (says "a fortified creature" (a (.and [creature, .isAttached (some .fortified)])))
-      .contradictionFree
+/-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/
+theorem okPartyOfFourRoles : NounPhrase.check (some .object) [] party = [] := by decide
+
+/-- "one each of Cleric and Cleric": a repeated role counts one creature twice [CR#700.8b]. -/
+theorem badRepeatedPartyRole :
+    NounPhrase.check (some .object) []
+      (.oneEachOf [.hasSubtype (creatureType "Cleric"), .hasSubtype (creatureType "Cleric")]
+        (allOf creatureYouControl)) = [.rolesOk] := by
+  decide
+
+/-- "one each of nothing" [CR#700.8]. -/
+theorem badEmptyPartyRoles :
+    NounPhrase.check (some .object) [] (.oneEachOf [] (allOf creatureYouControl)) = [.rolesOk] := by decide
+
+/-- "a fortified land" -/
+theorem okFortifiedLand :
+    NounPhrase.check (some .object) [] (a (.and [land, .isAttached (some .fortified)])) = [] := by decide
+
+/-- "a fortified creature" [CR#301.6,301.5]. -/
+theorem badFortifiedCreature :
+    NounPhrase.check (some .object) [] (a (.and [creature, .isAttached (some .fortified)]))
+      = [.contradictionFree] := by
+  decide
 
 end Semantics.Proofs.Description

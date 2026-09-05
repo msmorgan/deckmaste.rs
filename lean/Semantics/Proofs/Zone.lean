@@ -927,7 +927,39 @@ reference to one of them. -/
 theorem badTheCardInExile :
     NounPhrase.check (some .object) [] (the (.inZone exileZone)) = [.uniquifying] := by decide
 
-/-! The exchange-of-values and text-box pins of this family arrived with the 2026-09-04
-refresh and live in `Proofs/Refresh` until that module is folded in. -/
+/-- "Exchange your life total with this creature's toughness." (Tree of Redemption): two
+settable values [CR#701.12g]. -/
+theorem okExchangeTwoValues :
+    Instruction.check [] (.exchange (.values (lifeTotalOf .you) (toughnessOf thisCreature)))
+      = [] := by
+  decide
+
+/-- "Exchange this creature's power with this creature's power.": each value would become
+equal to its own previous value [CR#701.12g]. -/
+theorem badExchangeValueWithItself :
+    Instruction.check [] (.exchange (.values (powerOf thisCreature) (powerOf thisCreature)))
+      = [.selfExchanged] := by
+  decide
+
+/-- "Exchange this creature's power with three.": a literal is not a value the game can set
+[CR#701.12g]. -/
+theorem badExchangeLiteralValue :
+    Instruction.check [] (.exchange (.values (powerOf thisCreature) (.lit 3)))
+      = [.settableValue] := by
+  decide
+
+/-- "Exchange the text boxes of this creature and another creature." [CR#701.12h] -/
+theorem okExchangeTextBoxes :
+    Instruction.check []
+      (.exchange (.textBoxes thisCreature (a (.and [creature, .otherThan .this])))) = [] := by
+  decide
+
+/-- "Exchange the text boxes of this creature and a creature card in your graveyard.": a text
+box is exchanged between permanents on the battlefield. -/
+theorem badExchangeTextBoxInGraveyard :
+    Instruction.check []
+      (.exchange (.textBoxes thisCreature (a (.and [creature, .inZone (graveyardOf .you)]))))
+      = [.zoneIs .battlefield] := by
+  decide
 
 end Semantics.Proofs.Zone
