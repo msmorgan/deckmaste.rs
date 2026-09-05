@@ -313,3 +313,48 @@ minted as `english-v2-scope-device-mobility-declarations`,
 `english-v2-scope-device-census`; both tickets sit in parked workspaces, so the
 re-pointing is recorded in the design doc and in the phase-5 ticket for their
 claimants to apply rather than edited into files another workspace holds.
+
+### Reviewer gate run (2026-09-04)
+
+Re-measured on `xvonttwl` — the reviewed tree, after `kata refresh` and the
+review corrections — with lock `covered` 17,601, so every figure the implementer
+stamped to `uqztnnqkvzkr` is confirmed, not carried:
+
+- `cargo fmt --all` clean; `jj st` reports no changes after it.
+- `cargo clippy -p deckmaste_construction_core --all-targets -- -D warnings`
+  and the same for `deckmaste_construction`: `Finished dev profile`, no
+  diagnostics.
+- `cargo test --workspace`: every `test result` line `0 failed`; the
+  compiled-consumer suite 40 passed, the construction_core lib 408 passed, the
+  trybuild compile-fail suite 1 passed. 2 pre-existing ignored tests, neither
+  from this diff.
+- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+  --workers 8`: `total_units 32641, selected 17601, covered 17601,
+  selected_uncovered 0, parse_failures 15040, unresolved_ties 0,
+  internal_failures 0, roundtrip_mismatch_units 0, ownership_failure_units 0,
+  gap_spans 0, overlap_spans 0, synthetic_claims 0,
+  provenance_plan_mismatches 0, licensing_checker_permitted 20,
+  licensing_checker_forbidden 0, nonterminal_nodes 750925 / visited 750925,
+  expected_leaves 263397 / visited 263397, traversal_failure_units 0,
+  leaf_traversal_failure_units 0`. No lock delta rows; `english-v2-coverage.lock`
+  still SHA-256 `766eca211bace1feebdd8a1c2c53c35655c36159c3f4df7dbe18a0e6d29fdcac`
+  and `jj st` clean afterwards.
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8`:
+  `total=32641 selected=17601 unique=13759 specificity_resolved=3842
+  exception_resolved=0 unresolved_ties=0 parse_failures=15040
+  internal_failures=0`.
+- Per-unit selection neutrality: `ambiguity --json --workers 8` on the reviewed
+  tree hashes to SHA-256
+  `25960e93f78e4e572baa82c04e721c4674c33b3c7993d8a961249e0723ea2f85`, the same
+  report the implementer measured on the parent — every one of the 32,641 units
+  keeps its selected analysis.
+- `cargo xtask english_v2 roundtrip --workers 8`: parse accepted 17601, clean
+  17601, mismatched 0.
+- `cargo xtask cite check --list-noncompliant` empty; `cargo xtask cite check`
+  14,435 citations, 0 stale. No citation changed in this landing.
+
+Reviewer performance advisory, contended: coverage 119 s, 142,504 ns/B, 8
+workers, host load 13.23/17.44/20.42; ambiguity 101 s, 139,568 ns/B, load
+10.01/14.82/19.08; roundtrip 113 s, 118,275 ns/B, load 14.58/13.59/17.51 —
+all against the 16.26 s quiet-host ceiling. Contention stamp: 3 concurrent
+executors and 3 concurrent reviews. Provenance, never fitted to.
