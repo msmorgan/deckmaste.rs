@@ -5,6 +5,134 @@ import public Experimental.Events
 
 %default total
 
+||| "that weren't chosen this way" names the manner, so it excludes every
+||| choice of a compatible kind standing, however many chose [CR#101.4,700.8d];
+||| with none standing there is nothing to read back.
+public export
+data ChoiceInScope : (k : Kind) -> Bindings -> Type where
+  ChoicesStand : {0 k : Kind} -> {0 bs : Bindings} ->
+                 {auto 0 ok : So (not (countParts k bs == Z))} ->
+                 ChoiceInScope k bs
+
+public export
+optCT : Maybe CardType -> List CardType
+optCT Nothing = []
+optCT (Just t) = [t]
+
+public export
+soleAlt : List CardType -> List (List CardType)
+soleAlt [] = []
+soleAlt ts = [ts]
+
+public export
+attachTysOk : AttachWord -> List CardType -> Bool
+attachTysOk w ts = all (\t => attachHeadOk w (TypeW t)) ts
+
+public export
+attachWordsOk : List AttachWord -> List (List CardType) -> Bool
+attachWordsOk ws alts = all (\w => all (attachTysOk w) alts) ws
+
+public export
+zoneAdmits : Zone -> List Zone -> Bool
+zoneAdmits z [] = True
+zoneAdmits z zs = elem z zs
+
+public export
+allNegated : List CardType -> List CardType -> Bool
+allNegated negs [] = True
+allNegated negs (t :: ts) = elem t negs && allNegated negs ts
+
+public export
+anchorTyFitsSome : List CardType -> Maybe CardType -> Bool
+anchorTyFitsSome [] t = False
+anchorTyFitsSome (u :: us) t = anchorTyOk u t || anchorTyFitsSome us t
+
+public export
+anchorTyFits : List CardType -> Maybe CardType -> Bool
+anchorTyFits [] t = True
+anchorTyFits (u :: us) t = anchorTyFitsSome (u :: us) t
+
+public export
+atMostOne : Nat -> Bool
+atMostOne Z = True
+atMostOne (S Z) = True
+atMostOne (S (S _)) = False
+
+public export
+exactlyOne : Nat -> Bool
+exactlyOne Z = False
+exactlyOne (S Z) = True
+exactlyOne (S (S _)) = False
+
+public export
+zoneOr : Zone -> Maybe Zone -> Zone
+zoneOr z Nothing = z
+zoneOr z (Just w) = w
+
+public export
+joinHalfPayload : {k : Kind} -> Phrasal k -> HeadTy k -> Payload k
+joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
+joinHalfPayload PhPlayer _ = PlayerP False
+joinHalfPayload {k = Quality q} PhQuality _ = QualityP
+joinHalfPayload (PhJoin l r) (JoinTy a b) =
+  JoinP (joinHalfPayload l a) (joinHalfPayload r b)
+joinHalfPayload (PhJoin l r) (SoleTy ty) =
+  JoinP (joinHalfPayload l (SoleTy ty)) (joinHalfPayload r (SoleTy ty))
+
+public export
+elemPayload : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Maybe Zone ->
+              Maybe Stamp -> Payload k
+elemPayload PhObject True _ _ _ = AbilityP Nothing
+elemPayload PhObject False ty zn pv = ObjectP ty zn pv Nothing (Just 1)
+elemPayload PhPlayer _ _ _ _ = PlayerP False
+elemPayload {k = Quality q} PhQuality _ _ _ _ = QualityP
+elemPayload (PhJoin l r) ab ty zn pv =
+  JoinP (elemPayload l ab ty zn pv) (elemPayload r ab ty zn pv)
+
+public export
+zonesDistinct : List Zone -> Bool
+zonesDistinct [] = True
+zonesDistinct (z :: zs) = not (elem z zs) && zonesDistinct zs
+
+public export
+atLeastTwoZones : List Zone -> Bool
+atLeastTwoZones zs = case zs of
+  (_ :: _ :: _) => zonesDistinct zs
+  _ => False
+
+public export
+AtLeastTwoZones : List Zone -> Type
+AtLeastTwoZones zs = So (atLeastTwoZones zs)
+
+public export
+chosenDet : {0 k : Kind} -> Phrasal k -> Determiner -> Determiner
+chosenDet PhObject _ = PartD
+chosenDet _ d = d
+
+public export
+data ColorTerm : Bindings -> Type where
+  LitColor : Chroma.Color -> ColorTerm bs
+  ThatColor : (ref : ChoiceRef) ->
+              {auto 0 ok : choiceRefOk ref (countChoice (QSort Color) bs)} ->
+              {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
+
+public export
+counterKind : Kind -> Bool
+counterKind Object = True
+counterKind (a \/ b) = counterKind a && counterKind b
+counterKind _ = False
+
+public export
+controlKind : Kind -> Bool
+controlKind Object = True
+controlKind (a \/ b) = controlKind a && controlKind b
+controlKind _ = False
+
+public export
+possessorKind : PossessorAxis -> Kind -> Bool
+possessorKind ControllerAx k = controlKind k
+possessorKind OwnerAx k = kindLte k Object
+
 mutual
   public export
   data ZoneScope : Bindings -> Zone -> Type where
@@ -57,31 +185,6 @@ mutual
   zoneSort (LibraryAt _ _ _ _) = Library
 
   public export
-  zoneArrangement : ZoneExpr bs -> Maybe Arrangement
-  zoneArrangement (ZoneAt _ _) = Nothing
-  zoneArrangement (LibraryAt _ ord _ _) = ord
-
-  public export
-  zoneOrdinal : ZoneExpr bs -> Maybe Ordinal
-  zoneOrdinal (ZoneAt _ _) = Nothing
-  zoneOrdinal (LibraryAt _ _ off _) = off
-
-  public export
-  placeShuffles : {0 bs : Bindings} -> LibPlace bs -> Bool
-  placeShuffles Shuffled = True
-  placeShuffles (OneEnd _) = False
-  placeShuffles (EitherEnd _) = False
-
-  public export
-  zoneShuffles : ZoneExpr bs -> Bool
-  zoneShuffles (ZoneAt _ _) = False
-  zoneShuffles (LibraryAt place _ _ _) = placeShuffles place
-
-  public export
-  afterMoveTo : {0 bs : Bindings} -> ZoneExpr bs -> Bindings -> Bindings
-  afterMoveTo to out = if zoneShuffles to then afterShuffle out else out
-
-  public export
   data NameSource : Bindings -> Type where
     PrintedName : (name : String) -> NameSource bs
     ChosenName : {auto 0 ok : countChoice (QSort CardName) bs = 1} -> NameSource bs
@@ -116,20 +219,11 @@ mutual
     NumberBetween : (lo : Nat) -> (hi : Nat) ->
                     {auto 0 ok : So (lo <= hi)} -> ChoiceDomain (QSort Number)
 
-
   public export
   data EventSource : Bindings -> Type where
     FromAnywhere : EventSource bs
     FromZone : (zs : List (ZoneExpr bs)) -> EventSource bs
     FromAnywhereBut : (zs : List (ZoneExpr bs)) -> EventSource bs
-
-  public export
-  sourceZone : {0 bs : Bindings} -> Maybe (EventSource bs) -> Maybe Zone
-  sourceZone Nothing = Nothing
-  sourceZone (Just FromAnywhere) = Nothing
-  sourceZone (Just (FromZone [z])) = Just (zoneSort z)
-  sourceZone (Just (FromZone _)) = Nothing
-  sourceZone (Just (FromAnywhereBut _)) = Nothing
 
   public export
   sourceDelta : {bs : Bindings} -> EventSource bs -> List Binding
@@ -162,15 +256,6 @@ mutual
              {auto 0 ok : So (lookbackLocusOk ev (zoneSort z))} ->
              EventComplement bs ev ks
 
-  ||| "that weren't chosen this way" names the manner, so it excludes every
-  ||| choice of a compatible kind standing, however many chose [CR#101.4,700.8d];
-  ||| with none standing there is nothing to read back.
-  public export
-  data ChoiceInScope : (k : Kind) -> Bindings -> Type where
-    ChoicesStand : {0 k : Kind} -> {0 bs : Bindings} ->
-                   {auto 0 ok : So (not (countParts k bs == Z))} ->
-                   ChoiceInScope k bs
-
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->
                            {0 ks : Kind} ->
@@ -194,10 +279,6 @@ mutual
   public export
   lbEvent : {0 bs : Bindings} -> {0 k : Kind} -> LookbackClause bs k -> EventName
   lbEvent (MkLookback ev _ _) = ev
-
-  public export
-  lbWindow : {0 bs : Bindings} -> {0 k : Kind} -> LookbackClause bs k -> Lookback
-  lbWindow (MkLookback _ w _) = w
 
   public export
   complementPlain : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
@@ -388,11 +469,6 @@ mutual
     Just u => t == u && allSeedTy t ps
 
   public export
-  optCT : Maybe CardType -> List CardType
-  optCT Nothing = []
-  optCT (Just t) = [t]
-
-  public export
   headTys : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
   headTys (And ps) = headTysAll ps
   headTys (Or ps) = headTysJoin ps
@@ -404,11 +480,6 @@ mutual
                 List (Predicate bs k) -> List CardType
   headTysJoin [] = []
   headTysJoin (p :: ps) = headTys p ++ headTysJoin ps
-
-  public export
-  soleAlt : List CardType -> List (List CardType)
-  soleAlt [] = []
-  soleAlt ts = [ts]
 
   public export
   headTyAlts : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -432,14 +503,6 @@ mutual
                      List (Predicate bs k) -> List AttachWord
   attachWordsInAll [] = []
   attachWordsInAll (p :: ps) = attachWordsIn p ++ attachWordsInAll ps
-
-  public export
-  attachTysOk : AttachWord -> List CardType -> Bool
-  attachTysOk w ts = all (\t => attachHeadOk w (TypeW t)) ts
-
-  public export
-  attachWordsOk : List AttachWord -> List (List CardType) -> Bool
-  attachWordsOk ws alts = all (\w => all (attachTysOk w) alts) ws
 
   public export
   headTyAltsJoin : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -630,23 +693,6 @@ mutual
   hasHeadAll (p :: ps) = hasHead p && hasHeadAll ps
 
   public export
-  qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
-  qualityReadOk (OfChosen _ _) = True
-  qualityReadOk (OfYourChoice _ _) = True
-  qualityReadOk (Named _) = True
-  qualityReadOk _ = False
-
-  public export
-  QualityRead : Predicate bs Object -> Type
-  QualityRead {bs} p = So (qualityReadOk p)
-
-  public export
-  qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
-  qualityReadHost (OfChosen _ (SubtypeQ h)) = Just h
-  qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
-  qualityReadHost _ = Nothing
-
-  public export
   uniquifiesAny : {0 bs : Bindings} -> {0 k : Kind} ->
                   List (Predicate bs k) -> Bool
   uniquifiesAny [] = False
@@ -692,11 +738,6 @@ mutual
   negZones : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> List Zone
   negZones [] = []
   negZones (p :: ps) = negZonesOf p ++ negZones ps
-
-  public export
-  zoneAdmits : Zone -> List Zone -> Bool
-  zoneAdmits z [] = True
-  zoneAdmits z zs = elem z zs
 
   public export
   zoneAdmitsAll : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -826,11 +867,6 @@ mutual
     Nothing => []
 
   public export
-  allNegated : List CardType -> List CardType -> Bool
-  allNegated negs [] = True
-  allNegated negs (t :: ts) = elem t negs && allNegated negs ts
-
-  public export
   anySeedEmptied : {0 bs : Bindings} -> {0 k : Kind} -> List CardType ->
                    List (Predicate bs k) -> Bool
   anySeedEmptied negs [] = False
@@ -884,16 +920,6 @@ mutual
               then anyTargeted k bs
               else complementAnchorsOk ts fs)
       else False
-
-  public export
-  anchorTyFitsSome : List CardType -> Maybe CardType -> Bool
-  anchorTyFitsSome [] t = False
-  anchorTyFitsSome (u :: us) t = anchorTyOk u t || anchorTyFitsSome us t
-
-  public export
-  anchorTyFits : List CardType -> Maybe CardType -> Bool
-  anchorTyFits [] t = True
-  anchorTyFits (u :: us) t = anchorTyFitsSome (u :: us) t
 
   public export
   complementAnchorsOk : {bs : Bindings} -> {k : Kind} -> List CardType ->
@@ -951,34 +977,6 @@ mutual
   countOthers (p :: ps) = if isOther p then S (countOthers ps) else countOthers ps
 
   public export
-  atMostOne : Nat -> Bool
-  atMostOne Z = True
-  atMostOne (S Z) = True
-  atMostOne (S (S _)) = False
-
-  public export
-  exactlyOne : Nat -> Bool
-  exactlyOne Z = False
-  exactlyOne (S Z) = True
-  exactlyOne (S (S _)) = False
-
-  public export
-  isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  isComparison (Compare _ _ _) = True
-  isComparison (Superlative _ _ _) = True
-  isComparison WithMostVotes = True
-  isComparison (ChoseExtreme _) = True
-  isComparison (CompareOver _ _ _ _) = True
-  isComparison _ = False
-
-  public export
-  countComparisons : {0 bs : Bindings} -> {0 k : Kind} ->
-                     List (Predicate bs k) -> Nat
-  countComparisons [] = Z
-  countComparisons (p :: ps) =
-    if isComparison p then S (countComparisons ps) else countComparisons ps
-
-  public export
   armPresupposes : {0 bs : Bindings} -> {0 k : Kind} ->
                    Predicate bs k -> Maybe CardType
   armPresupposes p = if hasHead p then Nothing else seedType p
@@ -1000,16 +998,6 @@ mutual
   public export
   ParallelDisjuncts : List (Predicate bs k) -> Type
   ParallelDisjuncts {bs} {k} ps = So (parallelDisjuncts ps)
-
-  public export
-  isOr : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  isOr (Or _) = True
-  isOr _ = False
-
-  public export
-  anyIsOr : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  anyIsOr [] = False
-  anyIsOr (p :: ps) = isOr p || anyIsOr ps
 
   public export
   coordinable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
@@ -1038,54 +1026,6 @@ mutual
   public export
   Negatable : Predicate bs k -> Type
   Negatable {bs} {k} p = So (negatable p)
-
-  public export
-  predSays : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  predSays (And ps) = predSaysAny ps
-  predSays (Not p) = predSays p
-  predSays _ = True
-
-  public export
-  predSaysAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
-  predSaysAny [] = False
-  predSaysAny (p :: ps) = predSays p || predSaysAny ps
-
-  public export
-  PredSays : Predicate bs k -> Type
-  PredSays {bs} {k} p = So (predSays p)
-
-  public export
-  predNegFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
-  predNegFree (And ps) = predNegFreeAll ps
-  predNegFree (Or ps) = predNegFreeAll ps
-  predNegFree (Not _) = False
-  predNegFree (Joined l r) = predNegFree l && predNegFree r
-  predNegFree _ = True
-
-  public export
-  predNegFreeAll : {0 bs : Bindings} -> {0 k : Kind} ->
-                   List (Predicate bs k) -> Bool
-  predNegFreeAll [] = True
-  predNegFreeAll (p :: ps) = predNegFree p && predNegFreeAll ps
-
-  public export
-  ZoneFree : Predicate bs k -> Type
-  ZoneFree {bs} {k} p = seedZone p = Nothing
-
-  public export
-  zoneOr : Zone -> Maybe Zone -> Zone
-  zoneOr z Nothing = z
-  zoneOr z (Just w) = w
-
-  public export
-  joinHalfPayload : {k : Kind} -> Phrasal k -> HeadTy k -> Payload k
-  joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
-  joinHalfPayload PhPlayer _ = PlayerP False
-  joinHalfPayload {k = Quality q} PhQuality _ = QualityP
-  joinHalfPayload (PhJoin l r) (JoinTy a b) =
-    JoinP (joinHalfPayload l a) (joinHalfPayload r b)
-  joinHalfPayload (PhJoin l r) (SoleTy ty) =
-    JoinP (joinHalfPayload l (SoleTy ty)) (joinHalfPayload r (SoleTy ty))
 
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
@@ -1272,26 +1212,6 @@ mutual
   nounEqRef (OneEachOf _ _) _ = False
 
   public export
-  data DestOk : ZoneExpr bs -> Type where
-    BattlefieldOk : DestOk (ZoneAt Battlefield BareScope)
-    ExileOk : DestOk (ZoneAt Exile BareScope)
-    HandOkBare : DestOk (ZoneAt Hand BareScope)
-    GraveyardOkBare : DestOk (ZoneAt Graveyard BareScope)
-    LibraryPosOk : {0 af : PlaceArrangementFits place arrg} ->
-                   {0 nf : PlaceOrdinalFits place offs} ->
-                   DestOk (LibraryAt place arrg offs {af} {nf} BareScope)
-
-  public export
-  orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
-  orderOk pl z = case zoneArrangement z of
-                   Nothing => True
-                   Just _ => not (isOne pl)
-
-  public export
-  ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type
-  ArrangementOk {bs} pl z = So (orderOk pl z)
-
-  public export
   sliceTy : {bs : Bindings} -> Maybe (Predicate bs Object) -> Noun bs Object ->
             Maybe CardType
   sliceTy Nothing grp = nounTy grp
@@ -1376,59 +1296,6 @@ mutual
       :: (predDeltaAll roles ++ nounDelta pool)
 
   public export
-  elemPayload : {k : Kind} -> Phrasal k -> Bool -> Maybe CardType -> Maybe Zone ->
-                Maybe Stamp -> Payload k
-  elemPayload PhObject True _ _ _ = AbilityP Nothing
-  elemPayload PhObject False ty zn pv = ObjectP ty zn pv Nothing (Just 1)
-  elemPayload PhPlayer _ _ _ _ = PlayerP False
-  elemPayload {k = Quality q} PhQuality _ _ _ _ = QualityP
-  elemPayload (PhJoin l r) ab ty zn pv =
-    JoinP (elemPayload l ab ty zn pv) (elemPayload r ab ty zn pv)
-
-  public export
-  elemIntro : {bs : Bindings} -> {k : Kind} -> {auto ph : Phrasal k} ->
-              Noun bs k -> Bindings
-  elemIntro {k} grp =
-    MkBinding TheD k OneOf
-              (elemPayload ph (nounIsAbility grp) (nounTy grp) (nounZone grp)
-                          (nounProv grp))
-      :: nomIntro grp
-
-  public export
-  agentDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
-  agentDelta (Described EachDet p {ph}) = bindFor TheD OneOf ph p :: predDelta p
-  agentDelta n = nounDelta n
-
-  public export
-  agentPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
-  agentPlur (Described EachDet _) = OneOf
-  agentPlur n = nounPlur n
-
-  public export
-  agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  agentIntro n = agentDelta n ++ bs
-
-  public export
-  agentCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
-  agentCtx Nothing = bs
-  agentCtx (Just n) = agentIntro n
-
-  public export
-  subjCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
-  subjCtx Nothing = bs
-  subjCtx (Just n) = selfSubjIntro n
-
-  public export
-  kindValueIntro : {bs : Bindings} -> QualitySort -> Maybe (Noun bs Object) -> Bindings
-  kindValueIntro q (Just dom) = qualityB q :: nomIntro dom
-  kindValueIntro {bs} q Nothing = qualityB q :: bs
-
-  public export
-  kindDomainOk : {0 bs : Bindings} -> KindAxis -> Maybe (Noun bs Object) -> Bool
-  kindDomainOk _ (Just _) = True
-  kindDomainOk ax Nothing = kindAxisClosed ax
-
-  public export
   predDelta : {bs : Bindings} -> {k : Kind} -> Predicate bs k -> List Binding
   predDelta (AbilityOf n) = nounDelta n
   predDelta (ActivatedBy n) = nounDelta n
@@ -1484,87 +1351,8 @@ mutual
   zoneDelta (LibraryAt pl _ _ BareScope) = placeDelta pl
 
   public export
-  zonesDistinct : List Zone -> Bool
-  zonesDistinct [] = True
-  zonesDistinct (z :: zs) = not (elem z zs) && zonesDistinct zs
-
-  public export
-  atLeastTwoZones : List Zone -> Bool
-  atLeastTwoZones zs = case zs of
-    (_ :: _ :: _) => zonesDistinct zs
-    _ => False
-
-  public export
-  AtLeastTwoZones : List Zone -> Type
-  AtLeastTwoZones zs = So (atLeastTwoZones zs)
-
-  public export
-  data SearchScope : Bindings -> Type where
-    OneZone : (z : ZoneExpr bs) -> SearchScope bs
-    SomeZones : (whose : Maybe (Noun bs Player)) -> (zs : List Zone) ->
-                {auto 0 tw : AtLeastTwoZones zs} -> SearchScope bs
-
-  public export
-  searchZone : {0 bs : Bindings} -> SearchScope bs -> Maybe Zone
-  searchZone (OneZone z) = Just (zoneSort z)
-  searchZone (SomeZones _ _) = Nothing
-
-  public export
-  searchDelta : {bs : Bindings} -> SearchScope bs -> List Binding
-  searchDelta (OneZone z) = zoneDelta z
-  searchDelta (SomeZones Nothing _) = []
-  searchDelta (SomeZones (Just whose) _) = nounDelta whose
-
-  public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
   nomIntro n = nounDelta n ++ bs
-
-  public export
-  chosenDet : {0 k : Kind} -> Phrasal k -> Determiner -> Determiner
-  chosenDet PhObject _ = PartD
-  chosenDet _ d = d
-
-  public export
-  chosenBind : Determiner -> Plurality -> {k : Kind} ->
-               Phrasal k -> Predicate bs k -> Binding
-  chosenBind det plur PhPlayer p = MkBinding det Player plur (PlayerP True)
-  chosenBind det plur ph p = bindFor det plur ph p
-
-  public export
-  chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
-  chosenDelta (Described (ADet m) p {ph}) = chosenBind (chosenDet ph AD) OneOf ph p :: predDelta p
-  chosenDelta (Described (CountDet q _) p {ph}) =
-    chosenBind (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
-  chosenDelta (NamesAgree _ grp) = chosenDelta grp
-  chosenDelta n = nounDelta n
-
-  public export
-  chosenIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  chosenIntro n = chosenDelta n ++ bs
-
-  public export
-  chosenIntroBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
-                  (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
-  chosenIntroBy OneOf by n = nounDelta by ++ (chosenDelta n ++ bs)
-  chosenIntroBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ nomIntro by
-
-  public export
-  chosenAnnBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
-                (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
-  chosenAnnBy OneOf by n = chosenDelta n ++ bs
-  chosenAnnBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ bs
-
-  public export
-  chooseIntro : {bs : Bindings} -> {k : Kind} ->
-                (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
-  chooseIntro Nothing n = chosenIntro n
-  chooseIntro (Just by) n = chosenIntroBy (nounPlur by) by n
-
-  public export
-  chooseAnn : {bs : Bindings} -> {k : Kind} ->
-              (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
-  chooseAnn Nothing n = chosenIntro n
-  chooseAnn (Just by) n = chosenAnnBy (nounPlur by) by n
 
   public export
   complementDelta : {bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
@@ -1581,13 +1369,6 @@ mutual
   zonesDelta : {bs : Bindings} -> List (ZoneExpr bs) -> List Binding
   zonesDelta [] = []
   zonesDelta (z :: zs) = zoneDelta z ++ zonesDelta zs
-
-  public export
-  data ColorTerm : Bindings -> Type where
-    LitColor : Chroma.Color -> ColorTerm bs
-    ThatColor : (ref : ChoiceRef) ->
-                {auto 0 ok : choiceRefOk ref (countChoice (QSort Color) bs)} ->
-                {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
 
   public export
   data Amount : Bindings -> Type where
@@ -1715,11 +1496,6 @@ mutual
   amtIntro (UpTo b) = outcomeB CeilingShortfall :: amtIntro b
 
   public export
-  optAmtIntro : {bs : Bindings} -> Maybe (Amount bs) -> Bindings
-  optAmtIntro Nothing = bs
-  optAmtIntro (Just a) = amtIntro a
-
-  public export
   amtPlur : {0 bs : Bindings} -> Amount bs -> Plurality
   amtPlur (Lit (S Z)) = OneOf
   amtPlur (Lit _) = ManyOf
@@ -1750,84 +1526,6 @@ mutual
   amtPlur (UpTo b) = amtPlur b
 
   public export
-  boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
-  boundEq (Lit a) (Lit b) = a == b
-  boundEq (LetterVal a) (LetterVal b) = a == b
-  boundEq _ _ = False
-
-  public export
-  deltaIntro : {bs : Bindings} -> Delta (Amount bs) -> Bindings
-  deltaIntro d = amtIntro (deltaAmount d)
-
-  public export
-  deltaDelta : {bs : Bindings} -> Delta (Amount bs) -> List Binding
-  deltaDelta d = amtDelta (deltaAmount d)
-
-  public export
-  data FlipScope : Bindings -> Type where
-    FlipCount : (n : Amount bs) -> FlipScope bs
-    FlipPer : {k : Kind} -> (each : Noun bs k) ->
-              {auto 0 pl : nounPlur each = ManyOf} ->
-              {auto 0 rk : So (kindLte k (Object \/ Player))} -> FlipScope bs
-
-  public export
-  flipScopeIntro : {bs : Bindings} -> FlipScope bs -> Bindings
-  flipScopeIntro (FlipCount n) = amtIntro n
-  flipScopeIntro (FlipPer each) = nomIntro each
-
-  public export
-  data IgnoredOutcomes : Bindings -> Type where
-    IgnoreExtreme : RollExtreme -> IgnoredOutcomes bs
-    IgnoreAllBut : RollExtreme -> IgnoredOutcomes bs
-    IgnoreChosen : (chooser : Maybe (Noun bs Player)) -> (n : Amount bs) ->
-                   {auto 0 ag : EventAgent chooser} -> IgnoredOutcomes bs
-
-  public export
-  ignoredOutcomesIntro : {bs : Bindings} -> IgnoredOutcomes bs -> Bindings
-  ignoredOutcomesIntro (IgnoreExtreme _) = bs
-  ignoredOutcomesIntro (IgnoreAllBut _) = bs
-  ignoredOutcomesIntro (IgnoreChosen _ n) = amtIntro n
-
-  public export
-  ignorableFor : {bs : Bindings} -> IgnoredOutcomes bs -> Bool
-  ignorableFor (IgnoreExtreme _) = countOutcomes RollResult bs == 1
-  ignorableFor (IgnoreAllBut _) = countOutcomes RollResult bs == 1
-  ignorableFor (IgnoreChosen _ _) = ignorableInScope bs
-
-  public export
-  readAmount : {0 bs : Bindings} -> Amount bs -> Bool
-  readAmount (Lit _) = False
-  readAmount (StatOf _ _) = True
-  readAmount (PlayerStatOf _ _) = True
-  readAmount (CountersOn _ _) = True
-  readAmount (Paid _ _) = True
-  readAmount (EventTally _ _ _) = True
-  readAmount (CountOf _) = True
-  readAmount (Aggregate _ _ _) = True
-  readAmount (TimesOf _ _) = False
-  readAmount ThatMuch = False
-  readAmount (ChosenNumber _) = False
-  readAmount (VotesFor _) = True
-  readAmount (TheOutcome s) = outcomeComparable s
-  readAmount (CoinsShowing _) = True
-  readAmount (GreatestStoredMatch _) = True
-  readAmount GroupSize = False
-  readAmount TheDifference = True
-  readAmount (LetterVal _) = True
-  readAmount (Plus _ _) = False
-  readAmount (Minus _ _) = False
-  readAmount (Devotion _ _ _) = True
-  readAmount (Half _ _) = False
-  readAmount (DifferenceBetween _ _) = False
-  readAmount (AggregateOver _ _ _) = True
-  readAmount (DistinctCount _ _) = True
-  readAmount (UpTo _) = False
-
-  public export
-  ReadAmount : Amount bs -> Type
-  ReadAmount {bs} a = So (readAmount a)
-
-  public export
   data Quantity : Bindings -> Type where
     Range : Maybe Nat -> Maybe Nat -> Quantity bs
     UpToOf : (a : Amount bs) -> Quantity bs
@@ -1851,10 +1549,6 @@ mutual
   public export
   WellFormedQ : Quantity bs -> Type
   WellFormedQ q = So (quantWellFormed q)
-
-  public export
-  OptWellFormedQ : Maybe (Quantity bs) -> Type
-  OptWellFormedQ = OptOk WellFormedQ
 
   public export
   data SliceCount : Bindings -> Type where
@@ -1883,31 +1577,6 @@ mutual
   quantPlur (ExactlyOf _) = ManyOf
 
   public export
-  detQuant : {0 bs : Bindings} -> DetPhrase bs -> Maybe (Quantity bs)
-  detQuant (TargetDet q) = Just q
-  detQuant (CountDet q _) = Just q
-  detQuant _ = Nothing
-
-  public export
-  modesFit : {0 bs : Bindings} -> Quantity bs -> Nat -> Bool
-  modesFit (Range Nothing Nothing) n = True
-  modesFit (Range Nothing (Just hi)) n = lte hi n
-  modesFit (Range (Just lo) Nothing) n = lte lo n
-  modesFit (Range (Just lo) (Just hi)) n = lte hi n
-  modesFit (UpToOf _) n = True
-  modesFit (ExactlyOf _) n = True
-
-  public export
-  ModesFit : Quantity bs -> Nat -> Type
-  ModesFit q n = So (modesFit q n)
-
-  public export
-  quantLiteral : {0 bs : Bindings} -> Quantity bs -> Bool
-  quantLiteral (Range _ _) = True
-  quantLiteral (UpToOf _) = False
-  quantLiteral (ExactlyOf _) = False
-
-  public export
   quantDelta : {bs : Bindings} -> Quantity bs -> List Binding
   quantDelta (Range _ _) = []
   quantDelta (UpToOf a) = amtDelta a
@@ -1927,33 +1596,6 @@ mutual
   sliceCountDelta : {bs : Bindings} -> SliceCount bs -> List Binding
   sliceCountDelta (CountedSlice q) = quantDelta q
   sliceCountDelta WholeSlice = []
-
-  public export
-  quantIntro : {bs : Bindings} -> Quantity bs -> Bindings
-  quantIntro (Range _ _) = bs
-  quantIntro (UpToOf a) = amtIntro a
-  quantIntro (ExactlyOf a) = amtIntro a
-
-  public export
-  optQuantIntro : {bs : Bindings} -> Maybe (Quantity bs) -> Bindings
-  optQuantIntro Nothing = bs
-  optQuantIntro (Just q) = quantIntro q
-
-  public export
-  Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  Bindingless {bs} {k} n = nounDelta n = []
-
-  public export
-  testSubjectOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
-  testSubjectOk (Described TheDet _) = True
-  testSubjectOk (LibrarySlice _ _ _) = True
-  testSubjectOk n = case nounDelta n of
-                      [] => True
-                      _ => False
-
-  public export
-  TestSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  TestSubject {bs} {k} n = So (testSubjectOk n)
 
   public export
   nounDet : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Maybe Determiner
@@ -1998,43 +1640,6 @@ mutual
                  PileMention {bs} (Pro (Word PileW) ManyOf Whole {ok})
 
   public export
-  choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  choosable n = elem (nounDet n) [Just AD, Just TargetD, Just CountD]
-
-  public export
-  Choosable : Noun bs k -> Type
-  Choosable {bs} {k} n = So (choosable n)
-
-  public export
-  agentChoosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  agentChoosable (SomeOf _ _ _) = True
-  agentChoosable (PileOf _ _) = True
-  agentChoosable n = choosable n
-
-  public export
-  choiceClauseOk : {0 bs : Bindings} -> {0 k : Kind} ->
-                   (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bool
-  choiceClauseOk Nothing n = choosable n
-  choiceClauseOk (Just _) n = agentChoosable n
-
-  ||| "Starting with you" fixes the turn order in which the players who choose
-  ||| make their choices, so it says nothing unless several players choose
-  ||| [CR#101.4].
-  public export
-  choiceOrderOk : {bs : Bindings} -> {cs : Bindings} -> Maybe (Noun bs Player) ->
-                  Maybe (Noun cs Player) -> Bool
-  choiceOrderOk Nothing _ = True
-  choiceOrderOk (Just _) Nothing = False
-  choiceOrderOk (Just _) (Just by) = not (isOne (nounPlur by))
-
-  public export
-  data Ballot : Bindings -> Type where
-    ByLabel : (opts : List VoteLabel) ->
-              {auto 0 ok : BallotLabelsOk opts} -> Ballot bs
-    ByCandidate : {k : Kind} -> (n : Noun bs k) ->
-                  {auto 0 ok : So (choosable n)} -> Ballot bs
-
-  public export
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   groupMention (LibrarySlice _ _ _) = True
   groupMention (Pro _ pl Whole) = not (isOne pl)
@@ -2075,45 +1680,6 @@ mutual
   CountedMention {bs} {k} n = So (countedMention n)
 
   public export
-  countedExistential : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  countedExistential (NamesAgree _ grp) = countedMention grp
-  countedExistential _ = False
-
-  public export
-  CountedExistential : Noun bs k -> Type
-  CountedExistential {bs} {k} n = So (countedExistential n)
-
-  public export
-  existentialMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  existentialMention n = nounDet n == Just BareD || countedExistential n
-
-  public export
-  ExistentialMention : Noun bs k -> Type
-  ExistentialMention {bs} {k} n = So (existentialMention n)
-
-  public export
-  perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
-  perMemberOk n = elem (nounDet n) [Just EachD, Just AllD] || isOne (nounPlur n)
-
-  public export
-  PerMember : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  PerMember {bs} {k} n = So (perMemberOk n)
-
-
-  public export
-  hostedRead : {bs : Bindings} -> {k : Kind} ->
-               Predicate bs Object -> Noun bs k -> Bool
-  hostedRead p n = case qualityReadHost p of
-                     Nothing => True
-                     Just h => tyIs h (nounTy n)
-
-  public export
-  HostedRead : {bs : Bindings} -> {k : Kind} ->
-               Predicate bs Object -> Noun bs k -> Type
-  HostedRead {bs} {k} p n = So (hostedRead p n)
-
-
-  public export
   soleHolderOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
   soleHolderOk (PlayerGroup _) = True
   soleHolderOk n = isOne (nounPlur n)
@@ -2134,16 +1700,6 @@ mutual
   SlicePossessor {bs} n = So (slicePossessorOk n)
 
   public export
-  costSubjectOk : {bs : Bindings} -> Noun bs Object -> Bool
-  costSubjectOk This = True
-  costSubjectOk n = onStackZone (nounZone n)
-
-  public export
-  data CostSubject : {0 k : Kind} -> Noun bs k -> Type where
-    MkCostSubject : {0 n : Noun bs Object} ->
-                    {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
-
-  public export
   paidSubjectOk : {bs : Bindings} -> Noun bs Object -> Bool
   paidSubjectOk This = True
   paidSubjectOk (AsType _ n _) = paidSubjectOk n
@@ -2156,65 +1712,630 @@ mutual
                       {auto 0 ok : So (paidSubjectOk n)} -> PaidSubject n
 
   public export
-  counterKind : Kind -> Bool
-  counterKind Object = True
-  counterKind (a \/ b) = counterKind a && counterKind b
-  counterKind _ = False
+  attackableKind : (k : Kind) -> HeadTy k -> Bool
+  attackableKind Player _ = True
+  attackableKind Object (SoleTy t) = featureAltOk Attacking Patient (optCT t)
+  attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
+  attackableKind (a \/ b) (SoleTy t) =
+    attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
+  attackableKind _ _ = False
 
   public export
-  controlKind : Kind -> Bool
-  controlKind Object = True
-  controlKind (a \/ b) = controlKind a && controlKind b
-  controlKind _ = False
+  combatRelOk : CombatRelation -> (k : Kind) -> (km : Kind) ->
+                Maybe Zone -> HeadTy km -> Bool
+  combatRelOk AttackerOf k km _ tys = k == Object && attackableKind km tys
+  combatRelOk AttackedBy _ km z _ = km == Object && zoneIsB z Battlefield
+  combatRelOk _ k km z _ =
+    k == Object && km == Object && zoneIsB z Battlefield
 
   public export
-  possessorKind : PossessorAxis -> Kind -> Bool
-  possessorKind ControllerAx k = controlKind k
-  possessorKind OwnerAx k = kindLte k Object
+  EventAgent : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+  EventAgent m = OptOk (\w => nounDelta w = []) m
 
   public export
-  copyKind : Kind -> Bool
-  copyKind Object = True
-  copyKind (a \/ b) = copyKind a && copyKind b
-  copyKind _ = False
+  selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+  selfSubjDelta (AsType t This _) =
+    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
+  selfSubjDelta (AttachHost _ (TypeW t)) =
+    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
+  selfSubjDelta (AttachHost _ PermanentW) =
+    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)]
+  selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf (PlayerP False)]
+  selfSubjDelta _ = []
 
   public export
-  data StackActOn : (Kind -> Bool) -> {0 k : Kind} -> Noun bs k -> Type where
-    StackSpell : {0 n : Noun bs Object} ->
-                 {auto 0 zn : ZoneIs (nounZone n) Stack} -> StackActOn p n
-    StackJoin : {0 ka : Kind} -> {0 kb : Kind} ->
-                {0 n : Noun bs (ka \/ kb)} ->
-                {auto 0 ok : So (p (ka \/ kb))} -> StackActOn p n
+  nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
+  nounZone This = Nothing
+  nounZone (AsType t n _) = Just Battlefield
+  nounZone (ResolvedPermanent _) = Just Battlefield
+  nounZone (AsMarker m _) = Just (markerZone m)
+  nounZone (TheGrantor m) = Just (markerZone m)
+  nounZone TheDefendingPlayer = Nothing
+  nounZone TheAttackingPlayer = Nothing
+  nounZone You = Nothing
+  nounZone (PlayerGroup _) = Nothing
+  nounZone (Described _ p) = phraseZone p
+  nounZone (EachOf grp) = nounZone grp
+  nounZone (NamesAgree _ grp) = nounZone grp
+  nounZone (Both l r) = if nounZone l == nounZone r then nounZone l else Nothing
+  nounZone (EitherOf _ _) = Nothing
+  nounZone (LibrarySlice _ _ _) = Just Library
+  nounZone (SomeOf _ _ grp) = nounZone grp
+  nounZone (TheRest k _) = zoneOfGroup k bs
+  nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
+  nounZone (Pro r pl w) = zoneOfReach r pl (view w bs)
+  nounZone (AttachHost _ h) = attachHostZone h
+  nounZone (PossessorOf _ n) = Nothing
+  nounZone (Designated _ _) = Nothing
+  nounZone (OneEachOf _ pool) = nounZone pool
 
   public export
-  Counterable : {0 k : Kind} -> Noun bs k -> Type
-  Counterable = StackActOn counterKind
+  nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
+  nounTy This = Nothing
+  nounTy (AsType t n _) = Just t
+  nounTy (ResolvedPermanent n) = nounTy n
+  nounTy (AsMarker _ n) = nounTy n
+  nounTy (TheGrantor _) = Nothing
+  nounTy TheDefendingPlayer = Nothing
+  nounTy TheAttackingPlayer = Nothing
+  nounTy You = Nothing
+  nounTy (PlayerGroup _) = Nothing
+  nounTy (Described _ p) = seedTy p
+  nounTy (EachOf grp) = nounTy grp
+  nounTy (NamesAgree _ grp) = nounTy grp
+  nounTy (Both l r) = if nounTy l == nounTy r then nounTy l else Nothing
+  nounTy (EitherOf _ _) = Nothing
+  nounTy (LibrarySlice _ _ _) = Nothing
+  nounTy (SomeOf _ d grp) = sliceTy d grp
+  nounTy (TheRest k _) = tyOfGroup k bs
+  nounTy (PileOf _ _) = Nothing
+  nounTy (Pro r pl w) = tyOfReach r pl (view w bs)
+  nounTy (AttachHost _ h) = attachHostTy h
+  nounTy (PossessorOf _ n) = Nothing
+  nounTy (Designated _ _) = Nothing
+  nounTy (OneEachOf _ pool) = nounTy pool
 
   public export
-  Copiable : {0 k : Kind} -> Noun bs k -> Type
-  Copiable = StackActOn copyKind
+  nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List (List CardType)
+  nounHeadTys (Described _ p) = headTyAlts p
+  nounHeadTys (EachOf grp) = nounHeadTys grp
+  nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
+  nounHeadTys (ResolvedPermanent n) = nounHeadTys n
+  nounHeadTys (AsMarker _ n) = nounHeadTys n
+  nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (OneEachOf _ pool) = nounHeadTys pool
+  nounHeadTys n = soleAlt (optCT (nounTy n))
 
   public export
-  CopySourceOk : {bs : Bindings} -> {k : Kind} -> CopySort -> Noun bs k -> Type
-  CopySourceOk FromStack n = Copiable n
-  CopySourceOk FromCardZone n = So (isCardZone (nounZone n))
+  nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k
+  nounTys (Described _ p) = seedTys p
+  nounTys (EachOf grp) = nounTys grp
+  nounTys (NamesAgree _ grp) = nounTys grp
+  nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
+  nounTys n@(Both l r {jk = JoinSame}) = SoleTy (nounTy n)
+  nounTys (Both l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
+  nounTys n@(EitherOf l r {jk = JoinSame}) = SoleTy (nounTy n)
+  nounTys (EitherOf l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
+  nounTys n = SoleTy (nounTy n)
 
   public export
-  selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
-  selfDefinedOk This = True
-  selfDefinedOk (AsType _ n _) = selfDefinedOk n
-  selfDefinedOk _ = False
+  nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
+  nounPlur This = OneOf
+  nounPlur (AsType t n _) = nounPlur n
+  nounPlur (ResolvedPermanent n) = nounPlur n
+  nounPlur (AsMarker _ n) = nounPlur n
+  nounPlur (TheGrantor _) = OneOf
+  nounPlur TheDefendingPlayer = OneOf
+  nounPlur TheAttackingPlayer = OneOf
+  nounPlur You = OneOf
+  nounPlur (PlayerGroup _) = ManyOf
+  nounPlur (Described d _) = detPlur d
+  nounPlur (EachOf grp) = ManyOf
+  nounPlur (NamesAgree _ grp) = nounPlur grp
+  nounPlur (Both _ _) = ManyOf
+  nounPlur (EitherOf l r) =
+    if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
+  nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
+  nounPlur (SomeOf q _ _) = slicePlur q
+  nounPlur (TheRest _ pl) = pl
+  nounPlur (PileOf q _) = slicePlur q
+  nounPlur (Pro _ pl _) = pl
+  nounPlur (AttachHost _ _) = OneOf
+  nounPlur (PossessorOf _ n) = nounPlur n
+  nounPlur (Designated _ _) = OneOf
+  nounPlur (OneEachOf _ _) = ManyOf
 
-  ||| The tested noun's head admits the attachment word the predicate uses
-  ||| [CR#301.5,301.6].
+public export
+zoneArrangement : ZoneExpr bs -> Maybe Arrangement
+zoneArrangement (ZoneAt _ _) = Nothing
+zoneArrangement (LibraryAt _ ord _ _) = ord
+
+public export
+zoneOrdinal : ZoneExpr bs -> Maybe Ordinal
+zoneOrdinal (ZoneAt _ _) = Nothing
+zoneOrdinal (LibraryAt _ _ off _) = off
+
+public export
+placeShuffles : {0 bs : Bindings} -> LibPlace bs -> Bool
+placeShuffles Shuffled = True
+placeShuffles (OneEnd _) = False
+placeShuffles (EitherEnd _) = False
+
+public export
+zoneShuffles : ZoneExpr bs -> Bool
+zoneShuffles (ZoneAt _ _) = False
+zoneShuffles (LibraryAt place _ _ _) = placeShuffles place
+
+public export
+afterMoveTo : {0 bs : Bindings} -> ZoneExpr bs -> Bindings -> Bindings
+afterMoveTo to out = if zoneShuffles to then afterShuffle out else out
+
+public export
+sourceZone : {0 bs : Bindings} -> Maybe (EventSource bs) -> Maybe Zone
+sourceZone Nothing = Nothing
+sourceZone (Just FromAnywhere) = Nothing
+sourceZone (Just (FromZone [z])) = Just (zoneSort z)
+sourceZone (Just (FromZone _)) = Nothing
+sourceZone (Just (FromAnywhereBut _)) = Nothing
+
+public export
+lbWindow : {0 bs : Bindings} -> {0 k : Kind} -> LookbackClause bs k -> Lookback
+lbWindow (MkLookback _ w _) = w
+
+public export
+qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
+qualityReadOk (OfChosen _ _) = True
+qualityReadOk (OfYourChoice _ _) = True
+qualityReadOk (Named _) = True
+qualityReadOk _ = False
+
+public export
+QualityRead : Predicate bs Object -> Type
+QualityRead {bs} p = So (qualityReadOk p)
+
+public export
+qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
+qualityReadHost (OfChosen _ (SubtypeQ h)) = Just h
+qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
+qualityReadHost _ = Nothing
+
+public export
+isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+isComparison (Compare _ _ _) = True
+isComparison (Superlative _ _ _) = True
+isComparison WithMostVotes = True
+isComparison (ChoseExtreme _) = True
+isComparison (CompareOver _ _ _ _) = True
+isComparison _ = False
+
+public export
+countComparisons : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Nat
+countComparisons [] = Z
+countComparisons (p :: ps) =
+  if isComparison p then S (countComparisons ps) else countComparisons ps
+
+public export
+isOr : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+isOr (Or _) = True
+isOr _ = False
+
+public export
+anyIsOr : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+anyIsOr [] = False
+anyIsOr (p :: ps) = isOr p || anyIsOr ps
+
+mutual
   public export
-  AttachFits : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Predicate bs k -> Type
-  AttachFits n p = So (attachWordsOk (attachWordsIn p) (nounHeadTys n))
+  predSays : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  predSays (And ps) = predSaysAny ps
+  predSays (Not p) = predSays p
+  predSays _ = True
 
   public export
-  SelfDefined : {bs : Bindings} -> Noun bs Object -> Type
-  SelfDefined {bs} n = So (selfDefinedOk n)
+  predSaysAny : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  predSaysAny [] = False
+  predSaysAny (p :: ps) = predSays p || predSaysAny ps
 
+public export
+PredSays : Predicate bs k -> Type
+PredSays {bs} {k} p = So (predSays p)
+
+mutual
+  public export
+  predNegFree : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  predNegFree (And ps) = predNegFreeAll ps
+  predNegFree (Or ps) = predNegFreeAll ps
+  predNegFree (Not _) = False
+  predNegFree (Joined l r) = predNegFree l && predNegFree r
+  predNegFree _ = True
+
+  public export
+  predNegFreeAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                   List (Predicate bs k) -> Bool
+  predNegFreeAll [] = True
+  predNegFreeAll (p :: ps) = predNegFree p && predNegFreeAll ps
+
+public export
+ZoneFree : Predicate bs k -> Type
+ZoneFree {bs} {k} p = seedZone p = Nothing
+
+public export
+data DestOk : ZoneExpr bs -> Type where
+  BattlefieldOk : DestOk (ZoneAt Battlefield BareScope)
+  ExileOk : DestOk (ZoneAt Exile BareScope)
+  HandOkBare : DestOk (ZoneAt Hand BareScope)
+  GraveyardOkBare : DestOk (ZoneAt Graveyard BareScope)
+  LibraryPosOk : {0 af : PlaceArrangementFits place arrg} ->
+                 {0 nf : PlaceOrdinalFits place offs} ->
+                 DestOk (LibraryAt place arrg offs {af} {nf} BareScope)
+
+public export
+orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
+orderOk pl z = case zoneArrangement z of
+                 Nothing => True
+                 Just _ => not (isOne pl)
+
+public export
+ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type
+ArrangementOk {bs} pl z = So (orderOk pl z)
+
+public export
+agentDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+agentDelta (Described EachDet p {ph}) = bindFor TheD OneOf ph p :: predDelta p
+agentDelta n = nounDelta n
+
+public export
+agentPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
+agentPlur (Described EachDet _) = OneOf
+agentPlur n = nounPlur n
+
+public export
+agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
+agentIntro n = agentDelta n ++ bs
+
+public export
+agentCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
+agentCtx Nothing = bs
+agentCtx (Just n) = agentIntro n
+
+public export
+kindValueIntro : {bs : Bindings} -> QualitySort -> Maybe (Noun bs Object) -> Bindings
+kindValueIntro q (Just dom) = qualityB q :: nomIntro dom
+kindValueIntro {bs} q Nothing = qualityB q :: bs
+
+public export
+kindDomainOk : {0 bs : Bindings} -> KindAxis -> Maybe (Noun bs Object) -> Bool
+kindDomainOk _ (Just _) = True
+kindDomainOk ax Nothing = kindAxisClosed ax
+
+public export
+data SearchScope : Bindings -> Type where
+  OneZone : (z : ZoneExpr bs) -> SearchScope bs
+  SomeZones : (whose : Maybe (Noun bs Player)) -> (zs : List Zone) ->
+              {auto 0 tw : AtLeastTwoZones zs} -> SearchScope bs
+
+public export
+searchZone : {0 bs : Bindings} -> SearchScope bs -> Maybe Zone
+searchZone (OneZone z) = Just (zoneSort z)
+searchZone (SomeZones _ _) = Nothing
+
+public export
+searchDelta : {bs : Bindings} -> SearchScope bs -> List Binding
+searchDelta (OneZone z) = zoneDelta z
+searchDelta (SomeZones Nothing _) = []
+searchDelta (SomeZones (Just whose) _) = nounDelta whose
+
+public export
+chosenBind : Determiner -> Plurality -> {k : Kind} ->
+             Phrasal k -> Predicate bs k -> Binding
+chosenBind det plur PhPlayer p = MkBinding det Player plur (PlayerP True)
+chosenBind det plur ph p = bindFor det plur ph p
+
+public export
+chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+chosenDelta (Described (ADet m) p {ph}) = chosenBind (chosenDet ph AD) OneOf ph p :: predDelta p
+chosenDelta (Described (CountDet q _) p {ph}) =
+  chosenBind (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
+chosenDelta (NamesAgree _ grp) = chosenDelta grp
+chosenDelta n = nounDelta n
+
+public export
+chosenIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
+chosenIntro n = chosenDelta n ++ bs
+
+public export
+chosenIntroBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
+                (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
+chosenIntroBy OneOf by n = nounDelta by ++ (chosenDelta n ++ bs)
+chosenIntroBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ nomIntro by
+
+public export
+chosenAnnBy : {bs : Bindings} -> {k : Kind} -> Plurality ->
+              (by : Noun bs Player) -> Noun (agentIntro by) k -> Bindings
+chosenAnnBy OneOf by n = chosenDelta n ++ bs
+chosenAnnBy ManyOf by n = pluralizeDelta (chosenDelta n) ++ bs
+
+public export
+chooseIntro : {bs : Bindings} -> {k : Kind} ->
+              (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
+chooseIntro Nothing n = chosenIntro n
+chooseIntro (Just by) n = chosenIntroBy (nounPlur by) by n
+
+public export
+chooseAnn : {bs : Bindings} -> {k : Kind} ->
+            (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bindings
+chooseAnn Nothing n = chosenIntro n
+chooseAnn (Just by) n = chosenAnnBy (nounPlur by) by n
+
+public export
+optAmtIntro : {bs : Bindings} -> Maybe (Amount bs) -> Bindings
+optAmtIntro Nothing = bs
+optAmtIntro (Just a) = amtIntro a
+
+public export
+boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
+boundEq (Lit a) (Lit b) = a == b
+boundEq (LetterVal a) (LetterVal b) = a == b
+boundEq _ _ = False
+
+public export
+deltaIntro : {bs : Bindings} -> Delta (Amount bs) -> Bindings
+deltaIntro d = amtIntro (deltaAmount d)
+
+public export
+deltaDelta : {bs : Bindings} -> Delta (Amount bs) -> List Binding
+deltaDelta d = amtDelta (deltaAmount d)
+
+public export
+data FlipScope : Bindings -> Type where
+  FlipCount : (n : Amount bs) -> FlipScope bs
+  FlipPer : {k : Kind} -> (each : Noun bs k) ->
+            {auto 0 pl : nounPlur each = ManyOf} ->
+            {auto 0 rk : So (kindLte k (Object \/ Player))} -> FlipScope bs
+
+public export
+flipScopeIntro : {bs : Bindings} -> FlipScope bs -> Bindings
+flipScopeIntro (FlipCount n) = amtIntro n
+flipScopeIntro (FlipPer each) = nomIntro each
+
+public export
+data IgnoredOutcomes : Bindings -> Type where
+  IgnoreExtreme : RollExtreme -> IgnoredOutcomes bs
+  IgnoreAllBut : RollExtreme -> IgnoredOutcomes bs
+  IgnoreChosen : (chooser : Maybe (Noun bs Player)) -> (n : Amount bs) ->
+                 {auto 0 ag : EventAgent chooser} -> IgnoredOutcomes bs
+
+public export
+ignoredOutcomesIntro : {bs : Bindings} -> IgnoredOutcomes bs -> Bindings
+ignoredOutcomesIntro (IgnoreExtreme _) = bs
+ignoredOutcomesIntro (IgnoreAllBut _) = bs
+ignoredOutcomesIntro (IgnoreChosen _ n) = amtIntro n
+
+public export
+ignorableFor : {bs : Bindings} -> IgnoredOutcomes bs -> Bool
+ignorableFor (IgnoreExtreme _) = countOutcomes RollResult bs == 1
+ignorableFor (IgnoreAllBut _) = countOutcomes RollResult bs == 1
+ignorableFor (IgnoreChosen _ _) = ignorableInScope bs
+
+public export
+readAmount : {0 bs : Bindings} -> Amount bs -> Bool
+readAmount (Lit _) = False
+readAmount (StatOf _ _) = True
+readAmount (PlayerStatOf _ _) = True
+readAmount (CountersOn _ _) = True
+readAmount (Paid _ _) = True
+readAmount (EventTally _ _ _) = True
+readAmount (CountOf _) = True
+readAmount (Aggregate _ _ _) = True
+readAmount (TimesOf _ _) = False
+readAmount ThatMuch = False
+readAmount (ChosenNumber _) = False
+readAmount (VotesFor _) = True
+readAmount (TheOutcome s) = outcomeComparable s
+readAmount (CoinsShowing _) = True
+readAmount (GreatestStoredMatch _) = True
+readAmount GroupSize = False
+readAmount TheDifference = True
+readAmount (LetterVal _) = True
+readAmount (Plus _ _) = False
+readAmount (Minus _ _) = False
+readAmount (Devotion _ _ _) = True
+readAmount (Half _ _) = False
+readAmount (DifferenceBetween _ _) = False
+readAmount (AggregateOver _ _ _) = True
+readAmount (DistinctCount _ _) = True
+readAmount (UpTo _) = False
+
+public export
+ReadAmount : Amount bs -> Type
+ReadAmount {bs} a = So (readAmount a)
+
+public export
+OptWellFormedQ : Maybe (Quantity bs) -> Type
+OptWellFormedQ = OptOk WellFormedQ
+
+public export
+detQuant : {0 bs : Bindings} -> DetPhrase bs -> Maybe (Quantity bs)
+detQuant (TargetDet q) = Just q
+detQuant (CountDet q _) = Just q
+detQuant _ = Nothing
+
+public export
+modesFit : {0 bs : Bindings} -> Quantity bs -> Nat -> Bool
+modesFit (Range Nothing Nothing) n = True
+modesFit (Range Nothing (Just hi)) n = lte hi n
+modesFit (Range (Just lo) Nothing) n = lte lo n
+modesFit (Range (Just lo) (Just hi)) n = lte hi n
+modesFit (UpToOf _) n = True
+modesFit (ExactlyOf _) n = True
+
+public export
+ModesFit : Quantity bs -> Nat -> Type
+ModesFit q n = So (modesFit q n)
+
+public export
+quantLiteral : {0 bs : Bindings} -> Quantity bs -> Bool
+quantLiteral (Range _ _) = True
+quantLiteral (UpToOf _) = False
+quantLiteral (ExactlyOf _) = False
+
+public export
+quantIntro : {bs : Bindings} -> Quantity bs -> Bindings
+quantIntro (Range _ _) = bs
+quantIntro (UpToOf a) = amtIntro a
+quantIntro (ExactlyOf a) = amtIntro a
+
+public export
+optQuantIntro : {bs : Bindings} -> Maybe (Quantity bs) -> Bindings
+optQuantIntro Nothing = bs
+optQuantIntro (Just q) = quantIntro q
+
+public export
+Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+Bindingless {bs} {k} n = nounDelta n = []
+
+public export
+testSubjectOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+testSubjectOk (Described TheDet _) = True
+testSubjectOk (LibrarySlice _ _ _) = True
+testSubjectOk n = case nounDelta n of
+                    [] => True
+                    _ => False
+
+public export
+TestSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+TestSubject {bs} {k} n = So (testSubjectOk n)
+
+public export
+choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+choosable n = elem (nounDet n) [Just AD, Just TargetD, Just CountD]
+
+public export
+Choosable : Noun bs k -> Type
+Choosable {bs} {k} n = So (choosable n)
+
+public export
+agentChoosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+agentChoosable (SomeOf _ _ _) = True
+agentChoosable (PileOf _ _) = True
+agentChoosable n = choosable n
+
+public export
+choiceClauseOk : {0 bs : Bindings} -> {0 k : Kind} ->
+                 (by : Maybe (Noun bs Player)) -> Noun (agentCtx by) k -> Bool
+choiceClauseOk Nothing n = choosable n
+choiceClauseOk (Just _) n = agentChoosable n
+
+||| "Starting with you" fixes the turn order in which the players who choose
+||| make their choices, so it says nothing unless several players choose
+||| [CR#101.4].
+public export
+choiceOrderOk : {bs : Bindings} -> {cs : Bindings} -> Maybe (Noun bs Player) ->
+                Maybe (Noun cs Player) -> Bool
+choiceOrderOk Nothing _ = True
+choiceOrderOk (Just _) Nothing = False
+choiceOrderOk (Just _) (Just by) = not (isOne (nounPlur by))
+
+public export
+data Ballot : Bindings -> Type where
+  ByLabel : (opts : List VoteLabel) ->
+            {auto 0 ok : BallotLabelsOk opts} -> Ballot bs
+  ByCandidate : {k : Kind} -> (n : Noun bs k) ->
+                {auto 0 ok : So (choosable n)} -> Ballot bs
+
+public export
+countedExistential : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+countedExistential (NamesAgree _ grp) = countedMention grp
+countedExistential _ = False
+
+public export
+CountedExistential : Noun bs k -> Type
+CountedExistential {bs} {k} n = So (countedExistential n)
+
+public export
+existentialMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+existentialMention n = nounDet n == Just BareD || countedExistential n
+
+public export
+ExistentialMention : Noun bs k -> Type
+ExistentialMention {bs} {k} n = So (existentialMention n)
+
+public export
+perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+perMemberOk n = elem (nounDet n) [Just EachD, Just AllD] || isOne (nounPlur n)
+
+public export
+PerMember : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+PerMember {bs} {k} n = So (perMemberOk n)
+
+public export
+hostedRead : {bs : Bindings} -> {k : Kind} ->
+             Predicate bs Object -> Noun bs k -> Bool
+hostedRead p n = case qualityReadHost p of
+                   Nothing => True
+                   Just h => tyIs h (nounTy n)
+
+public export
+HostedRead : {bs : Bindings} -> {k : Kind} ->
+             Predicate bs Object -> Noun bs k -> Type
+HostedRead {bs} {k} p n = So (hostedRead p n)
+
+public export
+costSubjectOk : {bs : Bindings} -> Noun bs Object -> Bool
+costSubjectOk This = True
+costSubjectOk n = onStackZone (nounZone n)
+
+public export
+data CostSubject : {0 k : Kind} -> Noun bs k -> Type where
+  MkCostSubject : {0 n : Noun bs Object} ->
+                  {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
+
+public export
+copyKind : Kind -> Bool
+copyKind Object = True
+copyKind (a \/ b) = copyKind a && copyKind b
+copyKind _ = False
+
+public export
+data StackActOn : (Kind -> Bool) -> {0 k : Kind} -> Noun bs k -> Type where
+  StackSpell : {0 n : Noun bs Object} ->
+               {auto 0 zn : ZoneIs (nounZone n) Stack} -> StackActOn p n
+  StackJoin : {0 ka : Kind} -> {0 kb : Kind} ->
+              {0 n : Noun bs (ka \/ kb)} ->
+              {auto 0 ok : So (p (ka \/ kb))} -> StackActOn p n
+
+public export
+Counterable : {0 k : Kind} -> Noun bs k -> Type
+Counterable = StackActOn counterKind
+
+public export
+Copiable : {0 k : Kind} -> Noun bs k -> Type
+Copiable = StackActOn copyKind
+
+public export
+CopySourceOk : {bs : Bindings} -> {k : Kind} -> CopySort -> Noun bs k -> Type
+CopySourceOk FromStack n = Copiable n
+CopySourceOk FromCardZone n = So (isCardZone (nounZone n))
+
+public export
+selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
+selfDefinedOk This = True
+selfDefinedOk (AsType _ n _) = selfDefinedOk n
+selfDefinedOk _ = False
+
+||| The tested noun's head admits the attachment word the predicate uses
+||| [CR#301.5,301.6].
+public export
+AttachFits : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Predicate bs k -> Type
+AttachFits n p = So (attachWordsOk (attachWordsIn p) (nounHeadTys n))
+
+public export
+SelfDefined : {bs : Bindings} -> Noun bs Object -> Type
+SelfDefined {bs} n = So (selfDefinedOk n)
+
+mutual
   public export
   data Condition : Bindings -> Type where
     Exists : {k : Kind} -> (n : Noun bs k) ->
@@ -2304,22 +2425,29 @@ mutual
   FlatDisjuncts : List (Condition bs) -> Type
   FlatDisjuncts {bs} cs = So (flatDisjuncts cs)
 
-  public export
-  condNegated : {0 bs : Bindings} -> Condition bs -> Bool
-  condNegated (NotCond _) = True
-  condNegated _ = False
+public export
+condNegated : {0 bs : Bindings} -> Condition bs -> Bool
+condNegated (NotCond _) = True
+condNegated _ = False
 
-  public export
-  markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
-  markingOk AsLongAs _ = True
-  markingOk IfSo _ = True
-  markingOk Unless c = condNegated c
+public export
+markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
+markingOk AsLongAs _ = True
+markingOk IfSo _ = True
+markingOk Unless c = condNegated c
 
-  public export
-  data MarkingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Type where
-    MkMarkingOk : {0 c : Condition bs} ->
-                  {auto 0 ok : So (markingOk m c)} -> MarkingOk m c
+public export
+data MarkingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Type where
+  MkMarkingOk : {0 c : Condition bs} ->
+                {auto 0 ok : So (markingOk m c)} -> MarkingOk m c
 
+public export
+dropGaps : List Binding -> List Binding
+dropGaps [] = []
+dropGaps (MkBinding _ Gap _ GapP :: bs) = dropGaps bs
+dropGaps (b :: bs) = b :: dropGaps bs
+
+mutual
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
@@ -2347,514 +2475,387 @@ mutual
   condDeltaAll [] = []
   condDeltaAll (c :: cs) = condDelta c ++ condDeltaAll cs
 
-  public export
-  dropGaps : List Binding -> List Binding
-  dropGaps [] = []
-  dropGaps (MkBinding _ Gap _ GapP :: bs) = dropGaps bs
-  dropGaps (b :: bs) = b :: dropGaps bs
+public export
+Attackable : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+Attackable {k} n = So (attackableKind k (nounTys n))
 
-  public export
-  attackableKind : (k : Kind) -> HeadTy k -> Bool
-  attackableKind Player _ = True
-  attackableKind Object (SoleTy t) = featureAltOk Attacking Patient (optCT t)
-  attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
-  attackableKind (a \/ b) (SoleTy t) =
-    attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
-  attackableKind _ _ = False
+public export
+data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
+  CountedTokens : {0 q : Quantity bs} -> {0 m : Maybe (ChoiceMode bs)} ->
+                  {0 p : Predicate bs Object} ->
+                  {0 ph : Phrasal Object} -> {0 dk : detOk (CountDet q m) p} ->
+                  {auto 0 ok : So (seedsToken p)} ->
+                  TokenPhrase (Described (CountDet q m) p {ph} {ok = dk})
+  OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
+             {0 ph : Phrasal Object} -> {0 dk : detOk (ADet m) p} ->
+             {auto 0 ok : So (seedsToken p)} ->
+             TokenPhrase (Described (ADet m) p {ph} {ok = dk})
 
-  public export
-  Attackable : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  Attackable {k} n = So (attackableKind k (nounTys n))
+public export
+selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
+selfSubjIntro n = selfSubjDelta n ++ nomIntro n
 
-  public export
-  combatRelOk : CombatRelation -> (k : Kind) -> (km : Kind) ->
-                Maybe Zone -> HeadTy km -> Bool
-  combatRelOk AttackerOf k km _ tys = k == Object && attackableKind km tys
-  combatRelOk AttackedBy _ km z _ = km == Object && zoneIsB z Battlefield
-  combatRelOk _ k km z _ =
-    k == Object && km == Object && zoneIsB z Battlefield
+public export
+subjCtx : {bs : Bindings} -> {k : Kind} -> Maybe (Noun bs k) -> Bindings
+subjCtx Nothing = bs
+subjCtx (Just n) = selfSubjIntro n
 
-  public export
-  EventAgent : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
-  EventAgent m = OptOk (\w => nounDelta w = []) m
+public export
+remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
+             Maybe (Binding -> Bool)
+remarkTest (Pro (Word AbilityW) OneOf Whole) = Just (reaches (Word AbilityW) OneOf)
+remarkTest (Pro r pl Whole) =
+  if reachTracksObject r then Just (reaches r pl) else Nothing
+remarkTest (Pro _ _ _) = Nothing
+remarkTest _ = Nothing
 
-  public export
-  data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
-    CountedTokens : {0 q : Quantity bs} -> {0 m : Maybe (ChoiceMode bs)} ->
-                    {0 p : Predicate bs Object} ->
-                    {0 ph : Phrasal Object} -> {0 dk : detOk (CountDet q m) p} ->
-                    {auto 0 ok : So (seedsToken p)} ->
-                    TokenPhrase (Described (CountDet q m) p {ph} {ok = dk})
-    OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
-               {0 ph : Phrasal Object} -> {0 dk : detOk (ADet m) p} ->
-               {auto 0 ok : So (seedsToken p)} ->
-               TokenPhrase (Described (ADet m) p {ph} {ok = dk})
+public export
+condRemarkAt : {0 bs : Bindings} -> Condition bs ->
+               Maybe (Binding -> Bool, Maybe CardType)
+condRemarkAt (Matches n p) =
+  case remarkTest n of
+    Nothing => Nothing
+    Just q => Just (q, seedTy p)
+condRemarkAt _ = Nothing
 
-  public export
-  selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
-  selfSubjDelta (AsType t This _) =
-    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
-  selfSubjDelta (AttachHost _ (TypeW t)) =
-    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
-  selfSubjDelta (AttachHost _ PermanentW) =
-    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)]
-  selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf (PlayerP False)]
-  selfSubjDelta _ = []
+public export
+condRemark : {bs : Bindings} -> Condition bs -> Bindings
+condRemark c = maybe bs (\qt => markFirst (fst qt) (snd qt) bs) (condRemarkAt c)
 
-  public export
-  selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  selfSubjIntro n = selfSubjDelta n ++ nomIntro n
+public export
+condIntro : {bs : Bindings} -> Condition bs -> Bindings
+condIntro c = condDelta c ++ condRemark c
 
-  public export
-  remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
-               Maybe (Binding -> Bool)
-  remarkTest (Pro (Word AbilityW) OneOf Whole) = Just (reaches (Word AbilityW) OneOf)
-  remarkTest (Pro r pl Whole) =
-    if reachTracksObject r then Just (reaches r pl) else Nothing
-  remarkTest (Pro _ _ _) = Nothing
-  remarkTest _ = Nothing
+public export
+interveningIntro : {bs : Bindings} -> Maybe (Condition bs) -> Bindings
+interveningIntro Nothing = bs
+interveningIntro (Just c) = condIntro c
 
-  public export
-  condRemarkAt : {0 bs : Bindings} -> Condition bs ->
-                 Maybe (Binding -> Bool, Maybe CardType)
-  condRemarkAt (Matches n p) =
-    case remarkTest n of
-      Nothing => Nothing
-      Just q => Just (q, seedTy p)
-  condRemarkAt _ = Nothing
+public export
+playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
+               Bool -> Bool
+playSourceOk zn Nothing False = maybe True placementDestOk zn
+playSourceOk zn (Just z) False =
+  playableFrom (Just (zoneSort z)) &&
+  (not (maybe True placementDestOk zn) || zoneFits zn (Just (zoneSort z)))
+playSourceOk _ Nothing True = True
+playSourceOk _ (Just z) True = playableFrom (Just (zoneSort z))
 
-  public export
-  condRemark : {bs : Bindings} -> Condition bs -> Bindings
-  condRemark c = maybe bs (\qt => markFirst (fst qt) (snd qt) bs) (condRemarkAt c)
+public export
+data Exposed : Bindings -> Type where
+  ExposedCards : (n : Noun bs Object) -> Exposed bs
+  ExposedZone : (z : ZoneExpr bs) ->
+                {auto 0 ok : ExposableZone (zoneSort z)} -> Exposed bs
+  ExposedChoice : (q : ChoiceSort) ->
+                  {auto 0 ok : countChoice q bs = 1} ->
+                  Exposed bs
 
-  public export
-  condIntro : {bs : Bindings} -> Condition bs -> Bindings
-  condIntro c = condDelta c ++ condRemark c
+public export
+exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
+exposedIntro (ExposedCards n) = nomIntro n
+exposedIntro (ExposedZone z) = zoneDelta z ++ bs
+exposedIntro (ExposedChoice _) = bs
 
-  public export
-  interveningIntro : {bs : Bindings} -> Maybe (Condition bs) -> Bindings
-  interveningIntro Nothing = bs
-  interveningIntro (Just c) = condIntro c
+public export
+data VisibleThing : Bindings -> Type where
+  TopOfLibrary : VisibleThing bs
+  WholeHand : VisibleThing bs
+  VisibleObjects : (n : Noun bs Object) -> VisibleThing bs
 
-  public export
-  playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
-                 Bool -> Bool
-  playSourceOk zn Nothing False = maybe True placementDestOk zn
-  playSourceOk zn (Just z) False =
-    playableFrom (Just (zoneSort z)) &&
-    (not (maybe True placementDestOk zn) || zoneFits zn (Just (zoneSort z)))
-  playSourceOk _ Nothing True = True
-  playSourceOk _ (Just z) True = playableFrom (Just (zoneSort z))
+public export
+visibleIntro : {bs : Bindings} -> VisibleThing bs -> Bindings
+visibleIntro TopOfLibrary = bs
+visibleIntro WholeHand = bs
+visibleIntro (VisibleObjects n) = nomIntro n
 
-  public export
-  data Exposed : Bindings -> Type where
-    ExposedCards : (n : Noun bs Object) -> Exposed bs
-    ExposedZone : (z : ZoneExpr bs) ->
-                  {auto 0 ok : ExposableZone (zoneSort z)} -> Exposed bs
-    ExposedChoice : (q : ChoiceSort) ->
-                    {auto 0 ok : countChoice q bs = 1} ->
-                    Exposed bs
+public export
+visibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Bool
+visibilityOk Reveal TopOfLibrary = True
+visibilityOk Reveal WholeHand = True
+visibilityOk LookAt TopOfLibrary = True
+visibilityOk LookAt WholeHand = False
+visibilityOk _ (VisibleObjects _) = True
 
-  public export
-  exposedIntro : {bs : Bindings} -> Exposed bs -> Bindings
-  exposedIntro (ExposedCards n) = nomIntro n
-  exposedIntro (ExposedZone z) = zoneDelta z ++ bs
-  exposedIntro (ExposedChoice _) = bs
+public export
+VisibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Type
+VisibilityOk v w = So (visibilityOk v w)
 
-  public export
-  data VisibleThing : Bindings -> Type where
-    TopOfLibrary : VisibleThing bs
-    WholeHand : VisibleThing bs
-    VisibleObjects : (n : Noun bs Object) -> VisibleThing bs
+public export
+costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+costNounOk (AsType _ n _) = costNounOk n
+costNounOk (ResolvedPermanent n) = costNounOk n
+costNounOk (AsMarker _ n) = costNounOk n
+costNounOk (EachOf grp) = costNounOk grp
+costNounOk (NamesAgree _ grp) = costNounOk grp
+costNounOk (SomeOf _ _ grp) = costNounOk grp
+costNounOk (EitherOf l r) = costNounOk l && costNounOk r
+costNounOk (Both _ _) = False
+costNounOk (Pro (Verbed _ _ _) _ _) = False
+costNounOk _ = True
 
-  public export
-  visibleIntro : {bs : Bindings} -> VisibleThing bs -> Bindings
-  visibleIntro TopOfLibrary = bs
-  visibleIntro WholeHand = bs
-  visibleIntro (VisibleObjects n) = nomIntro n
+public export
+nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+nounIsYou You = True
+nounIsYou _ = False
 
-  public export
-  visibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Bool
-  visibilityOk Reveal TopOfLibrary = True
-  visibilityOk Reveal WholeHand = True
-  visibilityOk LookAt TopOfLibrary = True
-  visibilityOk LookAt WholeHand = False
-  visibilityOk _ (VisibleObjects _) = True
+public export
+nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+nounTargeted (AsType _ n _) = nounTargeted n
+nounTargeted (ResolvedPermanent n) = nounTargeted n
+nounTargeted (AsMarker _ n) = nounTargeted n
+nounTargeted (EachOf grp) = nounTargeted grp
+nounTargeted (SomeOf _ _ grp) = nounTargeted grp
+nounTargeted (Both l r) = nounTargeted l || nounTargeted r
+nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
+nounTargeted n = nounDet n == Just TargetD
 
-  public export
-  VisibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Type
-  VisibilityOk v w = So (visibilityOk v w)
+public export
+Nontarget : Noun bs k -> Type
+Nontarget {bs} {k} n = So (not (nounTargeted n))
 
-  public export
-  costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  costNounOk (AsType _ n _) = costNounOk n
-  costNounOk (ResolvedPermanent n) = costNounOk n
-  costNounOk (AsMarker _ n) = costNounOk n
-  costNounOk (EachOf grp) = costNounOk grp
-  costNounOk (NamesAgree _ grp) = costNounOk grp
-  costNounOk (SomeOf _ _ grp) = costNounOk grp
-  costNounOk (EitherOf l r) = costNounOk l && costNounOk r
-  costNounOk (Both _ _) = False
-  costNounOk (Pro (Verbed _ _ _) _ _) = False
-  costNounOk _ = True
+public export
+counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+counterMemoryOk (Pro (Verbed _ _ _) _ _) = False
+counterMemoryOk (Pro r pl w) =
+  not (reachTracksObject r) || not (stampMoves (provOfReach r pl (view w bs)))
+counterMemoryOk _ = True
 
-  public export
-  nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsYou You = True
-  nounIsYou _ = False
+public export
+CounterMemory : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
+CounterMemory {bs} n = So (counterMemoryOk n)
 
-  public export
-  nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounTargeted (AsType _ n _) = nounTargeted n
-  nounTargeted (ResolvedPermanent n) = nounTargeted n
-  nounTargeted (AsMarker _ n) = nounTargeted n
-  nounTargeted (EachOf grp) = nounTargeted grp
-  nounTargeted (SomeOf _ _ grp) = nounTargeted grp
-  nounTargeted (Both l r) = nounTargeted l || nounTargeted r
-  nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
-  nounTargeted n = nounDet n == Just TargetD
+public export
+moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+moveDestOk (Pro r _ Whole) = not (reachTracksObject r)
+moveDestOk (Pro _ _ _) = False
+moveDestOk _ = True
 
-  public export
-  Nontarget : Noun bs k -> Type
-  Nontarget {bs} {k} n = So (not (nounTargeted n))
+public export
+MoveDestination : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
+MoveDestination {bs} n = So (moveDestOk n)
 
-  public export
-  counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  counterMemoryOk (Pro (Verbed _ _ _) _ _) = False
-  counterMemoryOk (Pro r pl w) =
-    not (reachTracksObject r) || not (stampMoves (provOfReach r pl (view w bs)))
-  counterMemoryOk _ = True
+public export
+damageableKind : (k : Kind) -> HeadTy k -> Bool
+damageableKind Player _ = True
+damageableKind Object (SoleTy t) = damageableHeadTysOk (soleAlt (optCT t))
+damageableKind (a \/ b) (JoinTy l r) = damageableKind a l && damageableKind b r
+damageableKind (a \/ b) (SoleTy t) =
+  damageableKind a (SoleTy t) && damageableKind b (SoleTy t)
+damageableKind _ _ = False
 
-  public export
-  CounterMemory : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
-  CounterMemory {bs} n = So (counterMemoryOk n)
+public export
+data DamageRecipient : Noun bs k -> Type where
+  PlayerTakes : DamageRecipient {k = Player} n
+  JoinTakes : {auto 0 dm : So (damageableKind (ka \/ kb) (nounTys n))} ->
+              DamageRecipient {k = ka \/ kb} n
+  ObjectTakes : {auto 0 field : ZoneIs (nounZone n) Battlefield} ->
+                {auto 0 dm : So (damageableHeadTysOk (nounHeadTys n))} ->
+                DamageRecipient {k = Object} n
 
-  public export
-  moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  moveDestOk (Pro r _ Whole) = not (reachTracksObject r)
-  moveDestOk (Pro _ _ _) = False
-  moveDestOk _ = True
+public export
+SingleRecipient : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+SingleRecipient {bs} {k} n = nounPlur n = OneOf
 
-  public export
-  MoveDestination : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
-  MoveDestination {bs} n = So (moveDestOk n)
+||| Only permanents have status [CR#110.5d]; a pile is not an object [CR#700.3b].
+public export
+data StatusHolder : Noun bs k -> Type where
+  ObjectHoldsStatus : StatusHolder {k = Object} n
 
-  public export
-  damageableKind : (k : Kind) -> HeadTy k -> Bool
-  damageableKind Player _ = True
-  damageableKind Object (SoleTy t) = damageableHeadTysOk (soleAlt (optCT t))
-  damageableKind (a \/ b) (JoinTy l r) = damageableKind a l && damageableKind b r
-  damageableKind (a \/ b) (SoleTy t) =
-    damageableKind a (SoleTy t) && damageableKind b (SoleTy t)
-  damageableKind _ _ = False
+||| An ability on the stack is an object [CR#113.1c] that ceases to exist
+||| when it leaves the stack [CR#608.2n]; it never changes zones.
+public export
+data NotAnAbility : Bool -> Type where
+  PayloadIsObject : NotAnAbility False
 
-  public export
-  data DamageRecipient : Noun bs k -> Type where
-    PlayerTakes : DamageRecipient {k = Player} n
-    JoinTakes : {auto 0 dm : So (damageableKind (ka \/ kb) (nounTys n))} ->
-                DamageRecipient {k = ka \/ kb} n
-    ObjectTakes : {auto 0 field : ZoneIs (nounZone n) Battlefield} ->
-                  {auto 0 dm : So (damageableHeadTysOk (nounHeadTys n))} ->
-                  DamageRecipient {k = Object} n
+public export
+data DiscardOk : Noun bs Object -> Type where
+  DiscardThis : DiscardOk This
+  DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
 
-  public export
-  SingleRecipient : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  SingleRecipient {bs} {k} n = nounPlur n = OneOf
+public export
+setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
+setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og sz)) =
+  MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
+setZone p z (MkBinding det Pile plur (PileP _ sz fc)) =
+  MkBinding det Pile plur (PileP z sz fc)
+setZone p z b@(MkBinding _ Player _ (PlayerP _)) = b
+setZone p z (MkBinding det (Quality q) plur QualityP) =
+  MkBinding det (Quality q) plur QualityP
+setZone p z (MkBinding det Outcome plur (OutcomeP s)) =
+  MkBinding det Outcome plur (OutcomeP s)
+setZone p z (MkBinding det Gap plur GapP) = MkBinding det Gap plur GapP
+setZone p z (MkBinding det (LetterK l) plur LetterP) = MkBinding det (LetterK l) plur LetterP
+setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
+setZone p z (MkBinding det Object plur (AbilityP og)) =
+  MkBinding det Object plur (AbilityP og)
+setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
 
-  ||| Only permanents have status [CR#110.5d]; a pile is not an object [CR#700.3b].
-  public export
-  data StatusHolder : Noun bs k -> Type where
-    ObjectHoldsStatus : StatusHolder {k = Object} n
+public export
+setZoneHead : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
+setZoneHead p z [] = []
+setZoneHead p z (b :: bs) = setZone p z b :: bs
 
-  ||| An ability on the stack is an object [CR#113.1c] that ceases to exist
-  ||| when it leaves the stack [CR#608.2n]; it never changes zones.
-  public export
-  data NotAnAbility : Bool -> Type where
-    PayloadIsObject : NotAnAbility False
+public export
+setZoneReach : Reach -> Plurality -> Maybe VerbLabel -> Maybe Zone ->
+               Bindings -> Bindings
+setZoneReach r pl p z [] = []
+setZoneReach r pl p z (b :: bs) =
+  if reaches r pl b then setZone p z b :: bs
+                     else b :: setZoneReach r pl p z bs
 
-  public export
-  data Movable : Noun bs k -> Type where
-    ObjectMoves : {auto 0 nb : NotAnAbility (nounIsAbility n)} ->
-                  Movable {k = Object} n
-    PileMoves : Movable {k = Pile} n
+public export
+moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Maybe Zone -> Bindings
+moveIntro p nn@(Described _ _) z = setZoneHead p z (nomIntro nn)
+moveIntro p (EachOf grp) z = moveIntro p grp z
+moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
+moveIntro p nn@(Both _ _) z = nomIntro nn
+moveIntro p nn@(EitherOf _ _) z = nomIntro nn
+moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
+moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
+moveIntro p nn@(OneEachOf _ _) z = setZoneHead p z (nomIntro nn)
+moveIntro p (TheRest k _) z = groupSpent k bs
+moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
+moveIntro p (Pro r pl w) z = overWindow (setZoneReach r pl p z) w bs
+moveIntro p This z =
+  MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
+moveIntro p (AttachHost _ (TypeW t)) z =
+  MkBinding TheD Object OneOf
+            (ObjectP (Just t) z (mkStamp p (Just Battlefield)
+                                          (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (AttachHost _ PermanentW) z =
+  MkBinding TheD Object OneOf
+            (ObjectP Nothing z (mkStamp p (Just Battlefield)
+                                         (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf (PlayerP False) :: bs
+moveIntro p (AttachHost _ w) z = bs
+moveIntro p (AsType t This _) z =
+  MkBinding SelfD Object OneOf
+            (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (AsType t n _) z =
+  MkBinding TheD Object OneOf
+            (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (ResolvedPermanent n) z =
+  MkBinding TheD Object (nounPlur n)
+            (ObjectP (nounTy n) z (mkStamp p (Just Battlefield)
+                                            (not (z == Just Battlefield)))
+                     Nothing Nothing)
+    :: bs
+moveIntro p (AsMarker _ This) z =
+  MkBinding SelfD Object OneOf
+            (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (AsMarker _ n) z =
+  MkBinding TheD Object OneOf
+            (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+    :: bs
+moveIntro p (TheGrantor m) z =
+  MkBinding TheD Object OneOf
+            (ObjectP Nothing z (mkStamp p (grantorOrigin m) (not (z == Just (markerZone m))))
+                     Nothing Nothing)
+    :: bs
+moveIntro p You z = bs
+moveIntro p TheDefendingPlayer z = bs
+moveIntro p TheAttackingPlayer z = bs
+moveIntro p (PlayerGroup _) z = bs
+moveIntro p (PossessorOf ax n) z = nomIntro (PossessorOf ax n)
+moveIntro p (Designated d n) z = bs
 
-  public export
-  data DiscardOk : Noun bs Object -> Type where
-    DiscardThis : DiscardOk This
-    DiscardTracked : {auto 0 z : nounZone n = Just Hand} -> DiscardOk n
+public export
+stampIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Bindings
+stampIntro p n = moveIntro p n (nounZone n)
 
-  public export
-  setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
-  setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og sz)) =
-    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
-  setZone p z (MkBinding det Pile plur (PileP _ sz fc)) =
-    MkBinding det Pile plur (PileP z sz fc)
-  setZone p z b@(MkBinding _ Player _ (PlayerP _)) = b
-  setZone p z (MkBinding det (Quality q) plur QualityP) =
-    MkBinding det (Quality q) plur QualityP
-  setZone p z (MkBinding det Outcome plur (OutcomeP s)) =
-    MkBinding det Outcome plur (OutcomeP s)
-  setZone p z (MkBinding det Gap plur GapP) = MkBinding det Gap plur GapP
-  setZone p z (MkBinding det (LetterK l) plur LetterP) = MkBinding det (LetterK l) plur LetterP
-  setZone p z (MkBinding det TurnRef plur TurnRefP) = MkBinding det TurnRef plur TurnRefP
-  setZone p z (MkBinding det Object plur (AbilityP og)) =
-    MkBinding det Object plur (AbilityP og)
-  setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
+public export
+nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
+nounProv (TheRest k _) = provOfGroup k bs
+nounProv (Pro r pl w) = provOfReach r pl (view w bs)
+nounProv (EachOf grp) = nounProv grp
+nounProv (NamesAgree _ grp) = nounProv grp
+nounProv (SomeOf _ _ grp) = nounProv grp
+nounProv _ = Nothing
 
-  public export
-  setZoneHead : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
-  setZoneHead p z [] = []
-  setZoneHead p z (b :: bs) = setZone p z b :: bs
+||| Whether the noun names an ability on the stack [CR#113.1c] -- read off
+||| the description and the reading word, never the antecedent stack, so it
+||| reduces where the bindings are still abstract.
+public export
+nounIsAbility : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+nounIsAbility (Described _ p) = seedsAbility p
+nounIsAbility (Pro (Word AbilityW) _ _) = True
+nounIsAbility (Pro (Word AbilityCopyW) _ _) = True
+nounIsAbility (EachOf grp) = nounIsAbility grp
+nounIsAbility (NamesAgree _ grp) = nounIsAbility grp
+nounIsAbility (ResolvedPermanent n) = nounIsAbility n
+nounIsAbility (AsMarker _ n) = nounIsAbility n
+nounIsAbility (SomeOf _ _ grp) = nounIsAbility grp
+nounIsAbility _ = False
 
-  public export
-  setZoneReach : Reach -> Plurality -> Maybe VerbLabel -> Maybe Zone ->
-                 Bindings -> Bindings
-  setZoneReach r pl p z [] = []
-  setZoneReach r pl p z (b :: bs) =
-    if reaches r pl b then setZone p z b :: bs
-                       else b :: setZoneReach r pl p z bs
+public export
+elemIntro : {bs : Bindings} -> {k : Kind} -> {auto ph : Phrasal k} ->
+            Noun bs k -> Bindings
+elemIntro {k} grp =
+  MkBinding TheD k OneOf
+            (elemPayload ph (nounIsAbility grp) (nounTy grp) (nounZone grp)
+                        (nounProv grp))
+    :: nomIntro grp
 
-  public export
-  stampIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Bindings
-  stampIntro p n = moveIntro p n (nounZone n)
+public export
+data Movable : Noun bs k -> Type where
+  ObjectMoves : {auto 0 nb : NotAnAbility (nounIsAbility n)} ->
+                Movable {k = Object} n
+  PileMoves : Movable {k = Pile} n
 
-  public export
-  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Maybe Zone -> Bindings
-  moveIntro p nn@(Described _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p (EachOf grp) z = moveIntro p grp z
-  moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
-  moveIntro p nn@(Both _ _) z = nomIntro nn
-  moveIntro p nn@(EitherOf _ _) z = nomIntro nn
-  moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(OneEachOf _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p (TheRest k _) z = groupSpent k bs
-  moveIntro p nn@(PileOf _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p (Pro r pl w) z = overWindow (setZoneReach r pl p z) w bs
-  moveIntro p This z =
-    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
-  moveIntro p (AttachHost _ (TypeW t)) z =
-    MkBinding TheD Object OneOf
-              (ObjectP (Just t) z (mkStamp p (Just Battlefield)
-                                            (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (AttachHost _ PermanentW) z =
-    MkBinding TheD Object OneOf
-              (ObjectP Nothing z (mkStamp p (Just Battlefield)
-                                           (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf (PlayerP False) :: bs
-  moveIntro p (AttachHost _ w) z = bs
-  moveIntro p (AsType t This _) z =
-    MkBinding SelfD Object OneOf
-              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (AsType t n _) z =
-    MkBinding TheD Object OneOf
-              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (ResolvedPermanent n) z =
-    MkBinding TheD Object (nounPlur n)
-              (ObjectP (nounTy n) z (mkStamp p (Just Battlefield)
-                                              (not (z == Just Battlefield)))
-                       Nothing Nothing)
-      :: bs
-  moveIntro p (AsMarker _ This) z =
-    MkBinding SelfD Object OneOf
-              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (AsMarker _ n) z =
-    MkBinding TheD Object OneOf
-              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
-      :: bs
-  moveIntro p (TheGrantor m) z =
-    MkBinding TheD Object OneOf
-              (ObjectP Nothing z (mkStamp p (grantorOrigin m) (not (z == Just (markerZone m))))
-                       Nothing Nothing)
-      :: bs
-  moveIntro p You z = bs
-  moveIntro p TheDefendingPlayer z = bs
-  moveIntro p TheAttackingPlayer z = bs
-  moveIntro p (PlayerGroup _) z = bs
-  moveIntro p (PossessorOf ax n) z = nomIntro (PossessorOf ax n)
-  moveIntro p (Designated d n) z = bs
+public export
+deedNounOk : {bs : Bindings} -> {k : Kind} ->
+             VerbLabel -> Role -> Noun bs k -> Bool
+deedNounOk v r n = case nounHeadTys n of
+  [] => isNothing (nounDet n) && deedBareOk v r
+  ts => deedHeadTysOk v r ts
 
-  public export
-  nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
-  nounProv (TheRest k _) = provOfGroup k bs
-  nounProv (Pro r pl w) = provOfReach r pl (view w bs)
-  nounProv (EachOf grp) = nounProv grp
-  nounProv (NamesAgree _ grp) = nounProv grp
-  nounProv (SomeOf _ _ grp) = nounProv grp
-  nounProv _ = Nothing
+public export
+featureNounOk : {bs : Bindings} -> {k : Kind} ->
+                DeedFeature -> Role -> Noun bs k -> Bool
+featureNounOk f r n = maybe False (\v => deedNounOk v r n) (featureLabel f)
 
-  public export
-  nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
-  nounZone This = Nothing
-  nounZone (AsType t n _) = Just Battlefield
-  nounZone (ResolvedPermanent _) = Just Battlefield
-  nounZone (AsMarker m _) = Just (markerZone m)
-  nounZone (TheGrantor m) = Just (markerZone m)
-  nounZone TheDefendingPlayer = Nothing
-  nounZone TheAttackingPlayer = Nothing
-  nounZone You = Nothing
-  nounZone (PlayerGroup _) = Nothing
-  nounZone (Described _ p) = phraseZone p
-  nounZone (EachOf grp) = nounZone grp
-  nounZone (NamesAgree _ grp) = nounZone grp
-  nounZone (Both l r) = if nounZone l == nounZone r then nounZone l else Nothing
-  nounZone (EitherOf _ _) = Nothing
-  nounZone (LibrarySlice _ _ _) = Just Library
-  nounZone (SomeOf _ _ grp) = nounZone grp
-  nounZone (TheRest k _) = zoneOfGroup k bs
-  nounZone (PileOf _ _) = zoneOfReach (Word PileW) ManyOf bs
-  nounZone (Pro r pl w) = zoneOfReach r pl (view w bs)
-  nounZone (AttachHost _ h) = attachHostZone h
-  nounZone (PossessorOf _ n) = Nothing
-  nounZone (Designated _ _) = Nothing
-  nounZone (OneEachOf _ pool) = nounZone pool
+||| A plural possessor must distribute over players [CR#102.1].
+public export
+partPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+partPossessorOk Nothing = True
+partPossessorOk (Just n) = isOne (nounPlur n) || nounDet n == Just EachD
 
-  ||| Whether the noun names an ability on the stack [CR#113.1c] -- read off
-  ||| the description and the reading word, never the antecedent stack, so it
-  ||| reduces where the bindings are still abstract.
-  public export
-  nounIsAbility : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  nounIsAbility (Described _ p) = seedsAbility p
-  nounIsAbility (Pro (Word AbilityW) _ _) = True
-  nounIsAbility (Pro (Word AbilityCopyW) _ _) = True
-  nounIsAbility (EachOf grp) = nounIsAbility grp
-  nounIsAbility (NamesAgree _ grp) = nounIsAbility grp
-  nounIsAbility (ResolvedPermanent n) = nounIsAbility n
-  nounIsAbility (AsMarker _ n) = nounIsAbility n
-  nounIsAbility (SomeOf _ _ grp) = nounIsAbility grp
-  nounIsAbility _ = False
+public export
+windowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Bool
+windowOk Turn Nothing = False
+windowOk _ w = partPossessorOk w
 
-  public export
-  nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
-  nounTy This = Nothing
-  nounTy (AsType t n _) = Just t
-  nounTy (ResolvedPermanent n) = nounTy n
-  nounTy (AsMarker _ n) = nounTy n
-  nounTy (TheGrantor _) = Nothing
-  nounTy TheDefendingPlayer = Nothing
-  nounTy TheAttackingPlayer = Nothing
-  nounTy You = Nothing
-  nounTy (PlayerGroup _) = Nothing
-  nounTy (Described _ p) = seedTy p
-  nounTy (EachOf grp) = nounTy grp
-  nounTy (NamesAgree _ grp) = nounTy grp
-  nounTy (Both l r) = if nounTy l == nounTy r then nounTy l else Nothing
-  nounTy (EitherOf _ _) = Nothing
-  nounTy (LibrarySlice _ _ _) = Nothing
-  nounTy (SomeOf _ d grp) = sliceTy d grp
-  nounTy (TheRest k _) = tyOfGroup k bs
-  nounTy (PileOf _ _) = Nothing
-  nounTy (Pro r pl w) = tyOfReach r pl (view w bs)
-  nounTy (AttachHost _ h) = attachHostTy h
-  nounTy (PossessorOf _ n) = Nothing
-  nounTy (Designated _ _) = Nothing
-  nounTy (OneEachOf _ pool) = nounTy pool
+public export
+WindowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Type
+WindowOk p w = So (windowOk p w)
 
-  public export
-  nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List (List CardType)
-  nounHeadTys (Described _ p) = headTyAlts p
-  nounHeadTys (EachOf grp) = nounHeadTys grp
-  nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
-  nounHeadTys (ResolvedPermanent n) = nounHeadTys n
-  nounHeadTys (AsMarker _ n) = nounHeadTys n
-  nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
-  nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
-  nounHeadTys (OneEachOf _ pool) = nounHeadTys pool
-  nounHeadTys n = soleAlt (optCT (nounTy n))
+public export
+pointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+pointWindowOk w = partPossessorOk w
 
-  public export
-  deedNounOk : {bs : Bindings} -> {k : Kind} ->
-               VerbLabel -> Role -> Noun bs k -> Bool
-  deedNounOk v r n = case nounHeadTys n of
-    [] => isNothing (nounDet n) && deedBareOk v r
-    ts => deedHeadTysOk v r ts
+public export
+PointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+PointWindowOk w = So (pointWindowOk w)
 
-  public export
-  featureNounOk : {bs : Bindings} -> {k : Kind} ->
-                  DeedFeature -> Role -> Noun bs k -> Bool
-  featureNounOk f r n = maybe False (\v => deedNounOk v r n) (featureLabel f)
+||| A duration's possessor must be a single definite player.
+public export
+durationPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
+durationPossessorOk Nothing = True
+durationPossessorOk (Just n) =
+  isOne (nounPlur n) && maybe True (== TheD) (nounDet n)
 
-  public export
-  nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k
-  nounTys (Described _ p) = seedTys p
-  nounTys (EachOf grp) = nounTys grp
-  nounTys (NamesAgree _ grp) = nounTys grp
-  nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
-  nounTys n@(Both l r {jk = JoinSame}) = SoleTy (nounTy n)
-  nounTys (Both l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
-  nounTys n@(EitherOf l r {jk = JoinSame}) = SoleTy (nounTy n)
-  nounTys (EitherOf l r {jk = JoinDiff}) = JoinTy (nounTys l) (nounTys r)
-  nounTys n = SoleTy (nounTy n)
+public export
+DurationPossessor : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
+DurationPossessor w = So (durationPossessorOk w)
 
-  public export
-  nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
-  nounPlur This = OneOf
-  nounPlur (AsType t n _) = nounPlur n
-  nounPlur (ResolvedPermanent n) = nounPlur n
-  nounPlur (AsMarker _ n) = nounPlur n
-  nounPlur (TheGrantor _) = OneOf
-  nounPlur TheDefendingPlayer = OneOf
-  nounPlur TheAttackingPlayer = OneOf
-  nounPlur You = OneOf
-  nounPlur (PlayerGroup _) = ManyOf
-  nounPlur (Described d _) = detPlur d
-  nounPlur (EachOf grp) = ManyOf
-  nounPlur (NamesAgree _ grp) = nounPlur grp
-  nounPlur (Both _ _) = ManyOf
-  nounPlur (EitherOf l r) =
-    if samePlur (nounPlur l) (nounPlur r) then nounPlur l else ManyOf
-  nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
-  nounPlur (SomeOf q _ _) = slicePlur q
-  nounPlur (TheRest _ pl) = pl
-  nounPlur (PileOf q _) = slicePlur q
-  nounPlur (Pro _ pl _) = pl
-  nounPlur (AttachHost _ _) = OneOf
-  nounPlur (PossessorOf _ n) = nounPlur n
-  nounPlur (Designated _ _) = OneOf
-  nounPlur (OneEachOf _ _) = ManyOf
-
-  ||| A plural possessor must distribute over players [CR#102.1].
-  public export
-  partPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
-  partPossessorOk Nothing = True
-  partPossessorOk (Just n) = isOne (nounPlur n) || nounDet n == Just EachD
-
-  public export
-  windowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Bool
-  windowOk Turn Nothing = False
-  windowOk _ w = partPossessorOk w
-
-  public export
-  WindowOk : {bs : Bindings} -> TurnPart -> Maybe (Noun bs Player) -> Type
-  WindowOk p w = So (windowOk p w)
-
-  public export
-  pointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
-  pointWindowOk w = partPossessorOk w
-
-  public export
-  PointWindowOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
-  PointWindowOk w = So (pointWindowOk w)
-
-  ||| A duration's possessor must be a single definite player.
-  public export
-  durationPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool
-  durationPossessorOk Nothing = True
-  durationPossessorOk (Just n) =
-    isOne (nounPlur n) && maybe True (== TheD) (nounDet n)
-
-  public export
-  DurationPossessor : {bs : Bindings} -> Maybe (Noun bs Player) -> Type
-  DurationPossessor w = So (durationPossessorOk w)
-
-  public export
-  data DurationEnd : Bindings -> Type where
-    StartOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
-              {auto 0 dp : DurationPossessor w} -> DurationEnd bs
-    EndOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
+public export
+data DurationEnd : Bindings -> Type where
+  StartOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
             {auto 0 dp : DurationPossessor w} -> DurationEnd bs
+  EndOf : TurnPart -> (w : Maybe (Noun bs Player)) ->
+          {auto 0 dp : DurationPossessor w} -> DurationEnd bs

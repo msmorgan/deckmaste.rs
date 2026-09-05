@@ -34,7 +34,6 @@ asThoughSort (AsThoughOf _) = ObjectPremise
 asThoughSort (AsThoughMana _ _ _) = ManaPremise
 asThoughSort (AsThoughGreater _ _) = ValuePremise
 
-
 public export
 twoPartiesOk : {bs : Bindings} -> Noun bs Player -> Bool
 twoPartiesOk (Both l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
@@ -42,7 +41,6 @@ twoPartiesOk (Both l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
   _ => False
 twoPartiesOk (Described d _) = (detQuant d >>= quantExact) == Just 2
 twoPartiesOk _ = False
-
 
 public export
 controlExchangeZone : Maybe Zone -> Bool
@@ -92,7 +90,6 @@ exchangedCostOk (LifeTotals parties) = costNounOk parties
 exchangedCostOk (ControlOf a b) = costNounOk a && costNounOk b
 exchangedCostOk (CardsAcross a b) = costNounOk a && costNounOk b
 exchangedCostOk (Zones _ _) = True
-
 
 public export
 data TokenQuality : Bindings -> Type where
@@ -183,7 +180,6 @@ kindSourceIntro : {bs : Bindings} -> CounterKindSource bs -> Bindings
 kindSourceIntro (SameAs src) = nomIntro src
 kindSourceIntro _ = bs
 
-
 public export
 record InstrProfile (bs : Bindings) where
   constructor MkInstrProfile
@@ -191,6 +187,547 @@ record InstrProfile (bs : Bindings) where
   announced : Bindings
   rider : Maybe Bindings
   deed : List Binding
+
+public export
+ptWritten : {0 bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) -> Bool
+ptWritten Nothing = False
+ptWritten (Just _) = True
+
+public export
+someWritten : {0 a : Type} -> List a -> Bool
+someWritten [] = False
+someWritten (_ :: _) = True
+
+public export
+data QualityOp = Adds | Sets | Loses
+
+public export
+colorOpOk : QualityOp -> ColorSpec -> Bool
+colorOpOk Sets _ = True
+colorOpOk _ (SomeColors []) = False
+colorOpOk _ _ = True
+
+public export
+ptDelta : {bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) ->
+          List Binding
+ptDelta Nothing = []
+ptDelta (Just (p ** t)) = amtDelta t ++ amtDelta p
+
+public export
+modifyStatOk : Stat -> Bool
+modifyStatOk Power = True
+modifyStatOk Toughness = True
+modifyStatOk ManaValue = False
+modifyStatOk Loyalty = False
+
+public export
+ModifyStat : Stat -> Type
+ModifyStat st = So (modifyStatOk st)
+
+-- A set value applies a sublayer earlier than a modification [CR#613.4b].
+
+public export
+deltaKind : {0 bs : Bindings} -> Delta (Amount bs) -> StaticKind
+deltaKind (Set _) = BasePtSet
+deltaKind _ = PtDelta
+
+public export
+writtenZero : {0 bs : Bindings} -> Amount bs -> Bool
+writtenZero (Lit Z) = True
+writtenZero _ = False
+
+public export
+data CostShift : Bindings -> Type where
+  CostLess : (amt : Amount bs) -> (floor : Maybe (Amount bs)) -> CostShift bs
+  CostMore : (amt : Amount bs) -> CostShift bs
+  CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
+                 (coloredOnly : Bool) ->
+                 {auto 0 wr : ManaRun run} -> CostShift bs
+
+public export
+costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
+costShiftDelta (CostLess a _) = amtDelta a
+costShiftDelta (CostMore a) = amtDelta a
+costShiftDelta (CostShiftRun _ _ _) = []
+
+public export
+gatePayer : Binding
+gatePayer = MkBinding TheD Player OneOf (PlayerP False)
+
+public export
+data CountBound : Bindings -> Type where
+  MoreThan : (k : Amount bs) -> CountBound bs
+  Additional : (q : Quantity bs) ->
+               {auto 0 nz : NonZeroQ q} ->
+               {auto 0 wf : WellFormedQ q} -> CountBound bs
+
+public export
+boundDelta : {bs : Bindings} -> CountBound bs -> List Binding
+boundDelta (MoreThan k) = amtDelta k
+boundDelta (Additional q) = quantDelta q
+
+public export
+deonticBoundOk : {bs : Bindings} -> Deeds -> Maybe (CountBound bs) -> Bool
+deonticBoundOk _ Nothing = True
+deonticBoundOk ds (Just b) = all deedBoundedOk ds && isNil (boundDelta b)
+
+public export
+data DeedComplement : Bindings -> Type where
+  MkDeedComplement : {k : Kind} -> (d : VerbLabel) -> (m : Noun bs k) ->
+                     DeedComplement bs
+
+public export
+data DeonticPatient : {0 bs : Bindings} -> Deeds -> Role -> Type where
+  NoDeonticPatient : DeonticPatient {bs} ds r
+  DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
+                    {auto 0 at : Attackable m} ->
+                    DeonticPatient {bs} ds r
+  DeonticCounterpart : {k : Kind} -> (m : Noun bs k) ->
+                       DeonticPatient {bs} ds r
+  TargetedBy : {k : Kind} -> (m : Noun bs k) ->
+               {auto 0 tr : Targeter k} ->
+               DeonticPatient {bs} ds r
+  CounterpartsAt : (cs : List (DeedComplement bs)) ->
+                   {auto 0 ne : NonEmpty cs} ->
+                   DeonticPatient {bs} ds r
+
+public export
+complementDeed : {0 bs : Bindings} -> DeedComplement bs -> VerbLabel
+complementDeed (MkDeedComplement d _) = d
+
+public export
+deonticPatientIntro : {bs : Bindings} -> {0 ds : Deeds} -> {0 r : Role} ->
+                      DeonticPatient {bs} ds r -> Bindings
+deonticPatientIntro NoDeonticPatient = bs
+deonticPatientIntro (DefendingPlayer m) = nomIntro m
+deonticPatientIntro (DeonticCounterpart m) = nomIntro m
+deonticPatientIntro (TargetedBy m) = nomIntro m
+deonticPatientIntro (CounterpartsAt cs) = bs
+
+public export
+agentRole : Role -> Bool
+agentRole Agent = True
+agentRole Patient = False
+
+public export
+counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
+                  Noun bs k -> Bool -> Bool
+counterpartFits {k} ds r m moved =
+  deedFits ds r k (nounIsAbility m) (nounHeadTys m)
+           (if moved then Nothing else nounZone m)
+
+public export
+counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
+                     (n : Noun bs k) -> Noun (nomIntro n) ka -> Bool
+counterpartNotSelf n (Pro r pl Whole) =
+  not (reachTracksObject r) || countReach r pl (nounDelta n) == 0
+counterpartNotSelf n _ = True
+
+public export
+complementAtOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
+                 (ds : Deeds) -> (r : Role) ->
+                 DeedComplement (nomIntro n) -> Bool
+complementAtOk n ds r (MkDeedComplement d m) =
+  elem d ds && counterpartFits [d] (counterRole r) m False &&
+  counterpartNotSelf n m
+
+public export
+data DamageScope : Bindings -> Type where
+  Everywhere : DamageScope bs
+  ToRecipient : {k : Kind} -> (n : Noun bs k) ->
+                {auto 0 rk : DamageRecipient n} -> DamageScope bs
+
+public export
+scopeIntro : {bs : Bindings} -> DamageScope bs -> Bindings
+scopeIntro Everywhere = bs
+scopeIntro (ToRecipient n) = nomIntro n
+
+public export
+data DamageAgent : Bindings -> Type where
+  Unattributed : DamageAgent bs
+  DealtBy : (n : Noun bs Object) -> DamageAgent bs
+
+public export
+agentIntro : {bs : Bindings} -> DamageAgent bs -> Bindings
+agentIntro Unattributed = bs
+agentIntro (DealtBy n) = nomIntro n
+
+public export
+data Unpreventable : Bindings -> Type where
+  DamageDescribed : (src : DamageAgent bs) ->
+                    (scope : DamageScope (agentIntro src)) ->
+                    Unpreventable bs
+  ThatDamage : {auto 0 ok : So (damageDealtInScope bs)} -> Unpreventable bs
+
+public export
+unpreventableIntro : {bs : Bindings} -> Unpreventable bs -> Bindings
+unpreventableIntro (DamageDescribed src scope) = scopeIntro scope
+unpreventableIntro ThatDamage = bs
+
+public export
+data PreventionBan = NoPreventionOnly | NoRedirectEither
+
+public export
+data PreventCut : Bindings -> Type where
+  CutAll : PreventCut bs
+  CutSome : (amt : Amount bs) -> PreventCut bs
+  Shield : (amt : Amount bs) -> PreventCut bs
+  CutAllBut : (amt : Amount bs) -> PreventCut bs
+  CutHalf : (r : RoundMode) -> PreventCut bs
+
+public export
+cutIntro : {bs : Bindings} -> PreventCut bs -> Bindings
+cutIntro CutAll = bs
+cutIntro (CutSome amt) = amtIntro amt
+cutIntro (Shield amt) = amtIntro amt
+cutIntro (CutAllBut amt) = amtIntro amt
+cutIntro (CutHalf _) = bs
+
+-- [CR#615.7] A shield counts damage across events until its amount is spent.
+
+public export
+shieldUseOk : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Bool
+shieldUseOk (Shield _) Repeatedly = True
+shieldUseOk (Shield _) NextTimeOnly = False
+shieldUseOk _ _ = True
+
+public export
+ShieldUse : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Type
+ShieldUse cut use = So (shieldUseOk cut use)
+
+public export
+data DamageScale : Bindings -> Type where
+  Multiplied : (f : ScaleFactor) -> DamageScale bs
+  Halved : (r : RoundMode) -> DamageScale bs
+  Shifted : (d : ShiftDir) -> (amt : Amount bs) ->
+            DamageScale bs
+
+public export
+scaleIntro : {bs : Bindings} -> DamageScale bs -> Bindings
+scaleIntro (Multiplied _) = bs
+scaleIntro (Halved _) = bs
+scaleIntro (Shifted _ amt) = amtIntro amt
+
+public export
+data DividedVerb : Bindings -> Type where
+  DividedDamage : (src : Noun bs Object) -> DividedVerb bs
+  DistributedCounters : (kind : CounterKind) -> DividedVerb bs
+
+public export
+divIntro : {bs : Bindings} -> DividedVerb bs -> Bindings
+divIntro (DividedDamage src) = nomIntro src
+divIntro (DistributedCounters _) = bs
+
+public export
+data DivTag = DivDamage | DivCounters
+
+public export
+divTag : {0 bs : Bindings} -> DividedVerb bs -> DivTag
+divTag (DividedDamage _) = DivDamage
+divTag (DistributedCounters _) = DivCounters
+
+public export
+data DividedTakes : DivTag -> Noun bs k -> Type where
+  DamageDivided : {auto 0 rk : DamageRecipient n} -> DividedTakes DivDamage n
+  CountersDistributed : DividedTakes DivCounters {k = Object} n
+
+public export
+data CtrlOverrideOk : {0 bs : Bindings} -> Noun bs Player -> Type where
+  OneController : {0 n : Noun bs Player} ->
+                  {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk n
+  PerMemberController : {0 bs : Bindings} -> {0 ax : PossessorAxis} ->
+                        {0 grp : Noun bs Object} ->
+                        {0 ck : So (possessorKind ax Object)} ->
+                        CtrlOverrideOk (PossessorOf ax grp {ck})
+
+public export
+forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
+forEachAmount (TimesOf _ _) = True
+forEachAmount _ = False
+
+public export
+ForEachAmount : Amount bs -> Type
+ForEachAmount {bs} a = So (forEachAmount a)
+
+public export
+data ProducedMana : Bindings -> Type where
+  Runs : (rs : List ProducedRun) ->
+         {auto 0 ok : ProducedRuns rs} -> ProducedMana bs
+  AnyColor : ColorFreedom -> ProducedMana bs
+  OfChosenColor : (alt : Maybe ProducedRun) ->
+                  {auto 0 cq : countChoice (QSort Color) bs = 1} ->
+                  {auto 0 rd : ChosenQualityRead Color} -> ProducedMana bs
+  AsPrintedCost : (n : Noun bs Object) ->
+                  {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
+  ProducedByEvent : (n : Noun bs Object) ->
+                    {auto 0 one : nounPlur n = OneOf} ->
+                    {auto 0 pm : countOutcomes ManaProduced bs = 1} ->
+                    ProducedMana bs
+  CouldProduce : (n : Noun bs Object) -> ProducedMana bs
+  AmongColorsOf : (n : Noun bs Object) -> ProducedMana bs
+  AmongWritten : (cs : List Color) ->
+                 {auto 0 tw : So (colorCountOk (length cs))} ->
+                 ProducedMana bs
+  LastNotedMana : (n : Noun bs Object) ->
+                  {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
+
+public export
+data SpentMode = AffectsIt | TriggersThen
+
+public export
+data Repetition : Bindings -> Type where
+  Again : Repetition bs
+  MoreTimes : (n : Amount bs) ->
+              Repetition bs
+  AnyNumber : Repetition bs
+  UntilCond : (c : Condition bs) -> Repetition bs
+  AgainExcludingChosen : Repetition bs
+
+public export
+data EncloseUse
+  = ||| No PLAYER takes the action, so "you do" has no subject to
+    EncAgentless
+  | ||| No single taken action for the pro-verb to abbreviate.
+    EncNotOneAction
+  | ||| The clause schedules its action rather than taking it, so
+    EncNotYetTaken
+  | ||| A player's own single action.
+    EncReflexive
+
+public export
+admitsReflexEnclosure : EncloseUse -> Bool
+admitsReflexEnclosure EncAgentless = False
+admitsReflexEnclosure EncNotOneAction = False
+admitsReflexEnclosure EncNotYetTaken = False
+admitsReflexEnclosure EncReflexive = True
+
+public export
+KeepsOuterOf : (outer : Bindings) -> (out : Bindings) -> Type
+KeepsOuterOf outer out =
+  out = take (length out `minus` length outer) out ++ outer
+
+||| A distributive deed either only adds to the agent stack, or closes the
+||| partitives its own agents' choices published — "each player … sacrifices
+||| the rest" [CR#700.8d] — which spends nothing the table shares
+||| [CR#701.21a].
+public export
+data EachStackOk : (outer : Bindings) -> (out : Bindings) -> Type where
+  EachOnlyAdds : {auto 0 ko : KeepsOuterOf outer out} -> EachStackOk outer out
+  EachClosesOwnParts : {auto 0 ds : So (partsDistributed outer)} ->
+                       {auto 0 cp : out = partsClosed outer} ->
+                       EachStackOk outer out
+
+public export
+KeepsOuterEach : Plurality -> (outer : Bindings) -> (out : Bindings) -> Type
+KeepsOuterEach OneOf outer out = ()
+KeepsOuterEach ManyOf outer out = EachStackOk outer out
+
+||| An enacted act names a subject only where the act's facts row gives its
+||| agent role a player, the way `verbedVoiceOk` gates a verbed event.
+public export
+enactAgentOk : {0 bs : Bindings} -> Maybe (Noun bs Player) -> VerbLabel -> Bool
+enactAgentOk Nothing v = True
+enactAgentOk (Just _) v = deedKindOk v Agent Player
+
+public export
+profileIntro : InstrProfile bs -> Bindings
+profileIntro p = deed p ++ announced p
+
+public export
+profileRider : InstrProfile bs -> Bindings
+profileRider p = fromMaybe (pre p) (rider p)
+
+||| The last clause of a sequence publishes its deed with what it announced.
+public export
+lastProfile : InstrProfile as -> InstrProfile bs
+lastProfile p = MkInstrProfile (pre p) (profileIntro p) (rider p) []
+
+||| A simultaneous batch announces every clause's deed at once; its trailing
+||| condition reads the last clause's own pre-stack.
+public export
+simCons : List Binding -> InstrProfile as -> InstrProfile bs
+simCons d p = MkInstrProfile (pre p) (d ++ announced p) Nothing []
+
+||| An offer announces what its body announced; its deed stays a deed, so a
+||| simultaneous clause cannot read a thing that may not have happened.
+public export
+offerProfile : InstrProfile as -> InstrProfile bs
+offerProfile p = MkInstrProfile (profileIntro p) (announced p) Nothing (deed p)
+
+public export
+simLast : InstrProfile as -> InstrProfile bs
+simLast p = MkInstrProfile (pre p) (profileIntro p) Nothing []
+
+public export
+distributedDelta : {bs : Bindings} -> (s : Noun bs Player) -> Bindings -> List Binding
+distributedDelta s out =
+  pluralizeDelta (take (length out `minus` length (agentIntro s)) out)
+
+||| A profile's fields never mention its index, so the agent's own profile is
+||| the enacting clause's.
+public export
+reProfile : InstrProfile as -> InstrProfile bs
+reProfile p = MkInstrProfile (pre p) (announced p) (rider p) (deed p)
+
+public export
+sameIntro : Bindings -> List Binding -> InstrProfile bs
+sameIntro b d = MkInstrProfile b b Nothing d
+
+public export
+mayCtx : {bs : Bindings} -> Noun bs Player -> Bindings
+mayCtx d = agentIntro d
+
+public export
+deckAxis : ProjAxis -> Bool
+deckAxis (StatAxis ManaValue) = True
+deckAxis _ = False
+
+public export
+deckAxes : List ProjAxis -> Bool
+deckAxes [] = True
+deckAxes (a :: as) = deckAxis a && deckAxes as
+
+public export
+deckBound : Amount [] -> Bool
+deckBound (Lit _) = True
+deckBound _ = False
+
+mutual
+  ||| A card set aside for the starting deck is outside the game
+  ||| [CR#103.2b], so only its characteristics are readable [CR#109.3]: a
+  ||| zone is a place objects are during a game [CR#400.1], and status,
+  ||| counters and controller are not characteristics.
+  public export
+  deckReadable : Predicate [] Object -> Bool
+  deckReadable IsCard = True
+  deckReadable Permanent = True
+  deckReadable (HasType _) = True
+  deckReadable (HasSubtype _) = True
+  deckReadable (Compare axes _ bound) = deckAxes axes && deckBound bound
+  deckReadable (And ps) = deckReadableAll ps
+  deckReadable (Not p) = deckReadable p
+  deckReadable _ = False
+
+  public export
+  deckReadableAll : List (Predicate [] Object) -> Bool
+  deckReadableAll [] = True
+  deckReadableAll (p :: ps) = deckReadable p && deckReadableAll ps
+
+||| A characteristic read of a card in the starting deck [CR#109.3].
+public export
+data DeckReadable : Predicate [] Object -> Type where
+  ReadsCharacteristics : {0 p : Predicate [] Object} ->
+                         {auto 0 ok : deckReadable p = True} ->
+                         DeckReadable p
+
+public export
+||| The characteristics [CR#109.3] a deck condition compares; a number and
+||| a counter kind are not characteristics.
+deckComparable : QualitySort -> Bool
+deckComparable Color = True
+deckComparable (SubtypeQ _) = True
+deckComparable CardName = True
+deckComparable CardTypeQ = True
+deckComparable Number = False
+deckComparable CounterKindQ = False
+
+||| A characteristic a deck condition compares across the deck's cards
+||| [CR#109.3].
+public export
+data DeckComparable : QualitySort -> Type where
+  ComparesCharacteristic : {0 q : QualitySort} ->
+                           {auto 0 ok : deckComparable q = True} ->
+                           DeckComparable q
+
+public export
+data ManaParity = EvenValue | OddValue
+
+||| One card's side of a deck condition: a characteristic read
+||| [CR#109.3], or a reading a printed companion names that the
+||| characteristic vocabulary does not carry.
+public export
+data DeckTrait : Type where
+  ACharacteristic : (p : Predicate [] Object) ->
+                    {auto 0 dr : DeckReadable p} -> DeckTrait
+  ||| "cards with even mana values" [CR#202.3]
+  ManaValueParity : (par : ManaParity) -> DeckTrait
+  ||| "more than one of the same mana symbol in its mana cost"
+  RepeatedManaSymbol : DeckTrait
+  ||| "has an activated ability"
+  HasAbilityOf : (cls : AbilityClass) -> DeckTrait
+  ||| "... and land cards"
+  AnyTraitOf : (ts : List DeckTrait) ->
+               {auto 0 ne : NonEmpty ts} -> DeckTrait
+
+||| Companion's restriction, fulfilled by the deck left after sideboarding
+||| and checked before the game begins [CR#702.139a,702.139b,103.2b].
+public export
+data DeckCondition : Type where
+  ||| "Each permanent card in your starting deck has mana value 2 or less."
+  EveryCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
+                {auto 0 dr : DeckReadable scope} -> DeckCondition
+  ||| "No card in your starting deck has more than one of the same mana
+  ||| symbol in its mana cost."
+  NoCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
+             {auto 0 dr : DeckReadable scope} -> DeckCondition
+  ||| "Each nonland card in your starting deck has a different name."
+  CardsDiffer : (scope : Predicate [] Object) -> (ax : QualitySort) ->
+                {auto 0 dr : DeckReadable scope} ->
+                {auto 0 dc : DeckComparable ax} -> DeckCondition
+  ||| "Each nonland card in your starting deck shares a card type."
+  CardsShare : (scope : Predicate [] Object) -> (ax : QualitySort) ->
+               {auto 0 dr : DeckReadable scope} ->
+               {auto 0 dc : DeckComparable ax} -> DeckCondition
+  ||| "at least twenty cards more than the minimum deck size", a minimum
+  ||| the format sets [CR#100.2a,100.2b].
+  DeckSizeOverMinimum : (extra : Nat) -> DeckCondition
+
+public export
+bodyEventRegime : {0 bs : Bindings} -> GameEvent bs -> Maybe StackRegime
+bodyEventRegime ev = case eventName ev of
+  SpellCast => Just AtCasting
+  _ => Nothing
+
+public export
+allTermsBare : List KeywordTerm -> Bool
+allTermsBare [] = True
+allTermsBare (k :: ks) = keywordTermBare k && allTermsBare ks
+
+public export
+distinctTerms : List KeywordTerm -> Bool
+distinctTerms [] = True
+distinctTerms (k :: ks) = not (elem k ks) && distinctTerms ks
+
+mutual
+  public export
+  predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
+               Predicate bs k -> Maybe StackRegime
+  predRegime (CastBy _ _) = Just AtCasting
+  predRegime (CastFrom _) = Just AtCasting
+  predRegime WasCast = Just AtCasting
+  predRegime (HasPossessor ControllerAx _) = Just AtResolution
+  predRegime (And ps) = predRegimeAll ps
+  predRegime (Or ps) = predRegimeAll ps
+  predRegime _ = Nothing
+
+  public export
+  predRegimeAll : {0 bs : Bindings} -> {0 k : Kind} ->
+                  List (Predicate bs k) -> Maybe StackRegime
+  predRegimeAll [] = Nothing
+  predRegimeAll (p :: ps) = case predRegime p of
+    Just r => Just r
+    Nothing => predRegimeAll ps
+
+public export
+nounRegime : {bs : Bindings} -> Noun bs Object -> Maybe StackRegime
+nounRegime (Described _ p) = predRegime p
+nounRegime (NamesAgree _ grp) = nounRegime grp
+nounRegime _ = Nothing
+
+public export
+regimeMatches : Maybe StackRegime -> Maybe StackRegime -> Bool
+regimeMatches (Just a) (Just b) = a == b
+regimeMatches _ _ = False
 
 mutual
   public export
@@ -213,11 +750,6 @@ mutual
   tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys)
 
   public export
-  ptWritten : {0 bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) -> Bool
-  ptWritten Nothing = False
-  ptWritten (Just _) = True
-
-  public export
   tokenPtOk : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenPtOk t = not (elem Creature t.line.tys) || ptWritten t.pt
 
@@ -233,14 +765,6 @@ mutual
   public export
   AdditionUnnamed : TokenChars bs -> Type
   AdditionUnnamed {bs} t = So (additionUnnamed t)
-
-  public export
-  someWritten : {0 a : Type} -> List a -> Bool
-  someWritten [] = False
-  someWritten (_ :: _) = True
-
-  public export
-  data QualityOp = Adds | Sets | Loses
 
   public export
   data QualityPayload : Bindings -> Type where
@@ -272,12 +796,6 @@ mutual
       && isNothing ret
 
   public export
-  colorOpOk : QualityOp -> ColorSpec -> Bool
-  colorOpOk Sets _ = True
-  colorOpOk _ (SomeColors []) = False
-  colorOpOk _ _ = True
-
-  public export
   becomesOk : {bs : Bindings} -> QualityOp -> Noun bs Object -> QualityPayload bs -> Bool
   becomesOk op n (Bundle t ret) = bundleOk op (nounTy n) (nounZone n) t ret
   becomesOk op n (EveryTypeOf space) =
@@ -288,14 +806,6 @@ mutual
   public export
   BecomesOk : {bs : Bindings} -> QualityOp -> Noun bs Object -> QualityPayload bs -> Type
   BecomesOk op n q = So (becomesOk op n q)
-
-  public export
-  becomesKind : {0 bs : Bindings} -> QualityOp -> QualityPayload bs -> StaticKind
-  becomesKind _ (Colored _) = ColorSet
-  becomesKind Adds _ = TypeAddition
-  becomesKind Sets _ = TypeSet
-  becomesKind Loses _ = TypeLoss
-
 
   public export
   tokenHeadTy : {0 bs : Bindings} -> TokenChars bs -> Maybe CardType
@@ -324,12 +834,6 @@ mutual
   specHeadTy (TokenCopyOf src _) = nounTy src
 
   public export
-  ptDelta : {bs : Bindings} -> Maybe (p : Amount bs ** Amount (amtIntro p)) ->
-            List Binding
-  ptDelta Nothing = []
-  ptDelta (Just (p ** t)) = amtDelta t ++ amtDelta p
-
-  public export
   specDelta : {bs : Bindings} -> TokenSpec bs -> List Binding
   specDelta (TokenWritten t) = ptDelta t.pt
   specDelta TokenAsThose = []
@@ -337,41 +841,6 @@ mutual
 
   -- Layer 7 modifies power and toughness [CR#613.4c]; loyalty is counters
   -- [CR#306.5c] and mana value is read off the mana cost [CR#202.3].
-  public export
-  modifyStatOk : Stat -> Bool
-  modifyStatOk Power = True
-  modifyStatOk Toughness = True
-  modifyStatOk ManaValue = False
-  modifyStatOk Loyalty = False
-
-  public export
-  ModifyStat : Stat -> Type
-  ModifyStat st = So (modifyStatOk st)
-
-  -- A set value applies a sublayer earlier than a modification [CR#613.4b].
-  public export
-  deltaKind : {0 bs : Bindings} -> Delta (Amount bs) -> StaticKind
-  deltaKind (Set _) = BasePtSet
-  deltaKind _ = PtDelta
-
-  public export
-  writtenZero : {0 bs : Bindings} -> Amount bs -> Bool
-  writtenZero (Lit Z) = True
-  writtenZero _ = False
-
-  public export
-  data CostShift : Bindings -> Type where
-    CostLess : (amt : Amount bs) -> (floor : Maybe (Amount bs)) -> CostShift bs
-    CostMore : (amt : Amount bs) -> CostShift bs
-    CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
-                   (coloredOnly : Bool) ->
-                   {auto 0 wr : ManaRun run} -> CostShift bs
-
-  public export
-  costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
-  costShiftDelta (CostLess a _) = amtDelta a
-  costShiftDelta (CostMore a) = amtDelta a
-  costShiftDelta (CostShiftRun _ _ _) = []
 
   namespace Static
     public export
@@ -502,65 +971,11 @@ mutual
                 {auto 0 ne : IsSucc n} -> StaticSpec bs
 
   public export
-  gatePayer : Binding
-  gatePayer = MkBinding TheD Player OneOf (PlayerP False)
-
-  public export
   data Compulsion : Bindings -> Type where
     Forbid : Compulsion bs
     Require : Compulsion bs
     GatedBy : (c : Cost (Effect.gatePayer :: bs)) -> Compulsion bs
     Permit : Compulsion bs
-
-  public export
-  data CountBound : Bindings -> Type where
-    MoreThan : (k : Amount bs) -> CountBound bs
-    Additional : (q : Quantity bs) ->
-                 {auto 0 nz : NonZeroQ q} ->
-                 {auto 0 wf : WellFormedQ q} -> CountBound bs
-
-  public export
-  boundDelta : {bs : Bindings} -> CountBound bs -> List Binding
-  boundDelta (MoreThan k) = amtDelta k
-  boundDelta (Additional q) = quantDelta q
-
-  public export
-  deonticBoundOk : {bs : Bindings} -> Deeds -> Maybe (CountBound bs) -> Bool
-  deonticBoundOk _ Nothing = True
-  deonticBoundOk ds (Just b) = all deedBoundedOk ds && isNil (boundDelta b)
-
-  public export
-  data DeonticPatient : {0 bs : Bindings} -> Deeds -> Role -> Type where
-    NoDeonticPatient : DeonticPatient {bs} ds r
-    DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
-                      {auto 0 at : Attackable m} ->
-                      DeonticPatient {bs} ds r
-    DeonticCounterpart : {k : Kind} -> (m : Noun bs k) ->
-                         DeonticPatient {bs} ds r
-    TargetedBy : {k : Kind} -> (m : Noun bs k) ->
-                 {auto 0 tr : Targeter k} ->
-                 DeonticPatient {bs} ds r
-    CounterpartsAt : (cs : List (DeedComplement bs)) ->
-                     {auto 0 ne : NonEmpty cs} ->
-                     DeonticPatient {bs} ds r
-
-  public export
-  data DeedComplement : Bindings -> Type where
-    MkDeedComplement : {k : Kind} -> (d : VerbLabel) -> (m : Noun bs k) ->
-                       DeedComplement bs
-
-  public export
-  complementDeed : {0 bs : Bindings} -> DeedComplement bs -> VerbLabel
-  complementDeed (MkDeedComplement d _) = d
-
-  public export
-  deonticPatientIntro : {bs : Bindings} -> {0 ds : Deeds} -> {0 r : Role} ->
-                        DeonticPatient {bs} ds r -> Bindings
-  deonticPatientIntro NoDeonticPatient = bs
-  deonticPatientIntro (DefendingPlayer m) = nomIntro m
-  deonticPatientIntro (DeonticCounterpart m) = nomIntro m
-  deonticPatientIntro (TargetedBy m) = nomIntro m
-  deonticPatientIntro (CounterpartsAt cs) = bs
 
   public export
   data PlayPayment : Bindings -> Type where
@@ -585,25 +1000,6 @@ mutual
   playRidden (PlayRider _ _ _ _ _) = True
 
   public export
-  agentRole : Role -> Bool
-  agentRole Agent = True
-  agentRole Patient = False
-
-  public export
-  counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
-                    Noun bs k -> Bool -> Bool
-  counterpartFits {k} ds r m moved =
-    deedFits ds r k (nounIsAbility m) (nounHeadTys m)
-             (if moved then Nothing else nounZone m)
-
-  public export
-  counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
-                       (n : Noun bs k) -> Noun (nomIntro n) ka -> Bool
-  counterpartNotSelf n (Pro r pl Whole) =
-    not (reachTracksObject r) || countReach r pl (nounDelta n) == 0
-  counterpartNotSelf n _ = True
-
-  public export
   deonticPatientOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
                      (ds : Deeds) -> (r : Role) ->
                      (patient : DeonticPatient {bs = nomIntro n} ds r) ->
@@ -617,14 +1013,6 @@ mutual
   deonticPatientOk n ds r (CounterpartsAt cs) _ =
     distinctDeeds (map complementDeed cs) &&
     all (complementAtOk n ds r) cs
-
-  public export
-  complementAtOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
-                   (ds : Deeds) -> (r : Role) ->
-                   DeedComplement (nomIntro n) -> Bool
-  complementAtOk n ds r (MkDeedComplement d m) =
-    elem d ds && counterpartFits [d] (counterRole r) m False &&
-    counterpartNotSelf n m
 
   public export
   asThoughOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
@@ -651,97 +1039,6 @@ mutual
   deonticRiderOk ds r c _ at (PlayRider _ _ _ _ _) = False
 
   public export
-  notConditional : {0 bs : Bindings} -> StaticSpec bs -> Bool
-  notConditional (Conditionally _ _ _) = False
-  notConditional _ = True
-
-
-  public export
-  NotConditional : StaticSpec bs -> Type
-  NotConditional {bs} se = So (notConditional se)
-
-  public export
-  notWindowed : {0 bs : Bindings} -> StaticSpec bs -> Bool
-  notWindowed (OnlyDuring _ _ _) = False
-  notWindowed _ = True
-
-  public export
-  data DamageScope : Bindings -> Type where
-    Everywhere : DamageScope bs
-    ToRecipient : {k : Kind} -> (n : Noun bs k) ->
-                  {auto 0 rk : DamageRecipient n} -> DamageScope bs
-
-  public export
-  scopeIntro : {bs : Bindings} -> DamageScope bs -> Bindings
-  scopeIntro Everywhere = bs
-  scopeIntro (ToRecipient n) = nomIntro n
-
-  public export
-  data DamageAgent : Bindings -> Type where
-    Unattributed : DamageAgent bs
-    DealtBy : (n : Noun bs Object) -> DamageAgent bs
-
-  public export
-  agentIntro : {bs : Bindings} -> DamageAgent bs -> Bindings
-  agentIntro Unattributed = bs
-  agentIntro (DealtBy n) = nomIntro n
-
-  public export
-  data Unpreventable : Bindings -> Type where
-    DamageDescribed : (src : DamageAgent bs) ->
-                      (scope : DamageScope (agentIntro src)) ->
-                      Unpreventable bs
-    ThatDamage : {auto 0 ok : So (damageDealtInScope bs)} -> Unpreventable bs
-
-  public export
-  unpreventableIntro : {bs : Bindings} -> Unpreventable bs -> Bindings
-  unpreventableIntro (DamageDescribed src scope) = scopeIntro scope
-  unpreventableIntro ThatDamage = bs
-
-  public export
-  data PreventionBan = NoPreventionOnly | NoRedirectEither
-
-  public export
-  data PreventCut : Bindings -> Type where
-    CutAll : PreventCut bs
-    CutSome : (amt : Amount bs) -> PreventCut bs
-    Shield : (amt : Amount bs) -> PreventCut bs
-    CutAllBut : (amt : Amount bs) -> PreventCut bs
-    CutHalf : (r : RoundMode) -> PreventCut bs
-
-  public export
-  cutIntro : {bs : Bindings} -> PreventCut bs -> Bindings
-  cutIntro CutAll = bs
-  cutIntro (CutSome amt) = amtIntro amt
-  cutIntro (Shield amt) = amtIntro amt
-  cutIntro (CutAllBut amt) = amtIntro amt
-  cutIntro (CutHalf _) = bs
-
-  -- [CR#615.7] A shield counts damage across events until its amount is spent.
-  public export
-  shieldUseOk : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Bool
-  shieldUseOk (Shield _) Repeatedly = True
-  shieldUseOk (Shield _) NextTimeOnly = False
-  shieldUseOk _ _ = True
-
-  public export
-  ShieldUse : {0 bs : Bindings} -> PreventCut bs -> ReplUse -> Type
-  ShieldUse cut use = So (shieldUseOk cut use)
-
-  public export
-  data DamageScale : Bindings -> Type where
-    Multiplied : (f : ScaleFactor) -> DamageScale bs
-    Halved : (r : RoundMode) -> DamageScale bs
-    Shifted : (d : ShiftDir) -> (amt : Amount bs) ->
-              DamageScale bs
-
-  public export
-  scaleIntro : {bs : Bindings} -> DamageScale bs -> Bindings
-  scaleIntro (Multiplied _) = bs
-  scaleIntro (Halved _) = bs
-  scaleIntro (Shifted _ amt) = amtIntro amt
-
-  public export
   data DamageOp : Bindings -> Type where
     Prevent : (cut : PreventCut bs) ->
               (also : Maybe (Instruction (outcomeB DamagePrevented :: cutIntro cut))) ->
@@ -757,12 +1054,6 @@ mutual
   damageOpIntro (Prevent cut _) = cutIntro cut
   damageOpIntro (Redirect _ to) = nomIntro to
   damageOpIntro (Scale sc) = scaleIntro sc
-
-  public export
-  damageOpKind : {0 bs : Bindings} -> DamageOp bs -> StaticKind
-  damageOpKind (Prevent _ _) = Prevention
-  damageOpKind (Redirect _ _) = Replacement
-  damageOpKind (Scale _) = Replacement
 
   public export
   damageOpUseOk : {0 bs : Bindings} -> DamageOp bs -> ReplUse -> Bool
@@ -798,41 +1089,6 @@ mutual
   NotCarvedOut {bs} se = So (notCarvedOut se)
 
   public export
-  staticKind : {0 bs : Bindings} -> StaticSpec bs -> StaticKind
-  staticKind (DefinesLetter _ _) = LetterDefinition
-  staticKind (Modify _ _ d) = deltaKind d
-  staticKind (DefinesPt _ _ _) = PtDefinition
-  staticKind (SwitchesPt _) = PtSwitch
-  staticKind (Costs _ _) = CostModification
-  staticKind (AltCost _ _) = CostModification
-  staticKind (AddedCost _ _) = CostModification
-  staticKind (Gains _ _) = KeywordGrant
-  staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
-  staticKind (Deontic _ _ _ _ _ _ _ _) = DeedRestriction
-  staticKind (Skips _ _) = TurnSkip
-  staticKind (KeepsUnspentMana _ _) = ManaPersistence
-  staticKind (Becomes _ op q) = becomesKind op q
-  staticKind (BecomesCopy _ _ _) = CopyEffect
-  staticKind (LosesAllAbilities _ _) = AbilityLoss
-  staticKind (LosesAbilities _ _) = AbilityLoss
-  staticKind (GainsControl _ _) = ControlGrant
-  staticKind (Intercepts _ _ _ _ _ _) = Replacement
-  staticKind (DamageRule _ _ _ op _) = damageOpKind op
-  staticKind (CantPrevent _ _ _) = Prevention
-  staticKind (OnlyDuring _ _ se) = staticKind se
-  staticKind (Conditionally _ _ _) = Conditional
-  staticKind (AlsoOffBattlefield se) = staticKind se
-  staticKind (DoesntRemove se _) = staticKind se
-  staticKind (NoLossFromZeroLife _) = OutcomeImmunity
-  staticKind (Visibility _ _ _) = VisibilityRider
-  staticKind (TriggersAdditionally _ _) = TriggerMultiplier
-  staticKind (EntersRider _ _) = EntryRider
-  staticKind (EntersChoice _ _ _ _) = EntryRider
-  staticKind (AttachChoice _ _ _) = Replacement
-  staticKind (AndAlso _ _) = Coordination
-
-
-  public export
   staticIntro : {bs : Bindings} -> StaticSpec bs -> Bindings
   staticIntro (DefinesLetter l amt) = defineLetter l (amtIntro amt)
   staticIntro (Modify n _ d) = deltaDelta d ++ selfSubjIntro n
@@ -866,50 +1122,6 @@ mutual
   staticIntro (EntersChoice n _ _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso _ parts) = partsIntro parts
-
-  public export
-  staticChoiceDelta : {bs : Bindings} -> StaticSpec bs -> List Binding
-  staticChoiceDelta (EntersChoice _ q _ _) = [choiceB q]
-  staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
-  staticChoiceDelta (AndAlso _ parts) = partsChoiceDelta parts
-  staticChoiceDelta (AddedCost c _) = costDelta c
-  staticChoiceDelta _ = []
-
-  public export
-  staticChoiceIntro : {bs : Bindings} -> StaticSpec bs -> Bindings
-  staticChoiceIntro se = staticChoiceDelta se ++ bs
-
-  public export
-  data DividedVerb : Bindings -> Type where
-    DividedDamage : (src : Noun bs Object) -> DividedVerb bs
-    DistributedCounters : (kind : CounterKind) -> DividedVerb bs
-
-  public export
-  divIntro : {bs : Bindings} -> DividedVerb bs -> Bindings
-  divIntro (DividedDamage src) = nomIntro src
-  divIntro (DistributedCounters _) = bs
-
-  public export
-  data DivTag = DivDamage | DivCounters
-
-  public export
-  divTag : {0 bs : Bindings} -> DividedVerb bs -> DivTag
-  divTag (DividedDamage _) = DivDamage
-  divTag (DistributedCounters _) = DivCounters
-
-  public export
-  data DividedTakes : DivTag -> Noun bs k -> Type where
-    DamageDivided : {auto 0 rk : DamageRecipient n} -> DividedTakes DivDamage n
-    CountersDistributed : DividedTakes DivCounters {k = Object} n
-
-  public export
-  data CtrlOverrideOk : {0 bs : Bindings} -> Noun bs Player -> Type where
-    OneController : {0 n : Noun bs Player} ->
-                    {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk n
-    PerMemberController : {0 bs : Bindings} -> {0 ax : PossessorAxis} ->
-                          {0 grp : Noun bs Object} ->
-                          {0 ck : So (possessorKind ax Object)} ->
-                          CtrlOverrideOk (PossessorOf ax grp {ck})
 
   public export
   data TokenRider : Bindings -> Type where
@@ -964,15 +1176,6 @@ mutual
     ItsManaCost : Cost bs
 
   public export
-  forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
-  forEachAmount (TimesOf _ _) = True
-  forEachAmount _ = False
-
-  public export
-  ForEachAmount : Amount bs -> Type
-  ForEachAmount {bs} a = So (forEachAmount a)
-
-  public export
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
   costIntro (Mana c) = if manaHasX c then letterB X :: bs else bs
   costIntro (ScaledCost c _) = costIntro c
@@ -993,36 +1196,6 @@ mutual
   public export
   NotCompound : Cost bs -> Type
   NotCompound {bs} c = So (not (isCompound c))
-
-  public export
-  isLoyalty : {0 bs : Bindings} -> Cost bs -> Bool
-  isLoyalty (LoyaltySymbol _) = True
-  isLoyalty _ = False
-
-  public export
-  data ProducedMana : Bindings -> Type where
-    Runs : (rs : List ProducedRun) ->
-           {auto 0 ok : ProducedRuns rs} -> ProducedMana bs
-    AnyColor : ColorFreedom -> ProducedMana bs
-    OfChosenColor : (alt : Maybe ProducedRun) ->
-                    {auto 0 cq : countChoice (QSort Color) bs = 1} ->
-                    {auto 0 rd : ChosenQualityRead Color} -> ProducedMana bs
-    AsPrintedCost : (n : Noun bs Object) ->
-                    {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
-    ProducedByEvent : (n : Noun bs Object) ->
-                      {auto 0 one : nounPlur n = OneOf} ->
-                      {auto 0 pm : countOutcomes ManaProduced bs = 1} ->
-                      ProducedMana bs
-    CouldProduce : (n : Noun bs Object) -> ProducedMana bs
-    AmongColorsOf : (n : Noun bs Object) -> ProducedMana bs
-    AmongWritten : (cs : List Color) ->
-                   {auto 0 tw : So (colorCountOk (length cs))} ->
-                   ProducedMana bs
-    LastNotedMana : (n : Noun bs Object) ->
-                    {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
-
-  public export
-  data SpentMode = AffectsIt | TriggersThen
 
   public export
   data ManaRider : Bindings -> Type where
@@ -1067,15 +1240,6 @@ mutual
     ExceptColor : (c : Chroma.Color) -> CopyExcept bs
     ExceptEntersWithCounters : (amt : Amount bs) -> (kind : CounterKind) ->
                                (mark : EntryCounterMark) -> CopyExcept bs
-
-  public export
-  data Repetition : Bindings -> Type where
-    Again : Repetition bs
-    MoreTimes : (n : Amount bs) ->
-                Repetition bs
-    AnyNumber : Repetition bs
-    UntilCond : (c : Condition bs) -> Repetition bs
-    AgainExcludingChosen : Repetition bs
 
   public export
   data RollRow : Bindings -> Type where
@@ -1369,17 +1533,6 @@ mutual
   heldUntilOk _ = False
 
   public export
-  data EncloseUse
-    = ||| No PLAYER takes the action, so "you do" has no subject to
-      EncAgentless
-    | ||| No single taken action for the pro-verb to abbreviate.
-      EncNotOneAction
-    | ||| The clause schedules its action rather than taking it, so
-      EncNotYetTaken
-    | ||| A player's own single action.
-      EncReflexive
-
-  public export
   reflexEncloseUse : {0 bs : Bindings} -> Instruction bs -> EncloseUse
   reflexEncloseUse (ControllerSacrifices _) = EncReflexive
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
@@ -1429,13 +1582,6 @@ mutual
   reflexEncloseUse (Delayed _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
   reflexEncloseUse _ = EncAgentless
-
-  public export
-  admitsReflexEnclosure : EncloseUse -> Bool
-  admitsReflexEnclosure EncAgentless = False
-  admitsReflexEnclosure EncNotOneAction = False
-  admitsReflexEnclosure EncNotYetTaken = False
-  admitsReflexEnclosure EncReflexive = True
 
   public export
   ReflexEnclosure : Instruction bs -> Type
@@ -1584,16 +1730,6 @@ mutual
   modeCount (_ :: es) = S (modeCount es)
 
   public export
-  allCosted : {0 bs : Bindings} -> List (Maybe (Cost bs), Instruction bs) -> Bool
-  allCosted [] = True
-  allCosted ((Nothing, _) :: _) = False
-  allCosted ((Just _, _) :: es) = allCosted es
-
-  public export
-  AllCosted : List (Maybe (Cost bs), Instruction bs) -> Type
-  AllCosted {bs} modes = So (allCosted modes)
-
-  public export
   data Instructions : Nat -> Bindings -> Type where
     Nil : Instructions Z bs
     (::) : (e : Instruction bs) ->
@@ -1611,36 +1747,8 @@ mutual
   instrDelta e = take (length (instrIntro e) `minus` length bs) (instrIntro e)
 
   public export
-  KeepsOuterOf : (outer : Bindings) -> (out : Bindings) -> Type
-  KeepsOuterOf outer out =
-    out = take (length out `minus` length outer) out ++ outer
-
-  public export
   KeepsOuter : {bs : Bindings} -> Instruction bs -> Type
   KeepsOuter {bs} e = KeepsOuterOf bs (instrIntro e)
-
-  ||| A distributive deed either only adds to the agent stack, or closes the
-  ||| partitives its own agents' choices published — "each player … sacrifices
-  ||| the rest" [CR#700.8d] — which spends nothing the table shares
-  ||| [CR#701.21a].
-  public export
-  data EachStackOk : (outer : Bindings) -> (out : Bindings) -> Type where
-    EachOnlyAdds : {auto 0 ko : KeepsOuterOf outer out} -> EachStackOk outer out
-    EachClosesOwnParts : {auto 0 ds : So (partsDistributed outer)} ->
-                         {auto 0 cp : out = partsClosed outer} ->
-                         EachStackOk outer out
-
-  public export
-  KeepsOuterEach : Plurality -> (outer : Bindings) -> (out : Bindings) -> Type
-  KeepsOuterEach OneOf outer out = ()
-  KeepsOuterEach ManyOf outer out = EachStackOk outer out
-
-  ||| An enacted act names a subject only where the act's facts row gives its
-  ||| agent role a player, the way `verbedVoiceOk` gates a verbed event.
-  public export
-  enactAgentOk : {0 bs : Bindings} -> Maybe (Noun bs Player) -> VerbLabel -> Bool
-  enactAgentOk Nothing v = True
-  enactAgentOk (Just _) v = deedKindOk v Agent Player
 
   public export
   EnactKeepsOuter : {bs : Bindings} -> (subj : Maybe (Noun bs Player)) ->
@@ -1648,10 +1756,6 @@ mutual
   EnactKeepsOuter Nothing e = ()
   EnactKeepsOuter (Just s) e =
     KeepsOuterEach (nounPlur s) (agentIntro s) (instrIntro e)
-
-  public export
-  profileIntro : InstrProfile bs -> Bindings
-  profileIntro p = deed p ++ announced p
 
   public export
   instrIntro : {bs : Bindings} -> Instruction bs -> Bindings
@@ -1666,35 +1770,14 @@ mutual
   annIntro e = announced (instrProfile e)
 
   public export
-  profileRider : InstrProfile bs -> Bindings
-  profileRider p = fromMaybe (pre p) (rider p)
-
-  public export
   riderIntro : {bs : Bindings} -> Instruction bs -> Bindings
   riderIntro e = profileRider (instrProfile e)
-
-  ||| The last clause of a sequence publishes its deed with what it announced.
-  public export
-  lastProfile : InstrProfile as -> InstrProfile bs
-  lastProfile p = MkInstrProfile (pre p) (profileIntro p) (rider p) []
 
   public export
   seqProfile : {bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> InstrProfile bs
   seqProfile [] = MkInstrProfile bs bs Nothing []
   seqProfile (e :: []) = lastProfile (instrProfile e)
   seqProfile (e :: es) = reProfile (seqProfile es)
-
-  ||| A simultaneous batch announces every clause's deed at once; its trailing
-  ||| condition reads the last clause's own pre-stack.
-  public export
-  simCons : List Binding -> InstrProfile as -> InstrProfile bs
-  simCons d p = MkInstrProfile (pre p) (d ++ announced p) Nothing []
-
-  ||| An offer announces what its body announced; its deed stays a deed, so a
-  ||| simultaneous clause cannot read a thing that may not have happened.
-  public export
-  offerProfile : InstrProfile as -> InstrProfile bs
-  offerProfile p = MkInstrProfile (profileIntro p) (announced p) Nothing (deed p)
 
   public export
   mayProfile : {as : Bindings} -> (body : Instruction as) ->
@@ -1705,19 +1788,10 @@ mutual
   mayProfile body (Just did) (Just _) = offerProfile (instrProfile body)
 
   public export
-  simLast : InstrProfile as -> InstrProfile bs
-  simLast p = MkInstrProfile (pre p) (profileIntro p) Nothing []
-
-  public export
   simProfile : {bs : Bindings} -> {0 n : Nat} -> SimInstructions n bs -> InstrProfile bs
   simProfile [] = MkInstrProfile bs bs Nothing []
   simProfile (e :: []) = simLast (instrProfile e)
   simProfile (e :: es) = simCons (deedDelta e) (simProfile es)
-
-  public export
-  distributedDelta : {bs : Bindings} -> (s : Noun bs Player) -> Bindings -> List Binding
-  distributedDelta s out =
-    pluralizeDelta (take (length out `minus` length (agentIntro s)) out)
 
   public export
   doesProfile : {bs : Bindings} -> Plurality -> (s : Noun bs Player) ->
@@ -1749,12 +1823,6 @@ mutual
     MkInstrProfile (nomIntro n) (stampIntro (Just v) n) Nothing ([])
   doesProfile OneOf s v e = reProfile (instrProfile e)
 
-  ||| A profile's fields never mention its index, so the agent's own profile is
-  ||| the enacting clause's.
-  public export
-  reProfile : InstrProfile as -> InstrProfile bs
-  reProfile p = MkInstrProfile (pre p) (announced p) (rider p) (deed p)
-
   public export
   replacedCtx : {bs : Bindings} -> Instruction bs -> Bindings
   replacedCtx (Sequentially es) = annSeqs es
@@ -1776,10 +1844,6 @@ mutual
   public export
   deedDelta : {bs : Bindings} -> Instruction bs -> List Binding
   deedDelta e = deed (instrProfile e)
-
-  public export
-  sameIntro : Bindings -> List Binding -> InstrProfile bs
-  sameIntro b d = MkInstrProfile b b Nothing d
 
   public export
   instrProfile : {bs : Bindings} -> Instruction bs -> InstrProfile bs
@@ -1927,10 +1991,6 @@ mutual
   instrProfile (HeldUntil e ev) = sameIntro (annIntro e) []
 
   public export
-  mayCtx : {bs : Bindings} -> Noun bs Player -> Bindings
-  mayCtx d = agentIntro d
-
-  public export
   ifDoneArmed : {0 bs : Bindings} -> (body : Instruction bs) ->
                 Maybe (Instruction (instrIntro body)) -> Maybe (Instruction bs) -> Bool
   ifDoneArmed _ Nothing Nothing = False
@@ -1954,110 +2014,6 @@ mutual
   costStepsOk : {0 bs : Bindings} -> {0 n : Nat} -> Instructions n bs -> Bool
   costStepsOk [] = True
   costStepsOk (e :: es) = costActionOk e && costStepsOk es
-
-  public export
-  deckAxis : ProjAxis -> Bool
-  deckAxis (StatAxis ManaValue) = True
-  deckAxis _ = False
-
-  public export
-  deckAxes : List ProjAxis -> Bool
-  deckAxes [] = True
-  deckAxes (a :: as) = deckAxis a && deckAxes as
-
-  public export
-  deckBound : Amount [] -> Bool
-  deckBound (Lit _) = True
-  deckBound _ = False
-
-  ||| A card set aside for the starting deck is outside the game
-  ||| [CR#103.2b], so only its characteristics are readable [CR#109.3]: a
-  ||| zone is a place objects are during a game [CR#400.1], and status,
-  ||| counters and controller are not characteristics.
-  public export
-  deckReadable : Predicate [] Object -> Bool
-  deckReadable IsCard = True
-  deckReadable Permanent = True
-  deckReadable (HasType _) = True
-  deckReadable (HasSubtype _) = True
-  deckReadable (Compare axes _ bound) = deckAxes axes && deckBound bound
-  deckReadable (And ps) = deckReadableAll ps
-  deckReadable (Not p) = deckReadable p
-  deckReadable _ = False
-
-  public export
-  deckReadableAll : List (Predicate [] Object) -> Bool
-  deckReadableAll [] = True
-  deckReadableAll (p :: ps) = deckReadable p && deckReadableAll ps
-
-  ||| A characteristic read of a card in the starting deck [CR#109.3].
-  public export
-  data DeckReadable : Predicate [] Object -> Type where
-    ReadsCharacteristics : {0 p : Predicate [] Object} ->
-                           {auto 0 ok : deckReadable p = True} ->
-                           DeckReadable p
-
-  public export
-  ||| The characteristics [CR#109.3] a deck condition compares; a number and
-  ||| a counter kind are not characteristics.
-  deckComparable : QualitySort -> Bool
-  deckComparable Color = True
-  deckComparable (SubtypeQ _) = True
-  deckComparable CardName = True
-  deckComparable CardTypeQ = True
-  deckComparable Number = False
-  deckComparable CounterKindQ = False
-
-  ||| A characteristic a deck condition compares across the deck's cards
-  ||| [CR#109.3].
-  public export
-  data DeckComparable : QualitySort -> Type where
-    ComparesCharacteristic : {0 q : QualitySort} ->
-                             {auto 0 ok : deckComparable q = True} ->
-                             DeckComparable q
-
-  public export
-  data ManaParity = EvenValue | OddValue
-
-  ||| One card's side of a deck condition: a characteristic read
-  ||| [CR#109.3], or a reading a printed companion names that the
-  ||| characteristic vocabulary does not carry.
-  public export
-  data DeckTrait : Type where
-    ACharacteristic : (p : Predicate [] Object) ->
-                      {auto 0 dr : DeckReadable p} -> DeckTrait
-    ||| "cards with even mana values" [CR#202.3]
-    ManaValueParity : (par : ManaParity) -> DeckTrait
-    ||| "more than one of the same mana symbol in its mana cost"
-    RepeatedManaSymbol : DeckTrait
-    ||| "has an activated ability"
-    HasAbilityOf : (cls : AbilityClass) -> DeckTrait
-    ||| "... and land cards"
-    AnyTraitOf : (ts : List DeckTrait) ->
-                 {auto 0 ne : NonEmpty ts} -> DeckTrait
-
-  ||| Companion's restriction, fulfilled by the deck left after sideboarding
-  ||| and checked before the game begins [CR#702.139a,702.139b,103.2b].
-  public export
-  data DeckCondition : Type where
-    ||| "Each permanent card in your starting deck has mana value 2 or less."
-    EveryCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
-                  {auto 0 dr : DeckReadable scope} -> DeckCondition
-    ||| "No card in your starting deck has more than one of the same mana
-    ||| symbol in its mana cost."
-    NoCardIs : (scope : Predicate [] Object) -> (trait : DeckTrait) ->
-               {auto 0 dr : DeckReadable scope} -> DeckCondition
-    ||| "Each nonland card in your starting deck has a different name."
-    CardsDiffer : (scope : Predicate [] Object) -> (ax : QualitySort) ->
-                  {auto 0 dr : DeckReadable scope} ->
-                  {auto 0 dc : DeckComparable ax} -> DeckCondition
-    ||| "Each nonland card in your starting deck shares a card type."
-    CardsShare : (scope : Predicate [] Object) -> (ax : QualitySort) ->
-                 {auto 0 dr : DeckReadable scope} ->
-                 {auto 0 dc : DeckComparable ax} -> DeckCondition
-    ||| "at least twenty cards more than the minimum deck size", a minimum
-    ||| the format sets [CR#100.2a,100.2b].
-    DeckSizeOverMinimum : (extra : Nat) -> DeckCondition
 
   public export
   data KeywordParam : Bindings -> Type where
@@ -2144,7 +2100,6 @@ mutual
     ItalicHead : (word : ItalicWord) -> (ab : AbilityAt bs) ->
                  {auto 0 nw : NotWordHeaded ab} -> AbilityAt bs
 
-
   public export
   notWordHeaded : {0 bs : Bindings} -> AbilityAt bs -> Bool
   notWordHeaded (ItalicHead _ _) = False
@@ -2153,12 +2108,6 @@ mutual
   public export
   NotWordHeaded : AbilityAt bs -> Type
   NotWordHeaded {bs} ab = So (notWordHeaded ab)
-
-  public export
-  bodyEventRegime : {0 bs : Bindings} -> GameEvent bs -> Maybe StackRegime
-  bodyEventRegime ev = case eventName ev of
-    SpellCast => Just AtCasting
-    _ => Nothing
 
   public export
   keywordBodyFits : KeywordLabel -> Maybe (AbilityAt []) -> Bool
@@ -2174,26 +2123,6 @@ mutual
   public export
   Untargeting : {bs : Bindings} -> StaticSpec bs -> Type
   Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
-
-  public export
-  effectNamesThisDoor : {0 bs : Bindings} -> Instruction bs -> Bool
-  effectNamesThisDoor (Delayed ev alts _ _) =
-    eventNamesThisDoor ev || anyEventNamesThisDoor alts
-  effectNamesThisDoor (HeldUntil _ ev) = eventNamesThisDoor ev
-  effectNamesThisDoor (ThisWay _ ev _) = eventNamesThisDoor ev
-  effectNamesThisDoor _ = False
-
-  public export
-  abilityNamesThisDoor : {0 bs : Bindings} -> AbilityAt bs -> Bool
-  abilityNamesThisDoor (Activated _ instr _ _ _ _) = effectNamesThisDoor instr
-  abilityNamesThisDoor (Triggered _ ev alts while joins _ _ _ instr) =
-    eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
-      concurrentNamesThisDoor while || joinsNameThisDoor joins ||
-      effectNamesThisDoor instr
-  abilityNamesThisDoor (Spell _ instr) = effectNamesThisDoor instr
-  abilityNamesThisDoor (ItalicHead _ ab) = abilityNamesThisDoor ab
-  abilityNamesThisDoor (AlsoForKeywords ab _) = abilityNamesThisDoor ab
-  abilityNamesThisDoor _ = False
 
   public export
   lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel
@@ -2230,17 +2159,6 @@ mutual
     Nothing => False
     Just base => not (isNil ks) && allTermsBare ks && distinctTerms ks &&
                  not (elem (TheKeyword base) ks)
-
-
-  public export
-  allTermsBare : List KeywordTerm -> Bool
-  allTermsBare [] = True
-  allTermsBare (k :: ks) = keywordTermBare k && allTermsBare ks
-
-  public export
-  distinctTerms : List KeywordTerm -> Bool
-  distinctTerms [] = True
-  distinctTerms (k :: ks) = not (elem k ks) && distinctTerms ks
 
   public export
   KeywordExtendable : {0 bs : Bindings} -> AbilityAt bs -> Type
@@ -2296,38 +2214,8 @@ mutual
   abilitiesGrantable (a :: as) = grantableAb a && abilitiesGrantable as
 
   public export
-  abilitiesHoldable : {0 bs : Bindings} -> List (AbilityAt bs) -> Bool
-  abilitiesHoldable [] = True
-  abilitiesHoldable (a :: as) = grantableAb a && abilitiesHoldable as
-
-  public export
   tokenAbilitiesOk : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenAbilitiesOk t = abilitiesGrantable t.abilities
-
-  public export
-  predRegime : {0 bs : Bindings} -> {0 k : Kind} ->
-               Predicate bs k -> Maybe StackRegime
-  predRegime (CastBy _ _) = Just AtCasting
-  predRegime (CastFrom _) = Just AtCasting
-  predRegime WasCast = Just AtCasting
-  predRegime (HasPossessor ControllerAx _) = Just AtResolution
-  predRegime (And ps) = predRegimeAll ps
-  predRegime (Or ps) = predRegimeAll ps
-  predRegime _ = Nothing
-
-  public export
-  predRegimeAll : {0 bs : Bindings} -> {0 k : Kind} ->
-                  List (Predicate bs k) -> Maybe StackRegime
-  predRegimeAll [] = Nothing
-  predRegimeAll (p :: ps) = case predRegime p of
-    Just r => Just r
-    Nothing => predRegimeAll ps
-
-  public export
-  nounRegime : {bs : Bindings} -> Noun bs Object -> Maybe StackRegime
-  nounRegime (Described _ p) = predRegime p
-  nounRegime (NamesAgree _ grp) = nounRegime grp
-  nounRegime _ = Nothing
 
   public export
   abRegime : {0 bs : Bindings} -> AbilityAt bs -> Maybe StackRegime
@@ -2352,11 +2240,6 @@ mutual
   abFunctionsOnStack MayBeginOnBattlefield = False
 
   public export
-  regimeMatches : Maybe StackRegime -> Maybe StackRegime -> Bool
-  regimeMatches (Just a) (Just b) = a == b
-  regimeMatches _ _ = False
-
-  public export
   grantSubjectOk : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Bool
   grantSubjectOk ab n = grantSubjectFits (nounZone n) (nounRegime n) ab
 
@@ -2373,36 +2256,9 @@ mutual
   GrantSubject {bs} ab n = So (grantSubjectOk ab n)
 
   public export
-  instrChoiceDelta : {0 bs : Bindings} -> Instruction bs -> List Binding
-  instrChoiceDelta (Choose {k} _ _ (Described (ADet _) _) _) = choiceDeltaAt k
-  instrChoiceDelta (Choose _ _ _ _) = []
-  instrChoiceDelta (Sequentially es) = instrsChoiceDelta es
-  instrChoiceDelta (May _ body _ _) = instrChoiceDelta body
-  instrChoiceDelta (IfDone body _ _) = instrChoiceDelta body
-  instrChoiceDelta _ = []
-
-  public export
-  instrsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
-                    Instructions n bs -> List Binding
-  instrsChoiceDelta [] = []
-  instrsChoiceDelta (e :: es) = instrsChoiceDelta es ++ instrChoiceDelta e
-
-  public export
-  abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
-  abIntro (KeywordAbility _ _ _) = bs
-  abIntro (Activated _ instr _ _ _ _) = instrChoiceDelta instr ++ bs
-  abIntro (Triggered _ _ _ _ _ _ _ _ instr) = instrChoiceDelta instr ++ bs
-  abIntro (Static se) = staticChoiceIntro se
-  abIntro (AlsoForKeywords ab _) = abIntro ab
-  abIntro (ItalicHead _ ab) = abIntro ab
-  abIntro (Spell _ instr) = instrChoiceDelta instr ++ bs
-  abIntro MayBeginOnBattlefield = bs
-
-  public export
   abLetterDelta : {0 bs : Bindings} -> AbilityAt bs -> List Binding
   abLetterDelta (KeywordAbility _ (Just (ParamNumber (LetterVal l))) _) = [letterB l]
   abLetterDelta _ = []
-
 
   namespace Coord
     public export
@@ -2417,45 +2273,15 @@ mutual
       Nil : CostSeq Z bs
       (::) : (c : Cost bs) -> CostSeq n (costIntro c) -> CostSeq (S n) bs
 
-  namespace Text
-    public export
-    data AbilitySeq : Bindings -> Type where
-      Nil : AbilitySeq bs
-      (::) : (ab : AbilityAt bs) -> AbilitySeq (abIntro ab) -> AbilitySeq bs
-
   public export
   costsIntro : {bs : Bindings} -> {0 n : Nat} -> CostSeq n bs -> Bindings
   costsIntro [] = bs
   costsIntro (c :: cs) = costsIntro cs
 
   public export
-  costDelta : {bs : Bindings} -> Cost bs -> List Binding
-  costDelta c = take (length (costIntro c) `minus` length bs) (costIntro c)
-
-  public export
-  costChoiceDelta : {0 bs : Bindings} -> Cost bs -> List Binding
-  costChoiceDelta (Do e) = instrChoiceDelta e
-  costChoiceDelta (Compound cs) = costsChoiceDelta cs
-  costChoiceDelta _ = []
-
-  public export
-  costsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
-                     CostSeq n bs -> List Binding
-  costsChoiceDelta [] = []
-  costsChoiceDelta (c :: cs) = costsChoiceDelta cs ++ costChoiceDelta c
-
-  public export
   partsIntro : {0 n : Nat} -> {bs : Bindings} -> StaticParts n bs -> Bindings
   partsIntro [] = bs
   partsIntro (se :: rest) = partsIntro rest
-
-  public export
-  partsChoiceDelta : {0 n : Nat} -> {bs : Bindings} ->
-                     StaticParts n bs -> List Binding
-  partsChoiceDelta [] = []
-  partsChoiceDelta (se :: rest) = partsChoiceDelta rest ++ staticChoiceDelta se
-
-
 
   public export
   partsClauseOk : {0 n : Nat} -> {0 bs : Bindings} -> StaticParts n bs -> Bool
@@ -2571,6 +2397,176 @@ mutual
     AddedPaymentWritten : {0 c : Cost bs} ->
                           {auto 0 ok : So (costOffBattlefield c)} ->
                           AddedPayment c
+
+public export
+becomesKind : {0 bs : Bindings} -> QualityOp -> QualityPayload bs -> StaticKind
+becomesKind _ (Colored _) = ColorSet
+becomesKind Adds _ = TypeAddition
+becomesKind Sets _ = TypeSet
+becomesKind Loses _ = TypeLoss
+
+public export
+notConditional : {0 bs : Bindings} -> StaticSpec bs -> Bool
+notConditional (Conditionally _ _ _) = False
+notConditional _ = True
+
+public export
+NotConditional : StaticSpec bs -> Type
+NotConditional {bs} se = So (notConditional se)
+
+public export
+notWindowed : {0 bs : Bindings} -> StaticSpec bs -> Bool
+notWindowed (OnlyDuring _ _ _) = False
+notWindowed _ = True
+
+public export
+damageOpKind : {0 bs : Bindings} -> DamageOp bs -> StaticKind
+damageOpKind (Prevent _ _) = Prevention
+damageOpKind (Redirect _ _) = Replacement
+damageOpKind (Scale _) = Replacement
+
+public export
+staticKind : {0 bs : Bindings} -> StaticSpec bs -> StaticKind
+staticKind (DefinesLetter _ _) = LetterDefinition
+staticKind (Modify _ _ d) = deltaKind d
+staticKind (DefinesPt _ _ _) = PtDefinition
+staticKind (SwitchesPt _) = PtSwitch
+staticKind (Costs _ _) = CostModification
+staticKind (AltCost _ _) = CostModification
+staticKind (AddedCost _ _) = CostModification
+staticKind (Gains _ _) = KeywordGrant
+staticKind (GainsAbilitiesOf _ _ _ _) = KeywordGrant
+staticKind (Deontic _ _ _ _ _ _ _ _) = DeedRestriction
+staticKind (Skips _ _) = TurnSkip
+staticKind (KeepsUnspentMana _ _) = ManaPersistence
+staticKind (Becomes _ op q) = becomesKind op q
+staticKind (BecomesCopy _ _ _) = CopyEffect
+staticKind (LosesAllAbilities _ _) = AbilityLoss
+staticKind (LosesAbilities _ _) = AbilityLoss
+staticKind (GainsControl _ _) = ControlGrant
+staticKind (Intercepts _ _ _ _ _ _) = Replacement
+staticKind (DamageRule _ _ _ op _) = damageOpKind op
+staticKind (CantPrevent _ _ _) = Prevention
+staticKind (OnlyDuring _ _ se) = staticKind se
+staticKind (Conditionally _ _ _) = Conditional
+staticKind (AlsoOffBattlefield se) = staticKind se
+staticKind (DoesntRemove se _) = staticKind se
+staticKind (NoLossFromZeroLife _) = OutcomeImmunity
+staticKind (Visibility _ _ _) = VisibilityRider
+staticKind (TriggersAdditionally _ _) = TriggerMultiplier
+staticKind (EntersRider _ _) = EntryRider
+staticKind (EntersChoice _ _ _ _) = EntryRider
+staticKind (AttachChoice _ _ _) = Replacement
+staticKind (AndAlso _ _) = Coordination
+
+public export
+isLoyalty : {0 bs : Bindings} -> Cost bs -> Bool
+isLoyalty (LoyaltySymbol _) = True
+isLoyalty _ = False
+
+public export
+allCosted : {0 bs : Bindings} -> List (Maybe (Cost bs), Instruction bs) -> Bool
+allCosted [] = True
+allCosted ((Nothing, _) :: _) = False
+allCosted ((Just _, _) :: es) = allCosted es
+
+public export
+AllCosted : List (Maybe (Cost bs), Instruction bs) -> Type
+AllCosted {bs} modes = So (allCosted modes)
+
+public export
+effectNamesThisDoor : {0 bs : Bindings} -> Instruction bs -> Bool
+effectNamesThisDoor (Delayed ev alts _ _) =
+  eventNamesThisDoor ev || anyEventNamesThisDoor alts
+effectNamesThisDoor (HeldUntil _ ev) = eventNamesThisDoor ev
+effectNamesThisDoor (ThisWay _ ev _) = eventNamesThisDoor ev
+effectNamesThisDoor _ = False
+
+public export
+abilityNamesThisDoor : {0 bs : Bindings} -> AbilityAt bs -> Bool
+abilityNamesThisDoor (Activated _ instr _ _ _ _) = effectNamesThisDoor instr
+abilityNamesThisDoor (Triggered _ ev alts while joins _ _ _ instr) =
+  eventNamesThisDoor ev || anyEventNamesThisDoor alts ||
+    concurrentNamesThisDoor while || joinsNameThisDoor joins ||
+    effectNamesThisDoor instr
+abilityNamesThisDoor (Spell _ instr) = effectNamesThisDoor instr
+abilityNamesThisDoor (ItalicHead _ ab) = abilityNamesThisDoor ab
+abilityNamesThisDoor (AlsoForKeywords ab _) = abilityNamesThisDoor ab
+abilityNamesThisDoor _ = False
+
+public export
+abilitiesHoldable : {0 bs : Bindings} -> List (AbilityAt bs) -> Bool
+abilitiesHoldable [] = True
+abilitiesHoldable (a :: as) = grantableAb a && abilitiesHoldable as
+
+mutual
+  public export
+  instrChoiceDelta : {0 bs : Bindings} -> Instruction bs -> List Binding
+  instrChoiceDelta (Choose {k} _ _ (Described (ADet _) _) _) = choiceDeltaAt k
+  instrChoiceDelta (Choose _ _ _ _) = []
+  instrChoiceDelta (Sequentially es) = instrsChoiceDelta es
+  instrChoiceDelta (May _ body _ _) = instrChoiceDelta body
+  instrChoiceDelta (IfDone body _ _) = instrChoiceDelta body
+  instrChoiceDelta _ = []
+
+  public export
+  instrsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+                    Instructions n bs -> List Binding
+  instrsChoiceDelta [] = []
+  instrsChoiceDelta (e :: es) = instrsChoiceDelta es ++ instrChoiceDelta e
+
+public export
+costDelta : {bs : Bindings} -> Cost bs -> List Binding
+costDelta c = take (length (costIntro c) `minus` length bs) (costIntro c)
+
+mutual
+  public export
+  staticChoiceDelta : {bs : Bindings} -> StaticSpec bs -> List Binding
+  staticChoiceDelta (EntersChoice _ q _ _) = [choiceB q]
+  staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
+  staticChoiceDelta (AndAlso _ parts) = partsChoiceDelta parts
+  staticChoiceDelta (AddedCost c _) = costDelta c
+  staticChoiceDelta _ = []
+
+  public export
+  partsChoiceDelta : {0 n : Nat} -> {bs : Bindings} ->
+                     StaticParts n bs -> List Binding
+  partsChoiceDelta [] = []
+  partsChoiceDelta (se :: rest) = partsChoiceDelta rest ++ staticChoiceDelta se
+
+public export
+staticChoiceIntro : {bs : Bindings} -> StaticSpec bs -> Bindings
+staticChoiceIntro se = staticChoiceDelta se ++ bs
+
+public export
+abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
+abIntro (KeywordAbility _ _ _) = bs
+abIntro (Activated _ instr _ _ _ _) = instrChoiceDelta instr ++ bs
+abIntro (Triggered _ _ _ _ _ _ _ _ instr) = instrChoiceDelta instr ++ bs
+abIntro (Static se) = staticChoiceIntro se
+abIntro (AlsoForKeywords ab _) = abIntro ab
+abIntro (ItalicHead _ ab) = abIntro ab
+abIntro (Spell _ instr) = instrChoiceDelta instr ++ bs
+abIntro MayBeginOnBattlefield = bs
+
+namespace Text
+  public export
+  data AbilitySeq : Bindings -> Type where
+    Nil : AbilitySeq bs
+    (::) : (ab : AbilityAt bs) -> AbilitySeq (abIntro ab) -> AbilitySeq bs
+
+mutual
+  public export
+  costChoiceDelta : {0 bs : Bindings} -> Cost bs -> List Binding
+  costChoiceDelta (Do e) = instrChoiceDelta e
+  costChoiceDelta (Compound cs) = costsChoiceDelta cs
+  costChoiceDelta _ = []
+
+  public export
+  costsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+                     CostSeq n bs -> List Binding
+  costsChoiceDelta [] = []
+  costsChoiceDelta (c :: cs) = costsChoiceDelta cs ++ costChoiceDelta c
 
 public export
 Ability : Type
