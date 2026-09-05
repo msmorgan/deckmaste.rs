@@ -16,12 +16,11 @@ its own merits.
 Ported: the six grammar layers as syntax (`Words`, `Events`, `Phrase`,
 `Triggers`, `Abilities`, `Card`), the checker for all of them (`Check/*`, every
 obligation `Experimental/*.idr` put in a constructor type), the subset of
-`Macros` the bench and the pin suites use, a `Cards` bench of seven cards,
-and all fourteen `Proofs.<Family>` pin suites as `decide` theorems
-(`theorem okX : … = []`, `theorem badX : … = [.reason]`), with the Idris names
-and sentences kept. Three Idris pins are not
-ported, each named in its module docstring: two Planechase sentences and one
-Idris type error.
+`Macros` the bench and the pin suites use, the whole `Cards` bench (see
+[Cards](#cards)), and all fourteen `Proofs.<Family>` pin suites as `decide`
+theorems (`theorem okX : … = []`, `theorem badX : … = [.reason]`), with the
+Idris names and sentences kept. Three Idris pins are not ported, each named in
+its module docstring: two Planechase sentences and one Idris type error.
 
 Since the port the syntax has been reshaped (2026-09-04): a constructor stays
 only if the checker attaches something to it that its expansion would not
@@ -106,6 +105,39 @@ unchanged, and every suite keeps the Idris names and sentences: `Proofs/<Family>
 is `Proofs/<Family>.idr` clause for clause. `native_decide` is the lever for a
 suite that outgrows `decide`; none has: the largest, `Proofs/Faces` (129
 theorems), builds in about three seconds.
+
+## Cards
+
+`Cards/<Family>.lean` is `Experimental/Cards/<Family>.idr` card for card: the
+fifteen families hold the 815 printed cards of the Idris bench (2026-09-05),
+each a `Spelled` — `spelled <| .singleFaced { characteristics := { … } }`
+finds `card.check = []` by `decide` at the definition, so a card that stops
+checking stops defining, as it stopped elaborating in Idris — and every
+phrase-level bench item beside its card as a plain definition with an
+`ok…` theorem. The Idris identifiers and oracle-text docstrings are kept. The
+`SemanticsCards` library holds them so `lake build Semantics` stays the inner
+loop; `scripts/build` builds all three.
+
+Not ported, each named in its family's module docstring: the Planechase items
+(`ichorElixirPlanarDice`, `fracturedPowerstonePlanarRoll`,
+`missyChaosBranch`) and the two printed-`*` boxes (`shapeshifterBox`,
+`tarmogoyfBox`: the slot is `none`, the characteristic-defining ability sets
+it).
+
+A card that refuses in Lean is a missing macro, a missing construct, or a
+checker regression, never a card to drop. The port surfaced no missing
+constructs, 184 macros (all ports of `Macros.idr` names), and eight
+checker readings that had flattened an Idris obligation, each restored to the
+Idris reading with every pin verdict unchanged: event bindings threaded
+through casts, combat, attachment, damage, targeting, activation, payment,
+mana, door and attack-with events; `getsPt` reading "it" through the Idris
+`itsOther` window; `StaticSpec.definedSlots` descending into `andAlso`; the
+box law no longer demanding power and toughness printed together; a joined
+disjunction seeding one half per kind (`Predicate.seedTy` on `.or`), so
+"target player or planeswalker" reads as a planeswalker and "any target"
+stays untyped; `GameEvent.intro`/`.after` reading a caused event in the
+causing's own bindings (`causingIntro`); and `agentRef` re-spelling an agent
+that introduces no binding as itself.
 
 ## Structural recursion is load-bearing
 
