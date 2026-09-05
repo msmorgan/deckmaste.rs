@@ -52,26 +52,25 @@ specifically an artifact, battle, creature, enchantment, or planeswalker spell
 ([CR#110.4b]). A Land is therefore a Permanent Type but not a Permanent Spell.
 
 **Card Type**:
-A classification appearing on the Type Line and governed by [CR#205.2]. Card
+A Characteristic of an Object governed by [CR#205.2]. Card
 Types determine which Subtype families are applicable, while Supertypes form a
 separate independent axis ([CR#205.3c,205.4b]).
 _Avoid_: Type
 
 **Supertype**:
-A classification printed before the Card Types on a Type Line and governed by
-[CR#205.4].
+A Characteristic of an Object governed by [CR#205.4], an axis independent of
+Card Type and Subtype.
 
 **Subtype**:
-A classification printed after the dash on a Type Line and correlated with a
-Card Type as specified by [CR#205.3].
+A Characteristic of an Object correlated with a Card Type as specified by
+[CR#205.3].
+_Avoid_: Type Line as a model concept; [CR#205.1] uses it only for the printed
+region of a card, and [CR#109.3] lists Card Type, Subtype, and Supertype as three
+separate Characteristics
 
 **Spell Type**:
 A Subtype shared by instants and sorceries ([CR#205.3k]). It does not mean
 "instant or sorcery," castability, or whether an Object is currently a Spell.
-
-**Type Line**:
-The line containing a card's Card Types and any Supertypes and Subtypes
-([CR#205.1]).
 
 **Characteristic**:
 One of the properties enumerated by [CR#109.3], such as name, mana cost, color,
