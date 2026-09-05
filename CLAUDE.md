@@ -114,20 +114,30 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 
 ## Gate scope for compiler changes
 
-- `cargo test --workspace` excludes `slow-tests`; CI's full job runs `cargo test -p deckmaste_tui --features slow-tests`.
-- Any diff touching `crates/deckmaste_construction_core/src/emit/` (or the
-  emitter↔environment contract the generated code relies on), any declaration
-  data under `plugins/builtin_v2/` (keyword-action stubs, catalog rows), or
-  `crates/deckmaste_english_v2/src/core_verbs.ron` gates on
-  `cargo test --workspace` — never an enumerated `-p` list. Declaration data
-  is consumed by the plugin/builtin test crates too: the 2026-09-04
-  with-preposition landing converted a stub's `with` literal to the declared
-  `Preposition::With` member under a `-p english_v2 -p xtask` gate and left
-  `exchange_has_every_attested_representable_tail_shape` red on trunk. The generated
-  code is exercised only by downstream consumer crates
-  (`deckmaste_construction`'s compiled-consumer fixture among them), so an
-  enumerated list cannot reach the break; three landings shipped a red
-  workspace suite that way before this rule (2026-09-03).
+- The test gate for a landing is the **reverse-dependency closure of every
+  crate whose code or consumed data changed** — never an enumerated `-p`
+  list chosen by hand, and never the whole workspace: `cargo metadata`
+  reverse deps, plus the crates that read changed declaration data
+  (`plugins/builtin_v2/` and `core_verbs.ron` are read by
+  `deckmaste_construction_core` tests, `deckmaste_english_v2` and `xtask`).
+  For the english_v2 lane that closure is at most
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  (a change confined to `deckmaste_english_v2`/`core_verbs.ron` needs only
+  `-p deckmaste_english_v2 -p xtask`); `deckmaste_tui`, `deckmaste_engine`,
+  `deckmaste_lowering` are not downstream of anything english_v2 touches and
+  must not be run for it. The shared layer (`deckmaste_data`,
+  `deckmaste_catalogs`) fans out to v1, spelling and migrations — compute its
+  closure, don't assume. Why the closure and not a hand list: the generated
+  code under `crates/deckmaste_construction_core/src/emit/` is exercised only
+  by downstream consumers (`deckmaste_construction`'s compiled-consumer
+  fixture among them), and three landings shipped red downstream suites on
+  enumerated lists (2026-09-03); the with-preposition landing broke
+  `construction_core`'s builtin_v2 integration test under `-p english_v2 -p
+  xtask` (2026-09-04). Until `cargo xtask gate --changed` exists, compute the
+  closure with `cargo metadata --no-deps --format-version 1` (reverse deps of
+  the changed crates) and state it in the landing record.
+- `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
+  simulations); CI's full job runs them.
 
 ## Model economy
 
