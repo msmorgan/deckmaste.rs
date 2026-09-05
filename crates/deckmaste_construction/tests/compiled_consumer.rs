@@ -2995,6 +2995,14 @@ pub mod fixture {
             element DirectMobileHost { leaf: mobile MobileConstituent, }
             form direct_mobile = leaf;
         }
+        construction scope_sibling_mobile: ScopeSiblingRoot {
+            element ScopeSiblingMobileHost {
+                prefix: MobileConstituent,
+                shared: mobile(body) MobileConstituent,
+                body: MobileConstituent,
+            }
+            form scope_sibling_mobile = prefix shared body;
+        }
         construction guarded: Child {
             element GuardedChild { mode: lex Mode, child: Child, }
             require any(
@@ -3608,6 +3616,7 @@ pub mod fixture {
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
         root JointMobileRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root ScopeSiblingRoot { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     #[derive(Debug, PartialEq, Eq)]
@@ -4368,6 +4377,39 @@ pub mod fixture {
         let mut hoisted_visitor = RecordingVisitor::default();
         hoisted_visitor.visit_joint_mobile_root(&hoisted);
         assert_eq!(hoisted_visitor.0, [VisitEvent::Mode(Mode::One)]);
+    }
+
+    pub(super) fn assert_a_mid_form_scope_sibling_mobile_role_compiles_and_derives_an_empty_slot() {
+        let leaf = |mode| MobileConstituent::MobileLeaf(MobileLeafNode { mode });
+        let host = ScopeSiblingMobileHost::new(leaf(Mode::One), leaf(Mode::Many), leaf(Mode::One))
+            .expect("a mobile role between two siblings builds");
+        assert!(host.admissible_sites().is_empty());
+        let rule = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::ScopeSiblingRootScopeSiblingMobile)
+            .expect("the mid-form mobile host's rule is generated");
+        assert!(matches!(
+            rule.rhs,
+            [
+                N(Category::MobileConstituent),
+                N(Category::MobileConstituent),
+                N(Category::MobileConstituent),
+            ],
+        ));
+
+        let value = ScopeSiblingRoot::ScopeSiblingMobile(host);
+        let context = ParseContext::default();
+        let (rendered, _claims) = render_scope_sibling_root_with_claims(&value, &context);
+        assert_eq!(rendered, "One many one.");
+        let surface = rendered
+            .strip_suffix('.')
+            .expect("the root renderer contributes punctuation");
+        let forest = parse_structural(Category::ScopeSiblingRoot, surface, &context);
+        assert_eq!(
+            forest.accepted_root_ids().count(),
+            1,
+            "the mobile role keeps its declared position in the only derivation",
+        );
     }
 
     pub(super) fn assert_guarded_form_partition_boundaries() {
@@ -8118,6 +8160,11 @@ fn recursive_optional_fields_render_and_visit_through_generated_boxes() {
 #[test]
 fn mobile_roles_add_only_an_empty_derived_slot_and_both_attachment_heights_agree() {
     fixture::assert_mobile_roles_are_derived_and_attachment_heights_agree();
+}
+
+#[test]
+fn a_mid_form_mobile_role_declaring_its_scope_sibling_compiles_and_derives_an_empty_slot() {
+    fixture::assert_a_mid_form_scope_sibling_mobile_role_compiles_and_derives_an_empty_slot();
 }
 
 #[test]

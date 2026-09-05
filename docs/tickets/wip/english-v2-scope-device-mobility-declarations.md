@@ -111,9 +111,18 @@ a separated role fails with a diagnostic naming the role and form.
 
 All 39 roles in §A.2's seven families are declared mobile: 12 Adjunct roles, 5
 Postmodifier roles, 7 Determiner/Predeterminer/possessor roles, 2 attributive
-Modifier roles, 9 nominal head roles, 1 preposition role, and 3 modal/negation
-roles. Complements, Verb-Frame-declared roles, form literals, Coordinators, and
-vocabulary positions remain unannotated. Nothing reads or populates an
+Modifier roles, 9 nominal head roles, 1 preposition role, and 3 modal roles.
+The negation half of family 7 has no qualifying site: each `PredicateNegator`
+role sits over a `PredicativeComplement` or a `VerbPhrase`, and neither
+Category has a Coordination production, so no Clause with a negation role has a
+coordinated Predicate to scope over. Complements, Verb-Frame-declared roles,
+form literals, Coordinators and non-role vocabulary positions remain
+unannotated; a `lex` field that fills one of §A.2's named roles — the
+preposition, the two auxiliaries, the possessive determiner, the lexical heads
+— is a role filler, not a bare vocabulary position, and is annotated. Left-
+attached (preposed) adjunct roles are also unannotated: §A.2's Adjunct family
+is the Adjunct of a Predicate-Adjunct host, and the design's device is for
+right-peripheral and shared Constituents. Nothing reads or populates an
 `admissible_sites` slot in this phase.
 
 **PROVE.** Coverage is 17,601 -> 17,601. Report mode printed no lock-delta rows
@@ -147,7 +156,13 @@ were routed through generated checked constructors, or supplied the still-empty
 derived slot internally, solely to keep them compiling after their elements
 became mobile.
 
-Deviations and additions: none beyond the ticket and coordinator ruling. The
+Deviations and additions: the mobile value-kind check in `validate.rs` was
+widened alongside the placement rule — a mobile role may now be a `lex`, `opt
+lex` or `zeroable` value as well as a bare or optional Category — because
+§A.2's own families name the preposition role, the two auxiliary roles, the
+possessive-determiner role, the `zeroable` Determiner role and the lexical head
+roles, none of which phase 1's Category-only check admitted. Nothing else
+beyond the ticket and coordinator ruling. The
 earlier `AllPredeterminedNominal.det` STOP is resolved by that ruling; no fresh
 STOP fired. The per-mobile admissible-site slot shape and joint-realizability
 witness remain routed to phase 3, as amended in the design. No collapse code,
@@ -171,7 +186,9 @@ host load 7.09/8.68/8.83; ambiguity 107 s at 118,362 ns/B, host load
 4.62/7.11/8.20; roundtrip 95 s at 112,985 ns/B, host load 4.13/5.95/7.49.
 Each exceeds the 16.26 s quiet-host ceiling under load and is provenance, never
 a gate target. The sandbox cannot observe sibling-process count; each
-measurement used one foreground gate process. Wall clock: start 2026-09-04
+measurement used one foreground gate process. Contention stamp
+(coordinator-supplied): 2 concurrent executors and 2 concurrent landing reviews
+shared the host across these measurements and the review's re-runs. Wall clock: start 2026-09-04
 23:23:25 PDT; end 2026-09-04 23:58:04 PDT.
 
 Positive gates on the refreshed tree: `cargo fmt --all` exited 0; strict
@@ -184,3 +201,77 @@ coverage reported 17,601 selected and covered with every failure counter 0;
 ambiguity required resolution and reported 0 ties; roundtrip reported 17,601
 clean and 0 mismatched. Citation gates were not required because no citation
 changed.
+
+### Review corrections
+
+- MEDIUM — the mobile value-kind widening (`lex`, `opt lex`, `zeroable`) was
+  built but not disclosed; it is now stated in Deviations with the §A.2
+  families that require it.
+- MEDIUM — the new "names unknown scope sibling" declaration error had no
+  test. Added
+  `validate::tests::a_mobile_role_naming_a_scope_sibling_its_element_lacks_is_a_declaration_error`.
+- MEDIUM — no compiled consumer exercised a mid-form `mobile(<sibling>)` role;
+  the placement arms were proved only inside the declaration compiler. Added
+  the `scope_sibling_mobile` construction and the
+  `a_mid_form_mobile_role_declaring_its_scope_sibling_compiles_and_derives_an_empty_slot`
+  test to `deckmaste_construction`'s compiled-consumer fixture: the generated
+  rule keeps the declared three-role order, the host builds, and its derived
+  slot is empty.
+- LOW — the record's family census called three auxiliary roles
+  "modal/negation" and said vocabulary positions are unannotated, both of which
+  read against the diff. Restated with the negation family's absent site and
+  the role-filler distinction, and with the preposed-adjunct exclusion.
+- LOW — `semantic.rs`'s `mobile_scope_sibling` accessor carried an
+  `#[allow(dead_code, reason = "phase 3 …")]` process reference. Reworded.
+
+Assurance counts after the review: restored 0; re-spelled 3 (unchanged); added
+2 (the unknown-scope-sibling declaration-error witness and the compiled-consumer
+mid-form placement witness); removed 0; ignored with blockers 0. The five
+english_v2 AST fixtures re-routed through generated checked constructors are
+structural re-spellings — same values, same asserted outcomes — and assert no
+new outcome.
+
+**Gates re-run once on the reviewed tree.** Every figure above this line is
+stamped to `ptllomznnwyr` on the pre-`english-v2-tail-keyword-ability-grant`
+parent and stays true of that tree; that landing reached trunk during the
+review and moved every corpus figure, so the landed numbers are these.
+Measured on change `ukppmoppswmv` (the review commit) after `kata refresh` onto
+`ykrsttluzkxm`, which merged cleanly — `constructions.rs` still differs from
+trunk by exactly the 39 annotation lines and nothing else.
+
+Lock `covered` 18,917; `english-v2-coverage.lock` byte-identical to trunk's at
+SHA-256 `cda9f26c2a23f2fb99bf2ae030e8a8999dd1d4dcfc9c52aeca457d4ce20f7300`
+(`+0 / -0`, no lock-delta row in report mode, 0 newly covered, 0 stopped
+covered). Coverage `--check`: 32,641 total, 18,917 selected, 18,917 covered, 0
+selected-uncovered, 13,724 parse failures, 0 unresolved ties, 0 internal
+failures, 0 roundtrip mismatches, 0 ownership failures, 824,835 nonterminal
+nodes / 824,835 visited, 287,789 expected leaves / 287,789 visited, 0 gaps, 0
+overlaps, 0 synthetic claims, 0 provenance-plan mismatches, 20 permitted
+licensing checkers, 0 forbidden. Construction count 393 -> 393 (the annotation
+adds none; 387 was the pre-E15 figure). Census 14,870 unique / 4,047
+specificity-resolved / 0 exception-resolved / 0 unresolved ties / 13,724 parse
+failures. Collisions unchanged: 2 licensed vocab/lexicon homographs, 9
+form-literal/vocab overlaps.
+
+Selection neutrality re-proved on the final tree against the new trunk:
+`ambiguity --json --require-resolved --workers 8` from `default@` and from the
+reviewed tree are byte-identical over all 32,641 units, both SHA-256
+`42ef5fbea93904456f3a8ec7dc277e627d400469be6d7b3ad5861ba0329c6de6` (`cmp` exit
+0). `cargo fmt --all` clean; strict all-target Clippy clean for
+`deckmaste_construction_core`, `deckmaste_construction` and
+`deckmaste_english_v2`; `cargo test --workspace` green (128 `test result: ok`
+lines, every one `0 failed`, 6 pre-existing ignored), including
+`tests/compile_fail/mobile_role_not_edge.rs ... ok`,
+`a_mid_form_mobile_role_declaring_its_scope_sibling_compiles_and_derives_an_empty_slot ... ok`
+and
+`a_mobile_role_naming_a_scope_sibling_its_element_lacks_is_a_declaration_error ... ok`.
+No citation changed, so the cite gates were not required.
+
+Review performance advisory, 8 workers, on the landed tree: coverage 105 s at
+114,967 ns/B, host load 8.80/8.67/9.51; ambiguity 107 s at 120,939 ns/B, host
+load 8.62/8.99/9.55; the trunk baseline run of the same command with identical
+output 104 s at 132,085 ns/B, host load 10.36/9.51/9.68 — the spread between
+two byte-identical runs is host contention, not parse time. Every figure
+exceeds the 16.26 s quiet-host ceiling under that load and is provenance, never
+a gate target. Contention stamp: 2 concurrent executors and 2 concurrent
+landing reviews shared the host.

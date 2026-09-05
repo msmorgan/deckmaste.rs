@@ -4351,7 +4351,7 @@ impl ConstructionFieldPlan {
 
     #[allow(
         dead_code,
-        reason = "phase 3 consumes the declared mobile scope sibling"
+        reason = "the semantic plan carries the declared scope sibling for its consumers"
     )]
     pub(crate) fn mobile_scope_sibling(&self) -> Option<&str> {
         self.mobile_scope_sibling.as_deref()

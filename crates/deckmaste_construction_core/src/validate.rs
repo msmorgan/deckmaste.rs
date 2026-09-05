@@ -11346,6 +11346,25 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn a_mobile_role_naming_a_scope_sibling_its_element_lacks_is_a_declaration_error() {
+        let diagnostic = error(quote! {
+            construction child: Child {
+                element ChildNode {}
+                form child = "child";
+            }
+            construction absent_sibling: Root {
+                element AbsentSibling { shared: mobile(body) Child, suffix: Child, }
+                form absent_sibling = shared suffix;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            diagnostic.contains("mobile role `shared` names unknown scope sibling `body`"),
+            "{diagnostic}",
+        );
+    }
+
+    #[test]
     fn checked_fields_accept_feature_bearing_lexical_values() {
         validate(quote! {
             codec DeterminativeHead {
