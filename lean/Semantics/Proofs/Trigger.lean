@@ -293,4 +293,10 @@ theorem badShiftWithoutRoll :
       = [.outcomeInScope .rollResult 0] := by
   decide
 
+/-- "0 — Draw a card.": chapter symbols start at I, which represents 1 [CR#714.2a]. -/
+theorem badChapterZero :
+    Ability.check [] (triggered .when (.chapterMark [0]) (draw .you (.lit 1)))
+      = [.chapterMarks] := by
+  decide
+
 end Semantics.Proofs.Trigger

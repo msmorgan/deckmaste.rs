@@ -1264,7 +1264,7 @@ def chapterMarksDistinct : List ChapterNumber → Bool
 
 def chapterMarksOk : List ChapterNumber → Bool
   | [] => false
-  | ns => chapterMarksDistinct ns
+  | ns => chapterMarksDistinct ns && ns.all (· != 0)
 
 def typeLineNonEmpty (supertypes : List Supertype) (types : List CardType)
     (subtypes : List Subtype) : Bool :=
