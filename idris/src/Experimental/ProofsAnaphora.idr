@@ -405,6 +405,30 @@ badSingletonForEach : Unspellable (Instruction []) (\ok =>
   ForEachOf (Macros.target Macros.creature) (Draw You (Lit 1)) {pl = ok})
 badSingletonForEach Refl impossible
 
+||| "For each player, choose target permanent that player controls. Those
+||| players draw a card." — Vaevictis Asmadi, the Dire's opening loop: the
+||| group survives it, pluralised.
+public export
+okLoopGroupSurvives : Instruction []
+okLoopGroupSurvives =
+  Sequentially
+    [ ForEachOf (Macros.each AnyPlayer)
+        (Macros.choose (Macros.target (And [Permanent,
+                                            HasPossessor ControllerAx Macros.They])))
+    , Draw (Macros.That PlayerW ManyOf) (Lit 1) ]
+
+||| "For each player, choose target permanent that player controls. That
+||| player draws a card." — the element the loop binds is body-local, so only
+||| the group reads back, and only as a plural.
+public export
+badLoopElementRead : Unspellable (Instruction []) (\ok =>
+  Sequentially
+    [ ForEachOf (Macros.each AnyPlayer)
+        (Macros.choose (Macros.target (And [Permanent,
+                                            HasPossessor ControllerAx Macros.They])))
+    , Draw (Macros.That PlayerW OneOf {ok}) (Lit 1) ])
+badLoopElementRead Refl impossible
+
 ||| "if you activated an activated ability this turn"
 public export
 okActivationLookbackComplement : Condition []

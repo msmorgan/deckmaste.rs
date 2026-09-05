@@ -1230,13 +1230,21 @@ slithermuseTrigger =
             (Draw You TheDifference)
             Nothing ])
 
-||| Celestial Judgment's pass
+||| Celestial Judgment
 public export
-celestialJudgmentPass : Instruction []
-celestialJudgmentPass =
-  ForEachKindOf (ValueAxis Power) (Just (Macros.allOf Macros.creature)) Number
-    (Macros.choose (Macros.a (And [Macros.creature,
-                                   Compare [StatAxis Power] Eq Macros.chosenNumber])))
+celestialJudgment : Card
+celestialJudgment =
+  Macros.card "Celestial Judgment"
+       (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell Nothing (Sequentially
+                  [ ForEachKindOf (ValueAxis Power)
+                      (Just (Macros.allOf Macros.creature)) Number
+                      (Macros.choose (Macros.a (And [Macros.creature,
+                                       Compare [StatAxis Power] Eq Macros.chosenNumber])))
+                  , Macros.destroy
+                      (Macros.each (And [Macros.creature, NotChosen])) ]) ]
+       Nothing
 
 ||| World Queller
 public export

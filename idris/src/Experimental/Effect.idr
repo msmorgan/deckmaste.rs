@@ -1873,8 +1873,17 @@ mutual
     MkInstrProfile (annIntro e) bs Nothing ([])
   instrProfile (Define l amt) = sameIntro (defineLetter l (amtIntro amt)) []
   instrProfile (ForEachOf grp body) =
-    MkInstrProfile bs (pluralizeDelta (instrDelta body) ++ bs) Nothing ([])
-  instrProfile (ForEachKindOf _ _ _ _) = sameIntro bs []
+    MkInstrProfile bs
+                 (pluralizeDelta (instrDelta body) ++
+                    pluralizeDelta (nounDelta grp) ++ bs)
+                 Nothing
+                 ([])
+  instrProfile (ForEachKindOf _ dom _ body) =
+    MkInstrProfile bs
+                 (pluralizeDelta (instrDelta body) ++
+                    pluralizeDelta (maybe [] nounDelta dom) ++ bs)
+                 Nothing
+                 ([])
   instrProfile (Repeat _) = sameIntro bs []
   instrProfile (Repeated n body) =
     MkInstrProfile (amtIntro n)
