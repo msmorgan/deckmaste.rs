@@ -134,29 +134,55 @@ re-measure before minting, and stamp the measurement. No xtask command exposes
 a family key yet; the census below bucketed parse failures by first-failure
 byte offset over the `coverage` rows.
 
-Measured 2026-09-03 on change `lkznywvp` (16,771 / 32,641 covered, 15,870 parse
-failures):
+Measured 2026-09-05 on change `ykrsttluzkxm` (18,917 / 32,641 covered, 13,724
+parse failures; re-run unchanged after the `english-v2-scope-device-mobility-declarations`
+integrate rebased that change, as that ticket required). Key: the first-failure byte offset carried in each
+`parse_failure` row's `message` ("parse failed at bytes N..M"), bucketed by the
+token at that offset and the token before it. 615 rows carry no offset (build
+rejections) and are unbucketed. A unit is a whole card face, so a family's count
+is the units it is the FIRST failure of, not the units that contain its surface.
 
-- keyword-ability grants (`gains`/`has` + keyword, with duration/argument/
-  coordination): 1,522 — minted as `english-v2-tail-keyword-ability-grant`
-- `Activate only …` timing restrictions: 573
-- `colorless` (scanner splits `color` + `less`): 391
-- `… is/are equal to …` comparisons: ~333
-- `if it was kicked` / kicker conditionals: 193
-- `defending player`: 190
-- Spree and bulleted mode bodies: 167 (was ~420 on 2026-09-02)
-- Saga chapter bodies: 138 (was 181)
-- `Spend this mana only …`: 132
-- landwalk (`Swamp` + `walk` split): 127
-- coordinated `with`-grants: ~112 by text marker (the same landing as
-  `english-v2-with-preposition`, never two)
-- `emblem` into the noun inventory: 82
+Top ten by first-failure attribution:
+
+- restrictive `only` as a focus adverb: 729 — minted 2026-09-05 as
+  `english-v2-tail-restrictive-focus-adverb` (312 focus an `as` phrase, 166 an
+  `if` clause, 101 a frequency adverbial, 86 a `during` phrase, 57 an Object,
+  7 a Bare Predicate; 651 follow an Object-less `Activate`). Absorbs the former
+  `Activate only …` entry. `english-v2-cost-family-lowering` gave up
+  `CastingRestriction`/`RestrictionTurn` to it.
+- `colorless` (scanner splits `color` + `less`): 386 — UNOWNED, lexical layer
+- `Spend this mana only …` / `… mana spent to cast …`: 207 — the parse half is
+  named, unpinned, by `engine-restricted-mana` (an engine ticket)
+- `if … was kicked` / kicker conditionals: 200 — UNOWNED
+- `defending player`: 196 — UNOWNED
+- `in addition to its other types` (scanner splits `a` + `ddition`): 167 —
+  `english-v2-locative-licence-set` names the sentence, does not own the split
+- exceptive `except` clauses (`…, except it's legendary`): 138 — UNOWNED.
+  `english-v2-remaining-prepositions` deliberately leaves `except` a form
+  literal inside the fused `participial_except_by_complement`
+- `total` (life total, total power, total mana value): 128 — UNOWNED
+- landwalk (`Swamp`/`Island`/`Forest` + `walk` split): 127 — UNOWNED
+- arithmetic `plus` (`X is 1 plus the number of …`): 123 — fogged above as
+  §"Arithmetic and fraction values (A10)"; a fog entry is not a ticket
+
+Retained entries re-measured on the same key (the 2026-09-03 numbers were taken
+on a different tree and are not comparable term by term):
+
+- `… is/are equal to …` comparisons: 141 in a first-failure window, 57 attributed
+  to `equal`/`to` exactly
+- coordinated `with`-grants: 46 (never a landing of its own — the same landing as
+  the preposition that carries it)
+- Spree and bulleted mode bodies: 41
 - `choose one that hasn't been chosen` (relative clause on a fused quantity
-  head): 26
+  head): 25
+- Saga chapter bodies: 1; `emblem` into the noun inventory: 0; leveler band
+  bodies: 0 — no longer visible under this key. Not evidence they parse: the
+  unit may now fail earlier elsewhere. Re-derive before minting.
+- the fragment `.` accounts for 556 failures spread over at least twelve
+  preceding tokens (`turn`, `time`, `top`, `cards`, `card`, `control`, …). It is
+  a position, not a family; do not mint it.
 - conditional-sentence modal heads: not resolvable by this key (shape already
   right per the 13-10 review)
-- leveler band bodies: 3
-- Class residues: 0 (closed by the 13-10 modal block; entry retired)
 - coordination families generally: v1's coordination modules are a phenomenon
   checklist (coordinable categories, serial-list comma conventions, and/or/nor,
   scope, agreement), never code or vocabulary to import

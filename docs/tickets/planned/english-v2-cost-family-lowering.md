@@ -7,10 +7,13 @@ rewrite decision's Plan 09 amendment (`docs/decisions/english-v2-rewrite.md`,
 segmentation are the only game-specific surfaces admitted directly by the
 grammar") admits `CostSymbol`, `ManaAmount`, `KeywordManaCost` and their kin as
 printed notation. It does not admit `ActivationCostComponent`,
-`AdditionalCostBody`, `ControlledCostAction`, `CostComparisonPredicate`,
-`CastingRestriction`, or `RestrictionTurn`, which name game meaning and are
+`AdditionalCostBody`, `ControlledCostAction`, or `CostComparisonPredicate`,
+which name game meaning and are
 the largest unticketed block of the game-semantic categories still in the
-grammar (~24 when this was written, unstamped; re-measure at claim). The distribution/counter block has its own ticket and the predicative
+grammar (~24 when this was written, unstamped; re-measure at claim).
+2026-09-05: `CastingRestriction` and `RestrictionTurn` left this inventory —
+`english-v2-tail-restrictive-focus-adverb` deletes both, with `only` as a
+declared focus adverb over an ordinary Adjunct. The distribution/counter block has its own ticket and the predicative
 block is the `Predicative complement as one copular frame (A7)` entry in
 `../fog.md`; this one owns the cost family.
 
@@ -19,9 +22,7 @@ entry: an activation cost is a coordination of cost constituents where the
 constituents are ordinary imperative clauses, mana notation, or symbols;
 "as an additional cost to cast this spell, …" is a subordinate/adverbial
 attachment (`additional_cost` is a `ClauseAttachment` and belongs to the
-subordinate-clause family); "cast … only …" restrictions are ordinary
-adverbial modification with a temporal noun phrase, not a
-`CastingRestriction`/`RestrictionTurn` pair; cost comparison is a comparative
+subordinate-clause family); cost comparison is a comparative
 predicate over a measure. The AST remains linguistic; the downstream semantic
 layer recovers cost-hood from the ability's document position and the verbs.
 
