@@ -96,6 +96,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             .into_iter()
             .flat_map(|(_, emitted)| emitted),
     );
+    items.extend(emit_attachment_site_types(plan));
     let mut zeroable_types = BTreeMap::<String, (&syn::Path, &str, Vec<DeclarationKey>)>::new();
     for construction in plan.constructions() {
         for field in construction
@@ -164,6 +165,88 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
         }
     }
     Ok(items)
+}
+
+fn emit_attachment_site_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
+    let origins = plan
+        .constructions()
+        .iter()
+        .filter(|construction| construction.has_mobile_role())
+        .map(|construction| {
+            DeclarationKey::new(
+                SourceDeclarationKind::Construction,
+                construction.construction_id(),
+            )
+        })
+        .collect::<Vec<_>>();
+    if origins.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        GeneratedItem::new(
+            ItemKey::named_type(super::ATTACHMENT_SITE_STEP_TYPE),
+            quote! {
+                #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+                pub enum AttachmentSiteStep {
+                    Role(&'static str),
+                    Conjunct(&'static str, usize),
+                }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::named_type(super::ATTACHMENT_SITE_PATH_TYPE),
+            quote! {
+                #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+                pub struct AttachmentSitePath(Vec<AttachmentSiteStep>);
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: None,
+                self_ty: super::ATTACHMENT_SITE_PATH_TYPE.to_owned(),
+            },
+            quote! {
+                impl AttachmentSitePath {
+                    pub const fn steps(&self) -> &[AttachmentSiteStep] {
+                        self.0.as_slice()
+                    }
+                }
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::named_type(super::ADMISSIBLE_SITES_TYPE),
+            quote! {
+                #[derive(Debug, Clone, PartialEq, Eq)]
+                pub struct AdmissibleSites(Vec<AttachmentSitePath>);
+            },
+            origins.clone(),
+        ),
+        GeneratedItem::new(
+            ItemKey::Impl {
+                trait_name: None,
+                self_ty: super::ADMISSIBLE_SITES_TYPE.to_owned(),
+            },
+            quote! {
+                impl AdmissibleSites {
+                    pub const fn empty() -> Self {
+                        Self(Vec::new())
+                    }
+
+                    pub const fn paths(&self) -> &[AttachmentSitePath] {
+                        self.0.as_slice()
+                    }
+
+                    pub const fn is_empty(&self) -> bool {
+                        self.0.is_empty()
+                    }
+                }
+            },
+            origins,
+        ),
+    ]
 }
 
 fn emit_structural_sum(sum: &crate::semantic::SumPlan, ident: &syn::Ident) -> TokenStream {
@@ -380,7 +463,7 @@ fn emit_product(
     }
 
     let construction_name = construction.construction_id();
-    let fields = construction
+    let mut fields = construction
         .fields()
         .iter()
         .map(|field| {
@@ -410,6 +493,9 @@ fn emit_product(
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    if construction.has_mobile_role() {
+        fields.push(quote! { admissible_sites: AdmissibleSites });
+    }
     Ok(quote! {
         #[derive(Debug, Clone, PartialEq, Eq)]
         pub struct #ident {
@@ -481,7 +567,7 @@ fn emit_invariant_impl(
         &construction_role,
         &locals,
     )?;
-    let initializers = construction
+    let mut initializers = construction
         .fields()
         .iter()
         .map(|field| {
@@ -494,43 +580,57 @@ fn emit_invariant_impl(
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    let accessors = construction.fields().iter().filter_map(|field| {
-        if field.is_zeroable() {
+    if construction.has_mobile_role() {
+        initializers.push(quote! { admissible_sites: AdmissibleSites::empty() });
+    }
+    let mut accessors = construction
+        .fields()
+        .iter()
+        .filter_map(|field| {
+            if field.is_zeroable() {
+                let name = field.name();
+                let ty = field.value_type();
+                return Some(quote! {
+                    pub const fn #name(&self) -> &#ty {
+                        &self.#name
+                    }
+                });
+            }
+            let structural_constraint = field
+                .structural_plan()
+                .is_some_and(structural_field_is_constrained);
+            if field.accessor_mode().is_none() && !structural_constraint {
+                return None;
+            }
+            if let Some(structural) = field.structural_plan() {
+                return Some(emit_structural_accessor(structural));
+            }
+            let mode = field
+                .accessor_mode()
+                .expect("non-structural private fields have a sealed accessor mode");
             let name = field.name();
             let ty = field.value_type();
-            return Some(quote! {
-                pub const fn #name(&self) -> &#ty {
-                    &self.#name
-                }
-            });
-        }
-        let structural_constraint = field
-            .structural_plan()
-            .is_some_and(structural_field_is_constrained);
-        if field.accessor_mode().is_none() && !structural_constraint {
-            return None;
-        }
-        if let Some(structural) = field.structural_plan() {
-            return Some(emit_structural_accessor(structural));
-        }
-        let mode = field
-            .accessor_mode()
-            .expect("non-structural private fields have a sealed accessor mode");
-        let name = field.name();
-        let ty = field.value_type();
-        Some(match mode {
-            AccessorMode::Copy => quote! {
-                pub const fn #name(&self) -> #ty {
-                    self.#name
-                }
-            },
-            AccessorMode::Borrow => quote! {
-                pub const fn #name(&self) -> &#ty {
-                    &self.#name
-                }
-            },
+            Some(match mode {
+                AccessorMode::Copy => quote! {
+                    pub const fn #name(&self) -> #ty {
+                        self.#name
+                    }
+                },
+                AccessorMode::Borrow => quote! {
+                    pub const fn #name(&self) -> &#ty {
+                        &self.#name
+                    }
+                },
+            })
         })
-    });
+        .collect::<Vec<_>>();
+    if construction.has_mobile_role() {
+        accessors.push(quote! {
+            pub const fn admissible_sites(&self) -> &AdmissibleSites {
+                &self.admissible_sites
+            }
+        });
+    }
 
     Ok(quote! {
         impl #ident {
@@ -1429,6 +1529,101 @@ mod tests {
             ],
             "the AST stores declaration identity through its codec sum, never Verb Frame or Verb Frame Set tags",
         );
+    }
+
+    #[test]
+    fn mobile_role_emits_one_sealed_always_present_attachment_slot() {
+        let expansion = crate::generate(quote::quote! {
+            construction child: Child {
+                element ChildNode {}
+                form child = "child";
+            }
+            construction host: Root {
+                element Host { tail: mobile Child, }
+                form host = tail;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("mobile AST fixture generates");
+
+        let Item::Enum(step) = parse_named(expansion.items(), "AttachmentSiteStep") else {
+            panic!("AttachmentSiteStep is an enum");
+        };
+        assert_eq!(
+            step.variants
+                .iter()
+                .map(|variant| (variant.ident.to_string(), variant.fields.len()))
+                .collect::<Vec<_>>(),
+            [("Role".to_owned(), 1), ("Conjunct".to_owned(), 2)],
+        );
+
+        let Item::Struct(path) = parse_named(expansion.items(), "AttachmentSitePath") else {
+            panic!("AttachmentSitePath is a struct");
+        };
+        let Fields::Unnamed(path_fields) = path.fields else {
+            panic!("AttachmentSitePath seals its step sequence");
+        };
+        assert!(matches!(path_fields.unnamed[0].vis, Visibility::Inherited));
+        assert_eq!(
+            path_fields.unnamed[0].ty.to_token_stream().to_string(),
+            "Vec < AttachmentSiteStep >",
+        );
+
+        let Item::Struct(sites) = parse_named(expansion.items(), "AdmissibleSites") else {
+            panic!("AdmissibleSites is a struct");
+        };
+        let Fields::Unnamed(site_fields) = sites.fields else {
+            panic!("AdmissibleSites seals its ordered paths");
+        };
+        assert!(matches!(site_fields.unnamed[0].vis, Visibility::Inherited));
+        assert_eq!(
+            site_fields.unnamed[0].ty.to_token_stream().to_string(),
+            "Vec < AttachmentSitePath >",
+        );
+
+        let Item::Struct(host) = parse_named(expansion.items(), "Host") else {
+            panic!("Host is a struct");
+        };
+        let Fields::Named(host_fields) = host.fields else {
+            panic!("Host has named fields");
+        };
+        assert_eq!(
+            host_fields
+                .named
+                .iter()
+                .map(|field| {
+                    (
+                        field.ident.as_ref().expect("field name").to_string(),
+                        field.ty.to_token_stream().to_string(),
+                        matches!(field.vis, Visibility::Public(_)),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                ("tail".to_owned(), "Child".to_owned(), true),
+                (
+                    "admissible_sites".to_owned(),
+                    "AdmissibleSites".to_owned(),
+                    false,
+                ),
+            ],
+        );
+
+        let host_impl = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                item.key
+                    == ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: "Host".to_owned(),
+                    }
+            })
+            .expect("mobile host has a generated constructor and accessor")
+            .tokens
+            .to_string();
+        assert!(host_impl.contains("admissible_sites : AdmissibleSites :: empty ()"));
+        assert!(host_impl.contains("fn admissible_sites (& self) -> & AdmissibleSites"));
     }
 
     #[test]

@@ -980,7 +980,11 @@ fn emit_construction_walker(
                 }
             })
             .collect::<Vec<_>>();
-        quote! { let #ty { #(#fields),* } = #argument; }
+        if construction.has_mobile_role() {
+            quote! { let #ty { #(#fields),*, .. } = #argument; }
+        } else {
+            quote! { let #ty { #(#fields),* } = #argument; }
+        }
     };
     let fields = construction
         .fields()

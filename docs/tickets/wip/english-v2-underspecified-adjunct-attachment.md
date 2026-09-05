@@ -112,3 +112,72 @@ a measured >~10% ns/B cost; the `AdmissibleSites` slot is always present; the
 shared-operator case is packed, not a fifth principle. Design:
 docs/memory/scratch/plan09-postmortem/b7-scope-device-design.md (gitignored);
 phases per its §G.2 — phases 1 and 3 never share a round.
+
+## Landing record
+
+### Phase 1
+
+Measured after `kata refresh` on change `uqztnnqkvzkr`, with coverage-lock
+`covered` count 17,601.
+
+**PROVE.** The declaration compiler now accepts `mobile` on a construction
+role, retains that declaration through its semantic plan, and validates that
+the role is at the right edge or adjacent to a `seq` role in every form. A
+declaration outside that topology fails at load time with a diagnostic naming
+the role. Each carrying element has one always-present, sealed
+`AdmissibleSites`; `AttachmentSitePath` is an ordered sequence of `Role` and
+`Conjunct` steps relative to that element. Constructors derive the empty slot
+without accepting a build value.
+
+Emitter and compiled-consumer witnesses prove that this derived field adds no
+`RulePosition` or specificity tier, is not visited as a leaf, and renders no
+bytes. The compiled-consumer roundtrip renders and parses the same byte-exact
+one-word span with one lexical claim and one leaf visit. Its nested fixture has
+two mobile roles over that span and admits the candidate with both Constituents
+at their highest hosts, settling OPEN-3's phase-1 obligation without invoking
+the fallback.
+
+No silent loss: coverage is 17,601 -> 17,601, with no newly covered or no-longer
+covered identities. `DECKMASTE_COVERAGE_LOCK=report` emitted no delta rows
+(lock +0/-0), and `english-v2-coverage.lock` remained byte-identical at SHA-256
+`766eca211bace1feebdd8a1c2c53c35655c36159c3f4df7dbe18a0e6d29fdcac`.
+The structural laws are exact: roundtrip 17,601/17,601 clean with 0 mismatches;
+ownership has 0 failures, gaps, overlaps, synthetic claims, or provenance-plan
+mismatches; construction traversal is 750,925 nodes / 750,925 visits with 0
+failure units; leaf traversal is 263,397 expected / 263,397 visited with 0
+failure units; unresolved ties and internal failures are both 0. Forbidden
+word-naming licensing checkers are 0, and the environment loaded without an
+error.
+
+**DISCLOSE.** The production grammar is unchanged: `constructions.rs` and
+`core_verbs.ron` are byte-identical to the refreshed parent, and construction
+count is 387 -> 387. Parent and tree `ambiguity --json` reports are byte-identical
+at SHA-256
+`25960e93f78e4e572baa82c04e721c4674c33b3c7993d8a961249e0723ea2f85`
+across all 32,641 units. The selection census is therefore unchanged: 13,759
+unique, 3,842 specificity-resolved, 0 exception-resolved, 15,040 parse failures,
+and 0 unresolved ties. Newly covered identities: none. Permitted licensing
+checkers: 20.
+
+Assurance counts: restored 0; re-spelled 0; ignored 0; added 8 (seven Rust test
+entries and one compile-fail fixture); removed 0. Deviations and additions:
+none beyond the ticket's required positive, negative, structural-law,
+roundtrip, and joint-realizability witnesses. STOP: none. Citations changed:
+none. Glossary gaps carried from the design: Scope, Attachment, Head,
+Premodifier, Peripheral, Bracketing, Mobility.
+
+**REPORT.** Lock `covered`: 17,601. Construction count: 387. Licensed
+vocabulary/lexicon homographs (2): `AttributiveAdjective::Untap` beside the
+declaration keyword action `Untap`; `TargetingMarker::Target` beside
+`CommonNoun::Target`. Form-literal/vocabulary overlaps (9): `additional` in
+`additional_cost`; `to` in `up_to_quantifying_determiner`; `the` and `next` in
+`definite_next_mass_quantity_reference`; `to` in
+`scalar_less_than_or_equal_to`; `the` in `number_of_scalar_value`; `the` in
+`greatest_scalar_value`; `other` in `other_than_qualified_reference`; and `the`
+in `positional_partitive`.
+
+Coverage performance advisory: 178 s against the 16.26 s quiet-host ceiling,
+186,843 ns/B thread CPU, 8 workers, and 1/5/15-minute host load 33/40/32. The
+sandbox cannot observe sibling-process count; the elevated load is reported
+for reviewer contention stamping and is not fitted to. Wall clock: start
+2026-09-04 20:13:04 PDT; end 2026-09-04 21:07:10 PDT.

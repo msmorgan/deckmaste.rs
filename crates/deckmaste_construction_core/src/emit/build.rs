@@ -4310,6 +4310,35 @@ mod tests {
     }
 
     #[test]
+    fn mobile_role_build_initializes_metadata_without_consuming_a_build_value() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction child: Child {
+                    element ChildNode {}
+                    form child = "child";
+                }
+                construction mobile: Root {
+                    element MobileHost { tail: mobile Child, }
+                    form mobile = tail;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("mobile build fixture parses"),
+        )
+        .expect("mobile build fixture validates")
+        .into_semantic();
+        let item = super::emit(&plan)
+            .expect("mobile build fixture emits")
+            .remove(0);
+        let source = build_arm(&item, "RootMobile").to_token_stream().to_string();
+        assert!(
+            source.contains("MobileHost :: try_new (tail . clone ())"),
+            "{source}",
+        );
+        assert!(!source.contains("AdmissibleSites"), "{source}");
+    }
+
+    #[test]
     fn checked_required_category_field_emits_a_build_only_guard() {
         let validated = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

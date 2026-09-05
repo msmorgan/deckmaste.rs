@@ -2539,6 +2539,54 @@ mod tests {
         assert!(source.contains("const fn form_name"), "{source}");
     }
 
+    #[test]
+    fn mobile_role_metadata_contributes_no_rule_position_specificity_tier_or_helper_rule() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                construction child: Child {
+                    element ChildNode {}
+                    form child = "child";
+                }
+                construction plain: PlainRoot {
+                    element PlainHost { tail: Child, }
+                    form plain = tail;
+                }
+                construction mobile: MobileRoot {
+                    element MobileHost { tail: mobile Child, }
+                    form mobile = tail;
+                }
+                root PlainRoot { punctuation = "."; eoi = true; standalone_render = true; }
+                root MobileRoot { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("mobile rule fixture parses"),
+        )
+        .expect("mobile rule fixture validates")
+        .into_semantic();
+        let rows = super::lowered_rows(&plan).expect("mobile rule fixture lowers");
+        let public_rhs = |construction| {
+            rows.iter()
+                .find(|row| row.public_construction.as_deref() == Some(construction))
+                .expect("construction has one public rule")
+                .rhs
+                .iter()
+                .map(super::RuleSymbolPlan::test_label)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(public_rhs("PlainRootPlain"), ["authored"]);
+        assert_eq!(public_rhs("MobileRootMobile"), ["authored"]);
+        assert_eq!(
+            rows.iter()
+                .filter(|row| row.public_construction.is_some())
+                .count(),
+            3,
+        );
+        assert!(
+            rows.iter()
+                .all(|row| { !row.id.contains("Admissible") && !row.owner.contains("Admissible") }),
+            "the derived slot has no helper rule",
+        );
+    }
+
     #[derive(Debug, Clone, Copy)]
     struct LoweringSize {
         rows: usize,

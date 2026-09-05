@@ -105,6 +105,7 @@ mod keyword {
     syn::custom_keyword!(len);
     syn::custom_keyword!(leaf);
     syn::custom_keyword!(morphology);
+    syn::custom_keyword!(mobile);
     syn::custom_keyword!(noun);
     syn::custom_keyword!(otherwise);
     syn::custom_keyword!(part);
@@ -318,13 +319,24 @@ fn parse_fields(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Vec<Field>
 fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
     let name = input.parse()?;
     input.parse::<Token![:]>()?;
+    let mobile = if input.peek(keyword::mobile) {
+        input.parse::<keyword::mobile>()?;
+        true
+    } else {
+        false
+    };
     let kind = parse_field_kind(input, owner, &name)?;
     let check = parse_field_check(
         input,
         matches!(&kind, FieldKind::Zeroable { .. }).then_some("zeroable-check"),
     )?;
     input.parse::<Token![,]>()?;
-    Ok(Field { name, kind, check })
+    Ok(Field {
+        name,
+        kind,
+        mobile,
+        check,
+    })
 }
 
 fn parse_field_check(
@@ -2666,6 +2678,31 @@ mod tests {
     }
 
     #[test]
+    fn parses_mobile_role_annotation_without_changing_its_value_kind() {
+        let declarations = parse(
+            r"
+                construction host: Root {
+                    element Host { tail: mobile Child, }
+                    form host = tail;
+                }
+            ",
+        )
+        .expect("mobile role annotation parses");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("first declaration is a construction");
+        };
+        let [field] = construction.element.fields.as_slice() else {
+            panic!("Host has one field");
+        };
+        assert_eq!(field.name, "tail");
+        assert!(field.mobile);
+        assert!(matches!(
+            &field.kind,
+            crate::FieldKind::Category(path) if path.is_ident("Child")
+        ));
+    }
+
+    #[test]
     fn parses_structural_declarations() {
         let declarations = parse(
             r#"
@@ -2716,7 +2753,12 @@ mod tests {
         assert_eq!(holder.name, "Holder");
         assert!(matches!(
             &holder.fields[0],
-            crate::Field { name, kind: crate::FieldKind::Optional(item), check: None }
+            crate::Field {
+                name,
+                kind: crate::FieldKind::Optional(item),
+                mobile: false,
+                check: None,
+            }
                 if name == "maybe"
                     && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("LeftNode"))
         ));
@@ -2755,7 +2797,12 @@ mod tests {
         };
         assert!(matches!(
             sentence.element.fields.as_slice(),
-            [crate::Field { name, kind: crate::FieldKind::Sequence { item, surface }, check: None }]
+            [crate::Field {
+                name,
+                kind: crate::FieldKind::Sequence { item, surface },
+                mobile: false,
+                check: None,
+            }]
                 if name == "words"
                     && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("Sentence"))
                     && matches!(surface.separator.as_ref(), Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms, .. }))

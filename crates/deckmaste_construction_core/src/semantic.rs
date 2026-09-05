@@ -585,6 +585,7 @@ pub(crate) struct ConstructionFieldPlan {
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
     zeroable: bool,
+    mobile: bool,
     field_check: Option<(syn::Path, Vec<(String, Feature)>)>,
 }
 
@@ -3424,6 +3425,7 @@ impl ConstructionPlan {
                     invariant_bearing: false,
                     accessor_mode: None,
                     zeroable,
+                    mobile: field.mobile,
                     field_check: field.check.as_ref().map(|check| (
                         check.function.clone(),
                         check.arguments.iter().map(|argument| (
@@ -3523,12 +3525,17 @@ impl ConstructionPlan {
         &self.fields
     }
 
+    pub(crate) fn has_mobile_role(&self) -> bool {
+        self.fields.iter().any(ConstructionFieldPlan::is_mobile)
+    }
+
     pub(crate) fn requires_constructor(&self) -> bool {
         self.invariant.requires_constructor()
             || self
                 .fields
                 .iter()
                 .any(ConstructionFieldPlan::emits_generated_accessor)
+            || self.has_mobile_role()
             || self.fields.iter().any(|field| {
                 matches!(
                     field.structural_kind(),
@@ -4308,6 +4315,10 @@ impl ConstructionFieldPlan {
 
     pub(crate) const fn is_zeroable(&self) -> bool {
         self.zeroable
+    }
+
+    pub(crate) const fn is_mobile(&self) -> bool {
+        self.mobile
     }
 
     pub(crate) fn field_check(&self) -> Option<(&syn::Path, &[(String, Feature)])> {

@@ -1,0 +1,5 @@
+error: mobile role `mobile_tail` must be at the right edge or adjacent to a `seq` role in form `invalid`
+ --> tests/compile_fail/mobile_role_not_right_edge.rs:9:27
+  |
+9 |         element Invalid { mobile_tail: mobile Child, suffix: Child, }
+  |                           ^^^^^^^^^^^

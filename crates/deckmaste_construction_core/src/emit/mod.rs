@@ -28,6 +28,10 @@ pub(crate) mod scanner;
 pub(crate) mod terminal;
 pub(crate) mod visit;
 
+pub(super) use crate::identifier::ADMISSIBLE_SITES_TYPE;
+pub(super) use crate::identifier::ATTACHMENT_SITE_PATH_TYPE;
+pub(super) use crate::identifier::ATTACHMENT_SITE_STEP_TYPE;
+
 pub(super) fn onset(value: crate::macro_def::Onset) -> TokenStream {
     match value {
         crate::macro_def::Onset::Consonant => quote! { Onset::Consonant },

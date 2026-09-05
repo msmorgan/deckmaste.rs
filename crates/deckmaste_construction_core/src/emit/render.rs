@@ -2308,7 +2308,11 @@ fn render_arms(
                         }
                     })
                     .collect::<Vec<_>>();
-                quote! { #qualifier::#variant(#element { #(#fields),* }) }
+                if construction.has_mobile_role() {
+                    quote! { #qualifier::#variant(#element { #(#fields),*, .. }) }
+                } else {
+                    quote! { #qualifier::#variant(#element { #(#fields),* }) }
+                }
             };
             let locals = RenderLocals {
                 whole,
@@ -5147,7 +5151,11 @@ fn emit_feature_helper(
             for (value_variant, value) in values {
                 let value_variant = value_variant.value();
                 let value = feature_value(*value);
-                let pattern = quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),* }) };
+                let pattern = if construction.has_mobile_role() {
+                    quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),*, .. }) }
+                } else {
+                    quote! { #ty::#variant(#element { #role: #field_type::#value_variant, #(#other_fields),* }) }
+                };
                 entries.push((pattern, value.to_string(), value));
             }
         } else {
@@ -5669,8 +5677,13 @@ fn feature_constant_pattern(
         };
         fields.push(pattern);
     }
+    let pattern = if construction.has_mobile_role() {
+        quote! { #category::#variant(#element { #(#fields),*, .. }) }
+    } else {
+        quote! { #category::#variant(#element { #(#fields),* }) }
+    };
     Ok((
-        quote! { #category::#variant(#element { #(#fields),* }) },
+        pattern,
         RenderLocals {
             whole: None,
             fields: locals,

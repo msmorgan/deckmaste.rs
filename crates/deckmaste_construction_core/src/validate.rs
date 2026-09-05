@@ -7,6 +7,9 @@ use syn::spanned::Spanned;
 
 use crate::feature;
 use crate::feature::Feature;
+use crate::identifier::ADMISSIBLE_SITES_TYPE;
+use crate::identifier::ATTACHMENT_SITE_PATH_TYPE;
+use crate::identifier::ATTACHMENT_SITE_STEP_TYPE;
 use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
@@ -403,6 +406,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_owned_english_verb_lexemes(&raw, &resolved)?;
     validate_stored_fields(&raw)?;
+    validate_mobile_roles(&raw)?;
     validate_bindings(&raw)?;
     let mut invariants = validate_invariants(&raw, &symbols)?;
     let (feature_equations, dynamic_numbers) = validate_features(&raw, &symbols)?;
@@ -5017,6 +5021,26 @@ fn generated_name_inventory(
     for name in FIXED_RUNTIME_TYPE_NAMES {
         names.register_type(name, "fixed generated runtime type", fixed_span, errors);
     }
+    if raw.declarations.iter().any(|declaration| {
+        matches!(
+            declaration,
+            Declaration::Construction(construction)
+                if construction.element.fields.iter().any(|field| field.mobile)
+        )
+    }) {
+        for name in [
+            ADMISSIBLE_SITES_TYPE,
+            ATTACHMENT_SITE_PATH_TYPE,
+            ATTACHMENT_SITE_STEP_TYPE,
+        ] {
+            names.register_type(
+                name,
+                "mobile-role attachment metadata type",
+                fixed_span,
+                errors,
+            );
+        }
+    }
     for (name, role) in [
         (RULES_CONSTANT, "fixed generated rules table constant"),
         (BUILD_FUNCTION, "fixed generated build function"),
@@ -7580,6 +7604,132 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                             ),
                         ),
                     ),
+                }
+            }
+        }
+    }
+    finish(errors)
+}
+
+fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
+    fn role(atom: &FormAtom) -> Option<&syn::Ident> {
+        let atom = match atom {
+            FormAtom::Bound(bound) => bound.value.as_ref(),
+            atom => atom,
+        };
+        match atom {
+            FormAtom::Role(role)
+            | FormAtom::Lex(role)
+            | FormAtom::Identity(role)
+            | FormAtom::Noun(role)
+            | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
+            FormAtom::Marked(marked) => Some(&marked.role),
+            FormAtom::Circumfix(circumfix) => Some(&circumfix.role),
+            FormAtom::Verb(VerbOperand::Fixed(_))
+            | FormAtom::FixedLex(_)
+            | FormAtom::OpenVerb(_)
+            | FormAtom::Literal(_)
+            | FormAtom::LicensedLiteral(_)
+            | FormAtom::SentenceInitial(_)
+            | FormAtom::StructuralLiteral(_) => None,
+            FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+        }
+    }
+
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        if let Declaration::AbstractProduct(product) = declaration {
+            for field in product.fields.iter().filter(|field| field.mobile) {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        field.name.span(),
+                        format!(
+                            "mobile role `{}` must belong to a construction element",
+                            field.name,
+                        ),
+                    ),
+                );
+            }
+        }
+        let Declaration::Construction(construction) = declaration else {
+            continue;
+        };
+        let fields = construction
+            .element
+            .fields
+            .iter()
+            .map(|field| (identifier_key(&field.name), field))
+            .collect::<HashMap<_, _>>();
+        if fields.contains_key("admissible_sites")
+            && construction.element.fields.iter().any(|field| field.mobile)
+        {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    construction.element.name.span(),
+                    "a construction with a mobile role reserves the field name `admissible_sites`",
+                ),
+            );
+        }
+        for field in construction
+            .element
+            .fields
+            .iter()
+            .filter(|field| field.mobile)
+        {
+            let contains_one_category = match &field.kind {
+                FieldKind::Category(_) => true,
+                FieldKind::Optional(value) => {
+                    matches!(value.as_ref(), FieldKind::Category(_))
+                }
+                FieldKind::Lex(_)
+                | FieldKind::Identity(_)
+                | FieldKind::Zeroable { .. }
+                | FieldKind::Sequence { .. } => false,
+            };
+            if !contains_one_category {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        field.name.span(),
+                        format!(
+                            "mobile role `{}` must contain one category Constituent",
+                            field.name,
+                        ),
+                    ),
+                );
+            }
+            let name = identifier_key(&field.name);
+            for form in &construction.forms {
+                let Some(index) = form
+                    .atoms
+                    .iter()
+                    .position(|atom| role(atom).is_some_and(|role| identifier_key(role) == name))
+                else {
+                    continue;
+                };
+                let right_edge = index + 1 == form.atoms.len();
+                let is_sequence_role = |atom: &FormAtom| {
+                    role(atom)
+                        .and_then(|role| fields.get(&identifier_key(role)))
+                        .is_some_and(|field| matches!(field.kind, FieldKind::Sequence { .. }))
+                };
+                let sequence_adjacent = index
+                    .checked_sub(1)
+                    .is_some_and(|adjacent| is_sequence_role(&form.atoms[adjacent]))
+                    || form.atoms.get(index + 1).is_some_and(is_sequence_role);
+                if !right_edge && !sequence_adjacent {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            field.name.span(),
+                            format!(
+                                "mobile role `{}` must be at the right edge or adjacent to a `seq` role in form `{}`",
+                                field.name, form.name,
+                            ),
+                        ),
+                    );
                 }
             }
         }
@@ -11053,6 +11203,57 @@ pub(crate) mod tests {
             .expect_err("fixture must be invalid")
             .into_compile_error()
             .to_string()
+    }
+
+    #[test]
+    fn mobile_roles_are_right_edge_or_sequence_adjacent_and_diagnostics_name_the_role() {
+        validate(quote! {
+            construction child: Child {
+                element ChildNode {}
+                form child = "child";
+            }
+            construction right_edge: Root {
+                element RightEdge { prefix: Child, tail: mobile Child, }
+                form right_edge = prefix tail;
+            }
+            construction sequence_left: SharedRoot {
+                element SequenceLeft {
+                    shared: mobile Child,
+                    conjuncts: seq Child separated by " ",
+                    suffix: Child,
+                }
+                form sequence_left = shared conjuncts suffix;
+            }
+            construction sequence_right: OtherRoot {
+                element SequenceRight {
+                    prefix: Child,
+                    conjuncts: seq Child separated by " ",
+                    shared: mobile Child,
+                    suffix: Child,
+                }
+                form sequence_right = prefix conjuncts shared suffix;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            root SharedRoot { punctuation = "."; eoi = true; standalone_render = true; }
+            root OtherRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("right-edge and either-side sequence-adjacent mobile roles validate");
+
+        let diagnostic = error(quote! {
+            construction child: Child {
+                element ChildNode {}
+                form child = "child";
+            }
+            construction invalid: Root {
+                element Invalid { mobile_tail: mobile Child, suffix: Child, }
+                form invalid = mobile_tail suffix;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            diagnostic.contains("mobile role `mobile_tail` must be at the right edge or adjacent to a `seq` role in form `invalid`"),
+            "{diagnostic}",
+        );
     }
 
     #[test]

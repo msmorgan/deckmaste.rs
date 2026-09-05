@@ -2800,6 +2800,18 @@ pub mod fixture {
             element RecursiveOptional { child: opt RecursiveNode, }
             form recursive_optional = "node" child;
         }
+        construction mobile_leaf: MobileConstituent {
+            element MobileLeafNode { mode: lex Mode, }
+            form mobile_leaf = lex(mode);
+        }
+        construction inner_mobile: InnerMobile {
+            element InnerMobileNode { leaf: mobile MobileConstituent, }
+            form inner_mobile = leaf;
+        }
+        construction joint_mobile: JointMobileRoot {
+            element JointMobileHost { inner: mobile InnerMobile, }
+            form joint_mobile = inner;
+        }
         construction guarded: Child {
             element GuardedChild { mode: lex Mode, child: Child, }
             require any(
@@ -3412,6 +3424,7 @@ pub mod fixture {
         root RenderChild { punctuation = "."; eoi = false; standalone_render = true; }
         root HygieneRoot { punctuation = "!"; eoi = true; standalone_render = true; }
         root r#RawCategory { punctuation = "?"; eoi = true; standalone_render = true; }
+        root JointMobileRoot { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     #[derive(Debug, PartialEq, Eq)]
@@ -4090,6 +4103,59 @@ pub mod fixture {
         let mut visitor = RecursiveVisitor::default();
         visitor.visit_recursive_node(&value);
         assert_eq!(visitor.0, 1);
+    }
+
+    pub(super) fn assert_mobile_roles_are_derived_and_jointly_realizable() {
+        let leaf = MobileConstituent::MobileLeaf(MobileLeafNode { mode: Mode::One });
+        let inner = InnerMobile::InnerMobile(
+            InnerMobileNode::new(leaf).expect("the inner mobile occupies its highest host"),
+        );
+        let root = JointMobileRoot::JointMobile(
+            JointMobileHost::new(inner).expect("the outer mobile occupies its highest host"),
+        );
+        let JointMobileRoot::JointMobile(outer) = &root;
+        assert!(outer.admissible_sites().is_empty());
+        let InnerMobile::InnerMobile(inner) = &outer.inner;
+        assert!(inner.admissible_sites().is_empty());
+
+        let context = ParseContext::default();
+        let (rendered, rendered_claims) = render_joint_mobile_root_with_claims(&root, &context);
+        assert_eq!(rendered, "One.");
+        let surface = rendered
+            .strip_suffix('.')
+            .expect("the root renderer contributes punctuation");
+        let rendered_claims = rendered_claims
+            .into_iter()
+            .filter(|claim| claim.end <= surface.len())
+            .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(rendered_claims.len(), 1);
+        assert_exact_partition(surface, &rendered_claims);
+        let forest = parse_structural(Category::JointMobileRoot, surface, &context);
+        let roots = forest.accepted_root_ids().collect::<Vec<_>>();
+        assert_eq!(
+            roots.len(),
+            1,
+            "both mobile Constituents are jointly realizable at their highest hosts",
+        );
+        let mut parsed_claims = Vec::new();
+        collect_first_family_claims(&forest, roots[0], &mut parsed_claims);
+        assert_eq!(parsed_claims, rendered_claims);
+
+        let inner_rule = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::InnerMobileInnerMobile)
+            .expect("the inner mobile rule is generated");
+        assert!(matches!(inner_rule.rhs, [N(Category::MobileConstituent)]));
+        let outer_rule = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::JointMobileRootJointMobile)
+            .expect("the outer mobile rule is generated");
+        assert!(matches!(outer_rule.rhs, [N(Category::InnerMobile)]));
+
+        let mut visitor = RecordingVisitor::default();
+        visitor.visit_joint_mobile_root(&root);
+        assert_eq!(visitor.0, [VisitEvent::Mode(Mode::One)]);
     }
 
     pub(super) fn assert_guarded_form_partition_boundaries() {
@@ -7830,6 +7896,11 @@ fn direct_sum_role_invokes_recursive_selected_concord_class_authority() {
 #[test]
 fn recursive_optional_fields_render_and_visit_through_generated_boxes() {
     fixture::assert_recursive_optional_renders_and_visits_through_generated_boxes();
+}
+
+#[test]
+fn mobile_roles_add_only_an_empty_derived_slot_and_joint_highest_hosts_exist() {
+    fixture::assert_mobile_roles_are_derived_and_jointly_realizable();
 }
 
 #[test]

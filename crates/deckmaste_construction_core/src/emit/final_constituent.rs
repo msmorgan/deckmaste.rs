@@ -653,4 +653,28 @@ mod tests {
             "empty sequences fail closed: {product}",
         );
     }
+
+    #[test]
+    fn mobile_role_metadata_does_not_become_a_rightmost_leaf() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                construction child: Child {
+                    element ChildNode {}
+                    form child = "child";
+                }
+                construction mobile: Root {
+                    element MobileHost { tail: mobile Child, }
+                    form mobile = tail;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("mobile rightmost-leaf fixture parses"),
+        )
+        .expect("mobile rightmost-leaf fixture validates")
+        .into_semantic();
+        let items = emit(&plan).expect("mobile rightmost-leaf fixture emits");
+        let root = traversal_implementation(&items, "Root");
+        assert!(root.contains("target == Category :: Child"), "{root}");
+        assert!(!root.contains("AdmissibleSites"), "{root}");
+    }
 }
