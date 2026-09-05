@@ -38,6 +38,8 @@ def itCondSubject (bs : Bindings) (condition : Condition) : NounPhrase :=
 
 /-- "that <word>", e.g. `that .player`. -/
 def that (w : NounWord) : NounPhrase := .pro (.word w) .one .whole
+/-- "that player or planeswalker": the joined phrase just named. -/
+def thatJoin : NounPhrase := that .join
 
 /-- "those <word>s", e.g. `those .card`. -/
 def those (w : NounWord) : NounPhrase := .pro (.word w) .many .whole
@@ -286,6 +288,8 @@ def fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounP
   .someOf (.counted quantity) (some p) group
 /-- "<group> with the same name" -/
 def withTheSameName (group : NounPhrase) : NounPhrase := .namesAgree .sameName group
+/-- "<group> with different names" -/
+def withDifferentNames (group : NounPhrase) : NounPhrase := .namesAgree .differentNames group
 /-- "the <p> from among <group>": every member the description picks. -/
 def allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase := .someOf .whole (some p) group
 /-- "the <p> among <group>" -/
@@ -659,6 +663,9 @@ half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .andAlso none
     [.modify subject .power power, .modify (itsOther subject power) .toughness toughness]
+/-- "<subject> has base power and toughness P/T" -/
+def getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
+  getsPt subject (.set power) (.set toughness)
 
 /-- The shared subject of a clause, read back as a pronoun that sees only what the subject
 itself announced. -/
@@ -772,6 +779,10 @@ def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec 
 def mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   .onlyDuring .untapStep whose
     (.deontic subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
+/-- "untap <subject> during [<whose>] untap step" -/
+def untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  .onlyDuring .untapStep whose
+    (.deontic subject .require [.action "Untap"] .patient none .noPatient none .noRider)
 /-- "<subject> can block an additional creature each combat" -/
 def mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .deontic subject .permit [.core .block] .agent (some (.additional quantity))
@@ -820,6 +831,9 @@ def bareCounterEvent (move : CounterMove) (batch : CounterBatch) (subject : Noun
   .counterEvent move none subject batch none false
 /-- "you roll a die and the natural result is the highest" -/
 def youRollHighestNatural : GameEvent := .rollsDice .you .one none .highestNatural
+/-- "one or more tokens would be created under <under>'s control by an effect" -/
+def tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameEvent :=
+  .tokensCreated tokens true none (some under)
 def blocks (subject : NounPhrase) (blocked : Option NounPhrase) : GameEvent :=
   .combat .blockerOf subject blocked
 def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent :=
@@ -893,6 +907,14 @@ def attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
 def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
   .entersRider subject (.withCounters amount (.printed kind) .fresh)
+/-- "<subject> enters with an additional N <kind> counters on it" -/
+def entersWithAdditionalCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
+    StaticSpec :=
+  .entersRider subject (.withCounters amount (.printed kind) .additional)
+/-- "<subject> enters with N fewer <kind> counters on it" -/
+def entersWithFewerCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
+    StaticSpec :=
+  .entersRider subject (.withCounters amount (.printed kind) .fewer)
 
 def triggered (event : GameEvent) (instruction : Instruction) : Ability :=
   .triggered event [] none [] none none none instruction
