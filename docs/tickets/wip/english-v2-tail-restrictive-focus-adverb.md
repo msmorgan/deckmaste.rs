@@ -313,3 +313,62 @@ retained in this STOP commit.
   that may and may not be focused without a lexical/construction guard, or
   explicitly reclassify `Cast this spell only your turn.` and amend the
   negative-oracle STOP rule. The current letter authorizes neither choice.
+
+The coordinator resolved that STOP on 2026-09-05 as a diagnosis: every host
+classification read must see through the Focus wrapper. The implementation
+made the two actual Predicate Adjunct classifiers feature-transparent:
+prepositional attachment class and duration class recurse through a focused
+adjunct. The asserted premise that the unfocused sentence was rejected was
+then tested with the public `english_v2 probe` command on `default@`. The
+premise was false: `Cast this spell your turn.` already selects uniquely on
+the coordinator line as `Transitive Cast(Object(this spell))` followed by
+`PredicateAdjunct(Duration(FixedDurationPhrase(your turn)))`. The existing
+reciprocal test did not contain that unfocused sentence. The focused sentence
+selects through the identical host and duration analysis with one transparent
+Focus wrapper, so the ruling's fallback applies. The pre-existing bare-duration
+defect is routed to a follow-up of `english-v2-fixed-duration-endpoint`, whose
+declared temporal noun licence currently admits possessive *your turn* as a
+marker-less duration.
+
+### STOP: category recursion covers doubled focus negatives (2026-09-05)
+
+After feature transparency, the next two existing negative oracles newly
+select:
+
+- `Cast this spell only only during your turn.` selects uniquely through
+  `PrepositionalPredicateAdjunctPredicate`, with
+  `FocusedPredicateAdjunct(Only, FocusedPredicateAdjunct(Only,
+  PrepositionalPredicateAdjunct(during your turn)))`.
+- `Cast this spell only only if you control a snow land.` selects uniquely
+  through `PostposedPredicateClauseTail`, with two nested
+  `FocusedPostposedClauseTail` values around the existing `IfClauseTail`.
+
+Both reject on `default@`. They are a consequence of the pinned recursive
+shape itself: the Focus construction is a member of the same sum as its focus,
+so its result is immediately a focus operand again. Feature transparency does
+not and should not change that category membership.
+
+The two general repairs available under the current construction language are
+both outside the authorization. A nonrecursive Focus-operand sum would exclude
+the Focus member and therefore narrow the focus domain; a predicate that
+rejects an already-focused operand would be construction-sensitive. The
+2026-09-05 diagnosis expressly forbids both narrowing and a
+construction-sensitive check, while the ticket's negative-oracle rule forbids
+accepting either new analysis. No word-sensitive guard, dominance edge,
+exception, or per-surface construction was added.
+
+### DISCLOSE / REPORT after the feature-transparency diagnosis
+
+- Assurance: restored 0; re-spelled 0; ignored 0; added 0; removed 0 in the
+  safe STOP commit. The scratch Predicate grammar run reached 105 passed / 4
+  failed; three failures were already-classified assertion re-spellings and
+  the fourth exposed the doubled-focus negative above.
+- Deviations and additions: none retained.
+- Coverage, construction count, corpus selection census, ambiguity diff,
+  roundtrip, and performance: not measured. The mandatory refreshed landing
+  gates were not run because targeted negative assurance stopped first.
+- STOP: unresolved. Decision wanted: authorize a general nonrecursive
+  Focus-operand category that contains every unfocused member of each focus
+  category, or authorize another general way to prevent immediately nested
+  Focus without a word- or construction-sensitive guard. Reclassifying or
+  deleting the two negative witnesses is not requested.
