@@ -931,6 +931,7 @@ mod tests {
         assert_eq!(Interaction::for_decision(&pending), None);
     }
 
+    #[cfg(feature = "slow-tests")]
     #[test]
     #[cfg_attr(
         not(wizards_corpus),

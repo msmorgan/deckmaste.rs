@@ -402,6 +402,7 @@ mod tests {
         panic!("game did not terminate — mutual-pass guard failed");
     }
 
+    #[cfg(feature = "slow-tests")]
     #[test]
     #[cfg_attr(
         not(wizards_corpus),
