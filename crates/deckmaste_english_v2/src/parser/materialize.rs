@@ -965,10 +965,6 @@ fn checked_materialize_node(
     }
 }
 
-#[allow(
-    clippy::arc_with_non_send_sync,
-    reason = "the memoized materialization DAG is shared only within one parser thread"
-)]
 fn checked_materialize_family(
     rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
     forest: &Forest<RootRuleId, Leaf, LexicalOwner>,

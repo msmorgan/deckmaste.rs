@@ -146,6 +146,26 @@ The old-path categories overlap within multi-ability texts: 910 contain the
 former single-keyword predicate, 146 the former coordination predicate, 293
 the former quoted-ability predicate, and 563 the former granted-line wrapper.
 
+**Where the +230 specificity share comes from (added at review).** The whole
+census shift is attributable to the 1,316 newly selected identities and to
+nothing else: of those 1,316, exactly 1,086 resolve `unique` and 230 resolve
+`specificity`, which is the entire +1,086 / +230 delta, so no previously
+covered identity changed its resolution class. The landing introduces **no new
+competing construction pair**: over all 4,047 specificity resolutions in the
+tree, the number whose won-versus-lost construction difference mentions any of
+`GrantedAbility*`, `Referenced*KeywordAbility`, `*KeywordLineItem`,
+`QuotedAbility*`, or `AbilityExpression*` is **zero**. The 230 are pre-existing
+rivalries that the newly parsing units now reach, dominated by
+`UnqualifiedReferenceBareRelationalReference` beating
+`UnqualifiedReferenceDeterminedNominal` + `NominalMassNominal` + `MassNounMassNoun`
+(99), `AbilityTriggered` + `TriggerPrefixTemporal` beating `AbilityPlain` +
+`SentenceAttached` + `ClauseAttachmentPreposedPredicateAdjunct` (64), and
+`PositiveObjectGapRelativeWithAdjunct` beating `PositiveObjectGapRelative` +
+`PredicateAdjunctPredicate` (32). No dominance edge and no exception entry was
+added, and `exception_uses` stays 0 — the `gains protection from black`
+rivalry named in the ticket's STOP fence never materialized: that sentence has
+a single candidate.
+
 **Coverage delta pasted from report-mode `coverage --check`:**
 
 ```text
@@ -1486,10 +1506,12 @@ list or a guard.
   requires the parameter when spelling a keyword line. The carriers are
   partitioned by declared parameter signature, not by lexeme or attestation;
   no selection exception is used.
-- A reasoned `clippy::arc_with_non_send_sync` allowance was added to
-  `checked_materialize_family`: its memoized materialization DAG is shared only
-  within one parser thread. Strict clippy exposed the pre-existing intentional
-  `Arc` use after the generated value set changed; no parser behavior changed.
+- ~~A reasoned `clippy::arc_with_non_send_sync` allowance was added to
+  `checked_materialize_family`.~~ **Withdrawn at review: the lint does not fire
+  on this tree, so the suppression suppressed nothing.** Converting it to
+  `#[expect(...)]` made clippy report `this lint expectation is unfulfilled`;
+  it was deleted instead, and `crates/deckmaste_english_v2/src/parser/
+  materialize.rs` is no longer touched by this landing at all.
 - No other production construction, guard, test function, or vocabulary entry
   was added beyond the ticket's frame, shared value, attachment-class carriers,
   and necessary consumer/test re-spellings.
@@ -1530,11 +1552,158 @@ roundtrip mismatch, or word-naming guard. Decision wanted: none.
   `greatest_scalar_value`; `other` at `other_than_qualified_reference`; `the`
   at `positional_partitive`. Provenance, not fitted to.
 - Performance advisory, all with 8 workers against the 16.26 s quiet-host
-  ceiling: coverage check **107.403 s / 135,448 ns/B**, host load
-  7.89/9.11/10.71; coverage bless **98.957 s / 114,597 ns/B**, host load
-  5.47/7.92/10.10; ambiguity **101.697 s / 120,038 ns/B**, host load
-  4.67/7.10/9.52; roundtrip **99.236 s / 114,251 ns/B**, host load
-  7.22/6.06/8.27; parent-tip ambiguity baseline **104.876 s / 119,030
-  ns/B**, host load 4.63/6.68/9.05. Concurrent-process count is not visible
-  from the implementer sandbox; reviewer contention stamp requested. The
-  over-ceiling figures are advisory, not fitted gates.
+  ceiling, wall time in comma-grouped milliseconds so no figure reads as a
+  rule number: coverage check **107,403 ms / 135,448 ns/B**, host load
+  7.89/9.11/10.71; coverage bless **98,957 ms / 114,597 ns/B**, host load
+  5.47/7.92/10.10; ambiguity **101,697 ms / 120,038 ns/B**, host load
+  4.67/7.10/9.52; roundtrip **99,236 ms / 114,251 ns/B**, host load
+  7.22/6.06/8.27; parent-tip ambiguity baseline **104,876 ms / 119,030
+  ns/B**, host load 4.63/6.68/9.05. The over-ceiling figures are advisory, not
+  fitted gates.
+- **Contention stamp (reviewer).** Every figure above was measured against a
+  contended host: two other english_v2 executors held live claims for the whole
+  window (`english-v2-scope-device-mobility-declarations` and
+  `english-v2-frame-complement-coordination`), plus this review's own corpus
+  runs — 2 concurrent executors + 1 reviewer. The reviewer's own
+  `ambiguity --json --workers 8` on the same tree measured **104,068 ms /
+  120,327 ns/B**, host load 5.70/6.21/7.36, reproducing the implementer's
+  ambiguity figure within 3%. None of these is a quiet-host figure and none may
+  be read as a parse-time regression signal on its own.
+
+### Review corrections
+
+Landing review (Opus reviewer/integrator, 2026-09-05) on the refreshed tree.
+Verdict: no HIGH finding. What the reviewer verified independently, and what
+was corrected:
+
+- **The 1,316 gains were audited exhaustively, not sampled.** The reviewer's
+  own `ambiguity --json` census on this tree was bucketed by the construction
+  that immediately follows the grant frame on each selected path: 1,172 bare
+  keyword line items, 108 general ability coordinations, 40 qualified
+  (`protection from …`), 26 amount (`toxic 2`, `casualty 2`, `bushido X`), 25
+  costed (`ward {2}`, `cycling {R}`, `equip {0}`), 14 quoted abilities, 1
+  reference carrier. Every unit in the five non-bare buckets and both
+  off-frame buckets was read in full (106 units), plus 30 units matching
+  negative/conditional/`as long as`/`until your next turn` shapes and a random
+  35 from the bare bucket. 1,305 of the 1,316 traverse the grant frame and 11
+  are `with <parameterized keyword>` nominal complements (`cards with
+  flashback`, `permanent with fading`, `creature with modular`) — matching the
+  record exactly. **No negative oracle and no wrong analysis.**
+- **The 1,857 changed paths are correct-to-correct.** Previously covered units
+  reach the grant frame through exactly four complements — bare keyword line
+  item (923), quoted ability (298), ability coordination (146) and the
+  reference carriers (19 occurrences over 13 units) — i.e. the same three
+  shapes the three deleted bespoke predicates spelled, plus the carriers. All
+  13 carrier units were read individually; 65 further previously covered units
+  were read across the other three buckets. None regressed.
+- **The nine carriers are exhaustive by construction, not by attestation.**
+  `normalized_keyword_parameter_class` in
+  `crates/deckmaste_construction_core/src/macro_def.rs` *rejects at
+  declaration-read time* any keyword parameter signature outside the closed set
+  `[] | [Amount] | [Cost] | [Amount,Cost] | [Quality] | [Quality,Cost] |
+  [Subject] | [Ability] | [Condition] | [Cost,Power,Toughness]`. The nullary
+  case is `BareKeywordLineItem`; the nine parameterized cases each have a
+  carrier. Nothing was dropped for lack of witnesses, and the two zero-witness
+  carriers are kept per the ADR's "attestation is provenance, never a filter".
+- **The deleted `core_verbs.ron` rows are each still expressible.** `Gain` lost
+  `Role("QuotedAbility")`, `Role("KeywordAbility")` and
+  `Role("AbilityExpression")` and `Have` lost `Role("QuotedAbility")`,
+  `Role("AbilityExpression")` and `Role("KeywordAbility")`, all six collapsing
+  into `Role("GrantedAbility")`. Corpus evidence that no complement shape was
+  lost: quoted grants still select on 312 units (298 previously covered, 14
+  new), coordinated grants on 254 (146 + 108), and bare keyword grants on 2,095
+  (923 + 1,172).
+- **Assurance counts check out against the diff.** `#[test]` count in
+  `tests/predicate_grammar.rs` is 109 before and after; no test function was
+  deleted; the only removed assertion is one of the two `Have` frame-licence
+  assertions in `environment.rs`, whose subject (a second frame row) the ticket
+  retires — the surviving assertion asserts the replacement frame by value. No
+  `#[ignore]`, no `matches!`/`discriminant` substitution.
+- **No banned guard.** The diff adds no `checked by`, `require`, dominance edge
+  or exception, and adds no code comment at all; the only new attribute is the
+  lint suppression below. The pre-existing `require len(members) >= 2` on the
+  ability coordinations reads a declared length, not a lexeme.
+- **Corrected (MEDIUM): the record did not name the competing construction pair
+  behind the +230 specificity share.** The "Where the +230 specificity share
+  comes from" paragraph above was added with the measured attribution: the
+  landing introduces zero grant-family specificity rivalries.
+- **Corrected (MEDIUM): the perf advisory carried no contention stamp** (the
+  implementer could not see the host from its sandbox). The stamp is now in
+  REPORT: 2 concurrent executors + 1 reviewer, with the reviewer's own
+  reproduction of the ambiguity figure.
+- **Corrected (MEDIUM): the landing left `cargo xtask cite check
+  --list-noncompliant` red.** The record says "No citation changed, so cite
+  gates were not required", but the checker scans every tracked file for
+  citation-looking strings, and four wall-clock figures in the performance
+  advisory read as CR rule numbers: three wall times whose whole-second part
+  fell in the 101-107 range, plus the reviewer's own. All wall times in the
+  advisory are now
+  comma-grouped milliseconds, the same convention CLAUDE.md already imposes on
+  the per-byte figure, and the gate is empty.
+- **Corrected (MEDIUM): the landing shipped a lint suppression that suppresses
+  nothing.** `#[allow(clippy::arc_with_non_send_sync)]` on
+  `checked_materialize_family` was rewritten as `#[expect(...)]` — the idiom
+  the other three tool-lint suppressions in this crate already use, and the one
+  that cannot outlive its cause. Clippy then reported `this lint expectation is
+  unfulfilled` at `materialize.rs:969`, proving the lint never fired on this
+  tree. The attribute was deleted; `cargo clippy -p deckmaste_english_v2
+  --all-targets -- -D warnings` is clean without it, and the landing no longer
+  touches `parser/materialize.rs`. An `#[allow]` is silent when its lint stops
+  firing, which is how this reached review.
+
+**Observation, not a finding (routed).** `Spells you cast have affinity for
+artifacts.` (Sami, Wildcat Captain; Tezzeret, Master of the Bridge) selects
+`ReferencedQualityKeywordAbility` for `affinity` and attaches `for artifacts`
+as a separate clause-level prepositional adjunct, splitting the keyword from
+its declared Quality parameter. This is pre-existing and unchanged by this
+landing — both units were already covered, and the parent reached them through
+`have_keyword_ability`'s `lex KeywordAbility` (`params = Any`) codec, which is
+equally bare. The root cause is that `Affinity`'s quality surface is `for
+[quality]` while `KeywordQuality` admits only a `Nominal`, so the keyword line
+`Affinity for artifacts` does not parse either (Frogmite, Myr Enforcer,
+Thoughtcast are parse failures on this tree). It is routed to
+`docs/tickets/planned/english-v2-affinity-quality-surface.md` because, unlike
+the keyword-line case, the grant-position reading is *covered* with a wrong
+shape and would otherwise never surface as a failure.
+
+**Reviewer gate re-run**, once, foreground, on the refreshed tree after the
+review corrections (`kata refresh` reported `rerun tests`; `default@` content
+was unchanged, so the measured stamp `ykrsttlu` / lock `covered` 18,917 still
+describes this tree):
+
+- `cargo fmt --all` — exit 0 (only the repository's stable-rustfmt warnings for
+  nightly-only options).
+- `cargo clippy -p deckmaste_english_v2 --all-targets -- -D warnings` — exit 0,
+  `Finished dev profile`, after the dead suppression was deleted.
+- `cargo clippy -p xtask --all-targets -- -D warnings` — exit 0.
+- `cargo test --workspace` — exit 0, every suite `ok`, including `test result:
+  ok. 459 passed; 0 failed; 1 ignored` (english_v2) and `test result: ok. 76
+  passed; 0 failed; 0 ignored`. Workspace scope because `core_verbs.ron`
+  changed.
+- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+  --workers 8` — exit 0 with **no `newly covered` and no `no longer covered`
+  line**: the lock is exactly current. `summary` reports `selected_units
+  18917`, `covered_units 18917`, `selected_uncovered_units 0`,
+  `unresolved_ties 0`, `internal_failures 0`, `exception_resolved 0`,
+  `exception_uses 0`, `roundtrip_mismatch_units 0`, `ownership_failure_units
+  0`, `traversal_failure_units 0`, `leaf_traversal_failure_units 0`,
+  `gap_spans 0`, `overlap_spans 0`, `synthetic_claims 0`,
+  `provenance_plan_mismatches 0`, `licensing_checker_forbidden 0`,
+  `visited_constructions 824,835/824,835`, `visited_leaves 287,789/287,789`.
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8` — exit 0:
+  `unique=14870`, `specificity_resolved=4047`, `exception_resolved=0`,
+  `unresolved_ties=0`, `internal_failures=0`, `exception_uses=0`.
+- `cargo xtask english_v2 roundtrip --require-clean --workers 8` — exit 0:
+  `parse accepted 18917`, `clean 18917`, `mismatched 0`.
+- `cargo xtask cite check --list-noncompliant` — `0 non-compliant
+  citation-looking string(s)`; `cargo xtask cite check` — `checked 14479
+  citations against cr.txt (eff. 2026-08-07); 0 stale`; `jj diff --git | cargo
+  xtask cite audit --diff` — every site read against its rule text; the one
+  citation this landing introduces is the Affinity subrule `[CR#702.41a]` (the
+  first draft of the routed ticket cited the Storm subrule instead; the audit
+  caught it).
+- Reviewer wall times, same contended host: coverage check **112,511 ms /
+  132,052 ns/B** (load 13.64/12.94/9.66), ambiguity **107,073 ms / 136,503
+  ns/B** (load 9.63/11.79/10.01), roundtrip **119,482 ms / 171,652 ns/B** (load
+  14.08/13.65/10.97). All above the 16.26 s quiet-host ceiling and all measured
+  under 2 concurrent executors; advisory, not fitted gates.
