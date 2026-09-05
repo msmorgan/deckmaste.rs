@@ -821,6 +821,12 @@ constructions! {
             params = Any;
         }
     }
+    codec BareKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+        }
+    }
     codec DeclaredKeywordParticiple {
         generate declaration_term {
             position = FixedKeyword;
@@ -877,6 +883,27 @@ constructions! {
             position = FixedKeyword;
             kinds = [KeywordAbility];
             params = [Subject];
+        }
+    }
+    codec AbilityParameterKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Ability];
+        }
+    }
+    codec ConditionKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Condition];
+        }
+    }
+    codec CostPowerToughnessKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Cost, Power, Toughness];
         }
     }
     codec AbilityWordTerm {
@@ -4694,6 +4721,15 @@ constructions! {
     }
     abstract sum GrantedAbility {
         Keyword: KeywordLineItem,
+        CostReference: ReferencedCostKeywordAbility,
+        AmountReference: ReferencedAmountKeywordAbility,
+        AmountCostReference: ReferencedAmountCostKeywordAbility,
+        QualityReference: ReferencedQualityKeywordAbility,
+        QualityCostReference: ReferencedQualityCostKeywordAbility,
+        SubjectReference: ReferencedSubjectKeywordAbility,
+        AbilityReference: ReferencedAbilityParameterKeywordAbility,
+        ConditionReference: ReferencedConditionKeywordAbility,
+        CostPowerToughnessReference: ReferencedCostPowerToughnessKeywordAbility,
         Quoted: QuotedAbility,
         Coordination: AbilityExpression,
     }
@@ -4715,7 +4751,7 @@ constructions! {
         Coordination: KeywordQualityCoordination,
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
-        element BareKeywordLineItemValue { keyword: lex KeywordAbility, }
+        element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form bare_keyword_line_item = lex(keyword);
@@ -4813,6 +4849,64 @@ constructions! {
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form subject_keyword_line_item = lex(keyword) subject;
+    }
+    construction referenced_cost_keyword_ability: ReferencedCostKeywordAbility {
+        element ReferencedCostKeywordAbilityValue { keyword: lex CostedKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_cost_keyword_ability = lex(keyword);
+    }
+    construction referenced_amount_keyword_ability: ReferencedAmountKeywordAbility {
+        element ReferencedAmountKeywordAbilityValue { keyword: lex AmountKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_amount_keyword_ability = lex(keyword);
+    }
+    construction referenced_amount_cost_keyword_ability: ReferencedAmountCostKeywordAbility {
+        element ReferencedAmountCostKeywordAbilityValue { keyword: lex AmountCostKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_amount_cost_keyword_ability = lex(keyword);
+    }
+    construction referenced_quality_keyword_ability: ReferencedQualityKeywordAbility {
+        element ReferencedQualityKeywordAbilityValue { keyword: lex QualityKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_quality_keyword_ability = lex(keyword);
+    }
+    construction referenced_quality_cost_keyword_ability: ReferencedQualityCostKeywordAbility {
+        element ReferencedQualityCostKeywordAbilityValue { keyword: lex QualityCostKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_quality_cost_keyword_ability = lex(keyword);
+    }
+    construction referenced_subject_keyword_ability: ReferencedSubjectKeywordAbility {
+        element ReferencedSubjectKeywordAbilityValue { keyword: lex SubjectKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_subject_keyword_ability = lex(keyword);
+    }
+    construction referenced_ability_parameter_keyword_ability: ReferencedAbilityParameterKeywordAbility {
+        element ReferencedAbilityParameterKeywordAbilityValue {
+            keyword: lex AbilityParameterKeywordAbility,
+        }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_ability_parameter_keyword_ability = lex(keyword);
+    }
+    construction referenced_condition_keyword_ability: ReferencedConditionKeywordAbility {
+        element ReferencedConditionKeywordAbilityValue { keyword: lex ConditionKeywordAbility, }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_condition_keyword_ability = lex(keyword);
+    }
+    construction referenced_cost_power_toughness_keyword_ability: ReferencedCostPowerToughnessKeywordAbility {
+        element ReferencedCostPowerToughnessKeywordAbilityValue {
+            keyword: lex CostPowerToughnessKeywordAbility,
+        }
+        derive relationality = Values::NonRelational;
+        derive locative_temporal_license = Values::Unlicensed;
+        form referenced_cost_power_toughness_keyword_ability = lex(keyword);
     }
     construction ability_quoted_ability: AbilityQuotedAbility {
         element AbilityQuotedAbilityValue { block: QuotedBlock, }

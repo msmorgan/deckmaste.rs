@@ -1047,12 +1047,9 @@ fn ability_expressions_use_the_general_coordination_algebra() {
         );
         if text.starts_with("Enchanted creature has") {
             assert!(
-                selected
-                    .construction_path()
-                    .iter()
-                    .any(|name| {
-                        name == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
-                    }),
+                selected.construction_path().iter().any(|name| {
+                    name == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
+                }),
                 "{text:?}: {:#?}",
                 selected.construction_path(),
             );
@@ -1087,13 +1084,9 @@ fn quoted_deferred_interiors_remain_exact_ordinary_failures() {
             );
             if let Some(decision) = analysis.decision() {
                 assert!(decision.candidates().iter().all(|candidate| {
-                    !candidate
-                        .construction_path()
-                        .iter()
-                        .any(|identity| {
-                            identity
-                                == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
-                        })
+                    !candidate.construction_path().iter().any(|identity| {
+                        identity == "GrantedAbilityLexicalVerbPhraseGrantedAbilityLexicalVerbPhrase"
+                    })
                 }));
             }
             let error = analysis

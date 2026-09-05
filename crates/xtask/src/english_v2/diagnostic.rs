@@ -1094,6 +1094,15 @@ enum NonterminalKind {
     AbilityExpressionMember,
     AbilityQuotedAbility,
     GrantedAbility,
+    ReferencedAbilityParameterKeywordAbility,
+    ReferencedAmountCostKeywordAbility,
+    ReferencedAmountKeywordAbility,
+    ReferencedConditionKeywordAbility,
+    ReferencedCostKeywordAbility,
+    ReferencedCostPowerToughnessKeywordAbility,
+    ReferencedQualityCostKeywordAbility,
+    ReferencedQualityKeywordAbility,
+    ReferencedSubjectKeywordAbility,
     DegreeMeasure,
     PostmodifiedReference,
     VerbPhrase,
@@ -1831,6 +1840,33 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::AbilityExpressionMember => NonterminalKind::AbilityExpressionMember,
         NonterminalCategory::AbilityQuotedAbility => NonterminalKind::AbilityQuotedAbility,
         NonterminalCategory::GrantedAbility => NonterminalKind::GrantedAbility,
+        NonterminalCategory::ReferencedAbilityParameterKeywordAbility => {
+            NonterminalKind::ReferencedAbilityParameterKeywordAbility
+        }
+        NonterminalCategory::ReferencedAmountCostKeywordAbility => {
+            NonterminalKind::ReferencedAmountCostKeywordAbility
+        }
+        NonterminalCategory::ReferencedAmountKeywordAbility => {
+            NonterminalKind::ReferencedAmountKeywordAbility
+        }
+        NonterminalCategory::ReferencedConditionKeywordAbility => {
+            NonterminalKind::ReferencedConditionKeywordAbility
+        }
+        NonterminalCategory::ReferencedCostKeywordAbility => {
+            NonterminalKind::ReferencedCostKeywordAbility
+        }
+        NonterminalCategory::ReferencedCostPowerToughnessKeywordAbility => {
+            NonterminalKind::ReferencedCostPowerToughnessKeywordAbility
+        }
+        NonterminalCategory::ReferencedQualityCostKeywordAbility => {
+            NonterminalKind::ReferencedQualityCostKeywordAbility
+        }
+        NonterminalCategory::ReferencedQualityKeywordAbility => {
+            NonterminalKind::ReferencedQualityKeywordAbility
+        }
+        NonterminalCategory::ReferencedSubjectKeywordAbility => {
+            NonterminalKind::ReferencedSubjectKeywordAbility
+        }
         NonterminalCategory::DegreeMeasure => NonterminalKind::DegreeMeasure,
         NonterminalCategory::PostmodifiedReference => NonterminalKind::PostmodifiedReference,
         NonterminalCategory::LocativeNounPhraseCoordination => {
