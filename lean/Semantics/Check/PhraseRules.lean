@@ -56,6 +56,16 @@ def ColorTerm.check (bs : Bindings) : ColorTerm → List Refusal
     let n := countChoice (.quality .color) bs
     refuse (ref.ok n) (.choiceRef ref (.quality .color) n)
 
+/-- Idris `ChoiceDomain : ChoiceSort → Type`: the domain's sort must be the announced one. -/
+def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
+  | .nameOfCard _ => .quality .cardName
+  | .colorOtherThan _ => .quality .color
+  | .typeOtherThan _ => .quality (.subtype .creature)
+  | .basicTypesOnly | .nonbasicTypesOnly => .quality (.subtype .land)
+  | .number _ => .quality .number
+  | .players _ => .player
+  | .abilitiesAmong _ => .quality .ability
+
 mutual
   def Predicate.check (k : Kind) (bs : Bindings) : Predicate → List Refusal
     | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _ | .isAttached _
@@ -66,7 +76,7 @@ mutual
     | .chosenPlayer ref =>
       let n := countChoice .player bs
       kindCheck k (some .player) ++ refuse (ref.ok n) (.choiceRef ref .player n)
-    | .qualityNoun q dom => kindCheck k (some (.quality q)) ++ OptChoiceDomain.check bs dom
+    | .qualityNoun q dom => kindCheck k (some (.quality q)) ++ sortedDomainCheck bs (.quality q) dom
     | .counterKindOn n =>
       kindCheck k (some (.quality .counterKind)) ++ NounPhrase.check (some .object) bs n ++
         refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
@@ -76,7 +86,7 @@ mutual
         refuse q.chosenReadOk (.chosenQualityRead q)
     | .ofYourChoice q dom =>
       kindCheck k (some .object) ++ refuse q.chosenReadOk (.chosenQualityRead q) ++
-        OptChoiceDomain.check bs dom
+        sortedDomainCheck bs (.quality q) dom
     | .hasKeyword kt => kindCheck k (some .object) ++ refuse kt.known .knownKeywordTerm
     | .hasPossessor ax n =>
       NounPhrase.check (some .player) bs n ++ refuse n.soleHolderOk .soleHolder ++
@@ -176,15 +186,18 @@ mutual
     | p :: ps => Predicate.check (p.kindOr k) bs p ++ Predicate.checkEach k bs ps
   termination_by structural ps => ps
 
-  def OptChoiceDomain.check (_bs : Bindings) : Option ChoiceDomain → List Refusal
+  /-- Check both the contents and the sort of a choice domain at every consumer. -/
+  def sortedDomainCheck (bs : Bindings) (q : ChoiceSort) : Option ChoiceDomain → List Refusal
     | none => []
-    | some (.nameOfCard p) => Predicate.check .object [] p
-    | some (.typeOtherThan s) => refuse (s.type == some .creature) .subtypeType
-    | some (.number q) => refuse q.wellFormed .wellFormedQ ++ Quantity.check _bs q
-    | some (.players p) => Predicate.check .player _bs p
-    | some (.abilitiesAmong ks) =>
-      refuse (!ks.isEmpty) .nonEmpty ++ refuse (allKnownKeywordTerms ks) .knownKeywordTerm
-    | some _ => []
+    | some d =>
+      (match d with
+       | .nameOfCard p => Predicate.check .object [] p
+       | .typeOtherThan s => refuse (s.type == some .creature) .subtypeType
+       | .number n => refuse n.wellFormed .wellFormedQ ++ Quantity.check bs n
+       | .players p => Predicate.check .player bs p
+       | .abilitiesAmong ks =>
+         refuse (!ks.isEmpty) .nonEmpty ++ refuse (allKnownKeywordTerms ks) .knownKeywordTerm
+       | _ => []) ++ refuse (d.sort == q) .kindAxisSort
   termination_by structural d => d
 
   def OptCounterKind.check : Option CounterKind → List Refusal

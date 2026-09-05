@@ -881,12 +881,12 @@ mutual
     | .fights a b => sameIntro (nomIntro (nomIntro bs a) b) []
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
-    | .doesntUntapNext n steps => sameIntro (Amount.introduced bs steps ++ nomIntro bs n) []
-    | .skipsNext w _ count => sameIntro (Amount.introduced bs count ++ nomIntro bs w) []
+    | .doesntUntapNext n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
+    | .skipsNext w _ count => sameIntro (Amount.intro (nomIntro bs w) count) []
     | .extraTurn w count =>
-      ⟨Amount.introduced bs count ++ nomIntro bs w, turnRefB :: (Amount.introduced bs count ++ nomIntro bs w),
-       none, []⟩
-    | .additionalPart who _ _ count _ => sameIntro (Amount.introduced bs count ++ optAgentIntro bs who) []
+      let afterCount := Amount.intro (nomIntro bs w) count
+      ⟨afterCount, turnRefB :: afterCount, none, []⟩
+    | .additionalPart who _ _ count _ => sameIntro (Amount.intro (optAgentIntro bs who) count) []
     | .losesCounters who _ amt => sameIntro (optAmtIntro (nomIntro bs who) amt) []
     | .removeFromCombat n => sameIntro (nomIntro bs n) []
     | .attachTo what host => sameIntro (nomIntro (nomIntro bs what) host) []

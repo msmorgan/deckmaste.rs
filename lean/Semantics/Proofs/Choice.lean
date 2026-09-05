@@ -206,11 +206,13 @@ theorem badCreaturesAreMountains :
 
 /-- "Choose a creature type other than Wall." -/
 theorem okCreatureTypeExclusion :
-    OptChoiceDomain.check [] (some (.typeOtherThan (creatureType "Wall"))) = [] := by decide
+    sortedDomainCheck [] (.quality (.subtype .creature)) (some (.typeOtherThan (creatureType "Wall")))
+      = [] := by
+  decide
 
 /-- "Choose a creature type other than Equipment." -/
 theorem badNonCreatureTypeExclusion :
-    OptChoiceDomain.check [] (some (.typeOtherThan (artifactType "Equipment")))
+    sortedDomainCheck [] (.quality (.subtype .creature)) (some (.typeOtherThan (artifactType "Equipment")))
       = [.subtypeType] := by
   decide
 
@@ -581,5 +583,70 @@ theorem badChoseExtremeWithoutChoice :
     Instruction.check [] (losesLife (each (.and [.anyPlayer, .choseExtreme .max])) (.lit 1))
       = [.numberChoiceInScope] := by
   decide
+
+/-! ## A choice domain has the sort its consumer announces -/
+
+theorem badColorNounWithPlayerDomain :
+    Predicate.check (.quality .color) [] (.qualityNoun .color (some (.players .opponent)))
+      = [.kindAxisSort] := by decide
+
+theorem okColorNounWithColorDomain :
+    Predicate.check (.quality .color) [] (.qualityNoun .color (some (.colorOtherThan .red)))
+      = [] := by decide
+
+theorem badColorRefinementWithPlayerDomain :
+    Predicate.check .object [] (.ofYourChoice .color (some (.players .opponent)))
+      = [.kindAxisSort] := by decide
+
+theorem okColorRefinementWithColorDomain :
+    Predicate.check .object [] (.ofYourChoice .color (some (.colorOtherThan .red)))
+      = [] := by
+  decide
+
+theorem badCompleteColorChoiceWithPlayerDomain :
+    Instruction.check [] (.choose none (some .you)
+      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none)
+      = [.kindAxisSort] := by decide
+
+theorem okCompleteColorChoiceWithColorDomain :
+    Instruction.check [] (.choose none (some .you)
+      (.described (.a .unmarked) (.qualityNoun .color (some (.colorOtherThan .red)))) .openly none)
+      = [] := by decide
+
+theorem badEntersChoiceDomainSort :
+    StaticSpec.check []
+      (.entersChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
+      = [.kindAxisSort] := by decide
+
+theorem okEntersChoiceDomainSort :
+    StaticSpec.check []
+      (.entersChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
+      = [] := by decide
+
+theorem badAttachmentChoiceDomainSort :
+    StaticSpec.check []
+      (.attachChoice thisCreature (.quality .color) (some (.players .opponent)))
+      = [.kindAxisSort] := by decide
+
+theorem okAttachmentChoiceDomainSort :
+    StaticSpec.check []
+      (.attachChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
+      = [] := by decide
+
+theorem badLandSubtypeDomainForCreatureType :
+    Predicate.check (.quality (.subtype .creature)) []
+      (.qualityNoun (.subtype .creature) (some .basicTypesOnly)) = [.kindAxisSort] := by decide
+
+theorem okLandSubtypeDomainForLandType :
+    Predicate.check (.quality (.subtype .land)) []
+      (.qualityNoun (.subtype .land) (some .basicTypesOnly)) = [] := by decide
+
+theorem badDomainContentsAndSort :
+    Predicate.check (.quality .color) [] (.qualityNoun .color (some (.abilitiesAmong [])))
+      = [.nonEmpty, .kindAxisSort] := by decide
+
+theorem okAbilityDomainContentsAndSort :
+    Predicate.check (.quality .ability) []
+      (.qualityNoun .ability (some (.abilitiesAmong [.the "Flying"]))) = [] := by decide
 
 end Semantics.Proofs.Choice

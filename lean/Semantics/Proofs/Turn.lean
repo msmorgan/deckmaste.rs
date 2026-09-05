@@ -468,4 +468,132 @@ theorem badTokenDuplicateSupertype :
             power := some (.lit 20), toughness := some (.lit 20) } }) = [.tokenCanonical] := by
   decide
 
+/-! ## Constructor fields share the preceding discourse -/
+
+theorem okExtraTurnAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.extraTurn (target .opponent) (lifeTotalOf they)) = [] := by decide
+
+theorem badExtraTurnAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.extraTurn .you (lifeTotalOf they)) = [.anaphor (.word .player) .one 0] := by decide
+
+theorem badExtraTurnForwardSubject :
+    Instruction.check [] (.extraTurn they (lifeTotalOf (target .opponent)))
+      = [.anaphor (.word .player) .one 0] := by decide
+
+theorem okExtraTurnAmountIntroducesPlayer :
+    Instruction.check [] (.sequentially
+      [.extraTurn .you (lifeTotalOf (target .opponent)), .draw they (.lit 1)]) = [] := by decide
+
+theorem okExtraTurnNestedAmountIntroducesLetterOnce :
+    countLetter .x (Instruction.intro []
+      (.extraTurn .you (plus (.letter .x) (.letter .x)))) = 1 := by decide
+
+theorem okSkipNextAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.skipsNext (target .opponent) .drawStep (lifeTotalOf they)) = [] := by decide
+
+theorem badSkipNextAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.skipsNext .you .drawStep (lifeTotalOf they))
+      = [.anaphor (.word .player) .one 0] := by
+  decide
+
+theorem badSkipNextForwardSubject :
+    Instruction.check [] (.skipsNext they .drawStep (lifeTotalOf (target .opponent)))
+      = [.anaphor (.word .player) .one 0] := by decide
+
+theorem okSkipNextAmountIntroducesPlayer :
+    Instruction.check [] (.sequentially
+      [.skipsNext .you .drawStep (lifeTotalOf (target .opponent)), .draw they (.lit 1)])
+      = [] := by
+  decide
+
+theorem okSkipNextNestedAmountIntroducesLetterOnce :
+    countLetter .x (Instruction.intro []
+      (.skipsNext .you .drawStep (plus (.letter .x) (.letter .x)))) = 1 := by decide
+
+theorem okAdditionalPartAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.additionalPart (some (target .opponent)) .upkeep none (lifeTotalOf they) none)
+      = [] := by
+  decide
+
+theorem badAdditionalPartAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.additionalPart (some .you) .upkeep none (lifeTotalOf they) none)
+      = [.anaphor (.word .player) .one 0] := by
+  decide
+
+theorem badAdditionalPartForwardSubject :
+    Instruction.check [] (.additionalPart (some they) .upkeep none (lifeTotalOf (target .opponent)) none)
+      = [.anaphor (.word .player) .one 0] := by decide
+
+theorem okAdditionalPartAmountIntroducesPlayer :
+    Instruction.check [] (.sequentially
+      [.additionalPart (some .you) .upkeep none (lifeTotalOf (target .opponent)) none, .draw they (.lit 1)])
+      = [] := by
+  decide
+
+theorem okAdditionalPartNestedAmountIntroducesLetterOnce :
+    countLetter .x (Instruction.intro []
+      (.additionalPart (some .you) .upkeep none (plus (.letter .x) (.letter .x)) none))
+      = 1 := by
+  decide
+
+theorem okUntapAmountReadsSubject :
+    Instruction.check [qualityB .color]
+      (.doesntUntapNext (target creature) (powerOf it)) = [] := by decide
+
+theorem badUntapAmountWithoutSubjectMention :
+    Instruction.check [qualityB .color]
+      (.doesntUntapNext thisCreature (powerOf it)) = [.anaphor .bare .one 0] := by decide
+
+theorem okUntapNestedAmountIntroducesLetterOnce :
+    countLetter .x (Instruction.intro []
+      (.doesntUntapNext (target creature) (plus (.letter .x) (.letter .x)))) = 1 := by decide
+
+theorem okUntapAmountIntroducesPlayer :
+    Instruction.check [] (.sequentially
+      [.doesntUntapNext (target creature) (lifeTotalOf (target .opponent)), .draw they (.lit 1)])
+      = [] := by decide
+
+theorem okAdditionalPartWithoutSubjectReadsOuterContext :
+    Instruction.check (nomIntro [] (target .opponent))
+      (.additionalPart none .upkeep none (lifeTotalOf they) none) = [] := by decide
+
+theorem badAdditionalPartWithoutSubjectOrOuterContext :
+    Instruction.check [] (.additionalPart none .upkeep none (lifeTotalOf they) none)
+      = [.anaphor (.word .player) .one 0] := by decide
+
+/-- Nested amounts leave their most recent mention first, followed by the outer context. -/
+theorem okExtraTurnNestedAmountOrder :
+    (Instruction.intro [qualityB .color]
+      (.extraTurn .you (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
+      = [turnRefB, ⟨.target, .one, .player false⟩,
+         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩,
+         qualityB .color] := by rfl
+
+theorem okSkipNextNestedAmountOrder :
+    (Instruction.intro []
+      (.skipsNext .you .drawStep
+        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
+      = [⟨.target, .one, .player false⟩,
+         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+
+theorem okAdditionalPartNestedAmountOrder :
+    (Instruction.intro []
+      (.additionalPart none .upkeep none
+        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none))
+      = [⟨.target, .one, .player false⟩,
+         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+
+theorem okUntapNestedAmountOrder :
+    (Instruction.intro []
+      (.doesntUntapNext .this
+        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
+      = [⟨.target, .one, .player false⟩,
+         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+
 end Semantics.Proofs.Turn

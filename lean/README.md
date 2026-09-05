@@ -101,6 +101,9 @@ give the kind a phrase fixes, and a context that expects a kind refuses a
 joined phrase ("a creature or player"), each disjunct checked at its own
 kind.
 
+The [checker contracts](CONTRACTS.md) record field contexts, enclosed scopes,
+and the enforcing checks or replacements for the former datatype indices.
+
 ## Pins
 
 A pin is a `decide` theorem naming the one refusal:

@@ -143,22 +143,6 @@ def DieSides.check (bs : Bindings) : DieSides → List Refusal
     let n := countOutcomes .diceRolled bs
     refuse (n == 1) (.outcomeInScope .diceRolled n)
 
-/-- Idris `ChoiceDomain : ChoiceSort → Type`: the domain's sort must be the announced one. -/
-def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
-  | .nameOfCard _ => .quality .cardName
-  | .colorOtherThan _ => .quality .color
-  | .typeOtherThan _ => .quality (.subtype .creature)
-  | .basicTypesOnly | .nonbasicTypesOnly => .quality (.subtype .land)
-  | .number _ => .quality .number
-  | .players _ => .player
-  | .abilitiesAmong _ => .quality .ability
-
-def sortedDomainCheck (bs : Bindings) (q : ChoiceSort) (dom : Option ChoiceDomain) : List Refusal :=
-  OptChoiceDomain.check bs dom ++
-    (match dom with
-     | none => []
-     | some d => refuse (d.sort == q) .kindAxisSort)
-
 /-- Written stat slots in order, each read after the ones before it ("X/X"). -/
 def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
   | [] => []
@@ -416,12 +400,14 @@ mutual
         Instruction.check (thisWayCtx bs body ev) trig ++
         refuse body.thisWayOutcomeOk .thisWayOutcome
     | .doesntUntapNext n steps =>
-      NounPhrase.check (some .object) bs n ++ Amount.check bs steps ++
+      NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .skipsNext who _ count => NounPhrase.check (some .player) bs who ++ Amount.check bs count
-    | .extraTurn who count => NounPhrase.check (some .player) bs who ++ Amount.check bs count
+    | .skipsNext who _ count =>
+      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
+    | .extraTurn who count =>
+      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
     | .additionalPart who part anchor count followedBy =>
-      OptNoun.check (some .player) bs who ++ Amount.check bs count ++
+      OptNoun.check (some .player) bs who ++ Amount.check (optAgentIntro bs who) count ++
         refuse part.proper .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
         refuse (followedBy.elim true TurnPart.proper) .windowOk
   termination_by structural e => e
