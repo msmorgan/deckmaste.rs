@@ -66,9 +66,6 @@
         Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
     ]),
-    (identity: Exert, bare: "exert", third_person: "exerts", frames: [
-        Predicate([ObjectNounPhrase]),
-    ]),
     (identity: Flip, bare: "flip", third_person: "flips", frames: [
         Predicate([ObjectNounPhrase]),
     ]),

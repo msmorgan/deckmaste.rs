@@ -179,7 +179,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         .collect::<BTreeMap<_, _>>();
     let parameterized = parameterized_keyword_params();
 
-    assert_eq!(actual.len(), 200);
+    assert_eq!(actual.len(), 195);
     assert_eq!(
         actual.keys().collect::<Vec<_>>(),
         expected.keys().collect::<Vec<_>>()

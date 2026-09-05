@@ -68,7 +68,6 @@ pub enum CoreVerbIdentity {
     Do,
     Draw,
     Enter,
-    Exert,
     Flip,
     Gain,
     Get,
@@ -95,7 +94,7 @@ pub enum CoreVerbIdentity {
 }
 
 impl CoreVerbIdentity {
-    const ALL: [Self; 42] = [
+    const ALL: [Self; 41] = [
         Self::Add,
         Self::Attack,
         Self::Become,
@@ -114,7 +113,6 @@ impl CoreVerbIdentity {
         Self::Do,
         Self::Draw,
         Self::Enter,
-        Self::Exert,
         Self::Flip,
         Self::Gain,
         Self::Get,
@@ -163,7 +161,6 @@ impl CoreVerbIdentity {
             Self::Do => "core-verb:Do",
             Self::Draw => "core-verb:Draw",
             Self::Enter => "core-verb:Enter",
-            Self::Exert => "core-verb:Exert",
             Self::Flip => "core-verb:Flip",
             Self::Gain => "core-verb:Gain",
             Self::Get => "core-verb:Get",
@@ -1680,7 +1677,6 @@ mod tests {
             (CoreVerbIdentity::Die, "die", "dies", None, 1),
             (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 3),
             (CoreVerbIdentity::Enter, "enter", "enters", None, 5),
-            (CoreVerbIdentity::Exert, "exert", "exerts", None, 1),
             (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
             (CoreVerbIdentity::Gain, "gain", "gains", None, 3),
             (CoreVerbIdentity::Get, "get", "gets", None, 1),

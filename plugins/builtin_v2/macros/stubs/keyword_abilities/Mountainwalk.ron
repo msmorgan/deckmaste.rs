@@ -1,5 +1,0 @@
-KeywordAbility(
-    name: "Mountainwalk",
-    spelling: "mountainwalk",
-    grammar: FixedKeyword(surface: "mountainwalk"),
-)
