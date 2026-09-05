@@ -3224,6 +3224,28 @@ pub mod fixture {
             form that when word is That = lex(word) lex(mode);
             form fallback otherwise = lex(mode) lex(word);
         }
+        abstract sum FocusOperand {
+            Plain: PlainFocusOperand,
+            Focused: FocusedOperand,
+        }
+        construction plain_focus_operand: PlainFocusOperand {
+            element PlainFocusOperandValue { word: lex Mode, }
+            derive focus = Values::Unfocused;
+            form plain_focus_operand = lex(word);
+        }
+        construction focused_operand: FocusedOperand {
+            element FocusedOperandValue {
+                marker: lex OptionalWord,
+                operand: FocusOperand,
+            }
+            require operand.focus is Unfocused;
+            derive focus = Values::Focused;
+            form focused_operand = lex(marker) operand;
+        }
+        construction focus_root: FocusRoot {
+            element FocusRootValue { operand: FocusOperand, }
+            form focus_root = operand;
+        }
         construction non_plain: BoundRoot {
             element NonPlain { value: lex BoundWord, }
             require value is Black;
@@ -3603,6 +3625,7 @@ pub mod fixture {
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root FocusRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BoundRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DualBoundaryRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DerivedPossessiveRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -7859,6 +7882,55 @@ pub mod fixture {
         assert_eq!(parsed.accepted_root_ids().count(), 1);
     }
 
+    pub(super) fn assert_declared_two_value_feature_admits_one_wrapper_only() {
+        let context = ParseContext::default();
+        let plain = FocusOperand::Plain(PlainFocusOperand::PlainFocusOperand(
+            PlainFocusOperandValue { word: Mode::One },
+        ));
+        let single = FocusedOperandValue::new(OptionalWord::That, Box::new(plain.clone()))
+            .expect("one wrapper over an unwrapped operand constructs");
+        assert_eq!(
+            Render::render(
+                &FocusRoot::FocusRoot(FocusRootValue {
+                    operand: FocusOperand::Focused(Box::new(FocusedOperand::FocusedOperand(
+                        single.clone(),
+                    ))),
+                }),
+                &context,
+            ),
+            "That one.",
+        );
+        let wrapped = FocusOperand::Focused(Box::new(FocusedOperand::FocusedOperand(single)));
+        assert!(
+            FocusedOperandValue::new(OptionalWord::That, Box::new(wrapped.clone())).is_none(),
+            "the declared two-value feature refuses a second wrapper over a wrapped operand",
+        );
+        assert!(
+            build(
+                RuleId::FocusedOperandFocusedOperand,
+                &[
+                    BuildValue::Leaf(Leaf::OptionalWord(OptionalWord::That)),
+                    BuildValue::FocusOperand(plain, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+            .is_some(),
+            "the parse-time rule accepts an unwrapped operand",
+        );
+        assert!(
+            build(
+                RuleId::FocusedOperandFocusedOperand,
+                &[
+                    BuildValue::Leaf(Leaf::OptionalWord(OptionalWord::That)),
+                    BuildValue::FocusOperand(wrapped, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the parse-time rule refuses an already-wrapped operand",
+        );
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -8180,4 +8252,9 @@ fn intrinsic_sum_product_fields_render_every_shape() {
 #[test]
 fn direct_intrinsic_sum_render_derives_selected_concord_class_without_writer() {
     fixture::assert_direct_intrinsic_sum_render_derives_selected_concord_class();
+}
+
+#[test]
+fn declared_two_value_feature_admits_one_wrapper_only() {
+    fixture::assert_declared_two_value_feature_admits_one_wrapper_only();
 }

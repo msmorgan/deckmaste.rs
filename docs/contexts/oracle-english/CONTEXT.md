@@ -51,10 +51,6 @@ A syntactic unit organized around a predication and its dependents.
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
-**Clause Tail** (project term):
-A subordinate or adjunct constituent that combines with a Clause or Predicate
-at its boundary, whether it precedes or follows that host.
-
 **Adverb**:
 A lexical Category whose members characteristically modify a phrase, Clause,
 or other expression without serving as a nominal argument.

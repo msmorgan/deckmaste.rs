@@ -7,6 +7,11 @@
 //!
 //! Authority: `docs/decisions/english-v2-rewrite.md`.
 
+// The generated category types nest as deeply as the grammar does, so proving
+// an auto trait such as `Send` for `BuildValue` exceeds the default evaluation
+// depth. Raising the limit keeps those proofs available to callers and lints.
+#![recursion_limit = "256"]
+
 pub mod ast;
 mod constructions;
 pub mod context;

@@ -94,7 +94,6 @@ pub use crate::constructions::walk_class_level_body;
 pub use crate::constructions::walk_clause;
 pub use crate::constructions::walk_clause_attachment;
 pub use crate::constructions::walk_clause_coordination;
-pub use crate::constructions::walk_clause_tail;
 pub use crate::constructions::walk_clause_tail_body;
 pub use crate::constructions::walk_color;
 pub use crate::constructions::walk_color_modifier;

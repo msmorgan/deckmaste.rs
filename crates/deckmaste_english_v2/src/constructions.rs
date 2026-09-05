@@ -1272,20 +1272,6 @@ constructions! {
         ThenSequence,
         AdditionalCost,
     }
-    abstract sum ClauseTail {
-        If: IfClauseTail,
-        PreposedIf: PreposedIfClauseTail,
-        Unless: UnlessClauseTail,
-        As: AsClauseTail,
-        AsLongAs: AsLongAsClauseTail,
-        PreposedAsLongAs: PreposedAsLongAsClauseTail,
-        ForAsLongAs: ForAsLongAsClauseTail,
-        While: WhileClauseTail,
-        Until: UntilClauseTail,
-        PredicateAdjunct: PredicateAdjunctClauseTail,
-        PreposedFocus: FocusedPreposedClauseTail,
-        PostposedFocus: FocusedPostposedClauseTail,
-    }
     abstract sum PreposedClauseTail {
         If: PreposedIfClauseTail,
         As: AsClauseTail,
@@ -5596,8 +5582,10 @@ fn temporal_endpoint_denotes_a_time(endpoint: &TemporalEndpoint) -> bool {
 }
 
 fn object_is_mass_nominal(value: &Object) -> bool {
-    let Object::ObjectNominal(object) = value else {
-        return false;
+    let object = match value {
+        Object::FocusedObject(focused) => return object_is_mass_nominal(&focused.focus),
+        Object::ObjectNominal(object) => object,
+        _ => return false,
     };
     let NounPhrase::QualifiedNounPhrase(qualified) = object.value.as_ref() else {
         return false;

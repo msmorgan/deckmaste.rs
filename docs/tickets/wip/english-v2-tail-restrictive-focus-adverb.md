@@ -389,10 +389,16 @@ duration defect is routed to
 
 Work ran from 2026-09-05 00:55:31 -07:00 through 2026-09-05 03:19:22
 -07:00, including four coordinator-ruling pauses and the single post-refresh
-gate pass. The stamped parent is change `ykrsttlu`; its frozen refreshed corpus
-measurement has source fingerprint
+gate pass. Corpus source fingerprint
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`.
-The feature change is `mtqnuxkx`, with coverage lock `covered` 19,113.
+
+**Stamp (review, after the second `kata refresh` onto B7a).** Every number
+below the `### Review corrections` heading was measured on change `tlywlpov`
+(`review: …`) over `mtqnuxkx`, with coverage lock `covered` **19,198** against
+a refreshed parent whose lock `covered` is **19,002**. The implementer's own
+figures were measured on the pre-B7a parent `ykrsttlu` (18,917 → 19,113) and
+are retained above as the record of that tree; the landing delta is unchanged
+at **+196 / −0** on both bases.
 
 - **Declared restrictive focus.** `FocusAdverb::Only` is the sole declared
   vocabulary spelling; there is no `only` form literal. The five focus
@@ -523,8 +529,9 @@ Excluded census blocks remain excluded:
 
 - 312 `only as a sorcery` units contribute zero gains and remain routed to
   `english-v2-remaining-prepositions` (R8).
-- 101 `only once each turn` units contribute zero gains and remain routed by
-  the named fog-register family `english-v2-frequency-adverbial-family`.
+- 101 `only once each turn` units contribute zero gains and are routed to
+  `english-v2-frequency-adverbial-family`, minted at review (2026-09-05); the
+  record named that ticket before it existed.
   Battlefield Scrounger, Chronatog Totem, and Groundling Pouncer were
   temporarily exposed by an over-broad new mixed-tail coordination member;
   restricting that newly introduced structural member to the focused Adjunct
@@ -761,9 +768,15 @@ re-spelled in place; no asserted card/outcome pair was deleted.
   Activate frame changes was added.
 
 **glossary gap:** Subordinate Clause existed only as an unformalized concept,
-and Clause Tail, Adverb, Adverb Phrase, Focus, and Focus Adverb were absent.
-The Oracle English glossary now defines all five terms and marks Clause Tail
-as the project term.
+and Adverb, Adverb Phrase, Focus, and Focus Adverb were absent. The Oracle
+English glossary now defines those five established terms. **Clause Tail
+remains a glossary gap:** the landing's project-coined entry was reverted at
+review — the vocabulary of that file is the owner's, and the proposed
+definition ("a subordinate or adjunct constituent that combines with a Clause
+or Predicate at its boundary, whether it precedes or follows that host")
+described this landing's category rather than an established notion. The
+grammar identifiers `PreposedClauseTail` / `PostposedClauseTail` stand
+undefined in the glossary until the owner names the concept.
 
 **STOPs and resolutions:** The original three-category contradiction, the
 whole-attachment-versus-tail contradiction, the focused bare-duration
@@ -794,13 +807,172 @@ pre-existing bare-duration defect, and authorized the declared non-iterating
 - Selection census: 32,641 total, 19,113 selected, 13,528 parse failures,
   14,983 unique, 4,130 specificity-resolved, 0 exception-resolved, 0 ties,
   and 0 internal failures.
-- Performance advisory, all at 8 workers with 0 concurrent build/test
-  processes observed immediately before the gate pass: coverage 109.959 s,
-  115,492 ns/B, host load 8.02/9.01/7.94; ambiguity 109.652 s, 118,916 ns/B,
-  host load 9.04/7.77/7.55; roundtrip 98.257 s, 112,664 ns/B, host load
-  6.02/6.64/7.04. The 16.26 s advisory ceiling was exceeded under host load;
+- Performance advisory (implementer's pre-refresh pass, 8 workers): coverage
+  109,959 ms, 115,492 ns/B, host load 8.02/9.01/7.94; ambiguity 109,652 ms,
+  118,916 ns/B, host load 9.04/7.77/7.55; roundtrip 98,257 ms, 112,664 ns/B,
+  host load 6.02/6.64/7.04. Its contention line ("0 concurrent build/test
+  processes observed") is a sandbox artifact and is struck; see the review
+  advisory below. The 16,260 ms advisory ceiling was exceeded under host load;
   per the ruling this is reported, not a STOP.
 - Assurance: restored 0; re-spelled 24; ignored 0; added 0; removed 0.
 - Coverage losses 0; wrong or negative gains 0; unresolved ties 0; roundtrip
   mismatches 0; forbidden or word-naming guards 0; deviations are enumerated
   above; decision wanted none.
+
+### Review corrections
+
+Opus landing review, 2026-09-05, after a second `kata refresh` onto trunk with
+`english-v2-frame-complement-coordination` (B7a) integrated. Findings and the
+fixes applied in change `tlywlpov`:
+
+- **HIGH — the refreshed tree did not compile.** B7a's three new `VerbPhrase`
+  constructions (`and_/or_/and_or_frame_complement_pair_coordination`) carry no
+  `derive focus`, so after a textually clean merge `VerbPhrase` stopped
+  providing the new `Focus` feature, `BarePredicate` stopped carrying it, and
+  `focused_bare_predicate`'s `require focus.focus is Unfocused` failed with
+  "role predicate `focus.focus` has no constructible feature expression". The
+  merge was completed by deriving `focus = Values::Unfocused` on all three, in
+  the refresh commit itself. A focus-bearing sum makes every later member of
+  its constituent categories owe the feature; that obligation is now the
+  standing cost of the `Focus` declaration.
+- **HIGH — clippy red on a touched crate.** The new tail chain pushes
+  auto-trait solving past the default evaluation depth, so `BuildValue: Send`
+  became unprovable (`E0275: overflow evaluating the requirement
+  Box<FocusedPredicateAdjunct>: Send`, reached through
+  `PostposedClauseTailCoordinationMember`) and
+  `clippy::arc_with_non_send_sync` fired twice in the untouched
+  `parser/materialize.rs`. Clippy is green on trunk and was red here. Fixed
+  with the compiler's own remedy, `#![recursion_limit = "256"]` on
+  `deckmaste_english_v2`, not by suppressing the lint.
+- **MEDIUM — focus transparency was incomplete.** The 2026-09-05 transparency
+  ruling was applied to the two Predicate Adjunct classifiers but not to
+  `object_is_mass_nominal` (`constructions.rs`), which matched
+  `Object::ObjectNominal` and returned `false` for `Object::FocusedObject`, so
+  a focused Object was classified non-mass while its operand was mass and a
+  partitive whole changed admissibility under focus. Fixed by recursing
+  through the wrapper, exactly as the adjunct classifiers do. These four are
+  the complete set of Rust classifiers over a focus-bearing category.
+- **MEDIUM — the new compiler feature had no compiled-consumer case.** The
+  `Focus` feature and the new constant-feature-on-product-alternative support
+  were exercised only through `deckmaste_english_v2`. Added
+  `declared_two_value_feature_admits_one_wrapper_only` to
+  `crates/deckmaste_construction/tests/compiled_consumer.rs`: a
+  `FocusOperand` sum over a plain member and a wrapper with
+  `require operand.focus is Unfocused`, asserting that one wrapper constructs
+  and renders and that a second is refused both by the generated constructor
+  and by the parse-time `build` rule.
+- **MEDIUM — the glossary entry.** See the glossary-gap paragraph above: the
+  project-coined **Clause Tail** entry was reverted; the five established
+  entries stand.
+- **MEDIUM — a routed block named a ticket that did not exist.** The 101-unit
+  `only once each turn` block was routed to
+  `english-v2-frequency-adverbial-family`; that ticket has been minted in
+  `docs/tickets/planned/`.
+- **LOW — a dead category.** `abstract sum ClauseTail` (twelve members) was
+  declared and never used as a field type; the positional
+  `PreposedClauseTail` / `SimplePostposedClauseTail` / `PostposedClauseTail`
+  sums carry the seam. Deleted with its `ast.rs` and `visit.rs` re-exports and
+  its two `xtask` diagnostic entries; abstract sums are 45 → 49, not 45 → 50.
+  The handoff note in `english-v2-subordinate-clause` was re-worded to name
+  the categories that exist.
+- **LOW — wall times shaped like rule numbers.** The advisory's decimal
+  seconds (three digits, a point, three more) read as bare CR citations to
+  `cargo xtask cite check` and left it red with two hits; all advisory times
+  are now comma-grouped milliseconds, as the E15 landing was corrected to do.
+- **Not a finding.** The reject-loop oracle in `predicate_grammar.rs` changed
+  from `parser.parse(text, …).is_err()` to `analysis.selected().is_none()`.
+  `parse` is `analyze(…).into_parse_result()`, so the two are equivalent; the
+  strict spelling was re-run against all eleven sentences and passes. The
+  change only adds the analysis to the failure message.
+- **Not a finding.** The acceptance line "`grep -c '\"only\"' … is 0" is
+  unsatisfiable alongside the ticket's own `vocab FocusAdverb { Only = "only" }`
+  requirement. The substantive criterion holds: one vocabulary spelling, zero
+  form literals.
+
+**Verification beyond the record.** The ticket's fenced rivalry — an
+object-focus reading against an adjunct-focus reading of the same unit — does
+not materialize anywhere: across the 3,661-card `only`/`unless`/`for as long
+as` subset, **zero** selected units have two candidates that differ in which
+Focus construction they traverse (measured from `ambiguity --json` candidate
+paths). All 35 Object-focus units are `can block only creatures with flying`
+or `can untap only permanents of the chosen type`; all 74 Predicate-Adjunct
+focus units are `only during …` / `only before …` / `only once`; all 109
+postposed-tail focus units are `only if …`. Both excluded blocks stay
+excluded: every `only as a sorcery` and every `only once each turn` unit in
+the subset is a parse failure.
+
+**Corrected numbers on the gated tree (change `tlywlpov`).**
+
+| census | parent trunk (B7a) | feature `tlywlpov` | delta |
+|---|---:|---:|---:|
+| lock `covered` / selected | 19,002 | 19,198 | +196 / −0 |
+| parse failures | 13,639 | 13,443 | −196 |
+| unique selections | 14,943 | 15,056 | +113 |
+| specificity-resolved | 4,059 | 4,142 | +83 |
+| exception-resolved | 0 | 0 | 0 |
+| unresolved ties | 0 | 0 | 0 |
+| constructions | 397 | 393 | −4 |
+| abstract sums | 45 | 49 | +4 |
+
+Structural laws on the gated tree: 32,641 units, 19,198 selected and covered,
+0 selected-uncovered, 0 unresolved ties, 0 internal failures, 0 exception
+resolutions or uses, 0 roundtrip mismatches, 0 ownership failures, construction
+traversal 844,207/844,207, leaf traversal 293,649/293,649, 0 gap or overlap
+spans, 0 synthetic claims, 0 provenance-plan mismatches, 21 permitted licensing
+checkers and 0 forbidden, 2 licensed vocabulary/lexicon homographs, 9
+form-literal/vocabulary overlaps.
+
+Positive gate artifacts, all foreground from the workspace:
+
+- `cargo fmt --all` clean (only the repository's stable-rustfmt warnings).
+- `cargo clippy -p deckmaste_construction_core -p deckmaste_english_v2 -p
+  deckmaste_construction -p xtask --all-targets --all-features -- -D warnings`
+  → `Finished dev profile`, exit 0.
+- `cargo test --workspace` → exit 0, 128 `test result: ok` lines, 0 failed
+  (gate scope: `construction_core/src/emit/` and `plugins/builtin_v2/`).
+- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check
+  --workers 8` → exit 0, **0 newly covered, 0 no longer covered**, lock exactly
+  current at `covered` 19,198.
+- `cargo xtask english_v2 ambiguity --require-resolved --workers 8` → exit 0,
+  `unresolved_ties=0`, `internal_failures=0`, `exception_uses=0`.
+- `cargo xtask english_v2 roundtrip --require-clean --workers 8` → exit 0,
+  `parse accepted 19198`, `clean 19198`, `mismatched 0`.
+- `cargo xtask cite check --list-noncompliant` empty and `cite check` 0 stale.
+
+**Performance advisory (review pass, 8 workers; contention: 2 concurrent
+executors plus this review).** Coverage 106,001 ms, 119,966 ns/B, host load
+4.37/6.99/8.70. Ambiguity 108,252 ms, 123,195 ns/B, host load 5.48/7.09/8.55.
+Roundtrip 103,727 ms, 128,611 ns/B, host load 11.32/9.03/9.11. The 16,260 ms
+quiet-host ceiling is exceeded under that contention; reported, not a STOP.
+
+**Assurance after review:** restored 0; re-spelled 24; ignored with blockers 0;
+**added 1** (`declared_two_value_feature_admits_one_wrapper_only`); removed 0.
+Three sentences moved between the positive and negative lists in
+`predicate_grammar.rs` and are named here because the implementer's counts did
+not name them: `Cast only this spell if you control a snow land.` and `Draw
+only a card.` moved from the reject list to the select list as intended
+Object-focus gains, and `Cast this spell only your turn.` moved from the reject
+list into the focused/unfocused pair assertion under the coordinator's third
+ruling, with the underlying defect routed to
+`english-v2-bare-duration-adjunct-licence`.
+
+**Deviations and additions (review additions to the list above).**
+
+- `ClauseTailBody` is `{Finite, Coordination}`, narrower than the old
+  `postposed_if`'s `body: Clause`: a postposed tail can no longer take another
+  postposed-tail clause as its body. The narrowing is what removes the tail /
+  adjunct rivalry, costs zero coverage, and was disclosed only inside a
+  superseded STOP paragraph; it belongs here.
+- `PostposedClauseTailCoordinationMember` admits `SimplePostposedClauseTail`
+  and `FocusedPredicateAdjunct`, not a bare `PredicateAdjunct` — a newly
+  introduced member restricted at introduction, not an existing form narrowed.
+- The compiler additions (the `Focus` feature, constant feature equations on
+  product alternatives of a declared sum, and optional lexical fields as
+  optional patterns in the emitter) are the implementer's, listed above; the
+  review added only their compiled-consumer case.
+
+**Full corpus passes used by this review: five** — `cargo test --workspace`
+twice (once before and once after the `recursion_limit` fix, which is
+compile-only), and `coverage --check`, `ambiguity --require-resolved` and
+`roundtrip --require-clean` once each. All probing ran against a 3,661-card
+`jq` subset under `~/Dump/review-tail-focus/subset.json`.

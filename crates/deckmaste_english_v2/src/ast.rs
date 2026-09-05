@@ -99,7 +99,6 @@ pub use crate::constructions::ClassLevelBody;
 pub use crate::constructions::Clause;
 pub use crate::constructions::ClauseAttachment;
 pub use crate::constructions::ClauseCoordination;
-pub use crate::constructions::ClauseTail;
 pub use crate::constructions::ClauseTailBody;
 pub use crate::constructions::Color;
 pub use crate::constructions::ColorModifier;

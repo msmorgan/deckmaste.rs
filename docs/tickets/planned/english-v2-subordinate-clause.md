@@ -14,8 +14,10 @@ or feature vocabulary. Probe set: the audit §6 table filtered to this family.
 Standard constraints apply.
 
 2026-09-05: `english-v2-tail-restrictive-focus-adverb` introduces the minimal
-general `ClauseTail` seam ahead of this ticket. It factors the current `if`,
+general clause-tail seam ahead of this ticket. It factors the current `if`,
 `unless`, `as`, `as long as`, `for as long as`, `while`, `until`, and general
-Predicate Adjunct tail shapes from their preposed/postposed attachment hosts.
-Build the remaining lexical-subordinator and Finiteness work on that category;
-do not re-derive a second tail family.
+Predicate Adjunct tail shapes from their preposed/postposed attachment hosts
+into one member construction each, gathered by `PreposedClauseTail` and
+`SimplePostposedClauseTail` / `PostposedClauseTail`. Build the remaining
+lexical-subordinator and Finiteness work on those categories; do not re-derive
+a second tail family.
