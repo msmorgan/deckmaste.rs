@@ -44,7 +44,13 @@ struct Metadata {
 struct Package {
     name: String,
     manifest_path: PathBuf,
+    targets: Vec<Target>,
     dependencies: Vec<Dependency>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Target {
+    src_path: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,12 +62,16 @@ struct Dependency {
 /// If `jj diff`, `cargo metadata`, source scanning, or an elected gate command
 /// fails.
 pub fn run(args: &GateArgs) -> anyhow::Result<()> {
-    anyhow::ensure!(args.changed, "`gate` currently requires `--changed`");
+    anyhow::ensure!(args.changed, "`gate` requires `--changed`");
 
     let workspace_root = workspace_root();
     let paths = changed_paths(&workspace_root, &args.from)?;
     let metadata = metadata(&workspace_root)?;
-    let readers = builtin_v2_readers(&metadata)?;
+    let readers = if paths.iter().any(|path| is_builtin_v2_path(path)) {
+        builtin_v2_readers(&metadata)?
+    } else {
+        BTreeSet::new()
+    };
     let packages = closure_for_paths(&metadata, &paths, &readers);
 
     if packages.is_empty() {
@@ -69,16 +79,17 @@ pub fn run(args: &GateArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let test = cargo_test_line(&packages);
-    println!("{test}");
+    let mut commands = vec![test_command(&packages)];
     if args.clippy {
-        println!("{}", cargo_clippy_line(&packages));
+        commands.push(clippy_command(&packages));
+    }
+    for command in &commands {
+        println!("{}", rendered(command));
     }
 
     if args.run {
-        run_cargo(&["test"], &packages)?;
-        if args.clippy {
-            run_cargo(&["clippy"], &packages)?;
+        for command in &commands {
+            run_cargo(command)?;
         }
     }
 
@@ -158,19 +169,36 @@ fn paths_from_summary(summary: &str) -> Vec<PathBuf> {
     summary
         .lines()
         .flat_map(|line| {
-            let Some((status, paths)) = line.split_once(char::is_whitespace) else {
+            let Some((status, rendered)) = line.split_once(char::is_whitespace) else {
                 return Vec::new();
             };
-            let paths = paths.trim();
-            if status == "R" {
-                paths
-                    .split(" => ")
-                    .map(|path| PathBuf::from(path.trim().trim_matches(['{', '}', ' '])))
-                    .collect()
+            let rendered = rendered.trim();
+            if status == "R" || status == "C" {
+                moved_paths(rendered)
             } else {
-                vec![PathBuf::from(paths)]
+                vec![PathBuf::from(rendered)]
             }
         })
+        .collect()
+}
+
+/// Both endpoints of a rename or copy. jj factors the shared prefix and suffix
+/// out of the two paths and braces what differs, so a ticket move renders as
+/// `docs/tickets/{wip => done}/slug.md` and an unrelated pair as
+/// `{crates/xtask/src/gate.rs => gate.rs}`.
+fn moved_paths(rendered: &str) -> Vec<PathBuf> {
+    let Some((prefix, rest)) = rendered.split_once('{') else {
+        return rendered
+            .split(" => ")
+            .map(|path| PathBuf::from(path.trim()))
+            .collect();
+    };
+    let Some((endpoints, suffix)) = rest.split_once('}') else {
+        return vec![PathBuf::from(rendered)];
+    };
+    endpoints
+        .split(" => ")
+        .map(|endpoint| PathBuf::from(format!("{prefix}{}{suffix}", endpoint.trim())))
         .collect()
 }
 
@@ -181,7 +209,7 @@ fn closure_for_paths(
 ) -> Vec<String> {
     let mut roots = BTreeSet::new();
     for path in paths {
-        if path.starts_with("plugins/builtin_v2") {
+        if is_builtin_v2_path(path) {
             roots.extend(builtin_v2_readers.iter().cloned());
         } else if let Some(package) = owner_for_path(metadata, path) {
             roots.insert(package.name.clone());
@@ -190,18 +218,42 @@ fn closure_for_paths(
     reverse_dependency_closure(metadata, &roots)
 }
 
+fn is_builtin_v2_path(path: &Path) -> bool {
+    path.starts_with("plugins/builtin_v2")
+}
+
 fn owner_for_path<'a>(metadata: &'a Metadata, path: &Path) -> Option<&'a Package> {
     let path = metadata.workspace_root.join(path);
-    if path.parent() == Some(metadata.workspace_root.as_path())
-        && path != metadata.workspace_root.join("Cargo.toml")
-    {
-        return None;
-    }
     metadata
         .packages
         .iter()
-        .filter(|package| path.starts_with(package_root(package)))
-        .max_by_key(|package| package_root(package).components().count())
+        .filter_map(|package| {
+            owned_prefixes(metadata, package)
+                .iter()
+                .filter(|prefix| path.starts_with(prefix))
+                .map(|prefix| prefix.components().count())
+                .max()
+                .map(|depth| (depth, package))
+        })
+        .max_by_key(|(depth, _)| *depth)
+        .map(|(_, package)| package)
+}
+
+/// The paths a package owns. A crate owns its whole directory, but the
+/// workspace-root package's directory contains every other file in the
+/// repository, so that one owns only its manifest and the top-level
+/// directories its targets are built from.
+fn owned_prefixes(metadata: &Metadata, package: &Package) -> Vec<PathBuf> {
+    let root = package_root(package);
+    if root != metadata.workspace_root {
+        return vec![root.to_path_buf()];
+    }
+    let mut prefixes = vec![package.manifest_path.clone()];
+    prefixes.extend(package.targets.iter().filter_map(|target| {
+        let relative = target.src_path.strip_prefix(root).ok()?;
+        Some(root.join(relative.components().next()?))
+    }));
+    prefixes
 }
 
 fn package_root(package: &Package) -> &Path {
@@ -277,40 +329,38 @@ fn reverse_dependency_closure(metadata: &Metadata, roots: &BTreeSet<String>) -> 
     ordered
 }
 
-fn cargo_test_line(packages: &[String]) -> String {
-    cargo_line("test", packages, false)
+fn test_command(packages: &[String]) -> Vec<String> {
+    cargo_arguments("test", packages)
 }
 
-fn cargo_clippy_line(packages: &[String]) -> String {
-    cargo_line("clippy", packages, true)
+fn clippy_command(packages: &[String]) -> Vec<String> {
+    let mut arguments = cargo_arguments("clippy", packages);
+    arguments.extend([
+        "--all-targets".to_owned(),
+        "--".to_owned(),
+        "-D".to_owned(),
+        "warnings".to_owned(),
+    ]);
+    arguments
 }
 
-fn cargo_line(subcommand: &str, packages: &[String], clippy: bool) -> String {
-    let mut words = vec!["cargo".to_owned(), subcommand.to_owned()];
+fn cargo_arguments(subcommand: &str, packages: &[String]) -> Vec<String> {
+    let mut arguments = vec![subcommand.to_owned()];
     for package in packages {
-        words.extend(["-p".to_owned(), package.clone()]);
+        arguments.extend(["-p".to_owned(), package.clone()]);
     }
-    if clippy {
-        words.extend([
-            "--all-targets".to_owned(),
-            "--".to_owned(),
-            "-D".to_owned(),
-            "warnings".to_owned(),
-        ]);
-    }
-    words.join(" ")
+    arguments
 }
 
-fn run_cargo(subcommand: &[&str], packages: &[String]) -> anyhow::Result<()> {
-    let mut command = Command::new("cargo");
-    command.args(subcommand);
-    for package in packages {
-        command.args(["-p", package]);
-    }
-    if subcommand == ["clippy"] {
-        command.args(["--all-targets", "--", "-D", "warnings"]);
-    }
-    let status = command.status().context("running selected cargo gate")?;
+fn rendered(arguments: &[String]) -> String {
+    format!("cargo {}", arguments.join(" "))
+}
+
+fn run_cargo(arguments: &[String]) -> anyhow::Result<()> {
+    let status = Command::new("cargo")
+        .args(arguments)
+        .status()
+        .context("running the selected cargo gate")?;
     anyhow::ensure!(status.success(), "selected cargo gate failed: {status}");
     Ok(())
 }
@@ -319,14 +369,17 @@ fn run_cargo(subcommand: &[&str], packages: &[String]) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
+    /// Shaped like the real workspace: a root package whose directory contains
+    /// every other package, plus the `deckmaste_english_v2` dependency chain.
     const METADATA: &str = r#"
     {
       "workspace_root": "/workspace",
       "packages": [
-        {"name":"deckmaste_construction_core","manifest_path":"/workspace/crates/deckmaste_construction_core/Cargo.toml","dependencies":[]},
-        {"name":"deckmaste_construction","manifest_path":"/workspace/crates/deckmaste_construction/Cargo.toml","dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
-        {"name":"deckmaste_english_v2","manifest_path":"/workspace/crates/deckmaste_english_v2/Cargo.toml","dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
-        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","dependencies":[{"path":"/workspace/crates/deckmaste_english_v2"}]}
+        {"name":"deckmaste","manifest_path":"/workspace/Cargo.toml","targets":[{"src_path":"/workspace/src/main.rs"}],"dependencies":[]},
+        {"name":"deckmaste_construction_core","manifest_path":"/workspace/crates/deckmaste_construction_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_core/src/lib.rs"}],"dependencies":[]},
+        {"name":"deckmaste_construction","manifest_path":"/workspace/crates/deckmaste_construction/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
+        {"name":"deckmaste_english_v2","manifest_path":"/workspace/crates/deckmaste_english_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_english_v2/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
+        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_english_v2"}]}
       ]
     }
     "#;
@@ -335,15 +388,17 @@ mod tests {
         serde_json::from_str(METADATA).expect("metadata snapshot parses")
     }
 
+    fn closure(paths: &[&str]) -> Vec<String> {
+        closure_for_paths(
+            &metadata(),
+            &paths.iter().map(PathBuf::from).collect::<Vec<_>>(),
+            &BTreeSet::new(),
+        )
+    }
+
     #[test]
     fn construction_core_path_gets_its_complete_reverse_dependency_closure() {
-        let packages = closure_for_paths(
-            &metadata(),
-            &[PathBuf::from(
-                "crates/deckmaste_construction_core/src/emit/build.rs",
-            )],
-            &BTreeSet::new(),
-        );
+        let packages = closure(&["crates/deckmaste_construction_core/src/emit/build.rs"]);
         assert_eq!(
             packages,
             [
@@ -354,21 +409,25 @@ mod tests {
             ]
         );
         assert_eq!(
-            cargo_test_line(&packages),
+            rendered(&test_command(&packages)),
             "cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask"
         );
     }
 
     #[test]
     fn english_v2_path_gets_only_its_reverse_dependency_closure() {
-        let packages = closure_for_paths(
-            &metadata(),
-            &[PathBuf::from(
-                "crates/deckmaste_english_v2/src/environment.rs",
-            )],
-            &BTreeSet::new(),
+        assert_eq!(
+            closure(&["crates/deckmaste_english_v2/src/environment.rs"]),
+            ["deckmaste_english_v2", "xtask"]
         );
-        assert_eq!(packages, ["deckmaste_english_v2", "xtask"]);
+    }
+
+    #[test]
+    fn core_verbs_declarations_belong_to_the_crate_that_holds_them() {
+        assert_eq!(
+            closure(&["crates/deckmaste_english_v2/src/core_verbs.ron"]),
+            ["deckmaste_english_v2", "xtask"]
+        );
     }
 
     #[test]
@@ -398,28 +457,64 @@ mod tests {
     #[test]
     fn docs_only_paths_produce_no_gate() {
         assert!(
-            closure_for_paths(
-                &metadata(),
-                &[
-                    PathBuf::from("docs/tickets/wip/example.md"),
-                    PathBuf::from("CLAUDE.md"),
-                    PathBuf::from("Cargo.lock"),
-                ],
-                &BTreeSet::new(),
-            )
+            closure(&[
+                "docs/tickets/wip/example.md",
+                "docs/decisions/english-v2-rewrite.md",
+                "CLAUDE.md",
+                "Cargo.lock",
+                ".github/workflows/ci.yml",
+            ])
             .is_empty()
         );
     }
 
     #[test]
-    fn summary_parser_keeps_each_renamed_path_in_scope() {
+    fn the_root_package_owns_only_its_manifest_and_its_target_sources() {
+        assert_eq!(closure(&["src/main.rs"]), ["deckmaste"]);
+        assert_eq!(closure(&["Cargo.toml"]), ["deckmaste"]);
+    }
+
+    #[test]
+    fn summary_parser_keeps_both_endpoints_of_a_move_in_scope() {
         assert_eq!(
-            paths_from_summary("M crates/xtask/src/gate.rs\nR crates/a.rs => crates/b.rs\n"),
+            paths_from_summary(concat!(
+                "M crates/xtask/src/gate.rs\n",
+                "R docs/tickets/{wip => done}/example.md\n",
+                "R {crates/deckmaste_english/src/tail.rs => crates/deckmaste_english_v2/src/tail.rs}\n",
+                "C crates/deckmaste_english_v2/src/{tail.rs => head.rs}\n",
+            )),
             [
                 PathBuf::from("crates/xtask/src/gate.rs"),
-                PathBuf::from("crates/a.rs"),
-                PathBuf::from("crates/b.rs"),
+                PathBuf::from("docs/tickets/wip/example.md"),
+                PathBuf::from("docs/tickets/done/example.md"),
+                PathBuf::from("crates/deckmaste_english/src/tail.rs"),
+                PathBuf::from("crates/deckmaste_english_v2/src/tail.rs"),
+                PathBuf::from("crates/deckmaste_english_v2/src/tail.rs"),
+                PathBuf::from("crates/deckmaste_english_v2/src/head.rs"),
             ]
+        );
+    }
+
+    #[test]
+    fn a_move_between_crates_gates_both_crates() {
+        assert_eq!(
+            closure(
+                &paths_from_summary(
+                    "R crates/{deckmaste_construction => deckmaste_english_v2}/src/tail.rs\n"
+                )
+                .iter()
+                .map(|path| path.to_str().expect("test paths are UTF-8"))
+                .collect::<Vec<_>>()
+            ),
+            ["deckmaste_construction", "deckmaste_english_v2", "xtask"]
+        );
+    }
+
+    #[test]
+    fn the_clippy_command_gates_every_target_strictly() {
+        assert_eq!(
+            rendered(&clippy_command(&["xtask".to_owned()])),
+            "cargo clippy -p xtask --all-targets -- -D warnings"
         );
     }
 }

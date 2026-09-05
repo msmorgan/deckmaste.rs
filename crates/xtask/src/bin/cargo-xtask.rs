@@ -128,7 +128,7 @@ mod tests {
     }
 
     #[test]
-    fn gate_changed_accepts_its_exact_flags() {
+    fn gate_accepts_its_changed_path_flags_and_acts_only_on_changed() {
         let cli = Cli::try_parse_from([
             "cargo xtask",
             "gate",
@@ -140,7 +140,12 @@ mod tests {
         ])
         .expect("gate accepts its changed-path flags");
         assert!(matches!(cli.command, Cmd::Gate(_)));
-        assert!(Cli::try_parse_from(["cargo xtask", "gate"]).is_err());
+
+        let bare = Cli::try_parse_from(["cargo xtask", "gate"]).expect("gate parses bare");
+        let Cmd::Gate(args) = bare.command else {
+            panic!("`gate` parses as the gate command");
+        };
+        assert!(xtask::gate::run(&args).is_err());
     }
 
     #[test]

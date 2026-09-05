@@ -133,10 +133,9 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   fixture among them), and three landings shipped red downstream suites on
   enumerated lists (2026-09-03); the with-preposition landing broke
   `construction_core`'s builtin_v2 integration test under `-p english_v2 -p
-  xtask` (2026-09-04). Until `cargo xtask gate --changed` exists, compute the
-  closure with `cargo metadata --no-deps --format-version 1` (reverse deps of
-  the changed crates) and state it in the landing record. Use
-  `cargo xtask gate --changed` to derive and print the closure gate.
+  xtask` (2026-09-04). `cargo xtask gate --changed` derives that
+  closure from the changed paths and prints — with `--run`, runs — the exact
+  `cargo test -p …` line to state in the landing record.
 - `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
   simulations); CI's full job runs them.
 
