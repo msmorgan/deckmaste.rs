@@ -406,6 +406,10 @@ impl FamilyIdentity {
 pub enum SpecificityTier {
     Nonterminal,
     TypedLexical,
+    /// A spelling supplied by the parse context or a catalog. It names one
+    /// particular object, so it outranks a member of a declared type spelling
+    /// the same bytes [CR#201.5,201.5c].
+    Identity,
     Literal,
 }
 

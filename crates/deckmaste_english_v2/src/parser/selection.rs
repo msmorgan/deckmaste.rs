@@ -127,7 +127,7 @@ pub fn exception_decision_for_test() -> SelectionDecision {
     let (_, decision) = selection_analysis_with_exceptions(
         candidates,
         |candidate| std::slice::from_ref(&candidate.construction),
-        |candidate| structural_specificity(&candidate.positions, |()| false),
+        |candidate| structural_specificity(&candidate.positions, |()| false, |()| false),
         |_| Vec::new(),
         |construction| name(construction).to_owned(),
         name,
@@ -328,12 +328,14 @@ where
 fn structural_specificity<N, L>(
     positions: &[RulePosition<N, L>],
     is_literal: impl Fn(&L) -> bool,
+    is_identity: impl Fn(&L) -> bool,
 ) -> Specificity {
     Specificity(
         positions
             .iter()
             .map(|position| match position {
                 RulePosition::Lexical(lexical) if is_literal(lexical) => SpecificityTier::Literal,
+                RulePosition::Lexical(lexical) if is_identity(lexical) => SpecificityTier::Identity,
                 RulePosition::Lexical(_) => SpecificityTier::TypedLexical,
                 RulePosition::Nonterminal(_) | RulePosition::AdjacentNonterminal(_) => {
                     SpecificityTier::Nonterminal
@@ -346,7 +348,12 @@ fn structural_specificity<N, L>(
 pub(crate) fn specificity_tiers(
     positions: &[RulePosition<crate::constructions::Category, Lexical>],
 ) -> Vec<SpecificityTier> {
-    structural_specificity(positions, |lexical| matches!(lexical, Lexical::Literal(_))).0
+    structural_specificity(
+        positions,
+        |lexical| matches!(lexical, Lexical::Literal(_)),
+        |lexical| lexical.is_identity(),
+    )
+    .0
 }
 
 fn decide_ranked<T, C, Name>(
@@ -703,6 +710,24 @@ mod tests {
     enum TestLexical {
         LiteralAlpha,
         Word,
+        Identity,
+    }
+
+    #[test]
+    fn the_claim_kind_order_ranks_an_identity_above_a_typed_lexical() {
+        let tier = |lexical| {
+            structural_specificity(
+                &[RulePosition::<TestCategory, TestLexical>::Lexical(lexical)],
+                |lexical| matches!(lexical, TestLexical::LiteralAlpha),
+                |lexical| matches!(lexical, TestLexical::Identity),
+            )
+            .0[0]
+        };
+        assert_eq!(tier(TestLexical::Word), SpecificityTier::TypedLexical);
+        assert_eq!(tier(TestLexical::Identity), SpecificityTier::Identity);
+        assert_eq!(tier(TestLexical::LiteralAlpha), SpecificityTier::Literal);
+        assert!(SpecificityTier::TypedLexical < SpecificityTier::Identity);
+        assert!(SpecificityTier::Identity < SpecificityTier::Literal);
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -984,9 +1009,11 @@ mod tests {
             candidates,
             |candidate| candidate.constructions.as_slice(),
             |candidate| {
-                structural_specificity(&candidate.positions, |lexical| {
-                    matches!(lexical, TestLexical::LiteralAlpha)
-                })
+                structural_specificity(
+                    &candidate.positions,
+                    |lexical| matches!(lexical, TestLexical::LiteralAlpha),
+                    |lexical| matches!(lexical, TestLexical::Identity),
+                )
             },
             construction_name,
             &[],
@@ -1133,9 +1160,11 @@ mod tests {
             candidates,
             |candidate| candidate.constructions.as_ref(),
             |candidate| {
-                structural_specificity(&candidate.positions, |lexical| {
-                    matches!(lexical, Lexical::Literal(_))
-                })
+                structural_specificity(
+                    &candidate.positions,
+                    |lexical| matches!(lexical, Lexical::Literal(_)),
+                    |lexical| lexical.is_identity(),
+                )
             },
             |_| "SharedForm",
             &[],
@@ -1278,9 +1307,11 @@ mod tests {
             vec![shorter, longer],
             |candidate| candidate.constructions.as_slice(),
             |candidate| {
-                structural_specificity(&candidate.positions, |lexical| {
-                    matches!(lexical, TestLexical::LiteralAlpha)
-                })
+                structural_specificity(
+                    &candidate.positions,
+                    |lexical| matches!(lexical, TestLexical::LiteralAlpha),
+                    |lexical| matches!(lexical, TestLexical::Identity),
+                )
             },
             construction_name,
             &[],
@@ -1303,7 +1334,7 @@ mod tests {
         let forward = select_ranked(
             test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             construction_name,
             &exceptions,
         )
@@ -1311,7 +1342,7 @@ mod tests {
         let reverse = select_ranked(
             test_tied_candidates(TestConstruction::TestRight, TestConstruction::TestLeft),
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             construction_name,
             &exceptions,
         )
@@ -1340,9 +1371,11 @@ mod tests {
             vec![typed, literal],
             |candidate| candidate.constructions.as_slice(),
             |candidate| {
-                structural_specificity(&candidate.positions, |lexical| {
-                    matches!(lexical, TestLexical::LiteralAlpha)
-                })
+                structural_specificity(
+                    &candidate.positions,
+                    |lexical| matches!(lexical, TestLexical::LiteralAlpha),
+                    |lexical| matches!(lexical, TestLexical::Identity),
+                )
             },
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
@@ -1416,9 +1449,11 @@ mod tests {
             vec![late_typed, late_literal],
             |candidate| candidate.constructions.as_slice(),
             |candidate| {
-                structural_specificity(&candidate.positions, |lexical| {
-                    matches!(lexical, TestLexical::LiteralAlpha)
-                })
+                structural_specificity(
+                    &candidate.positions,
+                    |lexical| matches!(lexical, TestLexical::LiteralAlpha),
+                    |lexical| matches!(lexical, TestLexical::Identity),
+                )
             },
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
@@ -1448,7 +1483,7 @@ mod tests {
         let exhausted = selection_analysis_with_exceptions(
             vec![shorter, longer],
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
@@ -1487,7 +1522,7 @@ mod tests {
             let analysis = selection_analysis_with_exceptions(
                 candidates,
                 |candidate| candidate.constructions.as_slice(),
-                |candidate| structural_specificity(&candidate.positions, |_| false),
+                |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
                 |_| Vec::new(),
                 |construction| format!("{construction:?}"),
                 construction_name,
@@ -1508,7 +1543,7 @@ mod tests {
         let hard_tie = selection_analysis_with_exceptions(
             test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
@@ -1565,7 +1600,7 @@ mod tests {
         let analysis = selection_analysis_with_exceptions(
             candidates,
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
@@ -1620,7 +1655,7 @@ mod tests {
         let analysis = selection_analysis_with_exceptions(
             candidates,
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             |_| Vec::new(),
             |construction| format!("{construction:?}"),
             construction_name,
@@ -2044,7 +2079,7 @@ mod tests {
         let error = select_with_exceptions(
             test_tied_candidates(TestConstruction::TestLeft, TestConstruction::TestRight),
             |candidate| candidate.constructions.as_slice(),
-            |candidate| structural_specificity(&candidate.positions, |_| false),
+            |candidate| structural_specificity(&candidate.positions, |_| false, |_| false),
             construction_name,
             &[SelectionException {
                 id: " ",

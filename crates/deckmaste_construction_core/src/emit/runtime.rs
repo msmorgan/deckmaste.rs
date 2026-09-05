@@ -1769,6 +1769,12 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 TerminalClass::CatalogIdentity(terminal_index),
         }
     });
+    let context_identity_arms = inventory.context_identities.iter().map(|identity| {
+        let variant = identity.aggregate_ident();
+        quote! { Lexical::#variant => true, }
+    });
+    let catalog_identity_arm = (!inventory.catalog_identities.is_empty())
+        .then(|| quote! { Lexical::CatalogIdentity(_) => true, });
     let vocab_labels = inventory.vocabs.iter().map(|vocab| {
         let variant = vocab.name_ident();
         let label = syn::LitStr::new(
@@ -1867,6 +1873,17 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             "Lexical",
             quote! {
                 impl Lexical {
+                    /// Whether this terminal matches an identity: a spelling
+                    /// supplied by the parse context or a catalog, rather than
+                    /// a member of a declared type.
+                    pub(crate) const fn is_identity(self) -> bool {
+                        match self {
+                            #(#context_identity_arms)*
+                            #catalog_identity_arm
+                            _ => false,
+                        }
+                    }
+
                     pub(crate) const fn class(self) -> TerminalClass {
                         match self {
                             Lexical::Literal(_) => unreachable!(),

@@ -1482,3 +1482,34 @@ are pinned independently in finite passive predicates, finite copular
 predicates, existential finite clauses, and copular subject-gap relative
 clauses; the temporary selection split does not reclassify either word as a
 present Inflectional Form.
+
+## Amendment: an identity claim outranks a declared type over the same bytes (2026-09-04)
+
+Selection compares candidates position by position over claim kinds. That
+ordering gains a fourth tier between Typed Lexical and Literal: an **Identity**
+— a spelling supplied by the parse context or by a catalog rather than by a
+declared type. Identity outranks Typed Lexical; Literal still outranks
+Identity.
+
+The rule is a rules fact, not a preference. Text that refers to the object it
+is on by name means just that particular object and no other object with that
+name [CR#201.5], and a card's shortened name used that way is treated as its
+full name [CR#201.5c]; the same holds for a name inside an ability one object
+grants another [CR#201.5a]. So where a card's own name and a declared type
+spell the identical bytes — `Nightmare`, `Daretti`, and every other card whose
+name is also a creature or planeswalker type — the self-reference is the
+correct reading and the type reading is wrong.
+
+It is one ordering over every identity: no dominance edge between named
+constructions, no selection exception, and no checker or requirement naming a
+card, word, or construction. `Lexical::is_identity` is generated from the
+declared identity inventory, so a new identity declaration joins the ordering
+without further code.
+
+Consequences measured on the corpus at the time of the ruling: the two
+identities it was ruled for (`Daretti, Rocketeer Engineer`, `Nightmare`) select
+their self-reference uniquely, and no other unit's selected analysis moves.
+Where no identity claim covers the bytes the declared type still wins —
+`This Vehicle's power is equal to the number of lands you control.` keeps its
+proper-Noun possessive owner, and `a card named Alpine Watchdog` keeps its
+catalog identity.

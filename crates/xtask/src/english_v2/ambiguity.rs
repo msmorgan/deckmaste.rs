@@ -66,6 +66,7 @@ enum SelectionResolution {
 enum SpecificityTier {
     Nonterminal,
     TypedLexical,
+    Identity,
     Literal,
 }
 
@@ -193,6 +194,7 @@ fn specificity_tier(tier: ParserSpecificityTier) -> SpecificityTier {
     match tier {
         ParserSpecificityTier::Nonterminal => SpecificityTier::Nonterminal,
         ParserSpecificityTier::TypedLexical => SpecificityTier::TypedLexical,
+        ParserSpecificityTier::Identity => SpecificityTier::Identity,
         ParserSpecificityTier::Literal => SpecificityTier::Literal,
     }
 }

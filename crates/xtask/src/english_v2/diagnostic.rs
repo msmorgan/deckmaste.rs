@@ -859,6 +859,7 @@ struct MaterializationCycle {
 enum SpecificityTier {
     Nonterminal,
     TypedLexical,
+    Identity,
     Literal,
 }
 
@@ -2032,6 +2033,7 @@ fn specificity(value: RuntimeSpecificityTier) -> SpecificityTier {
     match value {
         RuntimeSpecificityTier::Nonterminal => SpecificityTier::Nonterminal,
         RuntimeSpecificityTier::TypedLexical => SpecificityTier::TypedLexical,
+        RuntimeSpecificityTier::Identity => SpecificityTier::Identity,
         RuntimeSpecificityTier::Literal => SpecificityTier::Literal,
     }
 }

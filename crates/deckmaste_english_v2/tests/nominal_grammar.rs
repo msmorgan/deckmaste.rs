@@ -99,6 +99,7 @@ fn compact_specificity(specificity: &[SpecificityTier]) -> String {
         .map(|tier| match tier {
             SpecificityTier::Nonterminal => 'N',
             SpecificityTier::TypedLexical => 'T',
+            SpecificityTier::Identity => 'I',
             SpecificityTier::Literal => 'L',
         })
         .collect()
@@ -195,14 +196,14 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Context Card deals 3 damage to target creature.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeTargetingMarkerDeterminative/NominalBareSingularNominal/HeadNounSingularHead",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTNNNNNTNT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTNNNNNTNT",
             candidates: 1,
         },
         Witness {
             card_name: "Pyroclasm",
             text: "Pyroclasm deals 2 damage to each creature.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeSingularSimpleDeterminative/NominalBareSingularNominal/HeadNounSingularHead",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTNNNNNTNT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTNNNNNTNT",
             candidates: 1,
         },
         Witness {
@@ -300,7 +301,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Destroy a card named Magnifying Glass.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveLexicalVerbPhraseTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceNamedCardReference/HeadNounSingularHead",
-            specificity: "NNNNTNNNNLNLTT",
+            specificity: "NNNNTNNNNLNLIT",
             candidates: 1,
         },
         Witness {
@@ -328,14 +329,14 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to them.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Asmoranomardicadaistinaculdacar",
             text: "Asmoranomardicadaistinaculdacar deals 2 damage to itself.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectReflexiveObject",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTT",
             candidates: 1,
         },
         Witness {
@@ -440,14 +441,14 @@ fn authentic_nominal_and_selector_sentences_parse() {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to him.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to her.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceSelfReference/VerbPhraseDeclaredToObjectPredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/PostmodifiedReferenceUnqualifiedPostmodifiedReference/UnqualifiedReferenceDeterminedNominal/DeterminativeMassQuantityDeterminer/AmountNumber/NominalMassNominal/MassNounMassNoun/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNTNNNNNNNTNTT",
+            specificity: "NNNNNNNNITNTNNNNNNNTNTT",
             candidates: 1,
         },
         Witness {
@@ -3289,4 +3290,96 @@ fn shared_head_coordination_remains_selected_under_a_possessive_determiner() {
         .selected()
         .expect("the shared-head analysis has an AST");
     assert_eq!(parsed.render(&context, parser.environment()), text);
+}
+
+fn selected_path_and_specificity(
+    parser: &Parser,
+    card_name: &'static str,
+    text: &str,
+) -> (Vec<String>, Vec<SpecificityTier>) {
+    let context = context(card_name);
+    let analysis = parser.analyze(text, &context);
+    let decision = analysis
+        .decision()
+        .unwrap_or_else(|| panic!("{card_name} must select {text:?}"));
+    assert_eq!(
+        decision.survivors().len(),
+        1,
+        "{card_name}: {text:?}: {decision:#?}",
+    );
+    assert!(
+        decision.exception_uses().is_empty(),
+        "{card_name}: {text:?}",
+    );
+    let selected_ordinal = decision.selected().expect("a survivor is selected");
+    let selected = decision
+        .candidates()
+        .iter()
+        .find(|candidate| candidate.ordinal() == selected_ordinal)
+        .expect("the selected ordinal names a retained candidate");
+    (
+        selected.construction_path().to_vec(),
+        selected.specificity().to_vec(),
+    )
+}
+
+/// A spelling supplied by the parse context names one particular object, so it
+/// outranks a declared type spelling the same bytes [CR#201.5,201.5c]. The
+/// ranking is a claim-kind ordering over every identity, not a rule about any
+/// one word: with no identity claim on those bytes the declared type still
+/// wins, and the two readings are told apart only by the context.
+#[test]
+fn an_identity_claim_outranks_a_declared_type_over_the_same_bytes() {
+    let parser = parser();
+    let text =
+        "Nightmare's power and toughness are each equal to the number of Swamps you control.";
+
+    let (own_path, own_specificity) = selected_path_and_specificity(&parser, "Nightmare", text);
+    assert!(
+        own_path.contains(&"PossessiveOwnerPossessiveSelfReference".to_owned()),
+        "the card's own name is its self-reference: {own_path:?}",
+    );
+    assert!(
+        !own_path.contains(&"PossessiveOwnerPossessiveSingularNominal".to_owned()),
+        "the declared type does not survive beside the identity: {own_path:?}",
+    );
+    assert!(
+        own_specificity.contains(&SpecificityTier::Identity),
+        "the identity tier is what the winner claims: {own_specificity:?}",
+    );
+
+    let (other_path, other_specificity) =
+        selected_path_and_specificity(&parser, "Context Card", text);
+    assert!(
+        other_path.contains(&"PossessiveOwnerPossessiveSingularNominal".to_owned()),
+        "the same bytes on another card are the declared type: {other_path:?}",
+    );
+    assert!(
+        !other_path.contains(&"PossessiveOwnerPossessiveSelfReference".to_owned()),
+        "no identity claim covers those bytes: {other_path:?}",
+    );
+    assert!(
+        !other_specificity.contains(&SpecificityTier::Identity),
+        "no position claims the identity tier: {other_specificity:?}",
+    );
+}
+
+/// The attested corpus witness for the losing side: an ordinary declared type
+/// as a possessive owner, with no identity claim competing for its bytes.
+#[test]
+fn a_declared_type_owns_a_possessive_without_an_identity_claim() {
+    let parser = parser();
+    let (path, specificity) = selected_path_and_specificity(
+        &parser,
+        "Lumbering Worldwagon",
+        "This Vehicle's power is equal to the number of lands you control.",
+    );
+    assert!(
+        path.contains(&"PossessiveOwnerPossessiveSingularNominal".to_owned()),
+        "{path:?}",
+    );
+    assert!(
+        !specificity.contains(&SpecificityTier::Identity),
+        "{specificity:?}",
+    );
 }
