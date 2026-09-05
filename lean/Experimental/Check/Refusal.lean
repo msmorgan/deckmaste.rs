@@ -1,0 +1,254 @@
+import Experimental.Check.Words
+
+/-!
+# Experimental.Check.Refusal
+
+Why a spelling is refused. One constructor per Idris obligation, named after the Idris
+obligation (`SoleHolder` → `.soleHolder`), so a pin names the obligation it refutes the way
+the Idris docstring did in prose. A few carry the count they found, which is what a reader
+wants to know for an anaphora refusal.
+
+Idris elaboration refuses at the first failing obligation; the checker here reports every
+failing one, so `check e = [r]` states that `r` is the only refusal, which is what a
+non-vacuous pin claims.
+-/
+
+namespace Mtg
+
+inductive Refusal where
+  /- sorts -/
+  /-- A phrase's kind is fixed by two constraints that disagree. -/
+  | kindMismatch (expected found : Kind)
+  | phrasal (k : Kind)
+  | targetable (k : Kind)
+  | targeter (k : Kind)
+  | kindLte (k bound : Kind)
+  | possessorKind (axis : PossessorAxis) (k : Kind)
+  | counterScope (k : Kind)
+  | projScope (k : Kind)
+  | axesAt (k : Kind)
+  | counterKindNamed (k : Kind)
+  | designationHolder (d : Designation) (k : Kind)
+  | designationScope (d : Designation)
+  | designationChecked (d : Designation)
+  | designationPossessorFits (d : Designation)
+  /- number -/
+  | soleHolder
+  | singular
+  | plural
+  | groupMention
+  | partitiveBase
+  | countableGroup
+  | countedMention
+  | slicePossessor
+  | perMember
+  | existentialMention
+  | complementAnchor
+  | choosable
+  | choiceClause
+  | choiceOrder
+  | testSubject
+  | selfDefined
+  /- zones -/
+  | zoneIs (z : Zone)
+  | zoneFits
+  | zoneCoherent
+  | possessable (z : Zone)
+  | playableFrom
+  | placeArrangementFits
+  | placeOrdinalFits
+  | exposableZone (z : Zone)
+  | costSubject
+  | paidSubject
+  | stackActOn
+  | copySourceOk
+  | movable
+  | destOk
+  | arrangementOk
+  | placeable
+  | ridersFit
+  | discardOk
+  | moveDestination
+  | counterMemory
+  | attachHeadOk
+  | attachFits
+  | combatRelOk
+  | damageRecipient
+  | attackable
+  | statusHolder
+  | statusMarkable
+  | statusWord
+  /- anaphora and scope: what the read found -/
+  | anaphor (r : Reach) (pl : Plurality) (found : Nat)
+  | choiceRef (ref : ChoiceRef) (sort : ChoiceSort) (found : Nat)
+  | choiceInScope (k : Kind)
+  | outcomeInScope (s : OutcomeSort) (found : Nat)
+  | quantOutcomeInScope (found : Nat)
+  | coinFlipInScope
+  | damageDealtInScope
+  | groupSizeInScope (found : Nat)
+  | gapInScope (found : Nat)
+  | theRestFits (k : Kind)
+  | anyTargeted (k : Kind)
+  | eventAgent
+  | chooserInScope (found : Nat)
+  | tokenSpecInScope (found : Nat)
+  | openLetter (l : Letter)
+  | bindingless
+  | ignorableFor
+  | readAmount
+  | keepsOuter
+  /- local well-formedness -/
+  | nonZeroQ
+  | wellFormedQ
+  | nonEmpty
+  | atLeastTwo
+  | flatConjuncts
+  | flatDisjuncts
+  | contradictionFree
+  | otherAnchored
+  | parallelDisjuncts
+  | coordinableDisjuncts
+  | negatable
+  | uniquifying
+  | rolesOk
+  | ballotLabelsOk
+  | atLeastTwoZones
+  | colorBoundOk
+  | isExtremal
+  | chosenQualityRead (q : QualitySort)
+  | numberBetween
+  | subtypeType
+  | ascribable
+  | ascriptionOk
+  | permanentSpellType
+  | linkSource
+  | pileMention
+  | predSays
+  | markingOk
+  | amtNonZero
+  | tallyOk
+  | statHeadTysOk
+  | complementPlain
+  | complementSourced
+  | complementWritten
+  | lookbackSubject
+  | lookbackComplement
+  | lookbackSource
+  | lookbackDest
+  | lookbackLocus
+  | visibilityOk
+  | windowOk
+  | pointWindowOk
+  | durationPossessor
+  | quantLiteral
+  | modesFit
+  | facesFit
+  | chapterMarks
+  | distinct
+  | kindDomainOk
+  | kindAxisSort
+  /- tables -/
+  | knownAct (v : VerbLabel)
+  | knownKeyword (k : KeywordLabel)
+  | knownKeywordTerm
+  | knownCounter
+  | paidFacetNamed
+  | costNameable
+  | keywordParamFits (k : KeywordLabel)
+  | keywordBodyFits (k : KeywordLabel)
+  | keywordCost (k : KeywordLabel)
+  | deedFits
+  | deedRides
+  | verbPatientOk
+  | verbedVoiceOk
+  | verbBecomesOk
+  | enactAgentOk
+  | featureNounOk (f : DeedFeature)
+  | nontarget
+  | counterBatchOk
+  | causedByOk
+  | tokenPhrase
+  | watchFitsDie
+  | eventUnderway
+  | headerNontarget
+  | doorNamesHost
+  | spanOk
+  | deonticBoundOk
+  | deonticPatientOk
+  | asThoughOk
+  | deonticRiderOk
+  | triggerCountOk
+  | deckReadable
+  | deckComparable
+  | modifyStat
+  | selfDefinedOk
+  | grantSubject
+  | grantable
+  | altPayment
+  | addedPayment
+  | notExtended
+  | notCarvedOut
+  | notCoord
+  | clauseStatic
+  | becomesOk
+  | untriggeredLimit
+  | interceptable
+  | damageOpUse
+  | ctrlOverride
+  | manaRun
+  | forEachAmount
+  | costAction
+  | notCompound
+  | payable
+  | payAgrees
+  | costTapOnce
+  | costPaidByYou
+  | heldClause
+  | reflexEnclosure
+  | thisWayOutcome
+  | notInstead
+  | ifDoneArmed
+  | enactKeepsOuter
+  | producedRuns
+  | colorCountOk
+  | twoParties
+  | controlExchangeZone
+  | cardSwapZones
+  | zoneSwap
+  | tokenTyped
+  | tokenPtOk
+  | subsFitLine
+  | tokenAbilities
+  | tokenCanonical
+  | tokenQualsFit
+  | additionUnnamed
+  | copyBundle
+  | lineNonEmpty
+  | kindAmountOk
+  | counterSourceScope
+  | counterHolderKind
+  | qualityRead
+  | keywordExtendable
+  | keywordListOk
+  | notWordHeaded
+  | emblemAbilities
+  | chapterDefaults
+  /- card frame laws -/
+  | cardLine
+  | cardText
+  | modalFrame
+  | chapterFrame
+  | doorFrame
+  | cardBox
+  | cardCost
+  | jointChoices
+  | adventureInset
+  | flipHalf
+  | levelRange
+  | levelerFrame
+  | bandsDisjoint
+  | prototypeFrame
+  deriving DecidableEq, Repr
+
+end Mtg

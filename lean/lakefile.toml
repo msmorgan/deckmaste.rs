@@ -1,0 +1,19 @@
+# Lean port of ../idris — the semantics-v2 grammar workbench.
+#
+#   lake build Experimental        -- syntax, checker, macros, bench (the inner loop)
+#   lake build                     -- plus the pin suites (the full gate; ./scripts/build adds --wfail)
+name = "mtg"
+version = "0.1.0"
+defaultTargets = ["Experimental", "ExperimentalProofs"]
+
+[leanOptions]
+# Idris `%unbound_implicits off`: every implicit is written out.
+autoImplicit = false
+
+[[lean_lib]]
+name = "Experimental"
+roots = ["Experimental", "Experimental.Check", "Experimental.Macros", "Experimental.Cards"]
+
+[[lean_lib]]
+name = "ExperimentalProofs"
+roots = ["Experimental.Proofs"]

@@ -1,0 +1,1312 @@
+import Experimental.Words
+import Experimental.Events
+
+/-!
+# Experimental.Check.Words
+
+The checker's vocabulary layer: everything `Words.idr` computes that is not syntax. The
+antecedent stack (`Binding`, `Bindings`, `Payload`), the reads over it (`countReach`,
+`countChoice`, `countOutcomes`, …), the facts tables (acts, counters, designations), and the
+leaf predicates the phrase and effect rules consult.
+
+Every function keeps its Idris name and clauses. `So (f x)` obligations are the `Bool`
+functions here; the rule layer turns them into refusals. Everything is structurally recursive
+so `decide` can run it.
+
+The keyword facts table (`keywordFacts`, generated into `FactsGen.idr` by xtask) is not here
+yet; the keyword predicates take the table as an argument until it is.
+-/
+
+namespace Mtg
+
+/-! ## Card types and stats -/
+
+def Stat.comparedType : Stat → Option CardType
+  | .power => some .creature
+  | .toughness => some .creature
+  | .manaValue => none
+  | .loyalty => some .planeswalker
+
+/-- A noncreature permanent has no power or toughness [CR#208.3], so a stat read is refused
+when every head-type alternative of the noun lacks the type the stat belongs to. No known type
+is permissive, and one alternative that carries the type suffices. -/
+def statHeadTysOk (c : Stat) (alts : List (List CardType)) : Bool :=
+  match c.comparedType with
+  | none => true
+  | some want => alts.all (·.elem want)
+
+def QualitySort.chosenReadOk : QualitySort → Bool
+  | .color => true
+  | .subtype _ => true
+  | .cardName => true
+  | .number => false
+  | .cardType => true
+  | .counterKind => false
+
+/-! ## Kinds -/
+
+/-- `kindLte x y` on a join on the right; `x` is never itself a join here. -/
+def Kind.lteAtom (x : Kind) : Kind → Bool
+  | .join a b => Kind.lteAtom x a || Kind.lteAtom x b
+  | y => x == y
+
+/-- The Idris clauses in order: a join on the left, then a join on the right, then equality.
+Two structural recursions so the kernel can evaluate it. -/
+def Kind.lte : Kind → Kind → Bool
+  | .join a b, y => Kind.lte a y && Kind.lte b y
+  | x, y => Kind.lteAtom x y
+
+def AggregateOp.isExtremal : AggregateOp → Bool
+  | .sum => false
+  | .min => true
+  | .max => true
+
+def subtypeScopeOk : CardType → SubtypeScope → Bool
+  | _, .any => true
+  | .land, .basicOnly => true
+  | .land, .nonbasicOnly => true
+  | _, .basicOnly => false
+  | _, .nonbasicOnly => false
+
+def KindAxis.sort : KindAxis → Option QualitySort
+  | .cardType => some .cardType
+  | .permanentType => none
+  | .color => some .color
+  | .subtype host _ => some (.subtype host)
+  | .value _ => some .number
+  | .counterKind => some .counterKind
+  | .colorPair => none
+
+def KindAxis.closed : KindAxis → Bool
+  | .cardType => true
+  | .permanentType => true
+  | .color => true
+  | .subtype .land .basicOnly => true
+  | .subtype _ _ => false
+  | .value _ => false
+  | .counterKind => false
+  | .colorPair => true
+
+def colorCountOk (n : Nat) : Bool := n ≥ 2 && n ≤ 5
+
+/-- An object is 0..5 colors [CR#105.1]; `eq 0` is `isColorless`. -/
+def colorBoundOk : Comparator → Nat → Bool
+  | .eq, n => n ≥ 1 && n ≤ 5
+  | .atLeast, n => n ≥ 2 && n ≤ 5
+  | .atMost, n => n ≥ 1 && n ≤ 4
+  | .greater, n => n ≥ 1 && n ≤ 4
+  | .less, n => n ≥ 2 && n ≤ 5
+
+def OutcomeSort.comparable : OutcomeSort → Bool
+  | .rollResult => true
+  | _ => false
+
+def Plurality.isOne : Plurality → Bool
+  | .one => true
+  | .many => false
+
+def outputPlur : Plurality → Plurality → Plurality
+  | .one, .one => .one
+  | _, _ => .many
+
+def atLeastTwo : Nat → Bool
+  | _ + 2 => true
+  | _ => false
+
+/-! ## The act facts table -/
+
+structure DeedRole where
+  kinds : List Kind
+  types : List CardType
+  bare : Bool
+  zone : Option Zone
+  deriving Repr, BEq
+
+def noRole : DeedRole := ⟨[], [], false, none⟩
+
+inductive PremiseSort where
+  | object | mana | value
+  deriving DecidableEq, Repr
+
+/-- The deeds a core constructor must name structurally, declared so a guard reads a feature
+rather than a verb's spelling. -/
+inductive DeedFeature where
+  | attacking | blocking | targeting | controlGrant | librarySearch
+  deriving DecidableEq, Repr
+
+structure ActFacts where
+  label : VerbLabel
+  participle : Option String := none
+  dest : Option Zone := none
+  stepwise : Bool := false
+  loci : List Zone := []
+  intransitive : Bool := false
+  agentRole : DeedRole := noRole
+  patientRole : DeedRole := noRole
+  feature : Option DeedFeature := none
+  abilityRole : Option Role := none
+  counterfactual : Option PremiseSort := none
+  rides : Bool := false
+  plays : Bool := false
+  bounded : Bool := false
+  deriving Repr, BEq
+
+private def playerAgent : DeedRole := ⟨[.player], [], true, none⟩
+private def fieldObject : DeedRole := ⟨[.object], [], false, some .battlefield⟩
+private def permanentTypes : List CardType :=
+  [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
+private def spellTypes : List CardType :=
+  [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
+private def allTypes : List CardType :=
+  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
+
+/-- Keyword actions [CR#701]: one-shot verbs in effect position that confer nothing, unlike the
+keyword abilities of the keyword facts table. -/
+def actFacts : List ActFacts :=
+  [ { label := "Destroy", participle := some "destroyed", dest := some .graveyard,
+      patientRole := fieldObject },
+    { label := "Sacrifice", participle := some "sacrificed", dest := some .graveyard,
+      agentRole := playerAgent, patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩,
+      bounded := true },
+    { label := "Exile", participle := some "exiled", dest := some .exile, agentRole := playerAgent,
+      patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "Discard", participle := some "discarded", dest := some .graveyard,
+      agentRole := playerAgent, patientRole := ⟨[.object], [], false, some .hand⟩ },
+    { label := "Mill", participle := some "milled", dest := some .graveyard,
+      agentRole := playerAgent, patientRole := ⟨[.object], [], false, some .library⟩ },
+    { label := "Scry", stepwise := true, agentRole := playerAgent },
+    { label := "Surveil", stepwise := true, agentRole := playerAgent },
+    { label := "Tap", participle := some "tapped", patientRole := fieldObject },
+    { label := "Untap", participle := some "untapped", agentRole := playerAgent,
+      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, bounded := true },
+    { label := "Return", patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "GainControl", patientRole := fieldObject, feature := some .controlGrant },
+    { label := "Put", agentRole := playerAgent, patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "Search",
+      loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
+      agentRole := playerAgent, feature := some .librarySearch, bounded := true },
+    { label := "Shuffle", loci := [.library], agentRole := playerAgent },
+    { label := "Proliferate" },
+    { label := "The Ring Tempts You" },
+    { label := "Transform", intransitive := true, patientRole := fieldObject },
+    { label := "Convert", intransitive := true, patientRole := fieldObject },
+    { label := "Meld", dest := some .battlefield, patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "Unlock", patientRole := ⟨[], [], false, some .battlefield⟩ },
+    { label := "Fully Unlock", patientRole := fieldObject },
+    { label := "Attack", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
+      patientRole := ⟨[.object], [.planeswalker, .battle], false, some .battlefield⟩,
+      feature := some .attacking, counterfactual := some .object, bounded := true },
+    { label := "Block", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
+      patientRole := ⟨[.object], [.creature], false, some .battlefield⟩,
+      feature := some .blocking, counterfactual := some .object, bounded := true },
+    { label := "Target", agentRole := ⟨[], [], true, some .stack⟩,
+      patientRole := ⟨[.object, .player], allTypes, true, none⟩,
+      feature := some .targeting, counterfactual := some .object, bounded := true },
+    { label := "Cast", agentRole := playerAgent,
+      patientRole := ⟨[.object], spellTypes, true, some .stack⟩,
+      counterfactual := some .object, rides := true, plays := true, bounded := true },
+    { label := "Play", agentRole := playerAgent, patientRole := ⟨[.object], allTypes, true, none⟩,
+      counterfactual := some .object, rides := true, plays := true, bounded := true },
+    { label := "Counter", agentRole := ⟨[], [], true, some .stack⟩,
+      patientRole := ⟨[.object], spellTypes, true, some .stack⟩, rides := true },
+    { label := "Copy", agentRole := ⟨[], [], true, some .stack⟩,
+      patientRole := ⟨[.object], spellTypes, true, some .stack⟩, bounded := true },
+    { label := "Activate", agentRole := playerAgent, patientRole := ⟨[.object], [], true, some .stack⟩,
+      abilityRole := some .patient, bounded := true },
+    { label := "Regenerate", agentRole := ⟨[], [], true, none⟩,
+      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, rides := true,
+      bounded := true },
+    { label := "GainLife", agentRole := playerAgent, bounded := true },
+    { label := "Draw", agentRole := playerAgent, patientRole := ⟨[.object], [], true, some .library⟩,
+      bounded := true },
+    { label := "Trigger", agentRole := ⟨[.object], [], true, some .stack⟩,
+      abilityRole := some .agent, bounded := true },
+    { label := "LoseGame", agentRole := playerAgent },
+    { label := "WinGame", agentRole := playerAgent },
+    { label := "Spend", agentRole := playerAgent, counterfactual := some .mana, bounded := true },
+    { label := "Crew", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
+      patientRole := ⟨[.object], [.artifact], true, some .battlefield⟩,
+      counterfactual := some .value, bounded := true },
+    { label := "Saddle", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
+      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩,
+      counterfactual := some .value, bounded := true },
+    { label := "Vote", agentRole := playerAgent, bounded := true },
+    { label := "Venture Into The Dungeon" },
+    { label := "Abandon" },
+    { label := "Adapt" },
+    { label := "Airbend", dest := some .exile },
+    { label := "Amass" },
+    { label := "Assemble" },
+    { label := "Attach" },
+    { label := "Behold" },
+    { label := "Blight" },
+    { label := "Bolster" },
+    { label := "Clash" },
+    { label := "Cloak", dest := some .battlefield },
+    { label := "Collect Evidence", dest := some .exile },
+    { label := "Connive" },
+    { label := "Create", dest := some .battlefield },
+    { label := "Detain" },
+    { label := "Discover" },
+    { label := "Double" },
+    { label := "Earthbend" },
+    { label := "Endure" },
+    { label := "Exchange" },
+    { label := "Exert" },
+    { label := "Explore" },
+    { label := "Face A Villainous Choice" },
+    { label := "Fateseal", agentRole := playerAgent },
+    { label := "Fight" },
+    { label := "Forage" },
+    { label := "Goad" },
+    { label := "Harness" },
+    { label := "Heal" },
+    { label := "Incubate", dest := some .battlefield },
+    { label := "Investigate", dest := some .battlefield },
+    { label := "Learn" },
+    { label := "Manifest", dest := some .battlefield },
+    { label := "Manifest Dread" },
+    { label := "Monstrosity" },
+    { label := "Open An Attraction" },
+    { label := "Planeswalk" },
+    { label := "Populate" },
+    { label := "Recruit" },
+    { label := "Reveal" },
+    { label := "Roll To Visit Your Attractions" },
+    { label := "Set In Motion" },
+    { label := "Support" },
+    { label := "Suspect" },
+    { label := "Time Travel" },
+    { label := "Triple" },
+    { label := "Phase In", intransitive := true, agentRole := ⟨[.object], [], true, some .battlefield⟩ },
+    { label := "Waterbend" } ]
+
+def distinctActLabels : List ActFacts → Bool
+  | [] => true
+  | f :: fs => !(fs.map (·.label)).elem f.label && distinctActLabels fs
+
+def actFactsFor (v : VerbLabel) : Option ActFacts := actFacts.find? (·.label == v)
+
+def knownAct (v : VerbLabel) : Bool := (actFactsFor v).isSome
+def deedFeatureOf (v : VerbLabel) : Option DeedFeature := actFactsFor v >>= (·.feature)
+def featureLabel (f : DeedFeature) : Option VerbLabel :=
+  (actFacts.find? (·.feature == some f)).map (·.label)
+def participleOf (v : VerbLabel) : Option String := actFactsFor v >>= (·.participle)
+def actPatientKindsOf (v : VerbLabel) : List Kind := (actFactsFor v).elim [] (·.patientRole.kinds)
+def actNamesPatient (v : VerbLabel) : Bool := !(actPatientKindsOf v).isEmpty
+def actZoneOf (v : VerbLabel) : Option Zone := actFactsFor v >>= (·.patientRole.zone)
+def actDestOf (v : VerbLabel) : Option Zone := actFactsFor v >>= (·.dest)
+def actLociOf (v : VerbLabel) : List Zone := (actFactsFor v).elim [] (·.loci)
+def actNamesLocus (v : VerbLabel) : Bool := !(actLociOf v).isEmpty
+def actStepwiseOf (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.stepwise)
+def actIntransitiveOf (v : VerbLabel) : Bool := (actFactsFor v).elim false (·.intransitive)
+def actNamesParticiple (v : VerbLabel) : Bool := (participleOf v).isSome
+
+/-! ## The antecedent stack -/
+
+/-- Provenance: the verb that last moved a binding, whether it was on the battlefield then,
+and whether it changed zones. -/
+structure Stamp where
+  verb : VerbLabel
+  wasField : Bool
+  moved : Bool
+  deriving Repr, BEq
+
+inductive Origin where
+  | token | copy
+  deriving DecidableEq, Repr
+
+def isTokenOrigin : Option Origin → Bool
+  | some .token => true
+  | _ => false
+
+def isCopyOrigin : Option Origin → Bool
+  | some .copy => true
+  | _ => false
+
+def facesFit : List PileFace → Nat → Bool
+  | [], _ => true
+  | fs, n => fs.length == n
+
+def pileMentionFace : List PileFace → Option PileFace
+  | [] => none
+  | f :: fs => if fs.all (· == f) then some f else none
+
+/-- What a binding knows about its referent. The Idris indexes this by `Kind`; here the kind
+is recoverable by `Payload.kind`, and `Binding.kind` records it as the Idris did. -/
+inductive Payload where
+  | object (ty : Option CardType) (zone : Option Zone) (prov : Option Stamp) (orig : Option Origin)
+      (size : Option Nat)
+  | player (chosen : Bool)
+  | quality (q : QualitySort)
+  | outcome (sort : OutcomeSort)
+  | gap
+  | letter (l : Letter)
+  | turnRef
+  /-- An ability on the stack: an object with no printed characteristics and no zone of its
+  own [CR#109.1,113.1c,405.1]. -/
+  | ability (orig : Option Origin)
+  | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
+  | join (l r : Payload)
+  deriving Repr, BEq
+
+structure Binding where
+  det : Determiner
+  kind : Kind
+  plur : Plurality
+  payload : Payload
+  deriving Repr, BEq
+
+abbrev Bindings := List Binding
+
+namespace Payload
+
+def zone : Payload → Option Zone
+  | .object _ zn _ _ _ => zn
+  | .ability _ => some .stack
+  | .pile zn _ _ => zn
+  | .join l r => (l.zone).elim r.zone some
+  | _ => none
+
+def joinSeed : Option CardType → Option CardType → Option CardType
+  | none, t => t
+  | t, none => t
+  | some t, some u => if t == u then some t else none
+
+def ty : Payload → Option CardType
+  | .object t _ _ _ _ => t
+  | .join l r => joinSeed l.ty r.ty
+  | _ => none
+
+def size : Payload → Option Nat
+  | .object _ _ _ _ sz => sz
+  | .pile _ sz _ => sz
+  | .join l r => (l.size).elim r.size some
+  | _ => none
+
+def face : Payload → Option PileFace
+  | .pile _ _ fc => fc
+  | _ => none
+
+def prov : Payload → Option Stamp
+  | .object _ _ pv _ _ => pv
+  | .join l r => (l.prov).elim r.prov some
+  | _ => none
+
+def orig : Payload → Option Origin
+  | .object _ _ _ og _ => og
+  | .ability og => og
+  | .join l r => (l.orig).elim r.orig some
+  | _ => none
+
+def joined : Payload → Bool
+  | .join _ _ => true
+  | _ => false
+
+end Payload
+
+def Binding.zone (b : Binding) : Option Zone := b.payload.zone
+def Binding.ty (b : Binding) : Option CardType := b.payload.ty
+def Binding.size (b : Binding) : Option Nat := b.payload.size
+def Binding.face (b : Binding) : Option PileFace := b.payload.face
+
+/-- Re-size an object or pile binding; any other binding is returned unchanged. -/
+def sized (sz : Option Nat) : Binding → Binding
+  | ⟨det, .object, pl, .object ty zn pv og _⟩ => ⟨det, .object, pl, .object ty zn pv og sz⟩
+  | ⟨det, .pile, pl, .pile zn _ fc⟩ => ⟨det, .pile, pl, .pile zn sz fc⟩
+  | b => b
+
+/-- The head type(s) a phrase seeds, one per join half. -/
+inductive HeadTy where
+  | sole (ty : Option CardType)
+  | join (a b : HeadTy)
+  deriving Repr, BEq
+
+def outcomeB (s : OutcomeSort) : Binding := ⟨.the, .outcome, .one, .outcome s⟩
+def gapB : Binding := ⟨.the, .gap, .one, .gap⟩
+def turnRefB : Binding := ⟨.the, .turnRef, .one, .turnRef⟩
+def letterB (l : Letter) : Binding := ⟨.a, .letter l, .one, .letter l⟩
+def qualityB (q : QualitySort) : Binding := ⟨.a, .quality q, .one, .quality q⟩
+
+def ChoiceSort.binding : ChoiceSort → Binding
+  | .quality q => qualityB q
+  | .player => ⟨.a, .player, .one, .player true⟩
+
+def ChoiceSort.binds : ChoiceSort → Kind → Payload → Bool
+  | .quality q, k, _ => Kind.lte (.quality q) k
+  | .player, _, .player ch => ch
+  | .player, _, _ => false
+
+def choiceSortAt : Kind → Option ChoiceSort
+  | .quality q => some (.quality q)
+  | .player => some .player
+  | _ => none
+
+def choiceDeltaAt (k : Kind) : List Binding :=
+  match choiceSortAt k with
+  | none => []
+  | some s => [s.binding]
+
+def countOnes (k : Kind) : Bindings → Nat
+  | [] => 0
+  | ⟨_, k', .one, _⟩ :: bs => if Kind.lte k k' then countOnes k bs + 1 else countOnes k bs
+  | _ :: bs => countOnes k bs
+
+def countOutcomes (s : OutcomeSort) : Bindings → Nat
+  | [] => 0
+  | ⟨_, .outcome, .one, .outcome s'⟩ :: bs =>
+    if s == s' then countOutcomes s bs + 1 else countOutcomes s bs
+  | _ :: bs => countOutcomes s bs
+
+def outcomeInScope (s : OutcomeSort) : Bindings → Bool
+  | [] => false
+  | ⟨_, .outcome, .one, .outcome s'⟩ :: bs => s == s' || outcomeInScope s bs
+  | _ :: bs => outcomeInScope s bs
+
+def damageDealtInScope (bs : Bindings) : Bool := outcomeInScope .damageDealt bs
+def coinFlipInScope (bs : Bindings) : Bool := outcomeInScope .coinFlipped bs
+def planarRollInScope (bs : Bindings) : Bool := outcomeInScope .planarRolled bs
+
+def ignorableInScope (bs : Bindings) : Bool :=
+  countOutcomes .rollResult bs == 1 || coinFlipInScope bs || planarRollInScope bs
+
+def OutcomeSort.isQuantity : OutcomeSort → Bool
+  | .coinFlipped | .planarRolled | .manaAdded | .manaProduced | .ceilingShortfall | .voteHeld =>
+    false
+  | _ => true
+
+def countQuantOutcomes : Bindings → Nat
+  | [] => 0
+  | ⟨_, .outcome, .one, .outcome s⟩ :: bs =>
+    if s.isQuantity then countQuantOutcomes bs + 1 else countQuantOutcomes bs
+  | _ :: bs => countQuantOutcomes bs
+
+def countChoice (s : ChoiceSort) : Bindings → Nat
+  | [] => 0
+  | ⟨_, k, .one, p⟩ :: bs => if s.binds k p then countChoice s bs + 1 else countChoice s bs
+  | _ :: bs => countChoice s bs
+
+/-- Which announced choice a read names: the one standing choice, or the most recent of
+several. -/
+def ChoiceRef.ok : ChoiceRef → Nat → Bool
+  | .theChoice, n => n == 1
+  | .theLatestChoice, n => n != 0
+
+def distinctLabels : List VoteLabel → Bool
+  | [] => true
+  | l :: ls => !ls.elem l && distinctLabels ls
+
+def ballotLabelsOk (opts : List VoteLabel) : Bool := 2 ≤ opts.length && distinctLabels opts
+
+def countLetter (l : Letter) : Bindings → Nat
+  | [] => 0
+  | ⟨_, k, .one, _⟩ :: bs =>
+    if Kind.lte (.letter l) k then countLetter l bs + 1 else countLetter l bs
+  | _ :: bs => countLetter l bs
+
+def dropLetter (l : Letter) : Bindings → Bindings
+  | [] => []
+  | b :: bs => if Kind.lte (.letter l) b.kind then dropLetter l bs else b :: dropLetter l bs
+
+def openLetter (l : Letter) (b : Binding) : Bool :=
+  match b.det with
+  | .a => b.plur.isOne && Kind.lte (.letter l) b.kind
+  | _ => false
+
+def anyOpenLetter (l : Letter) (bs : Bindings) : Bool := bs.any (openLetter l)
+
+def defineLetter (l : Letter) : Bindings → Bindings
+  | [] => []
+  | b :: bs =>
+    if openLetter l b then ⟨.the, b.kind, b.plur, b.payload⟩ :: defineLetter l bs
+    else b :: defineLetter l bs
+
+def letterDelta (l : Letter) (bs : Bindings) : List Binding :=
+  if countLetter l bs == 0 then [letterB l] else []
+
+def countManysAny : Bindings → Nat
+  | [] => 0
+  | ⟨_, _, .many, _⟩ :: bs => countManysAny bs + 1
+  | _ :: bs => countManysAny bs
+
+def countManys (k : Kind) : Bindings → Nat
+  | [] => 0
+  | ⟨_, k', .many, _⟩ :: bs => if Kind.lte k k' then countManys k bs + 1 else countManys k bs
+  | _ :: bs => countManys k bs
+
+def objGroup (k : Kind) (b : Binding) : Bool := Kind.lte k b.kind && !b.plur.isOne
+
+def countGroups (k : Kind) : Bindings → Nat
+  | [] => 0
+  | ⟨.part, _, _, _⟩ :: bs => countGroups k bs
+  | ⟨.bare, _, _, _⟩ :: bs => countGroups k bs
+  | b :: bs => if objGroup k b then countGroups k bs + 1 else countGroups k bs
+
+def countParts (k : Kind) : Bindings → Nat
+  | [] => 0
+  | b@⟨.part, _, _, _⟩ :: bs => if Kind.lte k b.kind then countParts k bs + 1 else countParts k bs
+  | _ :: bs => countParts k bs
+
+def theRestOk (k : Kind) (bs : Bindings) : Bool := countGroups k bs ≤ 1 && countParts k bs != 0
+
+def partsTaken (k : Kind) : Bindings → Nat
+  | [] => 0
+  | b@⟨.part, _, _, _⟩ :: bs =>
+    if Kind.lte k b.kind
+      then (match b.size with
+            | some n => n + partsTaken k bs
+            | none => partsTaken k bs + 1)
+      else partsTaken k bs
+  | _ :: bs => partsTaken k bs
+
+def countedGroupSize (k : Kind) : Bindings → Option Nat
+  | [] => none
+  | ⟨.part, _, _, _⟩ :: bs => countedGroupSize k bs
+  | ⟨.bare, _, _, _⟩ :: bs => countedGroupSize k bs
+  | b :: bs => if objGroup k b then b.size else countedGroupSize k bs
+
+def theOtherOk (k : Kind) (bs : Bindings) : Bool :=
+  theRestOk k bs &&
+    (match countedGroupSize k bs with
+     | none => false
+     | some n => n == partsTaken k bs + 1)
+
+def theRestFits (k : Kind) : Plurality → Bindings → Bool
+  | .one, bs => theOtherOk k bs
+  | .many, bs => theRestOk k bs
+
+def groupSpent (k : Kind) : Bindings → Bindings
+  | [] => []
+  | ⟨.part, j, pl, p⟩ :: bs => ⟨.the, j, pl, p⟩ :: groupSpent k bs
+  | b :: bs => if objGroup k b then groupSpent k bs else b :: groupSpent k bs
+
+def partsClosed : Bindings → Bindings
+  | [] => []
+  | ⟨.part, j, pl, p⟩ :: bs => ⟨.the, j, pl, p⟩ :: partsClosed bs
+  | b :: bs => b :: partsClosed bs
+
+def partsDistributed : Bindings → Bool
+  | [] => true
+  | ⟨.part, _, pl, _⟩ :: bs => !pl.isOne && partsDistributed bs
+  | _ :: bs => partsDistributed bs
+
+def restSource (k : Kind) : Bindings → Option Binding
+  | [] => none
+  | b@⟨.part, _, _, _⟩ :: bs =>
+    match restSource k bs with
+    | some s => some s
+    | none => if Kind.lte k b.kind then some b else none
+  | b :: bs => if objGroup k b then some b else restSource k bs
+
+def zoneOfGroup (k : Kind) (bs : Bindings) : Option Zone := restSource k bs >>= (·.zone)
+def tyOfGroup (k : Kind) (bs : Bindings) : Option CardType := restSource k bs >>= (·.ty)
+def provOfGroup (k : Kind) (bs : Bindings) : Option Stamp := restSource k bs >>= (·.payload.prov)
+
+def anyTargeted (k : Kind) : Bindings → Bool
+  | [] => false
+  | ⟨.target, k', _, _⟩ :: bs => Kind.lte k k' || anyTargeted k bs
+  | _ :: bs => anyTargeted k bs
+
+def anchorTyOk (t : CardType) : Option CardType → Bool
+  | none => true
+  | some t' => t == t'
+
+def anyTargetedAt : Bindings → Bool
+  | [] => false
+  | ⟨.target, _, _, _⟩ :: _ => true
+  | _ :: bs => anyTargetedAt bs
+
+def settleTargets : Bindings → Bindings
+  | [] => []
+  | ⟨.target, k, plur, payload⟩ :: bs => ⟨.the, k, plur, payload⟩ :: settleTargets bs
+  | b :: bs => b :: settleTargets bs
+
+def outcomesOnly : Bindings → Bindings
+  | [] => []
+  | b@⟨_, .outcome, _, _⟩ :: bs => b :: outcomesOnly bs
+  | _ :: bs => outcomesOnly bs
+
+def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α → Option α
+  | some x, some y => if f x y then some x else none
+  | _, _ => none
+
+/-- The binding two arms of a choice agree on, if any: the union of their payloads. -/
+def unionPayload : Payload → Payload → Option (Kind × Payload)
+  | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
+    some (.object, .object (agreedField (· == ·) t1 t2) (agreedField (· == ·) z1 z2)
+      (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
+  | .ability o1, .ability o2 => some (.object, .ability (agreedField (· == ·) o1 o2))
+  | .player a, .player b => if a == b then some (.player, .player a) else none
+  | .object _ _ _ o1 _, .ability o2 =>
+    some (.object, .object none (some .stack) none (agreedField (· == ·) o1 o2) none)
+  | .ability o1, .object _ _ _ o2 _ =>
+    some (.object, .object none (some .stack) none (agreedField (· == ·) o1 o2) none)
+  | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
+  | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
+  | _, _ => none
+
+def unionBinding (b c : Binding) : Option Binding :=
+  if b == c then some b
+  else if b.det == c.det && b.plur == c.plur
+    then (unionPayload b.payload c.payload).map fun (m, pl) => ⟨b.det, m, b.plur, pl⟩
+    else none
+
+def unionBindings : Bindings → Bindings → Option Bindings
+  | [], [] => some []
+  | b :: bs, c :: cs =>
+    match unionBinding b c, unionBindings bs cs with
+    | some u, some us => some (u :: us)
+    | _, _ => none
+  | _, _ => none
+
+def Zone.isPublic : Zone → Bool
+  | .hand => false
+  | .library => false
+  | _ => true
+
+def Zone.exposable : Zone → Bool
+  | .hand => true
+  | .library => true
+  | _ => false
+
+def Binding.isPublic (b : Binding) : Bool :=
+  match b.payload with
+  | .object _ (some z) _ _ _ => z.isPublic
+  | .pile _ _ (some .faceDown) => false
+  | .pile (some z) _ _ => z.isPublic
+  | _ => true
+
+def publicOnly (bs : Bindings) : Bindings := bs.filter (·.isPublic)
+
+def pluralizeBinding (b : Binding) : Binding :=
+  match b.det with
+  | .self => b
+  | _ => { b with plur := .many }
+
+def pluralizeDelta (bs : Bindings) : Bindings := bs.map pluralizeBinding
+
+def stampMoves : Option Stamp → Bool
+  | none => false
+  | some s => s.moved
+
+def stampWasField : Option Stamp → Bool
+  | none => false
+  | some s => s.wasField
+
+/-! ## Pronoun reach -/
+
+def tyIs (t : CardType) : Option CardType → Bool
+  | none => false
+  | some t' => t == t'
+
+def isCardZone : Option Zone → Bool
+  | some .graveyard | some .exile | some .hand | some .library | some .command => true
+  | _ => false
+
+def zoneIsB : Option Zone → Zone → Bool
+  | none, _ => false
+  | some a, b => a == b
+
+def onFieldZone (z : Option Zone) : Bool := zoneIsB z .battlefield
+def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
+
+/-- The reaches that resolve to an object binding a move can re-stamp. -/
+def Reach.tracksObject : Reach → Bool
+  | .bare | .atSlot _ | .stamped _ | .tokenBorn => true
+  | _ => false
+
+def slotZoneOk : SlotCarrier → Option Zone → Bool
+  | .permanent, zn => onFieldZone zn
+  | .card, zn => isCardZone zn
+  | .spell, zn => onStackZone zn
+
+def mkStamp : Option VerbLabel → Option Zone → Bool → Option Stamp
+  | none, _, _ => none
+  | some v, oldZn, moved => some ⟨v, onFieldZone oldZn, moved⟩
+
+def halfReaches (w : NounWord) : Payload → Bool
+  | .join l r => halfReaches w l || halfReaches w r
+  | .object ty _ _ _ _ =>
+    match w with
+    | .type t => tyIs t ty
+    | .permanent => ty.isNone
+    | _ => false
+  | .player _ => w == .player
+  | _ => false
+
+/-- Which bindings a noun word reads. The Idris clauses match on `(word, payload)` pairs; here
+the payload is matched first and the word inside, clause for clause. -/
+def wordReaches (w : NounWord) (b : Binding) : Bool :=
+  match b.payload with
+  | .object ty zn pv og _ =>
+    match w with
+    | .type t => onFieldZone zn && tyIs t ty
+    | .card => isCardZone zn
+    | .typedCard t => isCardZone zn && tyIs t ty
+    | .spell => onStackZone zn
+    | .permanent => onFieldZone zn || stampWasField pv
+    | .token => onFieldZone zn && isTokenOrigin og
+    | .copy => isCopyOrigin og
+    | .stack => onStackZone zn
+    | _ => false
+  | .player _ => w == .player
+  | pl@(.join _ _) =>
+    match w with
+    | .type t => halfReaches (.type t) pl
+    | .player => halfReaches .player pl
+    | .permanent => halfReaches .permanent pl
+    | .join => Kind.lte .player b.kind
+    | .stack => onStackZone pl.zone
+    | _ => false
+  | .ability og =>
+    match w with
+    | .ability => true
+    | .abilityCopy => isCopyOrigin og
+    | .stack => true
+    | _ => false
+  | .pile _ _ _ => w == .pile
+  | pl =>
+    match w with
+    | .join => pl.joined && Kind.lte .player b.kind
+    | .stack => onStackZone pl.zone
+    | _ => false
+
+/-- A self-binding is never read by a noun word. -/
+def wordNow (w : NounWord) (b : Binding) : Bool :=
+  match b.det with
+  | .self => false
+  | _ => wordReaches w b
+
+def NounWord.isPile : NounWord → Bool
+  | .pile => true
+  | _ => false
+
+def NounWord.kind : NounWord → Kind
+  | .player => .player
+  | .join => .join .object .player
+  | .pile => .pile
+  | _ => .object
+
+def Reach.kind : Reach → Kind
+  | .word w => w.kind
+  | .unionHalf w => w.kind
+  | .verbed _ w _ => w.kind
+  | .thatTurn => .turnRef
+  | _ => .object
+
+def stampedBy (v : VerbLabel) (s : Stamp) : Bool := v == s.verb
+def Stamp.feature (s : Stamp) : Option DeedFeature := deedFeatureOf s.verb
+
+def verbedWordOk : NounWord → Stamp → Option CardType → Option Zone → Bool
+  | .type t, st, ty, _ => st.wasField && tyIs t ty
+  | .card, _, _, zn => isCardZone zn
+  | .typedCard t, _, ty, zn => isCardZone zn && tyIs t ty
+  | .spell, _, _, zn => onStackZone zn
+  | .permanent, st, _, _ => st.wasField
+  | _, _, _, _ => false
+
+def stampIs (v : VerbLabel) : Option Stamp → Bool
+  | none => false
+  | some st => stampedBy v st
+
+def markTy (ty : Option CardType) : Binding → Binding
+  | ⟨det, .object, plur, .object none zn st og sz⟩ => ⟨det, .object, plur, .object ty zn st og sz⟩
+  | b => b
+
+def markFirst (q : Binding → Bool) (ty : Option CardType) : Bindings → Bindings
+  | [] => []
+  | b :: bs => if q b then markTy ty b :: bs else b :: markFirst q ty bs
+
+def survivesShuffle (b : Binding) : Bool :=
+  match b.payload with
+  | .object _ (some .library) (some st) _ _ => st.feature == some .librarySearch
+  | .object _ (some .library) none _ _ => false
+  | _ => true
+
+def afterShuffle (bs : Bindings) : Bindings := bs.filter survivesShuffle
+
+def stampWordOk (v : VerbLabel) (w : NounWord) (st : Stamp) (ty : Option CardType)
+    (zn : Option Zone) : Bool :=
+  stampedBy v st && verbedWordOk w st ty zn
+
+def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
+  match r with
+  | .bare => Kind.lte .object b.kind && pl.isOne == b.plur.isOne
+  | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
+  | .stamped v => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && stampIs v b.payload.prov
+  | .tokenBorn =>
+    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && isTokenOrigin b.payload.orig
+  | .word w => pl.isOne == b.plur.isOne && wordNow w b
+  | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
+  | .verbed v w _ =>
+    match b.payload with
+    | .object ty zn (some st) _ _ => pl.isOne == b.plur.isOne && stampWordOk v w st ty zn
+    | _ => false
+  | .thatTurn => Kind.lte .turnRef b.kind && pl.isOne == b.plur.isOne
+
+/-- How many antecedents a read resolves to; a read is sound at exactly one. -/
+def countReach (r : Reach) (pl : Plurality) : Bindings → Nat
+  | [] => 0
+  | b :: bs => if reaches r pl b then countReach r pl bs + 1 else countReach r pl bs
+
+def firstReach (r : Reach) (pl : Plurality) : Bindings → Option Binding
+  | [] => none
+  | b :: bs => if reaches r pl b then some b else firstReach r pl bs
+
+def provOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Stamp :=
+  firstReach r pl bs >>= (·.payload.prov)
+def zoneOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Zone :=
+  firstReach r pl bs >>= (·.zone)
+def tyOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option CardType :=
+  firstReach r pl bs >>= (·.ty)
+def faceOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option PileFace :=
+  firstReach r pl bs >>= (·.face)
+
+def view : Window → Bindings → Bindings
+  | .whole, bs => bs
+  | .top n, bs => bs.take n
+  | .below n, bs => bs.drop n
+
+def overWindow (f : Bindings → Bindings) : Window → Bindings → Bindings
+  | .whole, bs => f bs
+  | .top n, bs => f (bs.take n) ++ bs.drop n
+  | .below n, bs => bs.take n ++ f (bs.drop n)
+
+def countTokenSpecs : Bindings → Nat
+  | [] => 0
+  | ⟨.self, _, _, _⟩ :: bs => countTokenSpecs bs
+  | ⟨_, _, _, .object _ _ _ og _⟩ :: bs =>
+    if isTokenOrigin og then countTokenSpecs bs + 1 else countTokenSpecs bs
+  | _ :: bs => countTokenSpecs bs
+
+def tyOfThoseAny (w : NounWord) : Bindings → Option CardType
+  | [] => none
+  | b :: bs => if wordNow w b then b.ty else tyOfThoseAny w bs
+
+def countChoosers (bs : Bindings) : Nat := countOnes .player bs + countManys .player bs
+
+/-- `earlierThisTurn` is the turn so far, up to the counting event [CR#702.40a]; `thisTurn` is
+the whole turn. -/
+def Lookback.sameWindow : Option Lookback → Option Lookback → Bool
+  | none, none => true
+  | some a, some b => a == b
+  | _, _ => false
+
+def zoneFits : Option Zone → Option Zone → Bool
+  | _, none => true
+  | none, some _ => true
+  | subj, some b => zoneIsB subj b
+
+/-- Which kinds "target" can precede [CR#115.1]. -/
+def Kind.targetable : Kind → Bool
+  | .object => true
+  | .player => true
+  | .join a b => Kind.targetable a && Kind.targetable b
+  | _ => false
+
+/-- Which kinds a spell or ability targets from ("a spell that targets …"). -/
+def Kind.targeter : Kind → Bool
+  | .object => true
+  | .join a b => Kind.targeter a && Kind.targeter b
+  | _ => false
+
+/-- Which kinds a determiner phrase can be built over. -/
+def Kind.phrasal : Kind → Bool
+  | .object => true
+  | .player => true
+  | .quality _ => true
+  | .join a b => Kind.phrasal a && Kind.phrasal b
+  | _ => false
+
+def CardType.damageable : CardType → Bool
+  | .creature | .planeswalker | .battle => true
+  | _ => false
+
+/-- `[]` means unknown-therefore-permissive, at both levels. -/
+def damageableHeadTysOk (alts : List (List CardType)) : Bool := alts.all (·.all CardType.damageable)
+
+/-- A copy of an ability is itself an ability [CR#707.10]: the source's payload shape, not its
+kind, decides which object the copy is. -/
+def copyPayloadIn : Kind → Bool → Option CardType → Option Zone → Payload
+  | .object, true, _, _ => .ability (some .copy)
+  | .object, false, ty, z => .object ty z none (some .copy) none
+  | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
+  | .player, _, _, _ => .player false
+  | .quality q, _, _, _ => .quality q
+  | _, _, _, _ => .gap
+
+def CopySort.landsIn : CopySort → Option Zone → Option Zone
+  | .fromStack, _ => some .stack
+  | .fromCardZone, z => z
+
+def copyPayload (k : Kind) (ab : Bool) (ty : Option CardType) : Payload :=
+  copyPayloadIn k ab ty (some .stack)
+
+def Kind.qualityParam : Kind → Bool
+  | .object => true
+  | .player => true
+  | _ => false
+
+/-! ## Mana -/
+
+def halvesDistinct : SimpleManaSymbol → Color → Bool
+  | .generic _, _ => true
+  | .specific .colorless, _ => true
+  | .specific (.of c), d => c != d
+
+def phyrexianDistinct : Color → Option Color → Bool
+  | _, none => true
+  | c, some d => c != d
+
+def manaHasX : ManaCost → Bool
+  | [] => false
+  | .variable :: _ => true
+  | _ :: ms => manaHasX ms
+
+def PayTimes.repeats : PayTimes → Bool
+  | .once => false
+  | _ => true
+
+def costLetters : Option ManaCost → Bindings
+  | none => []
+  | some c => if manaHasX c then [letterB .x] else []
+
+def manaRun (c : ManaCost) : Bool := !c.isEmpty
+
+def runsNonEmpty : List ProducedRun → Bool
+  | [] => true
+  | [] :: _ => false
+  | (_ :: _) :: rs => runsNonEmpty rs
+
+def producedRunsWritten : List ProducedRun → Bool
+  | [] => false
+  | rs => runsNonEmpty rs
+
+def LoyaltyCost.announcesX : LoyaltyCost → Bool
+  | .downX => true
+  | _ => false
+
+/-! ## Subtypes and type lines -/
+
+def Subtype.type : Subtype → Option CardType
+  | .of host _ => some host
+  | .spell _ => none
+
+def Subtype.fits : Subtype → CardType → Bool
+  | .of host _, t => host == t
+  | .spell _, t => t == .instant || t == .sorcery
+
+def Subtype.label : Subtype → String
+  | .of _ label => label
+  | .spell label => label
+
+def basicLandTypes : List Subtype :=
+  [.of .land "Plains", .of .land "Island", .of .land "Swamp", .of .land "Mountain", .of .land "Forest"]
+
+def Subtype.isBasicLand (s : Subtype) : Bool := basicLandTypes.elem s
+
+def spaceHosted : TypeSpace → Option CardType → Bool
+  | .basicLand, ty => tyIs .land ty
+  | .land, ty => tyIs .land ty
+  | .creature, ty => tyIs .creature ty || tyIs .kindred ty
+
+def CardType.ascribesAs : CardType → Bool
+  | .kindred | .instant | .sorcery => false
+  | _ => true
+
+def MarkerWord.grantorOrigin : MarkerWord → Option Zone
+  | .emblem => some .command
+  | _ => none
+
+def MarkerWord.zone : MarkerWord → Zone
+  | .token => .battlefield
+  | .emblem => .command
+  | .spell => .stack
+  | .permanent => .battlefield
+
+def ascriptionOk (t : CardType) : Option Subtype → Bool
+  | none => t.ascribesAs
+  | some s => t.ascribesAs && s.fits t
+
+def Delta.amount {α : Type} : Delta α → α
+  | .up x => x
+  | .down x => x
+  | .set x => x
+
+/-- A counter only adds to or subtracts from power and toughness [CR#122.1a]. -/
+def counterShift : Delta Nat → Bool
+  | .set _ => false
+  | _ => true
+
+def supersDistinct : List Supertype → Bool
+  | [] => true
+  | s :: ss => !ss.elem s && supersDistinct ss
+
+/-! ## Designations -/
+
+structure DesignationFacts where
+  scope : DesignationScope
+  effectful : Bool
+  zone : Option Zone
+  type : Option CardType
+  deriving Repr, BEq
+
+def Designation.facts : Designation → DesignationFacts
+  | .monarch | .theInitiative | .citysBlessing | .enduringStory =>
+    ⟨.heldBy .player, true, none, none⟩
+  | .goaded | .ringBearer | .monstrous | .renowned | .suspected | .prepared
+  | .alphaSector | .betaSector | .gammaSector =>
+    ⟨.heldBy .object, true, some .battlefield, some .creature⟩
+  | .saddled | .harnessed | .level | .solved | .leftHalfUnlocked | .rightHalfUnlocked =>
+    ⟨.heldBy .object, true, some .battlefield, none⟩
+  | .commander => ⟨.heldByCard, false, none, none⟩
+  | .day | .night => ⟨.heldByGame, true, none, none⟩
+
+def Designation.scope (d : Designation) : DesignationScope := d.facts.scope
+def Designation.checked (d : Designation) : Bool := d.facts.effectful
+def Designation.seedZone (d : Designation) : Option Zone := d.facts.zone
+def Designation.seedType (d : Designation) : Option CardType := d.facts.type
+
+def Designation.holder (d : Designation) : Option Kind :=
+  match d.scope with
+  | .heldBy k => some k
+  | .heldByCard => some .object
+  | .heldByGame => none
+
+/-- A possessive on a designation ("your Ring-bearer", "your commander") is meaningful only
+where an object holds the designation for a player; a player-held or game-wide designation has
+no possessor [CR#701.54e]. -/
+def Designation.possessorOk (d : Designation) : Bool := d.holder == some .object
+
+def Designation.heldByItsCard (d : Designation) : Bool :=
+  match d.scope with
+  | .heldByCard => true
+  | _ => false
+
+/-- Idris `DesignationHolder d z`: a player-held designation needs no zone; an object-held one
+needs the holder on the battlefield. -/
+def designationHolderOk (d : Designation) (z : Option Zone) : Bool :=
+  match d.scope with
+  | .heldBy .player => true
+  | .heldBy .object => zoneIsB z .battlefield
+  | _ => false
+
+def RoomHalf.designation : RoomHalf → Designation
+  | .left => .leftHalfUnlocked
+  | .right => .rightHalfUnlocked
+
+def Designation.half : Designation → Option RoomHalf
+  | .leftHalfUnlocked => some .left
+  | .rightHalfUnlocked => some .right
+  | _ => none
+
+def ConferringWord.designation : ConferringWord → Designation
+  | .monstrosity => .monstrous
+  | .saddle => .saddled
+  | .ascend => .citysBlessing
+  | .storied => .enduringStory
+  | .renown => .renowned
+
+/-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; expansion
+conferral must confer that very designation. -/
+def givingWarrantOk (d : Designation) : GivingWarrant → Bool
+  | .instructed => d.checked
+  | .inExpansionOf w => w.designation == d
+
+/-! ## Attachment, status, counters -/
+
+def attachHeadOk : AttachWord → NounWord → Bool
+  | .enchanted, _ => true
+  | .equipped, .type .creature => true
+  | .equipped, .permanent => true
+  | .fortified, .type .land => true
+  | _, _ => false
+
+def NounWord.attachHostZone : NounWord → Option Zone
+  | .type _ | .card | .typedCard _ | .spell | .permanent | .token => some .battlefield
+  | .copy => some .stack
+  | _ => none
+
+def NounWord.attachHostTy : NounWord → Option CardType
+  | .type t => some t
+  | .typedCard t => some t
+  | _ => none
+
+def DefinedSlots.power : DefinedSlots → Bool
+  | .toughnessAlone => false
+  | _ => true
+
+def DefinedSlots.toughness : DefinedSlots → Bool
+  | .powerAlone => false
+  | _ => true
+
+structure CounterFacts where
+  label : String
+  /-- What the counter is placed on: an object or a player [CR#122.1]. -/
+  holder : Kind
+  deriving Repr, BEq
+
+def counterFacts : List CounterFacts :=
+  [ ⟨"Charge", .object⟩, ⟨"Time", .object⟩, ⟨"Lore", .object⟩, ⟨"Poison", .player⟩,
+    ⟨"Age", .object⟩, ⟨"Stun", .object⟩, ⟨"Energy", .player⟩, ⟨"Oil", .object⟩,
+    ⟨"Loyalty", .object⟩, ⟨"Quest", .object⟩, ⟨"Finality", .object⟩, ⟨"Shield", .object⟩,
+    ⟨"Storage", .object⟩, ⟨"Fade", .object⟩, ⟨"Spore", .object⟩, ⟨"Experience", .player⟩,
+    ⟨"Depletion", .object⟩, ⟨"Level", .object⟩, ⟨"Verse", .object⟩, ⟨"Rad", .player⟩,
+    ⟨"Ki", .object⟩, ⟨"Divinity", .object⟩, ⟨"Study", .object⟩, ⟨"Plan", .object⟩,
+    ⟨"Ice", .object⟩, ⟨"Doom", .object⟩, ⟨"Tide", .object⟩, ⟨"Soul", .object⟩,
+    ⟨"Page", .object⟩, ⟨"Fuse", .object⟩, ⟨"Flood", .object⟩, ⟨"Bounty", .object⟩,
+    ⟨"Strike", .object⟩, ⟨"Hour", .object⟩, ⟨"Growth", .object⟩, ⟨"Egg", .object⟩,
+    ⟨"Dream", .object⟩, ⟨"Brick", .object⟩, ⟨"Blood", .object⟩, ⟨"Omen", .object⟩,
+    ⟨"Luck", .object⟩, ⟨"Plague", .object⟩, ⟨"Slime", .object⟩, ⟨"Fungus", .object⟩,
+    ⟨"Wish", .object⟩, ⟨"Wind", .object⟩, ⟨"Stash", .object⟩, ⟨"Scream", .object⟩,
+    ⟨"Defense", .object⟩, ⟨"Hone", .object⟩, ⟨"Sleight", .object⟩, ⟨"Spite", .object⟩,
+    ⟨"Rev", .object⟩, ⟨"Intervention", .object⟩, ⟨"Suspect", .object⟩, ⟨"Bloodstain", .object⟩ ]
+
+def distinctCounterLabels : List CounterFacts → Bool
+  | [] => true
+  | f :: fs => !(fs.map (·.label)).elem f.label && distinctCounterLabels fs
+
+def counterFactsFor (l : String) : Option CounterFacts := counterFacts.find? (·.label == l)
+def knownCounter (l : String) : Bool := (counterFactsFor l).isSome
+
+def CounterKind.scope : CounterKind → Kind
+  | .boost _ _ => .object
+  | .keyword _ => .object
+  | .named l => (counterFactsFor l).elim .object (·.holder)
+
+def ProjAxis.scope : ProjAxis → Kind
+  | .stat _ => .object
+  | .playerStat _ => .player
+  | .counter c => c.scope
+  | .anyCounter k => k
+
+def ProjAxis.type : ProjAxis → Option CardType
+  | .stat c => c.comparedType
+  | _ => none
+
+def allAxisType (t : CardType) : List ProjAxis → Bool
+  | [] => true
+  | a :: as =>
+    match a.type with
+    | none => false
+    | some u => t == u && allAxisType t as
+
+def axisTypes : List ProjAxis → Option CardType
+  | [] => none
+  | a :: as =>
+    match a.type with
+    | none => none
+    | some t => if allAxisType t as then some t else none
+
+/-- Idris `AxesAt k axes`: every axis projects the kind `k`, and there is at least one. -/
+def axesAt (k : Kind) : List ProjAxis → Bool
+  | [] => false
+  | as => as.all (·.scope == k)
+
+/-- Idris `CounterKindNamed k kind`: an absent kind is fine; a named one must live on `k`. -/
+def counterKindNamed (k : Kind) : Option CounterKind → Bool
+  | none => true
+  | some c => c.scope == k
+
+def ChapterNumber.ord : ChapterNumber → Nat
+  | .i => 1 | .ii => 2 | .iii => 3 | .iv => 4 | .v => 5 | .vi => 6
+
+def chapterMarksDistinct : List ChapterNumber → Bool
+  | [] => true
+  | a :: rest => !rest.any (fun b => a.ord == b.ord) && chapterMarksDistinct rest
+
+def chapterMarksOk : List ChapterNumber → Bool
+  | [] => false
+  | ns => chapterMarksDistinct ns
+
+def TypeLine.nonEmpty (l : TypeLine) : Bool :=
+  !(l.supertypes.isEmpty && l.types.isEmpty && l.subtypes.isEmpty)
+
+def subsFitLine : List Subtype → List CardType → Bool
+  | [], _ => true
+  | s :: ss, tys =>
+    (tys.any s.fits || (s.fits .creature && tys.elem .kindred)) && subsFitLine ss tys
+
+def CardType.permanent : CardType → Bool
+  | .kindred | .instant | .sorcery => false
+  | _ => true
+
+def permanentSpellType : Option CardType → Bool
+  | none => false
+  | some .land => false
+  | some t => t.permanent
+
+def CardType.isSpell : CardType → Bool
+  | .instant | .sorcery => true
+  | _ => false
+
+def placeableTy : Option CardType → Bool
+  | none => true
+  | some t => t.permanent
+
+def destTypeOk (ty : Option CardType) : Zone → Bool
+  | .battlefield => placeableTy ty
+  | _ => true
+
+def Status.clash : Status → Status → Bool
+  | .tapped, .untapped | .untapped, .tapped | .flipped, .unflipped | .unflipped, .flipped
+  | .faceUp, .faceDown | .faceDown, .faceUp | .phasedIn, .phasedOut | .phasedOut, .phasedIn => true
+  | _, _ => false
+
+/-- Which status values a description can be written with ("tapped creature"). -/
+def Status.word : Status → Bool
+  | .tapped | .untapped | .faceUp | .faceDown => true
+  | _ => false
+
+/-- Which status values an instruction can set directly. -/
+def Status.markable : Status → Bool
+  | .unflipped => false
+  | _ => true
+
+def colorsDistinct : List Color → Bool
+  | [] => true
+  | c :: cs => !cs.elem c && colorsDistinct cs
+
+def ColorSpec.ok : ColorSpec → Bool
+  | .some cs => colorsDistinct cs
+  | .every => true
+
+def typesDistinct : List CardType → Bool
+  | [] => true
+  | t :: ts => !ts.elem t && typesDistinct ts
+
+def addedFits (subj : Option CardType) (l : TypeLine) : Bool :=
+  l.subtypes.all fun s =>
+    l.types.any s.fits || (match subj with | none => false | some t => s.fits t)
+
+def anyNewType (subj : Option CardType) : List CardType → Bool
+  | [] => false
+  | t :: ts => !tyIs t subj || anyNewType subj ts
+
+def addsSomething (subj : Option CardType) (l : TypeLine) : Bool :=
+  match l.subtypes with
+  | [] => anyNewType subj l.types
+  | _ :: _ => true
+
+def CardType.retainable : CardType → Bool
+  | .instant | .sorcery => false
+  | _ => true
+
+def retentionOk (l : TypeLine) : Option CardType → Bool
+  | none => true
+  | some t => match l.types with
+    | [] => false
+    | _ :: _ => t.retainable
+
+def lastType : List CardType → Option CardType
+  | [] => none
+  | [t] => some t
+  | _ :: ts => lastType ts
+
+/-- A phase or step inside the turn: a turn is made of its phases [CR#500.1], so the turn is
+never one of its own parts. -/
+def TurnPart.proper : TurnPart → Bool
+  | .turn => false
+  | _ => true
+
+end Mtg
