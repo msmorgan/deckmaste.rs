@@ -116,14 +116,49 @@ def atLeastTwo : Nat → Bool
 
 /-! ## The act facts table -/
 
+/-- The Entity domain a referent is drawn from: a player, an object, or either [CR#102.1,109.1]. -/
+inductive EntityDomain where
+  | player | object | either
+  deriving DecidableEq, Repr
+
+/-- An object class [CR#109.1]: the overlapping ways an object is classified. -/
+inductive ObjectClass where
+  | card | token | spell | permanent | emblem | ability
+  deriving DecidableEq, Repr
+
+/-- What a referent must be: an Entity domain, optionally narrowed by object classes and card
+types; empty lists narrow nothing. Only an object has a class. -/
+structure ReferentSort where
+  domain : EntityDomain
+  classes : List ObjectClass := []
+  types : List CardType := []
+  deriving Repr, BEq
+
+/-- Which kinds a domain admits: `.either` admits both, the others admit only their own. -/
+def EntityDomain.admits : EntityDomain → Kind → Bool
+  | .player, .player => true
+  | .object, .object => true
+  | .either, .object => true
+  | .either, .player => true
+  | _, _ => false
+
+/-- A domain's admitted kinds, listed; kept for callers built around a kind list rather than a
+membership test. -/
+def EntityDomain.kinds : EntityDomain → List Kind
+  | .player => [.player]
+  | .object => [.object]
+  | .either => [.object, .player]
+
 structure DeedRole where
-  kinds : List Kind
-  types : List CardType
+  sort : Option ReferentSort  -- none = no noun fills this role
   bare : Bool
   zone : Option Zone
   deriving Repr, BEq
 
-def noRole : DeedRole := ⟨[], [], false, none⟩
+def noRole : DeedRole := ⟨none, false, none⟩
+
+/-- The card types a role's sort names; an absent sort names none. -/
+def DeedRole.types (dr : DeedRole) : List CardType := dr.sort.elim [] (·.types)
 
 inductive PremiseSort where
   | object | mana | value
@@ -145,7 +180,6 @@ structure ActFacts where
   agentRole : DeedRole := noRole
   patientRole : DeedRole := noRole
   feature : Option DeedFeature := none
-  abilityRole : Option Role := none
   counterfactual : Option PremiseSort := none
   rides : Bool := false
   plays : Bool := false
@@ -155,8 +189,8 @@ structure ActFacts where
   opponentsLibrary : Bool := false
   deriving Repr, BEq
 
-private def playerAgent : DeedRole := ⟨[.player], [], true, none⟩
-private def fieldObject : DeedRole := ⟨[.object], [], false, some .battlefield⟩
+private def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
+private def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
 private def permanentTypes : List CardType :=
   [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
 private def spellTypes : List CardType :=
@@ -170,24 +204,26 @@ def actFacts : List ActFacts :=
   [ { label := "Destroy", participle := some "destroyed", dest := some .graveyard,
       agentRole := playerAgent, patientRole := fieldObject },
     { label := "Sacrifice", participle := some "sacrificed", dest := some .graveyard,
-      agentRole := playerAgent, patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩,
+      agentRole := playerAgent,
+      patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
       feature := some .sacrificing, bounded := true },
     { label := "Exile", participle := some "exiled", dest := some .exile, agentRole := playerAgent,
-      patientRole := ⟨[.object], [], false, none⟩ },
+      patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ },
     { label := "Discard", participle := some "discarded", dest := some .graveyard,
-      agentRole := playerAgent, patientRole := ⟨[.object], [], false, some .hand⟩ },
+      agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩ },
     { label := "Mill", participle := some "milled", dest := some .graveyard,
-      agentRole := playerAgent, patientRole := ⟨[.object], [], false, some .library⟩ },
+      agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, some .library⟩ },
     { label := "Scry", stepwise := true, agentRole := playerAgent },
     { label := "Surveil", stepwise := true, agentRole := playerAgent },
     { label := "Tap", participle := some "tapped", agentRole := playerAgent,
       patientRole := fieldObject },
     { label := "Untap", participle := some "untapped", agentRole := playerAgent,
-      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, bounded := true },
-    { label := "Return", agentRole := playerAgent, patientRole := ⟨[.object], [], false, none⟩ },
+      patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
+      bounded := true },
+    { label := "Return", agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ },
     { label := "GainControl", agentRole := playerAgent, patientRole := fieldObject,
       feature := some .controlGrant },
-    { label := "Put", agentRole := playerAgent, patientRole := ⟨[.object], [], false, none⟩ },
+    { label := "Put", agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ },
     { label := "Search",
       loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
       agentRole := playerAgent, feature := some .librarySearch, bounded := true },
@@ -198,48 +234,52 @@ def actFacts : List ActFacts :=
       patientRole := fieldObject },
     { label := "Convert", intransitive := true, agentRole := playerAgent,
       patientRole := fieldObject },
-    { label := "Meld", dest := some .battlefield, patientRole := ⟨[.object], [], false, none⟩ },
-    { label := "Unlock", agentRole := playerAgent, patientRole := ⟨[], [], false, some .battlefield⟩,
+    { label := "Meld", dest := some .battlefield, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ },
+    { label := "Unlock", agentRole := playerAgent, patientRole := ⟨none, false, some .battlefield⟩,
       feature := some .unlocking },
     { label := "Fully Unlock", agentRole := playerAgent, patientRole := fieldObject },
     /- The declaring side of an attack is the active player or a creature they control
     [CR#508.1,508.1a]. -/
-    { label := "Attack", agentRole := ⟨[.object, .player], [.creature], true, some .battlefield⟩,
-      patientRole := ⟨[.object], [.planeswalker, .battle], false, some .battlefield⟩,
+    { label := "Attack", agentRole := ⟨some ⟨.either, [], [.creature]⟩, true, some .battlefield⟩,
+      patientRole := ⟨some ⟨.object, [], [.planeswalker, .battle]⟩, false, some .battlefield⟩,
       feature := some .attacking, counterfactual := some .object, bounded := true },
-    { label := "Block", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
-      patientRole := ⟨[.object], [.creature], false, some .battlefield⟩,
+    { label := "Block", agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
+      patientRole := ⟨some ⟨.object, [], [.creature]⟩, false, some .battlefield⟩,
       feature := some .blocking, counterfactual := some .object, bounded := true },
-    { label := "Target", agentRole := ⟨[], [], true, some .stack⟩,
-      patientRole := ⟨[.object, .player], allTypes, true, none⟩,
+    { label := "Target", agentRole := ⟨none, true, some .stack⟩,
+      patientRole := ⟨some ⟨.either, [], allTypes⟩, true, none⟩,
       feature := some .targeting, counterfactual := some .object, bounded := true },
     { label := "Cast", agentRole := playerAgent,
-      patientRole := ⟨[.object], spellTypes, true, some .stack⟩,
+      patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩,
       counterfactual := some .object, rides := true, plays := true, bounded := true },
-    { label := "Play", agentRole := playerAgent, patientRole := ⟨[.object], allTypes, true, none⟩,
+    { label := "Play", agentRole := playerAgent,
+      patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩,
       counterfactual := some .object, rides := true, plays := true, bounded := true },
-    { label := "Counter", agentRole := ⟨[], [], true, some .stack⟩,
-      patientRole := ⟨[.object], spellTypes, true, some .stack⟩, rides := true },
-    { label := "Copy", agentRole := ⟨[], [], true, some .stack⟩,
-      patientRole := ⟨[.object], spellTypes, true, some .stack⟩, bounded := true },
-    { label := "Activate", agentRole := playerAgent, patientRole := ⟨[.object], [], true, some .stack⟩,
-      abilityRole := some .patient, bounded := true },
-    { label := "Regenerate", participle := some "regenerated", agentRole := ⟨[], [], true, none⟩,
-      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩, rides := true,
+    /- Effects that specifically counter abilities widen this beyond a spell alone [CR#113.9]. -/
+    { label := "Counter", agentRole := ⟨none, true, some .stack⟩,
+      patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
+      rides := true },
+    { label := "Copy", agentRole := ⟨none, true, some .stack⟩,
+      patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
+      bounded := true },
+    { label := "Activate", agentRole := playerAgent,
+      patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩, bounded := true },
+    { label := "Regenerate", participle := some "regenerated", agentRole := ⟨none, true, none⟩,
+      patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩, rides := true,
       bounded := true },
     { label := "GainLife", agentRole := playerAgent, bounded := true },
-    { label := "Draw", agentRole := playerAgent, patientRole := ⟨[.object], [], true, some .library⟩,
+    { label := "Draw", agentRole := playerAgent,
+      patientRole := ⟨some ⟨.object, [], []⟩, true, some .library⟩, bounded := true },
+    { label := "Trigger", agentRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩,
       bounded := true },
-    { label := "Trigger", agentRole := ⟨[.object], [], true, some .stack⟩,
-      abilityRole := some .agent, bounded := true },
     { label := "LoseGame", agentRole := playerAgent },
     { label := "WinGame", agentRole := playerAgent },
     { label := "Spend", agentRole := playerAgent, counterfactual := some .mana, bounded := true },
-    { label := "Crew", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
-      patientRole := ⟨[.object], [.artifact], true, some .battlefield⟩,
+    { label := "Crew", agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
+      patientRole := ⟨some ⟨.object, [], [.artifact]⟩, true, some .battlefield⟩,
       counterfactual := some .value, bounded := true },
-    { label := "Saddle", agentRole := ⟨[.object], [.creature], true, some .battlefield⟩,
-      patientRole := ⟨[.object], permanentTypes, true, some .battlefield⟩,
+    { label := "Saddle", agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
+      patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
       counterfactual := some .value, bounded := true },
     { label := "Vote", agentRole := playerAgent, bounded := true },
     { label := "Venture Into The Dungeon" },
@@ -289,7 +329,8 @@ def actFacts : List ActFacts :=
     { label := "Suspect", agentRole := playerAgent },
     { label := "Time Travel" },
     { label := "Triple" },
-    { label := "Phase In", intransitive := true, agentRole := ⟨[.object], [], true, some .battlefield⟩ },
+    { label := "Phase In", intransitive := true,
+      agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ },
     { label := "Waterbend", agentRole := playerAgent } ]
 
 def distinctActLabels : List ActFacts → Bool
@@ -306,7 +347,8 @@ def featureLabel (f : DeedFeature) : Option VerbLabel :=
 rather than the feature; the empty label where the table names none. -/
 def deedLabel (f : DeedFeature) : VerbLabel := (featureLabel f).getD ""
 def participleOf (v : VerbLabel) : Option String := actFactsFor v >>= (·.participle)
-def actPatientKindsOf (v : VerbLabel) : List Kind := (actFactsFor v).elim [] (·.patientRole.kinds)
+def actPatientKindsOf (v : VerbLabel) : List Kind :=
+  (actFactsFor v).elim [] fun f => f.patientRole.sort.elim [] (·.domain.kinds)
 def actNamesPatient (v : VerbLabel) : Bool := !(actPatientKindsOf v).isEmpty
 def actZoneOf (v : VerbLabel) : Option Zone := actFactsFor v >>= (·.patientRole.zone)
 def actDestOf (v : VerbLabel) : Option Zone := actFactsFor v >>= (·.dest)

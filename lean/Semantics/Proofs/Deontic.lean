@@ -418,6 +418,22 @@ theorem badObjectPremiseAtSpend :
         .noRider) = [.asThoughOk] := by
   decide
 
+/-- "Spells and abilities can't be countered.": an effect that says so counters abilities
+[CR#113.9], so the Counter deed's patient admits a spell or an ability. -/
+theorem okCantCounterSpellsAndAbilities :
+    StaticSpec.check [] (objectCant "Counter" (allOf (.or [spell, .abilityHead .anyActivated])))
+      = [] := by
+  decide
+
+/-- "Activated abilities can't be countered." -/
+theorem okCantCounterAbilities :
+    StaticSpec.check [] (objectCant "Counter" (allOf (.abilityHead .anyActivated))) = [] := by
+  decide
+
+/-- "Creatures can't be countered.": only a spell or an ability on the stack is countered. -/
+theorem badCantCounterCreatures :
+    StaticSpec.check [] (objectCant "Counter" (allOf creature)) = [.deedFits] := by decide
+
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Instruction.check []

@@ -144,7 +144,8 @@ def deedRoleOf (v : VerbLabel) : Role → DeedRole
   | .agent => (actFactsFor v).elim noRole (·.agentRole)
   | .patient => (actFactsFor v).elim noRole (·.patientRole)
 
-def deedKindOk (v : VerbLabel) (r : Role) (k : Kind) : Bool := (deedRoleOf v r).kinds.elem k
+def deedKindOk (v : VerbLabel) (r : Role) (k : Kind) : Bool :=
+  (deedRoleOf v r).sort.elim false (·.domain.admits k)
 
 def featureKindOk (f : DeedFeature) (r : Role) (k : Kind) : Bool :=
   (featureLabel f).elim false fun v => deedKindOk v r k
@@ -195,16 +196,22 @@ def deedsZone : Deeds → Role → Option Zone
     | none => if ds.isEmpty then deedZoneOf d r else none
     | some z => if deedZoneOf d r == some z then some z else none
 
-/-- The two deed roles an ability on the stack fills [CR#113.1c]; every other role refuses one,
-and these two refuse anything else. -/
-def deedAbilityRole (v : VerbLabel) (r : Role) : Bool :=
-  (actFactsFor v >>= (·.abilityRole)).elim false (· == r)
-
-def deedAbilityOk (v : VerbLabel) (r : Role) (ab : Bool) : Bool := ab == deedAbilityRole v r
+/-- Whether a role's noun may be an ability on the stack [CR#113.1c] or must not be one, read off
+the classes its sort declares. A role that declares no classes refuses an ability outright — the
+two roles an ability on the stack fills (Activate's patient, Trigger's agent) declare `.ability`
+and nothing else, so they take an ability and nothing else; a role whose classes include
+`.ability` alongside another class, as Counter's and Copy's patients do [CR#113.9], takes either.
+Classes other than `.ability` are declared but not yet checked against the noun beyond this
+ability/non-ability split (the zone field carries permanent-ness today). -/
+def deedClassOk (v : VerbLabel) (r : Role) (ab : Bool) : Bool :=
+  let classes := (deedRoleOf v r).sort.elim [] (·.classes)
+  if classes.isEmpty then !ab
+  else if ab then classes.elem .ability
+  else classes.any (· != .ability)
 
 def deedFits (ds : Deeds) (r : Role) (k : Kind) (ab : Bool) (ts : List (List CardType))
     (z : Option Zone) : Bool :=
-  ds.all (fun d => deedKindOk d r k && deedAbilityOk d r ab && deedHeadTysOk d r ts) &&
+  ds.all (fun d => deedKindOk d r k && deedClassOk d r ab && deedHeadTysOk d r ts) &&
     zoneFits z (deedsZone ds r)
 
 def playWindowOk : Option PlayLimit → Option PlayTiming → Bool
