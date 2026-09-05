@@ -1,4 +1,5 @@
 import Semantics.Proofs.Anaphora
+import Semantics.Proofs.Counters
 import Semantics.Proofs.Damage
 import Semantics.Proofs.Description
 import Semantics.Proofs.Refresh
