@@ -2459,6 +2459,7 @@ secretlyChooses : {k : Kind} -> (who : Noun bs Player) ->
                   {auto 0 ch : So (choiceClauseOk (Just who) n)} -> Instruction bs
 secretlyChooses who n = Choose Nothing (Just who) n Secretly {ch}
 
+||| "it" read against the prior clause; the antecedent instruction is the anchor.
 public export
 itPrior : {bs : Bindings} -> (prev : Instruction bs) ->
           {auto 0 ok : countReach Bare OneOf

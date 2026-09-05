@@ -20,3 +20,14 @@ Standard constraints apply, including the RON-shaped constraint.
 Keep the antecedent instruction as `itPrior`'s anchor: the instruction is
 the antecedent clause, which is what "prior" names. Close by recording this
 on the macro's one doc line; no code change.
+
+## As landed
+
+- Ruling recorded on `Macros.itPrior`'s doc line: the antecedent instruction
+  stays the anchor. No code change.
+
+## Landing record
+
+- Gates: `cd idris && ./scripts/build` 46/46, 0 warnings; cite check 0 stale.
+- Assurance: restored 0, re-spelled 0, ignored 0, added 0, removed 0.
+- No deviations; no STOP.
