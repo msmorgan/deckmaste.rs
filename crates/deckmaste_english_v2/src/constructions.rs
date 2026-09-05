@@ -31,7 +31,7 @@ constructions! {
     vocab BareCopula { Be = "be", }
     vocab PredicativeAdjective { Legendary = "legendary", }
     vocab FaceOrientation { FaceUp = "face up", }
-    vocab OrderDeterminer { Any = "any", Random = "a random", }
+    vocab ArbitraryDeterminer { Any = "any", Random = "a random", }
     // Attachment and bare-complement licensing are orthogonal declared facts.
     // Every member spells out both values so additions cannot inherit a
     // permissive default accidentally.
@@ -692,7 +692,7 @@ constructions! {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", OrderDeterminer, "order"];
+            tail = [Object, lex(Preposition::From)?, lex(Preposition::On), destination: FrameComplement, "in", ArbitraryDeterminer, "order"];
             feature = ConcordClass;
         }
     }
@@ -1908,7 +1908,7 @@ constructions! {
             source: opt PrepositionalPhrase,
             destination: FrameComplement,
             order_relation: lex Preposition,
-            determiner: lex OrderDeterminer,
+            determiner: lex ArbitraryDeterminer,
         }
         require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
@@ -3069,7 +3069,7 @@ constructions! {
     }
     construction any_number_quantifying_determiner: Determinative {
         element AnyNumberQuantifyingDeterminer {
-            determiner: lex OrderDeterminer,
+            determiner: lex ArbitraryDeterminer,
             unit: Head,
             relation: lex Preposition,
         }

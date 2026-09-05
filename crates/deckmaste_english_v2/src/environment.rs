@@ -1889,7 +1889,7 @@ mod tests {
                 Lex("Preposition", "On"),
                 Role("FrameComplement"),
                 Literal("in"),
-                Role("OrderDeterminer"),
+                Role("ArbitraryDeterminer"),
                 Literal("order"),
             ]),
         ));

@@ -3876,7 +3876,7 @@ impl Visitor for AdjunctSurfaceVisitor {
         deckmaste_english_v2::visit::walk_at_random_manner(self, value);
     }
 
-    fn visit_order_determiner(&mut self, value: OrderDeterminer) {
+    fn visit_arbitrary_determiner(&mut self, value: ArbitraryDeterminer) {
         self.0.push(format!("order:{value:?}"));
     }
 

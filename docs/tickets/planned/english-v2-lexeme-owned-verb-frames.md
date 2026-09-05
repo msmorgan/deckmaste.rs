@@ -21,7 +21,7 @@ declares roughly thirty-three `codec …Verb { generate declaration_verb { tail 
 [...] } }` entries whose names record the corpus rather than the grammar —
 `ObjectEqualityToVerb` and `ObjectToEqualityVerb` are two codecs for two
 orderings of one frame; `EnterWithCountersVerb` is a mechanic promoted to a
-grammar primitive; `OrderedVerb` bakes `"in" OrderDeterminer "order"` into a tail;
+grammar primitive; `OrderedVerb` bakes `"in" ArbitraryDeterminer "order"` into a tail;
 `LookAtVerb`, `ProVerbHead`, `HaveKeywordAbilityVerb` and `GetPowerToughnessVerb`
 are named for single verbs. `core_verbs.ron` shows the same shape from the other
 side: `Deal` carries six hand-written `Predicate([...])` tails, and `Turn`'s only
