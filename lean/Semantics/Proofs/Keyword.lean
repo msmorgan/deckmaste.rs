@@ -125,8 +125,9 @@ theorem badCoordinatedHostPlural :
 theorem okTokenKeywordAbility :
     Instruction.check []
       (create (.lit 1)
-        { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
-          power := some (.lit 1), toughness := some (.lit 1), text := [keyword "Flying"] })
+        { characteristics :=
+          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
+            power := some (.lit 1), toughness := some (.lit 1), text := [keyword "Flying"] } })
       = [] := by
   decide
 
@@ -134,9 +135,10 @@ theorem okTokenKeywordAbility :
 theorem badTokenSpellAbility :
     Instruction.check []
       (create (.lit 1)
-        { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
-          power := some (.lit 1), toughness := some (.lit 1),
-          text := [.spell none (draw .you (.lit 1))] }) = [.tokenAbilities] := by
+        { characteristics :=
+          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
+            power := some (.lit 1), toughness := some (.lit 1),
+            text := [.spell none (draw .you (.lit 1))] } }) = [.tokenAbilities] := by
   decide
 
 /-- "Creatures you control have '{T}: Draw a card.'" -/
@@ -163,7 +165,7 @@ theorem badYourChoiceNumber :
 
 /-- An enchantment with the given text. -/
 def enchantmentWith (text : List Ability) : Card :=
-  .singleFaced { name := "", types := [.enchantment], text }
+  .singleFaced { characteristics := { name := "", types := [.enchantment], text } }
 
 /-- "As this enchantment enters, choose a creature type." -/
 def choosesCreatureType : Ability :=
@@ -199,13 +201,14 @@ theorem badChosenReadWrongSort :
 theorem badChosenProtectionBeforeChoice :
     Card.check
       (.singleFaced
-        { name := "", types := [.creature], subtypes := [creatureType "Angel"],
-          power := stat 2, toughness := stat 2,
-          text :=
-            [ .static
-                (.gains thisCreature
-                  (.keyword "Protection" (some (.quality (ofChosen .color))) none)),
-              .static (.entersChoice thisCreature (.quality .color) none .openly) ] })
+        { characteristics :=
+          { name := "", types := [.creature], subtypes := [creatureType "Angel"],
+            power := stat 2, toughness := stat 2,
+            text :=
+              [ .static
+                  (.gains thisCreature
+                    (.keyword "Protection" (some (.quality (ofChosen .color))) none)),
+                .static (.entersChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 

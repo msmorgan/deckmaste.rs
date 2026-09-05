@@ -127,7 +127,8 @@ theorem badMoveCountersSelf :
 theorem badTokenDuplicateType :
     Instruction.check []
       (create (.lit 1)
-        { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) })
+        { characteristics :=
+          { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) } })
       = [.tokenCanonical] := by
   decide
 
@@ -443,22 +444,27 @@ theorem badTriggeringReplaced :
 
 /-- "Target creature becomes an artifact in addition to its other types." -/
 theorem okBecomesArtifact :
-    Instruction.check [] (becomes (target creature) { types := [.artifact] } none) = [] := by
+    Instruction.check []
+      (becomes (target creature) { characteristics := { types := [.artifact] } } none) = [] := by
   decide
 
 /-- "Target land becomes a Zombie in addition to its other types." -/
 theorem badBecomesZombieLand :
-    Instruction.check [] (becomes (target land) { subtypes := [creatureType "Zombie"] } none)
+    Instruction.check []
+      (becomes (target land) { characteristics := { subtypes := [creatureType "Zombie"] } } none)
       = [.becomesOk] := by
   decide
 
 /-- "Target creature becomes in addition to its other types." -/
 theorem badBecomesNothing :
-    Instruction.check [] (becomes (target creature) {} none) = [.becomesOk] := by decide
+    Instruction.check [] (becomes (target creature) { characteristics := {} } none)
+      = [.becomesOk] := by
+  decide
 
 /-- "Target creature becomes a creature in addition to its other types." -/
 theorem badBecomesOwnType :
-    Instruction.check [] (becomes (target creature) { types := [.creature] } none)
+    Instruction.check []
+      (becomes (target creature) { characteristics := { types := [.creature] } } none)
       = [.becomesOk] := by
   decide
 

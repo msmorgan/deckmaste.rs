@@ -8,8 +8,8 @@ Port of `idris/src/Experimental/Proofs/Faces.idr`: the pins of the Faces family,
 form, each closed by `decide`. The names and the sentences are the Idris ones.
 
 Not ported: `badFaceAsFlipAlternative`, an Idris type error (a flip card's other half is a
-characteristics set, not a face [CR#710.1]); here `CardFace` is `Characteristics`, so the
-distinction is not a type's to make.
+characteristics set, not a face [CR#710.1]); here a flip card's other half is a `CardFace`
+too, so the distinction is not a type's to make.
 -/
 
 open Semantics Semantics.Macros
@@ -21,7 +21,7 @@ def act (cost : Cost) (instruction : Instruction) (timing : Option Timing := non
   .activated cost instruction timing none none none
 
 /-- A single-faced card. -/
-def one (face : Characteristics) : Card := .singleFaced face
+def one (face : Characteristics) : Card := .singleFaced { characteristics := face }
 
 /-- "Snow-Covered Forest — Basic Snow Land — Forest" -/
 theorem okSingleSnow :
@@ -475,13 +475,15 @@ theorem badEntwineWithoutModes :
 
 theorem jointCrossAbilityChoice :
     Card.check
-      (one
-        { name := some "Joint choice witness", choices := [.color], types := [.creature],
-          subtypes := [creatureType "Shapeshifter"],
-          text :=
-            [ .static (.gains thisCreature (keywordQuality "Protection" (ofChosen .color))),
-              .static (entersChoosing thisCreature .color) ],
-          power := stat 1, toughness := stat 1 }) = [] := by
+      (.singleFaced
+        { characteristics :=
+            { name := some "Joint choice witness", types := [.creature],
+              subtypes := [creatureType "Shapeshifter"],
+              text :=
+                [ .static (.gains thisCreature (keywordQuality "Protection" (ofChosen .color))),
+                  .static (entersChoosing thisCreature .color) ],
+              power := stat 1, toughness := stat 1 },
+          choices := [.color] }) = [] := by
   decide
 
 /-- "Cumulative upkeep {2}" on an enchantment card -/
@@ -624,55 +626,67 @@ theorem badBattleNoDefense :
   decide
 
 /-- A blue 1/1 creature front face. -/
-def blueCreature : Characteristics :=
-  { name := some "", cost := some [pip .blue], types := [.creature], power := stat 1,
-    toughness := stat 1 }
+def blueCreature : CardFace :=
+  { characteristics :=
+    { name := some "", cost := some [pip .blue], types := [.creature], power := stat 1,
+      toughness := stat 1 } }
 
 /-- an adventurer card whose inset frame is a named Adventure sorcery -/
 theorem okNamedAdventure :
     Card.check
       (.adventurer blueCreature
-        { name := some "", cost := some [pip .blue], types := [.sorcery],
-          subtypes := [spellType "Adventure"] }) = [] := by
+        { characteristics :=
+          { name := some "", cost := some [pip .blue], types := [.sorcery],
+            subtypes := [spellType "Adventure"] } }) = [] := by
   decide
 
 /-- an adventurer card whose inset frame is a plain instant, naming no Adventure -/
 theorem badUnnamedAdventure :
     Card.check
-      (.adventurer blueCreature { name := some "", cost := some [pip .blue], types := [.instant] })
+      (.adventurer blueCreature
+        { characteristics :=
+          { name := some "", cost := some [pip .blue], types := [.instant] } })
       = [.adventureInset] := by
   decide
 
 /-- A green 1/1 creature front face. -/
-def greenCreature : Characteristics :=
-  { name := some "", cost := some [pip .green], types := [.creature], power := stat 1,
-    toughness := stat 1 }
+def greenCreature : CardFace :=
+  { characteristics :=
+    { name := some "", cost := some [pip .green], types := [.creature], power := stat 1,
+      toughness := stat 1 } }
 
 /-- a flip card whose upside-down half is a creature -/
 theorem okCreatureFlipHalf :
     Card.check
       (.flip greenCreature
-        { name := some "", types := [.creature], power := stat 2, toughness := stat 2 }) = [] := by
+        { characteristics :=
+          { name := some "", types := [.creature], power := stat 2, toughness := stat 2 } })
+      = [] := by
   decide
 
 /-- a flip card whose upside-down half is an instant -/
 theorem badSpellFlipHalf :
-    Card.check (.flip greenCreature { name := some "", types := [.instant] }) = [.flipHalf] := by
+    Card.check
+      (.flip greenCreature { characteristics := { name := some "", types := [.instant] } })
+      = [.flipHalf] := by
   decide
 
 /-- a transforming card whose back face prints no mana cost -/
 theorem okTransformingBackWithoutCost :
     Card.check
       (.transforming greenCreature
-        { name := some "", types := [.creature], power := stat 1, toughness := stat 1 }) = [] := by
+        { characteristics :=
+          { name := some "", types := [.creature], power := stat 1, toughness := stat 1 } })
+      = [] := by
   decide
 
 /-- a transforming card whose back face prints a mana cost of its own -/
 theorem badTransformingBackWithCost :
     Card.check
       (.transforming greenCreature
-        { name := some "", cost := some [pip .green], types := [.creature], power := stat 1,
-          toughness := stat 1 }) = [.cardCost] := by
+        { characteristics :=
+          { name := some "", cost := some [pip .green], types := [.creature], power := stat 1,
+            toughness := stat 1 } }) = [.cardCost] := by
   decide
 
 /-- "your devotion to black" -/
@@ -739,7 +753,9 @@ def doorDamage (amount : Nat) : Ability :=
 belongs to a Room's shared line. -/
 theorem okRoomDoorHeaderOnSharedLine :
     Card.check
-      (.sharedLineSplit { types := [.enchantment], subtypes := [enchantmentType "Room"] }
+      (.sharedLineSplit
+        { characteristics :=
+          { types := [.enchantment], subtypes := [enchantmentType "Room"] } }
         ⟨"", some [pip .red], [doorDamage 1]⟩ ⟨"", some [generic 3, pip .red], [doorDamage 2]⟩)
       = [] := by
   decide
@@ -839,13 +855,14 @@ theorem badTableWithoutRoll :
   decide
 
 /-- A red 2/2 creature face for the leveler pins. -/
-def redCreature : Characteristics :=
-  { name := some "", cost := some [pip .red], types := [.creature], power := stat 2,
-    toughness := stat 2 }
+def redCreature : CardFace :=
+  { characteristics :=
+    { name := some "", cost := some [pip .red], types := [.creature], power := stat 2,
+      toughness := stat 2 } }
 
 /-- "LEVEL <range> [P/T]" with no text. -/
 def band (range : LevelRange) (power toughness : Nat) : LevelBand :=
-  ⟨range, { power := stat power, toughness := stat toughness }⟩
+  { range := range, power := stat power, toughness := stat toughness }
 
 /-- "LEVEL 1-2 [2/3]" beside "LEVEL 3+ [2/4]" on a 2/2 creature -/
 theorem okLevelerBands :
@@ -866,14 +883,16 @@ theorem badOverlappingLevelBands :
 /-- "LEVEL 1+ [2/2]" printed on a sorcery: no striated text box to level [CR#711.1] -/
 theorem badLevelBandOffLevelerFrame :
     Card.check
-      (.leveler { name := some "", cost := some [pip .red], types := [.sorcery] }
+      (.leveler
+        { characteristics := { name := some "", cost := some [pip .red], types := [.sorcery] } }
         [band (.atLeast 1) 2 2]) = [.levelerFrame] := by
   decide
 
 /-- A 2/2 artifact creature face for the prototype pins. -/
-def artifactCreature : Characteristics :=
-  { name := some "", cost := some [generic 2], types := [.artifact, .creature], power := stat 2,
-    toughness := stat 2 }
+def artifactCreature : CardFace :=
+  { characteristics :=
+    { name := some "", cost := some [generic 2], types := [.artifact, .creature], power := stat 2,
+      toughness := stat 2 } }
 
 /-- "Prototype {1}{R} — 1/1" on a 2/2 artifact creature -/
 theorem okPrototypeAlt :
@@ -894,7 +913,7 @@ theorem badPrototypeWithoutAltCost :
 [CR#702.160a,718.1]. The Idris pin refutes the box; the frame law fails on the same set. -/
 theorem badPrototypeAltLoyaltyBox :
     Card.check
-      (.prototype artifactCreature { cost := some [generic 1, pip .red], loyalty := stat 3 })
+      (.prototype artifactCreature { cost := some [generic 1, pip .red] })
       = [.prototypeFrame, .cardBox] := by
   decide
 
@@ -902,7 +921,8 @@ theorem badPrototypeAltLoyaltyBox :
 toughness for the inset frame to give a second [CR#718.1,718.2] -/
 theorem badPrototypeOffCreatureFrame :
     Card.check
-      (.prototype { name := some "", cost := some [generic 2], types := [.artifact] }
+      (.prototype
+        { characteristics := { name := some "", cost := some [generic 2], types := [.artifact] } }
         { cost := some [generic 1, pip .red], power := stat 1, toughness := stat 1 })
       = [.prototypeFrame] := by
   decide

@@ -26,18 +26,20 @@ namespace Semantics.Proofs.Numbers
 creature's power may be less than zero [CR#107.1b], so the face is admitted. -/
 theorem okPrintedNegativePowerAndToughness :
     Card.check (.singleFaced
-      { name := "Spinal Parasite", cost := some [generic 5],
-        types := [.artifact, .creature], subtypes := [.of .creature "Insect"],
-        power := some (.lit (-1)), toughness := some (.lit (-1)) }) = [] := by
+      { characteristics :=
+        { name := "Spinal Parasite", cost := some [generic 5],
+          types := [.artifact, .creature], subtypes := [.of .creature "Insect"],
+          power := some (.lit (-1)), toughness := some (.lit (-1)) } }) = [] := by
   decide
 
 /-- Char-Rumbler {2}{R}{R} — Creature — Elemental, printed −1/3: a negative power beside a
 positive toughness [CR#107.1b]. -/
 theorem okPrintedNegativePower :
     Card.check (.singleFaced
-      { name := "Char-Rumbler", cost := some [generic 2, pip .red, pip .red],
-        types := [.creature], subtypes := [.of .creature "Elemental"],
-        power := some (.lit (-1)), toughness := some (.lit 3) }) = [] := by
+      { characteristics :=
+        { name := "Char-Rumbler", cost := some [generic 2, pip .red, pip .red],
+          types := [.creature], subtypes := [.of .creature "Elemental"],
+          power := some (.lit (-1)), toughness := some (.lit 3) } }) = [] := by
   decide
 
 /-! ## Clamped slots: an effect's result reads zero -/

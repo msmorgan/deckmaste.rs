@@ -448,18 +448,20 @@ theorem badThatTurnAfterTwoTurns :
 theorem okTokenSingleSupertype :
     Instruction.check []
       (create (.lit 1)
-        { name := some "Marit Lage", colors := [.black], supertypes := [.legendary],
-          types := [.creature], subtypes := [creatureType "Avatar"],
-          power := some (.lit 20), toughness := some (.lit 20) }) = [] := by
+        { characteristics :=
+          { name := some "Marit Lage", colors := [.black], supertypes := [.legendary],
+            types := [.creature], subtypes := [creatureType "Avatar"],
+            power := some (.lit 20), toughness := some (.lit 20) } }) = [] := by
   decide
 
 /-- "create a legendary legendary 20/20 black Avatar creature token" -/
 theorem badTokenDuplicateSupertype :
     Instruction.check []
       (create (.lit 1)
-        { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
-          types := [.creature], subtypes := [creatureType "Avatar"],
-          power := some (.lit 20), toughness := some (.lit 20) }) = [.tokenCanonical] := by
+        { characteristics :=
+          { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
+            types := [.creature], subtypes := [creatureType "Avatar"],
+            power := some (.lit 20), toughness := some (.lit 20) } }) = [.tokenCanonical] := by
   decide
 
 end Semantics.Proofs.Turn

@@ -10,7 +10,8 @@ nothing here is an Effect.
 
 `Characteristics` is [CR#109.3] as a structure, flat, and serves cards and tokens alike; a
 token's power is an `Amount` ("X/X"), a card's is a literal, and `none` on a stat slot is a
-slot a characteristic-defining ability fills (printed `*`).
+slot a characteristic-defining ability fills (printed `*`). A `CharacteristicBundle` is a
+characteristics set as an effect writes it, with the qualities an effect can add [CR#111.3].
 -/
 
 namespace Semantics
@@ -183,8 +184,9 @@ inductive DeckCondition where
   deriving Repr, BEq
 
 mutual
-  /-- An object's characteristics [CR#109.3], for a card face, an alternative
-  characteristics set, or a token. Every field defaults to absent. -/
+  /-- An object's characteristics: name, mana cost, color and color indicator, card type,
+  subtype, supertype, rules text and abilities, power, toughness, loyalty, and defense
+  [CR#109.3]. Every field defaults to absent. -/
   structure Characteristics where
     name : Option String := none
     cost : Option ManaCost := none
@@ -193,18 +195,20 @@ mutual
     supertypes : List Supertype := []
     types : List CardType := []
     subtypes : List Subtype := []
-    /-- The choices a joint card announces ("As … enters, choose a color"). -/
-    choices : List QualitySort := []
     text : List Ability := []
-    /-- A token's "with every creature type"-style qualities. -/
-    qualities : List TokenQuality := []
     power : Option Amount := none
     toughness : Option Amount := none
     loyalty : Option Amount := none
     defense : Option Amount := none
 
+  /-- A characteristics set as an effect writes it, with the token qualities ("with every
+  creature type") an effect can add [CR#111.3]. -/
+  structure CharacteristicBundle where
+    characteristics : Characteristics
+    qualities : List TokenQuality := []
+
   inductive QualityPayload where
-    | bundle (characteristics : Characteristics) (retained : Option CardType)
+    | bundle (characteristics : CharacteristicBundle) (retained : Option CardType)
     | everyTypeOf (space : SubtypeSpace)
     | chosenQuality (quality : Predicate)
     | colored (colors : ColorSpec)
@@ -212,7 +216,7 @@ mutual
   inductive TokenSpec where
     /-- The creating spell or ability defines the token's characteristic values [CR#111.3] and
     sets its name and subtypes [CR#111.4]. -/
-    | written (characteristics : Characteristics)
+    | written (characteristics : CharacteristicBundle)
     | asThose
     | copyOf (source : NounPhrase) (exceptions : List CopyExcept)
 
@@ -442,8 +446,8 @@ mutual
     | thatAbility (ref : ChoiceRef)
 end
 
-deriving instance Repr, BEq for Characteristics, QualityPayload, TokenSpec, StaticSpec,
-  Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost, ManaRider, CopyExcept,
-  RollRow, Instruction, KeywordParam, AbilityLost, Ability
+deriving instance Repr, BEq for Characteristics, CharacteristicBundle, QualityPayload,
+  TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
+  ManaRider, CopyExcept, RollRow, Instruction, KeywordParam, AbilityLost, Ability
 
 end Semantics

@@ -191,13 +191,14 @@ theorem badChosenBasicTypeOnCreature :
 theorem okLandsAreMountains :
     StaticSpec.check []
       (.becomes (allOf (.and [land, .hasPossessor .controller .you])) .sets
-        (.bundle { subtypes := [landType "Mountain"] } none)) = [] := by
+        (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
   decide
 
 /-- "Creatures are Mountains." -/
 theorem badCreaturesAreMountains :
     StaticSpec.check []
-      (.becomes (allOf creature) .sets (.bundle { subtypes := [landType "Mountain"] } none))
+      (.becomes (allOf creature) .sets (.bundle { characteristics :=
+                                                  { subtypes := [landType "Mountain"] } } none))
       = [.becomesOk] := by
   decide
 
@@ -254,13 +255,15 @@ theorem badLosesNoColor :
 theorem badLosesPt :
     StaticSpec.check []
       (.becomes (.attachHost .equipped .permanent) .loses
-        (.bundle { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }
+        (.bundle { characteristics :=
+                   { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           none)) = [.becomesOk] := by
   decide
 
 theorem badStillOnAddition :
     StaticSpec.check []
-      (.becomes (target creature) .adds (.bundle { types := [.artifact] } (some .creature)))
+      (.becomes (target creature) .adds
+        (.bundle { characteristics := { types := [.artifact] } } (some .creature)))
       = [.becomesOk] := by
   decide
 

@@ -33,10 +33,14 @@ predicates and events are one `inCombat`/`combat` each over a
 `or` joins kinds ("creature or player") where `joined` used to; designations
 are labels (`DesignationLabel := String`) whose facts live in a checker table
 (`Check/Words`), so a keyword's expansion can bring its own; and
-`Characteristics` is flat per [CR#109.3] and serves cards and tokens alike,
-with `power`/`toughness`/`loyalty`/`defense : Option Amount` (`none` is the
-printed `*` a characteristic-defining ability fills). Planechase and
-Archenemy are not ported.
+`Characteristics` is flat and is exactly [CR#109.3]'s list, with
+`power`/`toughness`/`loyalty`/`defense : Option Amount` (`none` is the printed
+`*` a characteristic-defining ability fills), wrapped by the two records that
+carry what a role adds to it: a `CardFace` is a printed face — its
+characteristics and the choices its text announces as it enters — and a
+`CharacteristicBundle` is a characteristics set as an effect writes it, with
+the token qualities an effect can add [CR#111.3]. Planechase and Archenemy are
+not ported.
 
 ## Numbers
 
@@ -149,7 +153,10 @@ produces. The traps, all hit once:
 - In the syntax, every `{auto 0 … : …}` obligation is dropped (it becomes a
   rule in `Check/*`). There is no `TypeLine`: `Characteristics` carries
   `supertypes`, `types`, and `subtypes` flat, as [CR#109.3] lists them, and a
-  frame that shares a line (`sharedLineSplit`) shares a `Characteristics`.
+  frame that shares a line (`sharedLineSplit`) shares a `CardFace`. A frame
+  that prints only part of a set names the part: a `LevelBand` is a range,
+  text, and a power/toughness box [CR#711.2a,711.2b], and a `PrototypeFrame`
+  is a mana cost and a power/toughness box [CR#718.1].
 - Every type derives `Repr` and `BEq` (`DecidableEq` where it can: it does not
   derive for the nested mutual block in `Phrase`).
 - `[CR#…]` citations carry over into docstrings.
@@ -172,4 +179,4 @@ produces. The traps, all hit once:
 | `{auto 0 ok : So (f x)}` | a rule `refuse (f x) .reason` in `Check/*Rules` |
 | `Unspellable T (\ok => term)` … `Oh impossible` | `theorem bad… : X.check … term = [.reason] := by decide` |
 | a twin `ok… : T = term` | `theorem ok… : X.check … term = [] := by decide` |
-| a bench card | `def c : Spelled := spelled <| .singleFaced { name := …, … }` |
+| a bench card | `def c : Spelled := spelled <| .singleFaced { characteristics := { name := …, … } }` |

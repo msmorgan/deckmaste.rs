@@ -17,7 +17,9 @@ namespace Semantics.Proofs.Piles
 
 /-- An instant whose whole text is one spell ability. -/
 def instantSaying (instruction : Instruction) : Card :=
-  .singleFaced { name := some "", types := [.instant], text := [.spell none instruction] }
+  .singleFaced
+    { characteristics :=
+      { name := some "", types := [.instant], text := [.spell none instruction] } }
 
 /-- "Starting with you, each player votes for death or torture." -/
 theorem okDistinctBallotOptions : Ballot.check [] (.byLabel ["death", "torture"]) = [] := by decide
@@ -210,7 +212,9 @@ def unlockDraw (amount : Nat) : Ability :=
 /-- "When you unlock this door, draw a card.": a door header belongs to a Room's shared line. -/
 theorem okDoorHeaderOnSharedLine :
     Card.check
-      (.sharedLineSplit { types := [.enchantment], subtypes := [enchantmentType "Room"] }
+      (.sharedLineSplit
+        { characteristics :=
+          { types := [.enchantment], subtypes := [enchantmentType "Room"] } }
         ⟨"", some [generic 1, pip .red], [unlockDraw 1]⟩
         ⟨"", some [generic 3, pip .red], [unlockDraw 2]⟩) = [] := by
   decide

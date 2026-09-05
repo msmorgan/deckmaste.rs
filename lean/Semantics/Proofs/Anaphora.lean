@@ -886,7 +886,7 @@ theorem okCondSubjectRead :
             (becomes
               (itCondSubject (Instruction.intro [] (destroy (target creature)))
                 (.not (.matches thisEnchantment creature)))
-              { types := [.creature], subtypes := [creatureType "Angel"] }
+              { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
               (some untilEndOfTurn))
             none ]) = [] := by
   decide
@@ -899,7 +899,8 @@ theorem badCondUnwindowedRead :
       (.sequentially
         [ destroy (target creature),
           .if_ (.not (.matches thisEnchantment creature))
-            (becomes it { types := [.creature], subtypes := [creatureType "Angel"] }
+            (becomes it
+              { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
               (some untilEndOfTurn))
             none ]) = [.anaphor .bare .one 2] := by
   decide

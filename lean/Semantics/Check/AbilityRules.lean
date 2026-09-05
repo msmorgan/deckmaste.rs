@@ -519,11 +519,15 @@ mutual
     | r :: rs => TokenRider.check bs r ++ TokenRider.checkAll bs rs
   termination_by structural rs => rs
 
-  def Characteristics.checkBundle (bs : Bindings) : Characteristics → List Refusal
-    | ⟨_, _, _, _, _, _, _, text, qualities, power, toughness, loyalty, defense⟩ =>
-      statsCheck bs [power, toughness, loyalty, defense] ++
-        Ability.checkAll [] text ++ TokenQuality.checkAll bs qualities
+  def Characteristics.checkWritten (bs : Bindings) : Characteristics → List Refusal
+    | ⟨_, _, _, _, _, _, text, power, toughness, loyalty, defense⟩ =>
+      statsCheck bs [power, toughness, loyalty, defense] ++ Ability.checkAll [] text
   termination_by structural t => t
+
+  def CharacteristicBundle.check (bs : Bindings) : CharacteristicBundle → List Refusal
+    | ⟨characteristics, qualities⟩ =>
+      Characteristics.checkWritten bs characteristics ++ TokenQuality.checkAll bs qualities
+  termination_by structural b => b
 
   def TokenQuality.checkAll (bs : Bindings) : List TokenQuality → List Refusal
     | [] => []
@@ -533,16 +537,17 @@ mutual
   termination_by structural qs => qs
 
   def QualityPayload.check (bs : Bindings) : QualityPayload → List Refusal
-    | .bundle t _ => Characteristics.checkBundle bs t
+    | .bundle t _ => CharacteristicBundle.check bs t
     | .chosenQuality q => Predicate.check .object bs q
     | _ => []
   termination_by structural q => q
 
   def TokenSpec.check (bs : Bindings) : TokenSpec → List Refusal
     | .written t =>
-      Characteristics.checkBundle bs t ++ refuse t.typed .tokenTyped ++ refuse t.ptOk .tokenPtOk ++
-        refuse (subsFitLine t.subtypes t.types) .subsFitLine ++
-        refuse t.abilitiesOk .tokenAbilities ++ refuse t.canonical .tokenCanonical ++
+      let c := t.characteristics
+      CharacteristicBundle.check bs t ++ refuse c.typed .tokenTyped ++ refuse c.ptOk .tokenPtOk ++
+        refuse (subsFitLine c.subtypes c.types) .subsFitLine ++
+        refuse c.abilitiesOk .tokenAbilities ++ refuse c.canonical .tokenCanonical ++
         refuse t.qualsFit .tokenQualsFit
     | .asThose =>
       let n := countTokenSpecs bs
@@ -555,9 +560,9 @@ mutual
     | .types types subtypes => refuse (typeLineNonEmpty [] types subtypes) .lineNonEmpty
     | .name _ | .thisAbility | .nonlegendary | .color _ => []
     | .chars t _ =>
-      Characteristics.checkBundle bs t ++ refuse t.copyBundleSays .copyBundle ++
+      Characteristics.checkWritten bs t ++ refuse t.copyBundleSays .copyBundle ++
         refuse t.canonical .tokenCanonical ++ refuse t.abilitiesOk .tokenAbilities ++
-        refuse t.qualsFit .tokenQualsFit ++ refuse t.additionUnnamed .additionUnnamed
+        refuse t.additionUnnamed .additionUnnamed
     | .ability ab => Ability.check [] ab ++ refuse ab.grantable .grantable
     | .pt pow tou => Amount.check bs pow ++ Amount.check (Amount.intro bs pow) tou
     | .entersWithCounters amt kind _ => Amount.check bs amt ++ kind.check

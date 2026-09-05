@@ -166,17 +166,26 @@ def Characteristics.lineLaws (c : Characteristics) : List Refusal :=
   refuse c.cardLineOk .cardLine ++ refuse (supersDistinct c.supertypes) .distinct
 
 /-- Idris `CharacteristicsLaws side c`: a face is named. -/
-def Characteristics.check (side : FaceSide) (c : Characteristics) : List Refusal :=
-  let bs := jointBindings c.choices (costLetters c.cost)
+def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
+  let c := f.characteristics
+  let bs := jointBindings f.choices (costLetters c.cost)
   refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
     textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
     refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD [] ++
-    refuse (jointChoicesOk c.choices (textChoiceDelta bs c.text)) .jointChoices
+    refuse (jointChoicesOk f.choices (textChoiceDelta bs c.text)) .jointChoices
 
-def SharedLineHalf.check (shared : Characteristics) (h : SharedLineHalf) : List Refusal :=
-  Ability.checkText (costLetters h.cost) h.text ++ halfTextLaws shared h.text ++
-    refuse (cardBoxOk .front shared.types h.text shared) .cardBox ++
-    refuse (cardCostOk .front shared.types h.cost) .cardCost ++
+/-- A half reads its own cost's letters and the choices the shared line announces. -/
+def SharedLineHalf.bindings (shared : CardFace) (h : SharedLineHalf) : Bindings :=
+  jointBindings shared.choices (costLetters h.cost)
+
+def SharedLineHalf.choiceDelta (shared : CardFace) (h : SharedLineHalf) : List Binding :=
+  textChoiceDelta (h.bindings shared) h.text
+
+def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
+  let line := shared.characteristics
+  Ability.checkText (h.bindings shared) h.text ++ halfTextLaws line h.text ++
+    refuse (cardBoxOk .front line.types h.text line) .cardBox ++
+    refuse (cardCostOk .front line.types h.cost) .cardCost ++
     (h.cost.map ManaCost.check).getD []
 
 def adventureInsetOk (c : Characteristics) : Bool := framesWith .adventureInset c.subtypes
@@ -211,22 +220,30 @@ def Characteristics.ptWritten (c : Characteristics) : Bool := c.power.isSome && 
 def levelerFrameOk (inner : Characteristics) (bands : List LevelBand) : Bool :=
   inner.types.elem .creature && inner.ptWritten && !bands.isEmpty
 
+/-- A band's power/toughness box, as the characteristics set the box law reads [CR#711.2]. -/
+def LevelBand.box (b : LevelBand) : Characteristics :=
+  { power := b.power, toughness := b.toughness }
+
 /-- A level band writes a power and toughness and text [CR#711.2]. -/
 def LevelBand.check (inner : Characteristics) (b : LevelBand) : List Refusal :=
-  refuse b.range.ok .levelRange ++ Ability.checkText [] b.band.text ++ textLaws inner b.band.text ++
-    refuse b.band.ptWritten .levelerFrame ++
-    refuse (cardBoxOk .front inner.types b.band.text b.band) .cardBox
+  refuse b.range.ok .levelRange ++ Ability.checkText [] b.text ++ textLaws inner b.text ++
+    refuse b.box.ptWritten .levelerFrame ++
+    refuse (cardBoxOk .front inner.types b.text b.box) .cardBox
 
 /-- [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box. -/
 def prototypeFrameOk (inner : Characteristics) : Bool :=
   inner.types.elem .creature && inner.ptWritten
 
-def prototypeAltCheck (inner alternative : Characteristics) : List Refusal :=
+/-- The inset frame's second set, as the characteristics set the box law reads [CR#718.1]. -/
+def PrototypeFrame.box (a : PrototypeFrame) : Characteristics :=
+  { cost := a.cost, power := a.power, toughness := a.toughness }
+
+def prototypeAltCheck (inner : Characteristics) (alternative : PrototypeFrame) : List Refusal :=
   refuse alternative.cost.isSome .cardCost ++
     refuse (alternative.cost.elim true manaRun) .manaRun ++
     (alternative.cost.map ManaCost.check).getD [] ++
-    refuse alternative.ptWritten .prototypeFrame ++
-    refuse (cardBoxOk .front inner.types [] alternative) .cardBox
+    refuse alternative.box.ptWritten .prototypeFrame ++
+    refuse (cardBoxOk .front inner.types [] alternative.box) .cardBox
 
 /-- The checker's entry point: every refusal in a card, in reading order. -/
 def Card.check : Card → List Refusal
@@ -235,20 +252,26 @@ def Card.check : Card → List Refusal
   | .modalDfc front back => front.check .front ++ back.check .front
   | .split left right => left.check .front ++ right.check .front
   | .sharedLineSplit shared left right =>
-    shared.lineLaws ++ refuse (anyPermanentType shared.types) .cardLine ++
-      left.check shared ++ right.check shared
+    let line := shared.characteristics
+    line.lineLaws ++ refuse (anyPermanentType line.types) .cardLine ++
+      left.check shared ++ right.check shared ++
+      refuse (jointChoicesOk shared.choices
+        (left.choiceDelta shared ++ right.choiceDelta shared)) .jointChoices
   | .adventurer normal adventure =>
     normal.check .front ++ adventure.check .front ++
-      refuse (adventureInsetOk adventure) .adventureInset
+      refuse (adventureInsetOk adventure.characteristics) .adventureInset
   | .flip normal alternative =>
-    normal.check .front ++ alternative.check .back ++ refuse (flipHalfOk normal) .flipHalf ++
-      refuse (flipHalfOk alternative) .flipHalf
+    normal.check .front ++ alternative.check .back ++
+      refuse (flipHalfOk normal.characteristics) .flipHalf ++
+      refuse (flipHalfOk alternative.characteristics) .flipHalf
   | .leveler inner bands =>
-    inner.check .front ++ refuse (levelerFrameOk inner bands) .levelerFrame ++
-      bands.flatMap (LevelBand.check inner) ++ refuse (bandsDisjoint bands) .bandsDisjoint
+    let line := inner.characteristics
+    inner.check .front ++ refuse (levelerFrameOk line bands) .levelerFrame ++
+      bands.flatMap (LevelBand.check line) ++ refuse (bandsDisjoint bands) .bandsDisjoint
   | .prototype inner alternative =>
-    inner.check .front ++ refuse (prototypeFrameOk inner) .prototypeFrame ++
-      prototypeAltCheck inner alternative
+    let line := inner.characteristics
+    inner.check .front ++ refuse (prototypeFrameOk line) .prototypeFrame ++
+      prototypeAltCheck line alternative
 
 /-- A card the checker admits: writing one runs the checker, as writing a card ran the Idris
 elaborator. -/

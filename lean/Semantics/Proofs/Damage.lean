@@ -594,29 +594,33 @@ def preventLastChosenColor : StaticSpec :=
 theorem okLastChosenAfterChooser :
     Card.check
       (.singleFaced
-        { name := "", types := [.enchantment],
-          text :=
-            [ .static (.entersChoice thisEnchantment (.quality .color) none .openly),
-              .static preventLastChosenColor ] }) = [] := by
+        { characteristics :=
+          { name := "", types := [.enchantment],
+            text :=
+              [ .static (.entersChoice thisEnchantment (.quality .color) none .openly),
+                .static preventLastChosenColor ] } }) = [] := by
   decide
 
 theorem badLastChosenBeforeChooser :
     Card.check
       (.singleFaced
-        { name := "", types := [.enchantment],
-          text :=
-            [ .static preventLastChosenColor,
-              .static (.entersChoice thisEnchantment (.quality .color) none .openly) ] })
+        { characteristics :=
+          { name := "", types := [.enchantment],
+            text :=
+              [ .static preventLastChosenColor,
+                .static (.entersChoice thisEnchantment (.quality .color) none .openly) ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
 
 theorem badLastChosenWrongSort :
     Card.check
       (.singleFaced
-        { name := "", types := [.enchantment],
-          text :=
-            [ .static (.entersChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
-              .static preventLastChosenColor ] })
+        { characteristics :=
+          { name := "", types := [.enchantment],
+            text :=
+              [ .static
+                  (.entersChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
+                .static preventLastChosenColor ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
 
@@ -692,8 +696,9 @@ object has [CR#205.3c] and Zombie is a creature type [CR#205.3m]. -/
 theorem badZombieArtifactToken :
     Instruction.check []
       (create (.lit 1)
-        { colors := [.black], types := [.artifact], subtypes := [creatureType "Zombie"],
-          power := some (.lit 1), toughness := some (.lit 1) }) = [.subsFitLine] := by
+        { characteristics :=
+          { colors := [.black], types := [.artifact], subtypes := [creatureType "Zombie"],
+            power := some (.lit 1), toughness := some (.lit 1) } }) = [.subsFitLine] := by
   decide
 
 /-- "Create a white Soldier creature token.": a creature has power and toughness [CR#208.1],
@@ -701,7 +706,8 @@ and a token has only the characteristics its creating ability defines [CR#111.3]
 theorem badCreatureTokenNoPt :
     Instruction.check []
       (create (.lit 1)
-        { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"] })
+        { characteristics :=
+          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"] } })
       = [.tokenPtOk] := by
   decide
 
@@ -709,7 +715,9 @@ theorem badCreatureTokenNoPt :
 permanent card type [CR#110.4a]. -/
 theorem badTypelessToken :
     Instruction.check []
-      (create (.lit 1) { colors := [.white], power := some (.lit 1), toughness := some (.lit 1) })
+      (create (.lit 1)
+        { characteristics :=
+          { colors := [.white], power := some (.lit 1), toughness := some (.lit 1) } })
       = [.tokenTyped] := by
   decide
 

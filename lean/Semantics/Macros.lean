@@ -351,13 +351,15 @@ def dealsDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounP
 
 /-- A token's characteristics from the parts a creature token names. -/
 def creatureTokenOf (power toughness : Amount) (colors : List Color) (subtypes : List Subtype) :
-    Characteristics :=
-  { colors, types := [.creature], subtypes, power := some power, toughness := some toughness }
+    CharacteristicBundle :=
+  { characteristics :=
+      { colors, types := [.creature], subtypes, power := some power,
+        toughness := some toughness } }
 def creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List Subtype) :
-    Characteristics :=
+    CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes
 /-- "create N <token>" -/
-def create (count : Amount) (token : Characteristics) : Instruction :=
+def create (count : Amount) (token : CharacteristicBundle) : Instruction :=
   .create .you count (.written token) []
 
 /-- "for each color of mana spent to cast <n>" -/
@@ -458,7 +460,7 @@ def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Opt
 def gains (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
   .continuously (.gains subject ability) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
-def becomes (subject : NounPhrase) (added : Characteristics) (duration : Option Duration) :
+def becomes (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=
   .continuously (.becomes subject .adds (.bundle added none)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/

@@ -204,7 +204,7 @@ theorem badPurposelessSpend :
 
 /-- An enchantment with the given text. -/
 def enchantmentWith (text : List Ability) : Card :=
-  .singleFaced { name := "", types := [.enchantment], text }
+  .singleFaced { characteristics := { name := "", types := [.enchantment], text } }
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
@@ -271,7 +271,8 @@ theorem badAltCostClause :
   decide
 
 /-- A land with the given text. -/
-def landWith (text : List Ability) : Card := .singleFaced { name := "", types := [.land], text }
+def landWith (text : List Ability) : Card :=
+  .singleFaced { characteristics := { name := "", types := [.land], text } }
 
 /-- "{T}: Add one mana of the chosen color." -/
 def tapForChosenColor : Ability := act .tapSymbol (.addMana .you (.lit 1) (.ofChosenColor none) [])
@@ -387,7 +388,7 @@ theorem badTappedForManaOffField :
 
 /-- An artifact with the given text. -/
 def artifactWith (text : List Ability) : Card :=
-  .singleFaced { name := "", types := [.artifact], text }
+  .singleFaced { characteristics := { name := "", types := [.artifact], text } }
 
 /-- "Whenever a basic land is tapped for mana of the chosen color, draw a card." -/
 def drawOnTapForChosenColor : Ability :=
@@ -461,26 +462,30 @@ theorem badUnboundTheirChoice :
 /-- "Target creature becomes a black Zombie in addition to its other types." -/
 theorem okUnnamedAddition :
     Instruction.check []
-      (becomes (target creature) { colors := [.black], subtypes := [creatureType "Zombie"] } none)
+      (becomes (target creature)
+        { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none)
       = [] := by
   decide
 
 /-- "Target creature becomes a Zombie named Bob in addition to its other types." -/
 theorem badNamedAddition :
     Instruction.check []
-      (becomes (target creature) { name := some "Bob", subtypes := [creatureType "Zombie"] } none)
+      (becomes (target creature)
+        { characteristics := { name := some "Bob", subtypes := [creatureType "Zombie"] } } none)
       = [.becomesOk] := by
   decide
 
 theorem badRepeatedAdditionColor :
     Instruction.check []
       (becomes (target creature)
-        { colors := [.black, .black], subtypes := [creatureType "Zombie"] } none)
+        { characteristics :=
+          { colors := [.black, .black], subtypes := [creatureType "Zombie"] } } none)
       = [.becomesOk] := by
   decide
 
 theorem badRepeatedAdditionType :
-    Instruction.check [] (becomes (target creature) { types := [.artifact, .artifact] } none)
+    Instruction.check [] (becomes (target creature) { characteristics :=
+                                                      { types := [.artifact, .artifact] } } none)
       = [.becomesOk] := by
   decide
 

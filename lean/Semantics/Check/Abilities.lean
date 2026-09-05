@@ -399,8 +399,6 @@ def Characteristics.pt (c : Characteristics) : Option (Amount × Amount) :=
   | some p, some t => some (p, t)
   | _, _ => none
 
-def Characteristics.qualsFit (c : Characteristics) : Bool :=
-  c.qualities.all (TokenQuality.hosted c.types)
 def Characteristics.typed (c : Characteristics) : Bool := !c.types.isEmpty
 def Characteristics.ptOk (c : Characteristics) : Bool := !c.types.elem .creature || ptWritten c.pt
 def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
@@ -409,8 +407,7 @@ def Characteristics.canonical (c : Characteristics) : Bool :=
   colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes
 def Characteristics.additionUnnamed (c : Characteristics) : Bool := c.name.isNone
 def Characteristics.lossWritesTypes (c : Characteristics) : Bool :=
-  c.pt.isNone && c.colors.isEmpty && c.text.isEmpty && c.name.isNone && c.qualities.isEmpty &&
-    c.lineNonEmpty
+  c.pt.isNone && c.colors.isEmpty && c.text.isEmpty && c.name.isNone && c.lineNonEmpty
 def Characteristics.headTy (c : Characteristics) : Option CardType := lastType c.types
 def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
   let said := (if ptWritten c.pt then 1 else 0) + (if !c.colors.isEmpty then 1 else 0) +
@@ -425,17 +422,24 @@ def Ability.grantable : Ability → Bool
 
 def Characteristics.abilitiesOk (c : Characteristics) : Bool := c.text.all Ability.grantable
 
-def bundleOk (op : QualityOp) (ty : Option CardType) (z : Option Zone) (t : Characteristics)
-    (ret : Option CardType) : Bool :=
+/-- Every quality an effect adds is hosted by a type the set writes. -/
+def CharacteristicBundle.qualsFit (b : CharacteristicBundle) : Bool :=
+  b.qualities.all (TokenQuality.hosted b.characteristics.types)
+def CharacteristicBundle.lossWritesTypes (b : CharacteristicBundle) : Bool :=
+  b.characteristics.lossWritesTypes && b.qualities.isEmpty
+
+def bundleOk (op : QualityOp) (ty : Option CardType) (z : Option Zone)
+    (b : CharacteristicBundle) (ret : Option CardType) : Bool :=
+  let t := b.characteristics
   match op with
   | .adds =>
     (addsSomething ty t.types t.subtypes || !t.supertypes.isEmpty) &&
-      addedFits ty t.types t.subtypes && t.canonical && t.abilitiesOk && t.qualsFit &&
+      addedFits ty t.types t.subtypes && t.canonical && t.abilitiesOk && b.qualsFit &&
       t.additionUnnamed && ret.isNone
   | .sets =>
     zoneIsB z .battlefield && t.lineNonEmpty && addedFits ty t.types t.subtypes &&
-      t.abilitiesOk && t.canonical && t.qualsFit && retentionOk t.types ret
-  | .loses => zoneIsB z .battlefield && t.lossWritesTypes && t.canonical && ret.isNone
+      t.abilitiesOk && t.canonical && b.qualsFit && retentionOk t.types ret
+  | .loses => zoneIsB z .battlefield && b.lossWritesTypes && t.canonical && ret.isNone
 
 def becomesOk (bs : Bindings) (op : QualityOp) (n : NounPhrase) : QualityPayload → Bool
   | .bundle t ret => bundleOk op (NounPhrase.ty bs n) (NounPhrase.zone bs n) t ret
@@ -444,12 +448,12 @@ def becomesOk (bs : Bindings) (op : QualityOp) (n : NounPhrase) : QualityPayload
   | .colored cs => cs.ok && colorOpOk op cs
 
 def TokenSpec.headTy (bs : Bindings) : TokenSpec → Option CardType
-  | .written t => t.headTy
+  | .written t => t.characteristics.headTy
   | .asThose => tyOfThoseAny .token bs
   | .copyOf src _ => NounPhrase.ty bs src
 
 def TokenSpec.delta (bs : Bindings) : TokenSpec → List Binding
-  | .written t => ptDelta bs t.pt
+  | .written t => ptDelta bs t.characteristics.pt
   | _ => []
 
 def TokenRider.intro (bs : Bindings) : TokenRider → Bindings

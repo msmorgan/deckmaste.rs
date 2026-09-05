@@ -119,7 +119,8 @@ theorem badGoadedPlayer :
 theorem okStillALand :
     StaticSpec.check []
       (.becomes (allOf land) .sets
-        (.bundle { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }
+        (.bundle { characteristics :=
+                   { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           (some .land))) = [] := by
   decide
 
@@ -127,12 +128,14 @@ theorem okStillALand :
 theorem badStillOnSubtypeSet :
     StaticSpec.check []
       (.becomes (target creature) .sets
-        (.bundle { subtypes := [creatureType "Coward"] } (some .land))) = [.becomesOk] := by
+        (.bundle { characteristics := { subtypes := [creatureType "Coward"] } } (some .land)))
+      = [.becomesOk] := by
   decide
 
 theorem badStillAnInstant :
     StaticSpec.check []
-      (.becomes (target creature) .sets (.bundle { types := [.artifact] } (some .instant)))
+      (.becomes (target creature) .sets
+        (.bundle { characteristics := { types := [.artifact] } } (some .instant)))
       = [.becomesOk] := by
   decide
 
@@ -157,7 +160,7 @@ theorem badDoubleExtension :
       (.alsoOffBattlefield
         (.alsoOffBattlefield
           (.becomes (allOf (.and [creature, .hasPossessor .controller .you])) .adds
-            (.bundle { types := [.artifact] } none)))) = [.notExtended] := by
+            (.bundle { characteristics := { types := [.artifact] } } none)))) = [.notExtended] := by
   decide
 
 /-- "If you would draw a card, draw two cards instead." -/
