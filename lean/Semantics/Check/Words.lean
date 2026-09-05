@@ -127,7 +127,8 @@ inductive ObjectClass where
   deriving DecidableEq, Repr
 
 /-- What a referent must be: an Entity domain, optionally narrowed by object classes and card
-types; empty lists narrow nothing. Only an object has a class. -/
+types. Only an object has a class. Empty `classes` admit no ability; empty `types` admit only a
+noun that names no type (`deedAltOk`), so a row that takes any typed noun lists `allTypes`. -/
 structure ReferentSort where
   domain : EntityDomain
   classes : List ObjectClass := []

@@ -189,13 +189,6 @@ def distinctDeeds : Deeds → Bool
   | [] => true
   | d :: ds => !ds.elem d && distinctDeeds ds
 
-def deedsZone : Deeds → Role → Option Zone
-  | [], _ => none
-  | d :: ds, r =>
-    match deedsZone ds r with
-    | none => if ds.isEmpty then deedZoneOf d r else none
-    | some z => if deedZoneOf d r == some z then some z else none
-
 /-- Whether a role's noun may be an ability on the stack [CR#113.1c] or must not be one, read off
 the classes its sort declares. A role that declares no classes refuses an ability outright — the
 two roles an ability on the stack fills (Activate's patient, Trigger's agent) declare `.ability`
@@ -211,8 +204,9 @@ def deedClassOk (v : VerbLabel) (r : Role) (ab : Bool) : Bool :=
 
 def deedFits (ds : Deeds) (r : Role) (k : Kind) (ab : Bool) (ts : List (List CardType))
     (z : Option Zone) : Bool :=
-  ds.all (fun d => deedKindOk d r k && deedClassOk d r ab && deedHeadTysOk d r ts) &&
-    zoneFits z (deedsZone ds r)
+  ds.all fun d =>
+    deedKindOk d r k && deedClassOk d r ab && deedHeadTysOk d r ts &&
+      zoneFits z (deedZoneOf d r)
 
 def playWindowOk : Option PlayLimit → Option PlayTiming → Bool
   | _, none => true
