@@ -168,7 +168,7 @@ mutual
     | oneEachOf (roles : List Predicate) (pool : NounPhrase)
 
   inductive Amount where
-    | lit (value : Nat)
+    | lit (value : Int)
     | statOf (axis : ProjAxis) (subject : NounPhrase)
     | countOf (group : NounPhrase)
     | aggregate (op : AggregateOp) (axis : ProjAxis) (group : NounPhrase)

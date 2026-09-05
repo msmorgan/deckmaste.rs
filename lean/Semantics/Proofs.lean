@@ -7,6 +7,7 @@ import Semantics.Proofs.Description
 import Semantics.Proofs.Faces
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.Mana
+import Semantics.Proofs.Numbers
 import Semantics.Proofs.Piles
 import Semantics.Proofs.Static
 import Semantics.Proofs.Tables

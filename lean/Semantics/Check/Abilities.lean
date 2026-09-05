@@ -92,7 +92,7 @@ def optCounterSourceScope : Option CounterKindSource → Kind → Bool
   | some s, k => s.scope k
 
 def Amount.unit : Amount → Bool
-  | .lit 1 => true
+  | .lit n => n == 1
   | _ => false
 
 /-- "the same number and kind of counters": `sameAs` carries the number of counters as well
@@ -1165,5 +1165,194 @@ def Ability.intro (bs : Bindings) : Ability → Bindings
   | .spell _ instr => instr.choiceDelta ++ bs
   | .mayBeginOnBattlefield => bs
   | .thatAbility _ => bs
+
+
+/-! ## Number slots [CR#107.1b]
+
+The declaration surface for numbers: where a constructor's own `Amount` arguments sit in the
+two regimes of [CR#107.1b]. A `clamped` slot reads a result below zero as zero — you can't
+deal negative damage, gain negative life, draw −1 cards, or choose a negative number. A
+`signed` slot lets the negative stand: an effect that *sets*, doubles, or triples a life total
+or a creature's power and toughness, and any raw value read or comparison, which is a
+calculation and not the result of an effect.
+
+Each function lists only its own constructor's direct slots. It does not descend into a child
+`Instruction`, `StaticSpec`, `Ability`, `Cost`, or `TokenSpec` — each of those declares its
+own — nor into an `Amount` expression, whose inner reads are calculations. Every arm is
+written out, so a constructor that gains an `Amount` cannot slip in unclassified.
+-/
+
+/-- A payload a constructor holds directly, when it holds one at all. -/
+def optSlots {α : Type} (f : α → List (Amount × NumberRegime)) :
+    Option α → List (Amount × NumberRegime)
+  | none => []
+  | some x => f x
+
+/-- An `Option Amount` slot in the clamped regime. -/
+def optClamped : Option Amount → List (Amount × NumberRegime)
+  | none => []
+  | some amount => [(amount, .clamped)]
+
+/-- A boost or a penalty ("gets +2/+0", "gets −X/−0") is a signed change whose magnitude is
+clamped: the sign is the constructor, so the amount inside cannot go below zero [CR#107.1b].
+`set` is the exception the rule names — an effect that sets a life total or a power and
+toughness reads a negative. -/
+def Delta.numberSlots : Delta Amount → List (Amount × NumberRegime)
+  | .up amount | .down amount => [(amount, .clamped)]
+  | .set amount => [(amount, .signed)]
+
+/-- Exchanging two numerical values [CR#701.12g] sets each side to the other: a set of a life
+total or a power and toughness, so both stand below zero [CR#107.1b]. -/
+def Exchanged.numberSlots : Exchanged → List (Amount × NumberRegime)
+  | .lifeTotals _ | .controlOf _ _ | .cardsAcross _ _ | .zones _ _ | .textBoxes _ _ => []
+  | .values left right => [(left, .signed), (right, .signed)]
+
+/-- A cost shift is an amount of mana, and a floor is the least it can be reduced to: both are
+counts, so neither goes below zero [CR#107.1b]. -/
+def CostShift.numberSlots : CostShift → List (Amount × NumberRegime)
+  | .less amount floor => (amount, .clamped) :: optClamped floor
+  | .more amount => [(amount, .clamped)]
+  | .run _ _ _ => []
+
+/-- "more than one creature each combat": a count of deeds [CR#107.1b]. -/
+def CountBound.numberSlots : CountBound → List (Amount × NumberRegime)
+  | .moreThan amount => [(amount, .clamped)]
+  | .additional _ => []
+
+/-- "as though its power were greater than 4" compares a game value, and a comparison uses a
+negative when it needs one [CR#107.1b]. -/
+def AsThough.numberSlots : AsThough → List (Amount × NumberRegime)
+  | .of _ | .mana _ _ _ => []
+  | .greater _ amount => [(amount, .signed)]
+
+/-- How much damage a prevention shield stops: damage is never negative [CR#107.1b]. -/
+def PreventCut.numberSlots : PreventCut → List (Amount × NumberRegime)
+  | .all | .half _ => []
+  | .some amount | .shield amount | .allBut amount => [(amount, .clamped)]
+
+/-- Doubling and tripling damage carries its factor as a `ScaleFactor`, not an `Amount`, so it
+declares no slot. A shift is a magnitude with the direction as its sign, and the damage it
+adjusts is not negative [CR#107.1b]. -/
+def DamageScale.numberSlots : DamageScale → List (Amount × NumberRegime)
+  | .multiplied _ | .halved _ => []
+  | .shifted _ amount => [(amount, .clamped)]
+
+/-- A damage replacement's own slots. The `also` instruction a prevention runs declares its
+own. -/
+def DamageOp.numberSlots : DamageOp → List (Amount × NumberRegime)
+  | .prevent cut _ | .redirect cut _ => cut.numberSlots
+  | .scale damageScale => damageScale.numberSlots
+
+/-- "two more times": a count of repetitions [CR#107.1b]. -/
+def Repetition.numberSlots : Repetition → List (Amount × NumberRegime)
+  | .again | .anyNumber | .untilCond _ | .againExcludingChosen => []
+  | .moreTimes times => [(times, .clamped)]
+
+/-- How many coins are flipped: a count [CR#107.1b]. -/
+def FlipScope.numberSlots : FlipScope → List (Amount × NumberRegime)
+  | .count amount => [(amount, .clamped)]
+  | .per _ => []
+
+/-- How many results a player may ignore: a count [CR#107.1b]. -/
+def IgnoredOutcomes.numberSlots : IgnoredOutcomes → List (Amount × NumberRegime)
+  | .extreme _ | .allBut _ => []
+  | .chosen _ amount => [(amount, .clamped)]
+
+/-- A rider's own slots: how many counters it enters with, a count [CR#107.1b]. The copy
+exceptions of `asCopyOf` declare their own. -/
+def TokenRider.numberSlots : TokenRider → List (Amount × NumberRegime)
+  | .entersAs _ | .entersAttacking _ | .entersTransformed | .entersMelded _ => []
+  | .withCounters amount _ _ => [(amount, .clamped)]
+  | .under _ | .asCopyOf _ _ _ => []
+
+def TokenRider.ridersSlots : List TokenRider → List (Amount × NumberRegime)
+  | [] => []
+  | rider :: rest => rider.numberSlots ++ TokenRider.ridersSlots rest
+
+/-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and
+a performed instruction declare their own. -/
+def Cost.numberSlots : Cost → List (Amount × NumberRegime)
+  | .mana _ => []
+  | .scaled _ amount => [(amount, .clamped)]
+  | .tapSymbol | .untapSymbol | .loyaltySymbol _ => []
+  | .perform _ | .compound _ | .either _ _ | .itsManaCost => []
+
+/-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
+def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
+  | .modify _ _ delta => delta.numberSlots
+  -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
+  | .definesPt _ _ amount => [(amount, .signed)]
+  | .switchesPt _ => []
+  | .costs _ shift => shift.numberSlots
+  | .altCost _ _ | .addedCost _ _ => []
+  -- The letter X, defined by the text: a chosen or defined value is never negative
+  -- [CR#107.1b,107.3].
+  | .definesLetter _ amount => [(amount, .clamped)]
+  | .gains _ _ | .gainsAbilitiesOf _ _ _ _ => []
+  | .deontic _ _ _ _ bound _ asThough _ =>
+    optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
+  | .keepsUnspentMana _ _ | .skips _ _ | .becomes _ _ _ => []
+  | .alsoOffBattlefield _ | .doesntRemove _ _ => []
+  | .becomesCopy _ _ _ | .losesAllAbilities _ _ | .losesAbilities _ _ | .gainsControl _ _ => []
+  | .intercepts _ _ _ _ _ _ => []
+  | .damageRule _ _ _ op _ => op.numberSlots
+  | .cantPrevent _ _ _ => []
+  | .conditionally _ _ _ | .onlyDuring _ _ _ => []
+  | .noLossFromZeroLife _ | .visibility _ _ _ | .triggersAdditionally _ _ => []
+  | .entersRider _ rider => rider.numberSlots
+  | .entersChoice _ _ _ _ | .attachChoice _ _ _ | .andAlso _ _ => []
+
+/-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
+def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
+  -- You can't deal negative damage [CR#107.1b].
+  | .dealDamage _ amount _ => [(amount, .clamped)]
+  | .fights _ _ | .setStatus _ _ | .turnOver _ | .removeFromCombat _ => []
+  | .attachTo _ _ | .unattach _ | .becomesBlocking _ _ | .stopsBlocking _ _ => []
+  | .becomesAttacking _ _ | .regenerate _ | .cantBe _ _ _ => []
+  | .gainsDesignation _ _ _ _ | .unlock _ | .gameBecomes _ | .concludes _ _ => []
+  | .gameDrawn | .restartsGame | .separateIntoPiles _ _ _ _ => []
+  | .choose _ _ _ _ _ | .choicesRevealed _ | .vote _ _ _ _ => []
+  | .move _ _ riders => TokenRider.ridersSlots riders
+  | .counterSpell _ => []
+  -- How many copies to make: a count [CR#107.1b].
+  | .copy _ _ _ times _ => [(times, .clamped)]
+  | .chooseNewTargets _ | .copyTargets _ _ => []
+  -- Gaining and losing life are clamped; "your life total becomes …" is the set the rule
+  -- excepts, and doubling a life total is written as that set [CR#107.1b].
+  | .changeLife _ delta => delta.numberSlots
+  | .exchange exchanged => exchanged.numberSlots
+  | .addMana _ amount _ _ => [(amount, .clamped)]
+  | .draw _ amount => [(amount, .clamped)]
+  | .expose _ _ _ | .search _ _ _ _ | .shuffle _ => []
+  | .flipCoins _ count => count.numberSlots
+  | .rollDice _ count _ => [(count, .clamped)]
+  | .resultsTable _ => []
+  | .ignoreOutcomes which => which.numberSlots
+  -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
+  | .shiftResult _ amount => [(amount, .clamped)]
+  | .storeResults _ | .rerollStored _ _ _ | .continuously _ _ => []
+  | .create _ count _ riders => (count, .clamped) :: TokenRider.ridersSlots riders
+  | .getsEmblem _ _ => []
+  | .putCounters amount _ _ => [(amount, .clamped)]
+  | .distribute _ amount _ => [(amount, .clamped)]
+  | .removeCounters _ _ _ => []
+  | .moveCounters amount _ _ _ => [(amount, .clamped)]
+  | .doubleCounters _ => []
+  | .losesCounters _ _ amount => optClamped amount
+  | .enact _ _ _ | .controllerSacrifices _ | .pay _ _ _ => []
+  | .may _ _ _ _ | .ifDone _ _ _ | .onlyIf _ _ _ | .if_ _ _ _ => []
+  -- The letter X, defined by the text [CR#107.1b,107.3]: a defined X is a count, not a
+  -- game value, so a calculation below zero reads as zero.
+  | .define _ amount => [(amount, .clamped)]
+  | .forEachOf _ _ | .forEachKindOf _ _ _ _ => []
+  | .repeat_ repetition => repetition.numberSlots
+  | .repeated times _ => [(times, .clamped)]
+  | .sequentially _ | .simultaneously _ | .modal _ _ => []
+  | .delayed _ _ _ _ | .insteadOf _ _ | .heldUntil _ _ => []
+  | .reflexively _ _ | .thisWay _ _ _ => []
+  | .doesntUntapNext _ steps => [(steps, .clamped)]
+  | .skipsNext _ _ count => [(count, .clamped)]
+  | .extraTurn _ count => [(count, .clamped)]
+  | .additionalPart _ _ _ count _ => [(count, .clamped)]
 
 end Semantics

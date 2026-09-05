@@ -38,6 +38,23 @@ with `power`/`toughness`/`loyalty`/`defense : Option Amount` (`none` is the
 printed `*` a characteristic-defining ability fills). Planechase and
 Archenemy are not ported.
 
+## Numbers
+
+The only numbers the game uses are integers [CR#107.1], so `Amount.lit`
+carries an `Int` and a printed negative face is spellable — Spinal Parasite's
+−1/−1, Char-Rumbler's −1 power — while a written `*` stays `none`. What
+[CR#107.1b] adds is that most positions clamp: a calculation that determines
+the result of an effect yields zero rather than a negative, except where the
+effect sets, doubles, or triples a life total or a creature's power and
+toughness. So every position that consumes an `Amount` declares its regime as
+data the engine reads, in `Instruction.numberSlots`, `StaticSpec.numberSlots`,
+`Cost.numberSlots`, and `GameEvent.numberSlots`: `clamped` for damage, life
+gain and loss, draws, counts, costs, choices, and the letter X; `signed` for
+an effect that sets a value, for exchanges of values, and for the raw reads
+and comparisons inside an `Amount`, which are calculations and not effects.
+Nothing here is a refusal — "gains −1 life" means gain 0, and that meaning is
+the slot's declared regime. The pins are `Proofs/Numbers`.
+
 ## The checker
 
 The Idris grammar is inductive-recursive: constructor types call functions

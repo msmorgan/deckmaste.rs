@@ -324,6 +324,27 @@ def GameEvent.headerStatusOk : GameEvent → Bool
   | .statusEvent _ v => v.markable
   | _ => true
 
+/-! ## Number slots
+
+Where an event's own `Amount` arguments sit in the two regimes of [CR#107.1b]; see
+`Instruction.numberSlots` in `Check/Abilities` for the surface as a whole. -/
+
+/-- The event's own direct `Amount` arguments and the regime each is read in [CR#107.1b].
+Only `statBecomes` carries one: "whenever this creature's power becomes 3 or less" watches a
+game value that may be below zero, so it is `signed`. Every arm is written out so that a new
+event carrying an `Amount` cannot slip in unclassified. -/
+def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
+  | .dies _ | .leaves _ _ | .isDealtDamage _ _ | .draws _ | .losesGame _ | .enters _ _ => []
+  | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .dealsDamage _ _ _ => []
+  | .beginningOf _ _ _ | .casts _ _ _ | .becomesTarget _ _ | .statusEvent _ _ => []
+  | .gameBecomes _ | .stateHolds _ | .putInto _ _ _ => []
+  | .counterEvent _ _ _ _ _ _ | .tokensCreated _ _ _ _ | .chapterMark _ | .activates _ _ => []
+  -- A game value, not the result of an effect: it reads below zero [CR#107.1b].
+  | .statBecomes _ _ value => [(value, .signed)]
+  | .flipsCoin _ _ | .rollsDice _ _ _ _ | .paysCost _ _ _ _ | .paysLife _ => []
+  | .lifeChanges _ _ | .verbedEvent _ _ _ _ | .tappedForMana _ _ _ | .unlocksDoor _ _ => []
+  | .nthOccurrence _ _ _ | .triggers _ | .commitsCrime _ | .causes _ _ => []
+
 /-- Idris `TokenPhrase n`: a counted or indefinite description that seeds tokens. -/
 def NounPhrase.tokenPhrase : NounPhrase → Bool
   | .described (.count _ _) p => p.seedsToken

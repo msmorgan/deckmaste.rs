@@ -772,16 +772,18 @@ def DetPhrase.det : DetPhrase → Determiner
   | .count _ _ => .count
   | .bare => .bare
 
+/-- A literal's value as a count, when it is one: a negative literal names no count
+[CR#107.1b], so it is not exact. -/
 def Amount.exact : Amount → Option Nat
-  | .lit n => some n
+  | .lit (.ofNat n) => some n
   | _ => none
 
 def Amount.nonZero : Amount → Bool
-  | .lit 0 => false
+  | .lit n => n != 0
   | _ => true
 
 def Amount.plur : Amount → Plurality
-  | .lit 1 => .one
+  | .lit n => if n == 1 then .one else .many
   | .upTo b => b.plur
   | _ => .many
 
