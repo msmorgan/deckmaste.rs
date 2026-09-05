@@ -7,6 +7,7 @@ import Semantics.Cards.Deontic
 import Semantics.Cards.Description
 import Semantics.Cards.Faces
 import Semantics.Cards.Piles
+import Semantics.Cards.Trigger
 import Semantics.Cards.Turn
 
 /-!

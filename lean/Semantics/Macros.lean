@@ -118,6 +118,8 @@ def library : ZoneExpr := .zone .library .bare
 def graveyard : ZoneExpr := .zone .graveyard .bare
 def stack : ZoneExpr := .zone .stack .bare
 def command : ZoneExpr := .zone .command .bare
+/-- "the command zone", scoped to nobody. -/
+def commandZone : ZoneExpr := .zone .command .bare
 def libraryOf (player : NounPhrase) : ZoneExpr := .zone .library (.possessedBy player)
 def yourLibrary : ZoneExpr := libraryOf .you
 /-- "on the bottom of your library in <arrangement>" -/
@@ -208,6 +210,9 @@ def anyTarget : Predicate :=
 
 /-- "cast by <player>" -/
 def castBy (player : NounPhrase) : Predicate := .castBy player none
+/-- "the Nth spell <player> cast <period>" -/
+def nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : RankPeriod) : Predicate :=
+  .castBy player (some (ordinal, period))
 /-- "any other target" -/
 def anyOtherTarget : Predicate := .and [anyTarget, .other]
 
@@ -247,6 +252,12 @@ def thisEnchantment : NounPhrase := .asType .enchantment .this none
 def thisAura : NounPhrase := .asType .enchantment .this (some (enchantmentType "Aura"))
 def thisEquipment : NounPhrase := .asType .artifact .this (some (artifactType "Equipment"))
 def thisSiege : NounPhrase := .asType .battle .this (some (.of .battle "Siege"))
+def thisVehicle : NounPhrase := .asType .artifact .this (some (artifactType "Vehicle"))
+def thisSpacecraft : NounPhrase := .asType .artifact .this (some (artifactType "Spacecraft"))
+def thisSaga : NounPhrase := .asType .enchantment .this (some (enchantmentType "Saga"))
+def thisCase : NounPhrase := .asType .enchantment .this (some (enchantmentType "Case"))
+/-- "your commander" -/
+def yourCommander : NounPhrase := .designated "commander" .you
 /-- "a card exiled with this artifact" -/
 def exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
 /-- "the rest of them" -/
@@ -261,6 +272,8 @@ def among (group : NounPhrase) : NounPhrase := .someOf .whole none group
 /-- "N <p> from among <group>" -/
 def fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) (some p) group
+/-- "<group> with the same name" -/
+def withTheSameName (group : NounPhrase) : NounPhrase := .namesAgree .sameName group
 /-- "the <p> from among <group>": every member the description picks. -/
 def allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase := .someOf .whole (some p) group
 /-- "the <p> among <group>" -/
@@ -473,6 +486,14 @@ def colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
 /-- "if colored mana was spent to cast <spell>" -/
 def coloredManaSpentToCast (spell : NounPhrase) : Condition :=
   .compareAmt (colorsSpentToCast spell) .atLeast (.lit 1)
+/-- "if no colored mana was spent to cast <spell>" -/
+def noColoredManaSpentToCast (spell : NounPhrase) : Condition :=
+  .compareAmt (colorsSpentToCast spell) .eq (.lit 0)
+/-- "the amount of mana spent to cast <spell>" -/
+def manaValueSpentToCast (spell : NounPhrase) : Amount := .paid .manaValueSpent spell
+/-- "if no mana was spent to cast <spell>" -/
+def noManaSpentToCast (spell : NounPhrase) : Condition :=
+  .compareAmt (manaValueSpentToCast spell) .eq (.lit 0)
 
 /-- "between N and M" -/
 def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
@@ -493,6 +514,22 @@ def happened (event : EventName) (who : NounPhrase) (lookback : Lookback) : Cond
 /-- "that <event>ed <lookback>" -/
 def happenedTo (event : EventName) (lookback : Lookback) : Predicate :=
   .happenedTo (.mk event lookback none)
+/-- "that <event>ed <what> <lookback>" -/
+def happenedToInvolving (event : EventName) (lookback : Lookback) (what : NounPhrase) : Predicate :=
+  .happenedTo (.mk event lookback (some (.involving what)))
+/-- "the total <event> by <who> <lookback>" -/
+def eventSum (event : EventName) (who : NounPhrase) (lookback : Lookback) : Amount :=
+  .eventTally .sum who (.mk event lookback none)
+/-- "the number of times <who> <event>ed <what> from <source> <lookback>" -/
+def eventCountFrom (event : EventName) (who : NounPhrase) (lookback : Lookback) (what : NounPhrase)
+    (source : EventSource) : Amount :=
+  .eventTally .count who (.mk event lookback (some (.fromZones source (some (.involving what)))))
+/-- "if <who> <event>ed at <zone> <lookback>" -/
+def happenedAt (event : EventName) (who : NounPhrase) (lookback : Lookback) (zone : ZoneExpr) :
+    Condition :=
+  .happened who (.mk event lookback (some (.atZone zone)))
+/-- "if there is no <designation>" -/
+def thereIsNo (designation : DesignationLabel) : Condition := .noHolder designation
 /-- "<subject>'s <keyword> cost was paid", read back. -/
 def paidCostRead (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
     Amount :=
@@ -528,6 +565,16 @@ def deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (ro
 /-- "When <event>, <instruction>" as a delayed trigger. -/
 def delayed (event : GameEvent) (instruction : Instruction) : Instruction :=
   .delayed event [] none instruction
+/-- "When <event> <duration>, <instruction>": a delayed trigger with a window. -/
+def delayedWithin (event : GameEvent) (duration : Duration) (instruction : Instruction) :
+    Instruction :=
+  .delayed event [] (some duration) instruction
+/-- "<subject> phases out until <event>" -/
+def phasesOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
+  .heldUntil (.setStatus .phasedOut subject) event
+/-- "attach <what> to it": the object the sentence just named. -/
+def attachToIt (what : NounPhrase) : Instruction :=
+  .attachTo what (.pro .bare .one (.below (NounPhrase.introduced [] what).length))
 /-- "there is an additional <part> [after <anchor>]" -/
 def additionalPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
   .additionalPart none part anchor count none
@@ -601,12 +648,35 @@ def lookAndSort (looker whose : NounPhrase) (amount : Amount) : Instruction :=
     [ .expose .lookAt looker (.cards slice),
       move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
       move (theRest .object) (onTopIn .anyOrder) ]
+/-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
+def lookAndSortInto (looker whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
+    Instruction :=
+  let slice : NounPhrase := .librarySlice .top amount whose
+  .sequentially
+    [ .expose .lookAt looker (.cards slice),
+      move (someOf anyNumber (lookedCards slice)) spill,
+      move (theRest .object) (onTopIn .anyOrder) ]
 /-- "<agent> scries N" [CR#701.22a] -/
 def scry (agent : NounPhrase) (amount : Amount) : Instruction :=
   .enact (some agent) (.action "Scry") (lookAndSort (agentRef agent) (agentRef agent) amount)
 /-- "<agent> fateseals N" [CR#701.29a] -/
 def fateseal (agent whose : NounPhrase) (amount : Amount) : Instruction :=
   .enact (some agent) (.action "Fateseal") (lookAndSort (agentRef agent) whose amount)
+/-- "<agent> surveils N" [CR#701.25a] -/
+def surveil (agent : NounPhrase) (amount : Amount) : Instruction :=
+  .enact (some agent) (.action "Surveil")
+    (lookAndSortInto (agentRef agent) (agentRef agent) amount graveyard)
+/-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
+players, then give each another counter of each kind already there." -/
+def proliferate : Instruction :=
+  .enact none (.action "Proliferate")
+    (.sequentially
+      [ .choose none none
+          (counted anyNumber
+            (.or [ .and [permanent, .hasCounters none],
+                   .compare [.anyCounter .player] .atLeast (.lit 1) ]))
+          .openly none,
+        .putCounters (.lit 1) .own (.eachOf (those .join)) ])
 def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
   .continuously (getsPt subject power toughness) duration
@@ -620,6 +690,10 @@ def gainsHaste (subject : NounPhrase) (duration : Option Duration) : Instruction
 def becomes (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=
   .continuously (.becomes subject .adds (.bundle added none)) duration
+/-- "<subject> becomes <colors> [until …]" -/
+def becomesColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration) :
+    Instruction :=
+  .continuously (.becomes subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/
 def sharedSubject (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
     Instruction :=
@@ -689,6 +763,19 @@ def attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject no
 /-- "<subject> attacks <whom>" -/
 def attacksPlayer (subject whom : NounPhrase) : GameEvent :=
   .combat .attackerOf subject (some whom)
+/-- "<n> is put into <zone> from <source>" -/
+def putIntoFrom (subject : NounPhrase) (destination : ZoneExpr) (source : EventSource) : GameEvent :=
+  .putInto subject destination (some source)
+/-- "N <kind> counters are put on / removed from <subject>" -/
+def counterEvent (move : CounterMove) (kind : CounterKind) (batch : CounterBatch)
+    (subject : NounPhrase) : GameEvent :=
+  .counterEvent move (some kind) subject batch none false
+/-- "counters are put on / removed from <subject>", the kind unsaid. -/
+def bareCounterEvent (move : CounterMove) (batch : CounterBatch) (subject : NounPhrase) :
+    GameEvent :=
+  .counterEvent move none subject batch none false
+/-- "you roll a die and the natural result is the highest" -/
+def youRollHighestNatural : GameEvent := .rollsDice .you .one none .highestNatural
 def blocks (subject : NounPhrase) (blocked : Option NounPhrase) : GameEvent :=
   .combat .blockerOf subject blocked
 def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent :=
@@ -761,6 +848,21 @@ def triggeredJoined (event : GameEvent) (joins : List JoinedHeader) (instruction
   .triggered event [] none joins none none none instruction
 /-- A further "whenever <event>" header joined onto a trigger. -/
 def joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
+/-- "Whenever <event> or <alternatives>, <instruction>" -/
+def triggeredOr (event : GameEvent) (alternatives : List GameEvent) (instruction : Instruction) :
+    Ability :=
+  .triggered event alternatives none [] none none none instruction
+/-- "Whenever <event> while <concurrent>, <instruction>" -/
+def triggeredWhile (event : GameEvent) (while_ : Concurrent) (instruction : Instruction) :
+    Ability :=
+  .triggered event [] (some while_) [] none none none instruction
+/-- "Whenever <event> during <timing>, <instruction>" -/
+def triggeredOnlyDuring (event : GameEvent) (timing : Timing) (instruction : Instruction) :
+    Ability :=
+  .triggered event [] none [] (some timing) none none instruction
+/-- A joined "whenever <event> while <concurrent>" header. -/
+def joinedHeadWhile (event : GameEvent) (while_ : Concurrent) : JoinedHeader :=
+  ⟨event, [], some while_, none⟩
 /-- "When <event>, <instruction>" -/
 def when (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
 /-- "Whenever <event>, <instruction>" -/
