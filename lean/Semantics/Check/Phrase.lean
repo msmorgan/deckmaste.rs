@@ -398,8 +398,10 @@ mutual
     | [] => false
     | p :: ps => p.seedsToken || Predicate.seedsTokenAny ps
 
+  /-- Every arm of a disjunction seeds: a singleton by itself, a longer list arm by arm. -/
   def Predicate.seedsTokenAll : List Predicate → Bool
     | [] => false
+    | [p] => p.seedsToken
     | p :: ps => p.seedsToken && Predicate.seedsTokenAll ps
 end
 
@@ -416,8 +418,10 @@ mutual
     | [] => false
     | p :: ps => p.seedsAbility || Predicate.seedsAbilityAny ps
 
+  /-- Every arm of a disjunction seeds: a singleton by itself, a longer list arm by arm. -/
   def Predicate.seedsAbilityAll : List Predicate → Bool
     | [] => false
+    | [p] => p.seedsAbility
     | p :: ps => p.seedsAbility && Predicate.seedsAbilityAll ps
 end
 

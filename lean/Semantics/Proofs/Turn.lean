@@ -355,6 +355,21 @@ theorem badCastAbilityClass :
       = [.deedFits] := by
   decide
 
+/-- "Activated and triggered abilities can't be activated.": a disjunction seeds an ability
+when every arm does, so the deed's ability role is met [CR#113.1c]. -/
+theorem okAbilityDisjunctionActivated :
+    StaticSpec.check []
+      (objectCant "Activate" (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered])))
+      = [] := by
+  decide
+
+/-- "Activated abilities and creatures can't be activated.": one arm is no ability, so the
+disjunction seeds none, and the arms do not parallel each other either. -/
+theorem badMixedDisjunctionActivated :
+    StaticSpec.check [] (objectCant "Activate" (allOf (.or [.abilityHead .anyActivated, creature])))
+      = [.parallelDisjuncts, .deedFits] := by
+  decide
+
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okSingularPartPossessor :
     Ability.check []
