@@ -15,6 +15,13 @@ needs: []
 - `Words.actFacts "Fateseal"` keeps `actStepwise = False` although its
   expansion is scry-shaped; set the column from the expansion and check the
   other look actions agree.
+- `Words.actFacts`'s agent column is incomplete now that `Effect.Enact`
+  gates on it (residue of `workbench-enact-agent-role`, 2026-09-04): eight
+  rows carry an agent role; Destroy (Burning of Xinye prints "You destroy
+  four lands"), Tap (Tangle Wire), Return, GainControl, Reveal and the rest
+  of the printed-subject deeds do not. Author each row's `agentRole` from
+  the corpus and the CR entry; pin one deed that no printed card ever gives
+  a subject.
 
 Size: S. Done when: no deed lexeme literal remains in a core gate or stamp
 (`grep '"Sacrifice"\|"Search"\|"Attack"\|"Block"\|"Trigger"\|"Activate"'`
