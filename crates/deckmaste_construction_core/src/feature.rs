@@ -7,30 +7,52 @@ use syn::Ident;
 use crate::identifier;
 use crate::model;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum Feature {
-    ConcordClass,
-    BareLocativeComplement,
-    BareLocativeLicense,
-    Cardinality,
-    Compoundability,
-    Countability,
-    HomographLicense,
-    MannerAnaphorClass,
-    ModifierLicense,
-    DeterminerNumber,
-    FusedHeadLicense,
-    PrepositionComplementKind,
-    LocativeTemporalLicense,
-    NominalForm,
-    NominalLicense,
-    Number,
-    Onset,
-    Participle,
-    PossessiveEnding,
-    PrepositionAttachment,
-    Properness,
-    Relationality,
+macro_rules! feature_inventory {
+    ($($variant:ident => $key:literal,)+) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub(crate) enum Feature {
+            $($variant,)+
+        }
+
+        impl Feature {
+            const ALL: &[Self] = &[$(Self::$variant,)+];
+
+            pub(crate) const fn all() -> &'static [Self] {
+                Self::ALL
+            }
+
+            pub(crate) const fn key(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $key,)+
+                }
+            }
+        }
+    };
+}
+
+feature_inventory! {
+    ConcordClass => "concord_class",
+    BareLocativeComplement => "bare_locative_complement",
+    BareLocativeLicense => "bare_locative_license",
+    Cardinality => "cardinality",
+    Compoundability => "compoundability",
+    Countability => "countability",
+    HomographLicense => "homograph_license",
+    MannerAnaphorClass => "manner_anaphor_class",
+    ModifierLicense => "modifier_license",
+    DeterminerNumber => "determiner_number",
+    FusedHeadLicense => "fused_head_license",
+    PrepositionComplementKind => "preposition_complement_kind",
+    LocativeTemporalLicense => "locative_temporal_license",
+    NominalForm => "nominal_form",
+    NominalLicense => "nominal_license",
+    Number => "number",
+    Onset => "onset",
+    Participle => "participle",
+    PossessiveEnding => "possessive_ending",
+    PrepositionAttachment => "preposition_attachment",
+    Properness => "properness",
+    Relationality => "relationality",
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,35 +166,6 @@ impl<T> Spanned<T> {
 }
 
 impl Feature {
-    const ALL: &[Self] = &[
-        Self::ConcordClass,
-        Self::BareLocativeComplement,
-        Self::BareLocativeLicense,
-        Self::Cardinality,
-        Self::Compoundability,
-        Self::Countability,
-        Self::HomographLicense,
-        Self::MannerAnaphorClass,
-        Self::ModifierLicense,
-        Self::DeterminerNumber,
-        Self::FusedHeadLicense,
-        Self::PrepositionComplementKind,
-        Self::LocativeTemporalLicense,
-        Self::NominalForm,
-        Self::NominalLicense,
-        Self::Number,
-        Self::Onset,
-        Self::Participle,
-        Self::PossessiveEnding,
-        Self::PrepositionAttachment,
-        Self::Properness,
-        Self::Relationality,
-    ];
-
-    pub(crate) const fn all() -> &'static [Self] {
-        Self::ALL
-    }
-
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
             Self::ConcordClass => &[
@@ -272,33 +265,6 @@ impl Feature {
                     ),
                 )
             })
-    }
-
-    pub(crate) fn key(self) -> &'static str {
-        match self {
-            Self::ConcordClass => "concord_class",
-            Self::BareLocativeComplement => "bare_locative_complement",
-            Self::BareLocativeLicense => "bare_locative_license",
-            Self::Cardinality => "cardinality",
-            Self::Compoundability => "compoundability",
-            Self::Countability => "countability",
-            Self::HomographLicense => "homograph_license",
-            Self::MannerAnaphorClass => "manner_anaphor_class",
-            Self::ModifierLicense => "modifier_license",
-            Self::DeterminerNumber => "determiner_number",
-            Self::FusedHeadLicense => "fused_head_license",
-            Self::PrepositionComplementKind => "preposition_complement_kind",
-            Self::LocativeTemporalLicense => "locative_temporal_license",
-            Self::NominalForm => "nominal_form",
-            Self::NominalLicense => "nominal_license",
-            Self::Number => "number",
-            Self::Onset => "onset",
-            Self::Participle => "participle",
-            Self::PossessiveEnding => "possessive_ending",
-            Self::Properness => "properness",
-            Self::Relationality => "relationality",
-            Self::PrepositionAttachment => "preposition_attachment",
-        }
     }
 }
 
@@ -501,30 +467,7 @@ impl FeatureExpr {
 #[cfg(test)]
 impl Feature {
     fn snapshot(self) -> &'static str {
-        match self {
-            Self::ConcordClass => "concord_class",
-            Self::BareLocativeComplement => "bare_locative_complement",
-            Self::BareLocativeLicense => "bare_locative_license",
-            Self::Cardinality => "cardinality",
-            Self::Compoundability => "compoundability",
-            Self::Countability => "countability",
-            Self::HomographLicense => "homograph_license",
-            Self::MannerAnaphorClass => "manner_anaphor_class",
-            Self::ModifierLicense => "modifier_license",
-            Self::DeterminerNumber => "determiner_number",
-            Self::FusedHeadLicense => "fused_head_license",
-            Self::PrepositionComplementKind => "preposition_complement_kind",
-            Self::LocativeTemporalLicense => "locative_temporal_license",
-            Self::NominalForm => "nominal_form",
-            Self::NominalLicense => "nominal_license",
-            Self::Number => "number",
-            Self::Onset => "onset",
-            Self::Participle => "participle",
-            Self::PossessiveEnding => "possessive_ending",
-            Self::Properness => "properness",
-            Self::Relationality => "relationality",
-            Self::PrepositionAttachment => "preposition_attachment",
-        }
+        self.key()
     }
 }
 

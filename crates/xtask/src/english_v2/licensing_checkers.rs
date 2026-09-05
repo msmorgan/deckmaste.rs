@@ -556,9 +556,17 @@ mod tests {
     }
 
     #[test]
-    fn classifier_recognizes_every_published_feature_key() {
+    fn classifier_reads_every_published_feature_key_as_a_declared_licence() {
+        let lexical_members = BTreeSet::new();
         for feature in deckmaste_construction_core::feature_keys() {
-            assert!(is_declared_feature_identifier(feature));
+            let body: syn::Block = syn::parse_str(&format!("{{ role.{feature} == Value::Yes }}"))
+                .expect("a published feature key forms a parsable checker body");
+
+            assert_eq!(
+                classify_body(&body, &lexical_members),
+                LicensingCheckerKind::DeclaredLicenseFeature,
+                "`{feature}` must classify as a declared licence read",
+            );
         }
     }
 
