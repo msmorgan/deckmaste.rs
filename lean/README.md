@@ -17,8 +17,13 @@ Ported: the six grammar layers as syntax (`Words`, `Events`, `Phrase`,
 `Triggers`, `Abilities`, `Card`), the checker for all of them (`Check/*`, every
 obligation `Experimental/*.idr` put in a constructor type), the subset of
 `Macros` the bench and the pin suites use, a `Cards` bench of seven cards,
-and the `Proofs.Description` pin suite. The other thirteen `Proofs.<Family>`
-suites follow the same recipe.
+and all fourteen `Proofs.<Family>` pin suites: `Description` (and the
+2026-09-04 exchange pins in `Refresh`) as `Pin` values, the other thirteen in
+theorem form (`theorem okX : … = []`, `theorem badX : … = [.reason]`, both by
+`decide`), with the Idris names and sentences kept. Four Idris pins are not
+ported, each named in its module docstring: two Planechase sentences, one whose
+ok and bad twins are the same term under the accord's `permanent` macro, and one
+Idris type error.
 
 Since the port the syntax has been reshaped (2026-09-04): a constructor stays
 only if the checker attaches something to it that its expansion would not
@@ -87,9 +92,10 @@ VERIFY.md discipline (twin beside pin, same constructor at the same slot) is
 now the structure: a `Pin` cannot exist without its twin, and it is named for
 what it pins, with no `ok`/`bad` prefix, since it is the pair. `Proofs/Description`
 is `Proofs/Description.idr` clause for clause and runs in about two seconds;
-`Proofs/Refresh` holds the pins of the 2026-09-04 reference refresh until
-their families are ported. `native_decide` is the lever for a suite that
-outgrows `decide`; none has.
+`Proofs/Refresh` holds the 2026-09-04 exchange pins beside the theorem-form
+`Proofs/Zone`. The theorem-form suites are a mechanical pass away from `Pin`
+values. `native_decide` is the lever for a suite that outgrows `decide`; none
+has: the largest suite, `Proofs/Faces` (129 theorems), builds in seconds.
 
 ## Structural recursion is load-bearing
 
