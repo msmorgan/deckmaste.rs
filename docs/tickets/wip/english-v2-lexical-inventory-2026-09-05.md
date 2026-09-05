@@ -74,3 +74,58 @@ Baseline: change `ptoxwkmmrqno`, 19,469 covered of 32,641, 13,172 parse
 failures, 0 ties, 0 internal failures. Re-measure at claim.
 
 Tier: **terra**. Standard constraints apply.
+
+## Landing record
+
+### PROVE
+
+- `kata refresh` completed before the corpus measurements.
+- The affected-surface subset contained 801 card names and 743 corpus units;
+  its ambiguity census had 0 unresolved ties and 0 internal failures.
+- On the refreshed feature tree, `DECKMASTE_COVERAGE_LOCK=report cargo xtask
+  english_v2 coverage --check --workers 8` completed: 19,844 selected and
+  covered units of 32,641, 12,797 parse failures, 0 ties, and 0 internal
+  failures. The subsequent `--bless` delta was +375 covered identities and
+  -0; the lock was then retracted with the unsafe payload below.
+- Refreshed ambiguity (`--require-resolved --json --workers 8`) completed with
+  19,844 selected units, 15,529 unique selections, 4,315
+  specificity-resolved selections, 0 ties, and 0 internal failures. Its exact
+  parent diff had 375 changes, each a parent parse failure becoming selected;
+  no selected identity changed analyses and no identity was lost.
+- Refreshed roundtrip (`--require-clean --workers 8`) completed cleanly.
+
+### DISCLOSE
+
+- **STOP — negative selected.** The changed closure reached an existing modal
+  negative in `crates/deckmaste_english_v2/tests/ability_logic.rs:4411`; it
+  selected after the proposed participial inventory member was added. This is
+  an explicitly forbidden newly selected negative. I did not narrow a form,
+  add a guard, or reinterpret the negative. The entire feature payload and
+  generated coverage lock are restored to the claimed parent; this record is
+  the only safe retained change.
+- The closure printed
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
+  and its matching strict clippy command. It is red at the STOP condition, so
+  neither is reported as a passing final gate.
+- The temporary inventory-count and catalog consistency corrections exposed by
+  the closure were also retracted. No construction, sum, seam, feature, or
+  word-naming guard is retained.
+
+### REPORT
+
+- Wall clock: 2026-09-05 06:26 PDT to 2026-09-05 07:02 PDT.
+- Coverage before the proposed payload: 19,469 / 32,641. Pre-STOP measurement:
+  19,844 / 32,641; lock delta +375 / -0. No coverage result is claimed for the
+  reverted tree.
+- Construction count: unchanged by the proposed diff; no construction source
+  file was changed. Selection census after reversion is not re-measured because
+  this ticket stops rather than lands.
+- Pre-STOP performance advisory: coverage 125,797 ms and 132 ns/B; ambiguity
+  131,912 ms and 158 ns/B; roundtrip 111,157 ms and 137 ns/B; workers 8;
+  observed host load 17 / 16 / 15, then 13 / 13 / 14, then 9 / 11 / 13.
+  The 16,260 ms advisory ceiling was exceeded under concurrent load; this was
+  advisory only.
+- Assurance counts: restored 11 payload paths; re-spelled 0; ignored 0; added
+  0; removed 0. The temporary scratch census and coverage artifacts will be
+  deleted before handoff.
+- No glossary gap, citation change, or decision is requested beyond the STOP.
