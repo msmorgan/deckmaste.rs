@@ -802,6 +802,17 @@ vnznstuq` and abandoned afterwards — not the coordinator checkout, which drift
 as siblings integrate. Both sides were measured with **identical flags**:
 `cargo xtask english_v2 ambiguity --require-resolved --json --workers 8`.
 
+A second `kata refresh` took in `english-v2-rename-color-vocabulary`, which
+edits `deckmaste_english_v2`'s `ast.rs`, `constructions.rs`, `visit.rs` and one
+test, so everything the incoming diff can reach was re-run on the post-rename
+tip: `coverage --check` returned a byte-identical summary (19,845 covered, **0
+newly covered, 0 no-longer covered** against the lock blessed before the
+refresh, and every structural counter the same), `ambiguity --require-resolved`
+returned the same 19,845 / 15,678 / 4,167 with 0 ties, and the closure gate and
+strict clippy were re-run clean. The fork-point pair below was therefore
+measured on the pre-rename pair of trees; the rename is provably neutral on this
+tip, so the diff it yields is the diff on the integrating tree.
+
 | | fork point `vnznstuq` | feature tip `lqoslwnp` |
 |---|---:|---:|
 | total units | 32,641 | 32,641 |
