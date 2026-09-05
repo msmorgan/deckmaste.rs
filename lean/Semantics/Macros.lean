@@ -26,6 +26,8 @@ def them : NounPhrase := .pro .bare .many .whole
 
 /-- "it", stamped by the verb that produced it: "the exiled card". -/
 def itVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .one .whole
+/-- "them", stamped by the verb that produced them: "the destroyed creatures". -/
+def themVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .many .whole
 /-- "that turn" -/
 def thatTurn : NounPhrase := .pro .thatTurn .one .whole
 /-- "it", read as the subject of the condition just stated. -/
@@ -80,6 +82,9 @@ def the (p : Predicate) : NounPhrase := .described .the p
 
 /-- "N …", "up to N …" -/
 def counted (q : Quantity) (p : Predicate) : NounPhrase := .described (.count q none) p
+/-- "N <p> at random" -/
+def countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
+  .described (.count q (some .atRandom)) p
 
 /-- "if there is a …" -/
 def exists_ (p : Predicate) : Condition := .exists_ (bare p)
@@ -193,6 +198,7 @@ def artifactType (label : String) : Subtype := .of .artifact label
 def landType (label : String) : Subtype := .of .land label
 def enchantmentType (label : String) : Subtype := .of .enchantment label
 def spellType (label : String) : Subtype := .spell label
+def planeswalkerType (label : String) : Subtype := .of .planeswalker label
 
 /-! ## Nouns -/
 
@@ -210,6 +216,8 @@ def thisAura : NounPhrase := .asType .enchantment .this (some (enchantmentType "
 def exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
 /-- "the rest of them" -/
 def theRest (kind : Kind) : NounPhrase := .theRest kind .many
+/-- "the other pile": the one remaining after a choice among two. -/
+def theOther (kind : Kind) : NounPhrase := .theRest kind .one
 /-- "N of <group>" -/
 def someOf (quantity : Quantity) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) none group
@@ -279,6 +287,10 @@ def exile (subject : NounPhrase) : Instruction :=
   .enact none (.action "Exile") (.move subject exileZone [])
 def sacrifice (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) (.action "Sacrifice") (.move subject graveyard [])
+/-- "return <subject> to <zone>" -/
+def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+    Instruction :=
+  .enact none (.core .return_) (.move subject destination riders)
 def tap (subject : NounPhrase) : Instruction :=
   .enact none (.action "Tap") (.setStatus .tapped subject)
 def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
@@ -340,6 +352,10 @@ def spree (modes : List (Option Cost × Instruction)) : Instruction := .modal (a
 /-- "<voters> vote for <ballot>" -/
 def vote (voters : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
   .vote none voters disclosure ballot
+/-- "Starting with <first>, <voters> vote for <ballot>" -/
+def voteStartingWith (first voters : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) :
+    Instruction :=
+  .vote (some first) voters disclosure ballot
 /-- "Choose N — <modes>", no mode costing anything. -/
 def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
   .modal quantity (modes.map (none, ·))
@@ -413,6 +429,10 @@ def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction
 /-- "<subject> can't block [this turn]" -/
 def cantBlock (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .continuously (.deontic subject .forbid [.core .block] .agent none .noPatient none .noRider)
+    duration
+/-- "<subject> can't be blocked [this turn]" -/
+def cantBeBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .continuously (.deontic subject .forbid [.core .block] .patient none .noPatient none .noRider)
     duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
@@ -527,6 +547,9 @@ def regenerates (subject : NounPhrase) : GameEvent :=
 /-! ## Abilities -/
 
 def keyword (label : KeywordLabel) : Ability := .keyword label none none
+/-- An ability word in italics before an ability: "Will of the council — …" [CR#207.2c]. -/
+def abilityWord (word : AbilityWordLabel) (ability : Ability) : Ability :=
+  .italicHead (.abilityWord word) ability
 /-- "Companion — <condition>" -/
 def companion (condition : DeckCondition) : Ability :=
   .keyword "Companion" (some (.deckCondition condition)) none
@@ -582,7 +605,7 @@ def activated (cost : Cost) (instruction : Instruction) : Ability :=
 
 /-! ## Cards -/
 
-/-- A printed power or toughness. -/
+/-- A printed power, toughness, loyalty, or defense. -/
 def stat (value : Nat) : Option Amount := some (.lit value)
 
 end Semantics.Macros
