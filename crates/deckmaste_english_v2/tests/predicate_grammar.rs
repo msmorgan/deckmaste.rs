@@ -3767,6 +3767,42 @@ fn declared_optional_source_preempts_the_same_noun_postmodifier_derivation() {
 
 #[test]
 fn role_preemption_reaches_only_the_right_periphery_of_the_governed_material() {
+    #[derive(Default)]
+    struct AttachmentSites {
+        paths: Vec<AttachmentSitePath>,
+        conjuncts: Vec<usize>,
+        postmodifier_conjuncts: Vec<usize>,
+    }
+
+    impl Visitor for AttachmentSites {
+        fn enter_construction(&mut self, construction: &'static str) {
+            if construction.ends_with("PrepositionalQualifiedReference")
+                && let Some(conjunct) = self.conjuncts.last()
+            {
+                self.postmodifier_conjuncts.push(*conjunct);
+            }
+        }
+
+        fn enter_role(
+            &mut self,
+            _role: &'static str,
+            _scope_sibling: Option<&'static str>,
+            admissible_sites: Option<&AdmissibleSites>,
+        ) {
+            if let Some(admissible_sites) = admissible_sites {
+                self.paths.extend_from_slice(admissible_sites.paths());
+            }
+        }
+
+        fn enter_conjunct(&mut self, _role: &'static str, ordinal: usize) {
+            self.conjuncts.push(ordinal);
+        }
+
+        fn exit_conjunct(&mut self) {
+            self.conjuncts.pop();
+        }
+    }
+
     let parser = parser();
     let context = context();
 
@@ -3800,13 +3836,24 @@ fn role_preemption_reaches_only_the_right_periphery_of_the_governed_material() {
 
     // A non-final Conjunct is not right-peripheral, so its `from` keeps its
     // Postmodifier derivation and both targets stay inside the object.
-    let spared = selected_path(
+    let spared_analysis = parser.analyze(
         "Return target creature card from a graveyard and target creature on the battlefield to their owners' hands.",
+        &context,
     );
-    let coordination = spared
-        .iter()
-        .position(|construction| construction.ends_with("AndNounPhraseCoordination"))
-        .expect("the object coordinates its two targets");
+    assert!(spared_analysis.selected().is_some(), "{spared_analysis:#?}");
+    let decision = spared_analysis
+        .decision()
+        .expect("selected parse has a decision");
+    let spared = decision.candidates()[decision
+        .selected()
+        .expect("selected decision identifies its candidate")]
+    .construction_path();
+    assert!(
+        spared
+            .iter()
+            .any(|construction| construction.ends_with("AndNounPhraseCoordination")),
+        "the object coordinates its two targets: {spared:#?}",
+    );
     let spared_prepositional_phrases = spared
         .iter()
         .enumerate()
@@ -3818,13 +3865,32 @@ fn role_preemption_reaches_only_the_right_periphery_of_the_governed_material() {
     assert_eq!(
         spared_prepositional_phrases.len(),
         2,
-        "each Conjunct keeps its own prepositional phrase: {spared:#?}",
+        "both prepositional phrases remain realized: {spared:#?}",
+    );
+    let postmodifiers = postmodifiers(spared);
+    assert_eq!(
+        postmodifiers.len(),
+        1,
+        "the non-final Conjunct keeps its Postmodifier: {spared:#?}",
+    );
+
+    let mut sites = AttachmentSites::default();
+    sites.visit_ability(
+        spared_analysis
+            .selected()
+            .expect("the selected ability remains available"),
+    );
+    assert_eq!(
+        sites.postmodifier_conjuncts,
+        [0],
+        "only the non-final Conjunct keeps a Postmodifier: {spared:#?}",
     );
     assert!(
-        spared_prepositional_phrases
+        sites.paths.iter().any(|path| path
+            .steps()
             .iter()
-            .all(|index| *index > coordination),
-        "both prepositional phrases sit inside the object coordination: {spared:#?}",
+            .any(|step| matches!(step, AttachmentSiteStep::Conjunct(_, 1)))),
+        "the packed representative retains the last-Conjunct alternative: {spared:#?}",
     );
 }
 
