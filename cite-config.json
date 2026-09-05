@@ -3,7 +3,7 @@
   "lockfile": "cr-citations.lock",
   "sources": {
     "tracked": true,
-    "extensions": ["rs", "md", "ron", "idr"],
+    "extensions": ["rs", "md", "ron", "idr", "lean"],
     "exclude": ["crates/xtask/", "docs/tickets/done/", "CLAUDE.md", ".sdd-progress.md"]
   },
   "coverage": {

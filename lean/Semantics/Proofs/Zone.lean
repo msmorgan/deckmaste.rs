@@ -227,13 +227,13 @@ theorem badDestroyGraveyardCard :
   decide
 
 /-- "Destroy a creature." -/
-theorem okKnownVerbLabel :
+theorem okKnownKeywordAction :
     Instruction.check [] (.enact none (.action "Destroy") (.move (a creature) graveyard []))
       = [] := by
   decide
 
-/-- A move labeled with a word outside the label catalog -/
-theorem badUnknownVerbLabel :
+/-- A keyword action the registry does not declare -/
+theorem badUnknownKeywordAction :
     Instruction.check [] (.enact none (.action "Descry") (.move (a creature) graveyard []))
       = [.knownAct (.action "Descry")] := by
   decide
