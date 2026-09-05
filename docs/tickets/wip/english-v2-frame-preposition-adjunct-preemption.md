@@ -28,58 +28,64 @@ routes this widening here rather than into phase 3 of the collapse. Runs after
 
 ### PROVE
 
-- Measured tree: change `okupnymz`, lock `covered = 20,054`; matched parent: claim fork `upyluyyr`, lock `covered = 20,054`.
-- Coverage had no loss and no gain: `20,054 → 20,054`, lock delta `+0/-0`. In report mode the tool printed no delta row for the exact match, and `--bless` produced no lock-file diff. Newly covered identities: none. Identities no longer covered: none.
-- Structural laws hold: coverage reports zero selected-uncovered units, unresolved ties, internal failures, roundtrip mismatches, ownership failures, traversal failures, leaf-traversal failures, gaps, overlaps, synthetic claims, and provenance-plan mismatches. The standalone roundtrip gate reports `20,054` clean and zero mismatched.
-- No word-naming guard was added. The predicate reads the right-peripheral PP marker and the first Verb Frame's declared role markers through the generated accessor. Coverage reports 24 permitted licensing checkers and zero forbidden; declaration loading and the reverse-dependency tests report no environment load error.
-- Acceptance witnesses: `Search your library for a card.` has one candidate, selected uniquely through `ObjectForObjectLexicalVerbPhraseDeclaredObjectForObjectLexicalVerbPhrase`, with no Predicate-Adjunct construction. `Draw a card for each Island you control.` has one candidate and retains `PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate` because Draw declares no matching role.
-- `Cynical Loner` loses all four Search/free-adjunct competitors (`8 → 4` whole-card candidates); its exact Search clause is unique. The whole card remains specificity-resolved only because its other clauses retain unrelated attachment variants.
-- The trunk corpus contains no verb whose declared role marker also heads a genuine adjunct elsewhere in the same clause. A candidate/surface census found no qualifying unit; `Smuggler Captain` is the apparent repeated-marker case, but its second PP is inside the object's embedded relative clause.
-- All 447 newly unique readings were reviewed by construction pair. The selected construction path is unchanged in every unit; only frame-marker-as-free-adjunct competitors disappeared. No newly unique reading is wrong.
+- Measured tree: change `nqtnzsxz` (the reviewed tip, feature commit `okupnymz` plus one review correction), lock `covered = 20,254`; matched parent: claim fork `upyluyyr`, lock `covered = 20,254`. Every figure below was re-measured on this refreshed pair; the implementer's original figures were stamped on a `20,054`-covered base that trunk has since left, and are superseded.
+- Coverage had no loss and no gain: `20,254 → 20,254`, lock delta `+0/-0`. In report mode the tool printed no delta row and left `english-v2-coverage.lock` untouched in the tree. Newly covered identities: none. Identities no longer covered: none.
+- Structural laws hold on the measured tree: `selected_uncovered_units=0`, `unresolved_ties=0`, `internal_failures=0`, `roundtrip_mismatch_units=0`, `ownership_failure_units=0`, `traversal_failure_units=0`, `leaf_traversal_failure_units=0`, `gap_spans=0`, `overlap_spans=0`, `synthetic_claims=0`, `provenance_plan_mismatches=0`. The standalone roundtrip gate reports `20,254` parse-accepted, `20,254` clean, `0` mismatched.
+- No word-naming guard was added. The one new checker, `predicate_adjunct_is_prepositional_and_not_declared_role`, reads the right-peripheral Prepositional Phrase's marker and the Clause head verb's declared role markers through the generated `role_prepositions()` accessor and the `visit_verb_frame_role_preposition` visitor callback; it names no lexeme, preposition, verb, construction or card. `coverage` classifies it `structural_predicate` and reports `licensing_checker_permitted=24`, `licensing_checker_forbidden=0`. Declaration loading and the reverse-dependency tests report no `environment.rs` load error.
+- Acceptance witnesses (probed on the measured tree): `Search your library for a card.` resolves `unique` through `ObjectForObjectLexicalVerbPhraseDeclaredObjectForObjectLexicalVerbPhrase`, with no Predicate-Adjunct construction on the selected path. `Draw a card for each Island you control.` resolves `unique` and keeps `PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate`, because Draw declares no `for` role.
+- Negative witnesses for markers other verbs declare as roles, all keeping their Predicate-Adjunct derivation: `Sacrifice it at the beginning of the next end step.` (`at`, declared by Look), `You may play an additional land on each of your turns.` (`on`, declared by Put and Enter), `Search your library for a card, then draw a card for each Island you control.` (the second Clause's free `for` survives beside the first Clause's declared frame).
+- Whole-corpus selection-neutrality proof, parent `upyluyyr` against tree `nqtnzsxz` under identical `--json --require-resolved --workers 8` flags, all 32,641 units compared: `0` units changed accepted/failed status, `0` units changed selected construction path, `450` units changed resolution and every one of them `specificity → unique`. In all 540 units whose candidate set shrank, every removed candidate's construction path contains a `PredicateAdjunct` construction and no candidate was added anywhere. No newly unique reading is wrong: each of the 450 selects the frame reading it already selected, with the Prepositional Phrase filling the declared role.
+- The corpus contains no verb whose declared role marker also heads a genuine adjunct elsewhere in the same Clause: no unit lost parse acceptance and no unit changed its selected path, which is the direct evidence. (`Smuggler Captain` is the apparent repeated-marker case; its second Prepositional Phrase is inside the object's embedded relative Clause.)
 
-Gate artifacts after `kata refresh`:
+Gate artifacts, all foreground on the measured tree after `kata refresh`:
 
 ```text
+cargo xtask gate --changed
 cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask
-cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings
 test result: ok. 424 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 test result: ok. 158 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 116 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 test result: ok. 470 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-strict clippy: ok
+cargo clippy -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask --all-targets -- -D warnings
+Finished dev profile; strict clippy emitted no warning
 ```
-
-The reverse-dependency closure initially surfaced stale generated snapshots, the 72-byte scanner-carrier pin, the widened accessor's private-field probe, the Search selection assurance, and the licensing-checker census. Each failed run was followed by a code or assurance change; the final closure and strict clippy run above are green. The inventory markers use a shared slice, preserving the 72-byte carrier pin.
 
 ```text
 DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check --workers 8
-summary: total=32,641 selected=20,054 covered=20,054 selected_uncovered=0 parse_failures=12,587 unresolved_ties=0 internal_failures=0 roundtrip_mismatches=0 ownership_failures=0 licensing_checker_permitted=24 licensing_checker_forbidden=0
-DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --bless --workers 8
-summary: total=32,641 selected=20,054 covered=20,054 selected_uncovered=0 parse_failures=12,587 unresolved_ties=0 internal_failures=0 roundtrip_mismatches=0 ownership_failures=0 licensing_checker_permitted=24 licensing_checker_forbidden=0
+summary {"total_units":32641,"selected_units":20254,"covered_units":20254,"selected_uncovered_units":0,"parse_failures":12387,"unresolved_ties":0,"internal_failures":0,"roundtrip_mismatch_units":0,"ownership_failure_units":0,"licensed_vocab_lexicon_homographs":2,"form_literal_vocab_overlaps":9,"licensing_checker_permitted":24,"licensing_checker_forbidden":0,"traversal_failure_units":0,"leaf_traversal_failure_units":0,"gap_spans":0,"overlap_spans":0,"synthetic_claims":0,"provenance_plan_mismatches":0} lock_mode=report
 cargo xtask english_v2 ambiguity --json --require-resolved --workers 8
-feature summary: total=32,641 selected=20,054 unique=17,128 specificity_resolved=2,926 unresolved_ties=0 parse_failures=12,587 internal_failures=0
-matched parent summary: total=32,641 selected=20,054 unique=16,681 specificity_resolved=3,373 unresolved_ties=0 parse_failures=12,587 internal_failures=0
+tree    `nqtnzsxz`: total=32641 selected=20254 unique=17198 specificity_resolved=3056 unresolved_ties=0 parse_failures=12387 internal_failures=0
+parent  `upyluyyr`: total=32641 selected=20254 unique=16748 specificity_resolved=3506 unresolved_ties=0 parse_failures=12387 internal_failures=0
 cargo xtask english_v2 roundtrip --require-clean --workers 8
-roundtrip: parse accepted=20,054 clean=20,054 mismatched=0 not parse accepted=12,587
+roundtrip: parse accepted=20254 clean=20254 mismatched=0 not parse accepted=12387
 cargo xtask catalogs check
 catalogs are up to date
+cargo xtask cite check --list-noncompliant
+0 non-compliant citation-looking string(s)
+cargo xtask cite check
+checked 14488 citations against cr.txt (eff. 2026-08-07); 0 stale
 ```
 
 ### DISCLOSE
 
-- Selection census (`--require-resolved --workers 8`, matched flags): `upyluyyr` had `16,681` unique and `3,373` specificity-resolved; `okupnymz` has `17,128` unique and `2,926` specificity-resolved. Exactly 447 units moved specificity-resolved → unique. Another 89 specificity-resolved units lost invalid candidates but retained unrelated ambiguity. No unit changed selected construction path, selected/failed status, or accepted text.
-- Observed changed selections are 445 Search/for units and two coordinated Put/on units. The generic declaration-driven mechanism also covers other declared markers; trunk produced no Attach/to or Put/onto specificity→unique selection movement for this diff, so no inventory pin was fitted to manufacture one.
-- Assurance accounting: restored/widened 1 existing compiled-consumer assurance; re-spelled 6 generated/error/debug/selection/census assurances; ignored 0; added 1 exact witness test; removed 0.
-- Deviations and additions: none beyond the ticket's letter. The Island synthetic declaration exists only to spell the required Draw negative witness. `parser/materialize.rs` overlaps the concurrent cross-host-gates scope, but the edit is the ticket-required existing Search assurance; refresh was conflict-free and both sides were retained.
+- Selection census (`--require-resolved --workers 8`, matched flags, both sides measured in this workspace): `upyluyyr` has `16,748` unique and `3,506` specificity-resolved; `nqtnzsxz` has `17,198` unique and `3,056` specificity-resolved. Exactly `450` units moved specificity-resolved → unique. Another `90` specificity-resolved units lost invalid candidates but retained unrelated ambiguity; their surviving decisive positions are unrelated construction pairs (trigger prefix against ability body, nominal coordination against genitive determiner, pro-verb against base verb phrase, and similar), never a frame-against-adjunct pair. The specificity share fell, so no construction pair needs naming on that account.
+- The specificity → unique movement is `448` Search/`for` units and `2` coordinated Put/`on` units. The mechanism is generic and declaration-driven; trunk produced no Attach/`to` or Shuffle/`into` movement for this diff, so no inventory pin was fitted to manufacture one.
+- Assurance accounting: restored/widened `1` (the compiled-consumer `run_role_preemption` assurance, widened with a visitor probe of the generated accessor and re-based on a two-frame synthetic declaration; every pre-existing assertion in it is unchanged); re-spelled `4` (the compile-fail private-field `.stderr`, the `declaration-verb-expansion` golden pin, the `Search your library for a card.` selection assurance in `parser/materialize.rs`, and the licensing-checker census pin in `xtask`); ignored `0`; added `1` (`declared_frame_prepositions_preempt_only_matching_predicate_adjuncts`); removed `0`. The re-spelled Search assurance keeps the same card and still asserts a successful selection; only the recorded resolution moves `Specificity → Unique`, which is exactly the outcome the design doc requires of this widening.
+- Deviations and additions:
+  - B6's declared accessor `head.verb_frame_role_prepositions` reads the *codec's* static frame tail, which is empty for the bare transitive codec that builds the competing derivation, so it cannot answer this question. The widening therefore adds a per-declaration accessor beside it: a generated `verb_inventory_role_prepositions` helper, a `role_prepositions` field and `role_prepositions()` accessor on every generated declaration-verb terminal, and a `visit_verb_frame_role_preposition` callback on the generated `Visitor`. This is the same frame data read one layer lower; no new declaration syntax and no new construction.
+  - The preemption is keyed to the **declared frame set of the Clause's head verb** — every frame that verb declares — not to the single frame that built the Clause. Keying it to the building frame would preempt nothing, because the competing derivation is by construction the one that does *not* use the declaring frame; the design doc's own acceptance (`Search your library for a card.` must resolve `unique`) is only satisfiable on the head-verb reading, and its self-limiting clause is stated as "a verb declaring no such role is untouched". It is not the "some frame anywhere declares p" reading: a verb that declares no such role keeps its adjunct, as the negative witnesses above show.
+  - The Clause's head verb is the **first** declaration verb reached walking the adjunct host. Verb Phrase and Predicate coordination sit above these constructions, so in the corpus each host holds one verb; where a host could hold more, the rule under-preempts rather than over-preempts. `CostComparisonPredicate` and `AlternativePredicate` hosts contribute no frame at all.
+  - `existential_predicate_adjunct` keeps the plain `predicate_adjunct_is_prepositional` check: a there-Clause has no Verb Frame to read. That is why the permitted licensing-checker total rises `23 → 24` rather than staying flat.
+  - `predicate_grammar.rs` gains a synthetic `Island` subtype declaration, present only so the required Draw negative witness can be spelled.
+  - The `kata refresh` onto the landed preterite work conflicted in the generated declaration-verb terminal, its golden pin and the private-field compile-fail fixture. Resolved by keeping trunk's `Box<VerbInventoryRef>` and `inflectional_forms` (and its manual `Debug`, which is why the terminal's debug rendering is unchanged by this landing) and adding `role_prepositions` beside them in both constructors; the golden pin and the `.stderr` were regenerated from the merged emit.
 - STOPs: none. Newly covered negative or wrong analyses: none. Wrong newly unique analyses: none. Unexplained losses: none.
 - Glossary gaps: none.
-- Citations: unchanged; no cite gate was required.
+- Citations: unchanged; the cite gates were run anyway and are clean.
 
-Changed selections (all 447 identities):
+Changed selections (all 450 identities):
 
-#### `ObjectForObjectLexicalVerbPhraseDeclaredObjectForObjectLexicalVerbPhrase` vs `PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate` → `TransitiveLexicalVerbPhraseTransitivePredicate` + `PredicateAdjunctPrepositionalPredicateAdjunct` (445 units)
+#### `ObjectForObjectLexicalVerbPhraseDeclaredObjectForObjectLexicalVerbPhrase` vs `PredicateAdjunctPredicatePrepositionalPredicateAdjunctPredicate` → `TransitiveLexicalVerbPhraseTransitivePredicate` + `PredicateAdjunctPrepositionalPredicateAdjunct` (448 units)
 
 - `06e34267add0f5af6916ea8aefdb9c1f7b9ae7d07fb4293be3e070395d0b235f` — Academy Rector
 - `60ba87443c469bbc7213bc695478cc1cc91e86f7baba7d93f26b5cd166fc73b7` — Acquire
@@ -242,6 +248,7 @@ Changed selections (all 447 identities):
 - `1846dcd95bb12e79d163f0e1ede9e451099d52bc7fcaff94878fec8ce9ad087b` — Goblin Engineer
 - `02036687e2774a5a7b99fcfc27e057c3dea494d6d68a1dce161ed7a5b30172e1` — Goblin Matron
 - `2b91de3d89f847b0c660a101a71608534f8ab851e458e861c09697fb35436608` — Goldmane Griffin
+- `8745a3618953400ffc0f35dd3672768a0b36118b3930c6e5866058efea2cc8c3` — Grasping Current
 - `b4c44f6b7913ea22ef4f7a9869622349ccdf344dbfdbf23fb1e1548c1a946146` — Gravebreaker Lamia
 - `8042c114d1394e3201004774ce3450f94ab1e54c7787872548cdf00d6d2b363a` — Greater Tanuki
 - `c43817db0cabbbd0f9424e83b526a91733d996aad8f7c6d507cb2ed17b55f2a5` — Green Sun's Zenith
@@ -380,6 +387,7 @@ Changed selections (all 447 identities):
 - `6df3d2fbf20e514572eaad8724f93a45d0aa5e0b83ee819f50c276277f2de791` — Reshape
 - `9a3bdef12cf2629270b05bc0c84e61eeab42210b158357982c5a1e345716e440` — Reshape the Earth
 - `7aaaf326d4256b63b891bdc5c1dfdc50f9cd3c5942b747c9e56c08bbaa2f81fe` — Return from the Wilds
+- `96b7f302eb3ed9c3e840b3161e5dc043ecfbd80b76856ccfbf993a69624150df` — Rhythmic Water Vortex
 - `a047b85a36eb5fd4cee72075b719461c016478c29a68ae08297c3af52c6c9104` — Road // Ruin
 - `dd45a809723d9a49ae8a7e4118e49b26308d0017b28b46b852daca30d8a5a459` — Roamer's Routine
 - `ea7d6363915458938d53650212e65dea7787b7f8bc3733f732060e6e1151084f` — Roiling Regrowth
@@ -440,6 +448,7 @@ Changed selections (all 447 identities):
 - `dc1c781aa3cabbb6ecd22aab9b4fcf08b7c5d07ccb98bed22d1c55e8b6956aa5` — Strixhaven Skycoach
 - `6dd5686093ff3b232435b2452f0b968199ebd2cf193c9e8a68ca6142fa0564cb` — Studious First-Year // Rampant Growth
 - `d549dcf4b85e30158925af3b91839b72424211f69b5fff721fd5baa5e0c83b05` — Subway Train
+- `9d0aa024c38ed36e5e728871b1e90c78137e6623266b66b27f2fd9f892c041ad` — Sun-Blessed Mount
 - `abc59a321c1528cc10ee360b16d5a1aa46d8cc63d2039c3228c04f40df562722` — Sunblade Samurai
 - `335a99d08aef0816068286d097e7383d7193e2fcda38e153c53eb32d99a1b369` — Sunforger
 - `8355dbe6c66fc680a860d1eef3093a0d05591904de5dd58b29a51a45897f5cb1` — Supply // Demand
@@ -538,6 +547,15 @@ Changed selections (all 447 identities):
 - Licensed vocabulary/lexicon homographs, reported rather than fitted: `AttributiveAdjective::Untap` beside declaration keyword action `Untap`; `TargetingMarker::Target` beside `CommonNoun::Target`.
 - Form-literal/vocabulary overlaps, reported rather than fitted: `additional_cost/additional`; `up_to_quantifying_determiner/to`; `definite_next_mass_quantity_reference/the`; `definite_next_mass_quantity_reference/next`; `scalar_less_than_or_equal_to/to`; `number_of_scalar_value/the`; `greatest_scalar_value/the`; `other_than_qualified_reference/other`; `positional_partitive/the`.
 - Inventory pins: 2 licensed homographs, 9 form-literal/vocabulary overlaps, 24 permitted licensing checkers, zero forbidden licensing checkers, 397 constructions, and a 72-byte scanner carrier.
-- Coverage performance advisory on `okupnymz`, `covered = 20,054`: `--check --workers 8` took 117 s against the 16,260 ms quiet-host ceiling at 138,352 ns/B; host loads were 746/1,064/1,041 hundredths. The sandbox could not observe a reliable concurrent-process count; the coordinator reported concurrent sibling executors. `--bless` took 115 s at 134,897 ns/B with loads 602/924/994 hundredths.
-- Ambiguity performance advisory: parent `upyluyyr` took 119 s at 140,166 ns/B with loads 864/799/906 hundredths; feature `okupnymz` took 121 s at 146,049 ns/B with loads 499/769/919 hundredths. Both used 8 workers and identical `--require-resolved` flags.
-- Roundtrip performance advisory on `okupnymz`: 112 s at 137,024 ns/B with 8 workers and loads 736/719/837 hundredths.
+- True contention for every figure below: 1 concurrent codex executor and 0 other reviewers on the host.
+- Coverage performance advisory on `nqtnzsxz`, `covered = 20,254`: `--check --workers 8` took 118 s against the 16,260 ms quiet-host ceiling, at 140,536 ns/B, with host loads 456/508/526 hundredths.
+- Ambiguity performance advisory, the matched pair back to back on the same host at 8 workers with identical `--require-resolved` flags: parent `upyluyyr` took 126 s at 141,772 ns/B with loads 736/543/544 hundredths; tree `nqtnzsxz` took 117 s at 140,911 ns/B with loads 513/539/542 hundredths. The per-terminal role-preposition materialization costs nothing measurable: the tree is 1 per cent cheaper per byte than its parent, inside the noise of the load difference.
+- Roundtrip performance advisory on `nqtnzsxz`: 115 s at 137,320 ns/B with 8 workers and loads 1,966/907/661 hundredths.
+
+### Review corrections
+
+- MEDIUM — every figure in the record was stamped on a `20,054`-covered base that trunk left when the preterite landing integrated. Fixed: refreshed, resolved the generated-terminal conflict, and re-measured coverage, the matched-parent/tree ambiguity pair, roundtrip, the closure test gate and strict clippy on the refreshed tree; every number and change-id stamp above is the re-measured one, and the changed-identity list is regenerated (447 → 450).
+- MEDIUM — the record's assurance counts (`re-spelled 6`) counted two generated-debug-string re-spellings that the refresh dissolved: trunk's preterite landing gave the terminal a manual `Debug` that prints neither `inflectional_forms` nor `role_prepositions`, so `parser/mod.rs` and `parser/scan.rs` are untouched by this landing. Fixed: counts corrected to re-spelled `4`, and the merged `Debug` behaviour disclosed.
+- MEDIUM — `Deviations and additions: none beyond the ticket's letter` understated the change. The ticket names "B6's existing frame-role accessor", but B6's accessor reads the codec's static frame tail and cannot see a declaration's other frames; the landing adds a per-declaration accessor, a terminal field and a `Visitor` callback, and keys the rule to the head verb's whole declared frame set. Fixed: all of it, plus the first-verb host rule, the two hosts that contribute no frame, the retained plain check on `existential_predicate_adjunct` and the synthetic `Island` declaration, are now listed with their justification. No ruling is contradicted: the design doc's operative acceptance is only satisfiable on the head-verb reading, so this is disclosure, not a resolved contradiction.
+- MEDIUM — the perf advisory carried no true contention count (the sandbox `pgrep` is meaningless). Fixed: stamped, and a matched back-to-back parent/tree ambiguity pair added so the advisory can actually answer the cost question.
+- LOW — `ClauseVerbFrame for PrepositionalPredicateAdjunctHost` skipped two of the sum's three variants with an `if let`, hiding the omission from the next reader and from the compiler. Fixed in `review: make the adjunct host frame walk exhaustive`: the walk is an exhaustive `match`, so a new host variant forces a decision. No behaviour change; the corpus figures above were measured after it.
