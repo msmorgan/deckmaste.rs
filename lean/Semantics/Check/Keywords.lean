@@ -1,7 +1,7 @@
-import Experimental.Check.Words
+import Semantics.Check.Words
 
 /-!
-# Experimental.Check.Keywords
+# Semantics.Check.Keywords
 
 The keyword facts table and its shapes: port of `KeywordShapes.idr` and the generated
 `FactsGen.idr` (emitted for Idris by `cargo xtask facts generate` from
@@ -9,7 +9,7 @@ The keyword facts table and its shapes: port of `KeywordShapes.idr` and the gene
 output until xtask emits Lean too).
 -/
 
-namespace Mtg
+namespace Semantics
 
 inductive CompoundHead where
   | quality | number
@@ -335,4 +335,4 @@ def CounterKind.known : CounterKind → Bool
   | .keyword k => keywordCounterOk k
   | .named l => knownCounter l
 
-end Mtg
+end Semantics

@@ -1,7 +1,7 @@
-import Experimental.Phrase
+import Semantics.Phrase
 
 /-!
-# Experimental.Triggers
+# Semantics.Triggers
 
 Game events, durations, and trigger headers. Port of `idris/src/Experimental/Triggers.idr`,
 syntax only, reshaped: the combat events are one constructor over `CombatRelation`, the
@@ -9,7 +9,7 @@ attachment events one over `AttachMove`, a regeneration is the act event it is, 
 day/night shift is the game gaining a designation.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
 color written or chosen; the six types of [CR#106.1b]. -/
@@ -129,4 +129,4 @@ structure JoinedHeader where
   timing : Option Timing
   deriving Repr, BEq
 
-end Mtg
+end Semantics

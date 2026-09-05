@@ -1,7 +1,7 @@
-import Experimental
+import Semantics
 
 /-!
-# Experimental.Macros
+# Semantics.Macros
 
 Spellings over the raw constructors. Port of `idris/src/Experimental/Macros.idr`, the
 subset the `Cards` bench uses; every macro keeps its Idris name and argument order, minus
@@ -9,11 +9,11 @@ the obligations it forwarded.
 
 The Idris bench qualifies every macro (`Macros.target`) so a reader can tell a spelling from
 a constructor at a glance. Lean does not need that: a constructor is written with a leading
-dot (`.hasType`), a macro without (`creature`), so the bench opens `Mtg.Macros` and writes
+dot (`.hasType`), a macro without (`creature`), so the bench opens `Semantics.Macros` and writes
 them bare.
 -/
 
-namespace Mtg.Macros
+namespace Semantics.Macros
 
 /-! ## Pronouns -/
 
@@ -318,4 +318,4 @@ def activated (cost : Cost) (instruction : Instruction) : Ability :=
 /-- A printed power or toughness. -/
 def stat (value : Nat) : Option Amount := some (.lit value)
 
-end Mtg.Macros
+end Semantics.Macros

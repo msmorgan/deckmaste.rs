@@ -1,8 +1,8 @@
-import Experimental.Words
-import Experimental.Events
+import Semantics.Words
+import Semantics.Events
 
 /-!
-# Experimental.Phrase
+# Semantics.Phrase
 
 The phrase grammar: zones, predicates, noun phrases, amounts, quantities, and conditions.
 Port of `idris/src/Experimental/Phrase.idr`, syntax only, reshaped: no `bs` or `Kind`
@@ -14,7 +14,7 @@ A `NounPhrase` denotes one entity or a collection, by its number; CONTEXT.md's R
 Selection are what it denotes, not two spellings.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- A color, written or "the chosen color". -/
 inductive ColorTerm where
@@ -264,4 +264,4 @@ inductive DurationEnd where
   | endOf (part : TurnPart) (whose : Option NounPhrase)
   deriving Repr, BEq
 
-end Mtg
+end Semantics

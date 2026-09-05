@@ -1,9 +1,9 @@
-import Experimental
-import Experimental.Macros
-import Experimental.Check.Card
+import Semantics
+import Semantics.Macros
+import Semantics.Check.Card
 
 /-!
-# Experimental.Cards
+# Semantics.Cards
 
 The printed-card bench: cards written in the grammar. A handful of the Idris bench
 (`idris/src/Experimental/Cards/*.idr`), spelled with the same macros, to show the shape. A
@@ -13,9 +13,9 @@ Each card is a `Spelled`: its definition runs the checker by `decide`, so a refu
 does not define, as it did not elaborate in Idris.
 -/
 
-open Mtg Mtg.Macros
+open Semantics Semantics.Macros
 
-namespace Mtg.Cards
+namespace Semantics.Cards
 
 /-- Aerial Volley {G} — Instant. "Aerial Volley deals 3 damage divided as you choose among
 one, two, or three target creatures with flying." -/
@@ -85,4 +85,4 @@ def wormfangManta : Spelled := spelled <| .singleFaced
         triggered .when (leavesBattlefield thisCreature) (.extraTurn .you (.lit 1)) ],
     power := stat 6, toughness := stat 1 }
 
-end Mtg.Cards
+end Semantics.Cards

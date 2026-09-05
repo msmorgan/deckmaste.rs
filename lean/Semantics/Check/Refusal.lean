@@ -1,7 +1,7 @@
-import Experimental.Check.Words
+import Semantics.Check.Words
 
 /-!
-# Experimental.Check.Refusal
+# Semantics.Check.Refusal
 
 Why a spelling is refused. One constructor per Idris obligation, named after the Idris
 obligation (`SoleHolder` → `.soleHolder`), so a pin names the obligation it refutes the way
@@ -13,7 +13,7 @@ failing one, so `check e = [r]` states that `r` is the only refusal, which is wh
 non-vacuous pin claims.
 -/
 
-namespace Mtg
+namespace Semantics
 
 inductive Refusal where
   /- sorts -/
@@ -254,4 +254,4 @@ inductive Refusal where
   | prototypeFrame
   deriving DecidableEq, Repr
 
-end Mtg
+end Semantics

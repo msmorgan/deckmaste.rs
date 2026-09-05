@@ -1,5 +1,5 @@
 /-!
-# Experimental.Words
+# Semantics.Words
 
 The vocabulary: every leaf type a phrase, trigger, effect, or card is written from. Port of
 `idris/src/Experimental/Words.idr`, syntax only.
@@ -10,7 +10,7 @@ antecedent stack, obligation witnesses, the facts tables, event names, static ki
 tables, not enums: the grammar carries the mechanism, the tables carry the set.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- [CR#205.2a] -/
 inductive CardType where
@@ -497,4 +497,4 @@ inductive PartQuant where
   | the | each
   deriving DecidableEq, Repr
 
-end Mtg
+end Semantics

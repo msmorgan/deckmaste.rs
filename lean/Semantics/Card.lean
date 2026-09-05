@@ -1,13 +1,13 @@
-import Experimental.Abilities
+import Semantics.Abilities
 
 /-!
-# Experimental.Card
+# Semantics.Card
 
 The printed card: its faces and frames. Port of `idris/src/Experimental/Card.idr`, syntax
 only. A face is a `Characteristics`; the frames that carry more than one set name each.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- A card face is its characteristics [CR#109.3]. -/
 abbrev CardFace := Characteristics
@@ -44,4 +44,4 @@ inductive Card where
   | prototype (inner alternative : Characteristics)
   deriving Repr, BEq
 
-end Mtg
+end Semantics

@@ -1,7 +1,7 @@
-import Experimental.Triggers
+import Semantics.Triggers
 
 /-!
-# Experimental.Abilities
+# Semantics.Abilities
 
 Abilities and their parts: instructions, static specs, costs, tokens, and the
 characteristics an object carries. Port of `idris/src/Experimental/Effect.idr`, syntax only,
@@ -13,7 +13,7 @@ token's power is an `Amount` ("X/X"), a card's is a literal, and `none` on a sta
 slot a characteristic-defining ability fills (printed `*`).
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- What mana may be spent on. -/
 inductive SpendPurpose where
@@ -446,4 +446,4 @@ deriving instance Repr, BEq for Characteristics, QualityPayload, TokenSpec, Stat
   Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost, ManaRider, CopyExcept,
   RollRow, Instruction, KeywordParam, AbilityLost, Ability
 
-end Mtg
+end Semantics

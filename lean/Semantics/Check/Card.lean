@@ -1,14 +1,14 @@
-import Experimental.Card
-import Experimental.Check.AbilityRules
+import Semantics.Card
+import Semantics.Check.AbilityRules
 
 /-!
-# Experimental.Check.Card
+# Semantics.Check.Card
 
 The card frame laws of `Card.idr` and the checker's entry point: `check : Card → List
 Refusal`, and `Spelled`, a card the checker admits.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- Which side of a two-faced card a face is printed on; the back has no mana cost. -/
 inductive FaceSide where
@@ -252,4 +252,4 @@ structure Spelled where
 /-- `spelled <| card …`: the checker's proof is found by `decide` at the definition. -/
 def spelled (c : Card) (ok : c.check = [] := by decide) : Spelled := ⟨c, ok⟩
 
-end Mtg
+end Semantics

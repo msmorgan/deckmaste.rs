@@ -1,14 +1,14 @@
-import Experimental.Words
+import Semantics.Words
 
 /-!
-# Experimental.Events
+# Semantics.Events
 
 The event vocabulary a trigger watches and a lookback asks about. Port of
 `idris/src/Experimental/Events.idr`, syntax only; the event names and facts the checker
 classifies with live in `Check/Events`.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- The event a lookback names ("that died this turn"); an act event names its verb. -/
 inductive EventName where
@@ -89,4 +89,4 @@ inductive ChoiceMode where
   | yourChoice
   deriving DecidableEq, Repr
 
-end Mtg
+end Semantics

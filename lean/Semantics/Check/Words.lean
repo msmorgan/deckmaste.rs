@@ -1,8 +1,8 @@
-import Experimental.Words
-import Experimental.Events
+import Semantics.Words
+import Semantics.Events
 
 /-!
-# Experimental.Check.Words
+# Semantics.Check.Words
 
 The checker's vocabulary layer: everything `Words.idr` computes that is not syntax. The
 antecedent stack (`Binding`, `Bindings`, `Payload`), the reads over it (`countReach`,
@@ -17,7 +17,7 @@ The keyword facts table (`keywordFacts`, generated into `FactsGen.idr` by xtask)
 yet; the keyword predicates take the table as an argument until it is.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-! ## Card types and stats -/
 
@@ -1381,4 +1381,4 @@ def TurnPart.proper : TurnPart → Bool
   | .turn => false
   | _ => true
 
-end Mtg
+end Semantics

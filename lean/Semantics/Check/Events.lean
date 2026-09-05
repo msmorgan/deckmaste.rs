@@ -1,12 +1,12 @@
-import Experimental.Check.Words
+import Semantics.Check.Words
 
 /-!
-# Experimental.Check.Events
+# Semantics.Check.Events
 
 The event facts table and the lookback, deed, and play-window rules of `Events.idr`.
 -/
 
-namespace Mtg
+namespace Semantics
 
 def counterEventName : CounterMove → CounterBatch → EventName
   | .put, _ => .counterPlacement
@@ -254,4 +254,4 @@ def Zone.possessable : Zone → Bool
   | .hand | .graveyard | .library => true
   | _ => false
 
-end Mtg
+end Semantics

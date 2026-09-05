@@ -1,15 +1,15 @@
-import Experimental.Triggers
-import Experimental.Check.PhraseRules
+import Semantics.Triggers
+import Semantics.Check.PhraseRules
 
 /-!
-# Experimental.Check.Triggers
+# Semantics.Check.Triggers
 
 The trigger layer of the checker: what an event introduces (`eventIntro`, `eventAfter`),
 the shared context of an `or`-joined header, and one rule set per event constructor. Port of
 the functions of `Triggers.idr`.
 -/
 
-namespace Mtg
+namespace Semantics
 
 def StatusCat.eventName : StatusCat → EventName
   | .tap => .statusChange
@@ -562,4 +562,4 @@ def JoinedHeader.check (bs : Bindings) (j : JoinedHeader) : List Refusal :=
     OptConcurrent.check (headerCtx bs j.alternatives j.event) j.while_ ++
     OptTiming.check bs j.timing
 
-end Mtg
+end Semantics

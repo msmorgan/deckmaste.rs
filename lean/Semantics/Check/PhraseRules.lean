@@ -1,7 +1,7 @@
-import Experimental.Check.Phrase
+import Semantics.Check.Phrase
 
 /-!
-# Experimental.Check.PhraseRules
+# Semantics.Check.PhraseRules
 
 The rules of the phrase layer: for each constructor, the obligations the Idris put in its
 type, as a list of refusals over the stack it is read against. Every list is complete, not
@@ -12,7 +12,7 @@ first-failure, so a pin can state that one obligation and no other refuses.
 `Predicate.check k bs p` takes the resolved kind of the phrase it describes.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-- Refuse with `r` unless `ok`. -/
 def refuse (ok : Bool) (r : Refusal) : List Refusal := if ok then [] else [r]
@@ -486,4 +486,4 @@ def VisibleThing.check (bs : Bindings) : VisibleThing → List Refusal
   | .objects n => NounPhrase.check (some .object) bs n
   | _ => []
 
-end Mtg
+end Semantics

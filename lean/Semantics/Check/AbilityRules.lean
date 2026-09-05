@@ -1,14 +1,14 @@
-import Experimental.Check.Abilities
+import Semantics.Check.Abilities
 
 /-!
-# Experimental.Check.AbilityRules
+# Semantics.Check.AbilityRules
 
 The rules of the effect layer: for each `Instruction`, `StaticSpec`, `Cost`, token, and
 ability constructor, the obligations the Idris put in its type, over the stack the profile
 threads to it.
 -/
 
-namespace Mtg
+namespace Semantics
 
 def zoneIsCheck (z : Option Zone) (want : Zone) : List Refusal := refuse (zoneIsB z want) (.zoneIs want)
 
@@ -752,4 +752,4 @@ def Ability.checkText (bs : Bindings) : List Ability → List Refusal
   | [] => []
   | ab :: rest => Ability.check bs ab ++ Ability.checkText (ab.intro bs) rest
 
-end Mtg
+end Semantics

@@ -1,10 +1,10 @@
-import Experimental.Phrase
-import Experimental.Check.Events
-import Experimental.Check.Keywords
-import Experimental.Check.Refusal
+import Semantics.Phrase
+import Semantics.Check.Events
+import Semantics.Check.Keywords
+import Semantics.Check.Refusal
 
 /-!
-# Experimental.Check.Phrase
+# Semantics.Check.Phrase
 
 The phrase layer of the checker: port of every function `Phrase.idr` declared beside its
 syntax, and one rule set per constructor for the obligations the Idris put in constructor
@@ -26,7 +26,7 @@ shifted index. That threading is the whole content of the Idris indices, so it i
 call by call.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-! ## Kinds -/
 
@@ -1694,9 +1694,9 @@ termination_by structural n
 def stampIntro (bs : Bindings) (p : Option VerbLabel) (n : NounPhrase) : Bindings :=
   moveIntro bs p n (NounPhrase.zone bs n)
 
-end Mtg
+end Semantics
 
-namespace Mtg
+namespace Semantics
 
 /-! ## `other` anchoring -/
 
@@ -1711,4 +1711,4 @@ def otherAnchorOk (bs : Bindings) (k : Kind) (ts : List CardType) (ps : List Pre
     then (if Predicate.hasBareOtherAny ps then anyTargeted k bs else complementAnchorsOk bs ts fs)
     else false
 
-end Mtg
+end Semantics

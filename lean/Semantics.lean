@@ -1,12 +1,12 @@
-import Experimental.Words
-import Experimental.Events
-import Experimental.Phrase
-import Experimental.Triggers
-import Experimental.Abilities
-import Experimental.Card
+import Semantics.Words
+import Semantics.Events
+import Semantics.Phrase
+import Semantics.Triggers
+import Semantics.Abilities
+import Semantics.Card
 
 /-!
-# Experimental
+# Semantics
 
 The semantics-target workbench, as syntax: the vocabulary (`Words`, `Events`), the phrase
 grammar (`Phrase`), events and headers (`Triggers`), abilities and their parts (`Abilities`),

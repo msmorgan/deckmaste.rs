@@ -1,8 +1,8 @@
-import Experimental.Abilities
-import Experimental.Check.Triggers
+import Semantics.Abilities
+import Semantics.Check.Triggers
 
 /-!
-# Experimental.Check.Abilities
+# Semantics.Check.Abilities
 
 The effect layer of the checker: port of the functions of `Effect.idr`. The instruction
 profile (`pre`, `announced`, `rider`, `deed`) is what threads the antecedent stack through a
@@ -10,7 +10,7 @@ sequence; every `Instruction`, `StaticSpec`, `Cost`, token, and ability construc
 Idris obligations as rules.
 -/
 
-namespace Mtg
+namespace Semantics
 
 /-! ## Small attributes -/
 
@@ -1176,4 +1176,4 @@ def Ability.intro (bs : Bindings) : Ability → Bindings
   | .mayBeginOnBattlefield => bs
   | .thatAbility _ => bs
 
-end Mtg
+end Semantics
