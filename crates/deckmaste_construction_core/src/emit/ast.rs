@@ -1239,6 +1239,10 @@ fn lower_constructor_feature_expression(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the finite feature value matrix stays explicit and exhaustive"
+)]
 fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
     match value {
         crate::feature::FeatureValue::ConcordOther => quote! { ConcordClass::Other },
@@ -1279,6 +1283,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::LocalDeterminer => {
             quote! { ModifierLicense::LocalDeterminer }
         }
+        crate::feature::FeatureValue::Unfocused => quote! { Focus::Unfocused },
+        crate::feature::FeatureValue::Focused => quote! { Focus::Focused },
         crate::feature::FeatureValue::UnrestrictedComplement => {
             quote! { PrepositionComplementKind::UnrestrictedComplement }
         }
@@ -2450,6 +2456,7 @@ mod tests {
                 "Relationality",
                 "DeterminerNumber",
                 "FusedHeadLicense",
+                "Focus",
                 "MannerAnaphorClass",
                 "NominalForm",
                 "NominalLicense",

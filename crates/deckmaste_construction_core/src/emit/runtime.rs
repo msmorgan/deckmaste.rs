@@ -265,6 +265,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum FusedHeadLicense { NominalOnly, PartitiveOnly, FusedHead, PluralPredeterminer } },
         ),
         named_type(
+            "Focus",
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum Focus { Unfocused, Focused } },
+        ),
+        named_type(
             crate::identifier::MANNER_ANAPHOR_CLASS_TYPE,
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum MannerAnaphorClass { OtherNoun, MannerAnaphor } },
         ),

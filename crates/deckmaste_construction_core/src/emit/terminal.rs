@@ -1262,6 +1262,7 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::ModifierLicense
         | crate::Feature::DeterminerNumber
         | crate::Feature::FusedHeadLicense
+        | crate::Feature::Focus
         | crate::Feature::PrepositionComplementKind
         | crate::Feature::LocativeTemporalLicense
         | crate::Feature::NominalForm

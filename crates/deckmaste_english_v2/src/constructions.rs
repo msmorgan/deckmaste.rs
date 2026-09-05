@@ -115,6 +115,7 @@ constructions! {
     vocab LocativeProform { Anywhere = "anywhere", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
     vocab FrequencyAdverb { Once = "once", Twice = "twice", }
+    vocab FocusAdverb { Only = "only", }
     vocab ScalarDegree { Equal = "equal", Lesser = "lesser", Greater = "greater", }
     vocab AttributiveAdjective {
         feature HomographLicense = Unlicensed;
@@ -1089,11 +1090,6 @@ constructions! {
         Or: OrManaCoordination,
         AndOr: AndOrManaCoordination,
     }
-    abstract sum CastingRestriction {
-        Conditional: OnlyIfRestriction,
-        Timing: OnlyDuringRestriction,
-        TemporalClause: OnlyTemporalClauseRestriction,
-    }
     abstract sum DurationPhrase {
         Fixed: FixedDurationPhrase,
         Until: UntilDurationPhrase,
@@ -1104,11 +1100,11 @@ constructions! {
         Duration: DurationPredicateAdjunct,
         Frequency: FrequencyPredicateAdjunct,
         Manner: MannerPredicateAdjunct,
+        Focus: FocusedPredicateAdjunct,
     }
     abstract sum PrepositionalPredicateAdjunctHost {
         Verb: VerbPhrase,
         CostComparison: CostComparisonPredicate,
-        ActionRestriction: ActionRestrictionPredicate,
         Alternative: AlternativePredicate,
     }
     abstract sum ScalarDegreePhrase {
@@ -1169,7 +1165,6 @@ constructions! {
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
-        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum BareCoordinatedPredicate {
         Atomic: VerbPhrase,
@@ -1185,9 +1180,9 @@ constructions! {
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
-        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum BarePredicate {
+        Focus: FocusedBarePredicate,
         Atomic: VerbPhrase,
         Coordination: BarePredicateCoordination,
         ThenSequence: BareThenPredicateSequence,
@@ -1203,7 +1198,6 @@ constructions! {
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
-        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum Predicate {
         Atomic: VerbPhrase,
@@ -1224,16 +1218,18 @@ constructions! {
         Alternative: AlternativePredicate,
         WithoutGerundObject: WithoutGerundObjectPredicate,
         CostComparison: CostComparisonPredicate,
-        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum Clause {
         Finite: FiniteClause,
         Coordination: ClauseCoordination,
-        PostposedWhile: PostposedWhileClause,
-        PostposedForAsLongAs: PostposedForAsLongAsClause,
+        Tail: PostposedClauseTailClause,
     }
     abstract sum CoordinatedClause {
         Finite: FiniteClause,
+    }
+    abstract sum ClauseTailBody {
+        Finite: FiniteClause,
+        Coordination: ClauseCoordination,
     }
     abstract sum PredicativeComplement {
         Adjective: PredicativeAdjectiveComplement,
@@ -1270,25 +1266,50 @@ constructions! {
     }
     abstract sum ClauseAttachment {
         StartingWith: StartingWithAttachment,
-        PreposedIf,
-        PreposedIfPredicate,
-        PostposedIf,
-        PostposedIfPredicate,
-        PostposedUnless,
-        PostposedUnlessPredicate,
-        PreposedAs,
-        PreposedAsLongAs,
-        PreposedAsLongAsPredicate,
-        PostposedAsLongAs,
-        PostposedAsLongAsPredicate,
-        PreposedPredicateAdjunct,
-        PreposedPredicateAdjunctPredicate,
-        PreposedWhile,
-        PreposedWhilePredicate,
-        PreposedUntil,
-        PreposedUntilPredicate,
+        PreposedClauseTail: PreposedClauseTailAttachment,
+        PreposedPredicateClauseTail: PreposedPredicateClauseTailAttachment,
+        PostposedPredicateClauseTail: PostposedPredicateClauseTailAttachment,
         ThenSequence,
         AdditionalCost,
+    }
+    abstract sum ClauseTail {
+        If: IfClauseTail,
+        PreposedIf: PreposedIfClauseTail,
+        Unless: UnlessClauseTail,
+        As: AsClauseTail,
+        AsLongAs: AsLongAsClauseTail,
+        PreposedAsLongAs: PreposedAsLongAsClauseTail,
+        ForAsLongAs: ForAsLongAsClauseTail,
+        While: WhileClauseTail,
+        Until: UntilClauseTail,
+        PredicateAdjunct: PredicateAdjunctClauseTail,
+        PreposedFocus: FocusedPreposedClauseTail,
+        PostposedFocus: FocusedPostposedClauseTail,
+    }
+    abstract sum PreposedClauseTail {
+        If: PreposedIfClauseTail,
+        As: AsClauseTail,
+        AsLongAs: PreposedAsLongAsClauseTail,
+        While: WhileClauseTail,
+        Until: UntilClauseTail,
+        PredicateAdjunct: PredicateAdjunctClauseTail,
+        Focus: FocusedPreposedClauseTail,
+    }
+    abstract sum SimplePostposedClauseTail {
+        If: IfClauseTail,
+        Unless: UnlessClauseTail,
+        AsLongAs: AsLongAsClauseTail,
+        ForAsLongAs: ForAsLongAsClauseTail,
+        While: WhileClauseTail,
+        Focus: FocusedPostposedClauseTail,
+    }
+    abstract sum PostposedClauseTail {
+        Simple: SimplePostposedClauseTail,
+        Coordination: CoordinatedPostposedClauseTail,
+    }
+    abstract sum PostposedClauseTailCoordinationMember {
+        Tail: SimplePostposedClauseTail,
+        FocusedPredicateAdjunct,
     }
     abstract sum ConditionClause { FiniteCondition, }
     construction finite_condition: FiniteCondition {
@@ -1476,104 +1497,112 @@ constructions! {
         element Attached { attachment: ClauseAttachment, }
         form attached = attachment;
     }
-    construction preposed_if: ClauseAttachment {
-        element PreposedIf { condition: Clause, body: Clause, }
-        form preposed_if = "if" condition "," body;
-    }
     construction starting_with: ClauseAttachment {
         element StartingWithAttachment { starter: Object, body: Clause, }
         form starting_with = "starting" lex(Preposition::With) starter "," body;
     }
-    construction preposed_if_predicate: ClauseAttachment {
-        element PreposedIfPredicate { condition: Clause, body: Predicate, }
-        derive body.concord_class = Values::Other;
-        form preposed_if_predicate = "if" condition "," body;
+    construction if_clause_tail: IfClauseTail {
+        element IfClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form if_clause_tail = "if" condition;
     }
-    construction postposed_if: ClauseAttachment {
-        element PostposedIf { body: Clause, condition: FiniteClause, }
-        form postposed_if = body "if" condition;
+    construction preposed_if_clause_tail: PreposedIfClauseTail {
+        element PreposedIfClauseTailValue { condition: Clause, }
+        derive focus = Values::Unfocused;
+        form preposed_if_clause_tail = "if" condition;
     }
-    construction postposed_if_predicate: ClauseAttachment {
-        element PostposedIfPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.concord_class = Values::Other;
-        form postposed_if_predicate = body "if" condition;
+    construction unless_clause_tail: UnlessClauseTail {
+        element UnlessClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form unless_clause_tail = "unless" condition;
     }
-    construction postposed_unless: ClauseAttachment {
-        element PostposedUnless { body: Clause, condition: FiniteClause, }
-        form postposed_unless = body "unless" condition;
+    construction as_clause_tail: AsClauseTail {
+        element AsClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form as_clause_tail = "as" condition;
     }
-    construction postposed_unless_predicate: ClauseAttachment {
-        element PostposedUnlessPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.concord_class = Values::Other;
-        form postposed_unless_predicate = body "unless" condition;
+    construction as_long_as_clause_tail: AsLongAsClauseTail {
+        element AsLongAsClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form as_long_as_clause_tail = "as" "long" "as" condition;
     }
-    construction preposed_as: ClauseAttachment {
-        element PreposedAs { condition: FiniteClause, body: Predicate, }
-        derive body.concord_class = Values::Other;
-        form preposed_as = "as" condition "," body;
+    construction preposed_as_long_as_clause_tail: PreposedAsLongAsClauseTail {
+        element PreposedAsLongAsClauseTailValue { condition: Clause, }
+        derive focus = Values::Unfocused;
+        form preposed_as_long_as_clause_tail = "as" "long" "as" condition;
     }
-    construction preposed_as_long_as: ClauseAttachment {
-        element PreposedAsLongAs { condition: Clause, body: Clause, }
-        form preposed_as_long_as = "as" "long" "as" condition "," body;
+    construction for_as_long_as_clause_tail: ForAsLongAsClauseTail {
+        element ForAsLongAsClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form for_as_long_as_clause_tail = licensed("for") "as" "long" "as" condition;
     }
-    construction preposed_as_long_as_predicate: ClauseAttachment {
-        element PreposedAsLongAsPredicate { condition: Clause, body: Predicate, }
-        derive body.concord_class = Values::Other;
-        form preposed_as_long_as_predicate = "as" "long" "as" condition "," body;
+    construction while_clause_tail: WhileClauseTail {
+        element WhileClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form while_clause_tail = "while" condition;
     }
-    construction postposed_as_long_as: ClauseAttachment {
-        element PostposedAsLongAs { body: Clause, condition: FiniteClause, }
-        form postposed_as_long_as = body "as" "long" "as" condition;
+    construction until_clause_tail: UntilClauseTail {
+        element UntilClauseTailValue { condition: FiniteClause, }
+        derive focus = Values::Unfocused;
+        form until_clause_tail = "until" condition;
     }
-    construction postposed_as_long_as_predicate: ClauseAttachment {
-        element PostposedAsLongAsPredicate { body: Predicate, condition: FiniteClause, }
-        derive body.concord_class = Values::Other;
-        form postposed_as_long_as_predicate = body "as" "long" "as" condition;
+    construction predicate_adjunct_clause_tail: PredicateAdjunctClauseTail {
+        element PredicateAdjunctClauseTailValue { adjunct: PredicateAdjunct, }
+        derive focus = Values::Unfocused;
+        form predicate_adjunct_clause_tail = adjunct;
     }
-    construction postposed_while_clause: PostposedWhileClause {
-        element PostposedWhileClauseValue { body: Clause, condition: FiniteClause, }
-        form postposed_while_clause = body "while" condition;
-    }
-    construction postposed_for_as_long_as_clause: PostposedForAsLongAsClause {
-        element PostposedForAsLongAsClauseValue {
-            body: Clause,
-            condition: FiniteClause,
+    construction focused_preposed_clause_tail: FocusedPreposedClauseTail {
+        element FocusedPreposedClauseTailValue {
+            adverb: lex FocusAdverb,
+            focus: PreposedClauseTail,
         }
-        form postposed_for_as_long_as_clause =
-            body licensed("for") "as" "long" "as" condition;
+        require focus.focus is Unfocused;
+        derive focus = Values::Focused;
+        form focused_preposed_clause_tail = lex(adverb) focus;
     }
-    construction preposed_predicate_adjunct: ClauseAttachment {
-        element PreposedPredicateAdjunct {
-            adjunct: PredicateAdjunct,
-            body: Clause,
+    construction focused_postposed_clause_tail: FocusedPostposedClauseTail {
+        element FocusedPostposedClauseTailValue {
+            adverb: lex FocusAdverb,
+            focus: PostposedClauseTail,
         }
-        form preposed_predicate_adjunct = adjunct "," body;
+        require focus.focus is Unfocused;
+        derive focus = Values::Focused;
+        form focused_postposed_clause_tail = lex(adverb) focus;
     }
-    construction preposed_predicate_adjunct_predicate: ClauseAttachment {
-        element PreposedPredicateAdjunctPredicate {
-            adjunct: PredicateAdjunct,
+    construction and_postposed_clause_tail: CoordinatedPostposedClauseTail {
+        element AndPostposedClauseTail {
+            members: seq PostposedClauseTailCoordinationMember separated by " and ",
+        }
+        require len(members) >= 2;
+        derive focus = Values::Unfocused;
+        form and_postposed_clause_tail = members;
+    }
+    construction preposed_clause_tail: ClauseAttachment {
+        element PreposedClauseTailAttachment { tail: PreposedClauseTail, body: Clause, }
+        form preposed_clause_tail = tail "," body;
+    }
+    construction preposed_predicate_clause_tail: ClauseAttachment {
+        element PreposedPredicateClauseTailAttachment {
+            tail: PreposedClauseTail,
             body: Predicate,
         }
         derive body.concord_class = Values::Other;
-        form preposed_predicate_adjunct_predicate = adjunct "," body;
+        form preposed_predicate_clause_tail = tail "," body;
     }
-    construction preposed_while: ClauseAttachment {
-        element PreposedWhile { condition: FiniteClause, body: Clause, }
-        form preposed_while = "while" condition "," body;
+    construction postposed_clause_tail: PostposedClauseTailClause {
+        element PostposedClauseTailClauseValue {
+            body: ClauseTailBody,
+            tail: PostposedClauseTail,
+        }
+        form postposed_clause_tail = body tail;
     }
-    construction preposed_while_predicate: ClauseAttachment {
-        element PreposedWhilePredicate { condition: FiniteClause, body: Predicate, }
+    construction postposed_predicate_clause_tail: ClauseAttachment {
+        element PostposedPredicateClauseTailAttachment {
+            body: Predicate,
+            tail: PostposedClauseTail,
+        }
         derive body.concord_class = Values::Other;
-        form preposed_while_predicate = "while" condition "," body;
-    }
-    construction preposed_until: ClauseAttachment {
-        element PreposedUntil { condition: FiniteClause, body: Clause, }
-        form preposed_until = "until" condition "," body;
-    }
-    construction preposed_until_predicate: ClauseAttachment {
-        element PreposedUntilPredicate { condition: FiniteClause, body: Predicate, }
-        derive body.concord_class = Values::Other;
-        form preposed_until_predicate = "until" condition "," body;
+        form postposed_predicate_clause_tail = body tail;
     }
     construction fixed_duration_phrase: FixedDurationPhrase {
         element FixedDurationPhraseValue {
@@ -1623,6 +1652,7 @@ constructions! {
         require len(members) >= 2;
         derive members.concord_class = Values::Other;
         derive concord_class = members.concord_class;
+        derive focus = Values::Unfocused;
         form bare_then_predicate_sequence = members;
     }
     construction additional_cost: ClauseAttachment {
@@ -1697,6 +1727,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive focus = Values::Unfocused;
         form bare_and_predicate_coordination = members;
     }
     construction bare_or_predicate_coordination: BarePredicateCoordination {
@@ -1710,6 +1741,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive focus = Values::Unfocused;
         form bare_or_predicate_coordination = members;
     }
     construction bare_and_or_predicate_coordination: BarePredicateCoordination {
@@ -1723,6 +1755,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = members.concord_class;
+        derive focus = Values::Unfocused;
         form bare_and_or_predicate_coordination = members;
     }
     construction predicative_adjective: PredicativeAdjectiveComplement {
@@ -1807,6 +1840,7 @@ constructions! {
             complement: PredicativeComplement,
         }
         derive concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form bare_copular_predicate = lex(copula) complement;
     }
     construction declared_object_passive_predicate: DeclaredObjectPassivePredicate {
@@ -1856,6 +1890,7 @@ constructions! {
             predicate: PassivePredicate,
         }
         derive concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form bare_passive_predicate = lex(copula) predicate;
     }
     construction inventory_auxiliary: AuxiliaryHead {
@@ -1871,6 +1906,7 @@ constructions! {
         }
         derive concord_class = head.concord_class;
         derive complement.concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form object_infinitive_predicate = verb(head) object licensed("to") complement;
     }
     construction infinitive_complement: InfinitiveComplement {
@@ -1887,6 +1923,7 @@ constructions! {
             complement: InfinitiveComplement,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form choose_infinitive_predicate = verb(head) complement;
     }
     construction requirement_predicate: RequirementPredicate {
@@ -1895,6 +1932,7 @@ constructions! {
             frequency: NounPhrase,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form requirement_predicate = verb(head) frequency "if" "able";
     }
     construction transitive_requirement_predicate: TransitiveRequirementPredicate {
@@ -1904,6 +1942,7 @@ constructions! {
             duration: opt DurationPhrase,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form transitive_requirement_predicate =
             verb(head) object duration "if" "able";
     }
@@ -1913,6 +1952,7 @@ constructions! {
             condition: CounterfactualClause,
         }
         derive concord_class = predicate.concord_class;
+        derive focus = Values::Unfocused;
         form as_though_predicate = predicate "as" "though" condition;
     }
     construction ordered_predicate: OrderedPredicate {
@@ -1933,6 +1973,7 @@ constructions! {
         require source.preposition_complement_kind is SourceComplement;
         require order_relation is In;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form ordered_predicate =
             verb(head) object source lex(Preposition::On) destination lex(order_relation) lex(determiner) "order";
     }
@@ -1960,12 +2001,14 @@ constructions! {
             purpose: LexicalVerbPhrase,
         }
         derive purpose.concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form purpose_predicate_adjunct = licensed("to") purpose;
     }
     construction duration_predicate_adjunct: PredicateAdjunct {
         element DurationPredicateAdjunct {
             duration: DurationPhrase,
         }
+        derive focus = Values::Unfocused;
         form duration_predicate_adjunct = duration;
     }
     construction prepositional_predicate_adjunct: PredicateAdjunct {
@@ -1976,7 +2019,24 @@ constructions! {
             ),
         }
         require adjunct.preposition_attachment is AdjunctCapable;
+        derive focus = Values::Unfocused;
         form prepositional_predicate_adjunct = adjunct;
+    }
+    construction focused_predicate_adjunct: PredicateAdjunct {
+        element FocusedPredicateAdjunct {
+            adverb: lex FocusAdverb,
+            focus: PredicateAdjunct,
+        }
+        require focus.focus is Unfocused;
+        derive focus = Values::Focused;
+        form focused_predicate_adjunct = lex(adverb) focus;
+    }
+    construction focused_bare_predicate: FocusedBarePredicate {
+        element FocusedBarePredicateValue { adverb: lex FocusAdverb, focus: BarePredicate, }
+        require focus.focus is Unfocused;
+        derive concord_class = focus.concord_class;
+        derive focus = Values::Focused;
+        form focused_bare_predicate = lex(adverb) focus;
     }
     construction predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PredicateAdjunctPredicateValue {
@@ -1984,6 +2044,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive focus = Values::Unfocused;
         form predicate_adjunct_predicate = predicate adjunct;
     }
     construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
@@ -1992,6 +2053,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive focus = Values::Unfocused;
         form prepositional_predicate_adjunct_predicate = predicate adjunct;
     }
     construction stacked_predicate_adjunct_predicate: PredicateAdjunctPredicate {
@@ -2001,6 +2063,7 @@ constructions! {
             trailing: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
+        derive focus = Values::Unfocused;
         form stacked_predicate_adjunct_predicate = predicate leading trailing;
     }
     construction passive_duration_predicate_adjunct: PredicateAdjunctPredicate {
@@ -2009,6 +2072,7 @@ constructions! {
             adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_duration(),
         }
         derive concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form passive_duration_predicate_adjunct = predicate adjunct;
     }
     construction instead_predicate: InsteadPredicate {
@@ -2018,6 +2082,7 @@ constructions! {
         }
         require marker is Instead;
         derive concord_class = predicate.concord_class;
+        derive focus = Values::Unfocused;
         form instead_predicate = predicate lex(marker);
     }
     // A frequency adverbial counts occurrences of the predicate; "more than
@@ -2037,12 +2102,14 @@ constructions! {
         element FrequencyPredicateAdjunct {
             frequency: FrequencyReference,
         }
+        derive focus = Values::Unfocused;
         form frequency_predicate_adjunct = frequency;
     }
     construction manner_predicate_adjunct: PredicateAdjunct {
         element MannerPredicateAdjunct {
             manner: MannerReference,
         }
+        derive focus = Values::Unfocused;
         form manner_predicate_adjunct = manner;
     }
     construction alternative_predicate: AlternativePredicate {
@@ -2053,6 +2120,7 @@ constructions! {
         derive action.concord_class = Values::Other;
         derive concord_class = action.concord_class;
         derive alternative.concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form alternative_predicate = action "rather" "than" alternative;
     }
     construction without_gerund_object_predicate: WithoutGerundObjectPredicate {
@@ -2062,6 +2130,7 @@ constructions! {
             complement: Object,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form without_gerund_object_predicate =
             verb(head) object "without" "paying" complement;
     }
@@ -2078,41 +2147,8 @@ constructions! {
             action: ControlledCostAction,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form cost_comparison_predicate = verb(head) amount lex(direction) action;
-    }
-    construction restriction_turn: RestrictionTurn {
-        element RestrictionTurnValue { endpoint: TemporalEndpoint, }
-        form restriction_turn = endpoint;
-    }
-    construction only_if_restriction: CastingRestriction {
-        element OnlyIfRestriction { condition: FiniteClause, }
-        form only_if_restriction = "only" "if" condition;
-    }
-    construction only_during_restriction: CastingRestriction {
-        element OnlyDuringRestriction {
-            relation: lex Preposition,
-            timing: RestrictionTurn,
-        }
-        require relation is During;
-        form only_during_restriction = "only" lex(relation) timing;
-    }
-    construction only_temporal_clause_restriction: CastingRestriction {
-        element OnlyTemporalClauseRestriction {
-            relation: lex Preposition,
-            condition: FiniteClause,
-        }
-        form only_temporal_clause_restriction = "only" lex(relation) condition;
-    }
-    construction action_restriction_predicate: ActionRestrictionPredicate {
-        element ActionRestrictionPredicateValue {
-            _head: lex TransitiveVerb,
-            object: Object,
-            restrictions: seq CastingRestriction separated by " and ",
-        }
-        require len(restrictions) >= 1;
-        derive _head.concord_class = Values::Other;
-        derive concord_class = _head.concord_class;
-        form action_restriction_predicate = verb(_head) object restrictions;
     }
     construction finite_passive_predicate: FinitePassivePredicate {
         element FinitePassivePredicateValue {
@@ -2327,7 +2363,19 @@ constructions! {
         derive onset = value.onset;
         derive relationality = value.relationality;
         derive locative_temporal_license = value.locative_temporal_license;
+        derive focus = Values::Unfocused;
         form object_nominal = value;
+    }
+    construction focused_object: Object {
+        element FocusedObject { adverb: lex FocusAdverb, focus: Object, }
+        require focus.focus is Unfocused;
+        derive concord_class = focus.concord_class;
+        derive number = focus.number;
+        derive onset = focus.onset;
+        derive relationality = focus.relationality;
+        derive locative_temporal_license = focus.locative_temporal_license;
+        derive focus = Values::Focused;
+        form focused_object = lex(adverb) focus;
     }
     construction bare_singular_coordination_object: Object {
         element BareSingularCoordinationObject { value: NominalCoordination, }
@@ -2337,6 +2385,7 @@ constructions! {
         derive onset = value.onset;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
+        derive focus = Values::Unfocused;
         form bare_singular_coordination_object = value;
     }
     construction object_pronoun: Object {
@@ -2358,6 +2407,7 @@ constructions! {
         derive onset = word.onset;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
+        derive focus = Values::Unfocused;
         form object_pronoun = lex(word);
     }
     construction reflexive_object: Object {
@@ -2383,6 +2433,7 @@ constructions! {
         derive onset = word.onset;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
+        derive focus = Values::Unfocused;
         form reflexive_object = lex(word);
     }
     construction noun_singular_head: Head {
@@ -4194,6 +4245,7 @@ constructions! {
     construction base_verb_phrase: VerbPhrase {
         element BaseVerbPhrase { frame: LexicalVerbPhrase, }
         derive concord_class = frame.concord_class;
+        derive focus = Values::Unfocused;
         form base_verb_phrase = frame;
     }
     construction frame_complement_pair: FrameComplementPair {
@@ -4218,6 +4270,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form and_frame_complement_pair_coordination = verb(head) members;
     }
     construction or_frame_complement_pair_coordination: VerbPhrase {
@@ -4234,6 +4287,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form or_frame_complement_pair_coordination = verb(head) members;
     }
     construction and_or_frame_complement_pair_coordination: VerbPhrase {
@@ -4250,11 +4304,13 @@ constructions! {
         }
         require len(members) >= 2;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form and_or_frame_complement_pair_coordination = verb(head) members;
     }
     construction pro_verb_predicate: VerbPhrase {
         element ProVerbPredicate { head: lex ProVerbHead, }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form pro_verb_predicate = verb(head);
     }
     construction declared_object_predicative_verb_phrase: VerbPhrase {
@@ -4264,6 +4320,7 @@ constructions! {
             complement: PredicativeComplement,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_object_predicative_verb_phrase = verb(head) object complement;
     }
     construction intransitive_predicate: IntransitiveLexicalVerbPhrase {
@@ -4421,6 +4478,7 @@ constructions! {
             marker: opt lex ReplacementMarker,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form distributed_measure_predicate =
             verb(head) amount measure distribution lex(marker);
     }
@@ -4438,6 +4496,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_object_equality_to_predicate =
             verb(head) object equality lex(Preposition::To) recipient;
     }
@@ -4455,6 +4514,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_object_to_equality_predicate =
             verb(head) object lex(Preposition::To) recipient equality;
     }
@@ -4465,11 +4525,13 @@ constructions! {
             equality: ScalarEquality,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_object_equality_predicate = verb(head) object equality;
     }
     construction mana_phrase: VerbPhrase {
         element ManaVerbPhrase { head: lex ManaPhraseVerb, mana: ManaPhrase, }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form mana_phrase = verb(head) mana;
     }
     construction declared_object_from_predicate: VerbPhrase {
@@ -4483,6 +4545,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_object_from_predicate =
             verb(head) object lex(Preposition::From) source;
     }
@@ -4507,6 +4570,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form put_onto =
             verb(head) object source lex(Preposition::Onto) destination result marked(Preposition::Under, control);
     }
@@ -4530,6 +4594,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form put_onto_source_after =
             verb(head) object lex(Preposition::Onto) destination lex(Preposition::From) source result marked(Preposition::Under, control);
     }
@@ -4548,6 +4613,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form put_on = verb(head) object source lex(Preposition::On) destination;
     }
     construction put_to: VerbPhrase {
@@ -4561,6 +4627,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form put_to = verb(head) object lex(Preposition::To) destination;
     }
     construction return_to: VerbPhrase {
@@ -4584,6 +4651,7 @@ constructions! {
         }
         require source.preposition_complement_kind is SourceComplement;
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form return_to =
             verb(head) object source lex(Preposition::To) destination result marked(Preposition::Under, control);
     }
@@ -4603,6 +4671,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_with_object_on_predicate =
             verb(head) lex(Preposition::With) object lex(Preposition::On) recipient;
     }
@@ -4620,6 +4689,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form enter_location = verb(head) location result marked(Preposition::Under, control);
     }
     construction enter_control: VerbPhrase {
@@ -4628,11 +4698,13 @@ constructions! {
             control: Object,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form enter_control = verb(head) marked(Preposition::Under, control);
     }
     construction look_at: VerbPhrase {
         element LookAt { head: lex LookAtVerb, object: Object, }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form look_at = verb(head) lex(Preposition::At) object;
     }
     construction declared_to_object_predicate: VerbPhrase {
@@ -4646,6 +4718,7 @@ constructions! {
             ),
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_to_object_predicate =
             verb(head) object lex(Preposition::To) complement;
     }
@@ -4655,6 +4728,7 @@ constructions! {
             object: Object,
         }
         derive concord_class = head.concord_class;
+        derive focus = Values::Unfocused;
         form declared_for_object_predicate = verb(head) lex(Preposition::For) object;
     }
     // A quoted granted ability is a document in its own right: its interior
@@ -4708,6 +4782,7 @@ constructions! {
         }
         derive concord_class = head.concord_class;
         derive predicate.concord_class = Values::Other;
+        derive focus = Values::Unfocused;
         form have_object_control = verb(head) object predicate;
     }
     construction mana_amount: ManaAmount {
@@ -5436,7 +5511,11 @@ fn predicate_preposition_is_licensed(
 }
 
 fn predicate_adjunct_is_prepositional(adjunct: &PredicateAdjunct) -> bool {
-    matches!(adjunct, PredicateAdjunct::Prepositional(_))
+    match adjunct {
+        PredicateAdjunct::Focus(focused) => predicate_adjunct_is_prepositional(&focused.focus),
+        PredicateAdjunct::Prepositional(_) => true,
+        _ => false,
+    }
 }
 
 fn predicate_adjunct_is_nonprepositional(adjunct: &PredicateAdjunct) -> bool {
@@ -5444,7 +5523,11 @@ fn predicate_adjunct_is_nonprepositional(adjunct: &PredicateAdjunct) -> bool {
 }
 
 fn predicate_adjunct_is_duration(adjunct: &PredicateAdjunct) -> bool {
-    matches!(adjunct, PredicateAdjunct::Duration(_))
+    match adjunct {
+        PredicateAdjunct::Focus(focused) => predicate_adjunct_is_duration(&focused.focus),
+        PredicateAdjunct::Duration(_) => true,
+        _ => false,
+    }
 }
 
 fn bare_preposition_complement_is_licensed(

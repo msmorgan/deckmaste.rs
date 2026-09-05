@@ -914,8 +914,6 @@ enum NonterminalKind {
     PrepositionalPredicateAdjunctHost,
     FrequencyPredicateAdjunct,
     MannerPredicateAdjunct,
-    PreposedPredicateAdjunct,
-    PreposedPredicateAdjunctPredicate,
     BareLocativeProform,
     Ability,
     AbilityBody,
@@ -947,20 +945,32 @@ enum NonterminalKind {
     Sentence,
     Clause,
     ClauseAttachment,
+    ClauseTail,
+    ClauseTailBody,
+    IfClauseTail,
+    PreposedIfClauseTail,
+    UnlessClauseTail,
+    AsClauseTail,
+    AsLongAsClauseTail,
+    PreposedAsLongAsClauseTail,
+    ForAsLongAsClauseTail,
+    WhileClauseTail,
+    UntilClauseTail,
+    PredicateAdjunctClauseTail,
+    FocusedPreposedClauseTail,
+    FocusedPostposedClauseTail,
+    PreposedClauseTail,
+    PreposedClauseTailAttachment,
+    PreposedPredicateClauseTailAttachment,
+    SimplePostposedClauseTail,
+    PostposedClauseTail,
+    CoordinatedPostposedClauseTail,
+    PostposedClauseTailCoordinationMember,
+    PostposedClauseTailClause,
+    PostposedPredicateClauseTailAttachment,
+    FocusedPredicateAdjunct,
+    FocusedBarePredicate,
     StartingWithAttachment,
-    PreposedAs,
-    PreposedIf,
-    PreposedIfPredicate,
-    PostposedIf,
-    PostposedIfPredicate,
-    PostposedUnless,
-    PostposedUnlessPredicate,
-    PreposedAsLongAs,
-    PreposedAsLongAsPredicate,
-    PreposedWhile,
-    PreposedWhilePredicate,
-    PreposedUntil,
-    PreposedUntilPredicate,
     ThenSequence,
     ThenPredicateSequence,
     BareThenPredicateSequence,
@@ -968,15 +978,10 @@ enum NonterminalKind {
     AdditionalCost,
     AdditionalCostPredicateBody,
     AdditionalCostFiniteBody,
-    CastingRestriction,
-    OnlyIfRestriction,
-    OnlyDuringRestriction,
     AlternativePredicate,
     WithoutGerundObjectPredicate,
     ControlledCostAction,
     CostComparisonPredicate,
-    RestrictionTurn,
-    ActionRestrictionPredicate,
     Predicate,
     BarePredicate,
     CoordinatedPredicate,
@@ -1148,8 +1153,6 @@ enum NonterminalKind {
     ObjectWithObjectLexicalVerbPhrase,
     OrScalarDegreePhrase,
     PositiveObjectGapRelativeClause,
-    PostposedForAsLongAsClause,
-    PostposedWhileClause,
     PredicativeFaceOrientation,
     PredicativeNominalComplement,
     ScalarDegreePhrase,
@@ -1160,10 +1163,7 @@ enum NonterminalKind {
     WithObjectLexicalVerbPhrase,
     AndManaCoordination,
     AndOrManaCoordination,
-    OnlyTemporalClauseRestriction,
     OrManaCoordination,
-    PostposedAsLongAs,
-    PostposedAsLongAsPredicate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1609,10 +1609,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::FrequencyPredicateAdjunct
         }
         NonterminalCategory::MannerPredicateAdjunct => NonterminalKind::MannerPredicateAdjunct,
-        NonterminalCategory::PreposedPredicateAdjunct => NonterminalKind::PreposedPredicateAdjunct,
-        NonterminalCategory::PreposedPredicateAdjunctPredicate => {
-            NonterminalKind::PreposedPredicateAdjunctPredicate
-        }
         NonterminalCategory::BareLocativeProform => NonterminalKind::BareLocativeProform,
         NonterminalCategory::Ability => NonterminalKind::Ability,
         NonterminalCategory::AbilityBody => NonterminalKind::AbilityBody,
@@ -1644,18 +1640,54 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Sentence => NonterminalKind::Sentence,
         NonterminalCategory::Clause => NonterminalKind::Clause,
         NonterminalCategory::ClauseAttachment => NonterminalKind::ClauseAttachment,
-        NonterminalCategory::StartingWithAttachment => NonterminalKind::StartingWithAttachment,
-        NonterminalCategory::PreposedAs => NonterminalKind::PreposedAs,
-        NonterminalCategory::PreposedIf => NonterminalKind::PreposedIf,
-        NonterminalCategory::PreposedIfPredicate => NonterminalKind::PreposedIfPredicate,
-        NonterminalCategory::PostposedIf => NonterminalKind::PostposedIf,
-        NonterminalCategory::PostposedIfPredicate => NonterminalKind::PostposedIfPredicate,
-        NonterminalCategory::PostposedUnless => NonterminalKind::PostposedUnless,
-        NonterminalCategory::PostposedUnlessPredicate => NonterminalKind::PostposedUnlessPredicate,
-        NonterminalCategory::PreposedAsLongAs => NonterminalKind::PreposedAsLongAs,
-        NonterminalCategory::PreposedAsLongAsPredicate => {
-            NonterminalKind::PreposedAsLongAsPredicate
+        NonterminalCategory::ClauseTail => NonterminalKind::ClauseTail,
+        NonterminalCategory::ClauseTailBody => NonterminalKind::ClauseTailBody,
+        NonterminalCategory::IfClauseTail => NonterminalKind::IfClauseTail,
+        NonterminalCategory::PreposedIfClauseTail => NonterminalKind::PreposedIfClauseTail,
+        NonterminalCategory::UnlessClauseTail => NonterminalKind::UnlessClauseTail,
+        NonterminalCategory::AsClauseTail => NonterminalKind::AsClauseTail,
+        NonterminalCategory::AsLongAsClauseTail => NonterminalKind::AsLongAsClauseTail,
+        NonterminalCategory::PreposedAsLongAsClauseTail => {
+            NonterminalKind::PreposedAsLongAsClauseTail
         }
+        NonterminalCategory::ForAsLongAsClauseTail => NonterminalKind::ForAsLongAsClauseTail,
+        NonterminalCategory::WhileClauseTail => NonterminalKind::WhileClauseTail,
+        NonterminalCategory::UntilClauseTail => NonterminalKind::UntilClauseTail,
+        NonterminalCategory::PredicateAdjunctClauseTail => {
+            NonterminalKind::PredicateAdjunctClauseTail
+        }
+        NonterminalCategory::FocusedPreposedClauseTail => {
+            NonterminalKind::FocusedPreposedClauseTail
+        }
+        NonterminalCategory::FocusedPostposedClauseTail => {
+            NonterminalKind::FocusedPostposedClauseTail
+        }
+        NonterminalCategory::PreposedClauseTail => NonterminalKind::PreposedClauseTail,
+        NonterminalCategory::PreposedClauseTailAttachment => {
+            NonterminalKind::PreposedClauseTailAttachment
+        }
+        NonterminalCategory::PreposedPredicateClauseTailAttachment => {
+            NonterminalKind::PreposedPredicateClauseTailAttachment
+        }
+        NonterminalCategory::PostposedClauseTail => NonterminalKind::PostposedClauseTail,
+        NonterminalCategory::SimplePostposedClauseTail => {
+            NonterminalKind::SimplePostposedClauseTail
+        }
+        NonterminalCategory::CoordinatedPostposedClauseTail => {
+            NonterminalKind::CoordinatedPostposedClauseTail
+        }
+        NonterminalCategory::PostposedClauseTailCoordinationMember => {
+            NonterminalKind::PostposedClauseTailCoordinationMember
+        }
+        NonterminalCategory::PostposedClauseTailClause => {
+            NonterminalKind::PostposedClauseTailClause
+        }
+        NonterminalCategory::PostposedPredicateClauseTailAttachment => {
+            NonterminalKind::PostposedPredicateClauseTailAttachment
+        }
+        NonterminalCategory::FocusedPredicateAdjunct => NonterminalKind::FocusedPredicateAdjunct,
+        NonterminalCategory::FocusedBarePredicate => NonterminalKind::FocusedBarePredicate,
+        NonterminalCategory::StartingWithAttachment => NonterminalKind::StartingWithAttachment,
         NonterminalCategory::ThenSequence => NonterminalKind::ThenSequence,
         NonterminalCategory::ThenPredicateSequence => NonterminalKind::ThenPredicateSequence,
         NonterminalCategory::BareThenPredicateSequence => {
@@ -1667,19 +1699,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::AdditionalCostPredicateBody
         }
         NonterminalCategory::AdditionalCostFiniteBody => NonterminalKind::AdditionalCostFiniteBody,
-        NonterminalCategory::CastingRestriction => NonterminalKind::CastingRestriction,
-        NonterminalCategory::OnlyIfRestriction => NonterminalKind::OnlyIfRestriction,
-        NonterminalCategory::OnlyDuringRestriction => NonterminalKind::OnlyDuringRestriction,
         NonterminalCategory::AlternativePredicate => NonterminalKind::AlternativePredicate,
         NonterminalCategory::WithoutGerundObjectPredicate => {
             NonterminalKind::WithoutGerundObjectPredicate
         }
         NonterminalCategory::ControlledCostAction => NonterminalKind::ControlledCostAction,
         NonterminalCategory::CostComparisonPredicate => NonterminalKind::CostComparisonPredicate,
-        NonterminalCategory::RestrictionTurn => NonterminalKind::RestrictionTurn,
-        NonterminalCategory::ActionRestrictionPredicate => {
-            NonterminalKind::ActionRestrictionPredicate
-        }
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
         NonterminalCategory::BarePredicate => NonterminalKind::BarePredicate,
         NonterminalCategory::CoordinatedPredicate => NonterminalKind::CoordinatedPredicate,
@@ -1947,10 +1972,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PositiveObjectGapRelativeClause => {
             NonterminalKind::PositiveObjectGapRelativeClause
         }
-        NonterminalCategory::PostposedForAsLongAsClause => {
-            NonterminalKind::PostposedForAsLongAsClause
-        }
-        NonterminalCategory::PostposedWhileClause => NonterminalKind::PostposedWhileClause,
         NonterminalCategory::PredicativeFaceOrientation => {
             NonterminalKind::PredicativeFaceOrientation
         }
@@ -1962,14 +1983,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::TemporalEndpoint => NonterminalKind::TemporalEndpoint,
         NonterminalCategory::UntilDurationPhrase => NonterminalKind::UntilDurationPhrase,
         NonterminalCategory::OrManaCoordination => NonterminalKind::OrManaCoordination,
-        NonterminalCategory::PostposedAsLongAs => NonterminalKind::PostposedAsLongAs,
-        NonterminalCategory::PostposedAsLongAsPredicate => {
-            NonterminalKind::PostposedAsLongAsPredicate
-        }
-        NonterminalCategory::PreposedWhile => NonterminalKind::PreposedWhile,
-        NonterminalCategory::PreposedWhilePredicate => NonterminalKind::PreposedWhilePredicate,
-        NonterminalCategory::PreposedUntil => NonterminalKind::PreposedUntil,
-        NonterminalCategory::PreposedUntilPredicate => NonterminalKind::PreposedUntilPredicate,
         NonterminalCategory::PredicativeAbilityComplement => {
             NonterminalKind::PredicativeAbilityComplement
         }
@@ -1987,9 +2000,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::AndManaCoordination => NonterminalKind::AndManaCoordination,
         NonterminalCategory::AndOrManaCoordination => NonterminalKind::AndOrManaCoordination,
-        NonterminalCategory::OnlyTemporalClauseRestriction => {
-            NonterminalKind::OnlyTemporalClauseRestriction
-        }
         NonterminalCategory::WithObjectLexicalVerbPhrase => {
             NonterminalKind::WithObjectLexicalVerbPhrase
         }

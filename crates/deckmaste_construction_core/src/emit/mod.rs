@@ -383,6 +383,7 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::ModifierLicense => quote! { ModifierLicense },
         crate::feature::Feature::DeterminerNumber => quote! { DeterminerNumber },
         crate::feature::Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        crate::feature::Feature::Focus => quote! { Focus },
         crate::feature::Feature::PrepositionComplementKind => {
             quote! { PrepositionComplementKind }
         }
@@ -508,6 +509,7 @@ fn emit_predicate_atom(
                 crate::feature::Feature::ModifierLicense => local_ident("ModifierLicense"),
                 crate::feature::Feature::DeterminerNumber => local_ident("DeterminerNumber"),
                 crate::feature::Feature::FusedHeadLicense => local_ident("FusedHeadLicense"),
+                crate::feature::Feature::Focus => local_ident("Focus"),
                 crate::feature::Feature::PrepositionComplementKind => {
                     local_ident("PrepositionComplementKind")
                 }

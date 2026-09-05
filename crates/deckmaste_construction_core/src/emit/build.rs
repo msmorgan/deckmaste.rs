@@ -4162,6 +4162,7 @@ fn resolve_feature_place(
                     | Feature::HomographLicense
                     | Feature::MannerAnaphorClass
                     | Feature::LocativeTemporalLicense
+                    | Feature::Focus
                     | Feature::Properness
                     | Feature::Relationality,
                 )
@@ -4173,6 +4174,7 @@ fn resolve_feature_place(
                         | Feature::HomographLicense
                         | Feature::MannerAnaphorClass
                         | Feature::LocativeTemporalLicense
+                        | Feature::Focus
                         | Feature::Properness
                         | Feature::Relationality,
                     ..
@@ -4404,6 +4406,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::MannerAnaphor => quote! { MannerAnaphorClass::MannerAnaphor },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+        FeatureValue::Unfocused => quote! { Focus::Unfocused },
+        FeatureValue::Focused => quote! { Focus::Focused },
         FeatureValue::No => quote! { BareLocativeComplement::No },
         FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
         FeatureValue::UnrestrictedComplement => {

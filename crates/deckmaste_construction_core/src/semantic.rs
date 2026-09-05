@@ -2160,8 +2160,18 @@ impl SemanticPlan {
                             ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => {
                                 carries(plan, category, feature, visiting)
                             }
-                            ValueKindPlan::Product(_)
-                            | ValueKindPlan::Lex(_)
+                            ValueKindPlan::Product(product) => plan
+                                .constructions
+                                .iter()
+                                .find(|construction| construction.element_type() == product)
+                                .is_some_and(|construction| {
+                                    plan.feature_equations(construction.construction_id())
+                                        .iter()
+                                        .any(|equation| {
+                                            matches!(equation.target(), crate::feature::FeaturePlace::Construction(found) if *found == feature)
+                                        })
+                                }),
+                            ValueKindPlan::Lex(_)
                             | ValueKindPlan::Identity(_) => false,
                         })
             } else {

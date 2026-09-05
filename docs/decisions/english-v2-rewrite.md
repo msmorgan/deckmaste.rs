@@ -1345,6 +1345,17 @@ invariants (the two-way onset-override closure, the census partition identity,
 and the `environment.rs` load errors) stay as gates.
 
 
+## Amendment: focus is non-iterating declared syntax (2026-09-05)
+
+English focus does not iterate: a Focus construction requires its operand's
+declared `Focus` feature to be `Unfocused` and derives `Focused` for its result.
+Every unfocused member of a focus-bearing sum derives `Unfocused`, and the same
+two-value feature applies to every focus category. The guard reads only this
+declared grammatical feature; it never names an adverb, construction, verb, or
+card. A Focus wrapper remains transparent to every other feature and
+admissibility classification its host reads.
+
+
 ## Ruling: corpus timing ceiling and acceptance-cost telemetry (2026-09-02)
 
 The gate criterion stays a per-command wall-clock ceiling of 16.26 s,

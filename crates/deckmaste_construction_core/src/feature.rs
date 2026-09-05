@@ -42,6 +42,7 @@ feature_inventory! {
     ModifierLicense => "modifier_license",
     DeterminerNumber => "determiner_number",
     FusedHeadLicense => "fused_head_license",
+    Focus => "focus",
     PrepositionComplementKind => "preposition_complement_kind",
     LocativeTemporalLicense => "locative_temporal_license",
     NominalForm => "nominal_form",
@@ -90,6 +91,8 @@ pub(crate) enum FeatureValue {
     PartitiveOnly,
     FusedHead,
     PluralPredeterminer,
+    Unfocused,
+    Focused,
     UnrestrictedComplement,
     RelationalComplement,
     SelectionComplement,
@@ -194,6 +197,7 @@ impl Feature {
                 FeatureValue::FusedHead,
                 FeatureValue::PluralPredeterminer,
             ],
+            Self::Focus => &[FeatureValue::Unfocused, FeatureValue::Focused],
             Self::PrepositionComplementKind => &[
                 FeatureValue::UnrestrictedComplement,
                 FeatureValue::RelationalComplement,
@@ -303,6 +307,8 @@ impl FeatureValue {
             Self::PartitiveOnly => "PartitiveOnly",
             Self::FusedHead => "FusedHead",
             Self::PluralPredeterminer => "PluralPredeterminer",
+            Self::Unfocused => "Unfocused",
+            Self::Focused => "Focused",
             Self::UnrestrictedComplement => "UnrestrictedComplement",
             Self::RelationalComplement => "RelationalComplement",
             Self::SelectionComplement => "SelectionComplement",
@@ -507,6 +513,8 @@ impl FeatureValue {
             Self::PartitiveOnly => "PartitiveOnly",
             Self::FusedHead => "FusedHead",
             Self::PluralPredeterminer => "PluralPredeterminer",
+            Self::Unfocused => "Unfocused",
+            Self::Focused => "Focused",
             Self::UnrestrictedComplement => "UnrestrictedComplement",
             Self::RelationalComplement => "RelationalComplement",
             Self::SelectionComplement => "SelectionComplement",
@@ -609,6 +617,8 @@ pub(crate) fn lower_constant(
         (model::Feature::FusedHeadLicense, "PluralPredeterminer") => {
             FeatureValue::PluralPredeterminer
         }
+        (model::Feature::Focus, "Unfocused") => FeatureValue::Unfocused,
+        (model::Feature::Focus, "Focused") => FeatureValue::Focused,
         (model::Feature::PrepositionComplementKind, "UnrestrictedComplement") => {
             FeatureValue::UnrestrictedComplement
         }
@@ -743,6 +753,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a fused-head-license value"),
             ));
         }
+        (model::Feature::Focus, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a focus value"),
+            ));
+        }
         (model::Feature::PrepositionComplementKind, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -827,6 +843,7 @@ impl From<model::Feature> for Feature {
             model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
+            model::Feature::Focus => Self::Focus,
             model::Feature::PrepositionComplementKind => Self::PrepositionComplementKind,
             model::Feature::LocativeTemporalLicense => Self::LocativeTemporalLicense,
             model::Feature::NominalForm => Self::NominalForm,
@@ -904,5 +921,14 @@ mod tests {
             )
             .is_err()
         );
+        assert_eq!(
+            lower_constant(Feature::Focus, &syn::parse_quote!(Anything::Unfocused)).unwrap(),
+            FeatureValue::Unfocused
+        );
+        assert_eq!(
+            lower_constant(Feature::Focus, &syn::parse_quote!(Anything::Focused)).unwrap(),
+            FeatureValue::Focused
+        );
+        assert!(lower_constant(Feature::Focus, &syn::parse_quote!(Anything::Plural)).is_err());
     }
 }

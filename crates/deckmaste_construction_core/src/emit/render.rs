@@ -518,6 +518,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::ConcordClass,
         Feature::Cardinality,
         Feature::FusedHeadLicense,
+        Feature::Focus,
         Feature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
@@ -533,6 +534,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 feature,
                 Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
+                    | Feature::Focus
                     | Feature::PrepositionComplementKind
                     | Feature::LocativeTemporalLicense
                     | Feature::ModifierLicense
@@ -574,6 +576,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }
     for feature in [
         Feature::FusedHeadLicense,
+        Feature::Focus,
         Feature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense,
         Feature::ModifierLicense,
@@ -1803,6 +1806,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        Feature::Focus => quote! { Focus },
         Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
         Feature::LocativeTemporalLicense => quote! { LocativeTemporalLicense },
         Feature::NominalForm => quote! { NominalForm },
@@ -4120,6 +4124,7 @@ fn feature_expr(
                     Feature::FusedHeadLicense => {
                         Err(internal("verb slot does not provide fused-head license"))
                     }
+                    Feature::Focus => Err(internal("verb slot does not provide focus")),
                     Feature::PrepositionComplementKind => Err(internal(
                         "verb slot does not provide locative-temporal complement metadata",
                     )),
@@ -5113,6 +5118,7 @@ fn emit_feature_helper(
         Feature::ModifierLicense => quote! { ModifierLicense },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::FusedHeadLicense => quote! { FusedHeadLicense },
+        Feature::Focus => quote! { Focus },
         Feature::PrepositionComplementKind => quote! { PrepositionComplementKind },
         Feature::LocativeTemporalLicense => quote! { LocativeTemporalLicense },
         Feature::NominalForm => quote! { NominalForm },
@@ -5302,6 +5308,27 @@ fn emit_sum_feature_helper(
                     if validated.carries_feature(category, feature) =>
                 {
                     category
+                }
+                ValueKindPlan::Product(product) => {
+                    let construction = validated
+                        .constructions()
+                        .iter()
+                        .find(|construction| construction.element_type() == product)
+                        .ok_or_else(|| internal("feature-bearing product has no construction"))?;
+                    let equation = validated
+                        .feature_equations(construction.construction_id())
+                        .iter()
+                        .find(|equation| {
+                            matches!(equation.target(), FeaturePlace::Construction(found) if *found == feature)
+                        })
+                        .ok_or_else(|| internal("feature-bearing product lacks an equation"))?;
+                    let FeatureExpr::Constant(value) = equation.value() else {
+                        return Err(internal(
+                            "feature-bearing sum product requires a constant feature equation",
+                        ));
+                    };
+                    let value = feature_value(*value.value());
+                    return Ok(quote! { #ty::#variant(_) => #value });
                 }
                 _ => {
                     return Err(internal(&format!(
@@ -5661,7 +5688,7 @@ fn feature_constant_pattern(
             }
             continue;
         }
-        let pattern = if field.kind() == ConstructionFieldKind::Lex {
+        let pattern = if field.kind() == ConstructionFieldKind::Lex && !field.is_optional() {
             if let Some(vocab) = resolved_vocab(validated, field.terminal())? {
                 let ty = ident(vocab.name());
                 let variants = vocab.variants().iter().map(|variant| {
@@ -5718,6 +5745,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::MannerAnaphor => quote! { MannerAnaphorClass::MannerAnaphor },
         FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
         FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+        FeatureValue::Unfocused => quote! { Focus::Unfocused },
+        FeatureValue::Focused => quote! { Focus::Focused },
         FeatureValue::No => quote! { BareLocativeComplement::No },
         FeatureValue::Yes => quote! { BareLocativeComplement::Yes },
         FeatureValue::UnrestrictedComplement => {
@@ -6017,6 +6046,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::PossessiveEnding => "possessive_ending",
         Feature::DeterminerNumber => "determiner_number",
         Feature::FusedHeadLicense => "fused_head_license",
+        Feature::Focus => "focus",
         Feature::PrepositionComplementKind => "preposition_complement_kind",
         Feature::LocativeTemporalLicense => "locative_temporal_license",
         Feature::NominalForm => "nominal_form",

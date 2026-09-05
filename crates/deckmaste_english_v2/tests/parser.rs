@@ -1839,7 +1839,7 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
             assert_eq!(
                 failure.expectations().items()[0],
                 deckmaste_english_v2::parser::ExpectationInfo::Nonterminal(
-                    NonterminalCategory::CastingRestriction,
+                    NonterminalCategory::DurationPhrase,
                 )
             );
         }

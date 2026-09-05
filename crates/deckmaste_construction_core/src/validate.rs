@@ -5497,6 +5497,7 @@ fn generated_name_inventory(
                         ParsedFeature::FusedHeadLicense => {
                             ("fused_head_license", "FusedHeadLicense")
                         }
+                        ParsedFeature::Focus => ("focus", "Focus"),
                         ParsedFeature::PrepositionComplementKind => {
                             ("preposition_complement_kind", "PrepositionComplementKind")
                         }
@@ -6119,6 +6120,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
+        Feature::Focus => ParsedFeature::Focus,
         Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense => ParsedFeature::LocativeTemporalLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
@@ -6180,6 +6182,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
+        Feature::Focus => ParsedFeature::Focus,
         Feature::PrepositionComplementKind => ParsedFeature::PrepositionComplementKind,
         Feature::LocativeTemporalLicense => ParsedFeature::LocativeTemporalLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
@@ -6453,6 +6456,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
+                | ParsedFeature::Focus
                 | ParsedFeature::PrepositionComplementKind
                 | ParsedFeature::LocativeTemporalLicense
                 | ParsedFeature::NominalForm
@@ -10343,6 +10347,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::ModifierLicense,
             ParsedFeature::DeterminerNumber,
             ParsedFeature::FusedHeadLicense,
+            ParsedFeature::Focus,
             ParsedFeature::PrepositionComplementKind,
             ParsedFeature::LocativeTemporalLicense,
             ParsedFeature::NominalForm,
@@ -10355,6 +10360,15 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
                 providers.insert((category.clone(), feature));
+            }
+        }
+    }
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else { continue };
+        let product = identifier_key(&construction.element.name);
+        for equation in &construction.equations {
+            if let ParsedFeaturePlace::Construction(feature) = equation.target {
+                providers.insert((product.clone(), feature));
             }
         }
     }
@@ -10433,6 +10447,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::FusedHeadLicense,
+                ParsedFeature::Focus,
                 ParsedFeature::LocativeTemporalLicense,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
@@ -10477,6 +10492,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
+        ParsedFeature::Focus => "focus",
         ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
         ParsedFeature::LocativeTemporalLicense => "locative_temporal_license",
         ParsedFeature::NominalForm => "nominal_form",
@@ -10929,6 +10945,7 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
                     | ParsedFeature::FusedHeadLicense
+                    | ParsedFeature::Focus
                     | ParsedFeature::PrepositionComplementKind
                     | ParsedFeature::LocativeTemporalLicense
                     | ParsedFeature::NominalForm
@@ -11002,6 +11019,7 @@ fn validate_lowerable_feature_compositions(
                     feature:
                         ParsedFeature::DeterminerNumber
                         | ParsedFeature::FusedHeadLicense
+                        | ParsedFeature::Focus
                         | ParsedFeature::PrepositionComplementKind
                         | ParsedFeature::LocativeTemporalLicense
                         | ParsedFeature::NominalForm
@@ -11197,6 +11215,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
         for feature in [
             ParsedFeature::ConcordClass,
             ParsedFeature::Cardinality,
+            ParsedFeature::Focus,
             ParsedFeature::ModifierLicense,
             ParsedFeature::Number,
             ParsedFeature::Onset,
@@ -11246,6 +11265,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
+        ParsedFeature::Focus => "focus",
         ParsedFeature::PrepositionComplementKind => "preposition_complement_kind",
         ParsedFeature::LocativeTemporalLicense => "locative_temporal_license",
         ParsedFeature::NominalForm => "nominal_form",
@@ -17932,7 +17952,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 148);
+        assert_eq!(expansion.plan().items().len(), 149);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18297,7 +18317,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 148);
+        assert_eq!(expansion.plan().items().len(), 149);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -18439,7 +18459,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 148);
+        assert_eq!(emission.items().len(), 149);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

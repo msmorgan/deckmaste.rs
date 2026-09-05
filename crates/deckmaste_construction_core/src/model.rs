@@ -249,6 +249,7 @@ pub enum Feature {
     ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
+    Focus,
     PrepositionComplementKind,
     LocativeTemporalLicense,
     NominalForm,

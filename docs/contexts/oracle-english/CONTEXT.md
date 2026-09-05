@@ -47,6 +47,28 @@ punctuation and containing one or more Clauses.
 **Clause**:
 A syntactic unit organized around a predication and its dependents.
 
+**Subordinate Clause**:
+A Clause that functions as a dependent within another Clause or phrase rather
+than as an independent Sentence.
+
+**Clause Tail** (project term):
+A subordinate or adjunct constituent that combines with a Clause or Predicate
+at its boundary, whether it precedes or follows that host.
+
+**Adverb**:
+A lexical Category whose members characteristically modify a phrase, Clause,
+or other expression without serving as a nominal argument.
+
+**Adverb Phrase**:
+A phrase headed by an Adverb.
+
+**Focus**:
+The constituent whose interpretation is made prominent or restricted relative
+to alternatives.
+
+**Focus Adverb**:
+An Adverb that associates with a Focus, such as restrictive *only*.
+
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.
 This is distinct from a Game Model Predicate.

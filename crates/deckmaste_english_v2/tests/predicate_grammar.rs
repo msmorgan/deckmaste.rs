@@ -461,9 +461,9 @@ impl Visitor for PredicateVisitor {
         }
     }
 
-    fn visit_preposed_as(&mut self, value: &PreposedAs) {
+    fn visit_as_clause_tail(&mut self, value: &AsClauseTail) {
         self.0.push("as-clause");
-        deckmaste_english_v2::visit::walk_preposed_as(self, value);
+        deckmaste_english_v2::visit::walk_as_clause_tail(self, value);
     }
 
     fn visit_modal_passive_subject_gap_relative_clause(
@@ -547,7 +547,8 @@ fn builds_keep_new_products_in_the_existing_typed_algebra() {
     };
     assert!(matches!(
         attachment.as_ref(),
-        ClauseAttachment::PreposedAs(_)
+        ClauseAttachment::PreposedPredicateClauseTail(value)
+            if matches!(value.tail.as_ref(), PreposedClauseTail::As(_))
     ));
 
     let coordinated = assert_selected_with_specificity(
@@ -4086,9 +4087,9 @@ impl Visitor for AdjunctSurfaceVisitor {
         self.0.push(format!("order:{value:?}"));
     }
 
-    fn visit_postposed_unless_predicate(&mut self, value: &PostposedUnlessPredicate) {
+    fn visit_unless_clause_tail(&mut self, value: &UnlessClauseTail) {
         self.0.push("exception:unless".to_owned());
-        deckmaste_english_v2::visit::walk_postposed_unless_predicate(self, value);
+        deckmaste_english_v2::visit::walk_unless_clause_tail(self, value);
     }
 }
 
@@ -4140,13 +4141,13 @@ fn attachment_movement_does_not_silently_change_scope() {
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "ClauseAttachmentPreposedPredicateAdjunctPredicate")
+            .any(|item| item == "ClauseAttachmentPreposedPredicateClauseTail")
     );
     assert!(
         selected
             .construction_path()
             .iter()
-            .any(|item| item == "PredicateAdjunctPurposePredicateAdjunct")
+            .any(|item| item == "PredicateAdjunctClauseTailPredicateAdjunctClauseTail")
     );
 
     for text in [
@@ -4440,9 +4441,11 @@ fn cost_frames_select_their_complete_typed_paths() {
         "Cast this spell only if you control a snow land.",
         "Cast this spell only during your turn.",
         "Cast this spell only during your turn and only if you control a snow land.",
+        "Cast only this spell if you control a snow land.",
         "Destroy this spell only during your turn.",
         "Activate this ability only if you control a snow land.",
         "Draw a card only if you control a snow land.",
+        "Draw only a card.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -4452,6 +4455,18 @@ fn cost_frames_select_their_complete_typed_paths() {
 fn cost_frame_reciprocals_reject_crossed_boundaries() {
     let parser = parser();
     let context = context();
+
+    let unfocused = parser.analyze("Cast this spell your turn.", &context);
+    let focused = parser.analyze("Cast this spell only your turn.", &context);
+    assert!(
+        unfocused.selected().is_some(),
+        "the pre-existing bare-duration defect changed: {unfocused:#?}",
+    );
+    assert_eq!(
+        focused.selected().is_some(),
+        unfocused.selected().is_some(),
+        "focus must preserve the host's duration decision: focused={focused:#?}, unfocused={unfocused:#?}",
+    );
 
     for text in [
         "As an additional cost cast this spell, discard a card.",
@@ -4464,12 +4479,12 @@ fn cost_frame_reciprocals_reject_crossed_boundaries() {
         "Spells costs {1} less to cast.",
         "This ability cost {1} less to activate.",
         "Cast this spell if only you control fewer creatures than each opponent.",
-        "Cast this spell only your turn.",
         "Cast this spell only only during your turn.",
     ] {
+        let analysis = parser.analyze(text, &context);
         assert!(
-            parser.parse(text, &context).is_err(),
-            "crossed cost frame must reject {text:?}",
+            analysis.selected().is_none(),
+            "crossed cost frame must reject {text:?}: {analysis:#?}",
         );
     }
 }
@@ -4490,10 +4505,8 @@ fn cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
         "Spells cost one less to cast.",
         "Spells cost {1} more less to cast.",
         "Spells cost {1} less to cast for for each creature you control.",
-        "Cast only this spell if you control a snow land.",
         "Cast this spell if you control a snow land only.",
         "Cast this spell only only if you control a snow land.",
-        "Draw only a card.",
         "Activate only as a sorcery.",
     ] {
         assert!(

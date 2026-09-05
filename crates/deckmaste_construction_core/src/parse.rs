@@ -818,6 +818,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
+        "focus" => Some(Feature::Focus),
         "preposition_complement_kind" => Some(Feature::PrepositionComplementKind),
         "locative_temporal_license" => Some(Feature::LocativeTemporalLicense),
         "nominal_form" => Some(Feature::NominalForm),

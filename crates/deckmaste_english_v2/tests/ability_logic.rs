@@ -3018,18 +3018,126 @@ fn gain_clause(amount: u32) -> Clause {
     )))
 }
 
+#[expect(
+    clippy::boxed_local,
+    reason = "the helper consumes the boxed Clause shape used by the exact AST witnesses"
+)]
+fn if_clause_tail(condition: Box<Clause>) -> IfClauseTail {
+    let Clause::Finite(condition) = *condition else {
+        panic!("the clause-tail witness condition is finite")
+    };
+    IfClauseTail::IfClauseTail(IfClauseTailValue {
+        condition: *condition,
+    })
+}
+
+fn preposed_if_clause_tail(condition: Box<Clause>) -> PreposedIfClauseTail {
+    PreposedIfClauseTail::PreposedIfClauseTail(PreposedIfClauseTailValue { condition })
+}
+
+#[expect(
+    clippy::boxed_local,
+    reason = "the helper consumes the boxed Clause shape used by the exact AST witnesses"
+)]
+fn unless_clause_tail(condition: Box<Clause>) -> UnlessClauseTail {
+    let Clause::Finite(condition) = *condition else {
+        panic!("the clause-tail witness condition is finite")
+    };
+    UnlessClauseTail::UnlessClauseTail(UnlessClauseTailValue {
+        condition: *condition,
+    })
+}
+
+fn preposed_as_long_as_clause_tail(condition: Box<Clause>) -> PreposedAsLongAsClauseTail {
+    PreposedAsLongAsClauseTail::PreposedAsLongAsClauseTail(PreposedAsLongAsClauseTailValue {
+        condition,
+    })
+}
+
+fn postposed_if_clause_tail(condition: Box<Clause>) -> PostposedClauseTail {
+    PostposedClauseTail::Simple(Box::new(SimplePostposedClauseTail::If(Box::new(
+        if_clause_tail(condition),
+    ))))
+}
+
+fn postposed_unless_clause_tail(condition: Box<Clause>) -> PostposedClauseTail {
+    PostposedClauseTail::Simple(Box::new(SimplePostposedClauseTail::Unless(Box::new(
+        unless_clause_tail(condition),
+    ))))
+}
+
+fn preposed_clause_tail(tail: PreposedClauseTail, body: Clause) -> ClauseAttachment {
+    ClauseAttachment::PreposedClauseTail(Box::new(PreposedClauseTailAttachment {
+        tail: Box::new(tail),
+        body: Box::new(body),
+    }))
+}
+
+fn postposed_clause_tail(body: Clause, tail: PostposedClauseTail) -> Clause {
+    let body = match body {
+        Clause::Finite(body) => ClauseTailBody::Finite(body),
+        Clause::Coordination(body) => ClauseTailBody::Coordination(body),
+        Clause::Tail(_) => panic!("a clause tail body is deliberately nonrecursive"),
+    };
+    Clause::Tail(Box::new(PostposedClauseTailClause::PostposedClauseTail(
+        PostposedClauseTailClauseValue {
+            body: Box::new(body),
+            tail: Box::new(tail),
+        },
+    )))
+}
+
+fn preposed_predicate_clause_tail(tail: PreposedClauseTail, body: Predicate) -> ClauseAttachment {
+    ClauseAttachment::PreposedPredicateClauseTail(Box::new(
+        PreposedPredicateClauseTailAttachment::new(Box::new(tail), Box::new(body))
+            .expect("the attached imperative predicate is bare"),
+    ))
+}
+
+fn postposed_predicate_clause_tail(body: Predicate, tail: PostposedClauseTail) -> ClauseAttachment {
+    ClauseAttachment::PostposedPredicateClauseTail(Box::new(
+        PostposedPredicateClauseTailAttachment::new(Box::new(body), Box::new(tail))
+            .expect("the attached imperative predicate is bare"),
+    ))
+}
+
+fn is_preposed_if_clause_attachment(attachment: &ClauseAttachment) -> bool {
+    matches!(
+        attachment,
+        ClauseAttachment::PreposedClauseTail(value)
+            if matches!(value.tail.as_ref(), PreposedClauseTail::If(_))
+    )
+}
+
+fn is_preposed_if_predicate_attachment(attachment: &ClauseAttachment) -> bool {
+    matches!(
+        attachment,
+        ClauseAttachment::PreposedPredicateClauseTail(value)
+            if matches!(value.tail.as_ref(), PreposedClauseTail::If(_))
+    )
+}
+
+fn is_postposed_if_clause(clause: &Clause) -> bool {
+    matches!(
+        clause,
+        Clause::Tail(value)
+            if matches!(value.as_ref(), PostposedClauseTailClause::PostposedClauseTail(value)
+                if matches!(value.tail.as_ref(), PostposedClauseTail::Simple(tail)
+                    if matches!(tail.as_ref(), SimplePostposedClauseTail::If(_))))
+    )
+}
+
 #[test]
 fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let parser = parser();
     let context = context("Context Card", false);
     let expected = Sentence::Attached(Attached {
-        attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
-            PreposedIfPredicate::new(
-                connive_condition_clause(),
-                Box::new(Predicate::Atomic(Box::new(connive()))),
-            )
-            .expect("the attached imperative predicate is bare"),
-        ))),
+        attachment: Box::new(preposed_predicate_clause_tail(
+            PreposedClauseTail::If(Box::new(
+                preposed_if_clause_tail(connive_condition_clause()),
+            )),
+            Predicate::Atomic(Box::new(connive())),
+        )),
     });
     let selected = assert_one_logic_candidate(&parser, &context, "If you connive, connive.");
     assert_eq!(
@@ -3059,41 +3167,43 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
         (
             "If you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedIf(Box::new(PreposedIf {
-                    condition: preposed_condition.clone(),
-                    body: Box::new(body.clone()),
-                }))),
+                attachment: Box::new(preposed_clause_tail(
+                    PreposedClauseTail::If(Box::new(preposed_if_clause_tail(
+                        preposed_condition.clone(),
+                    ))),
+                    body.clone(),
+                )),
             }),
         ),
         (
             "You gain 2 life if you connive.",
-            Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PostposedIf(Box::new(PostposedIf {
-                    body: Box::new(body.clone()),
-                    condition: condition.clone(),
-                }))),
+            Sentence::Declarative(Declarative {
+                clause: Box::new(postposed_clause_tail(
+                    body.clone(),
+                    postposed_if_clause_tail(Box::new(Clause::Finite(Box::new(condition.clone())))),
+                )),
             }),
         ),
         (
             "You gain 2 life unless you connive.",
-            Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PostposedUnless(Box::new(
-                    PostposedUnless {
-                        body: Box::new(body.clone()),
-                        condition: condition.clone(),
-                    },
-                ))),
+            Sentence::Declarative(Declarative {
+                clause: Box::new(postposed_clause_tail(
+                    body.clone(),
+                    postposed_unless_clause_tail(Box::new(Clause::Finite(Box::new(
+                        condition.clone(),
+                    )))),
+                )),
             }),
         ),
         (
             "As long as you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedAsLongAs(Box::new(
-                    PreposedAsLongAs {
-                        condition: preposed_condition.clone(),
-                        body: Box::new(body.clone()),
-                    },
-                ))),
+                attachment: Box::new(preposed_clause_tail(
+                    PreposedClauseTail::AsLongAs(Box::new(preposed_as_long_as_clause_tail(
+                        preposed_condition.clone(),
+                    ))),
+                    body.clone(),
+                )),
             }),
         ),
     ] {
@@ -3144,9 +3254,7 @@ fn ordered_then_and_proverb_conditions_are_linguistic_and_disjoint() {
             .iter()
             .map(|member| match member {
                 Clause::Finite(member) => finite_clause_identity(member),
-                Clause::Coordination(_)
-                | Clause::PostposedWhile(_)
-                | Clause::PostposedForAsLongAs(_) => {
+                Clause::Coordination(_) | Clause::Tail(_) => {
                     panic!("then members retain their finite clause shape")
                 }
             })
@@ -3163,10 +3271,7 @@ fn ordered_then_and_proverb_conditions_are_linguistic_and_disjoint() {
     else {
         panic!("the proverb condition is its own sentence shape")
     };
-    assert!(matches!(
-        attachment.as_ref(),
-        ClauseAttachment::PreposedIf(_)
-    ));
+    assert!(is_preposed_if_clause_attachment(attachment));
 
     let when_text = "When you do, you connive.";
     let triggered = assert_one_logic_candidate(&parser, &context, when_text);
@@ -3217,8 +3322,8 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
     };
     assert!(matches!(
         ordinary_body.sentences(),
-        [Sentence::Attached(Attached { attachment })]
-            if matches!(attachment.as_ref(), ClauseAttachment::PostposedIf(_))
+        [Sentence::Declarative(Declarative { clause })]
+            if is_postposed_if_clause(clause)
     ));
 
     let intervening_analysis = parser.analyze(intervening, &context);
@@ -3319,14 +3424,20 @@ impl Visitor for AttachmentVisitor {
         deckmaste_english_v2::visit::walk_clause_attachment(self, value);
     }
 
-    fn visit_preposed_if_predicate(&mut self, value: &PreposedIfPredicate) {
-        self.0.push("PreposedIfPredicate");
-        deckmaste_english_v2::visit::walk_preposed_if_predicate(self, value);
+    fn visit_preposed_predicate_clause_tail_attachment(
+        &mut self,
+        value: &PreposedPredicateClauseTailAttachment,
+    ) {
+        self.0.push("PreposedPredicateClauseTailAttachment");
+        deckmaste_english_v2::visit::walk_preposed_predicate_clause_tail_attachment(self, value);
     }
 
-    fn visit_postposed_if_predicate(&mut self, value: &PostposedIfPredicate) {
-        self.0.push("PostposedIfPredicate");
-        deckmaste_english_v2::visit::walk_postposed_if_predicate(self, value);
+    fn visit_postposed_predicate_clause_tail_attachment(
+        &mut self,
+        value: &PostposedPredicateClauseTailAttachment,
+    ) {
+        self.0.push("PostposedPredicateClauseTailAttachment");
+        deckmaste_english_v2::visit::walk_postposed_predicate_clause_tail_attachment(self, value);
     }
 
     fn visit_then_sequence(&mut self, value: &ThenSequence) {
@@ -3443,14 +3554,20 @@ impl Visitor for AttachmentEnvelopeVisitor {
         deckmaste_english_v2::visit::walk_clause_attachment(self, value);
     }
 
-    fn visit_preposed_if_predicate(&mut self, value: &PreposedIfPredicate) {
-        self.0.push("PreposedIfPredicate");
-        deckmaste_english_v2::visit::walk_preposed_if_predicate(self, value);
+    fn visit_preposed_predicate_clause_tail_attachment(
+        &mut self,
+        value: &PreposedPredicateClauseTailAttachment,
+    ) {
+        self.0.push("PreposedPredicateClauseTailAttachment");
+        deckmaste_english_v2::visit::walk_preposed_predicate_clause_tail_attachment(self, value);
     }
 
-    fn visit_postposed_if_predicate(&mut self, value: &PostposedIfPredicate) {
-        self.0.push("PostposedIfPredicate");
-        deckmaste_english_v2::visit::walk_postposed_if_predicate(self, value);
+    fn visit_postposed_predicate_clause_tail_attachment(
+        &mut self,
+        value: &PostposedPredicateClauseTailAttachment,
+    ) {
+        self.0.push("PostposedPredicateClauseTailAttachment");
+        deckmaste_english_v2::visit::walk_postposed_predicate_clause_tail_attachment(self, value);
     }
 
     fn visit_finite_clause(&mut self, value: &FiniteClause) {
@@ -3558,10 +3675,12 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
         Ability::Plain(Plain {
             body: AbilityBody::Sentences(
                 Sentences::new(Box::new(vec![Sentence::Attached(Attached {
-                    attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
-                        PreposedIfPredicate::new(condition.clone(), Box::new(gain.clone()))
-                            .expect("the attached gain predicate is bare"),
-                    ))),
+                    attachment: Box::new(preposed_predicate_clause_tail(
+                        PreposedClauseTail::If(Box::new(preposed_if_clause_tail(
+                            condition.clone(),
+                        ))),
+                        gain.clone(),
+                    )),
                 })]))
                 .expect("one root sentence"),
             ),
@@ -3573,7 +3692,7 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
         vec![(
             14,
             15,
-            "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+            "form:preposed_predicate_clause_tail/preposed_predicate_clause_tail/1".to_owned(),
         )],
         "the root attachment comma has an exact owner",
     );
@@ -3590,7 +3709,7 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
             "Sentence",
             "Attached",
             "ClauseAttachment",
-            "PreposedIfPredicate",
+            "PreposedPredicateClauseTailAttachment",
             "FiniteClause",
             "Subject:You",
             "Predicate:Connive",
@@ -3624,10 +3743,10 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
             intervening_if: Box::new(None),
             body: AbilityBody::Sentences(
                 Sentences::new(Box::new(vec![Sentence::Attached(Attached {
-                    attachment: Box::new(ClauseAttachment::PostposedIfPredicate(Box::new(
-                        PostposedIfPredicate::new(Box::new(gain), condition)
-                            .expect("the attached gain predicate is bare"),
-                    ))),
+                    attachment: Box::new(postposed_predicate_clause_tail(
+                        gain,
+                        postposed_if_clause_tail(Box::new(Clause::Finite(Box::new(condition)))),
+                    )),
                 })]))
                 .expect("one trigger-body sentence"),
             ),
@@ -3658,7 +3777,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
             "Sentence",
             "Attached",
             "ClauseAttachment",
-            "PostposedIfPredicate",
+            "PostposedPredicateClauseTailAttachment",
             "Predicate:Gain2",
             "FiniteClause",
             "Subject:You",
@@ -3700,10 +3819,10 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
         &activated.body,
         &AbilityBody::Sentences(
             Sentences::new(Box::new(vec![Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
-                    PreposedIfPredicate::new(preposed_condition, Box::new(gain))
-                        .expect("the attached gain predicate is bare"),
-                ))),
+                attachment: Box::new(preposed_predicate_clause_tail(
+                    PreposedClauseTail::If(Box::new(preposed_if_clause_tail(preposed_condition))),
+                    gain,
+                )),
             })]))
             .expect("one post-colon sentence"),
         ),
@@ -3716,7 +3835,7 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
             (
                 19,
                 20,
-                "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+                "form:preposed_predicate_clause_tail/preposed_predicate_clause_tail/1".to_owned(),
             ),
         ],
         "the post-colon attachment punctuation has exact owners",
@@ -3739,7 +3858,7 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
             "Sentence",
             "Attached",
             "ClauseAttachment",
-            "PreposedIfPredicate",
+            "PreposedPredicateClauseTailAttachment",
             "FiniteClause",
             "Subject:You",
             "Predicate:Connive",
@@ -3835,24 +3954,26 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     for (text, expected) in [
         (
             "Gain 2 life if you connive.",
-            ClauseAttachment::PostposedIfPredicate(Box::new(
-                PostposedIfPredicate::new(Box::new(gain.clone()), condition.clone())
-                    .expect("the attached gain predicate is bare"),
-            )),
+            postposed_predicate_clause_tail(
+                gain.clone(),
+                postposed_if_clause_tail(Box::new(Clause::Finite(Box::new(condition.clone())))),
+            ),
         ),
         (
             "Gain 2 life unless you connive.",
-            ClauseAttachment::PostposedUnlessPredicate(Box::new(
-                PostposedUnlessPredicate::new(Box::new(gain.clone()), condition.clone())
-                    .expect("the attached gain predicate is bare"),
-            )),
+            postposed_predicate_clause_tail(
+                gain.clone(),
+                postposed_unless_clause_tail(Box::new(Clause::Finite(Box::new(condition.clone())))),
+            ),
         ),
         (
             "As long as you connive, gain 2 life.",
-            ClauseAttachment::PreposedAsLongAsPredicate(Box::new(
-                PreposedAsLongAsPredicate::new(preposed_condition.clone(), Box::new(gain.clone()))
-                    .expect("the attached gain predicate is bare"),
-            )),
+            preposed_predicate_clause_tail(
+                PreposedClauseTail::AsLongAs(Box::new(preposed_as_long_as_clause_tail(
+                    preposed_condition.clone(),
+                ))),
+                gain.clone(),
+            ),
         ),
     ] {
         let selected = assert_one_logic_candidate(&parser, &context, text);
@@ -3886,10 +4007,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     else {
         panic!("the proverb-conditioned imperative stores its body in the attachment stage")
     };
-    assert!(matches!(
-        attachment.as_ref(),
-        ClauseAttachment::PreposedIfPredicate(_)
-    ));
+    assert!(is_preposed_if_predicate_attachment(attachment));
 }
 
 #[test]
@@ -3945,12 +4063,19 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
     else {
         unreachable!()
     };
-    let ClauseAttachment::PreposedIf(preposed) = attachment.as_ref() else {
+    let ClauseAttachment::PreposedClauseTail(preposed) = attachment.as_ref() else {
+        unreachable!()
+    };
+    let PreposedClauseTail::If(if_tail) = preposed.tail.as_ref() else {
+        unreachable!()
+    };
+    let PreposedIfClauseTail::PreposedIfClauseTail(if_tail) = if_tail.as_ref();
+    let Clause::Finite(condition) = if_tail.condition.as_ref() else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
-    visitor.visit_clause(preposed.condition.as_ref());
-    assert_eq!(visitor.0, ["Clause", "FiniteClause", "Predicate"],);
+    visitor.visit_finite_clause(condition.as_ref());
+    assert_eq!(visitor.0, ["FiniteClause", "Predicate"],);
 
     for (name, legendary, surface, spelling) in [
         (
