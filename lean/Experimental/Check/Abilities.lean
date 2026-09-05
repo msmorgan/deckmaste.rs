@@ -1,8 +1,8 @@
-import Experimental.Effect
+import Experimental.Abilities
 import Experimental.Check.Triggers
 
 /-!
-# Experimental.Check.Effect
+# Experimental.Check.Abilities
 
 The effect layer of the checker: port of the functions of `Effect.idr`. The instruction
 profile (`pre`, `announced`, `rider`, `deed`) is what threads the antecedent stack through a
@@ -19,7 +19,7 @@ def AsThough.sort : AsThough → PremiseSort
   | .mana _ _ _ => .mana
   | .greater _ _ => .value
 
-def twoPartiesOk : Noun → Bool
+def twoPartiesOk : NounPhrase → Bool
   | .both l r => l.plur == .one && r.plur == .one
   | .described d _ => (d.quant >>= Quantity.exact) == some 2
   | _ => false
@@ -156,19 +156,19 @@ def Role.isAgent : Role → Bool
   | .agent => true
   | .patient => false
 
-def counterpartFits (bs : Bindings) (ds : Deeds) (r : Role) (m : Noun) (moved : Bool) : Bool :=
-  deedFits ds r (m.kindOr .object) m.isAbility (Noun.headTys bs m)
-    (if moved then none else Noun.zone bs m)
+def counterpartFits (bs : Bindings) (ds : Deeds) (r : Role) (m : NounPhrase) (moved : Bool) : Bool :=
+  deedFits ds r (m.kindOr .object) m.isAbility (NounPhrase.headTys bs m)
+    (if moved then none else NounPhrase.zone bs m)
 
 /-- A counterpart named after `n` must not be `n` read back. -/
-def counterpartNotSelf (bs : Bindings) (n : Noun) : Noun → Bool
-  | .pro r pl .whole => !r.tracksObject || countReach r pl (Noun.delta bs n) == 0
+def counterpartNotSelf (bs : Bindings) (n : NounPhrase) : NounPhrase → Bool
+  | .pro r pl .whole => !r.tracksObject || countReach r pl (NounPhrase.delta bs n) == 0
   | _ => true
 
-def complementAtOk (bs : Bindings) (n : Noun) (ds : Deeds) (r : Role) (c : DeedComplement) :
+def complementAtOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (c : DeedComplement) :
     Bool :=
-  ds.elem c.deed && counterpartFits (nomIntro bs n) [c.deed] r.counter c.m false &&
-    counterpartNotSelf bs n c.m
+  ds.elem c.deed && counterpartFits (nomIntro bs n) [c.deed] r.counter c.counterpart false &&
+    counterpartNotSelf bs n c.counterpart
 
 def DamageScope.intro (bs : Bindings) : DamageScope → Bindings
   | .everywhere => bs
@@ -204,17 +204,17 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
   | .counters _ => bs
 
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
-def Noun.ctrlOverrideOk : Noun → Bool
+def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
   | .possessorOf ax _ => possessorKind ax .object
   | n => n.plur.isOne
 
 def Amount.forEach : Amount → Bool
-  | .timesOf _ _ => true
+  | .arith .times _ _ => true
   | _ => false
 
 /-- An enacted act names a subject only where the act's facts row gives its agent role a
 player, the way `verbedVoiceOk` gates a verbed event. -/
-def enactAgentOk : Option Noun → VerbLabel → Bool
+def enactAgentOk : Option NounPhrase → VerbLabel → Bool
   | none, _ => true
   | some _, v => deedKindOk v .agent .player
 
@@ -226,10 +226,10 @@ agents' choices published [CR#700.8d], which spends nothing the table shares [CR
 def eachStackOk (outer out : Bindings) : Bool :=
   keepsOuterOf outer out || (partsDistributed outer && out == partsClosed outer)
 
-def distributedDelta (bs : Bindings) (s : Noun) (out : Bindings) : List Binding :=
+def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Binding :=
   pluralizeDelta (out.take (out.length - (agentIntro bs s).length))
 
-def mayCtx (bs : Bindings) (d : Noun) : Bindings := agentIntro bs d
+def mayCtx (bs : Bindings) (d : NounPhrase) : Bindings := agentIntro bs d
 
 /-! ## Deck conditions -/
 
@@ -245,7 +245,8 @@ mutual
   /-- A card set aside for the starting deck is outside the game [CR#103.2b], so only its
   characteristics are readable [CR#109.3]. -/
   def Predicate.deckReadable : Predicate → Bool
-    | .isCard | .permanent | .hasType _ | .hasSubtype _ => true
+    | .isCard | .hasType _ | .hasSubtype _ => true
+    | .inZone (.zone .battlefield _) => true
     | .compare axes _ bound => axes.all ProjAxis.deck && bound.deckBound
     | .and ps => Predicate.deckReadableAll ps
     | .not p => p.deckReadable
@@ -317,7 +318,7 @@ mutual
   termination_by structural ps => ps
 end
 
-def Noun.regime : Noun → Option StackRegime
+def NounPhrase.regime : NounPhrase → Option StackRegime
   | .described _ p => p.regime
   | .namesAgree _ g => g.regime
   | _ => none
@@ -328,53 +329,59 @@ def regimeMatches : Option StackRegime → Option StackRegime → Bool
 
 /-! ## Tokens -/
 
-def TokenChars.qualsFit (t : TokenChars) : Bool := t.quals.all (TokenQuality.hosted t.typeLine.types)
-def TokenChars.typed (t : TokenChars) : Bool := !t.typeLine.types.isEmpty
-def TokenChars.ptOk (t : TokenChars) : Bool := !t.typeLine.types.elem .creature || ptWritten t.pt
-def TokenChars.canonical (t : TokenChars) : Bool :=
-  colorsDistinct t.colors && typesDistinct t.typeLine.types && supersDistinct t.typeLine.supertypes
-def TokenChars.additionUnnamed (t : TokenChars) : Bool := t.name.isNone
-def TokenChars.lossWritesTypes (t : TokenChars) : Bool :=
-  t.pt.isNone && t.colors.isEmpty && t.abilities.isEmpty && t.name.isNone && t.quals.isEmpty &&
-    (t.typeLine.nonEmpty || !t.typeLine.supertypes.isEmpty)
-def TokenChars.headTy (t : TokenChars) : Option CardType := lastType t.typeLine.types
-def TokenChars.copyBundleSays (t : TokenChars) : Bool :=
-  let said := (if ptWritten t.pt then 1 else 0) + (if !t.colors.isEmpty then 1 else 0) +
-    (if t.typeLine.nonEmpty then 1 else 0)
+/-- A token's power and toughness together, when both are written. -/
+def Characteristics.pt (c : Characteristics) : Option (Amount × Amount) :=
+  match c.power, c.toughness with
+  | some p, some t => some (p, t)
+  | _, _ => none
+
+def Characteristics.qualsFit (c : Characteristics) : Bool :=
+  c.qualities.all (TokenQuality.hosted c.types)
+def Characteristics.typed (c : Characteristics) : Bool := !c.types.isEmpty
+def Characteristics.ptOk (c : Characteristics) : Bool := !c.types.elem .creature || ptWritten c.pt
+def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
+  typeLineNonEmpty c.supertypes c.types c.subtypes
+def Characteristics.canonical (c : Characteristics) : Bool :=
+  colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes
+def Characteristics.additionUnnamed (c : Characteristics) : Bool := c.name.isNone
+def Characteristics.lossWritesTypes (c : Characteristics) : Bool :=
+  c.pt.isNone && c.colors.isEmpty && c.text.isEmpty && c.name.isNone && c.qualities.isEmpty &&
+    c.lineNonEmpty
+def Characteristics.headTy (c : Characteristics) : Option CardType := lastType c.types
+def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
+  let said := (if ptWritten c.pt then 1 else 0) + (if !c.colors.isEmpty then 1 else 0) +
+    (if c.lineNonEmpty then 1 else 0)
   said ≥ 2
 
-/-- The Idris `TypeLine` in a token bundle carried no supertypes; `addsSomething` and
-`addedFits` read the types and subtypes only. -/
-def TokenChars.line (t : TokenChars) : TypeLine := t.typeLine
-
-def AbilityAt.grantable : AbilityAt → Bool
+def Ability.grantable : Ability → Bool
   | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ _ | .static _ => true
   | .italicHead _ ab => ab.grantable
   | _ => false
 
-def TokenChars.abilitiesOk (t : TokenChars) : Bool := t.abilities.all AbilityAt.grantable
+def Characteristics.abilitiesOk (c : Characteristics) : Bool := c.text.all Ability.grantable
 
-def bundleOk (op : QualityOp) (ty : Option CardType) (z : Option Zone) (t : TokenChars)
+def bundleOk (op : QualityOp) (ty : Option CardType) (z : Option Zone) (t : Characteristics)
     (ret : Option CardType) : Bool :=
   match op with
   | .adds =>
-    (addsSomething ty t.line || !t.typeLine.supertypes.isEmpty) && addedFits ty t.line &&
-      t.canonical && t.abilitiesOk && t.qualsFit && t.additionUnnamed && ret.isNone
+    (addsSomething ty t.types t.subtypes || !t.supertypes.isEmpty) &&
+      addedFits ty t.types t.subtypes && t.canonical && t.abilitiesOk && t.qualsFit &&
+      t.additionUnnamed && ret.isNone
   | .sets =>
-    zoneIsB z .battlefield && t.line.nonEmpty && addedFits ty t.line && t.abilitiesOk &&
-      t.canonical && t.qualsFit && retentionOk t.line ret
+    zoneIsB z .battlefield && t.lineNonEmpty && addedFits ty t.types t.subtypes &&
+      t.abilitiesOk && t.canonical && t.qualsFit && retentionOk t.types ret
   | .loses => zoneIsB z .battlefield && t.lossWritesTypes && t.canonical && ret.isNone
 
-def becomesOk (bs : Bindings) (op : QualityOp) (n : Noun) : QualityPayload → Bool
-  | .bundle t ret => bundleOk op (Noun.ty bs n) (Noun.zone bs n) t ret
-  | .everyTypeOf space => zoneIsB (Noun.zone bs n) .battlefield && spaceHosted space (Noun.ty bs n)
+def becomesOk (bs : Bindings) (op : QualityOp) (n : NounPhrase) : QualityPayload → Bool
+  | .bundle t ret => bundleOk op (NounPhrase.ty bs n) (NounPhrase.zone bs n) t ret
+  | .everyTypeOf space => zoneIsB (NounPhrase.zone bs n) .battlefield && spaceHosted space (NounPhrase.ty bs n)
   | .chosenQuality q => q.qualityReadOk && hostedRead bs q n
   | .colored cs => cs.ok && colorOpOk op cs
 
 def TokenSpec.headTy (bs : Bindings) : TokenSpec → Option CardType
   | .written t => t.headTy
   | .asThose => tyOfThoseAny .token bs
-  | .copyOf src _ => Noun.ty bs src
+  | .copyOf src _ => NounPhrase.ty bs src
 
 def TokenSpec.delta (bs : Bindings) : TokenSpec → List Binding
   | .written t => ptDelta bs t.pt
@@ -410,7 +417,7 @@ def DeonticRider.playRidden : DeonticRider → Bool
   | .noRider => false
   | .play _ _ _ _ _ => true
 
-def deonticPatientOk (bs : Bindings) (n : Noun) (ds : Deeds) (r : Role) (patient : DeonticPatient)
+def deonticPatientOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (patient : DeonticPatient)
     (rider : DeonticRider) : Bool :=
   match patient with
   | .noPatient => true
@@ -434,7 +441,7 @@ def deonticRiderOk (bs : Bindings) (ds : Deeds) (r : Role) (c : Compulsion) (pat
   | .play from_ lim win exc _ =>
     match pat with
     | .counterpart m =>
-      c.permits && ds.all deedPlaysOk && r.isAgent && playSourceOk (Noun.zone bs m) from_ at_ &&
+      c.permits && ds.all deedPlaysOk && r.isAgent && playSourceOk (NounPhrase.zone bs m) from_ at_ &&
         playWindowOk lim win && (!exc || from_.isSome)
     | _ => false
 
@@ -465,16 +472,16 @@ def KeywordParam.shape : Option KeywordParam → KeywordParamShape
 def keywordParamFits (k : KeywordLabel) (p : Option KeywordParam) : Bool :=
   knownKeyword k && paramShapesFit (keywordParamShapes k) (KeywordParam.shape p)
 
-def AbilityAt.notWordHeaded : AbilityAt → Bool
+def Ability.notWordHeaded : Ability → Bool
   | .italicHead _ _ => false
   | _ => true
 
-def keywordBodyFits (k : KeywordLabel) : Option AbilityAt → Bool
+def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
   | none => true
   | some (.triggered _ ev _ _ _ _ _ _ _) => keywordBodied k && keywordStackRegime k == bodyEventRegime ev
   | some _ => false
 
-def AbilityAt.grantedKeyword : AbilityAt → Option KeywordLabel
+def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k none _ => if keywordParamless k then some k else none
   | _ => none
 
@@ -490,46 +497,46 @@ def Instruction.keyword : Instruction → Option KeywordLabel
   | .continuously se _ => se.keyword
   | _ => none
 
-def AbilityAt.lineKeyword : AbilityAt → Option KeywordLabel
+def Ability.lineKeyword : Ability → Option KeywordLabel
   | .static se => se.keyword
   | .triggered _ _ _ _ _ _ _ _ instr => instr.keyword
   | _ => none
 
-def AbilityAt.keywordExtendable (ab : AbilityAt) : Bool := ab.lineKeyword.isSome
+def Ability.keywordExtendable (ab : Ability) : Bool := ab.lineKeyword.isSome
 
-def keywordListOk (ab : AbilityAt) (ks : List KeywordTerm) : Bool :=
+def keywordListOk (ab : Ability) (ks : List KeywordTerm) : Bool :=
   match ab.lineKeyword with
   | none => false
   | some base => !ks.isEmpty && allTermsBare ks && distinctTerms ks && !ks.elem (.the base)
 
-def AbilityAt.emblemOk : AbilityAt → Bool
+def Ability.emblemOk : Ability → Bool
   | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ _ | .static _ => true
   | .italicHead _ ab => ab.emblemOk
   | _ => false
 
-def emblemAbilitiesOk : List AbilityAt → Bool
+def emblemAbilitiesOk : List Ability → Bool
   | [] => false
-  | abl => abl.all AbilityAt.emblemOk
+  | abl => abl.all Ability.emblemOk
 
-def AbilityAt.regime : AbilityAt → Option StackRegime
+def Ability.regime : Ability → Option StackRegime
   | .keyword k _ _ => keywordStackRegime k
   | .alsoForKeywords ab _ => ab.regime
   | .italicHead _ ab => ab.regime
   | _ => none
 
-def AbilityAt.functionsOnStack : AbilityAt → Bool
+def Ability.functionsOnStack : Ability → Bool
   | .keyword k _ _ => keywordFunctionsOnStack k
   | .alsoForKeywords ab _ => ab.functionsOnStack
   | .italicHead _ ab => ab.functionsOnStack
   | _ => false
 
-def grantSubjectFits (zn : Option Zone) (reg : Option StackRegime) (ab : AbilityAt) : Bool :=
+def grantSubjectFits (zn : Option Zone) (reg : Option StackRegime) (ab : Ability) : Bool :=
   if onStackZone zn then regimeMatches ab.regime reg else !ab.functionsOnStack
 
-def grantSubjectOk (bs : Bindings) (ab : AbilityAt) (n : Noun) : Bool :=
-  grantSubjectFits (Noun.zone bs n) n.regime ab
+def grantSubjectOk (bs : Bindings) (ab : Ability) (n : NounPhrase) : Bool :=
+  grantSubjectFits (NounPhrase.zone bs n) n.regime ab
 
-def AbilityAt.letterDelta : AbilityAt → List Binding
+def Ability.letterDelta : Ability → List Binding
   | .keyword _ (some (.number (.letter l))) _ => [letterB l]
   | _ => []
 
@@ -577,10 +584,10 @@ mutual
   def Cost.paidByYou : Cost → Bool
     | .scaled c _ => c.paidByYou
     /- A life payment targets its payer; granting life may target anyone [CR#119.4]. -/
-    | .action (.changeLife who (.down _)) => who.isYou
-    | .action (.changeLife _ _) => true
-    | .action (.enact (some subj) _ _) => subj.isYou
-    | .action _ => true
+    | .perform (.changeLife who (.down _)) => who.isYou
+    | .perform (.changeLife _ _) => true
+    | .perform (.enact (some subj) _ _) => subj.isYou
+    | .perform _ => true
     | .compound cs => Cost.allPaidByYou cs
     | .either l r => l.paidByYou && r.paidByYou
     | _ => true
@@ -592,7 +599,7 @@ mutual
   termination_by structural cs => cs
 end
 
-def payAgreesOk (who : Noun) (c : Cost) : Bool := !who.isYou || c.paidByYou
+def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYou
 
 mutual
   def Cost.offBattlefield : Cost → Bool
@@ -657,7 +664,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .create _ _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ | .vote _ _ _ _
-  | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _ | .rollPlanarDie _ _
+  | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
   | .rerollStored _ _ _ => .reflexive
   | .resultsTable _ => .notOneAction
   | .may _ body none _ => body.reflexEncloseUse
@@ -665,7 +672,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .ifDone body none _ => body.reflexEncloseUse
   | .ifDone _ _ _ => .notOneAction
   | .onlyIf e _ _ => e.reflexEncloseUse
-  | .ifThen _ _ _ | .forEachOf _ _ | .forEachKindOf _ _ _ _ | .repeatProcess _ => .notOneAction
+  | .if_ _ _ _ | .forEachOf _ _ | .forEachKindOf _ _ _ _ | .repeat_ _ => .notOneAction
   | .repeated _ (.pay _ _ _) => .reflexive
   | .repeated _ (.may _ (.pay _ _ _) none _) => .reflexive
   | .repeated _ _ => .notOneAction
@@ -720,7 +727,6 @@ mutual
     | .shuffle whose => whose.costNounOk
     | .flipCoins who _ => who.costNounOk
     | .rollDice who _ _ => who.costNounOk
-    | .rollPlanarDie who _ => who.costNounOk
     | .rerollStored who _ _ => who.costNounOk
     | .create agent _ _ _ => agent.costNounOk
     | .putCounters _ _ on => on.costNounOk
@@ -731,7 +737,7 @@ mutual
     | .may _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid && Instruction.costActionOkOpt ifNot
     | .ifDone body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid && Instruction.costActionOkOpt ifNot
     | .onlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
-    | .ifThen _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
+    | .if_ _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
     | .forEachOf _ body => body.costActionOk
     | .forEachKindOf _ _ _ body => body.costActionOk
     | .repeated _ (.sequentially es) => Instruction.costStepsOk es
@@ -767,7 +773,7 @@ def ifDoneArmed : Option Instruction → Option Instruction → Bool
 
 /-- Idris `doesProfile` over the enacted clause's own profile `ep`, so the block below stays
 structural. -/
-def doesProfile (bs : Bindings) (pl : Plurality) (s : Noun) (v : VerbLabel) (e : Instruction)
+def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : VerbLabel) (e : Instruction)
     (ep : InstrProfile) : InstrProfile :=
   let bs' := agentIntro bs s
   match pl, e with
@@ -824,8 +830,8 @@ mutual
     | .unattach what => sameIntro (nomIntro bs what) []
     | .becomesBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
     | .stopsBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
-    | .becomesAttacking n .noDefender => sameIntro (nomIntro bs n) []
-    | .becomesAttacking n (.one whom) => sameIntro (nomIntro (nomIntro bs n) whom) []
+    | .becomesAttacking n none => sameIntro (nomIntro bs n) []
+    | .becomesAttacking n (some whom) => sameIntro (nomIntro (nomIntro bs n) whom) []
     | .regenerate n => sameIntro (nomIntro bs n) []
     | .cantBe e _ _ => Instruction.profile bs e
     | .gainsDesignation n _ _ _ => sameIntro (nomIntro bs n) []
@@ -837,14 +843,14 @@ mutual
     | .separateIntoPiles who grp piles faces =>
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
-       [⟨.the, .pile, .many, .pile (Noun.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
+       [⟨.the, .pile, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
     | .counterSpell what => sameIntro (nomIntro bs what) []
     | .copy src agent what times _ =>
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
         [⟨.the, k, outputPlur what.plur times.plur,
-          copyPayloadIn k what.isAbility (Noun.ty bs' what) (src.landsIn (Noun.zone bs' what))⟩]
+          copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
     | .choose _ by_ n _ => sameIntro (chooseIntro bs by_ n) []
@@ -872,9 +878,6 @@ mutual
     | .resultsTable _ => sameIntro bs []
     | .ignoreOutcomes which => sameIntro (which.intro bs) []
     | .shiftResult _ amt => sameIntro (Amount.intro bs amt) []
-    | .rollPlanarDie who count => sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB .planarRolled]
-    | .chaosEnsues none => sameIntro bs []
-    | .chaosEnsues (some what) => sameIntro (nomIntro bs what) []
     | .storeResults on => sameIntro (nomIntro bs on) []
     | .rerollStored who _ whose => sameIntro (nomIntro (nomIntro bs who) whose) []
     | .continuously se _ => sameIntro (StaticSpec.intro bs se) []
@@ -903,20 +906,20 @@ mutual
       let bodyP := Instruction.profile bs body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
     | .onlyIf e _ _ => sameIntro (Instruction.profile bs e).announced []
-    | .ifThen _ _ _ => sameIntro bs []
+    | .if_ _ _ _ => sameIntro bs []
     | .define l amt => sameIntro (defineLetter l (Amount.intro bs amt)) []
     | .forEachOf grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
       let bodyP := Instruction.profile bs' body
       ⟨bs, pluralizeDelta (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
-        pluralizeDelta (Noun.delta bs grp) ++ bs, none, []⟩
+        pluralizeDelta (NounPhrase.delta bs grp) ++ bs, none, []⟩
     | .forEachKindOf _ dom q body =>
       let bs' := kindValueIntro bs q dom
       let bodyP := Instruction.profile bs' body
       ⟨bs, pluralizeDelta (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
-        pluralizeDelta (dom.elim [] (Noun.delta bs)) ++ bs, none, []⟩
-    | .repeatProcess _ => sameIntro bs []
+        pluralizeDelta (dom.elim [] (NounPhrase.delta bs)) ++ bs, none, []⟩
+    | .repeat_ _ => sameIntro bs []
     | .repeated n body =>
       let bs' := Amount.intro bs n
       let bodyP := Instruction.profile bs' body
@@ -955,7 +958,7 @@ mutual
     | .mana c => if manaHasX c then letterB .x :: bs else bs
     | .scaled c _ => Cost.intro bs c
     | .loyaltySymbol .downX => letterB .x :: bs
-    | .action e => (Instruction.profile bs e).intro
+    | .perform e => (Instruction.profile bs e).intro
     | .compound cs => Cost.costsIntro bs cs
     | _ => bs
   termination_by structural c => c
@@ -1017,7 +1020,7 @@ def Instruction.delta (bs : Bindings) (e : Instruction) : Bindings :=
 
 def keepsOuter (bs : Bindings) (e : Instruction) : Bool := keepsOuterOf bs (e.intro bs)
 
-def enactKeepsOuter (bs : Bindings) : Option Noun → Instruction → Bool
+def enactKeepsOuter (bs : Bindings) : Option NounPhrase → Instruction → Bool
   | none, _ => true
   | some s, e =>
     match s.plur with
@@ -1033,7 +1036,7 @@ def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | .may d body _ _ => Instruction.replacedCtx (mayCtx bs d) body
   | .ifDone body _ _ => Instruction.replacedCtx bs body
   | .onlyIf e _ _ => Instruction.replacedCtx bs e
-  | .ifThen _ _ _ => bs
+  | .if_ _ _ _ => bs
   | e => e.deedDelta bs ++ e.annIntro bs
 
 def Instruction.otherwiseCtx (bs : Bindings) (e : Instruction) : Bindings :=
@@ -1088,7 +1091,7 @@ def Instruction.namesThisDoor : Instruction → Bool
   | .thisWay _ ev _ => ev.namesThisDoor
   | _ => false
 
-def AbilityAt.namesThisDoor : AbilityAt → Bool
+def Ability.namesThisDoor : Ability → Bool
   | .activated _ instr _ _ _ _ => instr.namesThisDoor
   | .triggered _ ev alts while_ joins _ _ _ instr =>
     ev.namesThisDoor || alts.any GameEvent.namesThisDoor || Concurrent.namesThisDoor while_ ||
@@ -1134,13 +1137,13 @@ mutual
 end
 
 /-- The stack after an ability line: the choices its text announced. -/
-def AbilityAt.intro (bs : Bindings) : AbilityAt → Bindings
+def Ability.intro (bs : Bindings) : Ability → Bindings
   | .keyword _ _ _ => bs
   | .activated _ instr _ _ _ _ => instr.choiceDelta ++ bs
   | .triggered _ _ _ _ _ _ _ _ instr => instr.choiceDelta ++ bs
   | .static se => se.choiceDelta bs ++ bs
-  | .alsoForKeywords ab _ => AbilityAt.intro bs ab
-  | .italicHead _ ab => AbilityAt.intro bs ab
+  | .alsoForKeywords ab _ => Ability.intro bs ab
+  | .italicHead _ ab => Ability.intro bs ab
   | .spell _ instr => instr.choiceDelta ++ bs
   | .mayBeginOnBattlefield => bs
 

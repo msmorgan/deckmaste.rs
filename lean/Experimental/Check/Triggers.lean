@@ -25,16 +25,16 @@ def Door.namesHost : Door → Bool
   | .thisDoor => false
   | .doorOf _ _ => true
 
-def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option Noun) : Bool :=
+def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option NounPhrase) : Bool :=
   (match by_ with
    | none => true
-   | some w => (Noun.delta bs w).isEmpty) &&
+   | some w => (NounPhrase.delta bs w).isEmpty) &&
   (match under with
    | none => true
-   | some u => u.plur.isOne && (Noun.delta bs u).isEmpty) &&
+   | some u => u.plur.isOne && (NounPhrase.delta bs u).isEmpty) &&
   !(byEffect && by_.isSome)
 
-def causedByOk (byEffect : Bool) (by_ : Option Noun) : Bool := !(byEffect && by_.isSome)
+def causedByOk (byEffect : Bool) (by_ : Option NounPhrase) : Bool := !(byEffect && by_.isSome)
 
 def putDestOk (z : ZoneExpr) : Bool := lookbackDestOk .placement z.sort
 
@@ -46,33 +46,38 @@ def entrySourceOk : Option EventSource → Bool
   | none => true
   | some src => lookbackSourceOk .entry src
 
-def RollWatch.fitsDie : RolledDie → RollWatch → Bool
-  | _, .anyResult => true
-  | d, .resultIn _ => d.hasResult
-  | d, .highestNatural => d.hasResult
+/-- The combat relations that name an event: attacking, blocking, becoming blocked. -/
+def CombatRelation.eventRelation : CombatRelation → Bool
+  | .attackerOf | .blockerOf | .blockedBy => true
+  | _ => false
 
-def AttackDefender.intro (bs : Bindings) : AttackDefender → Bindings
-  | .noDefender => bs
-  | .one m => nomIntro bs m
+def CombatRelation.eventName : CombatRelation → EventName
+  | .attackerOf | .declaredAttacker | .attackedBy => .attackDeclaration
+  | .blockerOf | .couldBlock => .blockDeclaration
+  | .blockedBy | .couldBeBlockedBy => .blockedDeclaration
 
-def DamagePatient.intro (bs : Bindings) : DamagePatient → Bindings
-  | .noPatient => bs
-  | .one m => nomIntro bs m
+def AttachMove.eventName : AttachMove → EventName
+  | .attached => .attachment
+  | .unattached => .unattachment
+
+def optIntro (bs : Bindings) : Option NounPhrase → Bindings
+  | none => bs
+  | some m => nomIntro bs m
 
 /-- Idris `Triggers.agentIntro`, not the phrase layer's: a plain `nomIntro` of the agent. -/
-def optAgentIntro (bs : Bindings) : Option Noun → Bindings
+def optAgentIntro (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
   | some who => nomIntro bs who
 
-def patientZone (bs : Bindings) : Option Noun → Option Zone
+def patientZone (bs : Bindings) : Option NounPhrase → Option Zone
   | none => none
-  | some n => Noun.zone bs n
+  | some n => NounPhrase.zone bs n
 
-def patientZoneIsB (bs : Bindings) : Option Noun → Zone → Bool
+def patientZoneIsB (bs : Bindings) : Option NounPhrase → Zone → Bool
   | none, _ => true
-  | some n, z => zoneIsB (Noun.zone bs n) z
+  | some n, z => zoneIsB (NounPhrase.zone bs n) z
 
-def verbPatientOk (v : VerbLabel) : Option Noun → Bool
+def verbPatientOk (v : VerbLabel) : Option NounPhrase → Bool
   | none => (actPatientKindsOf v).isEmpty
   | some _ => (actPatientKindsOf v).elem .object
 
@@ -80,7 +85,7 @@ def verbBecomesOk (v : VerbLabel) : Option Predicate → Bool
   | none => true
   | some p => actIntransitiveOf v && p.says
 
-def verbedVoiceOk (v : VerbLabel) : Option Noun → Option Noun → Bool
+def verbedVoiceOk (v : VerbLabel) : Option NounPhrase → Option NounPhrase → Bool
   | some _, _ => true
   | none, what => what.isSome && (actNamesParticiple v || actIntransitiveOf v)
 
@@ -91,7 +96,7 @@ def DamageKind.sourceZone : DamageKind → Option Zone
 
 def HeaderPossessor.intro (bs : Bindings) : HeaderPossessor → Bindings
   | .noPossessor => bs
-  | .byPlayer n => Noun.selfSubjDelta n ++ agentIntro bs n
+  | .byPlayer n => NounPhrase.selfSubjDelta n ++ agentIntro bs n
   | .byTurn _ => bs
 
 def HeaderPossessor.ok : HeaderPossessor → Bool
@@ -107,19 +112,16 @@ mutual
     | .draws _ => .cardDrawn
     | .losesGame _ => .gameLoss
     | .enters _ _ => .entry
-    | .attacks _ _ => .attackDeclaration
+    | .combat r _ _ => r.eventName
     | .attacksWith _ _ _ => .attackDeclaration
-    | .blocks _ _ => .blockDeclaration
-    | .becomesBlocked _ _ => .blockedDeclaration
-    | .becomesAttached _ _ => .attachment
-    | .becomesUnattached _ _ => .unattachment
+    | .attachment move _ _ => move.eventName
     | .dealsDamage .combatOnly _ _ => .combatDamage
     | .dealsDamage _ _ _ => .damageDealing
     | .beginningOf _ _ _ => .partBeginning
     | .casts _ _ _ => .spellCast
     | .becomesTarget _ _ => .becomesTarget
     | .statusEvent _ v => v.category.eventName
-    | .dayNightShift => .timeShift
+    | .gameBecomes _ => .gameDesignation
     | .stateHolds _ => .stateMatch
     | .putInto _ _ _ => .placement
     | .counterEvent dir _ _ batch _ _ => counterEventName dir batch
@@ -127,7 +129,6 @@ mutual
     | .chapterMark _ => .chapterArrival
     | .activates _ _ => .abilityActivation
     | .statBecomes _ _ _ => .statValueChange
-    | .regenerates _ => .regeneration
     | .flipsCoin _ none => .coinFlip
     | .flipsCoin _ (some call) => call.eventName
     | .rollsDice _ _ _ _ => .diceRoll
@@ -153,22 +154,17 @@ mutual
     | .draws who => selfSubjIntro bs who
     | .losesGame who => selfSubjIntro bs who
     | .enters n _ => selfSubjIntro bs n
-    | .attacks n .noDefender => selfSubjIntro bs n
-    | .attacks _ (.one whom) => selfSubjIntro bs whom
+    | .combat _ n none => selfSubjIntro bs n
+    | .combat _ _ (some m) => selfSubjIntro bs m
     | .attacksWith _ _ attackers => selfSubjIntro bs attackers
-    | .blocks n none => selfSubjIntro bs n
-    | .blocks _ (some what) => selfSubjIntro bs what
-    | .becomesBlocked n none => selfSubjIntro bs n
-    | .becomesBlocked _ (some by_) => selfSubjIntro bs by_
-    | .becomesAttached _ host => selfSubjIntro bs host
-    | .becomesUnattached _ host => selfSubjIntro bs host
-    | .dealsDamage _ n .noPatient => outcomeB .damageDealt :: selfSubjIntro bs n
-    | .dealsDamage _ _ (.one m) => outcomeB .damageDealt :: selfSubjIntro bs m
+    | .attachment _ _ host => selfSubjIntro bs host
+    | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
+    | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: selfSubjIntro bs m
     | .beginningOf _ _ _ => bs
     | .casts _ what _ => selfSubjIntro bs what
     | .becomesTarget _ by_ => selfSubjIntro bs by_
     | .statusEvent n _ => selfSubjIntro bs n
-    | .dayNightShift => bs
+    | .gameBecomes _ => bs
     | .stateHolds _ => bs
     | .putInto n _ _ => selfSubjIntro bs n
     | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
@@ -178,7 +174,6 @@ mutual
     | .chapterMark _ => bs
     | .activates _ what => selfSubjIntro bs what
     | .statBecomes _ _ v => Amount.intro bs v
-    | .regenerates n => selfSubjIntro bs n
     | .flipsCoin who _ => selfSubjIntro bs who
     | .rollsDice who .one _ _ => selfSubjIntro bs who
     | .rollsDice who .many _ _ => outcomeB .diceRolled :: selfSubjIntro bs who
@@ -205,22 +200,18 @@ mutual
     | .draws who => nomIntro bs who
     | .losesGame who => nomIntro bs who
     | .enters n _ => moveIntro bs none n (some .battlefield)
-    | .attacks n .noDefender => selfSubjIntro bs n
-    | .attacks n (.one whom) => Noun.delta bs whom ++ selfSubjIntro bs n
+    | .combat .attackerOf n (some whom) => NounPhrase.delta bs whom ++ selfSubjIntro bs n
+    | .combat _ n none => selfSubjIntro bs n
+    | .combat _ _ (some m) => nomIntro bs m
     | .attacksWith _ _ attackers => nomIntro bs attackers
-    | .blocks n none => selfSubjIntro bs n
-    | .blocks _ (some what) => nomIntro bs what
-    | .becomesBlocked n none => selfSubjIntro bs n
-    | .becomesBlocked _ (some by_) => nomIntro bs by_
-    | .becomesAttached _ host => nomIntro bs host
-    | .becomesUnattached _ host => nomIntro bs host
-    | .dealsDamage _ n .noPatient => outcomeB .damageDealt :: selfSubjIntro bs n
-    | .dealsDamage _ _ (.one m) => outcomeB .damageDealt :: nomIntro bs m
+    | .attachment _ _ host => nomIntro bs host
+    | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
+    | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: nomIntro bs m
     | .casts _ what _ => nomIntro bs what
-    | .becomesTarget n by_ => Noun.delta bs by_ ++ selfSubjIntro bs n
+    | .becomesTarget n by_ => NounPhrase.delta bs by_ ++ selfSubjIntro bs n
     | .beginningOf _ _ whose => whose.intro bs
     | .statusEvent n _ => selfSubjIntro bs n
-    | .dayNightShift => bs
+    | .gameBecomes _ => bs
     | .stateHolds _ => bs
     | .putInto n to _ => moveIntro bs none n (some to.sort)
     | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
@@ -230,17 +221,15 @@ mutual
     | .chapterMark _ => bs
     | .activates _ what => nomIntro bs what
     | .statBecomes n _ v => Amount.delta bs v ++ selfSubjIntro bs n
-    | .regenerates n => selfSubjIntro bs n
     | .flipsCoin who none => outcomeB .coinFlipped :: nomIntro bs who
     | .flipsCoin who (some _) => nomIntro bs who
-    | .rollsDice who _ .planar _ => outcomeB .planarRolled :: nomIntro bs who
     | .rollsDice who _ _ _ => outcomeB .rollResult :: nomIntro bs who
     | .paysCost _ _ whose _ => nomIntro bs whose
     | .paysLife who => outcomeB .lifeLost :: nomIntro bs who
     | .lifeChanges who dir => outcomeB dir.outcome :: nomIntro bs who
     | .verbedEvent who _ none _ => optAgentIntro bs who
     | .verbedEvent _ v (some what) _ =>
-      moveIntro bs (some v) what ((actDestOf v).elim (Noun.zone bs what) some)
+      moveIntro bs (some v) what ((actDestOf v).elim (NounPhrase.zone bs what) some)
     | .tappedForMana _ what => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
     | .unlocksDoor _ door => door.intro bs
     | .nthOccurrence _ _ ev => GameEvent.after bs ev
@@ -257,12 +246,12 @@ def Causing.intro (bs : Bindings) : Causing → Bindings
 
 def GameEvent.subjectPlur : GameEvent → Plurality
   | .dies n | .leaves n _ | .isDealtDamage _ n | .draws n | .losesGame n | .enters n _
-  | .attacks n _ | .attacksWith n _ _ | .blocks n _ | .becomesBlocked n _ | .becomesAttached n _
-  | .becomesUnattached n _ | .dealsDamage _ n _ | .casts _ n _ | .becomesTarget n _
+  | .combat _ n _ | .attacksWith n _ _ | .attachment _ n _
+  | .dealsDamage _ n _ | .casts _ n _ | .becomesTarget n _
   | .statusEvent n _ | .putInto n _ _ | .counterEvent _ _ n _ _ _ | .tokensCreated n _ _ _
-  | .activates n _ | .statBecomes n _ _ | .regenerates n | .flipsCoin n _ | .rollsDice n _ _ _
+  | .activates n _ | .statBecomes n _ _ | .flipsCoin n _ | .rollsDice n _ _ _
   | .paysLife n | .lifeChanges n _ | .unlocksDoor n _ | .triggers n | .commitsCrime n => n.plur
-  | .beginningOf _ _ _ | .dayNightShift | .stateHolds _ | .chapterMark _ => .one
+  | .beginningOf _ _ _ | .gameBecomes _ | .stateHolds _ | .chapterMark _ => .one
   | .paysCost (some who) _ _ _ => who.plur
   | .paysCost none _ _ _ => .one
   | .verbedEvent (some who) _ _ _ => who.plur
@@ -317,7 +306,7 @@ def Duration.ok : Duration → Bool
 def Duration.intro (bs : Bindings) : Duration → Bindings
   | .thisTurn => bs
   | .restOfGame => bs
-  | .until _ => bs
+  | .until_ _ => bs
   | .forAsLongAs c => c.intro bs
   | .untilEvent ev => GameEvent.intro bs ev
   | .duringNextTurnOf who => nomIntro bs who
@@ -330,7 +319,7 @@ def untriggeredLimitOk : Option UsageLimit → Bool
   | some .actionOncePerTurn => false
   | _ => true
 
-def JoinedHeader.after (bs : Bindings) (j : JoinedHeader) : Bindings := headerCtx bs j.alts j.event
+def JoinedHeader.after (bs : Bindings) (j : JoinedHeader) : Bindings := headerCtx bs j.alternatives j.event
 
 def joinedCtx (bs : Bindings) : List JoinedHeader → Bindings → Bindings
   | [], ds => ds
@@ -341,11 +330,11 @@ def Concurrent.namesThisDoor : Option Concurrent → Bool
   | _ => false
 
 def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
-  j.event.namesThisDoor || j.alts.any GameEvent.namesThisDoor ||
+  j.event.namesThisDoor || j.alternatives.any GameEvent.namesThisDoor ||
     Concurrent.namesThisDoor j.while_
 
 def chapterDefaultsOk (ev : GameEvent) (alts : List GameEvent) (wh : Option Concurrent)
-    (joins : List JoinedHeader) (w : Option TriggerWindow) (l : Option UsageLimit)
+    (joins : List JoinedHeader) (w : Option Timing) (l : Option UsageLimit)
     (i : Option Condition) : Bool :=
   match ev with
   | .chapterMark _ =>
@@ -360,27 +349,27 @@ def GameEvent.headerStatusOk : GameEvent → Bool
   | _ => true
 
 /-- Idris `TokenPhrase n`: a counted or indefinite description that seeds tokens. -/
-def Noun.tokenPhrase : Noun → Bool
+def NounPhrase.tokenPhrase : NounPhrase → Bool
   | .described (.count _ _) p => p.seedsToken
   | .described (.a _) p => p.seedsToken
   | _ => false
 
 /-! ## Rules -/
 
-def AttackDefender.check (bs : Bindings) : AttackDefender → List Refusal
-  | .noDefender => []
-  | .one m =>
-    Noun.check Option.none bs m ++ refuse m.plur.isOne .singular ++ refuse (m.attackable bs) .attackable
+def AttackDefender.check (bs : Bindings) : Option NounPhrase → List Refusal
+  | none => []
+  | some m =>
+    NounPhrase.check none bs m ++ refuse m.plur.isOne .singular ++ refuse (m.attackable bs) .attackable
 
-def DamagePatient.check (bs : Bindings) : DamagePatient → List Refusal
-  | .noPatient => []
-  | .one m => Noun.check Option.none bs m ++ refuse (m.damageRecipient bs) .damageRecipient
+def DamagePatient.check (bs : Bindings) : Option NounPhrase → List Refusal
+  | none => []
+  | some m => NounPhrase.check none bs m ++ refuse (m.damageRecipient bs) .damageRecipient
 
 def Door.check (bs : Bindings) : Door → List Refusal
   | .thisDoor => []
   | .doorOf _ room =>
-    Noun.check (some .object) bs room ++
-      refuse (zoneIsB (Noun.zone bs room) .battlefield) (.zoneIs .battlefield)
+    NounPhrase.check (some .object) bs room ++
+      refuse (zoneIsB (NounPhrase.zone bs room) .battlefield) (.zoneIs .battlefield)
 
 def RollWatch.check (bs : Bindings) : RollWatch → List Refusal
   | .resultIn q =>
@@ -390,8 +379,8 @@ def RollWatch.check (bs : Bindings) : RollWatch → List Refusal
 
 def HeaderPossessor.check (bs : Bindings) : HeaderPossessor → List Refusal
   | .noPossessor => []
-  | .byPlayer n => Noun.check (some .player) bs n
-  | .byTurn n => Noun.check (some .turnRef) bs n
+  | .byPlayer n => NounPhrase.check (some .player) bs n
+  | .byTurn n => NounPhrase.check (some .turnRef) bs n
 
 def OptEventSource.check (bs : Bindings) : Option EventSource → List Refusal
   | none => []
@@ -404,100 +393,91 @@ def OptZoneExpr.check (bs : Bindings) : Option ZoneExpr → List Refusal
 mutual
   def GameEvent.check (bs : Bindings) : GameEvent → List Refusal
     | .dies n =>
-      Noun.check (some .object) bs n ++ refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield)
+      NounPhrase.check (some .object) bs n ++ refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
     | .leaves n from_ =>
-      Noun.check (some .object) bs n ++ OptEventSource.check bs from_ ++
-        refuse (zoneFits (Noun.zone bs n) (sourceZone from_)) .zoneFits
-    | .isDealtDamage _ to => Noun.check none bs to ++ refuse (to.damageRecipient bs) .damageRecipient
-    | .draws who => Noun.check (some .player) bs who
-    | .losesGame who => Noun.check (some .player) bs who
+      NounPhrase.check (some .object) bs n ++ OptEventSource.check bs from_ ++
+        refuse (zoneFits (NounPhrase.zone bs n) (sourceZone from_)) .zoneFits
+    | .isDealtDamage _ to => NounPhrase.check none bs to ++ refuse (to.damageRecipient bs) .damageRecipient
+    | .draws who => NounPhrase.check (some .player) bs who
+    | .losesGame who => NounPhrase.check (some .player) bs who
     | .enters n from_ =>
-      Noun.check (some .object) bs n ++ OptEventSource.check bs from_ ++
-        refuse (zoneFits (Noun.zone bs n) (some .battlefield)) .zoneFits ++
+      NounPhrase.check (some .object) bs n ++ OptEventSource.check bs from_ ++
+        refuse (zoneFits (NounPhrase.zone bs n) (some .battlefield)) .zoneFits ++
         refuse (entrySourceOk from_) .lookbackSource
-    | .attacks n whom =>
-      Noun.check (some .object) bs n ++ AttackDefender.check (nomIntro bs n) whom ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield)
+    | .combat .attackerOf n whom =>
+      NounPhrase.check (some .object) bs n ++ AttackDefender.check (nomIntro bs n) whom ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+    | .combat r n counterpart =>
+      let bs' := nomIntro bs n
+      NounPhrase.check (some .object) bs n ++ OptNoun.check (some .object) bs' counterpart ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
+        refuse (patientZoneIsB bs' counterpart .battlefield) (.zoneIs .battlefield) ++
+        refuse r.eventRelation .combatRelOk
     | .attacksWith who whom attackers =>
       let bs' := nomIntro bs who
-      let bs'' := whom.intro bs'
-      Noun.check (some .player) bs who ++ AttackDefender.check bs' whom ++
-        Noun.check (some .object) bs'' attackers ++
-        refuse (zoneIsB (Noun.zone bs'' attackers) .battlefield) (.zoneIs .battlefield)
-    | .blocks n what =>
-      let bs' := nomIntro bs n
-      Noun.check (some .object) bs n ++ OptNoun.check (some .object) bs' what ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield) ++
-        refuse (patientZoneIsB bs' what .battlefield) (.zoneIs .battlefield)
-    | .becomesBlocked n by_ =>
-      let bs' := nomIntro bs n
-      Noun.check (some .object) bs n ++ OptNoun.check (some .object) bs' by_ ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield) ++
-        refuse (patientZoneIsB bs' by_ .battlefield) (.zoneIs .battlefield)
-    | .becomesAttached n host =>
+      let bs'' := optIntro bs' whom
+      NounPhrase.check (some .player) bs who ++ AttackDefender.check bs' whom ++
+        NounPhrase.check (some .object) bs'' attackers ++
+        refuse (zoneIsB (NounPhrase.zone bs'' attackers) .battlefield) (.zoneIs .battlefield)
+    | .attachment .attached n host =>
       let kh := host.kindOr .object
-      Noun.check (some .object) bs n ++ Noun.check none (nomIntro bs n) host ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield) ++
+      NounPhrase.check (some .object) bs n ++ NounPhrase.check none (nomIntro bs n) host ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
         refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player))
-    | .becomesUnattached n host =>
-      Noun.check (some .object) bs n ++ Noun.check (some .object) (nomIntro bs n) host ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield)
+    | .attachment .unattached n host =>
+      NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) (nomIntro bs n) host ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
     | .dealsDamage kind n to =>
-      Noun.check (some .object) bs n ++ DamagePatient.check (nomIntro bs n) to ++
-        refuse (zoneFits (Noun.zone bs n) kind.sourceZone) .zoneFits
+      NounPhrase.check (some .object) bs n ++ DamagePatient.check (nomIntro bs n) to ++
+        refuse (zoneFits (NounPhrase.zone bs n) kind.sourceZone) .zoneFits
     | .beginningOf _ part whose =>
       HeaderPossessor.check bs whose ++ refuse (part.proper && whose.ok) .windowOk
     | .casts who what from_ =>
       let bs' := nomIntro bs who
-      Noun.check (some .player) bs who ++ Noun.check (some .object) bs' what ++
+      NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what ++
         OptZoneExpr.check (nomIntro bs' what) from_ ++
-        refuse (zoneIsB (Noun.zone bs' what) .stack) (.zoneIs .stack) ++
+        refuse (zoneIsB (NounPhrase.zone bs' what) .stack) (.zoneIs .stack) ++
         refuse what.plur.isOne .singular ++ refuse (!what.targeted) .nontarget ++
         refuse (playableFrom (from_.map ZoneExpr.sort)) .playableFrom
     | .becomesTarget n by_ =>
       let kn := n.kindOr .object
       let kb := by_.kindOr .object
-      Noun.check none bs n ++ Noun.check none (nomIntro bs n) by_ ++
+      NounPhrase.check none bs n ++ NounPhrase.check none (nomIntro bs n) by_ ++
         refuse kn.targetable (.targetable kn) ++ refuse kb.targeter (.targeter kb)
     | .statusEvent n v =>
-      Noun.check (some .object) bs n ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield) ++
+      NounPhrase.check (some .object) bs n ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
         refuse v.markable .statusMarkable
-    | .dayNightShift => []
+    | .gameBecomes d => refuse d.gameWide (.designationScope d)
     | .stateHolds c => Condition.check bs c
     | .putInto n to from_ =>
-      Noun.check (some .object) bs n ++ ZoneExpr.check bs to ++ OptEventSource.check bs from_ ++
+      NounPhrase.check (some .object) bs n ++ ZoneExpr.check bs to ++ OptEventSource.check bs from_ ++
         refuse (putDestOk to) .lookbackDest ++ refuse (putSourceOk from_) .lookbackSource ++
-        refuse (zoneFits (Noun.zone bs n) (sourceZone from_)) .zoneFits
+        refuse (zoneFits (NounPhrase.zone bs n) (sourceZone from_)) .zoneFits
     | .counterEvent dir kind n batch by_ byEffect =>
       let k := n.kindOr .object
-      Noun.check none bs n ++ OptCounterKind.check kind ++
+      NounPhrase.check none bs n ++ OptCounterKind.check kind ++
         refuse (counterKindNamed k kind) (.counterKindNamed k) ++
         OptNoun.check (some .player) bs by_ ++ refuse (eventAgentOk bs by_) .eventAgent ++
         refuse (counterBatchOk batch dir kind) .counterBatchOk ++ refuse (causedByOk byEffect by_) .causedByOk
     | .tokensCreated n byEffect by_ under =>
-      Noun.check (some .object) bs n ++ refuse n.tokenPhrase .tokenPhrase ++
+      NounPhrase.check (some .object) bs n ++ refuse n.tokenPhrase .tokenPhrase ++
         OptNoun.check (some .player) bs by_ ++ OptNoun.check (some .player) bs under ++
         refuse (creationVoiceOk bs byEffect by_ under) .verbedVoiceOk
     | .chapterMark ns => refuse (chapterMarksOk ns) .chapterMarks
     | .activates who what =>
-      Noun.check (some .player) bs who ++ Noun.check (some .object) (nomIntro bs who) what ++
+      NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) (nomIntro bs who) what ++
         refuse what.plur.isOne .singular ++ refuse (!what.targeted) .nontarget
     | .statBecomes n _ v =>
-      Noun.check (some .object) bs n ++ Amount.check (nomIntro bs n) v ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield)
-    | .regenerates n =>
-      Noun.check (some .object) bs n ++
-        refuse (zoneIsB (Noun.zone bs n) .battlefield) (.zoneIs .battlefield)
-    | .flipsCoin who _ => Noun.check (some .player) bs who
-    | .rollsDice who _ die res =>
-      Noun.check (some .player) bs who ++ RollWatch.check bs res ++
-        refuse (res.fitsDie die) .watchFitsDie
+      NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) v ++
+        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+    | .flipsCoin who _ => NounPhrase.check (some .player) bs who
+    | .rollsDice who _ _ res => NounPhrase.check (some .player) bs who ++ RollWatch.check bs res
     | .paysCost who _ whose kw =>
-      OptNoun.check (some .player) bs who ++ Noun.check (some .object) (optAgentIntro bs who) whose ++
+      OptNoun.check (some .player) bs who ++ NounPhrase.check (some .object) (optAgentIntro bs who) whose ++
         refuse (keywordCosts kw) (.keywordCost kw) ++ refuse whose.plur.isOne .singular
-    | .paysLife who => Noun.check (some .player) bs who
-    | .lifeChanges who _ => Noun.check (some .player) bs who
+    | .paysLife who => NounPhrase.check (some .player) bs who
+    | .lifeChanges who _ => NounPhrase.check (some .player) bs who
     | .verbedEvent who v what becomes =>
       let bs' := optAgentIntro bs who
       OptNoun.check (some .player) bs who ++ OptNoun.check (some .object) bs' what ++
@@ -508,19 +488,19 @@ mutual
         refuse (verbBecomesOk v becomes) .verbBecomesOk
     | .tappedForMana who what =>
       let bs' := optAgentIntro bs who
-      OptNoun.check (some .player) bs who ++ Noun.check (some .object) bs' what ++
-        refuse (zoneFits (Noun.zone bs' what) (some .battlefield)) .zoneFits
-    | .unlocksDoor who door => Noun.check (some .player) bs who ++ Door.check (nomIntro bs who) door
+      OptNoun.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what ++
+        refuse (zoneFits (NounPhrase.zone bs' what) (some .battlefield)) .zoneFits
+    | .unlocksDoor who door => NounPhrase.check (some .player) bs who ++ Door.check (nomIntro bs who) door
     | .nthOccurrence _ _ ev => GameEvent.check bs ev
     | .triggers what =>
-      Noun.check (some .object) bs what ++ refuse what.plur.isOne .singular ++
+      NounPhrase.check (some .object) bs what ++ refuse what.plur.isOne .singular ++
         refuse (!what.targeted) .nontarget
-    | .commitsCrime who => Noun.check (some .player) bs who ++ refuse who.plur.isOne .singular
+    | .commitsCrime who => NounPhrase.check (some .player) bs who ++ refuse who.plur.isOne .singular
     | .causes by_ what => Causing.check bs by_ ++ GameEvent.check (by_.intro bs) what
   termination_by structural ev => ev
 
   def Causing.check (bs : Bindings) : Causing → List Refusal
-    | .source src => Noun.check none bs src
+    | .source src => NounPhrase.check none bs src
     | .event ev => GameEvent.check bs ev
     | .anEffect => []
   termination_by structural c => c
@@ -535,21 +515,14 @@ def DurationEnd.check (bs : Bindings) : DurationEnd → List Refusal
 
 def Duration.check (bs : Bindings) : Duration → List Refusal
   | .thisTurn | .restOfGame => []
-  | .until e => DurationEnd.check bs e
+  | .until_ e => DurationEnd.check bs e
   | .forAsLongAs c => Condition.check bs c
   | .untilEvent ev => GameEvent.check bs ev
-  | .duringNextTurnOf who => Noun.check (some .player) bs who ++ refuse who.plur.isOne .singular
+  | .duringNextTurnOf who => NounPhrase.check (some .player) bs who ++ refuse who.plur.isOne .singular
 
 def OptDuration.check (bs : Bindings) : Option Duration → List Refusal
   | none => []
   | some d => Duration.check bs d
-
-def TriggerWindow.check (bs : Bindings) : TriggerWindow → List Refusal
-  | .during p w => OptNoun.check (some .player) bs w ++ refuse (windowOk p w) .windowOk
-
-def OptTriggerWindow.check (bs : Bindings) : Option TriggerWindow → List Refusal
-  | none => []
-  | some w => TriggerWindow.check bs w
 
 def Timing.check (bs : Bindings) : Timing → List Refusal
   | .asSorcery | .asInstant => []
@@ -576,8 +549,8 @@ def headerEventCheck (bs : Bindings) (ev : GameEvent) : List Refusal :=
     refuse ev.headerStatusOk .statusMarkable
 
 def JoinedHeader.check (bs : Bindings) (j : JoinedHeader) : List Refusal :=
-  headerEventCheck bs j.event ++ j.alts.flatMap (headerEventCheck bs) ++
-    OptConcurrent.check (headerCtx bs j.alts j.event) j.while_ ++
-    OptTriggerWindow.check bs j.window
+  headerEventCheck bs j.event ++ j.alternatives.flatMap (headerEventCheck bs) ++
+    OptConcurrent.check (headerCtx bs j.alternatives j.event) j.while_ ++
+    OptTiming.check bs j.timing
 
 end Mtg

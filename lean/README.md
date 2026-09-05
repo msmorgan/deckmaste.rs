@@ -1,22 +1,39 @@
-# lean — a Lean 4 port of the Idris workbench
+# lean — the grammar workbench in Lean 4
 
-A port of `../idris/src/Experimental.idr` and its family to Lean 4, as **syntax
-first**: the grammar's constructors as plain inductives, with the checkers
-(anaphora, zone coherence, obligations) to be re-added as functions over that
-syntax later. This is the ordinary Lean shape — `Lean.Expr` is untyped syntax
-and the type checker is a function — and it is closer to "check the RON" than
-the Idris model was: the AST here is the RON's shape.
+The semantics-target grammar as a Lean 4 workbench, begun as a port of
+`../idris/src/Experimental.idr` and its family: the grammar's constructors as
+plain inductives, and the checkers (anaphora, zone coherence, obligations) as
+functions over that syntax. This is the ordinary Lean shape — `Lean.Expr` is
+untyped syntax and the type checker is a function — and it is closer to "check
+the RON" than the Idris model was: the AST here is the RON's shape. The Idris
+remains the reference for *which* obligations must hold; the Lean is shaped on
+its own merits.
 
     lake build          # everything (./scripts/build adds --wfail)
 
 ## Status
 
 Ported: the six grammar layers as syntax (`Words`, `Events`, `Phrase`,
-`Triggers`, `Effect`, `Card`), the checker for all of them (`Check/*`, every
+`Triggers`, `Abilities`, `Card`), the checker for all of them (`Check/*`, every
 obligation `Experimental/*.idr` put in a constructor type), the subset of
 `Macros` the bench and the pin suites use, a `Cards` bench of seven cards,
 and the `ProofsDescription` pin suite. The other thirteen `Proofs<Family>`
 suites follow the same recipe.
+
+Since the port the syntax has been reshaped (2026-09-04): a constructor stays
+only if the checker attaches something to it that its expansion would not
+carry, and the expansion is what the sentence means. So "permanent",
+"colorless", "historic", "spell", "attacking", and "regenerates" are macros
+over `inZone`, `colorCount`, `or`, `inCombat`, and `verbedEvent`; the combat
+predicates and events are one `inCombat`/`combat` each over a
+`CombatRelation`; `statOf` takes a `ProjAxis`; `arith` takes an `ArithOp`;
+`or` joins kinds ("creature or player") where `joined` used to; designations
+are labels (`DesignationLabel := String`) whose facts live in a checker table
+(`Check/Words`), so a keyword's expansion can bring its own; and
+`Characteristics` is flat per [CR#109.3] and serves cards and tokens alike,
+with `power`/`toughness`/`loyalty`/`defense : Option Amount` (`none` is the
+printed `*` a characteristic-defining ability fills). Planechase and
+Archenemy are not ported.
 
 ## The checker
 
@@ -26,22 +43,26 @@ declared. Lean has no induction-recursion, so the port splits every layer:
 
 1. **Syntax** (`Experimental/*.lean`): the constructors, unindexed.
 2. **Attributes** (`Check/Words`, `Check/Phrase`, `Check/Triggers`,
-   `Check/Effect`): every function the Idris declared beside its syntax —
+   `Check/Abilities`): every function the Idris declared beside its syntax —
    the antecedent stack (`Bindings`), what a phrase introduces
-   (`Noun.delta`, `Amount.intro`, `Instruction.profile`), its kind, number,
-   zone, and type. They take the stack as an argument and pass the shifted
-   stack into each field the Idris typed at the shifted index.
-3. **Rules** (`Check/PhraseRules`, `Check/Triggers`, `Check/EffectRules`,
+   (`NounPhrase.delta`, `Amount.intro`, `Instruction.profile`), its kind,
+   number, zone, and type. They take the stack as an argument and pass the
+   shifted stack into each field the Idris typed at the shifted index.
+   Checker-only vocabulary (`StaticKind`, `CardClass`, `FaceSide`, the
+   designation facts table) lives here too, not in the syntax.
+3. **Rules** (`Check/PhraseRules`, `Check/Triggers`, `Check/AbilityRules`,
    `Check/Card`): one clause per Idris `{auto 0 … : …}` obligation, as a
    `Refusal` named after it. A check returns *every* refusal, not the first.
 4. **Entry point**: `Card.check : Card → List Refusal`, and `Spelled`, a card
-   with `card.check = []`. `spelled <| card …` finds that proof by `decide`,
-   so writing a card runs the checker the way writing one ran the Idris
-   elaborator.
+   with `card.check = []`. `spelled <| .singleFaced { … }` finds that proof
+   by `decide`, so writing a card runs the checker the way writing one ran
+   the Idris elaborator.
 
-`Kind` is inferred rather than indexed: `Predicate.kind?`/`Noun.kind?` give
-the kind a phrase fixes, and a context that expects a kind refuses a
-`kindMismatch`.
+`Kind` is inferred rather than indexed: `Predicate.kind?`/`NounPhrase.kind?`
+give the kind a phrase fixes, and a context that expects a kind refuses a
+`kindMismatch`. A disjunction whose disjuncts name different kinds is a
+joined phrase ("a creature or player"), each disjunct checked at its own
+kind.
 
 ## Pins
 
@@ -68,10 +89,10 @@ so every recursive definition in `Check/*` carries `termination_by structural`
 and a build error, not a slow proof, is what a non-structural definition
 produces. The traps, all hit once:
 
-- a call on the *same* argument (`sliceTy d g` calling `Noun.ty g`): pass the
-  computed attribute in instead (`sliceTyOf d (Noun.ty bs g)`);
-- a projection of a structure argument matched as a variable (`t.abilities`):
-  match the constructor (`⟨pt, _, _, abilities, _, quals⟩`);
+- a call on the *same* argument (`sliceTy d g` calling `NounPhrase.ty g`):
+  pass the computed attribute in instead (`sliceTyOf d (NounPhrase.ty bs g)`);
+- a projection of a structure argument matched as a variable (`c.text`):
+  match the constructor (`⟨_, _, _, _, _, _, _, text, qualities, …⟩`);
 - a standalone function recursing through a nested list (`flatten`): make it
   a `mutual` pair with the per-element function.
 
@@ -84,24 +105,26 @@ produces. The traps, all hit once:
 - Types are UpperCamelCase; constructors and functions lowerCamelCase in the
   type's namespace. The Idris anti-collision suffixes are gone:
   `PlayerW` → `NounWord.player`, `TapC` → `StatusCat.tap`,
-  `OwnerAx` → `PossessorAxis.owner`, `ObjectP` is not ported. Write `.player`
-  where the expected type is known, `NounWord.player` otherwise. Never `open`
-  the syntax namespaces: `Predicate.and`/`.or`/`.not` would shadow core.
-- Lean keywords as constructor names are renamed rather than escaped:
-  `TriggerWord.At` → `atTime`, `Condition.Exists` → `thereIs`, `Cost.Do` →
-  `action`, `Instruction.If` → `ifThen`, `Instruction.Repeat` →
-  `repeatProcess`, `Macros.unless` → `unlessPays`. Fields named `by`, `from`,
-  `as`, `while` get a trailing underscore.
+  `OwnerAx` → `PossessorAxis.owner`, `ObjectP` is not ported, and macro
+  names carry no suffix either (`battlefield`, not `battlefieldZ`). Write
+  `.player` where the expected type is known, `NounWord.player` otherwise.
+  Never `open` the syntax namespaces: `Predicate.and`/`.or`/`.not` would
+  shadow core. Field and argument names are descriptive words (`subject`,
+  `amount`, `player`), never abbreviations.
+- Lean keywords as names take a trailing underscore: `at_`, `if_`, `repeat_`,
+  `exists_`, `unless_`, `until_`, `by_`, `from_`, `while_`, `end_`. The one
+  exception is `Cost.perform` for the Idris `Do`, which is a word.
+- A macro is written bare (`creature`), a constructor with a leading dot
+  (`.hasType`); the bench opens `Mtg.Macros` and never qualifies a macro.
 - No indices. The Idris `bs` (antecedent stack) and `Kind` indices are gone;
   they come back as functions over the syntax with the checkers. Idris families
   indexed only to pick constructors (`StatusVal : StatusCat → Type`,
   `ChoiceDomain : ChoiceSort → Type`) are flat, with a function
   (`Status.category`) recovering the index.
 - In the syntax, every `{auto 0 … : …}` obligation is dropped (it becomes a
-  rule in `Check/*`); every explicit field is kept,
-  same order, same name where the name was not a suffix. One deliberate
-  reshaping: supertypes live on `TypeLine` [CR#205.1] instead of beside it in
-  `Characteristics`, `TokenChars`, and `Card.sharedLineSplit`.
+  rule in `Check/*`). There is no `TypeLine`: `Characteristics` carries
+  `supertypes`, `types`, and `subtypes` flat, as [CR#109.3] lists them, and a
+  frame that shares a line (`sharedLineSplit`) shares a `Characteristics`.
 - Every type derives `Repr` and `BEq` (`DecidableEq` where it can: it does not
   derive for the nested mutual block in `Phrase`).
 - `[CR#…]` citations carry over into docstrings.
@@ -124,4 +147,4 @@ produces. The traps, all hit once:
 | `{auto 0 ok : So (f x)}` | a rule `refuse (f x) .reason` in `Check/*Rules` |
 | `Unspellable T (\ok => term)` … `Oh impossible` | `theorem bad : X.check … term = [.reason] := by decide` |
 | a twin `ok… : T = term` | `theorem ok… : X.check … term = [] := by decide` |
-| a bench card | `def c : Spelled := spelled <| card …` |
+| a bench card | `def c : Spelled := spelled <| .singleFaced { name := …, … }` |

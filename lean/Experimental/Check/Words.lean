@@ -89,9 +89,10 @@ def KindAxis.closed : KindAxis → Bool
 
 def colorCountOk (n : Nat) : Bool := n ≥ 2 && n ≤ 5
 
-/-- An object is 0..5 colors [CR#105.1]; `eq 0` is `isColorless`. -/
+/-- A color count an object can have: zero ("colorless") through five; the bounds that
+compare are the ones that do not always or never hold [CR#105.2]. -/
 def colorBoundOk : Comparator → Nat → Bool
-  | .eq, n => n ≥ 1 && n ≤ 5
+  | .eq, n => n ≤ 5
   | .atLeast, n => n ≥ 2 && n ≤ 5
   | .atMost, n => n ≥ 1 && n ≤ 4
   | .greater, n => n ≥ 1 && n ≤ 4
@@ -465,13 +466,12 @@ def outcomeInScope (s : OutcomeSort) : Bindings → Bool
 
 def damageDealtInScope (bs : Bindings) : Bool := outcomeInScope .damageDealt bs
 def coinFlipInScope (bs : Bindings) : Bool := outcomeInScope .coinFlipped bs
-def planarRollInScope (bs : Bindings) : Bool := outcomeInScope .planarRolled bs
 
 def ignorableInScope (bs : Bindings) : Bool :=
-  countOutcomes .rollResult bs == 1 || coinFlipInScope bs || planarRollInScope bs
+  countOutcomes .rollResult bs == 1 || coinFlipInScope bs
 
 def OutcomeSort.isQuantity : OutcomeSort → Bool
-  | .coinFlipped | .planarRolled | .manaAdded | .manaProduced | .ceilingShortfall | .voteHeld =>
+  | .coinFlipped | .manaAdded | .manaProduced | .ceilingShortfall | .voteHeld =>
     false
   | _ => true
 
@@ -1042,76 +1042,127 @@ def supersDistinct : List Supertype → Bool
   | [] => true
   | s :: ss => !ss.elem s && supersDistinct ss
 
-/-! ## Designations -/
+/-! ## Static-ability sorts -/
+
+/-- What kind of continuous effect a static spec makes; the checker's classification of a
+`StaticSpec`, not part of its spelling. -/
+inductive StaticKind where
+  | ptDelta | keywordGrant | deedRestriction | typeAddition | controlGrant | replacement
+  | prevention | conditional | entryRider | costModification | manaPersistence | ptDefinition
+  | basePtSet | ptSwitch | typeSet | typeLoss | colorSet | abilityLoss | coordination
+  | copyEffect | visibilityRider | outcomeImmunity | triggerMultiplier | turnSkip
+  | letterDefinition
+  deriving DecidableEq, Repr
+
+/-! ## Designations
+
+The grammar names a designation by its label (`DesignationLabel`); what the checker knows
+about one lives here. The table is the open part: a keyword's expansion (Ascend's, Monstrosity's)
+brings its designation with it, and the CR adds new ones without touching the grammar. -/
+
+inductive DesignationScope where
+  | heldBy (holder : Kind)
+  | heldByCard
+  | heldByGame
+  deriving DecidableEq, Repr
 
 structure DesignationFacts where
+  label : DesignationLabel
   scope : DesignationScope
+  /-- Whether an instruction may confer it directly ("becomes the monarch"); a designation that
+  only a rule confers (the commander) is not conferred by text. -/
   effectful : Bool
   zone : Option Zone
   type : Option CardType
+  /-- The keyword whose expansion confers it, if a keyword owns it. -/
+  keyword : Option KeywordLabel
   deriving Repr, BEq
 
-def Designation.facts : Designation → DesignationFacts
-  | .monarch | .theInitiative | .citysBlessing | .enduringStory =>
-    ⟨.heldBy .player, true, none, none⟩
-  | .goaded | .ringBearer | .monstrous | .renowned | .suspected | .prepared
-  | .alphaSector | .betaSector | .gammaSector =>
-    ⟨.heldBy .object, true, some .battlefield, some .creature⟩
-  | .saddled | .harnessed | .level | .solved | .leftHalfUnlocked | .rightHalfUnlocked =>
-    ⟨.heldBy .object, true, some .battlefield, none⟩
-  | .commander => ⟨.heldByCard, false, none, none⟩
-  | .day | .night => ⟨.heldByGame, true, none, none⟩
+def playerHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
+  ⟨label, .heldBy .player, true, none, none, keyword⟩
 
-def Designation.scope (d : Designation) : DesignationScope := d.facts.scope
-def Designation.checked (d : Designation) : Bool := d.facts.effectful
-def Designation.seedZone (d : Designation) : Option Zone := d.facts.zone
-def Designation.seedType (d : Designation) : Option CardType := d.facts.type
+def creatureHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
+  ⟨label, .heldBy .object, true, some .battlefield, some .creature, keyword⟩
 
-def Designation.holder (d : Designation) : Option Kind :=
-  match d.scope with
-  | .heldBy k => some k
-  | .heldByCard => some .object
-  | .heldByGame => none
+def permanentHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
+  ⟨label, .heldBy .object, true, some .battlefield, none, keyword⟩
+
+/-- The designations the CR defines today: those of [CR#701.15b,701.37b,701.54b,701.60b,701.64b], the keyword ones of [CR#702.112b,702.131c,702.158b,702.171b,702.195b], levels [CR#716.2b], solved [CR#719.3b], the monarch and the initiative [CR#725.1,726.1], day and night [CR#731.1]. -/
+def designationTable : List DesignationFacts := [
+  playerHeld "the monarch", playerHeld "the initiative",
+  playerHeld "the city's blessing" (some "Ascend"), playerHeld "an enduring story",
+  creatureHeld "goaded", creatureHeld "Ring-bearer", creatureHeld "monstrous" (some "Monstrosity"),
+  creatureHeld "renowned" (some "Renown"), creatureHeld "suspected", creatureHeld "prepared",
+  creatureHeld "Alpha sector", creatureHeld "Beta sector", creatureHeld "Gamma sector",
+  permanentHeld "saddled" (some "Saddle"), permanentHeld "harnessed", permanentHeld "level",
+  permanentHeld "solved", permanentHeld "left half unlocked", permanentHeld "right half unlocked",
+  ⟨"commander", .heldByCard, false, none, none, none⟩,
+  ⟨"day", .heldByGame, true, none, none, none⟩,
+  ⟨"night", .heldByGame, true, none, none, none⟩ ]
+
+def findDesignation (label : DesignationLabel) : List DesignationFacts → Option DesignationFacts
+  | [] => none
+  | f :: fs => if f.label == label then some f else findDesignation label fs
+
+def DesignationLabel.facts (label : DesignationLabel) : Option DesignationFacts :=
+  findDesignation label designationTable
+
+def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSome
+
+def DesignationLabel.scope (label : DesignationLabel) : Option DesignationScope :=
+  label.facts.map (·.scope)
+def DesignationLabel.checked (label : DesignationLabel) : Bool :=
+  (label.facts.map (·.effectful)).getD false
+def DesignationLabel.seedZone (label : DesignationLabel) : Option Zone := label.facts.bind (·.zone)
+def DesignationLabel.seedType (label : DesignationLabel) : Option CardType :=
+  label.facts.bind (·.type)
+
+def DesignationLabel.holder (label : DesignationLabel) : Option Kind :=
+  match label.scope with
+  | some (.heldBy k) => some k
+  | some .heldByCard => some .object
+  | _ => none
 
 /-- A possessive on a designation ("your Ring-bearer", "your commander") is meaningful only
 where an object holds the designation for a player; a player-held or game-wide designation has
 no possessor [CR#701.54e]. -/
-def Designation.possessorOk (d : Designation) : Bool := d.holder == some .object
+def DesignationLabel.possessorOk (label : DesignationLabel) : Bool :=
+  label.holder == some .object
 
-def Designation.heldByItsCard (d : Designation) : Bool :=
-  match d.scope with
-  | .heldByCard => true
-  | _ => false
+def DesignationLabel.heldByItsCard (label : DesignationLabel) : Bool :=
+  label.scope == some .heldByCard
+
+def DesignationLabel.gameWide (label : DesignationLabel) : Bool :=
+  label.scope == some .heldByGame
 
 /-- Idris `DesignationHolder d z`: a player-held designation needs no zone; an object-held one
 needs the holder on the battlefield. -/
-def designationHolderOk (d : Designation) (z : Option Zone) : Bool :=
-  match d.scope with
-  | .heldBy .player => true
-  | .heldBy .object => zoneIsB z .battlefield
+def designationHolderOk (label : DesignationLabel) (z : Option Zone) : Bool :=
+  match label.scope with
+  | some (.heldBy .player) => true
+  | some (.heldBy .object) => zoneIsB z .battlefield
   | _ => false
 
-def RoomHalf.designation : RoomHalf → Designation
-  | .left => .leftHalfUnlocked
-  | .right => .rightHalfUnlocked
+def RoomHalf.designation : RoomHalf → DesignationLabel
+  | .left => "left half unlocked"
+  | .right => "right half unlocked"
 
-def Designation.half : Designation → Option RoomHalf
-  | .leftHalfUnlocked => some .left
-  | .rightHalfUnlocked => some .right
-  | _ => none
+def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf :=
+  if label == RoomHalf.left.designation then some .left
+  else if label == RoomHalf.right.designation then some .right
+  else none
 
-def ConferringWord.designation : ConferringWord → Designation
-  | .monstrosity => .monstrous
-  | .saddle => .saddled
-  | .ascend => .citysBlessing
-  | .storied => .enduringStory
-  | .renown => .renowned
+/-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; conferral by
+a keyword must be by the keyword that owns that designation. -/
+def conferralOk (label : DesignationLabel) : Conferral → Bool
+  | .instructed => label.checked
+  | .byKeyword keyword => label.facts.bind (·.keyword) == some keyword
 
-/-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; expansion
-conferral must confer that very designation. -/
-def givingWarrantOk (d : Designation) : GivingWarrant → Bool
-  | .instructed => d.checked
-  | .inExpansionOf w => w.designation == d
+/-- A combat relation written without its counterpart ("attacking", "blocking", "blocked"):
+the ones that read as a bare participle. -/
+def CombatRelation.bare : CombatRelation → Bool
+  | .attackerOf | .declaredAttacker | .blockerOf | .blockedBy => true
+  | .attackedBy | .couldBlock | .couldBeBlockedBy => false
 
 /-! ## Attachment, status, counters -/
 
@@ -1208,19 +1259,17 @@ def counterKindNamed (k : Kind) : Option CounterKind → Bool
   | none => true
   | some c => c.scope == k
 
-def ChapterNumber.ord : ChapterNumber → Nat
-  | .i => 1 | .ii => 2 | .iii => 3 | .iv => 4 | .v => 5 | .vi => 6
-
 def chapterMarksDistinct : List ChapterNumber → Bool
   | [] => true
-  | a :: rest => !rest.any (fun b => a.ord == b.ord) && chapterMarksDistinct rest
+  | a :: rest => !rest.elem a && chapterMarksDistinct rest
 
 def chapterMarksOk : List ChapterNumber → Bool
   | [] => false
   | ns => chapterMarksDistinct ns
 
-def TypeLine.nonEmpty (l : TypeLine) : Bool :=
-  !(l.supertypes.isEmpty && l.types.isEmpty && l.subtypes.isEmpty)
+def typeLineNonEmpty (supertypes : List Supertype) (types : List CardType)
+    (subtypes : List Subtype) : Bool :=
+  !(supertypes.isEmpty && types.isEmpty && subtypes.isEmpty)
 
 def subsFitLine : List Subtype → List CardType → Bool
   | [], _ => true
@@ -1275,26 +1324,27 @@ def typesDistinct : List CardType → Bool
   | [] => true
   | t :: ts => !ts.elem t && typesDistinct ts
 
-def addedFits (subj : Option CardType) (l : TypeLine) : Bool :=
-  l.subtypes.all fun s =>
-    l.types.any s.fits || (match subj with | none => false | some t => s.fits t)
+def addedFits (subj : Option CardType) (types : List CardType) (subtypes : List Subtype) : Bool :=
+  subtypes.all fun s =>
+    types.any s.fits || (match subj with | none => false | some t => s.fits t)
 
 def anyNewType (subj : Option CardType) : List CardType → Bool
   | [] => false
   | t :: ts => !tyIs t subj || anyNewType subj ts
 
-def addsSomething (subj : Option CardType) (l : TypeLine) : Bool :=
-  match l.subtypes with
-  | [] => anyNewType subj l.types
+def addsSomething (subj : Option CardType) (types : List CardType) (subtypes : List Subtype) :
+    Bool :=
+  match subtypes with
+  | [] => anyNewType subj types
   | _ :: _ => true
 
 def CardType.retainable : CardType → Bool
   | .instant | .sorcery => false
   | _ => true
 
-def retentionOk (l : TypeLine) : Option CardType → Bool
+def retentionOk (types : List CardType) : Option CardType → Bool
   | none => true
-  | some t => match l.types with
+  | some t => match types with
     | [] => false
     | _ :: _ => t.retainable
 

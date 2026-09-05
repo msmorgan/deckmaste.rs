@@ -3,21 +3,20 @@ import Experimental.Words
 /-!
 # Experimental.Events
 
-The event vocabulary: what a trigger watches and a lookback asks about. Port of
-`idris/src/Experimental/Events.idr`, syntax only.
-
-Not ported (checker machinery): `EventFacts` and its table, the `LookbackSubject` and
-`LookbackComplement` witnesses, `Possessable`.
+The event vocabulary a trigger watches and a lookback asks about. Port of
+`idris/src/Experimental/Events.idr`, syntax only; the event names and facts the checker
+classifies with live in `Check/Events`.
 -/
 
 namespace Mtg
 
+/-- The event a lookback names ("that died this turn"); an act event names its verb. -/
 inductive EventName where
   | death | departure | damageTaken | cardDrawn | entry | attackDeclaration | blockDeclaration
   | combatDamage | partBeginning | spellCast | statusChange | turnedFaceUp | phasingChange
   | blockedDeclaration | attachment | unattachment | lastCounterRemoval | lifeGain | lifeLoss
-  | timeShift | placement | counterPlacement | counterRemoval | gameLoss | tokenCreation
-  | chapterArrival | abilityActivation | statValueChange | regeneration | flipWin | flipLoss
+  | gameDesignation | placement | counterPlacement | counterRemoval | gameLoss | tokenCreation
+  | chapterArrival | abilityActivation | statValueChange | flipWin | flipLoss
   | coinFlip | diceRoll | costPayment | costNonpayment | lifePayment | becomesTarget
   | damageDealing
   | verbedAct (verb : VerbLabel)
@@ -28,7 +27,7 @@ inductive EventName where
 abbrev Deeds := List VerbLabel
 
 inductive CounterMove where
-  | put | taken
+  | put | removed
   deriving DecidableEq, Repr
 
 inductive CounterBatch where
@@ -37,12 +36,6 @@ inductive CounterBatch where
 
 inductive DiceBatch where
   | one | many
-  deriving DecidableEq, Repr
-
-inductive RolledDie where
-  | any
-  | sided (n : Nat)
-  | planar
   deriving DecidableEq, Repr
 
 inductive PaymentOutcome where
@@ -61,32 +54,25 @@ inductive ReplUse where
   | repeatedly | nextTimeOnly
   deriving DecidableEq, Repr
 
-/-- The word a triggered ability opens with. `at` is a Lean keyword, hence `atTime`. -/
+/-- The word a triggered ability opens with. -/
 inductive TriggerWord where
-  | when | whenever | atTime
+  | when | whenever | at_
   deriving DecidableEq, Repr
 
 inductive DamageKind where
   | any | combatOnly | noncombatOnly
   deriving DecidableEq, Repr
 
-inductive StaticKind where
-  | ptDelta | keywordGrant | deedRestriction | typeAddition | controlGrant | replacement
-  | prevention | conditional | entryRider | costModification | manaPersistence | ptDefinition
-  | basePtSet | ptSwitch | typeSet | typeLoss | colorSet | abilityLoss | coordination
-  | copyEffect | visibilityRider | outcomeImmunity | triggerMultiplier | turnSkip
-  | letterDefinition
-  deriving DecidableEq, Repr
-
 inductive CondMarking where
-  | asLongAs | unless | ifSo
+  | asLongAs | unless_ | ifSo
   deriving DecidableEq, Repr
 
 inductive PlayLimit where
   | onceEachYourTurn | onceEachTurn
   deriving DecidableEq, Repr
 
-inductive PlayWindow where
+/-- When a play permission applies. -/
+inductive PlayTiming where
   | whileSearchingLibrary | duringEachOfYourTurns
   deriving DecidableEq, Repr
 
@@ -95,7 +81,7 @@ inductive ChoiceMode where
   | unmarked
   /-- "of their choice": the chooser is read in a window of the stack, so a clause's own
   subject shadows any player named before it. -/
-  | theirChoice (w : Window)
+  | theirChoice (window : Window)
   | atRandom
   | yourChoice
   deriving DecidableEq, Repr

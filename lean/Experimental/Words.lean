@@ -4,15 +4,10 @@
 The vocabulary: every leaf type a phrase, trigger, effect, or card is written from. Port of
 `idris/src/Experimental/Words.idr`, syntax only.
 
-Not ported, by design (checker machinery, not syntax): the antecedent stack and its payloads
-(`Binding`, `Bindings`, `Payload`, `HeadTy`, `Stamp`, `Origin`), the obligation witnesses
-(`OptOk`, `Joins`, `Targetable`, `Targeter`, `Phrasal`, `AxesAt`, `KnownAct`, `KnownKeyword`,
-`BasicLandType(s)`, `DesignationHolder`), and the facts tables and their rows (`ActFacts`,
-`DeedRole`, `DesignationFacts`, `CounterFacts`, `DeedFeature`, `PremiseSort`).
-
-Naming: types UpperCamelCase, constructors lowerCamelCase in the type's namespace, so the
-Idris anti-collision suffixes (`PlayerW`, `TapC`, `OwnerAx`) are gone: `NounWord.player`,
-`StatusCat.tap`, `PossessorAxis.owner`.
+A type is here iff a constructor field mentions it. The checker's own vocabulary (the
+antecedent stack, obligation witnesses, the facts tables, event names, static kinds) lives in
+`Check/`. Designations, keywords, acts, counters, and deeds are labels with generated facts
+tables, not enums: the grammar carries the mechanism, the tables carry the set.
 -/
 
 namespace Mtg
@@ -52,15 +47,15 @@ inductive Letter where
 inductive Kind where
   | object
   | player
-  | quality (q : QualitySort)
+  | quality (sort : QualitySort)
   | outcome
   | gap
-  | letter (l : Letter)
+  | letter (letter : Letter)
   | turnRef
   /-- A pile of objects; the pile itself is not an object [CR#700.3b]. -/
   | pile
   /-- Idris `(\/)`: a phrase denoting either sort ("target creature or player"). -/
-  | join (a b : Kind)
+  | join (left right : Kind)
   deriving DecidableEq, Repr
 
 inductive AggregateOp where
@@ -76,7 +71,7 @@ inductive KindAxis where
   | cardType
   | permanentType
   | color
-  | subtype (host : CardType) (only : SubtypeScope)
+  | subtype (host : CardType) (scope : SubtypeScope)
   | value (stat : Stat)
   | counterKind
   | colorPair
@@ -84,7 +79,7 @@ inductive KindAxis where
 
 inductive OutcomeSort where
   | damageDealt | lifeGained | lifeLost | countersPut | damagePrevented | rollResult
-  | coinFlipped | diceRolled | planarRolled | namedNumber | repeatCount | countersRemoved
+  | coinFlipped | diceRolled | namedNumber | repeatCount | countersRemoved
   | manaAdded | manaProduced | ceilingShortfall | voteHeld
   deriving DecidableEq, Repr
 
@@ -116,15 +111,33 @@ inductive PossessorAxis where
   | owner | controller
   deriving DecidableEq, Repr
 
+/-- How an object stands in combat, optionally toward a counterpart: "attacking" is
+`attackerOf` with none, "creature blocking it" is `blockerOf` with one. `declaredAttacker` is
+the declare-attackers moment [CR#508.1]. -/
 inductive CombatRelation where
-  | blockerOf | blockedBy | attackedBy | attackerOf | couldBlock | couldBeBlockedBy
+  | attackerOf | declaredAttacker | blockerOf | blockedBy | attackedBy | couldBlock
+  | couldBeBlockedBy
+  deriving DecidableEq, Repr
+
+/-- The two players of a combat [CR#506.2]. -/
+inductive CombatRole where
+  | attacking | defending
+  deriving DecidableEq, Repr
+
+/-- An attachment's coming or going. -/
+inductive AttachMove where
+  | attached | unattached
+  deriving DecidableEq, Repr
+
+inductive ArithOp where
+  | plus | minus | times | differenceBetween
   deriving DecidableEq, Repr
 
 inductive Zone where
   | battlefield | graveyard | exile | hand | library | stack | command
   deriving DecidableEq, Repr
 
-inductive LibPos where
+inductive LibraryEnd where
   | top | bottom
   deriving DecidableEq, Repr
 
@@ -137,6 +150,11 @@ inductive Ordinal where
   | nth (n : Nat)
   deriving DecidableEq, Repr
 
+/-- A designation's name [CR#701.15b,725.1,731.1]. Which designations exist, and what each
+holds and does, is the designation facts table, generated like the keyword table; the grammar
+carries only the mechanism. -/
+abbrev DesignationLabel := String
+
 abbrev VerbLabel := String
 abbrev KeywordLabel := String
 abbrev AbilityWordLabel := String
@@ -148,13 +166,13 @@ inductive PileFace where
   deriving DecidableEq, Repr
 
 inductive ChoiceSort where
-  | quality (q : QualitySort)
+  | quality (sort : QualitySort)
   | player
   deriving DecidableEq, Repr
 
 /-- Which die a roll instruction names. -/
 inductive DieSides where
-  | sides (n : Nat)
+  | sides (sides : Nat)
   | thoseDice
   deriving DecidableEq, Repr
 
@@ -176,7 +194,7 @@ inductive ExposeVerb where
 
 /-- The noun a pronoun ("that player", "that card") is written with. -/
 inductive NounWord where
-  | type (t : CardType)
+  | type (type : CardType)
   | card
   | spell
   | player
@@ -191,7 +209,7 @@ inductive NounWord where
   /-- "Copy target triggered ability you control. You may choose new targets for THE COPY" -/
   | abilityCopy
   /-- "the exiled creature card", "that land card": the type narrows the card word. -/
-  | typedCard (t : CardType)
+  | typedCard (type : CardType)
   /-- "Put THAT PILE into your hand and the other into your graveyard." -/
   | pile
   deriving DecidableEq, Repr
@@ -210,17 +228,17 @@ inductive Reach where
   | atSlot (slot : SlotCarrier)
   | stamped (verb : VerbLabel)
   | tokenBorn
-  | word (w : NounWord)
-  | unionHalf (w : NounWord)
-  | verbed (verb : VerbLabel) (w : NounWord) (marking : VerbedMarking)
+  | word (word : NounWord)
+  | unionHalf (word : NounWord)
+  | verbed (verb : VerbLabel) (word : NounWord) (marking : VerbedMarking)
   | thatTurn
   deriving DecidableEq, Repr
 
 /-- The stretch of the antecedent stack a pronoun resolves in. -/
 inductive Window where
   | whole
-  | top (n : Nat)
-  | below (n : Nat)
+  | top (depth : Nat)
+  | below (depth : Nat)
   deriving DecidableEq, Repr
 
 inductive EntryCounterMark where
@@ -262,13 +280,13 @@ structure KeywordFamily where
   deriving DecidableEq, Repr
 
 inductive KeywordTerm where
-  | the (k : KeywordLabel)
+  | the (keyword : KeywordLabel)
   | anyIn (family : KeywordFamily)
   deriving DecidableEq, Repr
 
 inductive PaidCostName where
-  | byKeyword (kw : KeywordLabel)
-  | byNthKeyword (ord : Ordinal) (kw : KeywordLabel)
+  | byKeyword (keyword : KeywordLabel)
+  | byNthKeyword (ordinal : Ordinal) (keyword : KeywordLabel)
   | theAlternative
   | theAdditional
   deriving DecidableEq, Repr
@@ -281,7 +299,7 @@ inductive PaidFacet where
   /-- [CR#702.33c..702.33d] -/
   | timesPaid (which : PaidCostName)
   /-- "was kicked" [CR#702.33d] -/
-  | readback (which : PaidCostName) (window : Option Lookback)
+  | readback (which : PaidCostName) (lookback : Option Lookback)
   deriving DecidableEq, Repr
 
 inductive AbilityClass where
@@ -292,6 +310,7 @@ inductive AbilityClass where
   | keyword (k : KeywordLabel)
   deriving DecidableEq, Repr
 
+-- this seems odd
 inductive ItalicWord where
   | abilityWord (label : AbilityWordLabel)
   | flavorWord (label : FlavorWordLabel)
@@ -303,18 +322,18 @@ inductive Color where
 
 inductive ColorOrColorless where
   | colorless
-  | of (c : Color)
+  | of (color : Color)
   deriving DecidableEq, Repr
 
 inductive SimpleManaSymbol where
-  | generic (n : Nat)
-  | specific (c : ColorOrColorless)
+  | generic (amount : Nat)
+  | specific (color : ColorOrColorless)
   deriving DecidableEq, Repr
 
 inductive ManaSymbol where
-  | simple (s : SimpleManaSymbol)
-  | hybrid (l : SimpleManaSymbol) (r : Color)
-  | phyrexian (c : Color) (d : Option Color)
+  | simple (symbol : SimpleManaSymbol)
+  | hybrid (left : SimpleManaSymbol) (right : Color)
+  | phyrexian (color : Color) (second : Option Color)
   | variable
   | snow
   deriving DecidableEq, Repr
@@ -337,7 +356,7 @@ inductive Role where
 inductive PayTimes where
   | once
   | anyNumberOfTimes
-  | upTo (n : Nat)
+  | upTo (times : Nat)
   deriving DecidableEq, Repr
 
 inductive ManaUnit where
@@ -350,9 +369,9 @@ inductive SpecialAction where
   deriving DecidableEq, Repr
 
 inductive CostNamed where
-  | containing (sym : ManaSymbol)
-  | ofKeyword (kw : KeywordLabel)
-  | ofSpecialAction (act : SpecialAction)
+  | containing (symbol : ManaSymbol)
+  | ofKeyword (keyword : KeywordLabel)
+  | ofSpecialAction (action : SpecialAction)
   deriving DecidableEq, Repr
 
 inductive ColorFreedom where
@@ -362,12 +381,12 @@ inductive ColorFreedom where
 inductive ManaMatch where
   | anyColor
   | anyType
-  | of (c : ColorOrColorless)
+  | of (color : ColorOrColorless)
   deriving DecidableEq, Repr
 
 inductive LoyaltyCost where
-  | up (n : Nat)
-  | down (n : Nat)
+  | up (amount : Nat)
+  | down (amount : Nat)
   | downX
   | zero
   deriving DecidableEq, Repr
@@ -384,37 +403,16 @@ inductive MarkerWord where
 
 /-- A change of a quantity: up by, down by, or set to. -/
 inductive Delta (α : Type) where
-  | up (x : α)
-  | down (x : α)
-  | set (x : α)
+  | up (amount : α)
+  | down (amount : α)
+  | set (amount : α)
   deriving DecidableEq, Repr, BEq
 
 inductive Supertype where
-  | legendary | basic | snow | ongoing | world
+  | legendary | basic | snow | world
   deriving DecidableEq, Repr
 
-inductive Designation where
-  -- player-held [CR#725.1,726.1,702.131c,702.195b]
-  | monarch | theInitiative | citysBlessing | enduringStory
-  -- object-held: the permanent markers [CR#701.15b,701.54b,701.64b,716.2b,719.3b]
-  | goaded | ringBearer | monstrous | renowned | suspected | saddled
-  | prepared | harnessed | level | solved
-  -- object-held: the three sector designations [CR#702.158b]
-  | alphaSector | betaSector | gammaSector
-  -- object-held: the unlocked pair [CR#709.5c]
-  | leftHalfUnlocked | rightHalfUnlocked
-  -- card-held [CR#903.3]
-  | commander
-  -- game-held [CR#731.1]
-  | day | night
-  deriving DecidableEq, Repr
-
-inductive DesignationScope where
-  | heldBy (k : Kind)
-  | heldByCard
-  | heldByGame
-  deriving DecidableEq, Repr
-
+-- this doesn't seem like it should be enum-sourced like this. keywords, actions, counters are not
 inductive RoomHalf where
   | left | right
   deriving DecidableEq, Repr
@@ -423,14 +421,11 @@ inductive LockState where
   | locked | unlocked
   deriving DecidableEq, Repr
 
-inductive ConferringWord where
-  | monstrosity | saddle | ascend | storied | renown
-  deriving DecidableEq, Repr
-
-/-- How a designation was conferred: by instruction, or in a keyword's expansion. -/
-inductive GivingWarrant where
+/-- How a designation was conferred: by an instruction, or in a keyword's expansion, named
+by the keyword. -/
+inductive Conferral where
   | instructed
-  | inExpansionOf (w : ConferringWord)
+  | byKeyword (keyword : KeywordLabel)
   deriving DecidableEq, Repr
 
 inductive AttachWord where
@@ -447,28 +442,19 @@ inductive DefinedSlots where
 
 inductive CounterKind where
   | boost (power toughness : Delta Nat)
-  | keyword (k : KeywordLabel)
+  | keyword (keyword : KeywordLabel)
   | named (label : String)
   deriving DecidableEq, Repr
 
 inductive ProjAxis where
-  | stat (s : Stat)
-  | playerStat (s : PlayerStat)
-  | counter (k : CounterKind)
-  | anyCounter (k : Kind)
+  | stat (stat : Stat)
+  | playerStat (stat : PlayerStat)
+  | counter (kind : CounterKind)
+  | anyCounter (kind : Kind)
   deriving DecidableEq, Repr
 
-inductive ChapterNumber where
-  | i | ii | iii | iv | v | vi
-  deriving DecidableEq, Repr
-
-/-- The type line: supertypes, card types, subtypes [CR#205.1]. The Idris carried the
-supertypes beside the line in each place a line appears; here they are on it. -/
-structure TypeLine where
-  supertypes : List Supertype
-  types : List CardType
-  subtypes : List Subtype
-  deriving DecidableEq, Repr
+/-- A Saga's chapter, counted from I [CR#714.2]. -/
+abbrev ChapterNumber := Nat
 
 /-- Each status category always has exactly one of its two values [CR#110.5]. -/
 inductive StatusCat where
@@ -491,14 +477,15 @@ inductive ColorSpec where
   | every
   deriving DecidableEq, Repr
 
+/-- Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of [CR#510.4]. -/
 inductive TurnPart where
   | turn | upkeep | endStep | combat | untapStep | endOfCombat | firstMain | postcombatMain
-  | drawStep | mainPhase | beginningPhase | declareAttackers | declareBlockers | combatDamage
-  | cleanup
+  | drawStep | mainPhase | beginningPhase | declareAttackers | declareBlockers
+  | firstStrikeCombatDamage | combatDamage | cleanup
   deriving DecidableEq, Repr
 
 inductive RankPeriod where
-  | within (w : Lookback)
+  | within (lookback : Lookback)
   | each (part : TurnPart)
   deriving DecidableEq, Repr
 

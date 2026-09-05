@@ -28,10 +28,10 @@ inductive Refusal where
   | projScope (k : Kind)
   | axesAt (k : Kind)
   | counterKindNamed (k : Kind)
-  | designationHolder (d : Designation) (k : Kind)
-  | designationScope (d : Designation)
-  | designationChecked (d : Designation)
-  | designationPossessorFits (d : Designation)
+  | designationHolder (designation : DesignationLabel) (k : Kind)
+  | designationScope (designation : DesignationLabel)
+  | designationChecked (designation : DesignationLabel)
+  | designationPossessorFits (designation : DesignationLabel)
   /- number -/
   | soleHolder
   | singular
@@ -117,7 +117,6 @@ inductive Refusal where
   | colorBoundOk
   | isExtremal
   | chosenQualityRead (q : QualitySort)
-  | numberBetween
   | subtypeType
   | ascribable
   | ascriptionOk
@@ -169,7 +168,6 @@ inductive Refusal where
   | counterBatchOk
   | causedByOk
   | tokenPhrase
-  | watchFitsDie
   | eventUnderway
   | headerNontarget
   | doorNamesHost
@@ -240,6 +238,7 @@ inductive Refusal where
   | modalFrame
   | chapterFrame
   | doorFrame
+  | cardName
   | cardBox
   | cardCost
   | jointChoices

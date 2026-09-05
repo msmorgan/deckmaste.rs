@@ -1,59 +1,25 @@
-import Experimental.Effect
+import Experimental.Abilities
 
 /-!
 # Experimental.Card
 
-The printed card: characteristics, faces, and the card frames. Port of
-`idris/src/Experimental/Card.idr`, syntax only.
-
-Not ported (the frame laws, all witnesses): `CardLine`, `CardBox`, `CharacteristicsLaws`,
-`SharedLineHalfLaws`, `LevelBandLaws`, `LevelBandsLaws`, `PrototypeAltLaws`, `FaceLaws`.
+The printed card: its faces and frames. Port of `idris/src/Experimental/Card.idr`, syntax
+only. A face is a `Characteristics`; the frames that carry more than one set name each.
 -/
 
 namespace Mtg
 
-inductive CardClass where
-  | permanentCard | spellCard
-  deriving DecidableEq, Repr
-
-/-- A printed power, toughness, loyalty, or defense value. -/
-inductive PrintedStat where
-  | num (n : Int)
-  | star
-  | starPlus (n : Nat)
-  | minusStar (n : Nat)
-  deriving DecidableEq, Repr
-
-inductive PrintedBox where
-  | pt (power toughness : PrintedStat)
-  | loyalty (start : PrintedStat)
-  | defense (def_ : PrintedStat)
-  deriving DecidableEq, Repr
-
-inductive FaceSide where
-  | front | back
-  deriving DecidableEq, Repr
-
-structure Characteristics where
-  name : String
-  cost : Option ManaCost := none
-  choices : List QualitySort := []
-  typeLine : TypeLine
-  text : AbilitySeq := []
-  box : Option PrintedBox := none
-  deriving Repr, BEq
-
-/-- The Idris wraps `Characteristics` in a one-field record; here a face is its
-characteristics. -/
+/-- A card face is its characteristics [CR#109.3]. -/
 abbrev CardFace := Characteristics
 
-/-- One half of a split card whose halves share a type line. -/
+/-- One half of a split card whose halves share a type line: its own name, cost, and text. -/
 structure SharedLineHalf where
   name : String
-  cost : Option ManaCost
-  text : AbilitySeq
+  cost : Option ManaCost := none
+  text : List Ability := []
   deriving Repr, BEq
 
+/-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
 inductive LevelRange where
   | between (from_ to : Nat)
   | atLeast (from_ : Nat)
@@ -61,13 +27,7 @@ inductive LevelRange where
 
 structure LevelBand where
   range : LevelRange
-  box : PrintedBox
-  text : AbilitySeq
-  deriving Repr, BEq
-
-structure PrototypeAlt where
-  cost : ManaCost
-  box : PrintedBox
+  band : Characteristics
   deriving Repr, BEq
 
 inductive Card where
@@ -75,12 +35,13 @@ inductive Card where
   | transforming (front back : CardFace)
   | modalDfc (front back : CardFace)
   | split (left right : CardFace)
-  | sharedLineSplit (typeLine : TypeLine) (box : Option PrintedBox)
-      (left right : SharedLineHalf)
+  /-- The shared line and box, and the two halves' own name, cost, and text. -/
+  | sharedLineSplit (shared : Characteristics) (left right : SharedLineHalf)
   | adventurer (normal adventure : Characteristics)
   | flip (normal alternative : Characteristics)
-  | leveler (inner : CardFace) (bands : List LevelBand)
-  | prototype (inner : CardFace) (alt : PrototypeAlt)
+  | leveler (inner : Characteristics) (bands : List LevelBand)
+  /-- [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box. -/
+  | prototype (inner alternative : Characteristics)
   deriving Repr, BEq
 
 end Mtg

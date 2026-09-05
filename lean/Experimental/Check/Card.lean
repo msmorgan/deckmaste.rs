@@ -1,5 +1,5 @@
 import Experimental.Card
-import Experimental.Check.EffectRules
+import Experimental.Check.AbilityRules
 
 /-!
 # Experimental.Check.Card
@@ -9,6 +9,16 @@ Refusal`, and `Spelled`, a card the checker admits.
 -/
 
 namespace Mtg
+
+/-- Which side of a two-faced card a face is printed on; the back has no mana cost. -/
+inductive FaceSide where
+  | front | back
+  deriving DecidableEq, Repr
+
+/-- A card is a permanent card or a spell card by its types [CR#110.4a]. -/
+inductive CardClass where
+  | permanentCard | spellCard
+  deriving DecidableEq, Repr
 
 def cardClassOf : List CardType → CardClass
   | [] => .permanentCard
@@ -35,7 +45,7 @@ def StaticSpec.onSpellCardOk : StaticSpec → Bool
   | .conditionally se _ _ => se.onSpellCardOk
   | _ => false
 
-def classAbilityOk : CardClass → AbilityAt → Bool
+def classAbilityOk : CardClass → Ability → Bool
   | .permanentCard, .keyword k _ _ => keywordCardOk .permanentCard k
   | .permanentCard, .spell _ _ => false
   | .permanentCard, .alsoForKeywords ab _ => classAbilityOk .permanentCard ab
@@ -50,127 +60,120 @@ def classAbilityOk : CardClass → AbilityAt → Bool
   | .spellCard, .italicHead _ ab => classAbilityOk .spellCard ab
   | .spellCard, .mayBeginOnBattlefield => false
 
-def cardTextOk (tys : List CardType) (text : AbilitySeq) : Bool :=
+def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))
 
-def chapterLineOk (subs : List Subtype) : AbilityAt → Bool
+def chapterLineOk (subs : List Subtype) : Ability → Bool
   | .triggered _ (.chapterMark _) _ _ _ _ _ _ _ => subs.elem (.of .enchantment "Saga")
   | .italicHead _ ab => chapterLineOk subs ab
   | .alsoForKeywords ab _ => chapterLineOk subs ab
   | _ => true
 
-def chapterFrameOk (subs : List Subtype) (text : AbilitySeq) : Bool := text.all (chapterLineOk subs)
+def chapterFrameOk (subs : List Subtype) (text : List Ability) : Bool := text.all (chapterLineOk subs)
 
-def doorFrameOk (text : AbilitySeq) : Bool := text.all fun a => !a.namesThisDoor
-
-def PrintedStat.starred : PrintedStat → Bool
-  | .num _ => false
-  | _ => true
-
-def boxPt : Option PrintedBox → Option (PrintedStat × PrintedStat)
-  | some (.pt p t) => some (p, t)
-  | _ => none
+def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
 
 def StaticSpec.definedSlots : StaticSpec → Option DefinedSlots
   | .definesPt _ sl _ => some sl
   | .conditionally se _ _ => se.definedSlots
   | _ => none
 
-def AbilityAt.definesPt : AbilityAt → Option DefinedSlots
+def Ability.definesPt : Ability → Option DefinedSlots
   | .static se => se.definedSlots
   | .italicHead _ ab => ab.definesPt
   | _ => none
 
-def textDefines (f : DefinedSlots → Bool) (text : AbilitySeq) : Bool :=
+def textDefines (f : DefinedSlots → Bool) (text : List Ability) : Bool :=
   text.any fun a => (a.definesPt).elim false f
 
-def definedSlotsStarred : Option (PrintedStat × PrintedStat) → Bool → Bool → Bool
-  | none, dp, dt => !dp && !dt
-  | some (p, t), dp, dt => (!dp || p.starred) && (!dt || t.starred)
+/-- A power or toughness slot against the text that may define it: on a creature an absent slot
+is the printed `*` a characteristic-defining ability fills, and nothing else fills it
+[CR#208.1,604.3]; on a noncreature a definer leaves the slot absent. -/
+def ptSlotOk (creature : Bool) (defined : Bool) (slot : Option Amount) : Bool :=
+  if creature then slot.isNone == defined else !defined || slot.isNone
 
-def boxSuitsType : FaceSide → CardType → Option PrintedBox → Bool
-  | _, .creature, some (.pt _ _) => true
-  | _, .creature, _ => false
-  | _, .planeswalker, some (.loyalty _) => true
-  | .back, .planeswalker, none => true
-  | _, .planeswalker, _ => false
-  | _, .battle, some (.defense _) => true
-  | _, .battle, _ => false
-  | _, _, _ => true
+/-- The stat slots a face prints against its types [CR#208.1,209.1,210.1]: a creature has
+power and toughness, a planeswalker loyalty (the back face of a transforming one may leave it
+absent), a battle defense; loyalty and defense belong only to those types. -/
+def boxSuitsTypes (side : FaceSide) (tys : List CardType) (c : Characteristics) : Bool :=
+  (c.power.isSome == c.toughness.isSome) &&
+    (!tys.elem .planeswalker || c.loyalty.isSome || side == .back) &&
+    (c.loyalty.isNone || tys.elem .planeswalker) &&
+    (!tys.elem .battle || c.defense.isSome) && (c.defense.isNone || tys.elem .battle)
 
-def boxFitsLine (side : FaceSide) (tys : List CardType) (box : Option PrintedBox) : Bool :=
-  tys.all fun t => boxSuitsType side t box
-
-def cardBoxOk (side : FaceSide) (tys : List CardType) (text : AbilitySeq) (box : Option PrintedBox) :
-    Bool :=
-  boxFitsLine side tys box &&
-    definedSlotsStarred (boxPt box) (textDefines DefinedSlots.power text)
-      (textDefines DefinedSlots.toughness text)
+def cardBoxOk (side : FaceSide) (tys : List CardType) (text : List Ability)
+    (c : Characteristics) : Bool :=
+  boxSuitsTypes side tys c &&
+    ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.power text) c.power &&
+    ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.toughness text) c.toughness
 
 def cardCostOk : FaceSide → List CardType → Option ManaCost → Bool
   | _, _, none => true
   | .back, _, some _ => false
   | .front, tys, some _ => !tys.elem .land
 
-def TypeLine.cardLineOk (l : TypeLine) : Bool :=
-  l.nonEmpty && typesDistinct l.types && typesCombinable l.types && subsFitLine l.subtypes l.types
+def Characteristics.cardLineOk (c : Characteristics) : Bool :=
+  c.lineNonEmpty && typesDistinct c.types && typesCombinable c.types &&
+    subsFitLine c.subtypes c.types
 
-def AbilityAt.keywordWantsModes : AbilityAt → Bool
+def Ability.keywordWantsModes : Ability → Bool
   | .keyword k _ _ => (keywordFactsFor k).elim false (·.wantsModes)
   | .italicHead _ ab => ab.keywordWantsModes
   | .alsoForKeywords ab _ => ab.keywordWantsModes
   | _ => false
 
-def AbilityAt.writesModes : AbilityAt → Bool
+def Ability.writesModes : Ability → Bool
   | .spell _ (.modal _ _) => true
   | .italicHead _ ab => ab.writesModes
   | .alsoForKeywords ab _ => ab.writesModes
   | _ => false
 
-def modalFrameOk (text : AbilitySeq) : Bool :=
-  !text.any AbilityAt.keywordWantsModes || text.any AbilityAt.writesModes
+def modalFrameOk (text : List Ability) : Bool :=
+  !text.any Ability.keywordWantsModes || text.any Ability.writesModes
 
 def jointBindings : List QualitySort → Bindings → Bindings
   | [], bs => bs
   | q :: qs, bs => qualityB q :: jointBindings qs bs
 
-def AbilityAt.choiceDelta (bs : Bindings) : AbilityAt → List Binding
+def Ability.choiceDelta (bs : Bindings) : Ability → List Binding
   | .activated _ instr _ _ _ _ => instr.choiceDelta
   | .triggered _ _ _ _ _ _ _ _ instr => instr.choiceDelta
   | .static se => se.choiceDelta bs
-  | .alsoForKeywords ab _ => AbilityAt.choiceDelta bs ab
-  | .italicHead _ ab => AbilityAt.choiceDelta bs ab
+  | .alsoForKeywords ab _ => Ability.choiceDelta bs ab
+  | .italicHead _ ab => Ability.choiceDelta bs ab
   | .spell _ instr => instr.choiceDelta
   | _ => []
 
-def textChoiceDelta (bs : Bindings) (text : AbilitySeq) : List Binding :=
-  text.flatMap (AbilityAt.choiceDelta bs)
+def textChoiceDelta (bs : Bindings) (text : List Ability) : List Binding :=
+  text.flatMap (Ability.choiceDelta bs)
 
 def jointChoicesOk (qs : List QualitySort) (made : List Binding) : Bool :=
   qs.all fun q => countChoice (.quality q) made != 0
 
 /-- The laws a text obeys on a type line: class fit, modal frame, chapter frame, door frame. -/
-def textLaws (l : TypeLine) (text : AbilitySeq) : List Refusal :=
-  refuse (cardTextOk l.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
-    refuse (chapterFrameOk l.subtypes text) .chapterFrame ++ refuse (doorFrameOk text) .doorFrame
+def textLaws (line : Characteristics) (text : List Ability) : List Refusal :=
+  refuse (cardTextOk line.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
+    refuse (chapterFrameOk line.subtypes text) .chapterFrame ++ refuse (doorFrameOk text) .doorFrame
 
-/-- Idris `CharacteristicsLaws side c`. -/
+/-- The laws of a type line alone (a shared line has nothing else). -/
+def Characteristics.lineLaws (c : Characteristics) : List Refusal :=
+  refuse c.cardLineOk .cardLine ++ refuse (supersDistinct c.supertypes) .distinct
+
+/-- Idris `CharacteristicsLaws side c`: a face is named. -/
 def Characteristics.check (side : FaceSide) (c : Characteristics) : List Refusal :=
   let bs := jointBindings c.choices (costLetters c.cost)
-  AbilitySeq.check bs c.text ++ refuse c.typeLine.cardLineOk .cardLine ++
-    refuse (supersDistinct c.typeLine.supertypes) .distinct ++ textLaws c.typeLine c.text ++
-    refuse (cardBoxOk side c.typeLine.types c.text c.box) .cardBox ++
-    refuse (cardCostOk side c.typeLine.types c.cost) .cardCost ++
+  refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
+    textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
+    refuse (cardCostOk side c.types c.cost) .cardCost ++
     refuse (jointChoicesOk c.choices (textChoiceDelta bs c.text)) .jointChoices
 
-def SharedLineHalf.check (l : TypeLine) (box : Option PrintedBox) (h : SharedLineHalf) :
-    List Refusal :=
-  AbilitySeq.check (costLetters h.cost) h.text ++ textLaws l h.text ++
-    refuse (cardBoxOk .front l.types h.text box) .cardBox ++
-    refuse (cardCostOk .front l.types h.cost) .cardCost
+def SharedLineHalf.check (shared : Characteristics) (h : SharedLineHalf) : List Refusal :=
+  Ability.checkText (costLetters h.cost) h.text ++ textLaws shared h.text ++
+    refuse (cardBoxOk .front shared.types h.text shared) .cardBox ++
+    refuse (cardCostOk .front shared.types h.cost) .cardCost
 
-def adventureInsetOk (l : TypeLine) : Bool := l.subtypes.elem (.spell "Adventure")
-def flipHalfOk (l : TypeLine) : Bool := anyPermanentType l.types
+def adventureInsetOk (c : Characteristics) : Bool := c.subtypes.elem (.spell "Adventure")
+def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
 
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
 def LevelRange.ok : LevelRange → Bool
@@ -196,24 +199,26 @@ def bandsDisjoint : List LevelBand → Bool
   | [] => true
   | b :: bs => bs.all (fun c => !rangesOverlap b.range c.range) && bandsDisjoint bs
 
-def levelerPtBox : Option PrintedBox → Bool
-  | some (.pt _ _) => true
-  | _ => false
+def Characteristics.ptWritten (c : Characteristics) : Bool := c.power.isSome && c.toughness.isSome
 
-def levelerFrameOk (l : TypeLine) (box : Option PrintedBox) (bands : List LevelBand) : Bool :=
-  l.types.elem .creature && levelerPtBox box && !bands.isEmpty
+def levelerFrameOk (inner : Characteristics) (bands : List LevelBand) : Bool :=
+  inner.types.elem .creature && inner.ptWritten && !bands.isEmpty
 
-def LevelBand.check (l : TypeLine) (b : LevelBand) : List Refusal :=
-  refuse b.range.ok .levelRange ++ AbilitySeq.check [] b.text ++ textLaws l b.text ++
-    refuse (cardBoxOk .front l.types b.text (some b.box)) .cardBox
+/-- A level band writes a power and toughness and text [CR#711.2]. -/
+def LevelBand.check (inner : Characteristics) (b : LevelBand) : List Refusal :=
+  refuse b.range.ok .levelRange ++ Ability.checkText [] b.band.text ++ textLaws inner b.band.text ++
+    refuse b.band.ptWritten .levelerFrame ++
+    refuse (cardBoxOk .front inner.types b.band.text b.band) .cardBox
 
 /-- [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box. -/
-def prototypeFrameOk (l : TypeLine) : Option PrintedBox → Bool
-  | some (.pt _ _) => l.types.elem .creature
-  | _ => false
+def prototypeFrameOk (inner : Characteristics) : Bool :=
+  inner.types.elem .creature && inner.ptWritten
 
-def PrototypeAlt.check (l : TypeLine) (a : PrototypeAlt) : List Refusal :=
-  refuse (manaRun a.cost) .manaRun ++ refuse (cardBoxOk .front l.types [] (some a.box)) .cardBox
+def prototypeAltCheck (inner alternative : Characteristics) : List Refusal :=
+  refuse alternative.cost.isSome .cardCost ++
+    refuse (alternative.cost.elim true manaRun) .manaRun ++
+    refuse alternative.ptWritten .prototypeFrame ++
+    refuse (cardBoxOk .front inner.types [] alternative) .cardBox
 
 /-- The checker's entry point: every refusal in a card, in reading order. -/
 def Card.check : Card → List Refusal
@@ -221,21 +226,21 @@ def Card.check : Card → List Refusal
   | .transforming front back => front.check .front ++ back.check .back
   | .modalDfc front back => front.check .front ++ back.check .front
   | .split left right => left.check .front ++ right.check .front
-  | .sharedLineSplit line box left right =>
-    refuse line.cardLineOk .cardLine ++ refuse (supersDistinct line.supertypes) .distinct ++
-      refuse (anyPermanentType line.types) .cardLine ++ left.check line box ++ right.check line box
+  | .sharedLineSplit shared left right =>
+    shared.lineLaws ++ refuse (anyPermanentType shared.types) .cardLine ++
+      left.check shared ++ right.check shared
   | .adventurer normal adventure =>
     normal.check .front ++ adventure.check .front ++
-      refuse (adventureInsetOk adventure.typeLine) .adventureInset
+      refuse (adventureInsetOk adventure) .adventureInset
   | .flip normal alternative =>
-    normal.check .front ++ alternative.check .back ++ refuse (flipHalfOk normal.typeLine) .flipHalf ++
-      refuse (flipHalfOk alternative.typeLine) .flipHalf
+    normal.check .front ++ alternative.check .back ++ refuse (flipHalfOk normal) .flipHalf ++
+      refuse (flipHalfOk alternative) .flipHalf
   | .leveler inner bands =>
-    inner.check .front ++ refuse (levelerFrameOk inner.typeLine inner.box bands) .levelerFrame ++
-      bands.flatMap (LevelBand.check inner.typeLine) ++ refuse (bandsDisjoint bands) .bandsDisjoint
-  | .prototype inner alt =>
-    inner.check .front ++ refuse (prototypeFrameOk inner.typeLine inner.box) .prototypeFrame ++
-      alt.check inner.typeLine
+    inner.check .front ++ refuse (levelerFrameOk inner bands) .levelerFrame ++
+      bands.flatMap (LevelBand.check inner) ++ refuse (bandsDisjoint bands) .bandsDisjoint
+  | .prototype inner alternative =>
+    inner.check .front ++ refuse (prototypeFrameOk inner) .prototypeFrame ++
+      prototypeAltCheck inner alternative
 
 /-- A card the checker admits: writing one runs the checker, as writing a card ran the Idris
 elaborator. -/

@@ -5,26 +5,20 @@ import Experimental.Events
 # Experimental.Phrase
 
 The phrase grammar: zones, predicates, noun phrases, amounts, quantities, and conditions.
-Port of `idris/src/Experimental/Phrase.idr`, syntax only.
+Port of `idris/src/Experimental/Phrase.idr`, syntax only, reshaped: no `bs` or `Kind`
+indices (both are inferred by the checker), and no constructor whose meaning is a
+composition of others (`permanent` is `inZone battlefield`, the combat predicates are one
+constructor over `CombatRelation`, the two stat reads are one over `ProjAxis`).
 
-The Idris block is inductive-recursive: constructor types carry `{auto 0 … : …}`
-obligations computed by functions over the block itself, and every family is indexed by the
-antecedent stack `bs` and by `Kind`. Neither index is here. What remains is the shape a
-sentence is written in, one constructor per Idris constructor with the same fields, minus the
-obligations. The kind of a phrase and the stack it introduces become functions over this
-syntax when the checker returns.
-
-Not ported (witnesses and checker data): `ChoiceInScope`, `ComplementWritten`, `RolesOk`,
-`NonZeroQ`, `ComplementAnchor`, `LinkSource`, `PileMention`, `PaidSubject`, `DestOk`,
-`MarkingOk`, `TokenPhrase`, `DamageRecipient`, `StatusHolder`, `NotAnAbility`, `DiscardOk`,
-`Movable`.
+A `NounPhrase` denotes one entity or a collection, by its number; CONTEXT.md's Reference and
+Selection are what it denotes, not two spellings.
 -/
 
 namespace Mtg
 
 /-- A color, written or "the chosen color". -/
 inductive ColorTerm where
-  | lit (c : Color)
+  | lit (color : Color)
   | chosen (ref : ChoiceRef)
   deriving DecidableEq, Repr
 
@@ -32,255 +26,240 @@ mutual
   /-- Whose zone: "your graveyard", or a bare zone name. -/
   inductive ZoneScope where
     | bare
-    | possessedBy (n : Noun)
+    | possessedBy (possessor : NounPhrase)
 
   /-- Where in a library. -/
-  inductive LibPlace where
-    | oneEnd (pos : LibPos)
-    | eitherEnd (chooser : Option Noun)
+  inductive LibraryPlace where
+    | oneEnd (end_ : LibraryEnd)
+    | eitherEnd (chooser : Option NounPhrase)
     | shuffled
 
   inductive ZoneExpr where
-    | zoneAt (z : Zone) (scope : ZoneScope)
-    | libraryAt (place : LibPlace) (order : Option Arrangement) (offset : Option Ordinal)
+    | zone (zone : Zone) (scope : ZoneScope)
+    | library (place : LibraryPlace) (order : Option Arrangement) (offset : Option Ordinal)
         (scope : ZoneScope)
 
   /-- Where a name comes from: printed, chosen, or "with the same name as …". -/
   inductive NameSource where
     | printed (name : String)
     | chosen
-    | sameAs (n : Noun)
+    | sameAs (subject : NounPhrase)
 
-  /-- What a choice ranges over. The Idris indexes this by `ChoiceSort`. -/
+  /-- What a choice ranges over. -/
   inductive ChoiceDomain where
-    | nameOfCard (p : Predicate)
-    | colorOtherThan (c : Color)
-    | typeOtherThan (s : Subtype)
+    | nameOfCard (predicate : Predicate)
+    | colorOtherThan (color : Color)
+    | typeOtherThan (subtype : Subtype)
     | basicTypesOnly
     | nonbasicTypesOnly
-    | numberAbove (n : Nat)
-    | opponentsOnly
-    | numberBetween (lo hi : Nat)
+    | number (quantity : Quantity)
+    | players (predicate : Predicate)
 
   inductive EventSource where
     | anywhere
-    | zones (zs : List ZoneExpr)
-    | anywhereBut (zs : List ZoneExpr)
+    | zones (zones : List ZoneExpr)
+    | anywhereBut (zones : List ZoneExpr)
 
   /-- What an event happened to, from where, into where. -/
   inductive EventComplement where
-    | involving (what : Noun)
-    | fromZones (src : EventSource) (what : Option EventComplement)
-    | intoZone (to : ZoneExpr) (what : Option EventComplement)
-    | atZone (z : ZoneExpr)
+    | involving (subject : NounPhrase)
+    | fromZones (source : EventSource) (rest : Option EventComplement)
+    | intoZone (destination : ZoneExpr) (rest : Option EventComplement)
+    | atZone (zone : ZoneExpr)
 
-  /-- "… that died this turn": an event, a window, and what it involved. -/
+  /-- "… that died this turn": an event, a lookback, and what it involved. -/
   inductive LookbackClause where
-    | mk (event : EventName) (window : Lookback) (complement : Option EventComplement)
+    | mk (event : EventName) (lookback : Lookback) (complement : Option EventComplement)
 
   inductive Predicate where
-    | hasType (t : CardType)
-    | hasSubtype (s : Subtype)
+    | hasType (type : CardType)
+    | hasSubtype (subtype : Subtype)
+    | hasSupertype (supertype : Supertype)
     | anyPlayer
     | opponent
     | chosenPlayer (ref : ChoiceRef)
-    | qualityNoun (q : QualitySort) (domain : Option ChoiceDomain)
-    | counterKindOn (n : Noun)
-    | ofChosen (ref : ChoiceRef) (q : QualitySort)
-    | ofYourChoice (q : QualitySort) (domain : Option ChoiceDomain)
-    | hasKeyword (k : KeywordTerm)
-    | hasPossessor (axis : PossessorAxis) (n : Noun)
-    | castBy (n : Noun) (rank : Option (Ordinal × RankPeriod))
-    | castFrom (z : ZoneExpr)
+    | qualityNoun (sort : QualitySort) (domain : Option ChoiceDomain)
+    | counterKindOn (subject : NounPhrase)
+    | ofChosen (ref : ChoiceRef) (sort : QualitySort)
+    | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
+    | hasKeyword (keyword : KeywordTerm)
+    | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
+    | castBy (caster : NounPhrase) (rank : Option (Ordinal × RankPeriod))
+    | castFrom (zone : ZoneExpr)
     | wasCast
-    | attacking
-    | beingDeclaredAttacker
-    | blocking
-    | blocked
-    | combatRel (r : CombatRelation) (m : Noun)
-    | happenedTo (lb : LookbackClause)
-    | colorIs (c : Color)
-    | isColorless
-    | colorCount (r : Comparator) (n : Nat)
-    | hasSupertype (s : Supertype)
-    | named (src : NameSource)
-    | hasDesignation (d : Designation) (holder : Option Noun)
-    | isAttached (w : AttachWord)
-    | attachedBy (w : AttachWord) (by_ : Noun)
-    | attachedTo (host : Noun)
-    | permanent
+    | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
+    | happenedTo (lookback : LookbackClause)
+    | colorIs (color : Color)
+    | colorCount (comparator : Comparator) (count : Nat)
+    | named (source : NameSource)
+    | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
+    | isAttached (word : Option AttachWord)
+    | attachedBy (word : Option AttachWord) (by_ : NounPhrase)
+    | attachedTo (host : NounPhrase)
     | isCard
     | isToken
-    | isSpell
     | isEmblem
     | isCopyOfACard
-    | isHistoric
     | isTransformed
-    | hasStatus (v : Status)
+    | hasStatus (status : Status)
     | hasCounters (kind : Option CounterKind)
-    | compare (axes : List ProjAxis) (r : Comparator) (bound : Amount)
+    | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
     | superlative (op : AggregateOp) (axis : ProjAxis) (domain : Predicate)
     /-- A vote stands only where a spell or ability instructed players to vote [CR#701.38a]. -/
     | withMostVotes
     | choseExtreme (op : AggregateOp)
-    | compareOver (domain : Predicate) (measure : Amount) (r : Comparator) (bound : Amount)
-    | inZone (z : ZoneExpr)
-    | inPile (pile : Noun)
-    | exiledWith (src : Noun)
-    | and (ps : List Predicate)
-    | or (ps : List Predicate)
-    | not (p : Predicate)
+    | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
+    | inZone (zone : ZoneExpr)
+    | inPile (pile : NounPhrase)
+    | exiledWith (source : NounPhrase)
+    | and (conjuncts : List Predicate)
+    /-- Disjuncts of different kinds join: "creature or player" denotes either. -/
+    | or (disjuncts : List Predicate)
+    | not (predicate : Predicate)
     | other
     | notChosen
-    | otherThan (n : Noun)
-    | joined (l r : Predicate)
+    | otherThan (anchor : NounPhrase)
     | coinCameUp (face : CoinFace)
     | isSource
-    | manaCostHas (sym : ManaSymbol)
-    | abilityHead (cls : AbilityClass)
-    | abilityOf (src : Noun)
-    | activatedBy (who : Noun)
+    | manaCostHas (symbol : ManaSymbol)
+    | abilityHead (class_ : AbilityClass)
+    | abilityOf (source : NounPhrase)
+    | activatedBy (activator : NounPhrase)
     | isManaAbility
-    | targets (m : Noun) (extent : TargetExtent)
+    | targets (subject : NounPhrase) (extent : TargetExtent)
 
   inductive DetPhrase where
-    | target (q : Quantity)
+    | target (quantity : Quantity)
     | a (mode : ChoiceMode)
     /-- "each …": a group, resolution-time [CR#608.2] -/
     | each
     | all
     | the
-    | count (q : Quantity) (mode : Option ChoiceMode)
+    | count (quantity : Quantity) (mode : Option ChoiceMode)
     /-- the bare plural: a description, no determiner [CR#109.2] -/
     | bare
 
-  inductive Noun where
+  inductive NounPhrase where
     /-- the source, by self-name or "this spell" [CR#113.7] -/
     | this
-    | asType (t : CardType) (n : Noun) (sub : Option Subtype)
-    | asMarker (m : MarkerWord) (n : Noun)
-    | resolvedPermanent (spell : Noun)
-    | theGrantor (m : MarkerWord)
+    | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
+    | asMarker (marker : MarkerWord) (subject : NounPhrase)
+    | resolvedPermanent (spell : NounPhrase)
+    | theGrantor (marker : MarkerWord)
     | you
-    | theDefendingPlayer
-    | theAttackingPlayer
-    | playerGroup (w : PlayerGroupWord)
-    | described (d : DetPhrase) (p : Predicate)
-    | eachOf (group : Noun)
-    | both (l r : Noun)
-    | eitherOf (l r : Noun)
-    | librarySlice (pos : LibPos) (amount : Amount) (whose : Noun)
-    | someOf (q : SliceCount) (descr : Option Predicate) (group : Noun)
-    | namesAgree (agreement : NameAgreement) (group : Noun)
-    | theRest (k : Kind) (pl : Plurality)
-    | pileOf (q : SliceCount) (by_ : Option Noun)
+    | combatPlayer (role : CombatRole)
+    | playerGroup (group : PlayerGroupWord)
+    | described (determiner : DetPhrase) (predicate : Predicate)
+    | eachOf (group : NounPhrase)
+    | both (left right : NounPhrase)
+    | eitherOf (left right : NounPhrase)
+    | librarySlice (end_ : LibraryEnd) (amount : Amount) (whose : NounPhrase)
+    | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
+    | namesAgree (agreement : NameAgreement) (group : NounPhrase)
+    | theRest (kind : Kind) (plurality : Plurality)
+    | pileOf (count : SliceCount) (by_ : Option NounPhrase)
     /-- A pronoun: what it reaches for, its number, and the window it resolves in. -/
-    | pro (r : Reach) (pl : Plurality) (w : Window)
-    | attachHost (w : AttachWord) (h : NounWord)
-    | possessorOf (axis : PossessorAxis) (n : Noun)
-    | designated (d : Designation) (whose : Noun)
-    | oneEachOf (roles : List Predicate) (pool : Noun)
+    | pro (reach : Reach) (plurality : Plurality) (window : Window)
+    | attachHost (word : AttachWord) (head : NounWord)
+    | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
+    | designated (designation : DesignationLabel) (whose : NounPhrase)
+    | oneEachOf (roles : List Predicate) (pool : NounPhrase)
 
   inductive Amount where
-    | lit (n : Nat)
-    | playerStatOf (s : PlayerStat) (n : Noun)
-    | statOf (s : Stat) (n : Noun)
-    | countOf (group : Noun)
-    | aggregate (op : AggregateOp) (axis : ProjAxis) (group : Noun)
-    | countersOn (kind : CounterKind) (holder : Noun)
-    | paid (facet : PaidFacet) (n : Noun)
-    | eventTally (op : TallyOp) (who : Noun) (lb : LookbackClause)
-    | timesOf (per : Amount) (a : Amount)
+    | lit (value : Nat)
+    | statOf (axis : ProjAxis) (subject : NounPhrase)
+    | countOf (group : NounPhrase)
+    | aggregate (op : AggregateOp) (axis : ProjAxis) (group : NounPhrase)
+    | paid (facet : PaidFacet) (subject : NounPhrase)
+    | eventTally (op : TallyOp) (subject : NounPhrase) (lookback : LookbackClause)
     | thatMuch
     | chosenNumber (ref : ChoiceRef)
     | votesFor (label : VoteLabel)
-    | theOutcome (s : OutcomeSort)
+    | theOutcome (sort : OutcomeSort)
     | coinsShowing (face : CoinFace)
-    | greatestStoredMatch (n : Noun)
+    | greatestStoredMatch (subject : NounPhrase)
     | groupSize
     | theDifference
-    | letter (l : Letter)
-    | plus (a b : Amount)
-    | minus (a b : Amount)
-    | devotion (who : Noun) (c : ColorTerm) (d : Option ColorTerm)
-    | half (rounding : RoundMode) (a : Amount)
-    | differenceBetween (a b : Amount)
+    | letter (letter : Letter)
+    | arith (op : ArithOp) (left right : Amount)
+    | devotion (player : NounPhrase) (color : ColorTerm) (second : Option ColorTerm)
+    | half (rounding : RoundMode) (amount : Amount)
     | aggregateOver (op : AggregateOp) (domain : Predicate) (body : Amount)
-    | distinctCount (axis : KindAxis) (domain : Noun)
+    | distinctCount (axis : KindAxis) (domain : NounPhrase)
     | upTo (bound : Amount)
 
   inductive Quantity where
-    | range (lo hi : Option Nat)
-    | upToOf (a : Amount)
-    | exactlyOf (a : Amount)
+    | range (low high : Option Nat)
+    | upToOf (amount : Amount)
+    | exactlyOf (amount : Amount)
 
   inductive SliceCount where
-    | counted (q : Quantity)
+    | counted (quantity : Quantity)
     | whole
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
-deriving instance Repr, BEq for ZoneScope, LibPlace, ZoneExpr, NameSource, ChoiceDomain,
-  EventSource, EventComplement, LookbackClause, Predicate, DetPhrase, Noun, Amount, Quantity,
-  SliceCount
+deriving instance Repr, BEq for ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
+  EventSource, EventComplement, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
+  Quantity, SliceCount
 
 inductive SearchScope where
-  | oneZone (z : ZoneExpr)
-  | someZones (whose : Option Noun) (zs : List Zone)
+  | oneZone (zone : ZoneExpr)
+  | someZones (whose : Option NounPhrase) (zones : List Zone)
   deriving Repr, BEq
 
 inductive FlipScope where
-  | count (n : Amount)
-  | per (each : Noun)
+  | count (amount : Amount)
+  | per (each : NounPhrase)
   deriving Repr, BEq
 
 inductive IgnoredOutcomes where
-  | extreme (e : RollExtreme)
-  | allBut (e : RollExtreme)
-  | chosen (chooser : Option Noun) (n : Amount)
+  | extreme (extreme : RollExtreme)
+  | allBut (extreme : RollExtreme)
+  | chosen (chooser : Option NounPhrase) (amount : Amount)
   deriving Repr, BEq
 
 inductive Ballot where
   | byLabel (options : List VoteLabel)
-  | byCandidate (n : Noun)
+  | byCandidate (candidates : NounPhrase)
   deriving Repr, BEq
 
 inductive Condition where
-  /-- "if there is a …". `exists` is a Lean keyword. -/
-  | thereIs (n : Noun)
-  | happened (who : Noun) (lb : LookbackClause)
-  | gameIs (d : Designation)
-  | noHolder (d : Designation)
-  | matches (n : Noun) (p : Predicate)
-  | compareAmt (subject : Amount) (r : Comparator) (bound : Amount)
-  | dealtThisWay (p : Predicate)
-  | choseThisWay (who : Noun) (p : Predicate)
-  | preventedFromSource (p : Predicate)
-  | flipCalled (who : Noun) (call : FlipCall)
+  /-- "if there is a …" -/
+  | exists_ (subject : NounPhrase)
+  | happened (subject : NounPhrase) (lookback : LookbackClause)
+  | gameIs (designation : DesignationLabel)
+  | noHolder (designation : DesignationLabel)
+  | matches (subject : NounPhrase) (predicate : Predicate)
+  | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
+  | dealtThisWay (predicate : Predicate)
+  | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
+  | preventedFromSource (predicate : Predicate)
+  | flipCalled (caller : NounPhrase) (call : FlipCall)
   | flipFace (face : CoinFace)
   | voteLead (label : VoteLabel) (orTied : Bool)
-  | anyResultIs (r : Comparator) (bound : Amount)
+  | anyResultIs (comparator : Comparator) (bound : Amount)
   | rolledDoubles
-  | not (c : Condition)
-  | and (cs : List Condition)
-  | or (cs : List Condition)
+  | not (condition : Condition)
+  | and (conjuncts : List Condition)
+  | or (disjuncts : List Condition)
   deriving Repr, BEq
 
 inductive Exposed where
-  | cards (n : Noun)
-  | zone (z : ZoneExpr)
+  | cards (cards : NounPhrase)
+  | zone (zone : ZoneExpr)
   | choice (sort : ChoiceSort)
   deriving Repr, BEq
 
 inductive VisibleThing where
   | topOfLibrary
   | wholeHand
-  | objects (n : Noun)
+  | objects (objects : NounPhrase)
   deriving Repr, BEq
 
 inductive DurationEnd where
-  | startOf (part : TurnPart) (whose : Option Noun)
-  | endOf (part : TurnPart) (whose : Option Noun)
+  | startOf (part : TurnPart) (whose : Option NounPhrase)
+  | endOf (part : TurnPart) (whose : Option NounPhrase)
   deriving Repr, BEq
 
 end Mtg

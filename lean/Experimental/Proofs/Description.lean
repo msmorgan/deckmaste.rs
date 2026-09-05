@@ -29,11 +29,11 @@ theorem badControlledByGroup :
 
 /-- "each of up to two target creatures" -/
 theorem okEachOfGroup :
-    Noun.check (some .object) [] (.eachOf (.described (.target (upTo 2)) creature)) = [] := by decide
+    NounPhrase.check (some .object) [] (.eachOf (.described (.target (upTo 2)) creature)) = [] := by decide
 
 /-- "each of target creature" -/
 theorem badEachOfSingular :
-    Noun.check (some .object) [] (.eachOf (target creature)) = [.plural] := by decide
+    NounPhrase.check (some .object) [] (.eachOf (target creature)) = [.plural] := by decide
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
@@ -91,40 +91,40 @@ theorem okContradictionFreeAnd :
 
 /-- "noncreature that is attacking or blocking" -/
 theorem badNoncreatureAttackingOrBlocking :
-    Predicate.check .object [] (.and [.not creature, .or [.attacking, .blocking]])
+    Predicate.check .object [] (.and [.not creature, .or [attacking, blocking]])
       = [.contradictionFree] := by
   decide
 
 /-- "noncreature that is an attacking artifact or a blocking land" -/
 theorem badWrappedStatusLaunder :
     Predicate.check .object []
-      (.and [.or [.and [artifact, .attacking], .and [land, .blocking]], .not creature])
+      (.and [.or [.and [artifact, attacking], .and [land, blocking]], .not creature])
       = [.contradictionFree] := by
   decide
 
 /-- "blocked creature that's unblocked" -/
 theorem okBlockedAndUnblocked :
-    Predicate.check .object [] (.and [creature, .blocked, unblocked]) = [] := by decide
+    Predicate.check .object [] (.and [creature, blocked, unblocked]) = [] := by decide
 
 /-- "between two and three target creatures" -/
 theorem okAscendingRange :
-    Noun.check (some .object) [] (.described (.target (.range (some 2) (some 3))) creature) = [] := by
+    NounPhrase.check (some .object) [] (.described (.target (.range (some 2) (some 3))) creature) = [] := by
   decide
 
 /-- "between three and two target creatures" -/
 theorem badDescendingRange :
-    Noun.check (some .object) [] (.described (.target (.range (some 3) (some 2))) creature)
+    NounPhrase.check (some .object) [] (.described (.target (.range (some 3) (some 2))) creature)
       = [.wellFormedQ] := by
   decide
 
 /-- "attacking artifact or attacking land" -/
 theorem okWholeZoneJoin :
-    Predicate.check .object [] (.or [.and [artifact, .attacking], .and [land, .attacking]]) = [] := by
+    Predicate.check .object [] (.or [.and [artifact, attacking], .and [land, attacking]]) = [] := by
   decide
 
 /-- "attacking artifact or land" -/
 theorem badPartialZoneJoin :
-    Predicate.check .object [] (.or [.and [artifact, .attacking], land]) = [.parallelDisjuncts] := by
+    Predicate.check .object [] (.or [.and [artifact, attacking], land]) = [.parallelDisjuncts] := by
   decide
 
 /-- "creature you control or artifact you control" -/
@@ -135,7 +135,7 @@ theorem okDistinctStructuredDisjuncts :
   decide
 
 /-- "if this creature is attacking" -/
-theorem okMatchesThisCreature : Condition.check [] (.matches thisCreature .attacking) = [] := by decide
+theorem okMatchesThisCreature : Condition.check [] (.matches thisCreature attacking) = [] := by decide
 
 /-- "if target creature is an artifact" -/
 theorem badMatchesTargetSubject :
@@ -169,25 +169,25 @@ theorem badCompareLiteralSubject :
 
 /-- "each of each creature" -/
 theorem badEachOfDistributive :
-    Noun.check (some .object) [] (.eachOf (each creature)) = [.groupMention] := by decide
+    NounPhrase.check (some .object) [] (.eachOf (each creature)) = [.groupMention] := by decide
 
 /-- "each of all creatures" -/
 theorem badEachOfAll :
-    Noun.check (some .object) [] (.eachOf (allOf creature)) = [.groupMention] := by decide
+    NounPhrase.check (some .object) [] (.eachOf (allOf creature)) = [.groupMention] := by decide
 
 /-- "each of each of up to two target creatures" -/
 theorem badNestedEachOf :
-    Noun.check (some .object) [] (.eachOf (.eachOf (.described (.target (upTo 2)) creature)))
+    NounPhrase.check (some .object) [] (.eachOf (.eachOf (.described (.target (upTo 2)) creature)))
       = [.groupMention] := by
   decide
 
 /-- "target white creature" -/
 theorem okWhiteCreature :
-    Noun.check (some .object) [] (target (.and [creature, .colorIs .white])) = [] := by decide
+    NounPhrase.check (some .object) [] (target (.and [creature, .colorIs .white])) = [] := by decide
 
 /-- "target colorless white creature" -/
 theorem badColorlessWhite :
-    Noun.check (some .object) [] (target (.and [creature, .isColorless, .colorIs .white]))
+    NounPhrase.check (some .object) [] (target (.and [creature, colorless, .colorIs .white]))
       = [.contradictionFree] := by
   decide
 
@@ -212,15 +212,15 @@ theorem badUnlicensedY :
 
 /-- "the power of target land creature": an animated land is a land AND a creature. -/
 theorem okAnimatedLandPower :
-    Amount.check [] (.statOf .power (target (.and [land, creature]))) = [] := by decide
+    Amount.check [] (.statOf (.stat .power) (target (.and [land, creature]))) = [] := by decide
 
 /-- "the power of target land": a noncreature permanent has no power [CR#208.3]. -/
 theorem badLandPower :
-    Amount.check [] (.statOf .power (target land)) = [.statHeadTysOk] := by decide
+    Amount.check [] (.statOf (.stat .power) (target land)) = [.statHeadTysOk] := by decide
 
 /-- "the loyalty of target battle": loyalty is printed on planeswalkers [CR#209.1]. -/
 theorem badBattleLoyalty :
-    Amount.check [] (.statOf .loyalty (target (.hasType .battle))) = [.statHeadTysOk] := by decide
+    Amount.check [] (.statOf (.stat .loyalty) (target (.hasType .battle))) = [.statHeadTysOk] := by decide
 
 /-- "the greatest power among creatures" -/
 theorem okPowerAmongObjects :
@@ -246,13 +246,13 @@ theorem badSumSelection :
 
 /-- "the creature with the least toughness among creatures you control" -/
 theorem okDefiniteSuperlative :
-    Noun.check (some .object) []
+    NounPhrase.check (some .object) []
       (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl])) = [] := by
   decide
 
 /-- "the creature" -/
 theorem badBareDefinite :
-    Noun.check (some .object) [] (the creature) = [.uniquifying] := by decide
+    NounPhrase.check (some .object) [] (the creature) = [.uniquifying] := by decide
 
 /-- "the player with the highest life total" -/
 theorem okPlayerStatSuperlative :
@@ -266,59 +266,59 @@ theorem badLifeTotalSuperlative :
   decide
 
 /-- "this creature" -/
-theorem okAscribeCreature : Noun.check (some .object) [] (.asType .creature .this none) = [] := by decide
+theorem okAscribeCreature : NounPhrase.check (some .object) [] (.asType .creature .this none) = [] := by decide
 
 /-- "this instant" -/
 theorem badAscribeInstant :
-    Noun.check (some .object) [] (.asType .instant .this none) = [.ascriptionOk] := by decide
+    NounPhrase.check (some .object) [] (.asType .instant .this none) = [.ascriptionOk] := by decide
 
 /-- "this sorcery" -/
 theorem badAscribeSorcery :
-    Noun.check (some .object) [] (.asType .sorcery .this none) = [.ascriptionOk] := by decide
+    NounPhrase.check (some .object) [] (.asType .sorcery .this none) = [.ascriptionOk] := by decide
 
 /-- "this kindred" -/
 theorem badAscribeKindred :
-    Noun.check (some .object) [] (.asType .kindred .this none) = [.ascriptionOk] := by decide
+    NounPhrase.check (some .object) [] (.asType .kindred .this none) = [.ascriptionOk] := by decide
 
 /-- "this Aura land" -/
 theorem badAscribeForeignSubtype :
-    Noun.check (some .object) [] (.asType .land .this (some (enchantmentType "Aura")))
+    NounPhrase.check (some .object) [] (.asType .land .this (some (enchantmentType "Aura")))
       = [.ascriptionOk] := by
   decide
 
 /-- "target creature that's goaded" -/
 theorem okObjectDesignation :
-    Predicate.check .object [] (.hasDesignation .goaded none) = [] := by decide
+    Predicate.check .object [] (.hasDesignation "goaded" none) = [] := by decide
 
 /-- "target creature that is the monarch" -/
 theorem badObjectMonarch :
-    Predicate.check .object [] (.hasDesignation .monarch none)
-      = [.designationHolder .monarch .object] := by
+    Predicate.check .object [] (.hasDesignation "the monarch" none)
+      = [.designationHolder "the monarch" .object] := by
   decide
 
 /-- "one of the top two cards of your library" -/
 theorem okPartitiveOfSlice :
-    Noun.check (some .object) []
+    NounPhrase.check (some .object) []
       (.someOf (.counted (exactly 1)) none (.librarySlice .top (.lit 2) .you)) = [] := by
   decide
 
 /-- "one of one or more creatures" -/
 theorem badPartitiveOfCountedGroup :
-    Noun.check (some .object) []
+    NounPhrase.check (some .object) []
       (.someOf (.counted (exactly 1)) none (counted (atLeast 1) creature)) = [.partitiveBase] := by
   decide
 
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
     Instruction.check []
-      (.sequentially [destroy (target creature), losesLife (controllerOf it) (.statOf .power it)])
+      (.sequentially [destroy (target creature), losesLife (controllerOf it) (.statOf (.stat .power) it)])
       = [] := by
   decide
 
 theorem badOtherwiseReadsLeadingArm :
     Instruction.check []
-      (.ifThen (thereIs creatureYouControl)
-        (create (.lit 1) (creatureTok 1 1 [.black] [creatureType "Zombie"]))
+      (.if_ (exists_ creatureYouControl)
+        (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (some (.setStatus .tapped it)))
       = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
@@ -326,8 +326,8 @@ theorem badOtherwiseReadsLeadingArm :
 theorem badLeadingConditionAntecedent :
     Instruction.check []
       (.sequentially
-        [ .ifThen (.compareAmt (.playerStatOf .lifeTotal .you) .less
-                     (.playerStatOf .lifeTotal anOpponent))
+        [ .if_ (.compareAmt (lifeTotalOf .you) .less
+                     (lifeTotalOf anOpponent))
             (gainsLife .you (.lit 6)) none,
           losesLife (that .player) (.lit 1) ])
       = [.anaphor (.word .player) .one 0] := by
@@ -336,47 +336,47 @@ theorem badLeadingConditionAntecedent :
 /-- "If you control an artifact and an enchantment, …" -/
 theorem okFlatConjunction :
     Condition.check []
-      (.and [thereIs (.and [artifact, .hasPossessor .controller .you]),
-             thereIs (.and [enchantment, .hasPossessor .controller .you])]) = [] := by
+      (.and [exists_ (.and [artifact, .hasPossessor .controller .you]),
+             exists_ (.and [enchantment, .hasPossessor .controller .you])]) = [] := by
   decide
 
 /-- "If you control an artifact, create a token." -/
 theorem badSingletonConjunction :
-    Condition.check [] (.and [thereIs (.and [artifact, .hasPossessor .controller .you])])
+    Condition.check [] (.and [exists_ (.and [artifact, .hasPossessor .controller .you])])
       = [.atLeastTwo] := by
   decide
 
 /-- "If you control an artifact and an enchantment, and you control a land, …" -/
 theorem badNestedConjunction :
     Condition.check []
-      (.and [ .and [thereIs (.and [artifact, .hasPossessor .controller .you]),
-                    thereIs (.and [enchantment, .hasPossessor .controller .you])],
-              thereIs (.and [land, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
+      (.and [ .and [exists_ (.and [artifact, .hasPossessor .controller .you]),
+                    exists_ (.and [enchantment, .hasPossessor .controller .you])],
+              exists_ (.and [land, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
   decide
 
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Instruction.check []
       (.sequentially [ rollDice .you 2 6,
-                       ifThen (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
+                       if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
                               (sacrifice .you thisCreature) ]) = [] := by
   decide
 
 /-- "If you rolled 7, sacrifice this creature." -/
 theorem badTotalWithoutRoll :
     Instruction.check []
-      (ifThen (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice .you thisCreature))
+      (if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice .you thisCreature))
       = [.outcomeInScope .rollResult 0] := by
   decide
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
 theorem okReadsLookedAtLibraryCard :
-    Noun.check (some .object) (Instruction.intro [] (lookAt (topSlice (.lit 1)))) (that .card)
+    NounPhrase.check (some .object) (Instruction.intro [] (lookAt (topSlice (.lit 1)))) (that .card)
       = [] := by
   decide
 
 theorem badReadsShuffledIntoLibraryCard :
-    Noun.check (some .object)
+    NounPhrase.check (some .object)
       (Instruction.intro [] (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .you .this]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
@@ -388,9 +388,9 @@ theorem badCompareCeilingSubject :
 /-- "target monocolored permanent": exactly one color -/
 theorem monocoloredIsOneColor : Predicate.check .object [] (.colorCount .eq 1) = [] := by decide
 
-/-- "target permanent that's exactly zero colors" -/
-theorem badExactlyZeroColors :
-    Predicate.check .object [] (.colorCount .eq 0) = [.colorBoundOk] := by decide
+/-- "target colorless permanent": zero colors is how "colorless" is spelled [CR#105.2c]. -/
+theorem okExactlyZeroColors :
+    Predicate.check .object [] (.colorCount .eq 0) = [] := by decide
 
 /-- "target permanent that's exactly six colors" -/
 theorem badExactlySixColors :
@@ -464,7 +464,7 @@ theorem badCardToken :
 
 /-- "an emblem permanent" -/
 theorem badEmblemPermanent :
-    Predicate.check .object [] (.and [emblem, .permanent]) = [.contradictionFree] := by decide
+    Predicate.check .object [] (.and [emblem, permanent]) = [.zoneCoherent] := by decide
 
 /-- "a card that is a copy of a card" -/
 theorem badCardCopyOfACard :
@@ -490,26 +490,26 @@ theorem okCantDisjunctSubject :
     Instruction.check [] (cantBlock (target (.or [creature, land])) (some .thisTurn)) = [] := by decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/
-theorem okPartyOfFourRoles : Noun.check (some .object) [] party = [] := by decide
+theorem okPartyOfFourRoles : NounPhrase.check (some .object) [] party = [] := by decide
 
 /-- "one each of Cleric and Cleric": a repeated role counts one creature twice [CR#700.8b]. -/
 theorem badRepeatedPartyRole :
-    Noun.check (some .object) []
+    NounPhrase.check (some .object) []
       (.oneEachOf [.hasSubtype (creatureType "Cleric"), .hasSubtype (creatureType "Cleric")]
         (allOf creatureYouControl)) = [.rolesOk] := by
   decide
 
 /-- "one each of nothing" [CR#700.8]. -/
 theorem badEmptyPartyRoles :
-    Noun.check (some .object) [] (.oneEachOf [] (allOf creatureYouControl)) = [.rolesOk] := by decide
+    NounPhrase.check (some .object) [] (.oneEachOf [] (allOf creatureYouControl)) = [.rolesOk] := by decide
 
 /-- "a fortified land" -/
 theorem okFortifiedLand :
-    Noun.check (some .object) [] (a (.and [land, .isAttached .fortified])) = [] := by decide
+    NounPhrase.check (some .object) [] (a (.and [land, .isAttached (some .fortified)])) = [] := by decide
 
 /-- "a fortified creature" [CR#301.6,301.5]. -/
 theorem badFortifiedCreature :
-    Noun.check (some .object) [] (a (.and [creature, .isAttached .fortified]))
+    NounPhrase.check (some .object) [] (a (.and [creature, .isAttached (some .fortified)]))
       = [.contradictionFree] := by
   decide
 

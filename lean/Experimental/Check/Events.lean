@@ -10,22 +10,18 @@ namespace Mtg
 
 def counterEventName : CounterMove → CounterBatch → EventName
   | .put, _ => .counterPlacement
-  | .taken, .last => .lastCounterRemoval
-  | .taken, _ => .counterRemoval
+  | .removed, .last => .lastCounterRemoval
+  | .removed, _ => .counterRemoval
 
 /-- Only a removal empties a named kind, so only it has a last counter. -/
 def counterBatchOk : CounterBatch → CounterMove → Option CounterKind → Bool
-  | .last, .taken, kind => kind.isSome
+  | .last, .removed, kind => kind.isSome
   | .last, _, _ => false
   | _, _, _ => true
 
 def FlipCall.eventName : FlipCall → EventName
   | .wins => .flipWin
   | .loses => .flipLoss
-
-def RolledDie.hasResult : RolledDie → Bool
-  | .planar => false
-  | _ => true
 
 def PaymentOutcome.eventName : PaymentOutcome → EventName
   | .paid => .costPayment
@@ -78,7 +74,7 @@ def EventName.facts : EventName → EventFacts
   | .lastCounterRemoval => ⟨[], [], [], false, true, false, true, false⟩
   | .lifeGain => ⟨[.player], [], [], true, true, false, true, false⟩
   | .lifeLoss => ⟨[.player], [], [], true, true, false, true, false⟩
-  | .timeShift => ⟨[], [], [], false, true, false, true, false⟩
+  | .gameDesignation => ⟨[], [], [], false, true, false, true, false⟩
   | .placement => ⟨[.object], [], [.object], false, true, false, true, false⟩
   | .counterPlacement => ⟨[], [], [], false, true, false, true, false⟩
   | .counterRemoval => ⟨[], [], [], false, true, false, true, false⟩
@@ -88,7 +84,6 @@ def EventName.facts : EventName → EventFacts
   | .abilityActivation =>
     ⟨[.player], [(.player, .object)], [.player], false, true, false, true, true⟩
   | .statValueChange => ⟨[], [], [], false, true, false, true, false⟩
-  | .regeneration => ⟨[.object], [], [], false, true, false, true, false⟩
   | .flipWin => ⟨[.player], [], [], false, true, false, true, false⟩
   | .flipLoss => ⟨[.player], [], [], false, true, false, true, false⟩
   | .coinFlip => ⟨[.player], [], [], false, true, false, true, false⟩
@@ -213,7 +208,7 @@ def deedFits (ds : Deeds) (r : Role) (k : Kind) (ab : Bool) (ts : List (List Car
   ds.all (fun d => deedKindOk d r k && deedAbilityOk d r ab && deedHeadTysOk d r ts) &&
     zoneFits z (deedsZone ds r)
 
-def playWindowOk : Option PlayLimit → Option PlayWindow → Bool
+def playWindowOk : Option PlayLimit → Option PlayTiming → Bool
   | _, none => true
   | some .onceEachYourTurn, some .duringEachOfYourTurns => false
   | _, _ => true
