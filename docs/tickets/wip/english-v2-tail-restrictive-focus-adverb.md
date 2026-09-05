@@ -168,3 +168,46 @@ construction per attachment category, one declaration-data edit, a list of
 deletions); no compiler seam and no open dimension.
 
 Standard constraints apply.
+
+## Landing record
+
+Work stopped on 2026-09-05 00:55:31 -07:00 before implementation or corpus
+gates. The claimed tree has no production, test, glossary, or coverage-lock
+changes.
+
+### STOP: pinned-shape contradiction
+
+The pinned shape permits exactly three Focus constructions, each spelling
+`lex(adverb) <focus>` where `<focus>` is `PredicateAdjunct`, `Object`, or
+`BarePredicate`. Its acceptance witnesses nevertheless require `Activate only
+if you control a Goblin.` and the coordinated `only if` tail to select.
+
+Current `PredicateAdjunct` has exactly the Prepositional, Purpose, Duration,
+Frequency, and Manner members; no member derives an `if` clause. The existing
+conditional tail is instead `postposed_if_predicate: ClauseAttachment`, with
+form `body "if" condition`. It is not one of the three permitted focus
+categories. `Object` and `BarePredicate` likewise cannot begin with `if`.
+
+Consequently, satisfying the witnesses requires either a fourth Focus route
+over the conditional attachment or a change to the existing conditional-tail
+construction. Either conflicts with the ticket's explicit three-construction
+pin and its requirement that every Focus construction be `lex(adverb) <focus>`
+over those attachment categories. This is a ticket-internal contradiction, so
+the STOP protocol prohibits selecting either interpretation.
+
+Evidence: `constructions.rs` lines 1094--1100 define the complete
+`PredicateAdjunct` sum; lines 1489--1492 define the sole postposed conditional
+predicate route; lines 1964--1988 show the two general adjunct hosts; and
+lines 67--82 and 136--141 above provide the conflicting pin and witnesses.
+
+### DISCLOSE / REPORT
+
+- Assurance: restored 0; re-spelled 0; ignored 0; added 0; removed 0.
+- Deviations and additions: none.
+- Glossary gap: none landed; the required terminology amendment is deferred
+  with the unresolved ticket decision.
+- Coverage, construction, selection, and performance figures: not measured,
+  because no implementation is valid to gate while the STOP remains open.
+- Decision wanted: reconcile the permitted focus category for a conditional
+  tail with the three-construction pin, then re-issue the ticket with one
+  authoritative shape.
