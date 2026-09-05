@@ -26,19 +26,11 @@ def them : NounPhrase := .pro .bare .many .whole
 
 /-- "it", stamped by the verb that produced it: "the exiled card". -/
 def itVerbed (verb : VerbLabel) : NounPhrase := .pro (.stamped verb) .one .whole
-/-- "them", stamped by the verb that produced them. -/
-def themVerbed (verb : VerbLabel) : NounPhrase := .pro (.stamped verb) .many .whole
 /-- "that turn" -/
 def thatTurn : NounPhrase := .pro .thatTurn .one .whole
-/-- "it", read against the prior clause; the antecedent instruction is the anchor. -/
-def itPrior (bs : Bindings) (prior : Instruction) : NounPhrase :=
-  .pro .bare .one (.top (Instruction.delta bs prior).length)
 /-- "it", read as the subject of the condition just stated. -/
 def itCondSubject (bs : Bindings) (condition : Condition) : NounPhrase :=
   .pro .bare .one (.top (Condition.delta bs condition).length)
-
-/-- "it", read at the card slot: the card a looked-at or revealed slice named. -/
-def itCard : NounPhrase := .pro (.atSlot .card) .one .whole
 
 /-- "that <word>", e.g. `that .player`. -/
 def that (w : NounWord) : NounPhrase := .pro (.word w) .one .whole
@@ -232,8 +224,6 @@ def onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
 def pileOfChoice (player : NounPhrase) : NounPhrase := .pileOf (.counted (exactly 1)) (some player)
 /-- "you and <subject>" -/
 def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
-def theDefendingPlayer : NounPhrase := .combatPlayer .defending
-def theAttackingPlayer : NounPhrase := .combatPlayer .attacking
 def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
 def ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
@@ -248,7 +238,6 @@ def party : NounPhrase := partyOf .you
 
 def generic (amount : Nat) : ManaSymbol := .simple (.generic amount)
 def pip (color : Color) : ManaSymbol := .simple (.specific (.of color))
-def colorlessPip : ManaSymbol := .simple (.specific .colorless)
 /-- "{A/B}" -/
 def hybridPip (left right : Color) : ManaSymbol := .hybrid (.specific (.of left)) right
 /-- "{1} for each …", "{R} for each …": a mana cost scaled by an amount. -/
@@ -260,7 +249,6 @@ def scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
 /-! ## Durations -/
 
 def untilEndOfTurn : Duration := .until_ (.endOf .turn none)
-def untilEndOfCombat : Duration := .until_ (.endOf .combat none)
 def untilYourNextTurn : Duration := .until_ (.startOf .turn (some .you))
 
 /-! ## Amounts -/
@@ -535,8 +523,6 @@ def blocks (subject : NounPhrase) (blocked : Option NounPhrase) : GameEvent :=
   .combat .blockerOf subject blocked
 def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent :=
   .combat .blockedBy subject by_
-def becomesAttached (subject : NounPhrase) (host : NounPhrase) : GameEvent :=
-  .attachment .attached subject host
 /-- "the last <kind> counter is removed from <subject>" -/
 def lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
   .counterEvent .removed (some kind) subject .last none false

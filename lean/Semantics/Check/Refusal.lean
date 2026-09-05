@@ -24,7 +24,6 @@ inductive Refusal where
   | targeter (k : Kind)
   | kindLte (k bound : Kind)
   | possessorKind (axis : PossessorAxis) (k : Kind)
-  | counterScope (k : Kind)
   | projScope (k : Kind)
   | axesAt (k : Kind)
   | counterKindNamed (k : Kind)
@@ -48,7 +47,6 @@ inductive Refusal where
   | choiceClause
   | choiceOrder
   | testSubject
-  | selfDefined
   /- zones -/
   | zoneIs (z : Zone)
   | zoneFits
@@ -78,7 +76,6 @@ inductive Refusal where
   | attackable
   | statusHolder
   | statusMarkable
-  | statusWord
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
   | choiceRef (ref : ChoiceRef) (sort : ChoiceSort) (found : Nat)

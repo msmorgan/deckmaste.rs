@@ -104,163 +104,139 @@ def HeaderPossessor.ok : HeaderPossessor → Bool
   | .byPlayer n => partPossessorOk (some n)
   | .byTurn _ => true
 
-mutual
-  def GameEvent.name : GameEvent → EventName
-    | .dies _ => .death
-    | .leaves _ _ => .departure
-    | .isDealtDamage _ _ => .damageTaken
-    | .draws _ => .cardDrawn
-    | .losesGame _ => .gameLoss
-    | .enters _ _ => .entry
-    | .combat r _ _ => r.eventName
-    | .attacksWith _ _ _ => .attackDeclaration
-    | .attachment move _ _ => move.eventName
-    | .dealsDamage .combatOnly _ _ => .combatDamage
-    | .dealsDamage _ _ _ => .damageDealing
-    | .beginningOf _ _ _ => .partBeginning
-    | .casts _ _ _ => .spellCast
-    | .becomesTarget _ _ => .becomesTarget
-    | .statusEvent _ v => v.category.eventName
-    | .gameBecomes _ => .gameDesignation
-    | .stateHolds _ => .stateMatch
-    | .putInto _ _ _ => .placement
-    | .counterEvent dir _ _ batch _ _ => counterEventName dir batch
-    | .tokensCreated _ _ _ _ => .tokenCreation
-    | .chapterMark _ => .chapterArrival
-    | .activates _ _ => .abilityActivation
-    | .statBecomes _ _ _ => .statValueChange
-    | .flipsCoin _ none => .coinFlip
-    | .flipsCoin _ (some call) => call.eventName
-    | .rollsDice _ _ _ _ => .diceRoll
-    | .paysCost _ out _ _ => out.eventName
-    | .paysLife _ => .lifePayment
-    | .lifeChanges _ dir => dir.eventName
-    | .verbedEvent _ v _ _ => .verbedAct v
-    | .tappedForMana _ _ _ => .tappedForMana
-    | .unlocksDoor _ _ => .verbedAct (deedLabel .unlocking)
-    | .nthOccurrence _ _ ev => GameEvent.name ev
-    | .triggers _ => .abilityTrigger
-    | .commitsCrime _ => .crimeCommission
-    | .causes _ what => GameEvent.name what
-  termination_by structural ev => ev
-end
+def GameEvent.name : GameEvent → EventName
+  | .dies _ => .death
+  | .leaves _ _ => .departure
+  | .isDealtDamage _ _ => .damageTaken
+  | .draws _ => .cardDrawn
+  | .losesGame _ => .gameLoss
+  | .enters _ _ => .entry
+  | .combat r _ _ => r.eventName
+  | .attacksWith _ _ _ => .attackDeclaration
+  | .attachment move _ _ => move.eventName
+  | .dealsDamage .combatOnly _ _ => .combatDamage
+  | .dealsDamage _ _ _ => .damageDealing
+  | .beginningOf _ _ _ => .partBeginning
+  | .casts _ _ _ => .spellCast
+  | .becomesTarget _ _ => .becomesTarget
+  | .statusEvent _ v => v.category.eventName
+  | .gameBecomes _ => .gameDesignation
+  | .stateHolds _ => .stateMatch
+  | .putInto _ _ _ => .placement
+  | .counterEvent dir _ _ batch _ _ => counterEventName dir batch
+  | .tokensCreated _ _ _ _ => .tokenCreation
+  | .chapterMark _ => .chapterArrival
+  | .activates _ _ => .abilityActivation
+  | .statBecomes _ _ _ => .statValueChange
+  | .flipsCoin _ none => .coinFlip
+  | .flipsCoin _ (some call) => call.eventName
+  | .rollsDice _ _ _ _ => .diceRoll
+  | .paysCost _ out _ _ => out.eventName
+  | .paysLife _ => .lifePayment
+  | .lifeChanges _ dir => dir.eventName
+  | .verbedEvent _ v _ _ => .verbedAct v
+  | .tappedForMana _ _ _ => .tappedForMana
+  | .unlocksDoor _ _ => .verbedAct (deedLabel .unlocking)
+  | .nthOccurrence _ _ ev => GameEvent.name ev
+  | .triggers _ => .abilityTrigger
+  | .commitsCrime _ => .crimeCommission
+  | .causes _ what => GameEvent.name what
+termination_by structural ev => ev
 
-mutual
-  /-- The stack a trigger's body reads while the event is happening. -/
-  def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
-    | .dies n => selfSubjIntro bs n
-    | .leaves n _ => selfSubjIntro bs n
-    | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
-    | .draws who => selfSubjIntro bs who
-    | .losesGame who => selfSubjIntro bs who
-    | .enters n _ => selfSubjIntro bs n
-    | .combat _ n none => selfSubjIntro bs n
-    | .combat _ _ (some m) => selfSubjIntro bs m
-    | .attacksWith _ _ attackers => selfSubjIntro bs attackers
-    | .attachment _ _ host => selfSubjIntro bs host
-    | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
-    | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: selfSubjIntro bs m
-    | .beginningOf _ _ _ => bs
-    | .casts _ what _ => selfSubjIntro bs what
-    | .becomesTarget _ by_ => selfSubjIntro bs by_
-    | .statusEvent n _ => selfSubjIntro bs n
-    | .gameBecomes _ => bs
-    | .stateHolds _ => bs
-    | .putInto n _ _ => selfSubjIntro bs n
-    | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
-    | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
-    | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
-    | .tokensCreated n _ _ _ => selfSubjIntro bs n
-    | .chapterMark _ => bs
-    | .activates _ what => selfSubjIntro bs what
-    | .statBecomes _ _ v => Amount.intro bs v
-    | .flipsCoin who _ => selfSubjIntro bs who
-    | .rollsDice who .one _ _ => selfSubjIntro bs who
-    | .rollsDice who .many _ _ => outcomeB .diceRolled :: selfSubjIntro bs who
-    | .paysCost _ _ whose _ => selfSubjIntro bs whose
-    | .paysLife who => selfSubjIntro bs who
-    | .lifeChanges who dir => outcomeB dir.outcome :: selfSubjIntro bs who
-    | .verbedEvent who _ none _ => optAgentIntro bs who
-    | .verbedEvent _ _ (some what) _ => selfSubjIntro bs what
-    | .tappedForMana _ what _ => selfSubjIntro bs what
-    | .unlocksDoor _ door => door.intro bs
-    | .nthOccurrence _ _ ev => GameEvent.intro bs ev
-    | .triggers what => selfSubjIntro bs what
-    | .commitsCrime who => selfSubjIntro bs who
-    | .causes _ what => GameEvent.intro bs what
-  termination_by structural ev => ev
-end
+/-- The stack a trigger's body reads while the event is happening. -/
+def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
+  | .dies n => selfSubjIntro bs n
+  | .leaves n _ => selfSubjIntro bs n
+  | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
+  | .draws who => selfSubjIntro bs who
+  | .losesGame who => selfSubjIntro bs who
+  | .enters n _ => selfSubjIntro bs n
+  | .combat _ n none => selfSubjIntro bs n
+  | .combat _ _ (some m) => selfSubjIntro bs m
+  | .attacksWith _ _ attackers => selfSubjIntro bs attackers
+  | .attachment _ _ host => selfSubjIntro bs host
+  | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
+  | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: selfSubjIntro bs m
+  | .beginningOf _ _ _ => bs
+  | .casts _ what _ => selfSubjIntro bs what
+  | .becomesTarget _ by_ => selfSubjIntro bs by_
+  | .statusEvent n _ => selfSubjIntro bs n
+  | .gameBecomes _ => bs
+  | .stateHolds _ => bs
+  | .putInto n _ _ => selfSubjIntro bs n
+  | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
+  | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
+  | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
+  | .tokensCreated n _ _ _ => selfSubjIntro bs n
+  | .chapterMark _ => bs
+  | .activates _ what => selfSubjIntro bs what
+  | .statBecomes _ _ v => Amount.intro bs v
+  | .flipsCoin who _ => selfSubjIntro bs who
+  | .rollsDice who .one _ _ => selfSubjIntro bs who
+  | .rollsDice who .many _ _ => outcomeB .diceRolled :: selfSubjIntro bs who
+  | .paysCost _ _ whose _ => selfSubjIntro bs whose
+  | .paysLife who => selfSubjIntro bs who
+  | .lifeChanges who dir => outcomeB dir.outcome :: selfSubjIntro bs who
+  | .verbedEvent who _ none _ => optAgentIntro bs who
+  | .verbedEvent _ _ (some what) _ => selfSubjIntro bs what
+  | .tappedForMana _ what _ => selfSubjIntro bs what
+  | .unlocksDoor _ door => door.intro bs
+  | .nthOccurrence _ _ ev => GameEvent.intro bs ev
+  | .triggers what => selfSubjIntro bs what
+  | .commitsCrime who => selfSubjIntro bs who
+  | .causes _ what => GameEvent.intro bs what
+termination_by structural ev => ev
 
-mutual
-  /-- The stack a trigger's body reads after the event has happened. -/
-  def GameEvent.after (bs : Bindings) : GameEvent → Bindings
-    | .dies n => moveIntro bs none n (some .graveyard)
-    | .leaves n _ => moveIntro bs none n none
-    | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
-    | .draws who => nomIntro bs who
-    | .losesGame who => nomIntro bs who
-    | .enters n _ => moveIntro bs none n (some .battlefield)
-    | .combat .attackerOf n (some whom) => NounPhrase.delta bs whom ++ selfSubjIntro bs n
-    | .combat _ n none => selfSubjIntro bs n
-    | .combat _ _ (some m) => nomIntro bs m
-    | .attacksWith _ _ attackers => nomIntro bs attackers
-    | .attachment _ _ host => nomIntro bs host
-    | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
-    | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: nomIntro bs m
-    | .casts _ what _ => nomIntro bs what
-    | .becomesTarget n by_ => NounPhrase.delta bs by_ ++ selfSubjIntro bs n
-    | .beginningOf _ _ whose => whose.intro bs
-    | .statusEvent n _ => selfSubjIntro bs n
-    | .gameBecomes _ => bs
-    | .stateHolds _ => bs
-    | .putInto n to _ => moveIntro bs none n (some to.sort)
-    | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
-    | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
-    | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
-    | .tokensCreated n _ _ _ => nomIntro bs n
-    | .chapterMark _ => bs
-    | .activates _ what => nomIntro bs what
-    | .statBecomes n _ v => Amount.delta bs v ++ selfSubjIntro bs n
-    | .flipsCoin who none => outcomeB .coinFlipped :: nomIntro bs who
-    | .flipsCoin who (some _) => nomIntro bs who
-    | .rollsDice who _ _ _ => outcomeB .rollResult :: nomIntro bs who
-    | .paysCost _ _ whose _ => nomIntro bs whose
-    | .paysLife who => outcomeB .lifeLost :: nomIntro bs who
-    | .lifeChanges who dir => outcomeB dir.outcome :: nomIntro bs who
-    | .verbedEvent who _ none _ => optAgentIntro bs who
-    | .verbedEvent _ v (some what) _ =>
-      moveIntro bs (some v) what ((actDestOf v).elim (NounPhrase.zone bs what) some)
-    | .tappedForMana _ what _ => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
-    | .unlocksDoor _ door => door.intro bs
-    | .nthOccurrence _ _ ev => GameEvent.after bs ev
-    | .triggers what => nomIntro bs what
-    | .commitsCrime who => nomIntro bs who
-    | .causes _ what => GameEvent.after bs what
-  termination_by structural ev => ev
-end
+/-- The stack a trigger's body reads after the event has happened. -/
+def GameEvent.after (bs : Bindings) : GameEvent → Bindings
+  | .dies n => moveIntro bs none n (some .graveyard)
+  | .leaves n _ => moveIntro bs none n none
+  | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
+  | .draws who => nomIntro bs who
+  | .losesGame who => nomIntro bs who
+  | .enters n _ => moveIntro bs none n (some .battlefield)
+  | .combat .attackerOf n (some whom) => NounPhrase.delta bs whom ++ selfSubjIntro bs n
+  | .combat _ n none => selfSubjIntro bs n
+  | .combat _ _ (some m) => nomIntro bs m
+  | .attacksWith _ _ attackers => nomIntro bs attackers
+  | .attachment _ _ host => nomIntro bs host
+  | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
+  | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: nomIntro bs m
+  | .casts _ what _ => nomIntro bs what
+  | .becomesTarget n by_ => NounPhrase.delta bs by_ ++ selfSubjIntro bs n
+  | .beginningOf _ _ whose => whose.intro bs
+  | .statusEvent n _ => selfSubjIntro bs n
+  | .gameBecomes _ => bs
+  | .stateHolds _ => bs
+  | .putInto n to _ => moveIntro bs none n (some to.sort)
+  | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
+  | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
+  | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
+  | .tokensCreated n _ _ _ => nomIntro bs n
+  | .chapterMark _ => bs
+  | .activates _ what => nomIntro bs what
+  | .statBecomes n _ v => Amount.delta bs v ++ selfSubjIntro bs n
+  | .flipsCoin who none => outcomeB .coinFlipped :: nomIntro bs who
+  | .flipsCoin who (some _) => nomIntro bs who
+  | .rollsDice who _ _ _ => outcomeB .rollResult :: nomIntro bs who
+  | .paysCost _ _ whose _ => nomIntro bs whose
+  | .paysLife who => outcomeB .lifeLost :: nomIntro bs who
+  | .lifeChanges who dir => outcomeB dir.outcome :: nomIntro bs who
+  | .verbedEvent who _ none _ => optAgentIntro bs who
+  | .verbedEvent _ v (some what) _ =>
+    moveIntro bs (some v) what ((actDestOf v).elim (NounPhrase.zone bs what) some)
+  | .tappedForMana _ what _ => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
+  | .unlocksDoor _ door => door.intro bs
+  | .nthOccurrence _ _ ev => GameEvent.after bs ev
+  | .triggers what => nomIntro bs what
+  | .commitsCrime who => nomIntro bs who
+  | .causes _ what => GameEvent.after bs what
+termination_by structural ev => ev
 
 def Causing.intro (bs : Bindings) : Causing → Bindings
   | .source src => nomIntro bs src
   | .event ev => GameEvent.after bs ev
   | .anEffect => bs
-
-def GameEvent.subjectPlur : GameEvent → Plurality
-  | .dies n | .leaves n _ | .isDealtDamage _ n | .draws n | .losesGame n | .enters n _
-  | .combat _ n _ | .attacksWith n _ _ | .attachment _ n _
-  | .dealsDamage _ n _ | .casts _ n _ | .becomesTarget n _
-  | .statusEvent n _ | .putInto n _ _ | .counterEvent _ _ n _ _ _ | .tokensCreated n _ _ _
-  | .activates n _ | .statBecomes n _ _ | .flipsCoin n _ | .rollsDice n _ _ _
-  | .paysLife n | .lifeChanges n _ | .unlocksDoor n _ | .triggers n | .commitsCrime n => n.plur
-  | .beginningOf _ _ _ | .gameBecomes _ | .stateHolds _ | .chapterMark _ => .one
-  | .paysCost (some who) _ _ _ => who.plur
-  | .paysCost none _ _ _ => .one
-  | .verbedEvent (some who) _ _ _ => who.plur
-  | .verbedEvent none _ (some what) _ => what.plur
-  | .verbedEvent none _ none _ => .one
-  | .tappedForMana (some who) _ _ => who.plur
-  | .tappedForMana none what _ => what.plur
-  | .nthOccurrence _ _ ev => GameEvent.subjectPlur ev
-  | .causes _ what => GameEvent.subjectPlur what
 
 def GameEvent.namesThisDoor : GameEvent → Bool
   | .unlocksDoor _ .thisDoor => true

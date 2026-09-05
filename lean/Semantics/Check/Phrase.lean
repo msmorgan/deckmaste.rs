@@ -129,10 +129,6 @@ def atMostOne : Nat → Bool
   | 0 | 1 => true
   | _ => false
 
-def exactlyOne : Nat → Bool
-  | 1 => true
-  | _ => false
-
 def zoneOr (z : Zone) : Option Zone → Zone
   | none => z
   | some w => w
@@ -706,11 +702,6 @@ def Predicate.qualityReadHost : Predicate → Option CardType
   | .ofYourChoice (.subtype h) _ => some h
   | _ => none
 
-def Predicate.isComparison : Predicate → Bool
-  | .compare _ _ _ | .superlative _ _ _ | .withMostVotes | .choseExtreme _ | .compareOver _ _ _ _ =>
-    true
-  | _ => false
-
 def Predicate.isOr : Predicate → Bool
   | .or _ => true
   | _ => false
@@ -789,11 +780,6 @@ def Amount.read : Amount → Bool
   | .lit _ | .arith _ _ _ | .thatMuch | .chosenNumber _ | .groupSize | .half _ _ | .upTo _ => false
   | .theOutcome s => s.comparable
   | _ => true
-
-def boundEq : Amount → Amount → Bool
-  | .lit a, .lit b => a == b
-  | .letter a, .letter b => a == b
-  | _, _ => false
 
 def Quantity.wellFormed : Quantity → Bool
   | .range (some lo) (some hi) => lo ≤ hi
@@ -886,23 +872,6 @@ def NounPhrase.countedMention : NounPhrase → Bool
 def NounPhrase.ascribable : NounPhrase → Bool
   | .this => true
   | _ => false
-
-/-- The reach a pronoun is written with, if the noun is one. -/
-def NounPhrase.proRef : NounPhrase → Option (Reach × Plurality × Window)
-  | .pro r pl w => some (r, pl, w)
-  | _ => none
-
-def NounPhrase.eqRef : NounPhrase → NounPhrase → Bool
-  | .this, .this => true
-  | .theGrantor a, .theGrantor b => a == b
-  | .combatPlayer a, .combatPlayer b => a == b
-  | .you, .you => true
-  | .playerGroup v, .playerGroup w => v == w
-  | .pro r pl w, m =>
-    match m.proRef with
-    | some (r', pl', w') => r == r' && pl == pl' && w == w'
-    | none => false
-  | _, _ => false
 
 def NounPhrase.isYou : NounPhrase → Bool
   | .you => true
@@ -1006,10 +975,6 @@ def NounPhrase.slicePossessorOk : NounPhrase → Bool
 
 def NounPhrase.perMemberOk (n : NounPhrase) : Bool :=
   n.det == some .each || n.det == some .all || n.plur.isOne
-
-def NounPhrase.agentPlur : NounPhrase → Plurality
-  | .described .each _ => .one
-  | n => n.plur
 
 /-- "Starting with you" fixes the turn order in which the players who choose make their
 choices, so it says nothing unless several players choose [CR#101.4]. -/
@@ -1477,17 +1442,9 @@ def chosenIntroBy (bs : Bindings) : Plurality → NounPhrase → NounPhrase → 
   | .one, by_, n => NounPhrase.delta bs by_ ++ (NounPhrase.chosenDelta (agentIntro bs by_) n ++ bs)
   | .many, by_, n => pluralizeDelta (NounPhrase.chosenDelta (agentIntro bs by_) n) ++ nomIntro bs by_
 
-def chosenAnnBy (bs : Bindings) : Plurality → NounPhrase → NounPhrase → Bindings
-  | .one, by_, n => NounPhrase.chosenDelta (agentIntro bs by_) n ++ bs
-  | .many, by_, n => pluralizeDelta (NounPhrase.chosenDelta (agentIntro bs by_) n) ++ bs
-
 def chooseIntro (bs : Bindings) : Option NounPhrase → NounPhrase → Bindings
   | none, n => chosenIntro bs n
   | some by_, n => chosenIntroBy bs by_.plur by_ n
-
-def chooseAnn (bs : Bindings) : Option NounPhrase → NounPhrase → Bindings
-  | none, n => chosenIntro bs n
-  | some by_, n => chosenAnnBy bs by_.plur by_ n
 
 def optAmtIntro (bs : Bindings) : Option Amount → Bindings
   | none => bs

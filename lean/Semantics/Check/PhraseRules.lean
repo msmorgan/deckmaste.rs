@@ -22,8 +22,6 @@ def kindCheck (expected : Kind) : Option Kind → List Refusal
   | none => []
   | some found => refuse (found == expected) (.kindMismatch expected found)
 
-def NounPhrase.resolveKind (ctx : Option Kind) (n : NounPhrase) : Kind := n.kindOr (ctx.getD .object)
-
 /-- The context's expected kind, if any, against the kind the noun fixes. -/
 def ctxCheck (ctx : Option Kind) (fixed : Option Kind) : List Refusal :=
   match ctx with
@@ -262,7 +260,6 @@ mutual
 
   /-- Idris `detOk`, plus the choice-mode reads inside a determiner. -/
   def DetPhrase.check (k : Kind) (bs : Bindings) (d : DetPhrase) (p : Predicate) : List Refusal :=
-    let _ := bs
     match d with
     | .target q =>
       refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++

@@ -35,11 +35,6 @@ def LifeMove.outcome : LifeMove → OutcomeSort
   | .up => .lifeGained
   | .down => .lifeLost
 
-/-- `stateMatch` never equals another event, itself included. -/
-def sameEventName : EventName → EventName → Bool
-  | .stateMatch, _ => false
-  | a, b => a == b
-
 structure EventFacts where
   subjectKinds : List Kind
   complementKinds : List (Kind × Kind)

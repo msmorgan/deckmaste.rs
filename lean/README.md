@@ -51,8 +51,8 @@ declared. Lean has no induction-recursion, so the port splits every layer:
    (`NounPhrase.delta`, `Amount.intro`, `Instruction.profile`), its kind,
    number, zone, and type. They take the stack as an argument and pass the
    shifted stack into each field the Idris typed at the shifted index.
-   Checker-only vocabulary (`StaticKind`, `CardClass`, `FaceSide`, the
-   designation facts table) lives here too, not in the syntax.
+   Checker-only vocabulary (`CardClass`, `FaceSide`, the designation facts
+   table) lives here too, not in the syntax.
 3. **Rules** (`Check/PhraseRules`, `Check/Triggers`, `Check/AbilityRules`,
    `Check/Card`): one clause per Idris `{auto 0 … : …}` obligation, as a
    `Refusal` named after it. A check returns *every* refusal, not the first.

@@ -723,15 +723,14 @@ mutual
         refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
         OptTiming.check bs window ++ refuse (untriggeredLimitOk limit) .untriggeredLimit ++
         OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
-    | .triggered word ev alts while_ joins window limit intervening instr =>
+    | .triggered _word ev alts while_ joins window limit intervening instr =>
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
       headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++
         OptConcurrent.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
         OptTiming.check bs window ++ OptCondition.check jctx intervening ++
         Instruction.check (interveningIntro jctx intervening) instr ++
-        refuse (chapterDefaultsOk ev alts while_ joins window limit intervening) .chapterDefaults ++
-        (let _ := word; [])
+        refuse (chapterDefaultsOk ev alts while_ joins window limit intervening) .chapterDefaults
     | .static se =>
       StaticSpec.check bs se ++ refuse (!anyTargetedAt (StaticSpec.intro bs se)) .nontarget
     | .spell window instr => OptTiming.check bs window ++ Instruction.check bs instr

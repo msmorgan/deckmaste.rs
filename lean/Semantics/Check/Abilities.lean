@@ -147,10 +147,6 @@ def Stat.modifyOk : Stat → Bool
   | .power | .toughness => true
   | _ => false
 
-def deltaKind : Delta Amount → StaticKind
-  | .set _ => .basePtSet
-  | _ => .ptDelta
-
 def CostShift.delta (bs : Bindings) : CostShift → List Binding
   | .less a _ => Amount.delta bs a
   | .more a => Amount.delta bs a
@@ -554,13 +550,11 @@ def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k none _ => if keywordParamless k then some k else none
   | _ => none
 
-mutual
-  def StaticSpec.keyword : StaticSpec → Option KeywordLabel
-    | .conditionally se _ _ => se.keyword
-    | .gains _ ab => ab.grantedKeyword
-    | _ => none
-  termination_by structural se => se
-end
+def StaticSpec.keyword : StaticSpec → Option KeywordLabel
+  | .conditionally se _ _ => se.keyword
+  | .gains _ ab => ab.grantedKeyword
+  | _ => none
+termination_by structural se => se
 
 def Instruction.keyword : Instruction → Option KeywordLabel
   | .continuously se _ => se.keyword
@@ -640,14 +634,12 @@ mutual
   termination_by structural cs => cs
 end
 
-mutual
-  def Cost.tapOnce : Cost → Bool
-    | .scaled c _ => c.tapOnce
-    | .compound cs => Cost.selfTapCount cs ≤ 1
-    | .either l r => l.tapOnce && r.tapOnce
-    | _ => true
-  termination_by structural c => c
-end
+def Cost.tapOnce : Cost → Bool
+  | .scaled c _ => c.tapOnce
+  | .compound cs => Cost.selfTapCount cs ≤ 1
+  | .either l r => l.tapOnce && r.tapOnce
+  | _ => true
+termination_by structural c => c
 
 mutual
   def Cost.paidByYou : Cost → Bool
@@ -692,23 +684,12 @@ mutual
   termination_by structural cs => cs
 end
 
-mutual
-  def Cost.payable : Cost → Bool
-    | .scaled c _ => c.payable
-    | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
-    | .either l r => l.payable && r.payable
-    | _ => true
-  termination_by structural c => c
-end
-
-def Cost.isLoyalty : Cost → Bool
-  | .loyaltySymbol _ => true
-  | _ => false
-
-def allCosted : List (Option Cost × Instruction) → Bool
-  | [] => true
-  | (none, _) :: _ => false
-  | (some _, _) :: es => allCosted es
+def Cost.payable : Cost → Bool
+  | .scaled c _ => c.payable
+  | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
+  | .either l r => l.payable && r.payable
+  | _ => true
+termination_by structural c => c
 
 def Instruction.heldUntilOk : Instruction → Bool
   | .setStatus .phasedOut _ => true
@@ -1093,10 +1074,6 @@ def Instruction.preIntro (bs : Bindings) (e : Instruction) : Bindings := (e.prof
 def Instruction.annIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).announced
 def Instruction.riderIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).riderCtx
 def Instruction.deedDelta (bs : Bindings) (e : Instruction) : List Binding := (e.profile bs).deed
-def Instruction.delta (bs : Bindings) (e : Instruction) : Bindings :=
-  let out := e.intro bs
-  out.take (out.length - bs.length)
-
 def keepsOuter (bs : Bindings) (e : Instruction) : Bool := keepsOuterOf bs (e.intro bs)
 
 def enactKeepsOuter (bs : Bindings) : Option NounPhrase → Instruction → Bool
@@ -1125,44 +1102,6 @@ def reflexCtx (bs : Bindings) (body : Instruction) : Bindings := settleTargets (
 
 def thisWayCtx (bs : Bindings) (body : Instruction) (ev : GameEvent) : Bindings :=
   settleTargets (GameEvent.after (body.intro bs) ev)
-
-def QualityPayload.kind : QualityOp → QualityPayload → StaticKind
-  | _, .colored _ => .colorSet
-  | .adds, _ => .typeAddition
-  | .sets, _ => .typeSet
-  | .loses, _ => .typeLoss
-
-def DamageOp.kind : DamageOp → StaticKind
-  | .prevent _ _ => .prevention
-  | _ => .replacement
-
-def StaticSpec.kind : StaticSpec → StaticKind
-  | .definesLetter _ _ => .letterDefinition
-  | .modify _ _ d => deltaKind d
-  | .definesPt _ _ _ => .ptDefinition
-  | .switchesPt _ => .ptSwitch
-  | .costs _ _ | .altCost _ _ | .addedCost _ _ => .costModification
-  | .gains _ _ | .gainsAbilitiesOf _ _ _ _ => .keywordGrant
-  | .deontic _ _ _ _ _ _ _ _ => .deedRestriction
-  | .skips _ _ => .turnSkip
-  | .keepsUnspentMana _ _ => .manaPersistence
-  | .becomes _ op q => QualityPayload.kind op q
-  | .becomesCopy _ _ _ => .copyEffect
-  | .losesAllAbilities _ _ | .losesAbilities _ _ => .abilityLoss
-  | .gainsControl _ _ => .controlGrant
-  | .intercepts _ _ _ _ _ _ => .replacement
-  | .damageRule _ _ _ op _ => op.kind
-  | .cantPrevent _ _ _ => .prevention
-  | .onlyDuring _ _ se => se.kind
-  | .conditionally _ _ _ => .conditional
-  | .alsoOffBattlefield se => se.kind
-  | .doesntRemove se _ => se.kind
-  | .noLossFromZeroLife _ => .outcomeImmunity
-  | .visibility _ _ _ => .visibilityRider
-  | .triggersAdditionally _ _ => .triggerMultiplier
-  | .entersRider _ _ | .entersChoice _ _ _ _ => .entryRider
-  | .attachChoice _ _ _ => .replacement
-  | .andAlso _ _ => .coordination
 
 def Instruction.namesThisDoor : Instruction → Bool
   | .delayed ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor

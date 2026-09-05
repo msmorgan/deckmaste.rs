@@ -62,13 +62,6 @@ def AggregateOp.isExtremal : AggregateOp → Bool
   | .min => true
   | .max => true
 
-def subtypeScopeOk : CardType → SubtypeScope → Bool
-  | _, .any => true
-  | .land, .basicOnly => true
-  | .land, .nonbasicOnly => true
-  | _, .basicOnly => false
-  | _, .nonbasicOnly => false
-
 def KindAxis.sort : KindAxis → Option QualitySort
   | .cardType => some .cardType
   | .permanentType => none
@@ -808,10 +801,6 @@ def wordNow (w : NounWord) (b : Binding) : Bool :=
   | .self => false
   | _ => wordReaches w b
 
-def NounWord.isPile : NounWord → Bool
-  | .pile => true
-  | _ => false
-
 def NounWord.kind : NounWord → Kind
   | .player => .player
   | .join => .join .object .player
@@ -916,13 +905,6 @@ def tyOfThoseAny (w : NounWord) : Bindings → Option CardType
 
 def countChoosers (bs : Bindings) : Nat := countOnes .player bs + countManys .player bs
 
-/-- `earlierThisTurn` is the turn so far, up to the counting event [CR#702.40a]; `thisTurn` is
-the whole turn. -/
-def Lookback.sameWindow : Option Lookback → Option Lookback → Bool
-  | none, none => true
-  | some a, some b => a == b
-  | _, _ => false
-
 def zoneFits : Option Zone → Option Zone → Bool
   | _, none => true
   | none, some _ => true
@@ -970,9 +952,6 @@ def CopySort.landsIn : CopySort → Option Zone → Option Zone
   | .fromStack, _ => some .stack
   | .fromCardZone, z => z
 
-def copyPayload (k : Kind) (ab : Bool) (ty : Option CardType) : Payload :=
-  copyPayloadIn k ab ty (some .stack)
-
 def Kind.qualityParam : Kind → Bool
   | .object => true
   | .player => true
@@ -999,10 +978,6 @@ def manaHasX : ManaCost → Bool
   | .variable :: _ => true
   | _ :: ms => manaHasX ms
 
-def PayTimes.repeats : PayTimes → Bool
-  | .once => false
-  | _ => true
-
 def costLetters : Option ManaCost → Bindings
   | none => []
   | some c => if manaHasX c then [letterB .x] else []
@@ -1018,10 +993,6 @@ def producedRunsWritten : List ProducedRun → Bool
   | [] => false
   | rs => runsNonEmpty rs
 
-def LoyaltyCost.announcesX : LoyaltyCost → Bool
-  | .downX => true
-  | _ => false
-
 /-! ## Subtypes and type lines -/
 
 def Subtype.type : Subtype → Option CardType
@@ -1035,11 +1006,6 @@ def Subtype.fits : Subtype → CardType → Bool
 def Subtype.label : Subtype → String
   | .of _ label => label
   | .spell label => label
-
-def basicLandTypes : List Subtype :=
-  [.of .land "Plains", .of .land "Island", .of .land "Swamp", .of .land "Mountain", .of .land "Forest"]
-
-def Subtype.isBasicLand (s : Subtype) : Bool := basicLandTypes.elem s
 
 def spaceHosted : SubtypeSpace → Option CardType → Bool
   | .basicLand, ty => tyIs .land ty
@@ -1086,18 +1052,6 @@ def Ordinal.ok : Ordinal → Bool
 def OptOrdinal.ok : Option Ordinal → Bool
   | none => true
   | some o => o.ok
-
-/-! ## Static-ability sorts -/
-
-/-- What kind of continuous effect a static spec makes; the checker's classification of a
-`StaticSpec`, not part of its spelling. -/
-inductive StaticKind where
-  | ptDelta | keywordGrant | deedRestriction | typeAddition | controlGrant | replacement
-  | prevention | conditional | entryRider | costModification | manaPersistence | ptDefinition
-  | basePtSet | ptSwitch | typeSet | typeLoss | colorSet | abilityLoss | coordination
-  | copyEffect | visibilityRider | outcomeImmunity | triggerMultiplier | turnSkip
-  | letterDefinition
-  deriving DecidableEq, Repr
 
 /-! ## Designations
 
