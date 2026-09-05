@@ -1,6 +1,7 @@
 import Semantics
 import Semantics.Macros
 import Semantics.Check.Card
+import Semantics.Cards.Anaphora
 import Semantics.Cards.Copy
 import Semantics.Cards.Description
 import Semantics.Cards.Piles
@@ -19,25 +20,6 @@ does not define, as it did not elaborate in Idris.
 open Semantics Semantics.Macros
 
 namespace Semantics.Cards
-
-/-- Mana Leak {1}{U} — Instant. "Counter target spell unless its controller pays {3}." -/
-def manaLeak : Spelled := spelled <| .singleFaced
-  { characteristics :=
-    { name := "Mana Leak", cost := some [generic 1, pip .blue], types := [.instant],
-      text :=
-        [ .spell none (unless_ (controllerOf (target spell))
-            (.counterSpell it)
-            (.mana [generic 3])) ] } }
-
-/-- Oust {W} — Sorcery. "Put target creature into its owner's library second from the top.
-Its controller gains 3 life." -/
-def oust : Spelled := spelled <| .singleFaced
-  { characteristics :=
-    { name := "Oust", cost := some [pip .white], types := [.sorcery],
-      text :=
-        [ .spell none (.sequentially
-            [ move (target creature) (nthFromTop (.nth 2)),
-              gainsLife (controllerOf it) (.lit 3) ]) ] } }
 
 /-- Blinding Angel {3}{W}{W} — Creature — Angel 2/4. "Flying. Whenever Blinding Angel deals
 combat damage to a player, that player skips their next combat phase." -/

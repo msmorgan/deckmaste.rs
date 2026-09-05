@@ -23,6 +23,8 @@ def it : NounPhrase := .pro .bare .one .whole
 
 /-- "them" -/
 def them : NounPhrase := .pro .bare .many .whole
+/-- "that card": the card slot's occupant. -/
+def itCard : NounPhrase := .pro (.atSlot .card) .one .whole
 
 /-- "it", stamped by the verb that produced it: "the exiled card". -/
 def itVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .one .whole
@@ -42,6 +44,15 @@ def those (w : NounWord) : NounPhrase := .pro (.word w) .many .whole
 
 /-- "they": the player most recently named. -/
 def they : NounPhrase := .pro (.word .player) .one .whole
+/-- "that player or that permanent's controller": the player half of a "target player or
+planeswalker" split, or the controller of the permanent half. -/
+def splitOverPlaneswalker : NounPhrase :=
+  .eitherOf (.pro (.unionHalf .player) .one .whole)
+    (.possessorOf .controller (.pro (.unionHalf (.type .planeswalker)) .one .whole))
+/-- The same over "any target": the player, or the permanent's controller. -/
+def splitOverPermanent : NounPhrase :=
+  .eitherOf (.pro (.unionHalf .player) .one .whole)
+    (.possessorOf .controller (.pro (.unionHalf .permanent) .one .whole))
 
 /-- "the <verb>ed <word>", e.g. "the tapped creatures". -/
 def theVerbed (verb : Deed) (word : NounWord) (marking : VerbedMarking)
@@ -88,6 +99,8 @@ def countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
 
 /-- "if there is a …" -/
 def exists_ (p : Predicate) : Condition := .exists_ (bare p)
+/-- "if it's a <p> card": the card slot's occupant, tested. -/
+def itsACard (p : Predicate) : Condition := .matches itCard p
 
 /-- "the number of …s" -/
 def countOf (p : Predicate) : Amount := .countOf (bare p)
@@ -115,6 +128,11 @@ def onTopIn (arrangement : Arrangement) : ZoneExpr :=
 /-- "on the bottom of its owner's library" -/
 def onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
 def onTop : ZoneExpr := .library (.oneEnd .top) none none .bare
+/-- "on the top or bottom of your library" -/
+def topOrBottom : ZoneExpr := .library (.eitherEnd none) none none .bare
+/-- "Nth from the top or bottom of your library" -/
+def nthFromTopOrBottom (ordinal : Ordinal) : ZoneExpr :=
+  .library (.eitherEnd none) none (some ordinal) .bare
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 def graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
@@ -135,6 +153,7 @@ def otherPlayer : Predicate := .and [.anyPlayer, .otherThan .you]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
 def spell : Predicate := .and [.inZone stack, .not (.abilityHead .anyOnStack)]
 def untapped : Predicate := .hasStatus .untapped
+def nontoken : Predicate := .not .isToken
 /-- "permanent": an object on the battlefield [CR#110.1]. -/
 def permanent : Predicate := .inZone battlefield
 /-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
@@ -236,6 +255,12 @@ def among (group : NounPhrase) : NounPhrase := .someOf .whole none group
 /-- "N <p> from among <group>" -/
 def fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) (some p) group
+/-- "the <p> from among <group>": every member the description picks. -/
+def allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase := .someOf .whole (some p) group
+/-- "the <p> among <group>" -/
+def allAmong (p : Predicate) (group : NounPhrase) : NounPhrase := allFromAmong p group
+/-- "each object" -/
+def everyObject : NounPhrase := allOf (.and [])
 /-- "one pile": one of the piles just made. -/
 def onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
 /-- "the pile of <player>'s choice" -/
@@ -246,6 +271,10 @@ def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller
 def ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
 def topSlice (amount : Amount) : NounPhrase := .librarySlice .top amount .you
+/-- "the bottom card of your library" -/
+def bottomCard : NounPhrase := .librarySlice .bottom (.lit 1) .you
+/-- The stack after "look at the top N cards of your library". -/
+def lookedTop (bs : Bindings) (amount : Amount) : Bindings := nomIntro bs (topSlice amount)
 /-- "[a player]'s party" [CR#700.8]. -/
 def partyOf (player : NounPhrase) : NounPhrase :=
   .oneEachOf partyRoles (allOf (.and [creature, .hasPossessor .controller player]))
@@ -304,10 +333,18 @@ def exile (subject : NounPhrase) : Instruction :=
   .enact none (.action "Exile") (.move subject exileZone [])
 def sacrifice (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
   .enact (some agent) (.action "Sacrifice") (.move subject graveyard [])
+/-- "<agent> sacrifices it": the permanent slot's occupant. -/
+def sacrificeIt (agent : NounPhrase) : Instruction :=
+  sacrifice agent (.pro (.atSlot .permanent) .one .whole)
+/-- "<agent> puts <subject> <destination>" -/
+def puts (agent : NounPhrase) (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
+  .enact (some agent) (.core .put) (.move subject destination [])
 /-- "return <subject> to <zone>" -/
 def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
     Instruction :=
   .enact none (.core .return_) (.move subject destination riders)
+/-- "return <subject> to the battlefield" -/
+def returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 def tap (subject : NounPhrase) : Instruction :=
   .enact none (.action "Tap") (.setStatus .tapped subject)
 def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
@@ -327,9 +364,15 @@ def mills (agent : NounPhrase) (amount : Amount) (whose : NounPhrase) : Instruct
 def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
 def putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
   .move subject battlefield [.entersAs .tapped]
+/-- "put <subject> onto the battlefield under your control" -/
+def putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
+  .move subject battlefield [.under .you]
 /-- "Search your library for <quantity> <p>" -/
 def searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
   .search .you (.oneZone yourLibrary) quantity p
+/-- "search <whose>'s graveyard, hand, and library for <q> <p>" -/
+def searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Instruction :=
+  .search .you (.someZones (some whose) [.graveyard, .hand, .library]) quantity p
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
 def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
   .changeLife player (.down amount)
@@ -361,6 +404,8 @@ def chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
   .choose none none subject .openly (some while_)
 def rollDice (player : NounPhrase) (count sides : Nat) : Instruction :=
   .rollDice player (.lit count) (.sides sides)
+/-- One row of a results table: "<results> — <instruction>". -/
+def rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
 def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
   .flipCoins player (.count (.lit count))
 /-- "<decider> may <body>" -/
@@ -519,6 +564,9 @@ def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Opt
 
 def gains (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
   .continuously (.gains subject ability) duration
+/-- "<subject> gains haste [until …]" -/
+def gainsHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  gains subject (.keyword "Haste" none none) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
 def becomes (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=

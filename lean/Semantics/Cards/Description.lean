@@ -417,7 +417,7 @@ theorem okRingHasTemptedYouTwiceThisGame :
 
 def creatureCardAnywhere : Predicate := .and [creature, .isCard]
 theorem okCreatureCardAnywhere : Predicate.check .object [] creatureCardAnywhere = [] := by decide
-def permanentCardAnywhere : Predicate := .and [permanent, .isCard]
+def permanentCardAnywhere : Predicate := permanentCard
 theorem okPermanentCardAnywhere : Predicate.check .object [] permanentCardAnywhere = [] := by decide
 
 /-- "target card on the stack" -/
@@ -508,7 +508,7 @@ theorem playersTopCardIsPlural : playersTopCardSlice.plur = .many := by decide
 def doubleYourOwnCounters : Instruction := .doubleCounters .you
 theorem okDoubleYourOwnCounters : Instruction.check [] doubleYourOwnCounters = [] := by decide
 
-def permanentCardPhrase : Predicate := .and [permanent, .isCard]
+def permanentCardPhrase : Predicate := permanentCard
 theorem permanentCardIsPlaceless : permanentCardPhrase.phraseZone .object = none := by decide
 
 /-- Archpriest of Iona -/
