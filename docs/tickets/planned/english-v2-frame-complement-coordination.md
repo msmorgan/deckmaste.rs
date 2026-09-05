@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-underspecified-adjunct-attachment]
+needs: [english-v2-role-preemption-depth]
 ---
 # Coordination of a Verb Frame's complement cluster
 

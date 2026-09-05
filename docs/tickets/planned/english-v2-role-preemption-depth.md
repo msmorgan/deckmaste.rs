@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-require-through-optional-role, english-v2-underspecified-adjunct-attachment]
+needs: [english-v2-require-through-optional-role]
 ---
 Frame-role preemption must be structural at every depth (require-through
 landing review HIGH-2). `right_edge_nominal_postmodifier_kind` in
