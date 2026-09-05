@@ -151,10 +151,15 @@ def textChoiceDelta (bs : Bindings) (text : List Ability) : List Binding :=
 def jointChoicesOk (qs : List QualitySort) (made : List Binding) : Bool :=
   qs.all fun q => countChoice (.quality q) made != 0
 
+/-- The text laws a shared-line half shares with a face; a door header belongs to a Room's
+shared line, so the door-frame law is a face's alone. -/
+def halfTextLaws (line : Characteristics) (text : List Ability) : List Refusal :=
+  refuse (cardTextOk line.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
+    refuse (chapterFrameOk line.subtypes text) .chapterFrame
+
 /-- The laws a text obeys on a type line: class fit, modal frame, chapter frame, door frame. -/
 def textLaws (line : Characteristics) (text : List Ability) : List Refusal :=
-  refuse (cardTextOk line.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
-    refuse (chapterFrameOk line.subtypes text) .chapterFrame ++ refuse (doorFrameOk text) .doorFrame
+  halfTextLaws line text ++ refuse (doorFrameOk text) .doorFrame
 
 /-- The laws of a type line alone (a shared line has nothing else). -/
 def Characteristics.lineLaws (c : Characteristics) : List Refusal :=
@@ -169,7 +174,7 @@ def Characteristics.check (side : FaceSide) (c : Characteristics) : List Refusal
     refuse (jointChoicesOk c.choices (textChoiceDelta bs c.text)) .jointChoices
 
 def SharedLineHalf.check (shared : Characteristics) (h : SharedLineHalf) : List Refusal :=
-  Ability.checkText (costLetters h.cost) h.text ++ textLaws shared h.text ++
+  Ability.checkText (costLetters h.cost) h.text ++ halfTextLaws shared h.text ++
     refuse (cardBoxOk .front shared.types h.text shared) .cardBox ++
     refuse (cardCostOk .front shared.types h.cost) .cardCost ++
     (h.cost.map ManaCost.check).getD []

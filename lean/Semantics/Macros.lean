@@ -199,6 +199,8 @@ def anOpponent : NounPhrase := a .opponent
 def thisCreature : NounPhrase := .asType .creature .this none
 def thisArtifact : NounPhrase := .asType .artifact .this none
 def thisLand : NounPhrase := .asType .land .this none
+def thisSpell : NounPhrase := .asMarker .spell .this
+def thisRoom : NounPhrase := .asType .enchantment .this (some (enchantmentType "Room"))
 def thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
 def thisAbility : NounPhrase := .asMarker .ability .this
 def thisEnchantment : NounPhrase := .asType .enchantment .this none
@@ -365,6 +367,19 @@ def coloredManaSpentToCast (spell : NounPhrase) : Condition :=
 
 /-- "between N and M" -/
 def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
+/-- "the number of <event>s <who> <lookback> involving <what>" -/
+def eventCountInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
+    (what : NounPhrase) : Amount :=
+  .eventTally .count who (.mk event lookback (some (.involving what)))
+/-- "<subject>'s <keyword> cost was paid", read back. -/
+def paidCostRead (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
+    Amount :=
+  .paid (.readback which window) subject
+/-- "the number of times <subject>'s <keyword> cost was paid" -/
+def timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount :=
+  .paid (.timesPaid which) subject
+/-- "the last chosen color" -/
+def theLastChosenColor : ColorTerm := .chosen .theLatestChoice
 /-- "the amount by which the ceiling was not reached" -/
 def shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "increase or decrease the result by N" -/
@@ -528,6 +543,13 @@ def payLife (player : NounPhrase) (amount : Nat) : Cost :=
 /-- "<keyword> <cost>" -/
 def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label (some (.cost cost)) none
+/-- "<keyword> <quality>", e.g. "protection from red" -/
+def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
+  .keyword label (some (.quality quality)) none
+/-- "When <event>, if <condition>, <instruction>" -/
+def triggeredIf (word : TriggerWord) (event : GameEvent) (condition : Condition)
+    (instruction : Instruction) : Ability :=
+  .triggered word event [] none [] none none (some condition) instruction
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   .entersChoice subject (.quality sort) none .openly
@@ -535,6 +557,24 @@ def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
 def triggered (word : TriggerWord) (event : GameEvent) (instruction : Instruction) : Ability :=
   .triggered word event [] none [] none none none instruction
 
+/-- Renown N's reminder text: "When this creature deals combat damage to a player, if it isn't
+renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
+def renownExpansion (count : Nat) : Ability :=
+  triggeredIf .when (dealsCombatDamage thisCreature (a .anyPlayer))
+    (.not (.matches thisCreature (.hasDesignation "renowned" none)))
+    (.sequentially
+      [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
+        .gainsDesignation thisCreature "renowned" (.byKeyword "Renown") none ])
+/-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
+before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
+def stormExpansion : Ability :=
+  triggered .when (.casts .you thisSpell none)
+    (.sequentially
+      [ .copy .fromStack .you thisSpell
+          (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn
+            (a (.and [spell, .otherThan thisSpell])))
+          [],
+        may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 def activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
 
