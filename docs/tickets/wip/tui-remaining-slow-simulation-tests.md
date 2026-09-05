@@ -77,3 +77,17 @@ end wall clock: 2026-09-05 05:30:59 -0700.
 - Deviations and additions: none. STOP: none. Glossary gap: none. Decision:
   retain the two bounded-game tests that did not cross libtest's 60-second
   notice threshold.
+
+### Review corrections
+
+- The implementer's "two concurrent executors" contention count was a
+  sandboxed `pgrep` and is not authoritative. True contention stamp for this
+  landing: 5 executors + 2 reviews.
+- No HIGH or MEDIUM findings against the letter of the ticket, the assurance
+  rule, or the guard bans: the diff is exactly the two `#[cfg(feature =
+  "slow-tests")]` lines plus this record, verified with
+  `jj diff -r tuoqzuwz --git` against the implementer's own parent (isolating
+  it from unrelated base drift on the default line). `--list` reproduced as
+  73 tests without the feature / 76 with it, matching the record; both
+  clippy invocations (with and without `--features slow-tests`) and
+  `cargo test -p deckmaste_tui` (73 passed, 0 failed) reproduced clean.
