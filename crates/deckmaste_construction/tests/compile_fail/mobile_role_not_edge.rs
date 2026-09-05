@@ -6,8 +6,13 @@ constructions! {
         form child = "child";
     }
     construction invalid: Root {
-        element Invalid { prefix: Child, mobile_middle: mobile Child, suffix: Child, }
-        form invalid = prefix mobile_middle suffix;
+        element Invalid {
+            prefix: Child,
+            mobile_left: mobile(scope) Child,
+            separator: Child,
+            scope: Child,
+        }
+        form invalid = prefix mobile_left separator scope;
     }
     root Root { punctuation = "."; eoi = true; standalone_render = true; }
 }

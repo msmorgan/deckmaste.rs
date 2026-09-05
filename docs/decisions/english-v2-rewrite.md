@@ -1457,6 +1457,9 @@ re-layering wayfinder, not built here.
 The packed-unit count is a REPORT figure, listed with its identities. A tie that
 is not a scope tie remains a STOP.
 
+Placement amendment (2026-09-04): a mobile role is valid at a form edge,
+immediately left of its declared scope sibling, or adjacent to a sequence role.
+
 ## Amendment: closed-class ownership and the licensed form atom (2026-09-04)
 
 One closed-class word has one owner. Where a form literal spells a word a

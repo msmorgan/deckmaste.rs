@@ -82,6 +82,7 @@ pub struct Field {
     pub name: Ident,
     pub kind: FieldKind,
     pub mobile: bool,
+    pub mobile_scope_sibling: Option<Ident>,
     pub check: Option<FieldCheck>,
 }
 

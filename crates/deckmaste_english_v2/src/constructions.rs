@@ -1974,7 +1974,7 @@ constructions! {
     construction predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PredicateAdjunctPredicateValue {
             predicate: LexicalVerbPhrase,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive concord_class = predicate.concord_class;
         form predicate_adjunct_predicate = predicate adjunct;
@@ -1982,7 +1982,7 @@ constructions! {
     construction prepositional_predicate_adjunct_predicate: PredicateAdjunctPredicate {
         element PrepositionalPredicateAdjunctPredicateValue {
             predicate: PrepositionalPredicateAdjunctHost,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
         form prepositional_predicate_adjunct_predicate = predicate adjunct;
@@ -1991,7 +1991,7 @@ constructions! {
         element StackedPredicateAdjunctPredicate {
             predicate: LexicalVerbPhrase,
             leading: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
-            trailing: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            trailing: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = predicate.concord_class;
         form stacked_predicate_adjunct_predicate = predicate leading trailing;
@@ -1999,7 +1999,7 @@ constructions! {
     construction passive_duration_predicate_adjunct: PredicateAdjunctPredicate {
         element PassiveDurationPredicateAdjunct {
             predicate: BarePassivePredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_duration(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_duration(),
         }
         derive concord_class = Values::Other;
         form passive_duration_predicate_adjunct = predicate adjunct;
@@ -2125,7 +2125,7 @@ constructions! {
     }
     construction auxiliary_predicate: AuxiliaryPredicate {
         element AuxiliaryPredicateValue {
-            auxiliary: AuxiliaryHead,
+            auxiliary: mobile(predicate) AuxiliaryHead,
             predicate: BarePredicate,
         }
         derive predicate.concord_class = Values::Other;
@@ -2187,7 +2187,7 @@ constructions! {
         element ContractedPerfectPassiveClause {
             subject: lex ContractedPerfectSubject,
             predicate: PassivePredicate,
-            duration: opt DurationPhrase,
+            duration: mobile opt DurationPhrase,
         }
         form contracted_perfect_passive_clause = lex(subject) "been" predicate duration;
     }
@@ -2195,7 +2195,7 @@ constructions! {
         element ExistentialFiniteClause {
             copula: lex FiniteCopula,
             pivot: NounPhrase,
-            adjunct: opt ExistentialPredicateAdjunct,
+            adjunct: mobile opt ExistentialPredicateAdjunct,
         }
         derive copula.concord_class = match copula {
             Is => Values::ThirdPersonSingular,
@@ -2227,7 +2227,7 @@ constructions! {
     construction third_person_auxiliary_finite_clause: FiniteClause {
         element ThirdPersonAuxiliaryFiniteClause {
             subject: Subject,
-            auxiliary: lex ThirdPersonAuxiliary,
+            auxiliary: mobile(predicate) lex ThirdPersonAuxiliary,
             predicate: Predicate,
         }
         derive subject.concord_class = Values::ThirdPersonSingular;
@@ -2237,7 +2237,7 @@ constructions! {
     construction other_concord_class_auxiliary_finite_clause: FiniteClause {
         element OtherConcordClassAuxiliaryFiniteClause {
             subject: Subject,
-            auxiliary: lex OtherConcordClassAuxiliary,
+            auxiliary: mobile(predicate) lex OtherConcordClassAuxiliary,
             predicate: Predicate,
         }
         derive subject.concord_class = Values::Other;
@@ -2677,7 +2677,7 @@ constructions! {
         element ModifiedSingularNominal {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            head: Head,
+            head: mobile Head,
         }
         derive head.number = Values::Singular;
         derive concord_class = head.concord_class;
@@ -2693,7 +2693,7 @@ constructions! {
         element ModifiedPluralNominal {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            head: Head,
+            head: mobile Head,
         }
         derive head.number = Values::Plural;
         derive concord_class = head.concord_class;
@@ -2709,7 +2709,7 @@ constructions! {
         element NegativeModifiedSingularNominal {
             leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
-            head: Head,
+            head: mobile Head,
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Singular;
@@ -2726,7 +2726,7 @@ constructions! {
         element NegativeModifiedPluralNominal {
             leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
-            head: Head,
+            head: mobile Head,
         }
         require len(modifiers) >= 2;
         derive head.number = Values::Plural;
@@ -2755,7 +2755,7 @@ constructions! {
         element ModifiedBareRelationalReference {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            head: lex Noun,
+            head: mobile lex Noun,
         }
         require head.relationality is Relational;
         derive concord_class = Values::ThirdPersonSingular;
@@ -2786,7 +2786,7 @@ constructions! {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
             adjective: ParticipialAdjective,
-            head: Head,
+            head: mobile Head,
         }
         require first.modifier_license is LocalDeterminer;
         derive concord_class = head.concord_class;
@@ -2904,7 +2904,7 @@ constructions! {
         element ModifiedMassNominal {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            noun: MassNoun,
+            noun: mobile MassNoun,
         }
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2945,7 +2945,7 @@ constructions! {
     }
     construction modified_singular_coordination_nominal_value: Nominal {
         element ModifiedSingularCoordinationNominalValue {
-            first: NominalModifier,
+            first: mobile(coordination) NominalModifier,
             rest: seq NominalModifier separated by " ",
             coordination: NominalCoordination,
         }
@@ -2961,7 +2961,7 @@ constructions! {
     }
     construction modified_plural_coordination_nominal_value: Nominal {
         element ModifiedPluralCoordinationNominalValue {
-            first: NominalModifier,
+            first: mobile(coordination) NominalModifier,
             rest: seq NominalModifier separated by " ",
             coordination: NominalCoordination,
         }
@@ -3170,7 +3170,7 @@ constructions! {
     construction demonstrative_possessive_reference: UnqualifiedReference {
         element DemonstrativePossessiveReference {
             demonstrative: lex SingularDemonstrative,
-            possessor: Possessive,
+            possessor: mobile(possessed) Possessive,
             possessed: Nominal,
         }
         // A singular demonstrative agrees with the possessor it determines.
@@ -3194,7 +3194,7 @@ constructions! {
     }
     construction possessed_reference: UnqualifiedReference {
         element PossessedReference {
-            possessor: lex PossessiveDeterminerPronoun checked by determiner_licenses_nominal(
+            possessor: mobile(nominal) lex PossessiveDeterminerPronoun checked by determiner_licenses_nominal(
                 possessor.determiner_number,
                 possessor.nominal_license,
                 nominal.number,
@@ -3221,7 +3221,7 @@ constructions! {
     }
     construction genitive_determiner_reference: UnqualifiedReference {
         element GenitiveDeterminerReference {
-            possessor: Possessive checked by determiner_licenses_nominal(
+            possessor: mobile(nominal) Possessive checked by determiner_licenses_nominal(
                 possessor.determiner_number,
                 possessor.nominal_license,
                 nominal.number,
@@ -3248,7 +3248,7 @@ constructions! {
     }
     construction genitive_determiner_coordination_reference: UnqualifiedReference {
         element GenitiveDeterminerCoordinationReference {
-            possessor: Possessive,
+            possessor: mobile(coordination) Possessive,
             coordination: NominalCoordination,
         }
         derive concord_class = Values::Other;
@@ -3281,7 +3281,7 @@ constructions! {
     }
     construction determined_nominal: UnqualifiedReference {
         element DeterminedNominal {
-            det: zeroable Determiner from Determinative checked by determiner_licenses_nominal(
+            det: mobile(nominal) zeroable Determiner from Determinative checked by determiner_licenses_nominal(
                 det.determiner_number,
                 det.nominal_license,
                 nominal.number,
@@ -3299,8 +3299,8 @@ constructions! {
     }
     construction all_predetermined_nominal: UnqualifiedReference {
         element AllPredeterminedNominal {
-            predeterminer: Determinative,
-            det: Determinative checked by headed_determiner_licenses_nominal(
+            predeterminer: mobile(nominal) Determinative,
+            det: mobile(nominal) Determinative checked by headed_determiner_licenses_nominal(
                 det.determiner_number,
                 det.nominal_license,
                 nominal.number,
@@ -3446,7 +3446,7 @@ constructions! {
         element PositiveObjectGapRelativeWithAdjunct {
             subject: Subject,
             head: lex TransitiveVerb,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative_with_adjunct = subject verb(head) adjunct;
@@ -3455,7 +3455,7 @@ constructions! {
         element PositiveObjectGapRelativeWithPrepositionalAdjunct {
             subject: Subject,
             head: lex TransitiveVerb,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive head.concord_class = subject.concord_class;
         form positive_object_gap_relative_with_prepositional_adjunct = subject verb(head) adjunct;
@@ -3481,7 +3481,7 @@ constructions! {
         element ContractedPerfectAdjunctObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
             head: lex DeclaredTransitiveParticipleHead,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         form contracted_perfect_object_gap_relative_with_adjunct = lex(subject) verb(head) adjunct;
     }
@@ -3489,7 +3489,7 @@ constructions! {
         element ContractedPerfectPrepositionalAdjunctObjectGapRelativeClauseValue {
             subject: lex ContractedPerfectSubject,
             head: lex DeclaredTransitiveParticipleHead,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         form contracted_perfect_object_gap_relative_with_prepositional_adjunct = lex(subject) verb(head) adjunct;
     }
@@ -3537,7 +3537,7 @@ constructions! {
     // manner readings are values of the preposition, never categories.
     construction prepositional_phrase: PrepositionalPhrase {
         element PrepositionalPhraseValue {
-            preposition: lex Preposition,
+            preposition: mobile(complement) lex Preposition,
             complement: PrepositionalComplement checked by preposition_complement_is_licensed(
                 preposition.preposition_complement_kind,
                 complement.locative_temporal_license
@@ -3786,7 +3786,7 @@ constructions! {
     construction relative_qualified_reference: PostmodifiedReference {
         element RelativeQualifiedReference {
             reference: PostmodifiedReference,
-            clause: ObjectGapRelativeClause,
+            clause: mobile ObjectGapRelativeClause,
         }
         derive concord_class = reference.concord_class;
         derive number = reference.number;
@@ -3799,7 +3799,7 @@ constructions! {
     construction subject_relative_qualified_reference: PostmodifiedReference {
         element SubjectRelativeQualifiedReference {
             reference: PostmodifiedReference,
-            clause: SubjectGapRelativeClause,
+            clause: mobile SubjectGapRelativeClause,
         }
         derive concord_class = reference.concord_class;
         derive clause.concord_class = reference.concord_class;
@@ -3833,7 +3833,7 @@ constructions! {
     construction reduced_passive_qualified_reference: PostmodifiedReference {
         element ReducedPassiveQualifiedReference {
             reference: PostmodifiedReference,
-            clause: PassivePredicate,
+            clause: mobile PassivePredicate,
         }
         derive concord_class = reference.concord_class;
         derive number = reference.number;
@@ -3847,7 +3847,7 @@ constructions! {
         element ReducedPassiveAdjunctQualifiedReference {
             reference: PostmodifiedReference,
             clause: PassivePredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_nonprepositional(),
         }
         derive concord_class = reference.concord_class;
         derive number = reference.number;
@@ -3861,7 +3861,7 @@ constructions! {
         element ReducedPassivePrepositionalAdjunctQualifiedReference {
             reference: PostmodifiedReference,
             clause: PassivePredicate,
-            adjunct: PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
+            adjunct: mobile PredicateAdjunct checked by predicate_adjunct_is_prepositional(),
         }
         derive concord_class = reference.concord_class;
         derive number = reference.number;
@@ -3889,7 +3889,7 @@ constructions! {
     construction prepositional_qualified_reference: PostmodifiedReference {
         element PrepositionalQualifiedReference {
             reference: PostmodifiedReference,
-            modifier: PrepositionalPhrase checked by nominal_nonrelational_preposition_is_licensed(
+            modifier: mobile PrepositionalPhrase checked by nominal_nonrelational_preposition_is_licensed(
                 reference.relationality,
                 reference.locative_temporal_license,
                 modifier.preposition_attachment,
@@ -3913,7 +3913,7 @@ constructions! {
     construction relational_qualified_reference: PostmodifiedReference {
         element RelationalQualifiedReference {
             reference: PostmodifiedReference,
-            modifier: PrepositionalPhrase checked by nominal_relational_preposition_is_licensed(
+            modifier: mobile PrepositionalPhrase checked by nominal_relational_preposition_is_licensed(
                 reference.relationality,
                 reference.locative_temporal_license,
                 modifier.preposition_attachment,
@@ -4087,7 +4087,7 @@ constructions! {
         element PossessiveModifiedSingularNominal {
             first: NominalModifier,
             rest: seq NominalModifier separated by " ",
-            head: lex Noun,
+            head: mobile lex Noun,
         }
         require all(
             head.countability is Count,
@@ -4102,7 +4102,7 @@ constructions! {
         element PossessiveNegativeModifiedSingularNominal {
             leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
-            head: lex Noun,
+            head: mobile lex Noun,
         }
         require len(modifiers) >= 2;
         require all(

@@ -509,23 +509,19 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
         reference: Box::new(PostmodifiedReference::PrepositionalQualifiedReference(
             PrepositionalQualifiedReference::new(
                 Box::new(PostmodifiedReference::RelativeQualifiedReference(
-                    RelativeQualifiedReference {
-                        reference: Box::new(
-                            PostmodifiedReference::UnqualifiedPostmodifiedReference(
-                                UnqualifiedPostmodifiedReference {
-                                    reference: Box::new(UnqualifiedReference::DeterminedNominal(
-                                        DeterminedNominal::new(
-                                            Determiner::Zero,
-                                            plural_nominal_value(creatures()),
-                                        )
-                                        .expect(
-                                            "zero-headed plural is valid for a determined nominal",
-                                        ),
-                                    )),
-                                },
-                            ),
-                        ),
-                        clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
+                    RelativeQualifiedReference::new(
+                        Box::new(PostmodifiedReference::UnqualifiedPostmodifiedReference(
+                            UnqualifiedPostmodifiedReference {
+                                reference: Box::new(UnqualifiedReference::DeterminedNominal(
+                                    DeterminedNominal::new(
+                                        Determiner::Zero,
+                                        plural_nominal_value(creatures()),
+                                    )
+                                    .expect("zero-headed plural is valid for a determined nominal"),
+                                )),
+                            },
+                        )),
+                        Box::new(ObjectGapRelativeClause::Positive(Box::new(
                             PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
                                 PositiveObjectGapRelativeClauseValue {
                                     subject: subject_you(),
@@ -533,12 +529,13 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                 },
                             ),
                         ))),
-                    },
+                    )
+                    .expect("the relative clause is admissible for the reference"),
                 )),
                 Box::new(PrepositionalPhrase::PrepositionalPhrase(
-                    PrepositionalPhraseValue {
-                        preposition: Preposition::With,
-                        complement: Box::new(PrepositionalComplement::ScalarMeasure(
+                    PrepositionalPhraseValue::new(
+                        Preposition::With,
+                        Box::new(PrepositionalComplement::ScalarMeasure(
                             ScalarMeasureValue::ScalarMeasureValue(ScalarMeasureValueValue {
                                 measure: ScalarMeasure::NominalScalarMeasure(
                                     NominalScalarMeasure::new(singular_nominal(Noun::Lexeme(
@@ -563,7 +560,8 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                 ),
                             }),
                         )),
-                    },
+                    )
+                    .expect("the preposition licenses the complement"),
                 )),
             )
             .expect("a declared object-attachment licence admits the scalar postmodifier"),
@@ -585,10 +583,11 @@ fn number_of(counted: Object) -> NounPhrase {
                     },
                 )),
                 Box::new(PrepositionalPhrase::PrepositionalPhrase(
-                    PrepositionalPhraseValue {
-                        preposition: Preposition::Of,
-                        complement: Box::new(PrepositionalComplement::Object(Box::new(counted))),
-                    },
+                    PrepositionalPhraseValue::new(
+                        Preposition::Of,
+                        Box::new(PrepositionalComplement::Object(Box::new(counted))),
+                    )
+                    .expect("the preposition licenses the complement"),
                 )),
             )
             .expect("`of` is a licensed nominal postmodifier"),

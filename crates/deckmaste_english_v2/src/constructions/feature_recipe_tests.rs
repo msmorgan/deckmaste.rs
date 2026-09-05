@@ -293,6 +293,7 @@ mod preposition_license_recipes {
         let reference = UnqualifiedReference::PossessedReference(PossessedReference {
             possessor: PossessiveDeterminerPronoun::Your,
             nominal,
+            admissible_sites: AdmissibleSites::empty(),
         });
         let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
             UnqualifiedPostmodifiedReference {
@@ -332,6 +333,7 @@ mod preposition_license_recipes {
         let reference = UnqualifiedReference::PossessedReference(PossessedReference {
             possessor: PossessiveDeterminerPronoun::Your,
             nominal,
+            admissible_sites: AdmissibleSites::empty(),
         });
         let postmodified = PostmodifiedReference::UnqualifiedPostmodifiedReference(
             UnqualifiedPostmodifiedReference {
@@ -398,6 +400,7 @@ mod preposition_license_recipes {
         let modifier = PrepositionalPhrase::PrepositionalPhrase(PrepositionalPhraseValue {
             preposition: Preposition::On,
             complement: Box::new(complement),
+            admissible_sites: AdmissibleSites::empty(),
         });
         assert!(!nominal_preposition_is_licensed(
             &modifier,

@@ -586,6 +586,7 @@ pub(crate) struct ConstructionFieldPlan {
     accessor_mode: Option<AccessorMode>,
     zeroable: bool,
     mobile: bool,
+    mobile_scope_sibling: Option<String>,
     field_check: Option<(syn::Path, Vec<FieldCheckArgumentPlan>)>,
 }
 
@@ -3434,6 +3435,10 @@ impl ConstructionPlan {
                     accessor_mode: None,
                     zeroable,
                     mobile: field.mobile,
+                    mobile_scope_sibling: field
+                        .mobile_scope_sibling
+                        .as_ref()
+                        .map(identifier_key),
                     field_check: field.check.as_ref().map(|check| {
                         (
                             check.function.clone(),
@@ -4342,6 +4347,14 @@ impl ConstructionFieldPlan {
 
     pub(crate) const fn is_mobile(&self) -> bool {
         self.mobile
+    }
+
+    #[allow(
+        dead_code,
+        reason = "phase 3 consumes the declared mobile scope sibling"
+    )]
+    pub(crate) fn mobile_scope_sibling(&self) -> Option<&str> {
+        self.mobile_scope_sibling.as_deref()
     }
 
     pub(crate) fn is_optional(&self) -> bool {

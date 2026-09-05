@@ -7717,14 +7717,14 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
             .filter(|field| field.mobile)
         {
             let contains_one_category = match &field.kind {
-                FieldKind::Category(_) => true,
+                FieldKind::Category(_) | FieldKind::Lex(_) => true,
                 FieldKind::Optional(value) => {
-                    matches!(value.as_ref(), FieldKind::Category(_))
+                    matches!(value.as_ref(), FieldKind::Category(_) | FieldKind::Lex(_))
                 }
-                FieldKind::Lex(_)
-                | FieldKind::Identity(_)
-                | FieldKind::Zeroable { .. }
-                | FieldKind::Sequence { .. } => false,
+                FieldKind::Zeroable { item, .. } => {
+                    matches!(item.as_ref(), FieldKind::Category(_) | FieldKind::Lex(_))
+                }
+                FieldKind::Identity(_) | FieldKind::Sequence { .. } => false,
             };
             if !contains_one_category {
                 combine(
@@ -7737,6 +7737,22 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
                         ),
                     ),
                 );
+            }
+            let scope_sibling = field.mobile_scope_sibling.as_ref().map(identifier_key);
+            if let Some(scope_sibling_name) = field.mobile_scope_sibling.as_ref() {
+                let scope_sibling_key = identifier_key(scope_sibling_name);
+                if !fields.contains_key(&scope_sibling_key) {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            scope_sibling_name.span(),
+                            format!(
+                                "mobile role `{}` names unknown scope sibling `{scope_sibling_key}`",
+                                field.name,
+                            ),
+                        ),
+                    );
+                }
             }
             let name = identifier_key(&field.name);
             for form in &construction.forms {
@@ -7757,13 +7773,20 @@ fn validate_mobile_roles(raw: &Declarations) -> syn::Result<()> {
                     .checked_sub(1)
                     .is_some_and(|adjacent| is_sequence_role(&form.atoms[adjacent]))
                     || form.atoms.get(index + 1).is_some_and(is_sequence_role);
-                if !edge && !sequence_adjacent {
+                let immediately_left_of_scope_sibling =
+                    scope_sibling.as_ref().is_some_and(|scope_sibling| {
+                        form.atoms
+                            .get(index + 1)
+                            .and_then(role)
+                            .is_some_and(|role| identifier_key(role) == *scope_sibling)
+                    });
+                if !edge && !immediately_left_of_scope_sibling && !sequence_adjacent {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             field.name.span(),
                             format!(
-                                "mobile role `{}` must be at an edge or adjacent to a `seq` role in form `{}`",
+                                "mobile role `{}` must be at an edge, immediately left of its scope sibling, or adjacent to a `seq` role in form `{}`",
                                 field.name, form.name,
                             ),
                         ),
@@ -11244,8 +11267,8 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn mobile_roles_are_edge_or_sequence_adjacent_and_diagnostics_name_the_role() {
-        validate(quote! {
+    fn mobile_roles_are_edge_scope_sibling_or_sequence_adjacent_and_diagnostics_name_the_role() {
+        let validated = validate(quote! {
             construction child: Child {
                 element ChildNode {}
                 form child = "child";
@@ -11257,6 +11280,14 @@ pub(crate) mod tests {
             construction left_edge: Root {
                 element LeftEdge { shared: mobile Child, suffix: Child, }
                 form left_edge = shared suffix;
+            }
+            construction scope_sibling: Root {
+                element ScopeSibling {
+                    prefix: Child,
+                    shared: mobile(body) Child,
+                    body: Child,
+                }
+                form scope_sibling = prefix shared body;
             }
             construction sequence_left: SharedRoot {
                 element SequenceLeft {
@@ -11279,7 +11310,18 @@ pub(crate) mod tests {
             root SharedRoot { punctuation = "."; eoi = true; standalone_render = true; }
             root OtherRoot { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("edge and either-side sequence-adjacent mobile roles validate");
+        .expect("edge, scope-sibling, and either-side sequence-adjacent mobile roles validate");
+        let scope_sibling = validated
+            .semantic
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "scope_sibling")
+            .expect("scope-sibling construction survives semantic lowering")
+            .fields()
+            .iter()
+            .find(|field| field.name_key() == "shared")
+            .expect("mobile field survives semantic lowering");
+        assert_eq!(scope_sibling.mobile_scope_sibling(), Some("body"));
 
         let diagnostic = error(quote! {
             construction child: Child {
@@ -11287,13 +11329,18 @@ pub(crate) mod tests {
                 form child = "child";
             }
             construction invalid: Root {
-                element Invalid { prefix: Child, mobile_middle: mobile Child, suffix: Child, }
-                form invalid = prefix mobile_middle suffix;
+                element Invalid {
+                    prefix: Child,
+                    mobile_left: mobile(scope) Child,
+                    separator: Child,
+                    scope: Child,
+                }
+                form invalid = prefix mobile_left separator scope;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            diagnostic.contains("mobile role `mobile_middle` must be at an edge or adjacent to a `seq` role in form `invalid`"),
+            diagnostic.contains("mobile role `mobile_left` must be at an edge, immediately left of its scope sibling, or adjacent to a `seq` role in form `invalid`"),
             "{diagnostic}",
         );
     }

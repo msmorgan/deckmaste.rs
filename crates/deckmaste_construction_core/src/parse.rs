@@ -320,11 +320,22 @@ fn parse_fields(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Vec<Field>
 fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
     let name = input.parse()?;
     input.parse::<Token![:]>()?;
-    let mobile = if input.peek(keyword::mobile) {
+    let (mobile, mobile_scope_sibling) = if input.peek(keyword::mobile) {
         input.parse::<keyword::mobile>()?;
-        true
+        let scope_sibling = if input.peek(syn::token::Paren) {
+            let content;
+            parenthesized!(content in input);
+            let sibling = content.parse()?;
+            if !content.is_empty() {
+                return Err(content.error("a mobile scope sibling is one role name"));
+            }
+            Some(sibling)
+        } else {
+            None
+        };
+        (true, scope_sibling)
     } else {
-        false
+        (false, None)
     };
     let kind = parse_field_kind(input, owner, &name)?;
     let check = parse_field_check(
@@ -336,6 +347,7 @@ fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
         name,
         kind,
         mobile,
+        mobile_scope_sibling,
         check,
     })
 }
@@ -2712,12 +2724,12 @@ mod tests {
     }
 
     #[test]
-    fn parses_mobile_role_annotation_without_changing_its_value_kind() {
+    fn parses_mobile_role_annotation_and_scope_sibling_without_changing_its_value_kind() {
         let declarations = parse(
             r"
                 construction host: Root {
-                    element Host { tail: mobile Child, }
-                    form host = tail;
+                    element Host { shared: mobile(body) Child, body: Child, }
+                    form host = shared body;
                 }
             ",
         )
@@ -2725,11 +2737,12 @@ mod tests {
         let Declaration::Construction(construction) = &declarations.declarations[0] else {
             panic!("first declaration is a construction");
         };
-        let [field] = construction.element.fields.as_slice() else {
-            panic!("Host has one field");
+        let [field, body] = construction.element.fields.as_slice() else {
+            panic!("Host has two fields");
         };
-        assert_eq!(field.name, "tail");
+        assert_eq!(field.name, "shared");
         assert!(field.mobile);
+        assert_eq!(field.mobile_scope_sibling.as_ref(), Some(&body.name));
         assert!(matches!(
             &field.kind,
             crate::FieldKind::Category(path) if path.is_ident("Child")
@@ -2791,6 +2804,7 @@ mod tests {
                 name,
                 kind: crate::FieldKind::Optional(item),
                 mobile: false,
+                mobile_scope_sibling: None,
                 check: None,
             }
                 if name == "maybe"
@@ -2835,6 +2849,7 @@ mod tests {
                 name,
                 kind: crate::FieldKind::Sequence { item, surface },
                 mobile: false,
+                mobile_scope_sibling: None,
                 check: None,
             }]
                 if name == "words"
