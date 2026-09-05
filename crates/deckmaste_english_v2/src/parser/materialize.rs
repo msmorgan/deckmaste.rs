@@ -3081,7 +3081,10 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
             })
             .collect::<Vec<_>>();
         if packed.len() > 1 {
-            populate_component_sites(
+            // A member is absorbed only once the representative can name the
+            // host it gave up; an inexpressible alternative degrades to two
+            // ordinary candidates rather than to a tree with no signal.
+            let represented = populate_component_sites(
                 representative,
                 &packed,
                 &candidates[representative].value,
@@ -3089,7 +3092,7 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
                 mobiles,
             );
             for &candidate in &packed {
-                if candidate != representative {
+                if candidate != representative && represented.contains(&candidate) {
                     keep[candidate] = false;
                 }
             }
@@ -3207,15 +3210,16 @@ fn populate_component_sites<R: GeneratedParseRoot>(
     value: &R,
     projections: &[OnceCell<ScopeProjection>],
     mobiles: &[OnceCell<Vec<MobileOccurrence>>],
-) {
+) -> HashSet<usize> {
     let representative_projection = projections[representative]
         .get()
         .expect("a representative has a scope projection");
     let representative_mobiles = mobiles[representative]
         .get()
         .expect("a representative has a mobile inventory");
+    let mut represented = HashSet::new();
     for mobile in representative_mobiles {
-        let mut paths = packed
+        let paths = packed
             .iter()
             .copied()
             .filter(|candidate| *candidate != representative)
@@ -3231,21 +3235,22 @@ fn populate_component_sites<R: GeneratedParseRoot>(
                         && lower.role == mobile.role
                         && lower.domain == mobile.domain
                 });
+                // Two hosts can share a construction identity at two heights,
+                // so the attachment relation — not the identity — decides
+                // whether the alternative is a height or a partition.
                 lower
                     .and_then(|lower| {
-                        if mobile.host.identity == lower.host.identity
-                            && mobile.first_conjunct_path != lower.first_conjunct_path
-                        {
+                        if mobile.host.attachment != lower.host.attachment {
+                            attachment_path_between(&mobile.host, &lower.host)
+                        } else if mobile.first_conjunct_path != lower.first_conjunct_path {
                             mobile.first_conjunct_path.clone()
-                        } else if mobile.host.identity == lower.host.identity {
+                        } else {
                             alternative_path_within_host(
                                 representative_projection,
                                 mobile,
                                 candidate_projection,
                                 lower,
                             )
-                        } else {
-                            attachment_path_between(&mobile.host, &lower.host)
                         }
                     })
                     .or_else(|| {
@@ -3257,8 +3262,12 @@ fn populate_component_sites<R: GeneratedParseRoot>(
                             candidate_mobiles,
                         )
                     })
+                    .filter(|path| !path.is_empty())
+                    .map(|path| (candidate, path))
             })
             .collect::<Vec<_>>();
+        represented.extend(paths.iter().map(|(candidate, _)| *candidate));
+        let mut paths = paths.into_iter().map(|(_, path)| path).collect::<Vec<_>>();
         paths.sort_by_key(|path| (path.len(), path.clone()));
         paths.dedup();
         let mut paths = paths
@@ -3290,6 +3299,7 @@ fn populate_component_sites<R: GeneratedParseRoot>(
             debug_assert!(visitor.paths.is_none());
         }
     }
+    represented
 }
 
 fn alternative_move_s_path(
@@ -4969,12 +4979,20 @@ mod tests {
 
     #[test]
     fn opacity_preserves_adjunct_and_frame_internal_scope_packing() {
+        // The measure has one host here, so the device must leave the unit
+        // exactly as it found it: the Adjunct derivation survives untouched.
+        let raw_adjunct = ability_candidates(
+            "Draw a card for each Island you control.",
+            "Flow of Ideas",
+            false,
+        );
         let adjunct = ability_candidates(
             "Draw a card for each Island you control.",
             "Flow of Ideas",
             true,
         );
-        assert_eq!(adjunct.len(), 1);
+        assert_eq!(raw_adjunct.len(), 1);
+        assert_eq!(adjunct.len(), raw_adjunct.len());
         let adjunct_projection = super::ScopeProjection::of(&adjunct[0].value);
         assert!(adjunct_projection.verb_frames().is_empty());
         assert!(
@@ -5584,5 +5602,40 @@ mod tests {
             super::coordination_scope_comparison(&left_binary, &[], &right_binary, &[]).is_none(),
             "binary rebracketing without a declared mobile yield must not pack",
         );
+    }
+
+    #[test]
+    fn every_absorbed_member_leaves_an_alternative_site() {
+        // Two hosts of one mobile can be instances of the same construction at
+        // two heights. Nothing may be absorbed unless the representative can
+        // name the host it gave up.
+        for (card_name, text) in [
+            (
+                "Harabaz Druid",
+                "{T}: Add X mana of any one color, where X is the number of Allies you control.",
+            ),
+            (
+                "Hellkite Igniter",
+                "{1}{R}: This creature gets +X/+0 until end of turn, where X is the number of artifacts you control.",
+            ),
+        ] {
+            let raw = ability_candidates(text, card_name, false);
+            let packed = ability_candidates(text, card_name, true);
+            assert!(
+                raw.len() > packed.len(),
+                "the same-identity height pair did not pack for {card_name}: {} -> {}",
+                raw.len(),
+                packed.len(),
+            );
+            let sites = packed
+                .iter()
+                .flat_map(|candidate| scope_witness(&candidate.value).populated_sites)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sites.len(),
+                raw.len() - packed.len(),
+                "an absorbed member left no alternative site for {card_name}: {sites:?}",
+            );
+        }
     }
 }

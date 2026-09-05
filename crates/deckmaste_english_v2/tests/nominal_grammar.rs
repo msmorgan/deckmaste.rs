@@ -2219,6 +2219,13 @@ fn common_noun_modifiers_compose_under_a_shared_target_selector() {
         ));
         assert_eq!(decision.selected(), Some(0));
         assert!(decision.exception_uses().is_empty());
+        assert!(
+            decision.candidates()[0]
+                .construction_path()
+                .iter()
+                .any(|node| node == "NominalModifiedSingularCoordinationNominalValue"),
+            "the shared premodifier representative must own the coordination for {text:?}",
+        );
         assert_eq!(parsed.render(&context, parser.environment()), text);
     }
 

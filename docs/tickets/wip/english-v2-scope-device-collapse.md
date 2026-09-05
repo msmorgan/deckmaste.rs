@@ -226,8 +226,8 @@ choose between recorded rulings.
   record, rather than a new diagnostic/JSON surface, are retained here.
 - Diagnostic performance for the root-only implementation was 123,025 ns/B on
   the parent and 124,290 ns/B on the feature (+1.03%, below OPEN-4's ~10%
-  threshold), with 8 workers. Parent wall time was 139.878 s at host load
-  5.02/6.86/7.25; feature wall time was 131.210 s at host load
+  threshold), with 8 workers. Parent wall time was 139,878 ms at host load
+  5.02/6.86/7.25; feature wall time was 131,210 ms at host load
   3.99/4.80/5.90. These are pre-STOP advisory measurements, not final gates.
 - Refreshed declaration provenance: 397 constructions, 21 permitted licensing
   checkers, 0 forbidden licensing checkers, no selection exceptions. Newly or
@@ -330,9 +330,9 @@ STOP naming the identity; no further relaxation or corpus fitting was made.
   Its required coverage delta was not run after STOP, so breadth beyond the
   shared-head acceptance family remains unresolved and must be classified on a
   resumed run.
-- Diagnostic performance after S3a was 160,942 ns/B with 8 workers, 125.785 s
+- Diagnostic performance after S3a was 160,942 ns/B with 8 workers, 125,785 ms
   wall time, and host load 8.82/9.56/11.62. The refreshed parent was 125,831
-  ns/B with 8 workers, 120.329 s wall time, and host load 20.35/12.00/11.21.
+  ns/B with 8 workers, 120,329 ms wall time, and host load 20.35/12.00/11.21.
   The diagnostic cost was +27.9%, beyond OPEN-4's ~10% threshold, which is an
   independent STOP; no per-node implementation was substituted.
 - Because the wrong selection and performance STOPs occurred during mandatory
@@ -486,10 +486,15 @@ Bracketing, and Mobility.
 
 ## Landing record
 
-**Complete for review; not integrated.** Final-tree change ID
-`yxopsuzvpnur`; implementation tip `spwxuqpzwuxl`; comparison fork-point
-change ID `kutoxkxyosox`. The refreshed report-mode lock covers 19,900
-identities. Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT.
+**Reviewed and corrected; see `### Review corrections`.** Implementer tip
+`yxopsuzvpnur` on fork point `kutoxkxyosox`; reviewed tree refreshed onto fork
+point `mzlqyrqpluuq`, whose only difference from `kutoxkxyosox` is two ticket
+folder moves. PROVE and DISCLOSE below are the implementer's, stamped to
+`yxopsuzvpnur`; `### Review corrections` carries the findings, the fixes and
+every figure re-measured on the corrected tree, and supersedes any figure it
+restates. The report-mode lock covers 19,900 identities.
+Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT;
+review round 2026-09-05 09:55 PDT to 2026-09-05 11:20 PDT.
 
 ### What landed and why
 
@@ -543,8 +548,8 @@ identities. Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT
   ties, and 12,741 parse failures. `roundtrip --require-clean --workers 8`
   reported 19,900 accepted, 19,900 clean, 0 mismatched. `cargo xtask catalogs
   check` reported `catalogs are up to date`.
-- Coverage traversal was balanced corpus-wide: 887,316 nonterminal nodes and
-  887,316 visited constructions; 309,941 expected and 309,941 visited leaves;
+- Coverage traversal was balanced corpus-wide: 887,312 nonterminal nodes and
+  887,312 visited constructions (887,316 before the review corrections); 309,941 expected and 309,941 visited leaves;
   0 construction- or leaf-traversal failures. Raw-versus-packed witnesses also
   assert equal leaf counts and that the construction path is the hoisted
   representative's path. Every packed witness and the corpus-wide roundtrip
@@ -560,7 +565,10 @@ identities. Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT
   fixture rather than silent merges.
 - §C.4a witnesses pass: Cynical Loner retains two distinct candidates,
   specificity selects its declared-frame reading, and it is not packed; `Draw a
-  card for each Island you control.` retains its scope pack; both the behind-an-
+  card for each Island you control.` has one host on this tree — one candidate
+  before and after the collapse, verified against the fork point — so its
+  Predicate-Adjunct derivation survives untouched, which is what §C.4a's
+  conditional witness requires; both the behind-an-
   opaque-edge and inside-frame-Object class-B units pack locally; the exhaustive
   packed census found zero site paths into a declared frame role. `Search your
   library for a card.` correctly resolves by specificity with both candidates
@@ -613,11 +621,234 @@ identities. Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT
   quiet-host ceiling was exceeded under load and is reported, not gated.
 - Inventory pins: 396 constructions, 23 permitted licensing checkers, 0
   forbidden checkers, 2 licensed vocabulary/lexicon homographs, 9 form-literal
-  overlaps, longest form literal 11 bytes. Citations were unchanged, so the cite
-  gate was not applicable.
-- Assurance: 0 restored, 14 re-spelled, 0 ignored, 10 added, 0 removed. The
+  overlaps, longest form literal 11 bytes.
+- Assurance: 0 restored, 15 re-spelled, 0 ignored, 11 added, 0 removed. The
   fourteenth re-spelling updates the existing right-periphery witness to assert
-  the hoisted representative plus its retained last-Conjunct alternative.
+  the hoisted representative plus its retained last-Conjunct alternative; the
+  fifteenth, added at review, re-spells the shared-premodifier ownership
+  assertion in `common_noun_modifiers_compose_under_a_shared_target_selector`
+  against the hoisted representative. The eleventh added test is the review's
+  `every_absorbed_member_leaves_an_alternative_site`.
+
+### Review corrections
+
+Reviewer findings and the fixes applied in this workspace. Every number in
+PROVE, DISCLOSE and REPORT above and below has been re-measured on the
+corrected tree; the pre-correction figures are retained inline where they
+differ.
+
+- **HIGH - a packed member's alternative host was discarded whenever the two
+  hosts shared a construction identity.** `populate_component_sites` dispatched
+  on `host.identity` equality, so a Move-A pair whose high and low hosts are two
+  instances of one construction at two heights - the commonest shape in the
+  class, `the number of X you control` among them - fell into
+  `alternative_path_within_host`, which describes a difference *inside* one
+  host and returns nothing for a difference *between* two. The member was then
+  dropped with an empty `AdmissibleSites` slot: a single tree with no signal,
+  the exact failure §A.3-S7 and §C.4a name. Evidence: on the implementer tip,
+  `{T}: Add X mana of any one color, where X is the number of Allies you
+  control.` (Harabaz Druid) fell from two candidates to one with every slot
+  uninitialised; four of the eleven probeable units in the reviewer's uniform
+  sample of the changed-path set behaved the same way, and five more lost some
+  of their paths. Fix: dispatch on the attachment relation, which is what makes
+  one host the alternative of the other, and fall through to the partition
+  cases only when the two attachments are equal.
+- **HIGH - a member could be absorbed even when no alternative could be
+  expressed.** The collapse dropped every verified pack member unconditionally,
+  so an inexpressible alternative was silently deleted rather than degrading to
+  two ordinary candidates. Fix: `populate_component_sites` now returns the
+  members it could name a host for, and only those are dropped. 69 units keep a
+  second candidate on the corrected tree that the implementer tip had absorbed
+  without a signal; 47 of them return from `unique` to `specificity`. This is
+  the design's own failure mode - verification failure keeps both candidates -
+  applied to representation as well as to equality. New witness:
+  `every_absorbed_member_leaves_an_alternative_site`.
+- **MEDIUM - a test assertion was deleted rather than re-spelled.** The
+  shared-target-selector witness in `nominal_grammar.rs` lost its
+  `CoordinatedNominalModifierCoordinatedModifierMember` ownership assertion when
+  the premodifier became mobile. Fix: re-spelled against the hoisted
+  representative (`NominalModifiedSingularCoordinationNominalValue`), which is
+  the new canonical owner for all ten surfaces in the loop.
+- **MEDIUM - the record claimed a scope pack `Draw a card for each Island you
+  control.` does not have.** The unit has one candidate on the fork point and
+  one on the feature; §C.4a's witness is conditional on two hosts existing.
+  Fixes: the claim is corrected above, and the witness now asserts the raw and
+  packed candidate sets are the same size so it can no longer pass vacuously.
+- **MEDIUM - the cite gate was not run and was red.** Four wall-time figures in
+  the superseded STOP records were written as `NNN.NNN s`, which
+  `cargo xtask cite check --list-noncompliant` reads as rule numbers. Fix:
+  rewritten as integer milliseconds; the checker now reports
+  `0 non-compliant citation-looking string(s)` and `0 stale`.
+- **LOW - `emit/visit.rs` hardcodes the grammar's `Object` category name.**
+  `frame_atom_matches` resolves `VerbFrameAtom::ObjectNounPhrase` to
+  `field.terminal() == "Object"`; the other three sealed frame atoms resolve to
+  their own names. A rename would silently stop marking frame roles rather than
+  failing to build, and opacity would degrade without a diagnostic. Left as is -
+  it is exercised by the Cynical Loner witness - and recorded here for the
+  declaration-compiler lane.
+
+**Re-measured on the corrected tree** (fork point `mzlqyrqpluuq`, both sides
+`--json --require-resolved --workers 8`):
+
+- census 19,845 selected / 15,678 unique / 4,167 specificity-resolved on the
+  fork against 19,900 / 16,533 / 3,367 on the feature; +55 selected, 0 lost,
+  847 specificity-to-unique. Before the corrections the feature read
+  16,580 / 3,320 with 894 specificity-to-unique.
+- 3,257 candidates removed over 1,493 units (was 3,367 over 1,562); the
+  greater-than-two-drop stratum holds 245 units (was 247); 922 already-selected
+  paths changed (was 925). No selected unit was lost and no unit gained
+  candidates against the fork.
+- `coverage --check` exits 0 with the lock exactly current: 32,641 total,
+  19,900 selected and covered, 0 selected-uncovered, 12,741 parse failures, 0
+  unresolved ties, 0 internal failures, 0 exception uses, 0 roundtrip
+  mismatches, 0 ownership failures, 23 permitted and 0 forbidden licensing
+  checkers. `roundtrip --require-clean` reported 19,900 accepted, 19,900 clean,
+  0 mismatched. `cargo xtask catalogs check` reported `catalogs are up to date`.
+- Gate: `cargo xtask gate --changed` printed
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`,
+  which ran green - principal artifacts `test result: ok. 44 passed`,
+  `test result: ok. 420 passed`, `test result: ok. 156 passed`,
+  `test result: ok. 49 passed`, `test result: ok. 32 passed`,
+  `test result: ok. 112 passed`, `test result: ok. 468 passed; 1 ignored`, and
+  `test result: ok` on every other emitted suite. Strict clippy over the same
+  four crates finished clean under `-D warnings`.
+- Reviewer's own fork-versus-feature performance pair, 8 workers: fork
+  125,093 ns/B in 116 s at load 9/5/4; feature 144,157 ns/B in 112 s at load
+  10/10/8 (coverage), 149,745 ns/B in 117 s at load 8/9/8 (ambiguity),
+  149,461 ns/B in 116 s at load 9/10/8 (roundtrip). The delta is +15 per cent
+  against the implementer's stamped +13 per cent, measured under heavier
+  contention on the fork side, so it corroborates rather than replaces that
+  figure. **Contention stamp**: one concurrent codex executor and one other
+  Opus reviewer were active on this host throughout both the implementer's and
+  the reviewer's runs; the implementer's `uptime`-only figure could not see
+  them.
+- The packed-unit identity list below is stamped to the implementer tip
+  `yxopsuzvpnur` and is an upper bound on the corrected tree. The 84 units whose
+  candidate count or selected path moved under the review corrections are:
+
+  - `Ajani, the Greathearted` (4->6)
+  - `Angel of Deliverance` (2->4)
+  - `Autumnal Gloom // Ancient of the Equinox` (2->4)
+  - `Aven Heartstabber` (1->2)
+  - `Backwoods Survivalists` (1->2)
+  - `Beastie Beatdown` (1->2)
+  - `Bloodbraid Marauder` (1->2)
+  - `Brine Seer` (3->4)
+  - `Cinder Seer` (3->4)
+  - `Corrupted Grafstone` (1->2)
+  - `Crop Sigil` (2->4)
+  - `Deathcap Cultivator` (1->2)
+  - `Demolisher Spawn` (2->4)
+  - `Descend upon the Sinful` (1->2)
+  - `Desperate Sentry` (1->2)
+  - `Drag to the Roots` (1->2)
+  - `Dragon's Rage Channeler` (2->4)
+  - `Dragonclaw Strike` (5->6)
+  - `Dusk Feaster` (1->2)
+  - `Extricator of Sin // Extricator of Flesh` (2->4)
+  - `Floodpits Drowner` (1->2)
+  - `Foul Watcher` (1->2)
+  - `Geist of the Lonely Vigil` (1->2)
+  - `Gibbering Fiend` (2->4)
+  - `Gnarlwood Dryad` (1->2)
+  - `Graveyard Shift` (1->2)
+  - `Grim Flayer` (1->2)
+  - `Hand That Feeds` (1->2)
+  - `Hound of the Farbogs` (1->2)
+  - `Impossible Inferno` (1->2)
+  - `Inquisitor's Ox` (1->2)
+  - `Ishkanah, Grafwidow` (2->4)
+  - `Ivy Seer` (3->4)
+  - `Jasmine Seer` (3->4)
+  - `Kessig Dire Swine` (1->2)
+  - `Kindly Stranger // Demon-Possessed Witch` (1->2)
+  - `Let's Play a Game` (1->2)
+  - `Manic Scribe` (2->4)
+  - `Matzalantli, the Great Door // The Core` (1->2)
+  - `Metalworker` (3->4)
+  - `Might Beyond Reason` (1->2)
+  - `Mindwrack Demon` (2->4)
+  - `Moldgraf Scavenger` (1->2)
+  - `Moorland Drifter` (1->2)
+  - `Mournwillow` (4->8)
+  - `Nightshade Seer` (3->4)
+  - `Obsessive Skinner` (2->4)
+  - `Paranoid Parish-Blade` (1->2)
+  - `Patchwork Beastie` (2->4)
+  - `Raving Visionary` (1->2)
+  - `Reaper of Flight Moonsilver` (1->2)
+  - `Rofellos's Gift` (3->4)
+  - `Sanguine Spy` (2->4)
+  - `Scent of Brine` (3->4)
+  - `Scent of Cinder` (3->4)
+  - `Scent of Ivy` (3->4)
+  - `Scent of Jasmine` (3->4)
+  - `Scent of Nightshade` (3->4)
+  - `Scour the Laboratory` (1->2)
+  - `Scourge Wolf` (1->2)
+  - `Scuttletide` (1->2)
+  - `Sewer Crocodile` (1->2)
+  - `Shifting Grift` (1->4)
+  - `Shifting Woodland` (1->2)
+  - `Snooping Newsie` (1->2)
+  - `Soul Swallower` (2->4)
+  - `Spineseeker Centipede` (2->4)
+  - `Stallion of Ashmouth` (1->2)
+  - `Syndicate Infiltrator` (1->2)
+  - `Tainted Indulgence` (1->2)
+  - `Tangle Wire` (4->6)
+  - `The Swarmweaver` (1->2)
+  - `Thraben Foulbloods` (1->2)
+  - `Thranduil, the Elvenking` (1->2)
+  - `Tooth Collector` (2->4)
+  - `Topplegeist` (2->4)
+  - `Unholy Heat` (1->2)
+  - `Unnatural Growth` (10->12)
+  - `Violent Urge` (1->2)
+  - `Whispers of Emrakul` (1->2)
+  - `Wickerfolk Thresher` (2->4)
+  - `Wildfire Wickerfolk` (1->2)
+  - `Wojek Apothecary` (4->5)
+  - `Zopandrel, Hunger Dominus` (10->11)
+
+  The `packed_units` figure becomes a first-class, re-derivable census in
+  `english-v2-scope-device-census` (phase 5); no throwaway hook was re-added to
+  restate it here.
+
+- **Post-refresh gates on the integrated tree.** `english-v2-landwalk-quality-keyword`
+  integrated during the review, so the workspace was refreshed again and every
+  gate the incoming diff can reach was re-run. On that tree: `coverage --check`
+  exits 0 with the lock exactly current - 32,641 total, 20,002 selected and
+  covered, 0 selected-uncovered, 12,639 parse failures, 0 unresolved ties, 0
+  internal failures, 0 exception uses, 0 roundtrip mismatches, 0 ownership
+  failures, 888,873 nonterminal nodes against 888,873 visited constructions,
+  310,547 expected against 310,547 visited leaves, 23 permitted and 0 forbidden
+  licensing checkers; `ambiguity --require-resolved` exits 0 at 20,002 selected,
+  16,631 unique, 3,371 specificity-resolved, 0 unresolved ties;
+  `roundtrip --require-clean` exits 0 at 20,002 accepted, 20,002 clean, 0
+  mismatched; `catalogs check` reports `catalogs are up to date`; the closure
+  gate is green (`test result: ok. 44 passed`, `421 passed`, `156 passed`,
+  `49 passed`, `32 passed`, `112 passed`, `468 passed; 1 ignored`, every other
+  suite `ok`); strict clippy over the four crates is clean; `cite check
+  --list-noncompliant` reports `0 non-compliant citation-looking string(s)` and
+  `cite check` reports 0 stale over 14,490 citations. The +102 covered
+  identities and the movement from 19,900 to 20,002 are landwalk's, not this
+  landing's - this landing's effect is the fork-point pair stamped above.
+  Refreshed-tree performance advisory, 8 workers: coverage 119 s at
+  141,396 ns/B, load 8/9/8; ambiguity 117 s at 151,573 ns/B, load 12/10/9;
+  roundtrip 113 s at 153,743 ns/B, load 7/10/9. The 16 s quiet-host ceiling is
+  exceeded under that load and is reported, not gated.
+- **Reviewer's independent classification.** A uniform sample of 15 of the 925
+  changed selected paths was read from the fork point against the feature.
+  Twelve are a single `PostmodifiedReference*QualifiedReference` node moving
+  earlier in the pre-order - the same postmodifier at the higher of its two
+  admissible hosts. Kellan, Vernal Sovereign, Unnatural Growth and Silent
+  Gravestone are Move-S shared constituents hoisted over a Coordination, and
+  Harald is a shared auxiliary over a Predicate Coordination. All 15 are
+  correct-but-recanonicalized; 0 misselections and 0 wrong analyses. The
+  implementer's 247/247 and 60/1,096 strata are corroborated, with the
+  qualification that on the implementer tip the recanonicalization was in
+  several cases *not* accompanied by a recorded alternative - the HIGH above.
 
 ### STOP history and resolutions
 
@@ -637,11 +868,29 @@ identities. Final-round wall clock: 2026-09-05 09:13 PDT to 2026-09-05 09:53 PDT
   slot and frame boundary through the construction interface. The one existing
   right-periphery test was re-spelled after the closure gate showed its old
   one-candidate shape was no longer the canonical highest-site representation.
+- Two further declarations beyond the arm: `modified_singular_nominal` and
+  `modified_plural_nominal` gain `first: mobile(rest)`, which is §A.2's
+  attributive-Modifier family over a Coordination and is what gives Aquatic
+  Alchemist // Bubble Up its shared-Modifier slot beside its shared head.
+- The `AdmissibleSites` slot changed shape from one per element to one per
+  mobile role, as the phase-1 review's amendment reserved to this phase; the
+  paths are populated after the tree is built, through a `OnceLock` that
+  accepts one write.
+- Added at review: the site-path dispatch fix, the never-absorb-without-a-signal
+  guard, `every_absorbed_member_leaves_an_alternative_site`, a raw-versus-packed
+  size assertion on the `Draw a card for each Island you control.` witness, and
+  the re-spelled shared-premodifier ownership assertion in
+  `nominal_grammar.rs`. See `### Review corrections`.
 - No AST category, selection exception, specificity weight, word/card/
   construction-naming guard, per-preposition or per-construction switch, census
   gate, serialized diagnostic/JSON surface, or principle (iv) work was added.
-- Glossary gaps: Scope, Attachment, Head, Premodifier, Peripheral, Bracketing,
-  and Mobility. No new synonym was coined.
+- Glossary: `docs/contexts/oracle-english/CONTEXT.md` defines **Modifier** and
+  **Postmodifier** and uses *head* throughout ("a phrase headed by a verb", "a
+  relation licensed by a head") without an entry of its own, so **Head** and
+  **Premodifier** are groundable in existing convention rather than unowned.
+  **Scope**, **Attachment**, **Peripheral** (as in right-peripheral),
+  **Bracketing** and **Mobility** remain true gaps. Per the design none is
+  coined into the tracked glossary here, and no new synonym was introduced.
 
 ### Newly covered identities (55)
 
