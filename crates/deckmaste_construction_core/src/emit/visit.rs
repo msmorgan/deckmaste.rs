@@ -367,6 +367,18 @@ fn scope_visitor_methods() -> Vec<TokenStream> {
             fn exit_construction(&mut self) {}
         },
         quote! {
+            /// Marks the current construction as the Verb Frame building its Clause.
+            fn verb_frame(&mut self, _construction: &'static str) {}
+        },
+        quote! {
+            /// Reports entry across the opaque edge to a role declared by a Verb Frame.
+            fn enter_frame_role(&mut self, _role: &'static str) {}
+        },
+        quote! {
+            /// Reports exit across the opaque edge to a role declared by a Verb Frame.
+            fn exit_frame_role(&mut self) {}
+        },
+        quote! {
             /// Reports a named construction role before its value is visited.
             fn enter_role(
                 &mut self,
@@ -1162,8 +1174,9 @@ fn emit_construction_form_walker_calls(
     field_locals: &HashMap<String, syn::Ident>,
     fields: &HashMap<String, &ConstructionFieldPlan>,
 ) -> syn::Result<Vec<TokenStream>> {
-    let mut calls = Vec::new();
+    let (mut calls, frame_roles) = verb_frame_traversal_prelude(validated, construction, form);
     for (atom_index, atom) in form.atoms().iter().enumerate() {
+        let frame_role = is_frame_role(frame_roles.as_ref(), atom_index);
         if let Some(call) = structural_role_walker_call(
             validated,
             construction,
@@ -1173,7 +1186,7 @@ fn emit_construction_form_walker_calls(
             field_locals,
             fields,
         )? {
-            calls.push(call);
+            calls.push(wrap_frame_role_call(atom, frame_role, call));
             continue;
         }
         let call = match atom.value_atom() {
@@ -1308,9 +1321,138 @@ fn emit_construction_form_walker_calls(
                 unreachable!("value_atom removes form wrappers")
             }
         };
-        calls.extend(call);
+        calls.extend(call.map(|call| wrap_frame_role_call(atom, frame_role, call)));
     }
     Ok(calls)
+}
+
+fn verb_frame_traversal_prelude(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+) -> (Vec<TokenStream>, Option<HashSet<usize>>) {
+    let frame = declaration_verb_frame(validated, form);
+    let frame_roles = frame_role_atom_indexes(construction, form, frame);
+    let calls = frame_roles
+        .as_ref()
+        .map(|_| {
+            let construction_id = syn::LitStr::new(construction.rule_id(), Span::call_site());
+            quote! { visitor.verb_frame(#construction_id); }
+        })
+        .into_iter()
+        .collect();
+    (calls, frame_roles)
+}
+
+fn is_frame_role(frame_roles: Option<&HashSet<usize>>, atom_index: usize) -> bool {
+    frame_roles.is_some_and(|indexes| indexes.contains(&atom_index))
+}
+
+fn wrap_frame_role_call(atom: &AtomPlan, frame_role: bool, call: TokenStream) -> TokenStream {
+    if !frame_role {
+        return call;
+    }
+    let role = visit_atom_role(atom)
+        .expect("a declared Verb Frame role is represented by a construction role");
+    let role = syn::LitStr::new(role, Span::call_site());
+    quote! {
+        visitor.enter_frame_role(#role);
+        #call
+        visitor.exit_frame_role();
+    }
+}
+
+fn declaration_verb_frame<'a>(
+    validated: &'a SemanticPlan,
+    form: &FormPlan,
+) -> Option<(usize, &'a crate::semantic::DeclarationVerbPlan)> {
+    form.atoms().iter().enumerate().find_map(|(index, atom)| {
+        let (AtomPlan::Lex { terminal, .. } | AtomPlan::VerbFixed { terminal, .. }) =
+            atom.value_atom()
+        else {
+            return None;
+        };
+        validated
+            .runtime_declaration_verb_for(terminal)
+            .filter(|(_, frame)| frame.frame_key().has_declared_role_boundary())
+            .map(|(_, frame)| (index, frame))
+    })
+}
+
+fn frame_role_atom_indexes(
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    frame: Option<(usize, &crate::semantic::DeclarationVerbPlan)>,
+) -> Option<HashSet<usize>> {
+    let (head_index, frame) = frame?;
+    let mut indexes = HashSet::new();
+    let mut next_form_index = head_index + 1;
+    for frame_atom in frame.frame_key().atoms() {
+        let (offset, _) = form.atoms()[next_form_index..]
+            .iter()
+            .enumerate()
+            .find(|(_, form_atom)| frame_atom_matches(construction, frame_atom, form_atom))?;
+        let form_index = next_form_index + offset;
+        if visit_atom_role(&form.atoms()[form_index]).is_some() {
+            indexes.insert(form_index);
+        }
+        next_form_index = form_index + 1;
+    }
+    Some(indexes)
+}
+
+fn frame_atom_matches(
+    construction: &ConstructionPlan,
+    frame: &crate::semantic::VerbFrameAtom,
+    form: &AtomPlan,
+) -> bool {
+    use crate::semantic::VerbFrameAtom;
+
+    let form = form.value_atom();
+    match (frame, form) {
+        (VerbFrameAtom::Literal(expected), AtomPlan::Literal(actual)) => expected == actual,
+        (
+            VerbFrameAtom::Lex(expected_terminal, expected_variant)
+            | VerbFrameAtom::OptionalLex(expected_terminal, expected_variant),
+            AtomPlan::LexFixed {
+                terminal, variant, ..
+            },
+        ) => expected_terminal == terminal && expected_variant == variant,
+        (
+            VerbFrameAtom::MarkedRole(expected_terminal, expected_variant, expected_role)
+            | VerbFrameAtom::OptionalMarkedRole(expected_terminal, expected_variant, expected_role),
+            AtomPlan::Marked {
+                role,
+                terminal,
+                variant,
+                ..
+            },
+        ) => expected_terminal == terminal && expected_variant == variant && expected_role == role,
+        (VerbFrameAtom::Role(expected) | VerbFrameAtom::OptionalRole(expected), _) => {
+            visit_atom_role(form).is_some_and(|role| role == expected)
+        }
+        (
+            VerbFrameAtom::Amount
+            | VerbFrameAtom::ObjectNounPhrase
+            | VerbFrameAtom::PredicativeComplement
+            | VerbFrameAtom::FrameComplementPair,
+            _,
+        ) => visit_atom_role(form)
+            .and_then(|role| {
+                construction
+                    .fields()
+                    .iter()
+                    .find(|field| field.name_key() == role)
+            })
+            .is_some_and(|field| match frame {
+                VerbFrameAtom::Amount => field.terminal() == "Amount",
+                VerbFrameAtom::ObjectNounPhrase => field.terminal() == "Object",
+                VerbFrameAtom::PredicativeComplement => field.terminal() == "PredicativeComplement",
+                VerbFrameAtom::FrameComplementPair => field.terminal() == "FrameComplementPair",
+                _ => false,
+            }),
+        _ => false,
+    }
 }
 
 fn structural_role_walker_call(
@@ -2199,6 +2341,9 @@ mod tests {
             [
                 "enter_construction",
                 "exit_construction",
+                "verb_frame",
+                "enter_frame_role",
+                "exit_frame_role",
                 "enter_role",
                 "exit_role",
                 "enter_conjunct",
@@ -2744,6 +2889,9 @@ mod tests {
                     "_construction : & 'static str".into(),
                 ),
                 ("exit_construction".into(), String::new()),
+                ("verb_frame".into(), "_construction : & 'static str".into(),),
+                ("enter_frame_role".into(), "_role : & 'static str".into(),),
+                ("exit_frame_role".into(), String::new()),
                 ("enter_role".into(), "_role : & 'static str".into()),
                 ("exit_role".into(), String::new()),
                 ("enter_conjunct".into(), "_role : & 'static str".into()),

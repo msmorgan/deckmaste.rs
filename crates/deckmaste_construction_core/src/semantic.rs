@@ -872,6 +872,14 @@ impl VerbFrameKey {
         self.class
     }
 
+    pub(crate) fn has_declared_role_boundary(&self) -> bool {
+        self.class != VerbFrameClass::Predicate
+            || !matches!(
+                self.atoms.as_slice(),
+                [] | [VerbFrameAtom::ObjectNounPhrase | VerbFrameAtom::Amount]
+            )
+    }
+
     #[cfg(test)]
     pub(crate) fn matches_frame_set(&self, frame_set: &crate::macro_def::VerbFrameSet) -> bool {
         use crate::macro_def::VerbFrameSet;
@@ -2013,7 +2021,6 @@ impl SemanticPlan {
         })
     }
 
-    #[cfg(test)]
     pub(crate) fn runtime_declaration_verb_for(
         &self,
         value_type: &str,

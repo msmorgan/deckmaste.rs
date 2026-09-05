@@ -3339,6 +3339,7 @@ constructions! {
         derive possessive_ending = coordination.possessive_ending;
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::OfInAndOnLicensed;
+        derive bare_duration_license = Values::MarkerRequired;
         form possessed_coordination_reference = lex(possessor) coordination;
     }
     construction genitive_determiner_reference: UnqualifiedReference {

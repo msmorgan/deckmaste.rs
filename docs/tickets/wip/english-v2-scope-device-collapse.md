@@ -254,7 +254,7 @@ choose between recorded rulings.
 Glossary gaps remain: Scope, Attachment, Head, Premodifier, Peripheral,
 Bracketing, and Mobility.
 
-## Landing record
+## Superseded STOP record (second phase-3 round, 2026-09-05)
 
 **STOP — not complete and not eligible for integration.** The mandatory
 changed-selection review found a wrong selected analysis for corpus identity
@@ -358,6 +358,128 @@ STOP naming the identity; no further relaxation or corpus fitting was made.
 - The final full-set budget was exceeded by one ambiguity pass only because the
   concurrent A.3-S3a design section became visible after the first pass. No
   other full corpus gate was repeated.
+
+Glossary gaps remain: Scope, Attachment, Head, Premodifier, Peripheral,
+Bracketing, and Mobility.
+
+## Landing record
+
+**STOP — not complete and not eligible for integration.** On the refreshed
+third-round tree, the mandated back-to-back quiet-host comparison measured the
+parent at 126,940 ns/B and the root-only collapse at 143,683 ns/B: **+13%**,
+above OPEN-4's approximately 10% bar. The implementation remains root-only;
+no per-node collapse or corpus fitting was substituted. Per the binding work
+order, this measurement is a STOP.
+
+### Resolved STOP history
+
+- The first phase-3 STOP (ordinary §A.3 rejecting the required Fury and Aquatic
+  Alchemist // Bubble Up packs) was resolved by A.3-S1 through A.3-S6 and
+  A.3-S3a. The implementation has the second Move-S bucket, Coordinator-leaf
+  bijection, peripheral declared-mobile difference region, confined erasure,
+  ordered claim comparison, and the empty-difference fence.
+- The second-round wrong-selection STOP for Cynical Loner was resolved by
+  §C.4a. Declared custom Verb Frame roles create opaque collapse domains;
+  candidate pairs built by different frames are rejected before erasure. Both
+  readings of `Search your library for a card.` remain distinct, specificity
+  selects the declared frame, and the B6 preemption widening remains routed to
+  its follow-up ticket.
+- The second-round 28% performance STOP was resolved in implementation by the
+  OPEN-4 root-only sequence: mobile-inventory pre-gate, lazy render/claim
+  capture, fixed structural-digest bucket keys, and lazy projection/mobile
+  caches. Those changes reduced the measured cost materially, but the final
+  acceptance comparison below still exceeds the amended bar.
+- The earlier phase-2 slot-shape issue remains resolved by the 2026-09-04
+  amendment: `AdmissibleSites` is always present per declared mobile role and
+  contains ordered `AttachmentSitePath`s.
+
+### Implemented safe work
+
+- Candidate finalization performs root-only bucket-and-exact-verify collapse.
+  Ordinary Move A uses the mobile-span multiset plus identity-free recursive
+  skeleton bucket; Move S uses the leaf-sequence plus Coordinator-anchor bucket.
+  Verification retains identity outside affected regions, and every failed
+  verification leaves both candidates visible to ordinary selection.
+- Representatives hoist every mobile to its highest admissible host. Slots are
+  populated outermost first; Move-S alternatives use existing
+  `Conjunct(role, ordinal)` path steps. No declared frame-role filler becomes a
+  mobile or site, and no path crosses an opaque frame boundary.
+- The general possessed-Coordination arm is restored. Its previously measured
+  55-unit delta was entirely the shared-head possessive family; no broader arm
+  coverage was found in that run.
+- Positive witnesses cover the complete ordered Move-A/Move-S set, including
+  Fury, Grand Abolisher, Reprocess, Lich-Knights' Conquest, Malevolent Witchkite,
+  Boltbender, Aquatic Alchemist // Bubble Up, Grafdigger's Cage, Weathered
+  Runestone, Ground Seal, Silent Gravestone, Mass Manipulation, Seedborn Muse,
+  nesting, render invariance, unchanged leaf traversal, and the hoisted
+  construction path. §C.4a witnesses cover Cynical Loner, `Draw a card for each
+  Island you control.`, a class-B move within a frame Object, and empty frame-role
+  site inventories. Negative witnesses cover a neutral family swap,
+  Coordination associativity, A.3-S3a binary rebracketing, and construction
+  identity with the Identity specificity tier disabled.
+- The closure gate exposed one too-strict Move-A check on a host whose residual
+  span became empty after its other mobile role was pruned. The declaration
+  compiler already proves the role is right-peripheral, so the redundant
+  nonempty-host-span condition was removed generically. The new frame-Object
+  class-B witness then passed, and the existing nominal fixture returned from
+  two candidates to one.
+
+### PROVE / DISCLOSE / REPORT state at STOP
+
+- Working-method amendment: after the coordinator interruption, development
+  used the affected subset only; full-corpus commands were reserved for the
+  refreshed final tree. The closure gate then exposed the residual-span defect;
+  because code changed, one replacement final ambiguity/performance pass was
+  permitted and is the measurement that triggered this STOP.
+- Affected subset, 3,231 cards, 8 workers: 1,066 selected, 592 unique, 474
+  specificity-resolved, 0 unresolved ties, 0 internal failures; roundtrip was
+  1,066/1,066 clean. The focused frame-opacity/class-B materializer witness
+  passed 1/1 after the fix.
+- Refreshed parent ambiguity census: 32,641 total; 19,845 selected; 15,678
+  unique; 4,167 specificity-resolved; 12,796 parse failures; 0 exception uses,
+  unresolved ties, or internal failures. Feature census: 19,900 selected;
+  16,580 unique; 3,320 specificity-resolved; 12,741 parse failures; 0 exception
+  uses, unresolved ties, or internal failures. This is +55 selected, +902
+  unique, and -847 specificity-resolved. Candidate counts fell in 1,562 units
+  by 3,367 candidates; 247 units lost more than two candidates; 925 selected
+  construction paths changed; no selected unit was lost.
+- Final-tree performance, same refreshed tree pair, back-to-back, 8 workers:
+  parent 113 s wall, 126,940 ns/B, load 2/4/6 before and 5/5/6 after; feature
+  113 s wall, 143,683 ns/B, load 4/5/6 before and 4/5/6 after; delta +13%.
+  `uptime` reported 6 users; the sandbox cannot observe sibling-process counts.
+- The earlier final-tree coverage/roundtrip run was superseded when the closure
+  gate caused a code change and a second refresh. Because the replacement
+  performance measurement is a mandatory STOP, replacement coverage
+  `--check`/`--bless`, roundtrip, changed-selection classification, packed-unit
+  listing, construction/checker inventory, and closure-gate rerun were not
+  performed. The current lock contains 19,900 identities after the harmony
+  keep-both resolution, but it is not claimed as checked on this STOP tree.
+  No citations changed.
+- Closure-gate command before the residual-span fix printed:
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`.
+  It reached 420/420 construction-core tests and 155/155 English-v2 library
+  tests, then correctly failed an existing nominal-grammar candidate-count
+  assertion that the focused fix restored. Strict clippy was therefore not
+  reached and the closure gate is not claimed green.
+- Assurance: 0 restored, 13 re-spelled, 0 ignored, 10 added, 0 removed. The
+  tenth addition is the residual-empty-host class-B witness found by the closure
+  gate.
+
+### Deviations and additions
+
+- The general possessed-Coordination arm and mobile declarations are expressly
+  ordered additions. Generator/runtime/visitor changes implement the already
+  ordered per-role slot shape and §C.4a frame boundaries.
+- No AST category, selection exception, specificity weight, word/card/
+  construction-naming guard, per-preposition switch, census gate, serialized
+  diagnostic surface, or principle (iv) work was added. Verification failure
+  still degrades to two candidates.
+- Acceptance artifacts and the requested stratified/all-55 classification are
+  incomplete solely because OPEN-4 requires stopping at the failed final-tree
+  performance measurement.
+
+Decision wanted: amend the OPEN-4 bar or authorize another root-only
+optimization round. Per-node collapse remains out of scope.
 
 Glossary gaps remain: Scope, Attachment, Head, Premodifier, Peripheral,
 Bracketing, and Mobility.

@@ -1,5 +1,9 @@
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::sync::Arc;
 
 use super::TextSpan;
@@ -830,6 +834,8 @@ struct ScopeNode {
     kind: ScopeNodeKind,
     children: Vec<ScopeChild>,
     span: Option<(usize, usize)>,
+    domain: usize,
+    verb_frame: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -858,11 +864,18 @@ enum ScopeFrame {
     Construction {
         identity: &'static str,
         index: usize,
+        domain: usize,
+        verb_frame: bool,
         children: Vec<ScopeChild>,
     },
     Edge {
         step: ScopeStep,
         mobile: Option<MobileRole>,
+        domain: usize,
+        children: Vec<ScopeChild>,
+    },
+    FrameRole {
+        domain: usize,
         children: Vec<ScopeChild>,
     },
 }
@@ -873,9 +886,21 @@ struct ScopeProjectionVisitor {
     root: Option<ScopeNode>,
     next_construction: usize,
     next_leaf: usize,
+    next_domain: usize,
 }
 
 impl ScopeProjectionVisitor {
+    fn current_domain(&self) -> usize {
+        match self.frames.last() {
+            Some(
+                ScopeFrame::Construction { domain, .. }
+                | ScopeFrame::Edge { domain, .. }
+                | ScopeFrame::FrameRole { domain, .. },
+            ) => *domain,
+            Some(ScopeFrame::Root { .. }) | None => 0,
+        }
+    }
+
     fn push_node(&mut self, node: ScopeNode) {
         let child = ScopeChild {
             step: None,
@@ -886,7 +911,8 @@ impl ScopeProjectionVisitor {
             Some(
                 ScopeFrame::Root { children }
                 | ScopeFrame::Construction { children, .. }
-                | ScopeFrame::Edge { children, .. },
+                | ScopeFrame::Edge { children, .. }
+                | ScopeFrame::FrameRole { children, .. },
             ) => {
                 children.push(child);
             }
@@ -906,6 +932,8 @@ impl ScopeProjectionVisitor {
                     kind: ScopeNodeKind::Group,
                     children,
                     span,
+                    domain: 0,
+                    verb_frame: false,
                 },
             };
         }
@@ -923,10 +951,48 @@ impl Visitor for ScopeProjectionVisitor {
     fn enter_construction(&mut self, construction: &'static str) {
         let index = self.next_construction;
         self.next_construction += 1;
+        let domain = self.current_domain();
         self.frames.push(ScopeFrame::Construction {
             identity: construction,
             index,
+            domain,
+            verb_frame: false,
             children: Vec::new(),
+        });
+    }
+
+    fn verb_frame(&mut self, construction: &'static str) {
+        let Some(ScopeFrame::Construction {
+            identity,
+            verb_frame,
+            ..
+        }) = self.frames.last_mut()
+        else {
+            unreachable!("a Verb Frame callback belongs to a construction")
+        };
+        debug_assert_eq!(*identity, construction);
+        *verb_frame = true;
+    }
+
+    fn enter_frame_role(&mut self, _role: &'static str) {
+        self.next_domain += 1;
+        self.frames.push(ScopeFrame::FrameRole {
+            domain: self.next_domain,
+            children: Vec::new(),
+        });
+    }
+
+    fn exit_frame_role(&mut self) {
+        let Some(ScopeFrame::FrameRole { domain, children }) = self.frames.pop() else {
+            unreachable!("generated Verb Frame role visits are balanced")
+        };
+        let span = child_span(&children);
+        self.push_node(ScopeNode {
+            kind: ScopeNodeKind::Group,
+            children,
+            span,
+            domain,
+            verb_frame: false,
         });
     }
 
@@ -934,6 +1000,8 @@ impl Visitor for ScopeProjectionVisitor {
         let Some(ScopeFrame::Construction {
             identity,
             index,
+            domain,
+            verb_frame,
             children,
         }) = self.frames.pop()
         else {
@@ -944,6 +1012,8 @@ impl Visitor for ScopeProjectionVisitor {
             kind: ScopeNodeKind::Construction(identity, index),
             children,
             span,
+            domain,
+            verb_frame,
         });
     }
 
@@ -953,12 +1023,18 @@ impl Visitor for ScopeProjectionVisitor {
         scope_sibling: Option<&'static str>,
         admissible_sites: Option<&AdmissibleSites>,
     ) {
+        let domain = self.current_domain();
+        let fills_frame_role = matches!(self.frames.last(), Some(ScopeFrame::FrameRole { .. }));
         self.frames.push(ScopeFrame::Edge {
             step: ScopeStep::Role(role),
-            mobile: admissible_sites.map(|_| MobileRole {
-                role,
-                scope_sibling,
-            }),
+            mobile: (!fills_frame_role)
+                .then_some(admissible_sites)
+                .flatten()
+                .map(|_| MobileRole {
+                    role,
+                    scope_sibling,
+                }),
+            domain,
             children: Vec::new(),
         });
     }
@@ -968,9 +1044,11 @@ impl Visitor for ScopeProjectionVisitor {
     }
 
     fn enter_conjunct(&mut self, role: &'static str, ordinal: usize) {
+        let domain = self.current_domain();
         self.frames.push(ScopeFrame::Edge {
             step: ScopeStep::Conjunct(role, ordinal),
             mobile: None,
+            domain,
             children: Vec::new(),
         });
     }
@@ -982,10 +1060,13 @@ impl Visitor for ScopeProjectionVisitor {
     fn scope_leaf(&mut self) {
         let index = self.next_leaf;
         self.next_leaf += 1;
+        let domain = self.current_domain();
         self.push_node(ScopeNode {
             kind: ScopeNodeKind::Leaf(index),
             children: Vec::new(),
             span: Some((index, index + 1)),
+            domain,
+            verb_frame: false,
         });
     }
 }
@@ -995,6 +1076,7 @@ impl ScopeProjectionVisitor {
         let Some(ScopeFrame::Edge {
             step,
             mobile,
+            domain,
             children,
         }) = self.frames.pop()
         else {
@@ -1005,11 +1087,14 @@ impl ScopeProjectionVisitor {
             kind: ScopeNodeKind::Group,
             children,
             span,
+            domain,
+            verb_frame: false,
         };
         let Some(
             ScopeFrame::Root { children }
             | ScopeFrame::Construction { children, .. }
-            | ScopeFrame::Edge { children, .. },
+            | ScopeFrame::Edge { children, .. }
+            | ScopeFrame::FrameRole { children, .. },
         ) = self.frames.last_mut()
         else {
             unreachable!("a role or Conjunct belongs to a construction")
@@ -1047,6 +1132,14 @@ impl ScopeProjection {
         prune_scope_node(&self.root, affected, erase_all)
     }
 
+    fn bucket_skeleton(&self, mobiles: &[MobileOccurrence]) -> Vec<ScopeKey> {
+        let domains = mobiles
+            .iter()
+            .map(|mobile| mobile.domain)
+            .collect::<HashSet<_>>();
+        prune_scope_node_in_domains(&self.root, &HashSet::new(), Some(&domains))
+    }
+
     fn construction_paths(&self) -> HashMap<usize, ConstructionPath> {
         let mut paths = HashMap::new();
         collect_construction_paths(&self.root, &[], &[], &[], &mut paths);
@@ -1079,6 +1172,24 @@ impl ScopeProjection {
         collect_leaf_sequence(&self.root, &mut leaves);
         leaves
     }
+
+    fn verb_frames(&self) -> Vec<&'static str> {
+        let mut frames = Vec::new();
+        collect_verb_frames(&self.root, &mut frames);
+        frames
+    }
+}
+
+fn collect_verb_frames(node: &ScopeNode, frames: &mut Vec<&'static str>) {
+    if node.verb_frame {
+        let ScopeNodeKind::Construction(identity, _) = node.kind else {
+            unreachable!("only a construction can build a Verb Frame")
+        };
+        frames.push(identity);
+    }
+    for child in &node.children {
+        collect_verb_frames(&child.node, frames);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1089,6 +1200,7 @@ struct CoordinationOccurrence {
     sequence_role: &'static str,
     conjuncts: Vec<CoordinationConjunct>,
     path: ConstructionPath,
+    domain: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -1114,6 +1226,7 @@ fn collect_coordinations(
             sequence_role,
             conjuncts,
             path: paths[&construction_index].clone(),
+            domain: node.domain,
         });
     }
     for child in &node.children {
@@ -1122,22 +1235,25 @@ fn collect_coordinations(
 }
 
 fn coordination_yield_span(node: &ScopeNode) -> Option<(usize, usize)> {
-    fn collect(node: &ScopeNode, inside_conjunct: bool, leaves: &mut Vec<usize>) {
+    fn collect(node: &ScopeNode, domain: usize, inside_conjunct: bool, leaves: &mut Vec<usize>) {
         if let ScopeNodeKind::Leaf(index) = node.kind {
             leaves.push(index);
         }
         for child in &node.children {
+            if child.node.domain != domain {
+                continue;
+            }
             let child_inside_conjunct =
                 inside_conjunct || matches!(child.step, Some(ScopeStep::Conjunct(_, _)));
             if child.mobile.is_some() && !child_inside_conjunct {
                 continue;
             }
-            collect(&child.node, child_inside_conjunct, leaves);
+            collect(&child.node, domain, child_inside_conjunct, leaves);
         }
     }
 
     let mut leaves = Vec::new();
-    collect(node, false, &mut leaves);
+    collect(node, node.domain, false, &mut leaves);
     Some((*leaves.first()?, leaves.last()? + 1))
 }
 
@@ -1152,8 +1268,11 @@ fn coordination_parts(
         Coordinator(usize),
     }
 
-    fn collect(node: &ScopeNode, parts: &mut Vec<Part>) {
+    fn collect(node: &ScopeNode, domain: usize, parts: &mut Vec<Part>) {
         for child in &node.children {
+            if child.node.domain != domain {
+                continue;
+            }
             if child.mobile.is_some() {
                 continue;
             }
@@ -1166,7 +1285,7 @@ fn coordination_parts(
             }
             match child.node.kind {
                 ScopeNodeKind::Leaf(index) => parts.push(Part::Coordinator(index)),
-                ScopeNodeKind::Group => collect(&child.node, parts),
+                ScopeNodeKind::Group => collect(&child.node, domain, parts),
                 ScopeNodeKind::Construction(_, _) => parts.push(Part::Constituent {
                     role: None,
                     node: child.node.clone(),
@@ -1176,7 +1295,7 @@ fn coordination_parts(
     }
 
     let mut parts = Vec::new();
-    collect(node, &mut parts);
+    collect(node, node.domain, &mut parts);
     let anchor = parts
         .iter()
         .filter_map(|part| match part {
@@ -1229,21 +1348,36 @@ enum ScopeKey {
 }
 
 fn prune_scope_node(node: &ScopeNode, affected: &HashSet<usize>, erase_all: bool) -> Vec<ScopeKey> {
+    let erased_domains = erase_all.then(|| HashSet::from([node.domain]));
+    prune_scope_node_in_domains(node, affected, erased_domains.as_ref())
+}
+
+fn prune_scope_node_in_domains(
+    node: &ScopeNode,
+    affected: &HashSet<usize>,
+    erased_domains: Option<&HashSet<usize>>,
+) -> Vec<ScopeKey> {
     match node.kind {
         ScopeNodeKind::Leaf(index) => vec![ScopeKey::Leaf(index)],
         ScopeNodeKind::Group => node
             .children
             .iter()
             .filter(|child| child.mobile.is_none())
-            .flat_map(|child| prune_scope_node(&child.node, affected, erase_all))
+            .flat_map(|child| prune_scope_node_in_domains(&child.node, affected, erased_domains))
             .collect(),
         ScopeNodeKind::Construction(identity, index) => {
             let mut children = Vec::new();
             for child in node.children.iter().filter(|child| child.mobile.is_none()) {
-                children.extend(prune_scope_node(&child.node, affected, erase_all));
+                children.extend(prune_scope_node_in_domains(
+                    &child.node,
+                    affected,
+                    erased_domains,
+                ));
             }
             let span = key_span(&children);
-            let identity = (!erase_all && !affected.contains(&index)).then_some(identity);
+            let erase_identity = affected.contains(&index)
+                || erased_domains.is_some_and(|domains| domains.contains(&node.domain));
+            let identity = (!erase_identity).then_some(identity);
             if identity.is_none() && children.len() == 1 {
                 return children;
             }
@@ -1259,7 +1393,7 @@ fn prune_scope_node(node: &ScopeNode, affected: &HashSet<usize>, erase_all: bool
 fn prune_scope_node_for_move_s(
     node: &ScopeNode,
     affected: &HashSet<usize>,
-    regions: &[(usize, usize)],
+    regions: &[ScopeRegion],
 ) -> Vec<ScopeKey> {
     match node.kind {
         ScopeNodeKind::Leaf(index) => vec![ScopeKey::Leaf(index)],
@@ -1269,9 +1403,10 @@ fn prune_scope_node_for_move_s(
             .filter(|child| {
                 child.mobile.is_none()
                     || child.node.span.is_some_and(|span| {
-                        regions
-                            .iter()
-                            .any(|region| interval_contains(*region, span))
+                        regions.iter().any(|region| {
+                            region.domain == child.node.domain
+                                && interval_contains(region.span, span)
+                        })
                     })
             })
             .flat_map(|child| prune_scope_node_for_move_s(&child.node, affected, regions))
@@ -1283,9 +1418,10 @@ fn prune_scope_node_for_move_s(
                 .filter(|child| {
                     child.mobile.is_none()
                         || child.node.span.is_some_and(|span| {
-                            regions
-                                .iter()
-                                .any(|region| interval_contains(*region, span))
+                            regions.iter().any(|region| {
+                                region.domain == child.node.domain
+                                    && interval_contains(region.span, span)
+                            })
                         })
                 })
                 .flat_map(|child| prune_scope_node_for_move_s(&child.node, affected, regions))
@@ -1322,7 +1458,7 @@ struct ConstructionPath {
     skeleton: Vec<usize>,
     attachment: Vec<ScopeStep>,
     anchor: Vec<ScopeStep>,
-    span: Option<(usize, usize)>,
+    domain: usize,
 }
 
 fn collect_construction_paths(
@@ -1340,7 +1476,7 @@ fn collect_construction_paths(
                 skeleton: skeleton.to_vec(),
                 attachment: attachment.to_vec(),
                 anchor: anchor.to_vec(),
-                span: key_span(&prune_scope_node(node, &HashSet::new(), true)),
+                domain: node.domain,
             },
         );
     }
@@ -1387,6 +1523,7 @@ struct MobileOccurrence {
     subtree: ScopeNode,
     scope_subtree: Option<ScopeNode>,
     first_conjunct_path: Option<Vec<ScopeStep>>,
+    domain: usize,
 }
 
 fn collect_mobiles(
@@ -1434,6 +1571,7 @@ fn collect_mobiles(
                 subtree: child.node.clone(),
                 scope_subtree: scope_child.map(|(_, scope_child)| scope_child.node.clone()),
                 first_conjunct_path,
+                domain: child.node.domain,
             });
             child_region = Some(signature);
         }
@@ -1478,20 +1616,68 @@ fn find_last_conjunct(node: &ScopeNode, path: &mut Vec<ScopeStep>) -> Option<Vec
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ScopeBucketKey {
-    mobiles: Vec<MobileSignature>,
-    skeleton: Vec<ScopeKey>,
-}
+struct ScopeBucketKey(u64);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct CoordinationBucketKey {
-    leaves: Vec<usize>,
-    anchors: Vec<Vec<usize>>,
+struct CoordinationBucketKey(u64);
+
+fn structural_digest(value: &impl Hash) -> u64 {
+    let mut digest = DefaultHasher::new();
+    value.hash(&mut digest);
+    digest.finish()
 }
 
 struct RenderedCandidate {
     text: String,
     claims: Vec<RawRenderedClaim>,
+}
+
+struct ScopeCandidateCaches {
+    projections: Vec<OnceCell<ScopeProjection>>,
+    mobiles: Vec<OnceCell<Vec<MobileOccurrence>>>,
+    rendered: Vec<OnceCell<RenderedCandidate>>,
+}
+
+#[derive(Default)]
+struct MobileInventoryVisitor {
+    carries_mobile: bool,
+    pending_frame_role: Option<&'static str>,
+}
+
+impl Visitor for MobileInventoryVisitor {
+    fn enter_construction(&mut self, _construction: &'static str) {
+        self.pending_frame_role = None;
+    }
+
+    fn enter_frame_role(&mut self, role: &'static str) {
+        self.pending_frame_role = Some(role);
+    }
+
+    fn exit_frame_role(&mut self) {
+        self.pending_frame_role = None;
+    }
+
+    fn enter_role(
+        &mut self,
+        role: &'static str,
+        _scope_sibling: Option<&'static str>,
+        admissible_sites: Option<&AdmissibleSites>,
+    ) {
+        let fills_frame_role = self.pending_frame_role.take() == Some(role);
+        if !fills_frame_role && admissible_sites.is_some() {
+            self.carries_mobile = true;
+        }
+    }
+
+    fn enter_conjunct(&mut self, _role: &'static str, _ordinal: usize) {
+        self.pending_frame_role = None;
+    }
+}
+
+fn candidate_carries_mobile<R: GeneratedParseRoot>(candidate: &Candidate<R>) -> bool {
+    let mut visitor = MobileInventoryVisitor::default();
+    candidate.value.visit_scope(&mut visitor);
+    visitor.carries_mobile
 }
 
 fn collapse_scope_candidates<R: GeneratedParseRoot>(
@@ -1502,48 +1688,58 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
     if candidates.len() < 2 {
         return candidates;
     }
-    let projections = candidates
+    let carries_mobile = candidates
         .iter()
-        .map(|candidate| ScopeProjection::of(&candidate.value))
+        .map(candidate_carries_mobile)
         .collect::<Vec<_>>();
-    let mobiles = projections
+    if carries_mobile
         .iter()
-        .map(ScopeProjection::mobiles)
-        .collect::<Vec<_>>();
-    let rendered = candidates
-        .iter()
-        .map(|candidate| {
-            let (text, claims) = R::render_with_claims(&candidate.value, context, environment);
-            RenderedCandidate { text, claims }
-        })
-        .collect::<Vec<_>>();
+        .filter(|&&carries| carries)
+        .take(2)
+        .count()
+        < 2
+    {
+        return candidates;
+    }
+    let caches = ScopeCandidateCaches {
+        projections: (0..candidates.len()).map(|_| OnceCell::new()).collect(),
+        mobiles: (0..candidates.len()).map(|_| OnceCell::new()).collect(),
+        rendered: (0..candidates.len()).map(|_| OnceCell::new()).collect(),
+    };
     let mut buckets = HashMap::<ScopeBucketKey, Vec<usize>>::new();
     let mut coordination_buckets = HashMap::<CoordinationBucketKey, Vec<usize>>::new();
-    for (index, projection) in projections.iter().enumerate() {
-        let mut signatures = mobiles[index]
+    for (index, candidate) in candidates.iter().enumerate() {
+        if !carries_mobile[index] {
+            continue;
+        }
+        let projection =
+            caches.projections[index].get_or_init(|| ScopeProjection::of(&candidate.value));
+        let candidate_mobiles = caches.mobiles[index].get_or_init(|| projection.mobiles());
+        let mut signatures = candidate_mobiles
             .iter()
             .map(|mobile| mobile.signature.clone())
             .collect::<Vec<_>>();
         signatures.sort();
         if !signatures.is_empty() {
             buckets
-                .entry(ScopeBucketKey {
-                    mobiles: signatures,
-                    skeleton: projection.pruned(&HashSet::new(), true),
-                })
+                .entry(ScopeBucketKey(structural_digest(&(
+                    signatures,
+                    projection.bucket_skeleton(candidate_mobiles),
+                ))))
                 .or_default()
                 .push(index);
         }
         let coordinations = projection.coordinations();
         if !coordinations.is_empty() {
+            let anchors = coordinations
+                .into_iter()
+                .map(|coordination| coordination.anchor)
+                .collect::<Vec<_>>();
             coordination_buckets
-                .entry(CoordinationBucketKey {
-                    leaves: projection.leaf_sequence(),
-                    anchors: coordinations
-                        .into_iter()
-                        .map(|coordination| coordination.anchor)
-                        .collect(),
-                })
+                .entry(CoordinationBucketKey(structural_digest(&(
+                    projection.leaf_sequence(),
+                    anchors,
+                ))))
                 .or_default()
                 .push(index);
         }
@@ -1561,8 +1757,14 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
                 if !compared.insert(pair) {
                     continue;
                 }
-                let verified =
-                    verify_scope_pair(left, right, &candidates, &projections, &mobiles, &rendered);
+                let verified = verify_scope_pair_cached(
+                    left,
+                    right,
+                    &candidates,
+                    &caches,
+                    context,
+                    environment,
+                );
                 if verified {
                     adjacent.entry(left).or_default().push(right);
                     adjacent.entry(right).or_default().push(left);
@@ -1590,8 +1792,8 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
                 &component,
                 &adjacent,
                 &candidates,
-                &projections,
-                &mobiles,
+                &caches.projections,
+                &caches.mobiles,
                 &mut keep,
             );
         }
@@ -1603,6 +1805,7 @@ fn collapse_scope_candidates<R: GeneratedParseRoot>(
         .collect()
 }
 
+#[cfg(test)]
 fn verify_scope_pair<R>(
     left: usize,
     right: usize,
@@ -1611,36 +1814,110 @@ fn verify_scope_pair<R>(
     mobiles: &[Vec<MobileOccurrence>],
     rendered: &[RenderedCandidate],
 ) -> bool {
-    if candidates[left].synthetic_claims != candidates[right].synthetic_claims
-        || rendered[left].text != rendered[right].text
+    let left = ScopePairSide {
+        candidate: &candidates[left],
+        projection: &projections[left],
+        mobiles: &mobiles[left],
+        rendered: &rendered[left],
+    };
+    let right = ScopePairSide {
+        candidate: &candidates[right],
+        projection: &projections[right],
+        mobiles: &mobiles[right],
+        rendered: &rendered[right],
+    };
+    verify_scope_pair_parts(&left, &right)
+}
+
+fn verify_scope_pair_cached<R: GeneratedParseRoot>(
+    left: usize,
+    right: usize,
+    candidates: &[Candidate<R>],
+    caches: &ScopeCandidateCaches,
+    context: &ParseContext<'_>,
+    environment: &crate::environment::ParserEnvironment,
+) -> bool {
+    let left_projection = caches.projections[left]
+        .get()
+        .expect("a bucket member has a scope projection");
+    let right_projection = caches.projections[right]
+        .get()
+        .expect("a bucket member has a scope projection");
+    if left_projection.verb_frames() != right_projection.verb_frames()
+        || candidates[left].synthetic_claims != candidates[right].synthetic_claims
     {
         return false;
     }
-    if same_claimed_leaves(&candidates[left].claims, &candidates[right].claims)
+    let left_rendered = caches.rendered[left].get_or_init(|| {
+        let (text, claims) = candidates[left]
+            .value
+            .render_with_claims(context, environment);
+        RenderedCandidate { text, claims }
+    });
+    let right_rendered = caches.rendered[right].get_or_init(|| {
+        let (text, claims) = candidates[right]
+            .value
+            .render_with_claims(context, environment);
+        RenderedCandidate { text, claims }
+    });
+    let left = ScopePairSide {
+        candidate: &candidates[left],
+        projection: left_projection,
+        mobiles: caches.mobiles[left]
+            .get()
+            .expect("a bucket member has a mobile inventory"),
+        rendered: left_rendered,
+    };
+    let right = ScopePairSide {
+        candidate: &candidates[right],
+        projection: right_projection,
+        mobiles: caches.mobiles[right]
+            .get()
+            .expect("a bucket member has a mobile inventory"),
+        rendered: right_rendered,
+    };
+    verify_scope_pair_parts(&left, &right)
+}
+
+struct ScopePairSide<'a, R> {
+    candidate: &'a Candidate<R>,
+    projection: &'a ScopeProjection,
+    mobiles: &'a [MobileOccurrence],
+    rendered: &'a RenderedCandidate,
+}
+
+fn verify_scope_pair_parts<R>(left: &ScopePairSide<'_, R>, right: &ScopePairSide<'_, R>) -> bool {
+    if left.projection.verb_frames() != right.projection.verb_frames()
+        || left.candidate.synthetic_claims != right.candidate.synthetic_claims
+        || left.rendered.text != right.rendered.text
+    {
+        return false;
+    }
+    if same_claimed_leaves(&left.candidate.claims, &right.candidate.claims)
         && verify_scope_pair_with_erasure(
-            ScopeVerificationSide::ordinary(left, &mobiles[left]),
-            ScopeVerificationSide::ordinary(right, &mobiles[right]),
-            projections,
-            mobiles,
+            ScopeVerificationSide::ordinary(left.projection, left.mobiles),
+            ScopeVerificationSide::ordinary(right.projection, right.mobiles),
             false,
         )
     {
         return true;
     }
-    verify_coordination_scope_pair(left, right, candidates, projections, mobiles, rendered)
+    verify_coordination_scope_pair(left, right)
 }
 
 struct ScopeVerificationSide<'a> {
-    candidate: usize,
+    projection: &'a ScopeProjection,
+    all_mobiles: &'a [MobileOccurrence],
     mobiles: Vec<&'a MobileOccurrence>,
     affected: HashSet<usize>,
-    regions: Option<&'a [(usize, usize)]>,
+    regions: Option<&'a [ScopeRegion]>,
 }
 
 impl<'a> ScopeVerificationSide<'a> {
-    fn ordinary(candidate: usize, mobiles: &'a [MobileOccurrence]) -> Self {
+    fn ordinary(projection: &'a ScopeProjection, mobiles: &'a [MobileOccurrence]) -> Self {
         Self {
-            candidate,
+            projection,
+            all_mobiles: mobiles,
             mobiles: mobiles.iter().collect(),
             affected: HashSet::new(),
             regions: None,
@@ -1651,8 +1928,6 @@ impl<'a> ScopeVerificationSide<'a> {
 fn verify_scope_pair_with_erasure(
     mut left: ScopeVerificationSide<'_>,
     mut right: ScopeVerificationSide<'_>,
-    projections: &[ScopeProjection],
-    all_mobiles: &[Vec<MobileOccurrence>],
     mut moved: bool,
 ) -> bool {
     if left.mobiles.len() != right.mobiles.len()
@@ -1661,6 +1936,14 @@ fn verify_scope_pair_with_erasure(
             .iter()
             .zip(&right.mobiles)
             .any(|(left, right)| left.signature != right.signature)
+    {
+        return false;
+    }
+    if left
+        .mobiles
+        .iter()
+        .zip(&right.mobiles)
+        .any(|(left, right)| left.domain != right.domain)
     {
         return false;
     }
@@ -1681,24 +1964,16 @@ fn verify_scope_pair_with_erasure(
                 && (left_mobile.first_conjunct_path.is_some()
                     || right_mobile.first_conjunct_path.is_some())
             {
-                let left_region = coordination_region(&projections[left.candidate], left_mobile);
-                let right_region = coordination_region(&projections[right.candidate], right_mobile);
+                let left_region = coordination_region(left.projection, left_mobile);
+                let right_region = coordination_region(right.projection, right_mobile);
                 if let (Some(left_region), Some(right_region)) = (left_region, right_region)
                     && (left_mobile.first_conjunct_path != right_mobile.first_conjunct_path
                         || prune_scope_node(left_region, &HashSet::new(), false)
                             != prune_scope_node(right_region, &HashSet::new(), false))
                 {
                     moved = true;
-                    mark_scope_region(
-                        &projections[left.candidate],
-                        left_region,
-                        &mut left.affected,
-                    );
-                    mark_scope_region(
-                        &projections[right.candidate],
-                        right_region,
-                        &mut right.affected,
-                    );
+                    mark_scope_region(left.projection, left_region, &mut left.affected);
+                    mark_scope_region(right.projection, right_region, &mut right.affected);
                 }
             } else if left_mobile.scope_sibling.is_none()
                 && left_mobile.host.attachment != right_mobile.host.attachment
@@ -1720,12 +1995,10 @@ fn verify_scope_pair_with_erasure(
             } else if left_mobile.scope_sibling.is_none()
                 && left_mobile.host.attachment == right_mobile.host.attachment
             {
-                let left_host =
-                    find_construction(&projections[left.candidate].root, left_mobile.host_index)
-                        .expect("a mobile host remains in its projection");
-                let right_host =
-                    find_construction(&projections[right.candidate].root, right_mobile.host_index)
-                        .expect("a mobile host remains in its projection");
+                let left_host = find_construction(&left.projection.root, left_mobile.host_index)
+                    .expect("a mobile host remains in its projection");
+                let right_host = find_construction(&right.projection.root, right_mobile.host_index)
+                    .expect("a mobile host remains in its projection");
                 let before = (left.affected.len(), right.affected.len());
                 if mark_identity_differences(
                     left_host,
@@ -1756,8 +2029,8 @@ fn verify_scope_pair_with_erasure(
             (&right_mobile.scope_region, &right_mobile.host.skeleton),
         ] {
             if !mark_identity_difference_at(
-                (&projections[left.candidate], &all_mobiles[left.candidate]),
-                (&projections[right.candidate], &all_mobiles[right.candidate]),
+                (left.projection, left.all_mobiles),
+                (right.projection, right.all_mobiles),
                 scope_region.as_ref(),
                 skeleton,
                 &mut left.affected,
@@ -1770,21 +2043,15 @@ fn verify_scope_pair_with_erasure(
     if !moved {
         return false;
     }
-    let structures_match =
-        if let (Some(left_regions), Some(right_regions)) = (left.regions, right.regions) {
-            prune_scope_node_for_move_s(
-                &projections[left.candidate].root,
-                &left.affected,
-                left_regions,
-            ) == prune_scope_node_for_move_s(
-                &projections[right.candidate].root,
-                &right.affected,
-                right_regions,
-            )
-        } else {
-            projections[left.candidate].pruned(&left.affected, false)
-                == projections[right.candidate].pruned(&right.affected, false)
-        };
+    let structures_match = if let (Some(left_regions), Some(right_regions)) =
+        (left.regions, right.regions)
+    {
+        prune_scope_node_for_move_s(&left.projection.root, &left.affected, left_regions)
+            == prune_scope_node_for_move_s(&right.projection.root, &right.affected, right_regions)
+    } else {
+        left.projection.pruned(&left.affected, false)
+            == right.projection.pruned(&right.affected, false)
+    };
     if !structures_match {
         return false;
     }
@@ -1800,69 +2067,73 @@ fn verify_scope_pair_with_erasure(
 struct CoordinationScopeComparison {
     left_affected: HashSet<usize>,
     right_affected: HashSet<usize>,
-    left_regions: Vec<(usize, usize)>,
-    right_regions: Vec<(usize, usize)>,
+    left_regions: Vec<ScopeRegion>,
+    right_regions: Vec<ScopeRegion>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct ScopeRegion {
+    domain: usize,
+    span: (usize, usize),
 }
 
 fn verify_coordination_scope_pair<R>(
-    left: usize,
-    right: usize,
-    candidates: &[Candidate<R>],
-    projections: &[ScopeProjection],
-    mobiles: &[Vec<MobileOccurrence>],
-    rendered: &[RenderedCandidate],
+    left: &ScopePairSide<'_, R>,
+    right: &ScopePairSide<'_, R>,
 ) -> bool {
     let Some(comparison) = coordination_scope_comparison(
-        &projections[left],
-        &mobiles[left],
-        &projections[right],
-        &mobiles[right],
+        left.projection,
+        left.mobiles,
+        right.projection,
+        right.mobiles,
     ) else {
         return false;
     };
     let Some(left_claim_regions) =
-        rendered_text_regions(&rendered[left].claims, &comparison.left_regions)
+        rendered_text_regions(&left.rendered.claims, &comparison.left_regions)
     else {
         return false;
     };
     let Some(right_claim_regions) =
-        rendered_text_regions(&rendered[right].claims, &comparison.right_regions)
+        rendered_text_regions(&right.rendered.claims, &comparison.right_regions)
     else {
         return false;
     };
     if !same_claimed_leaves_in_regions(
-        &candidates[left].claims,
-        &candidates[right].claims,
-        &rendered[left].text,
-        &rendered[right].text,
+        &left.candidate.claims,
+        &right.candidate.claims,
+        &left.rendered.text,
+        &right.rendered.text,
         &left_claim_regions,
         &right_claim_regions,
     ) {
         return false;
     }
-    let left_mobiles = mobiles[left]
+    let left_mobiles_outside = left
+        .mobiles
         .iter()
         .filter(|mobile| !mobile_within_regions(mobile, &comparison.left_regions))
         .collect::<Vec<_>>();
-    let right_mobiles = mobiles[right]
+    let right_mobiles_outside = right
+        .mobiles
         .iter()
         .filter(|mobile| !mobile_within_regions(mobile, &comparison.right_regions))
         .collect::<Vec<_>>();
     verify_scope_pair_with_erasure(
         ScopeVerificationSide {
-            candidate: left,
-            mobiles: left_mobiles,
+            projection: left.projection,
+            all_mobiles: left.mobiles,
+            mobiles: left_mobiles_outside,
             affected: comparison.left_affected,
             regions: Some(&comparison.left_regions),
         },
         ScopeVerificationSide {
-            candidate: right,
-            mobiles: right_mobiles,
+            projection: right.projection,
+            all_mobiles: right.mobiles,
+            mobiles: right_mobiles_outside,
             affected: comparison.right_affected,
             regions: Some(&comparison.right_regions),
         },
-        projections,
-        mobiles,
         true,
     )
 }
@@ -1896,7 +2167,9 @@ fn coordination_scope_comparison(
     for (left_coordination, right_coordination) in
         left_coordinations.iter().zip(&right_coordinations)
     {
-        if left_coordination.anchor != right_coordination.anchor {
+        if left_coordination.anchor != right_coordination.anchor
+            || left_coordination.domain != right_coordination.domain
+        {
             return None;
         }
         let (left_span, right_span) = coordination_comparison_spans(
@@ -1959,14 +2232,20 @@ fn coordination_scope_comparison(
             touches_suffix,
             &mut right_affected,
         );
-        left_regions.push(scope_region);
-        right_regions.push(scope_region);
+        left_regions.push(ScopeRegion {
+            domain: left_coordination.domain,
+            span: scope_region,
+        });
+        right_regions.push(ScopeRegion {
+            domain: right_coordination.domain,
+            span: scope_region,
+        });
     }
     (moved && declared_mobile_difference).then_some(CoordinationScopeComparison {
         left_affected,
         right_affected,
-        left_regions: merge_intervals(left_regions),
-        right_regions: merge_intervals(right_regions),
+        left_regions: merge_scope_regions(left_regions),
+        right_regions: merge_scope_regions(right_regions),
     })
 }
 
@@ -2010,8 +2289,9 @@ fn coordination_span_with_highest_mobile(
     coordination: &CoordinationOccurrence,
 ) -> (usize, usize) {
     let related = mobiles.iter().filter(|mobile| {
-        (is_step_prefix(&mobile.host.attachment, &coordination.path.attachment)
-            || is_step_prefix(&coordination.path.attachment, &mobile.host.attachment))
+        mobile.domain == coordination.domain
+            && (is_step_prefix(&mobile.host.attachment, &coordination.path.attachment)
+                || is_step_prefix(&coordination.path.attachment, &mobile.host.attachment))
             && coordination_region(projection, mobile).is_some_and(|region| {
                 contains_construction(region, coordination.construction_index)
             })
@@ -2044,6 +2324,7 @@ fn mark_coordination_identity(
         &projection.root,
         coordination.construction_index,
         span,
+        coordination.domain,
         affected,
     );
 }
@@ -2101,7 +2382,7 @@ fn mark_touched_conjuncts(
                     || (index + 1 == coordination.conjuncts.len() && touches_suffix)
             })
         }) {
-            mark_construction_subtree(&conjunct.node, affected);
+            mark_construction_subtree(&conjunct.node, coordination.domain, affected);
         }
     }
 }
@@ -2124,16 +2405,24 @@ fn mark_partition_structure(
         })
         .filter_map(|(_, conjunct)| conjunct.span)
         .collect::<Vec<_>>();
-    mark_partition_structure_inner(node, scope_region, &untouched_conjuncts, affected);
+    mark_partition_structure_inner(
+        node,
+        scope_region,
+        &untouched_conjuncts,
+        coordination.domain,
+        affected,
+    );
 }
 
 fn mark_partition_structure_inner(
     node: &ScopeNode,
     scope_region: (usize, usize),
     untouched_conjuncts: &[(usize, usize)],
+    domain: usize,
     affected: &mut HashSet<usize>,
 ) {
     if let ScopeNodeKind::Construction(_, index) = node.kind
+        && node.domain == domain
         && node.span.is_some_and(|span| {
             interval_contains(scope_region, span)
                 && !untouched_conjuncts
@@ -2144,7 +2433,13 @@ fn mark_partition_structure_inner(
         affected.insert(index);
     }
     for child in &node.children {
-        mark_partition_structure_inner(&child.node, scope_region, untouched_conjuncts, affected);
+        mark_partition_structure_inner(
+            &child.node,
+            scope_region,
+            untouched_conjuncts,
+            domain,
+            affected,
+        );
     }
 }
 
@@ -2171,21 +2466,38 @@ fn merge_intervals(mut intervals: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
     merged
 }
 
-fn mobile_within_regions(mobile: &MobileOccurrence, regions: &[(usize, usize)]) -> bool {
+fn merge_scope_regions(mut regions: Vec<ScopeRegion>) -> Vec<ScopeRegion> {
+    regions.sort_unstable();
+    let mut merged: Vec<ScopeRegion> = Vec::new();
+    for region in regions {
+        if let Some(last) = merged.last_mut()
+            && last.domain == region.domain
+            && region.span.0 <= last.span.1
+        {
+            last.span.1 = last.span.1.max(region.span.1);
+        } else {
+            merged.push(region);
+        }
+    }
+    merged
+}
+
+fn mobile_within_regions(mobile: &MobileOccurrence, regions: &[ScopeRegion]) -> bool {
     mobile.signature.span.is_some_and(|span| {
         regions
             .iter()
-            .any(|region| interval_contains(*region, span))
+            .any(|region| region.domain == mobile.domain && interval_contains(region.span, span))
     })
 }
 
 fn rendered_text_regions(
     claims: &[RawRenderedClaim],
-    regions: &[(usize, usize)],
+    regions: &[ScopeRegion],
 ) -> Option<Vec<TextSpan>> {
     regions
         .iter()
-        .map(|&(start, end)| {
+        .map(|region| {
+            let (start, end) = region.span;
             if start >= end {
                 return None;
             }
@@ -2229,26 +2541,33 @@ fn text_span_contains(outer: TextSpan, inner: TextSpan) -> bool {
 }
 
 fn mobile_identity_key(mobile: &MobileOccurrence) -> Vec<ScopeKey> {
-    if contains_conjunct(&mobile.subtree) {
+    if contains_conjunct_in_domain(&mobile.subtree, mobile.domain) {
         return mobile.signature.subtree.clone();
     }
     let mut boundary = HashSet::new();
-    mark_full_span_constructions(&mobile.subtree, mobile.signature.span, &mut boundary);
+    mark_full_span_constructions(
+        &mobile.subtree,
+        mobile.signature.span,
+        mobile.domain,
+        &mut boundary,
+    );
     prune_scope_node(&mobile.subtree, &boundary, false)
 }
 
 fn mark_full_span_constructions(
     node: &ScopeNode,
     span: Option<(usize, usize)>,
+    domain: usize,
     affected: &mut HashSet<usize>,
 ) {
     if let ScopeNodeKind::Construction(_, index) = node.kind
+        && node.domain == domain
         && key_span(&prune_scope_node(node, &HashSet::new(), true)) == span
     {
         affected.insert(index);
     }
     for child in &node.children {
-        mark_full_span_constructions(&child.node, span, affected);
+        mark_full_span_constructions(&child.node, span, domain, affected);
     }
 }
 
@@ -2262,9 +2581,20 @@ struct IdentityShape {
 enum IdentityTerminal {
     Leaf(usize),
     Children(Vec<IdentityShape>),
+    Opaque(Vec<ScopeKey>),
 }
 
 fn identity_shapes(node: &ScopeNode) -> Vec<IdentityShape> {
+    identity_shapes_in_domain(node, node.domain)
+}
+
+fn identity_shapes_in_domain(node: &ScopeNode, domain: usize) -> Vec<IdentityShape> {
+    if node.domain != domain {
+        return vec![IdentityShape {
+            chain: Vec::new(),
+            terminal: IdentityTerminal::Opaque(prune_scope_node(node, &HashSet::new(), false)),
+        }];
+    }
     match node.kind {
         ScopeNodeKind::Leaf(index) => vec![IdentityShape {
             chain: Vec::new(),
@@ -2274,14 +2604,14 @@ fn identity_shapes(node: &ScopeNode) -> Vec<IdentityShape> {
             .children
             .iter()
             .filter(|child| child.mobile.is_none())
-            .flat_map(|child| identity_shapes(&child.node))
+            .flat_map(|child| identity_shapes_in_domain(&child.node, domain))
             .collect(),
         ScopeNodeKind::Construction(identity, index) => {
             let mut children = node
                 .children
                 .iter()
                 .filter(|child| child.mobile.is_none())
-                .flat_map(|child| identity_shapes(&child.node))
+                .flat_map(|child| identity_shapes_in_domain(&child.node, domain))
                 .collect::<Vec<_>>();
             if children.len() == 1 {
                 let mut child = children.pop().expect("one projected child");
@@ -2336,6 +2666,7 @@ fn mark_shape_differences(
                     return false;
                 }
             }
+            (IdentityTerminal::Opaque(left), IdentityTerminal::Opaque(right)) if left == right => {}
             _ => return false,
         }
     }
@@ -2381,9 +2712,9 @@ fn coordination_region<'a>(
     if let Some(scope_subtree) = &mobile.scope_subtree
         && let Some(target) = first_conjunct_construction(scope_subtree)
     {
-        return deepest_coordination_containing(scope_subtree, target);
+        return deepest_coordination_containing(scope_subtree, target, mobile.domain);
     }
-    deepest_coordination_containing(&projection.root, mobile.host_index)
+    deepest_coordination_containing(&projection.root, mobile.host_index, mobile.domain)
 }
 
 fn first_conjunct_construction(node: &ScopeNode) -> Option<usize> {
@@ -2409,19 +2740,25 @@ fn first_construction(node: &ScopeNode) -> Option<usize> {
         .find_map(|child| first_construction(&child.node))
 }
 
-fn deepest_coordination_containing(node: &ScopeNode, target: usize) -> Option<&ScopeNode> {
+fn deepest_coordination_containing(
+    node: &ScopeNode,
+    target: usize,
+    domain: usize,
+) -> Option<&ScopeNode> {
     if !contains_construction(node, target) {
         return None;
     }
     if let Some(deeper) = node
         .children
         .iter()
-        .find_map(|child| deepest_coordination_containing(&child.node, target))
+        .find_map(|child| deepest_coordination_containing(&child.node, target, domain))
     {
         return Some(deeper);
     }
-    (matches!(node.kind, ScopeNodeKind::Construction(_, _)) && contains_conjunct(node))
-        .then_some(node)
+    (node.domain == domain
+        && matches!(node.kind, ScopeNodeKind::Construction(_, _))
+        && contains_conjunct_in_domain(node, domain))
+    .then_some(node)
 }
 
 fn contains_construction(node: &ScopeNode, target: usize) -> bool {
@@ -2432,10 +2769,12 @@ fn contains_construction(node: &ScopeNode, target: usize) -> bool {
             .any(|child| contains_construction(&child.node, target))
 }
 
-fn contains_conjunct(node: &ScopeNode) -> bool {
-    node.children.iter().any(|child| {
-        matches!(child.step, Some(ScopeStep::Conjunct(_, _))) || contains_conjunct(&child.node)
-    })
+fn contains_conjunct_in_domain(node: &ScopeNode, domain: usize) -> bool {
+    node.domain == domain
+        && node.children.iter().any(|child| {
+            matches!(child.step, Some(ScopeStep::Conjunct(_, _)))
+                || contains_conjunct_in_domain(&child.node, domain)
+        })
 }
 
 fn same_claimed_leaves(left: &[RawLexicalClaim], right: &[RawLexicalClaim]) -> bool {
@@ -2451,20 +2790,29 @@ fn mark_scope_region(
     region: &ScopeNode,
     affected: &mut HashSet<usize>,
 ) {
-    mark_construction_subtree(region, affected);
+    let domain = region.domain;
+    mark_construction_subtree(region, domain, affected);
     let Some(region_index) = first_construction(region) else {
         return;
     };
     let region_span = key_span(&prune_scope_node(region, &HashSet::new(), true));
-    mark_same_span_ancestors(&projection.root, region_index, region_span, affected);
+    mark_same_span_ancestors(
+        &projection.root,
+        region_index,
+        region_span,
+        domain,
+        affected,
+    );
 }
 
-fn mark_construction_subtree(node: &ScopeNode, affected: &mut HashSet<usize>) {
-    if let ScopeNodeKind::Construction(_, index) = node.kind {
+fn mark_construction_subtree(node: &ScopeNode, domain: usize, affected: &mut HashSet<usize>) {
+    if let ScopeNodeKind::Construction(_, index) = node.kind
+        && node.domain == domain
+    {
         affected.insert(index);
     }
     for child in &node.children {
-        mark_construction_subtree(&child.node, affected);
+        mark_construction_subtree(&child.node, domain, affected);
     }
 }
 
@@ -2472,18 +2820,20 @@ fn mark_same_span_ancestors(
     node: &ScopeNode,
     target: usize,
     target_span: Option<(usize, usize)>,
+    domain: usize,
     affected: &mut HashSet<usize>,
 ) {
     if !contains_construction(node, target) {
         return;
     }
     if let ScopeNodeKind::Construction(_, index) = node.kind
+        && node.domain == domain
         && key_span(&prune_scope_node(node, &HashSet::new(), true)) == target_span
     {
         affected.insert(index);
     }
     for child in node.children.iter().filter(|child| child.mobile.is_none()) {
-        mark_same_span_ancestors(&child.node, target, target_span, affected);
+        mark_same_span_ancestors(&child.node, target, target_span, domain, affected);
     }
 }
 
@@ -2612,6 +2962,9 @@ fn is_step_prefix(prefix: &[ScopeStep], path: &[ScopeStep]) -> bool {
 }
 
 fn move_is_licensed(high: &MobileOccurrence, low: &MobileOccurrence) -> bool {
+    if high.domain != low.domain {
+        return false;
+    }
     if let Some(scope_sibling) = high.scope_sibling {
         return low
             .host
@@ -2621,19 +2974,19 @@ fn move_is_licensed(high: &MobileOccurrence, low: &MobileOccurrence) -> bool {
                 ScopeStep::Role(role) | ScopeStep::Conjunct(role, _) => *role == scope_sibling,
             });
     }
-    let Some(mobile_span) = high.signature.span else {
-        return false;
-    };
-    high.host.span.is_some_and(|span| span.1 <= mobile_span.0)
-        && low.host.span.is_some_and(|span| span.1 <= mobile_span.0)
+    // The declaration compiler has already proved that a Move-A role is the
+    // host's final form position. Its residual span can be empty when every
+    // other realized role is independently mobile, but that does not make the
+    // declared right-edge relocation inadmissible.
+    true
 }
 
 fn collapse_scope_component<R: GeneratedParseRoot>(
     component: &[usize],
     adjacent: &HashMap<usize, Vec<usize>>,
     candidates: &[Candidate<R>],
-    projections: &[ScopeProjection],
-    mobiles: &[Vec<MobileOccurrence>],
+    projections: &[OnceCell<ScopeProjection>],
+    mobiles: &[OnceCell<Vec<MobileOccurrence>>],
     keep: &mut [bool],
 ) {
     let mut remaining = component.to_vec();
@@ -2645,28 +2998,58 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
                         .get(&candidate)
                         .is_some_and(|neighbors| neighbors.contains(&other))
                     && candidate_at_least_as_high(
-                        &projections[other],
-                        &mobiles[other],
-                        &projections[candidate],
-                        &mobiles[candidate],
+                        projections[other]
+                            .get()
+                            .expect("a component member has a scope projection"),
+                        mobiles[other]
+                            .get()
+                            .expect("a component member has a mobile inventory"),
+                        projections[candidate]
+                            .get()
+                            .expect("a component member has a scope projection"),
+                        mobiles[candidate]
+                            .get()
+                            .expect("a component member has a mobile inventory"),
                     )
                     && !candidate_at_least_as_high(
-                        &projections[candidate],
-                        &mobiles[candidate],
-                        &projections[other],
-                        &mobiles[other],
+                        projections[candidate]
+                            .get()
+                            .expect("a component member has a scope projection"),
+                        mobiles[candidate]
+                            .get()
+                            .expect("a component member has a mobile inventory"),
+                        projections[other]
+                            .get()
+                            .expect("a component member has a scope projection"),
+                        mobiles[other]
+                            .get()
+                            .expect("a component member has a mobile inventory"),
                     )
             })
         });
         let representative = maximal
             .min_by_key(|&candidate| {
-                representative_key(&projections[candidate], &mobiles[candidate])
+                representative_key(
+                    projections[candidate]
+                        .get()
+                        .expect("a component member has a scope projection"),
+                    mobiles[candidate]
+                        .get()
+                        .expect("a component member has a mobile inventory"),
+                )
             })
             .unwrap_or_else(|| {
                 *remaining
                     .iter()
                     .min_by_key(|&&candidate| {
-                        representative_key(&projections[candidate], &mobiles[candidate])
+                        representative_key(
+                            projections[candidate]
+                                .get()
+                                .expect("a component member has a scope projection"),
+                            mobiles[candidate]
+                                .get()
+                                .expect("a component member has a mobile inventory"),
+                        )
                     })
                     .expect("a nonempty component has a representative")
             });
@@ -2682,10 +3065,18 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
             .filter(|&candidate| {
                 candidate == representative
                     || candidate_at_least_as_high(
-                        &projections[representative],
-                        &mobiles[representative],
-                        &projections[candidate],
-                        &mobiles[candidate],
+                        projections[representative]
+                            .get()
+                            .expect("a representative has a scope projection"),
+                        mobiles[representative]
+                            .get()
+                            .expect("a representative has a mobile inventory"),
+                        projections[candidate]
+                            .get()
+                            .expect("a component member has a scope projection"),
+                        mobiles[candidate]
+                            .get()
+                            .expect("a component member has a mobile inventory"),
                     )
             })
             .collect::<Vec<_>>();
@@ -2711,15 +3102,16 @@ fn collapse_scope_component<R: GeneratedParseRoot>(
 }
 
 fn placement_at_least_as_high(high: &MobileOccurrence, low: &MobileOccurrence) -> bool {
-    (high.role == low.role
-        && high.host.identity == low.host.identity
-        && match (&high.first_conjunct_path, &low.first_conjunct_path) {
-            (Some(high), Some(low)) => high.len() <= low.len(),
-            (Some(_) | None, None) => true,
-            (None, Some(_)) => false,
-        })
-        || (is_step_prefix(&high.host.attachment, &low.host.attachment)
-            && move_is_licensed(high, low))
+    high.domain == low.domain
+        && ((high.role == low.role
+            && high.host.identity == low.host.identity
+            && match (&high.first_conjunct_path, &low.first_conjunct_path) {
+                (Some(high), Some(low)) => high.len() <= low.len(),
+                (Some(_) | None, None) => true,
+                (None, Some(_)) => false,
+            })
+            || (is_step_prefix(&high.host.attachment, &low.host.attachment)
+                && move_is_licensed(high, low)))
 }
 
 fn candidate_at_least_as_high(
@@ -2813,18 +3205,32 @@ fn populate_component_sites<R: GeneratedParseRoot>(
     representative: usize,
     packed: &[usize],
     value: &R,
-    projections: &[ScopeProjection],
-    mobiles: &[Vec<MobileOccurrence>],
+    projections: &[OnceCell<ScopeProjection>],
+    mobiles: &[OnceCell<Vec<MobileOccurrence>>],
 ) {
-    for mobile in &mobiles[representative] {
+    let representative_projection = projections[representative]
+        .get()
+        .expect("a representative has a scope projection");
+    let representative_mobiles = mobiles[representative]
+        .get()
+        .expect("a representative has a mobile inventory");
+    for mobile in representative_mobiles {
         let mut paths = packed
             .iter()
             .copied()
             .filter(|candidate| *candidate != representative)
             .filter_map(|candidate| {
-                let lower = mobiles[candidate]
-                    .iter()
-                    .find(|lower| lower.signature == mobile.signature && lower.role == mobile.role);
+                let candidate_mobiles = mobiles[candidate]
+                    .get()
+                    .expect("a component member has a mobile inventory");
+                let candidate_projection = projections[candidate]
+                    .get()
+                    .expect("a component member has a scope projection");
+                let lower = candidate_mobiles.iter().find(|lower| {
+                    lower.signature == mobile.signature
+                        && lower.role == mobile.role
+                        && lower.domain == mobile.domain
+                });
                 lower
                     .and_then(|lower| {
                         if mobile.host.identity == lower.host.identity
@@ -2833,9 +3239,9 @@ fn populate_component_sites<R: GeneratedParseRoot>(
                             mobile.first_conjunct_path.clone()
                         } else if mobile.host.identity == lower.host.identity {
                             alternative_path_within_host(
-                                &projections[representative],
+                                representative_projection,
                                 mobile,
-                                &projections[candidate],
+                                candidate_projection,
                                 lower,
                             )
                         } else {
@@ -2844,11 +3250,11 @@ fn populate_component_sites<R: GeneratedParseRoot>(
                     })
                     .or_else(|| {
                         alternative_move_s_path(
-                            &projections[representative],
-                            &mobiles[representative],
+                            representative_projection,
+                            representative_mobiles,
                             mobile,
-                            &projections[candidate],
-                            &mobiles[candidate],
+                            candidate_projection,
+                            candidate_mobiles,
                         )
                     })
             })
@@ -2909,7 +3315,10 @@ fn alternative_move_s_path(
         .iter()
         .zip(&lower_coordinations)
         .find_map(|(representative_coordination, lower_coordination)| {
-            if representative_coordination.anchor != lower_coordination.anchor {
+            if representative_coordination.anchor != lower_coordination.anchor
+                || representative_coordination.domain != mobile.domain
+                || lower_coordination.domain != mobile.domain
+            {
                 return None;
             }
             let (representative_span, lower_span) = coordination_comparison_spans(
@@ -2959,6 +3368,9 @@ fn alternative_path_within_host(
     lower_projection: &ScopeProjection,
     lower: &MobileOccurrence,
 ) -> Option<Vec<ScopeStep>> {
+    if representative.domain != lower.domain {
+        return None;
+    }
     let representative_host =
         find_construction(&representative_projection.root, representative.host_index)?;
     let lower_host = find_construction(&lower_projection.root, lower.host_index)?;
@@ -2977,6 +3389,7 @@ fn alternative_path_within_host(
         .into_iter()
         .filter(|(index, path)| {
             representative_affected.contains(index)
+                && path.domain == representative.domain
                 && path.attachment.len() > representative.host.attachment.len()
                 && path.attachment.starts_with(&representative.host.attachment)
         })
@@ -2992,6 +3405,9 @@ fn attachment_path_between(
     high: &ConstructionPath,
     low: &ConstructionPath,
 ) -> Option<Vec<ScopeStep>> {
+    if high.domain != low.domain {
+        return None;
+    }
     low.attachment
         .strip_prefix(high.attachment.as_slice())
         .map(<[ScopeStep]>::to_vec)
@@ -4464,6 +4880,9 @@ mod tests {
     struct ScopeWitnessVisitor {
         leaves: usize,
         construction_path: Vec<&'static str>,
+        verb_frames: Vec<&'static str>,
+        frame_roles: Vec<&'static str>,
+        populated_frame_roles: Vec<&'static str>,
         populated_sites: Vec<(
             &'static str,
             Option<&'static str>,
@@ -4476,12 +4895,29 @@ mod tests {
             self.construction_path.push(construction);
         }
 
+        fn verb_frame(&mut self, construction: &'static str) {
+            self.verb_frames.push(construction);
+        }
+
+        fn enter_frame_role(&mut self, role: &'static str) {
+            self.frame_roles.push(role);
+        }
+
+        fn exit_frame_role(&mut self) {
+            self.frame_roles.pop();
+        }
+
         fn enter_role(
             &mut self,
             role: &'static str,
             scope_sibling: Option<&'static str>,
             admissible_sites: Option<&crate::constructions::AdmissibleSites>,
         ) {
+            if self.frame_roles.last() == Some(&role)
+                && admissible_sites.is_some_and(|sites| !sites.is_empty())
+            {
+                self.populated_frame_roles.push(role);
+            }
             if let Some(sites) = admissible_sites
                 && !sites.is_empty()
             {
@@ -4492,6 +4928,90 @@ mod tests {
 
         fn scope_leaf(&mut self) {
             self.leaves += 1;
+        }
+    }
+
+    #[test]
+    fn declared_frame_roles_are_opaque_to_scope_packing() {
+        let text = "Search your library for a card.";
+        let raw = ability_candidates(text, "Cynical Loner", false);
+        let packed = ability_candidates(text, "Cynical Loner", true);
+        assert_eq!(raw.len(), 2);
+        assert_eq!(packed.len(), raw.len());
+        assert_eq!(
+            raw.iter()
+                .filter(|candidate| {
+                    !super::ScopeProjection::of(&candidate.value)
+                        .verb_frames()
+                        .is_empty()
+                })
+                .count(),
+            1,
+        );
+        assert!(packed.iter().all(|candidate| {
+            scope_witness(&candidate.value)
+                .populated_frame_roles
+                .is_empty()
+        }));
+
+        let analysis = super::super::selection::analyze_selection(packed)
+            .expect("the canonical exception inventory is valid");
+        let (selected, decision) = analysis.into_result_and_decision();
+        let selected = selected
+            .expect("the two frame readings remain resolvable")
+            .expect("one frame reading is selected");
+        assert_eq!(
+            decision.expect("selection records its basis").resolution(),
+            SelectionResolution::Specificity,
+        );
+        assert!(!scope_witness(&selected.value).verb_frames.is_empty());
+    }
+
+    #[test]
+    fn opacity_preserves_adjunct_and_frame_internal_scope_packing() {
+        let adjunct = ability_candidates(
+            "Draw a card for each Island you control.",
+            "Flow of Ideas",
+            true,
+        );
+        assert_eq!(adjunct.len(), 1);
+        let adjunct_projection = super::ScopeProjection::of(&adjunct[0].value);
+        assert!(adjunct_projection.verb_frames().is_empty());
+        assert!(
+            adjunct_projection
+                .mobiles()
+                .iter()
+                .any(|mobile| mobile.role == "adjunct")
+        );
+
+        {
+            let text = "Put all artifacts and creatures with mana value X or less into your hand.";
+            let raw = ability_candidates(text, "Context Card", false);
+            let packed = ability_candidates(text, "Context Card", true);
+            assert!(
+                raw.len() > packed.len(),
+                "the scope alternatives behind an opaque edge did not pack for {text:?}: {} -> {}",
+                raw.len(),
+                packed.len(),
+            );
+            assert!(packed.iter().all(|candidate| {
+                scope_witness(&candidate.value)
+                    .populated_frame_roles
+                    .is_empty()
+            }));
+        }
+
+        {
+            let text =
+                "A creature card you control in exile with mana value 2 or less gains 2 life.";
+            let raw = ability_candidates(text, "Context Card", false);
+            let packed = ability_candidates(text, "Context Card", true);
+            assert!(
+                raw.len() > packed.len(),
+                "the scope alternatives inside a frame Object did not pack for {text:?}: {} -> {}",
+                raw.len(),
+                packed.len(),
+            );
         }
     }
 
@@ -4946,6 +5466,8 @@ mod tests {
                 kind: super::ScopeNodeKind::Leaf(index),
                 children: Vec::new(),
                 span: Some((index, index + 1)),
+                domain: 0,
+                verb_frame: false,
             }
         }
 
@@ -4967,6 +5489,8 @@ mod tests {
                 kind: super::ScopeNodeKind::Construction(identity, index),
                 children,
                 span,
+                domain: 0,
+                verb_frame: false,
             }
         }
 
