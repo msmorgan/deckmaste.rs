@@ -1,8 +1,9 @@
 KeywordAbility(
     name: "Protection",
     params: [Quality],
-    spelling: "protection from",
+    spelling: "protection",
     grammar: FixedKeyword(
-        surface: "protection from",
+        surface: "protection",
+        parameter: Quality(preposition: ("Preposition", "From")),
     ),
 )

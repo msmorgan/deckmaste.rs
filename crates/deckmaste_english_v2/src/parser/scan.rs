@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarPosition;
+use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::Onset;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 
@@ -916,7 +917,12 @@ impl ScanInput<'_> {
         params: Option<&[&str]>,
         feature: SurfaceFeature,
         right_boundary: LexicalBoundary,
-    ) -> Vec<(usize, DeclarationId, Onset)> {
+    ) -> Vec<(
+        usize,
+        DeclarationId,
+        Option<deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar>,
+        Onset,
+    )> {
         let offset = self.position.byte_offset;
         let initial = matches!(
             self.position.case,
@@ -970,7 +976,13 @@ impl ScanInput<'_> {
                                 .eq(params.iter().copied())
                         })
                     }))
-                .then(|| (end, reading.id().clone(), reading.onset()))
+                .then(|| {
+                    let parameter = record.and_then(|record| match record.recipe() {
+                        Some(GrammarRecipe::FixedKeyword { parameter }) => parameter.clone(),
+                        _ => None,
+                    });
+                    (end, reading.id().clone(), parameter, reading.onset())
+                })
             }));
         }
         results.sort();

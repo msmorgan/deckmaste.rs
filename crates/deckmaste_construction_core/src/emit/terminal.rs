@@ -1,4 +1,5 @@
 use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::identifier::emitted_ident;
@@ -695,12 +696,15 @@ pub(crate) fn emit(
                     .map(|kind| crate::emit::declaration_kind(*kind));
                 let position = crate::emit::grammar_position(row.position());
                 let feature = crate::emit::surface_feature(row.feature());
+                let parameter_prepositions =
+                    fixed_keyword_parameter_preposition_match_arms(validated);
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.codec_name()),
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #term {
                             id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                            parameter: Option<(u16, Option<::deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>)>,
                         }
                     },
                     vec![origin.clone()],
@@ -717,24 +721,49 @@ pub(crate) fn emit(
                                 id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
                             ) -> Option<Self> {
                                 let recipe = environment.grammar_recipe(&id)?;
+                                let parameter = match recipe {
+                                    ::deckmaste_construction_core::macro_def::GrammarRecipe::FixedKeyword { parameter } => parameter.clone(),
+                                    _ => None,
+                                };
                                 (recipe.position() == #position)
                                     .then_some(())
                                     .and_then(|_| environment.surface(
                                         &id,
                                         #feature,
                                     ))
-                                    .and_then(|_| Self::from_reading(id))
+                                    .and_then(|_| {
+                                        let parameter = parameter.as_ref().map(|parameter| match parameter {
+                                            ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Quality {
+                                                preposition: ::deckmaste_construction_core::macro_def::FixedLexeme(terminal, member),
+                                                nominal_number,
+                                            } => (
+                                                match (terminal.as_str(), member.as_str()) {
+                                                    #(#parameter_prepositions)*
+                                                    _ => u16::MAX,
+                                                },
+                                                *nominal_number,
+                                            ),
+                                        });
+                                        Self::from_reading(id, parameter)
+                                    })
                             }
 
                             pub(crate) fn from_reading(
                                 id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                                parameter: Option<(u16, Option<::deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>)>,
                             ) -> Option<Self> {
                                 matches!(id.kind(), #(#allowed)|*)
-                                    .then_some(Self { id })
+                                    .then_some(Self { id, parameter })
                             }
 
                             pub fn id(&self) -> &::deckmaste_construction_core::macro_def::DeclarationIdentity {
                                 &self.id
+                            }
+
+                            pub(crate) fn parameter(
+                                &self,
+                            ) -> Option<(u16, Option<::deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>)> {
+                                self.parameter
                             }
                         }
                     },
@@ -800,7 +829,6 @@ pub(crate) fn emit(
     }) {
         items.extend(emit_frame_complement_pair_role_resolver(validated));
     }
-
     Ok((items, contributions))
 }
 
@@ -1317,6 +1345,32 @@ fn emit_frame_complement_pair_role_resolver(plan: &SemanticPlan) -> [GeneratedIt
             origins,
         ),
     ]
+}
+
+pub(super) fn fixed_keyword_parameter_preposition_match_arms(
+    plan: &SemanticPlan,
+) -> Vec<TokenStream> {
+    let mut arms = Vec::new();
+    for terminal in plan.terminals() {
+        let TerminalPlan::Vocab(vocab) = terminal else {
+            continue;
+        };
+        if vocab
+            .feature_members(crate::feature::Feature::PrepositionComplementKind)
+            .is_none()
+        {
+            continue;
+        }
+        let terminal_name = syn::LitStr::new(vocab.name(), vocab.name_ident().span());
+        for variant in vocab.variants() {
+            let member_name = identifier_key(variant.name());
+            let member = syn::LitStr::new(&member_name, variant.name().span());
+            let index = u16::try_from(arms.len())
+                .expect("preposition-bearing vocabulary index must fit the scanner carrier");
+            arms.push(quote! { (#terminal_name, #member) => #index, });
+        }
+    }
+    arms
 }
 
 fn emit_lexeme_surface_helper(

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use proc_macro2::Ident;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -469,6 +470,18 @@ fn lower_checked_field_arguments(
     arguments
         .iter()
         .map(|argument| {
+            if let FieldCheckArgumentPlan::Value { role } = argument {
+                let value = if role == context.owner {
+                    context.owner_value.clone()
+                } else {
+                    lowering
+                        .field_values
+                        .get(role)
+                        .cloned()
+                        .ok_or_else(|| internal("value projection has no lowered value"))?
+                };
+                return Ok(quote! { &#value });
+            }
             let FieldCheckArgumentPlan::Feature { role, feature } = argument else {
                 let FieldCheckArgumentPlan::VerbFrameRolePrepositions { role } = argument else {
                     unreachable!("sealed field-check argument changed variant")
@@ -578,7 +591,7 @@ fn lower_ordered_role_preemption_guard(
     let mut projection_sources = checked_fields.iter().flat_map(|(_, _, arguments)| {
         arguments.iter().filter_map(|argument| match argument {
             FieldCheckArgumentPlan::VerbFrameRolePrepositions { role } => Some(role.as_str()),
-            FieldCheckArgumentPlan::Feature { .. } => None,
+            FieldCheckArgumentPlan::Feature { .. } | FieldCheckArgumentPlan::Value { .. } => None,
         })
     });
     let source_role = projection_sources
@@ -1418,24 +1431,12 @@ fn lower_terminal_value(
         AtomTerminal::DeclarationTerm {
             terminal_index,
             plan,
-        } => {
-            let term = plan.codec_ident();
-            let binding = binders.allocate(preferred);
-            Ok(LoweredValue {
-                pattern: quote! {
-                    BuildValue::Leaf(Leaf::DeclarationTerm {
-                        terminal_index: #terminal_index,
-                        id: #binding,
-                        onset: _,
-                        possessive_ending: _,
-                    })
-                },
-                expression: quote! {
-                    #term::from_reading(#binding.clone())
-                        .expect("scanned declaration term preserves its codec kind")
-                },
-            })
-        }
+        } => Ok(lower_declaration_term_terminal(
+            terminal_index,
+            plan.codec_ident(),
+            preferred,
+            binders,
+        )),
         AtomTerminal::DeclarationVerb { plan, .. } => {
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
@@ -1491,6 +1492,32 @@ fn lower_terminal_value(
                 expression,
             })
         }
+    }
+}
+
+fn lower_declaration_term_terminal(
+    terminal_index: usize,
+    term: &Ident,
+    preferred: &str,
+    binders: &mut LocalAllocator,
+) -> LoweredValue {
+    let terminal_index = syn::Index::from(terminal_index);
+    let binding = binders.allocate(preferred);
+    let parameter = binders.allocate(&format!("{preferred}_parameter"));
+    LoweredValue {
+        pattern: quote! {
+            BuildValue::Leaf(Leaf::DeclarationTerm {
+                terminal_index: #terminal_index,
+                id: #binding,
+                parameter: #parameter,
+                onset: _,
+                possessive_ending: _,
+            })
+        },
+        expression: quote! {
+            #term::from_reading(#binding.clone(), #parameter.clone())
+                .expect("scanned declaration term preserves its codec kind")
+        },
     }
 }
 
@@ -3044,8 +3071,12 @@ fn lower_terminal_role(
             terminal_index,
             plan,
         } => {
+            let terminal_index = syn::Index::from(terminal_index);
             let term = plan.codec_ident();
             let value = lowering.binders.allocate(&identifier_key(&role));
+            let parameter = lowering
+                .binders
+                .allocate(&format!("{}_parameter", identifier_key(&role)));
             let onset = lowering
                 .binders
                 .allocate(&format!("{}_onset", identifier_key(&role)));
@@ -3064,6 +3095,7 @@ fn lower_terminal_role(
                 BuildValue::Leaf(Leaf::DeclarationTerm {
                     terminal_index: #terminal_index,
                     id: #value,
+                    parameter: #parameter,
                     onset: #onset,
                     possessive_ending: #possessive_ending,
                 })
@@ -3071,7 +3103,7 @@ fn lower_terminal_role(
             lowering.field_values.insert(
                 identifier_key(&role),
                 quote! {
-                    #term::from_reading(#value.clone())
+                    #term::from_reading(#value.clone(), #parameter.clone())
                         .expect("scanned declaration term preserves its codec kind")
                 },
             );

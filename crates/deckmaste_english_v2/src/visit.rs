@@ -511,6 +511,8 @@ pub use crate::constructions::walk_preposed_if_clause_tail_value;
 pub use crate::constructions::walk_preposed_predicate_clause_tail_attachment;
 pub use crate::constructions::walk_preposition;
 pub use crate::constructions::walk_prepositional_complement;
+pub use crate::constructions::walk_prepositional_keyword_quality;
+pub use crate::constructions::walk_prepositional_keyword_quality_value;
 pub use crate::constructions::walk_prepositional_phrase;
 pub use crate::constructions::walk_prepositional_phrase_value;
 pub use crate::constructions::walk_prepositional_predicate_adjunct;

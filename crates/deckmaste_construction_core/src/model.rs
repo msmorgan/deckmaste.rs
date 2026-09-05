@@ -111,6 +111,7 @@ pub struct FieldCheck {
 #[derive(Debug)]
 pub enum FieldCheckArgument {
     Feature(FeatureSlot),
+    Value { role: Ident },
     VerbFrameRolePrepositions { role: Ident },
 }
 

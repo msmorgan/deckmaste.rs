@@ -309,7 +309,7 @@ impl DeclarationRecord {
                 GrammarRecipe::Noun
                 | GrammarRecipe::FixedTerm
                 | GrammarRecipe::FixedClause
-                | GrammarRecipe::FixedKeyword,
+                | GrammarRecipe::FixedKeyword { .. },
             )
             | None => None,
         }

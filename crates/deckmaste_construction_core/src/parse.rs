@@ -369,7 +369,9 @@ fn parse_field_check(
         let role = content.parse()?;
         content.parse::<Token![.]>()?;
         let feature = content.call(Ident::parse_any)?;
-        if feature == "verb_frame_role_prepositions" {
+        if feature == "value" {
+            arguments.push(FieldCheckArgument::Value { role });
+        } else if feature == "verb_frame_role_prepositions" {
             arguments.push(FieldCheckArgument::VerbFrameRolePrepositions { role });
         } else {
             let label = legacy_label.unwrap_or("field-check");

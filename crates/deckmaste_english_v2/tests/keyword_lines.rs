@@ -107,6 +107,7 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
             vec!["Enchant"],
         ),
         ("Enchant creature without flying", vec!["Enchant", "Flying"]),
+        ("Affinity for artifacts", vec!["Affinity"]),
         ("Protection from black", vec!["Protection"]),
         ("LEVEL 1-3\n4/4", vec!["LevelUp"]),
         ("Protection from everything", vec!["Protection"]),
@@ -139,6 +140,54 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
                 .collect::<Vec<_>>();
             assert_eq!(creature_subtypes, ["Vampire", "Werewolf", "Zombie"]);
         }
+    }
+}
+
+#[test]
+fn declared_quality_prepositions_stay_inside_keyword_abilities() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+    let bare_analysis = parser.analyze_oracle_text("Affinity for Equipment", &context());
+    let bare_decision = bare_analysis
+        .decision()
+        .expect("bare affinity has a selection decision");
+    assert_eq!(bare_decision.selected(), Some(0));
+    assert_eq!(bare_decision.survivors(), &[0]);
+
+    let text = "Spells you cast have affinity for artifacts.";
+
+    assert_exact_document(&parser, &environment, text);
+    let analysis = parser.analyze_oracle_text(text, &context());
+    let decision = analysis
+        .decision()
+        .expect("keyword grant has a selection decision");
+    let selected = decision
+        .candidates()
+        .iter()
+        .find(|candidate| Some(candidate.ordinal()) == decision.selected())
+        .expect("keyword grant has one selected candidate");
+    assert!(
+        selected
+            .construction_path()
+            .iter()
+            .any(|name| name == "QualifiedKeywordLineItemQualifiedKeywordLineItem"),
+        "{:#?}",
+        selected.construction_path(),
+    );
+    assert!(
+        !selected
+            .construction_path()
+            .iter()
+            .any(|name| name == "ReferencedQualityKeywordAbilityReferencedQualityKeywordAbility"),
+        "{:#?}",
+        selected.construction_path(),
+    );
+
+    for mismatched in ["Affinity from artifacts", "Protection for black"] {
+        assert!(
+            parser.parse_oracle_text(mismatched, &context()).is_err(),
+            "{mismatched:?} must not override its declared parameter preposition",
+        );
     }
 }
 

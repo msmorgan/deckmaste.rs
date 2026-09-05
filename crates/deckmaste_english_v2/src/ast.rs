@@ -536,6 +536,8 @@ pub use crate::constructions::PreposedIfClauseTailValue;
 pub use crate::constructions::PreposedPredicateClauseTailAttachment;
 pub use crate::constructions::Preposition;
 pub use crate::constructions::PrepositionalComplement;
+pub use crate::constructions::PrepositionalKeywordQuality;
+pub use crate::constructions::PrepositionalKeywordQualityValue;
 pub use crate::constructions::PrepositionalPhrase;
 pub use crate::constructions::PrepositionalPhraseValue;
 pub use crate::constructions::PrepositionalPredicateAdjunct;

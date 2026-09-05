@@ -1482,18 +1482,19 @@ fn declaration_term_lexical_variants(
 ) {
     let present = !inventory.declaration_terms.is_empty();
     (
-        present.then(|| quote! { DeclarationTerm(usize), }),
+        present.then(|| quote! { DeclarationTerm(u16), }),
         present.then(|| {
             quote! {
                 DeclarationTerm {
-                    terminal_index: usize,
+                    terminal_index: u16,
                     id: ::deckmaste_construction_core::macro_def::DeclarationIdentity,
+                    parameter: Option<(u16, Option<::deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>)>,
                     onset: Onset,
                     possessive_ending: PossessiveEnding,
                 },
             }
         }),
-        present.then(|| quote! { DeclarationTerm(usize), }),
+        present.then(|| quote! { DeclarationTerm(u16), }),
     )
 }
 
@@ -1680,7 +1681,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_determinative = (!inventory.declaration_determinatives.is_empty())
         .then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_term =
-        (!inventory.declaration_terms.is_empty()).then(|| quote! { DeclarationTerm(usize), });
+        (!inventory.declaration_terms.is_empty()).then(|| quote! { DeclarationTerm(u16), });
     let declaration_verb =
         (!inventory.declaration_verbs.is_empty()).then(|| quote! { DeclarationVerb(usize), });
     let catalog_identity =
@@ -2503,6 +2504,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             .declaration_terms
             .iter()
             .map(|(terminal_index, codec)| {
+                let terminal_index = syn::Index::from(*terminal_index);
                 let feature = crate::emit::surface_feature(codec.feature());
                 quote! {
                     (

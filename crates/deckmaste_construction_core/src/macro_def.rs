@@ -282,7 +282,31 @@ pub enum Grammar {
         participial_adjective: Option<ParticipialAdjectiveGrammar>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         block_label: Option<BlockLabelGrammar>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parameter: Option<FixedKeywordParameterGrammar>,
     },
+}
+
+/// The surface grammar selected by one fixed keyword parameter.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
+pub enum FixedKeywordParameterGrammar {
+    Quality {
+        preposition: FixedLexeme,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        nominal_number: Option<FixedKeywordNominalNumber>,
+    },
+}
+
+/// One vocabulary member selected as a fixed grammatical marker.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
+pub struct FixedLexeme(pub String, pub String);
+
+/// A grammatical-number selection made by a fixed keyword parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
+pub enum FixedKeywordNominalNumber {
+    Singular,
+    Plural,
 }
 
 /// A supplemental participial-adjective use of a fixed keyword declaration.
@@ -583,11 +607,15 @@ impl GrammarRow {
 /// Closed recipe information retained after surface sealing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GrammarRecipe {
-    Verb { frame_set: VerbFrameSet },
+    Verb {
+        frame_set: VerbFrameSet,
+    },
     Noun,
     FixedTerm,
     FixedClause,
-    FixedKeyword,
+    FixedKeyword {
+        parameter: Option<FixedKeywordParameterGrammar>,
+    },
 }
 
 impl GrammarRecipe {
@@ -599,7 +627,7 @@ impl GrammarRecipe {
             Self::Noun => GrammarPosition::Noun,
             Self::FixedTerm => GrammarPosition::FixedTerm,
             Self::FixedClause => GrammarPosition::FixedClause,
-            Self::FixedKeyword => GrammarPosition::FixedKeyword,
+            Self::FixedKeyword { .. } => GrammarPosition::FixedKeyword,
         }
     }
 }
@@ -962,6 +990,10 @@ pub enum ValidationError {
     DuplicateVerbFrame { frame: VerbFrame },
     #[error("Custom Literal atoms must contain a nonempty, trimmed, single-line terminal span")]
     InvalidCustomLiteral,
+    #[error("a fixed lexical marker requires nonempty vocabulary and member names")]
+    InvalidFixedLexeme,
+    #[error("fixed Quality parameter grammar requires a quality-bearing keyword ability signature")]
+    FixedKeywordParameterGrammarMismatch,
     #[error(
         "spelling head `{spelling_head}` does not match this declaration's grammar head `{grammar_head}`"
     )]
@@ -1560,6 +1592,13 @@ fn normalize(
             )
         })
         .transpose()?;
+    validate_fixed_keyword_parameter_grammar(
+        &path,
+        source_map.declaration,
+        kind,
+        params.as_deref(),
+        grammar.as_ref(),
+    )?;
 
     Ok(NormalizedDeclaration {
         identity,
@@ -1571,6 +1610,34 @@ fn normalize(
         body,
         provenance: SourceProvenance { path },
     })
+}
+
+fn validate_fixed_keyword_parameter_grammar(
+    path: &Path,
+    position: SourcePosition,
+    kind: DeclarationKind,
+    params: Option<&[ParameterType]>,
+    grammar: Option<&GrammarRow>,
+) -> Result<(), ReadError> {
+    let Some(GrammarRecipe::FixedKeyword {
+        parameter: Some(FixedKeywordParameterGrammar::Quality { .. }),
+    }) = grammar.map(GrammarRow::recipe)
+    else {
+        return Ok(());
+    };
+    if kind == DeclarationKind::KeywordAbility
+        && matches!(
+            params,
+            Some([ParameterType::Quality] | [ParameterType::Quality, ParameterType::Cost])
+        )
+    {
+        return Ok(());
+    }
+    Err(validation_error_at(
+        path,
+        position,
+        ValidationError::FixedKeywordParameterGrammarMismatch,
+    ))
 }
 
 fn normalized_kind(
@@ -1830,6 +1897,7 @@ fn normalize_grammar(
                     onset,
                     participial_adjective,
                     block_label,
+                    parameter,
                 },
                 GrammarSourceMap::Fixed {
                     surface: position,
@@ -1847,6 +1915,7 @@ fn normalize_grammar(
                 onset,
                 participial_adjective,
                 block_label,
+                parameter,
             )?,
             _ => {
                 return Err(source_map_parse_error(
@@ -1925,13 +1994,26 @@ fn normalize_fixed_keyword_grammar(
     onset: Option<Onset>,
     participial_adjective: Option<ParticipialAdjectiveGrammar>,
     block_label: Option<BlockLabelGrammar>,
+    parameter: Option<FixedKeywordParameterGrammar>,
 ) -> Result<NormalizedGrammarParts, ReadError> {
+    if let Some(FixedKeywordParameterGrammar::Quality {
+        preposition: FixedLexeme(vocabulary, member),
+        ..
+    }) = &parameter
+        && (vocabulary.is_empty() || member.is_empty())
+    {
+        return Err(validation_error_at(
+            path,
+            positions.surface,
+            ValidationError::InvalidFixedLexeme,
+        ));
+    }
     let (head, recipe, surfaces) = fixed_grammar(
         path,
         positions.surface,
         surface,
         onset,
-        GrammarRecipe::FixedKeyword,
+        GrammarRecipe::FixedKeyword { parameter },
     )?;
     let participial_adjective = participial_adjective
         .map(|grammar| {

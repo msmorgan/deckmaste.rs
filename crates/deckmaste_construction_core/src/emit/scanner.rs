@@ -646,6 +646,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
 fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     plan.runtime_declaration_terms()
         .map(|(terminal_index, codec)| {
+            let terminal_index = syn::Index::from(terminal_index);
             let position = crate::emit::grammar_position(codec.position());
             let kinds = codec
                 .kinds()
@@ -661,6 +662,8 @@ fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 },
             );
             let feature = crate::emit::surface_feature(codec.feature());
+            let parameter_prepositions =
+                super::terminal::fixed_keyword_parameter_preposition_match_arms(plan);
             quote! {
                 Lexical::DeclarationTerm(#terminal_index) => input
                     .declaration_term_readings(
@@ -671,11 +674,23 @@ fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         terminal.right_boundary,
                     )
                     .into_iter()
-                    .map(|(end, id, onset)| LexicalMatch {
+                    .map(|(end, id, parameter, onset)| LexicalMatch {
                         end,
                         value: Leaf::DeclarationTerm {
                             terminal_index: #terminal_index,
                             id,
+                            parameter: parameter.as_ref().map(|parameter| match parameter {
+                                ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Quality {
+                                    preposition: ::deckmaste_construction_core::macro_def::FixedLexeme(terminal, member),
+                                    nominal_number,
+                                } => (
+                                    match (terminal.as_str(), member.as_str()) {
+                                        #(#parameter_prepositions)*
+                                        _ => u16::MAX,
+                                    },
+                                    *nominal_number,
+                                ),
+                            }),
                             onset,
                             possessive_ending: possessive_ending_at(input.text, end),
                         },

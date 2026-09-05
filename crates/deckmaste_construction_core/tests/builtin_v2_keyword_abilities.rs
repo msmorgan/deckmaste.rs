@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::FixedKeywordNominalNumber;
+use deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar;
+use deckmaste_construction_core::macro_def::FixedLexeme;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::KeywordParameterClass;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
@@ -197,7 +200,22 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         let grammar = declaration
             .grammar()
             .expect("every keyword stub contributes grammar");
-        assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
+        let parameter = match name.as_str() {
+            "Affinity" => Some(FixedKeywordParameterGrammar::Quality {
+                preposition: FixedLexeme("Preposition".to_owned(), "For".to_owned()),
+                nominal_number: Some(FixedKeywordNominalNumber::Plural),
+            }),
+            "Protection" => Some(FixedKeywordParameterGrammar::Quality {
+                preposition: FixedLexeme("Preposition".to_owned(), "From".to_owned()),
+                nominal_number: None,
+            }),
+            _ => None,
+        };
+        assert_eq!(
+            grammar.recipe(),
+            &GrammarRecipe::FixedKeyword { parameter },
+            "{name}",
+        );
         assert_eq!(grammar.surfaces().len(), 1);
         assert_eq!(grammar.surfaces()[0].feature(), SurfaceFeature::Fixed);
         if let Some(expected_params) = parameterized.get(name.as_str()) {
@@ -234,6 +252,29 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             [SpellingPart::Literal(surface.to_owned())]
         );
         assert_eq!(declaration.grammar().unwrap().surfaces()[0].text(), surface);
+    }
+}
+
+#[test]
+fn prepositional_quality_keywords_declare_their_selected_markers() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    for (name, member, nominal_number) in [
+        ("Affinity", "For", Some(FixedKeywordNominalNumber::Plural)),
+        ("Protection", "From", None),
+    ] {
+        assert_eq!(
+            ability(&declarations, name).grammar().unwrap().recipe(),
+            &GrammarRecipe::FixedKeyword {
+                parameter: Some(FixedKeywordParameterGrammar::Quality {
+                    preposition: FixedLexeme("Preposition".to_owned(), member.to_owned()),
+                    nominal_number,
+                }),
+            },
+            "{name}",
+        );
     }
 }
 
@@ -281,7 +322,10 @@ fn attachment_keywords_declare_their_participial_adjective_surfaces() {
         let grammar = ability(&declarations, name)
             .grammar()
             .expect("keyword declaration contributes its primary grammar");
-        assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
+        assert_eq!(
+            grammar.recipe(),
+            &GrammarRecipe::FixedKeyword { parameter: None }
+        );
         let adjective = grammar
             .participial_adjective()
             .expect("attachment keyword contributes a participial adjective");

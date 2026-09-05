@@ -4,5 +4,9 @@ KeywordAbility(
     spelling: "affinity",
     grammar: FixedKeyword(
         surface: "affinity",
+        parameter: Quality(
+            preposition: ("Preposition", "For"),
+            nominal_number: Plural,
+        ),
     ),
 )

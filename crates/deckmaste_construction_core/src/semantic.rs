@@ -593,6 +593,7 @@ pub(crate) struct ConstructionFieldPlan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldCheckArgumentPlan {
     Feature { role: String, feature: Feature },
+    Value { role: String },
     VerbFrameRolePrepositions { role: String },
 }
 
@@ -3466,6 +3467,11 @@ impl ConstructionPlan {
                                         FieldCheckArgumentPlan::Feature {
                                             role: identifier_key(&argument.role),
                                             feature: Feature::from(argument.feature),
+                                        }
+                                    }
+                                    crate::model::FieldCheckArgument::Value { role } => {
+                                        FieldCheckArgumentPlan::Value {
+                                            role: identifier_key(role),
                                         }
                                     }
                                     crate::model::FieldCheckArgument::VerbFrameRolePrepositions {

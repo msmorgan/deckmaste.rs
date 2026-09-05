@@ -2328,6 +2328,7 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
             Ok(quote! { LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index) })
         }
         AtomTerminal::DeclarationTerm { terminal_index, .. } => {
+            let terminal_index = syn::Index::from(terminal_index);
             Ok(quote! { LexicalOwnerTemplate::DeclarationTerm(#terminal_index) })
         }
         AtomTerminal::DeclarationVerb { terminal_index, .. } => {
@@ -2374,6 +2375,7 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             Ok(quote! { Lexical::DeclarationDeterminative(#terminal_index) })
         }
         AtomTerminal::DeclarationTerm { terminal_index, .. } => {
+            let terminal_index = syn::Index::from(terminal_index);
             Ok(quote! { Lexical::DeclarationTerm(#terminal_index) })
         }
         AtomTerminal::DeclarationVerb { .. } => Err(internal(

@@ -1015,6 +1015,7 @@ enum NonterminalKind {
     SpacedKeywordCost,
     DashedKeywordCost,
     KeywordQuality,
+    PrepositionalKeywordQuality,
     KeywordSubject,
     KeywordSubjectModifier,
     KeywordCostPredicate,
@@ -1761,6 +1762,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::SpacedKeywordCost => NonterminalKind::SpacedKeywordCost,
         NonterminalCategory::DashedKeywordCost => NonterminalKind::DashedKeywordCost,
         NonterminalCategory::KeywordQuality => NonterminalKind::KeywordQuality,
+        NonterminalCategory::PrepositionalKeywordQuality => {
+            NonterminalKind::PrepositionalKeywordQuality
+        }
         NonterminalCategory::KeywordSubject => NonterminalKind::KeywordSubject,
         NonterminalCategory::KeywordSubjectModifier => NonterminalKind::KeywordSubjectModifier,
         NonterminalCategory::KeywordCostPredicate => NonterminalKind::KeywordCostPredicate,

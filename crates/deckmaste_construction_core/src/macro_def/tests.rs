@@ -860,7 +860,10 @@ KeywordAbility(
     )
     .expect("a keyword line may separately declare its participial adjective");
     let grammar = declaration.grammar().expect("grammar normalizes");
-    assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
+    assert_eq!(
+        grammar.recipe(),
+        &GrammarRecipe::FixedKeyword { parameter: None }
+    );
     assert_eq!(grammar.surfaces().len(), 1);
     assert_eq!(grammar.surfaces()[0].text(), "turn");
     let adjective = grammar

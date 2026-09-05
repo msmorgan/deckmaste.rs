@@ -6549,6 +6549,17 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                                 &mut errors,
                             );
                         }
+                        crate::model::FieldCheckArgument::Value { role } => {
+                            if !fields.contains_key(&identifier_key(role)) {
+                                combine(
+                                    &mut errors,
+                                    syn::Error::new(
+                                        role.span(),
+                                        "field-check value projection names an unknown role",
+                                    ),
+                                );
+                            }
+                        }
                         crate::model::FieldCheckArgument::VerbFrameRolePrepositions { role } => {
                             check_verb_frame_role_prepositions(role, &fields, symbols, &mut errors);
                         }

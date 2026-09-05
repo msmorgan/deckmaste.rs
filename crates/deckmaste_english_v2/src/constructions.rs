@@ -4953,6 +4953,7 @@ constructions! {
     }
     abstract sum KeywordQuality {
         Reference: Nominal,
+        Prepositional: PrepositionalKeywordQuality,
         Coordination: KeywordQualityCoordination,
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
@@ -5015,13 +5016,20 @@ constructions! {
         derive locative_temporal_license = Values::Unlicensed;
         form amount_cost_keyword_line_item = lex(keyword) amount cost;
     }
+    construction prepositional_keyword_quality: PrepositionalKeywordQuality {
+        element PrepositionalKeywordQualityValue {
+            preposition: lex Preposition,
+            nominal: Nominal,
+        }
+        form prepositional_keyword_quality = lex(preposition) nominal;
+    }
     construction keyword_quality_coordination: KeywordQualityCoordination {
         element KeywordQualityCoordinationValue {
-            members: seq Nominal separated by position {
-                pair = " and from ";
-                first = ", from ";
-                middle = ", from ";
-                last = ", and from ";
+            members: seq PrepositionalKeywordQuality separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
             },
         }
         require len(members) >= 2;
@@ -5029,7 +5037,9 @@ constructions! {
     }
     construction qualified_keyword_line_item: QualifiedKeywordLineItem {
         element QualifiedKeywordLineItemValue {
-            keyword: lex QualityKeywordAbility,
+            keyword: lex QualityKeywordAbility checked by keyword_parameter_accepts_quality(
+                quality.value
+            ),
             quality: KeywordQuality,
         }
         derive relationality = Values::NonRelational;
@@ -5038,7 +5048,9 @@ constructions! {
     }
     construction quality_cost_keyword_line_item: QualityCostKeywordLineItem {
         element QualityCostKeywordLineItemValue {
-            keyword: lex QualityCostKeywordAbility,
+            keyword: lex QualityCostKeywordAbility checked by keyword_parameter_accepts_quality(
+                quality.value
+            ),
             quality: KeywordQuality,
             cost: KeywordCostSeparator,
         }
@@ -5074,13 +5086,17 @@ constructions! {
         form referenced_amount_cost_keyword_ability = lex(keyword);
     }
     construction referenced_quality_keyword_ability: ReferencedQualityKeywordAbility {
-        element ReferencedQualityKeywordAbilityValue { keyword: lex QualityKeywordAbility, }
+        element ReferencedQualityKeywordAbilityValue {
+            keyword: lex QualityKeywordAbility checked by keyword_parameter_is_unmarked(),
+        }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form referenced_quality_keyword_ability = lex(keyword);
     }
     construction referenced_quality_cost_keyword_ability: ReferencedQualityCostKeywordAbility {
-        element ReferencedQualityCostKeywordAbilityValue { keyword: lex QualityCostKeywordAbility, }
+        element ReferencedQualityCostKeywordAbilityValue {
+            keyword: lex QualityCostKeywordAbility checked by keyword_parameter_is_unmarked(),
+        }
         derive relationality = Values::NonRelational;
         derive locative_temporal_license = Values::Unlicensed;
         form referenced_quality_cost_keyword_ability = lex(keyword);
@@ -5443,6 +5459,87 @@ fn nominal_preposition_is_licensed(
                     LocativeTemporalLicense::ObjectAttachmentLicensed
                         | LocativeTemporalLicense::OfInAndOnLicensed
                 )
+        }
+    }
+}
+
+trait FixedKeywordParameterCarrier {
+    fn fixed_keyword_parameter(
+        &self,
+    ) -> Option<(
+        u16,
+        Option<deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>,
+    )>;
+}
+
+impl FixedKeywordParameterCarrier for QualityKeywordAbility {
+    fn fixed_keyword_parameter(
+        &self,
+    ) -> Option<(
+        u16,
+        Option<deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>,
+    )> {
+        self.parameter()
+    }
+}
+
+impl FixedKeywordParameterCarrier for QualityCostKeywordAbility {
+    fn fixed_keyword_parameter(
+        &self,
+    ) -> Option<(
+        u16,
+        Option<deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>,
+    )> {
+        self.parameter()
+    }
+}
+
+fn keyword_parameter_is_unmarked(keyword: &impl FixedKeywordParameterCarrier) -> bool {
+    keyword.fixed_keyword_parameter().is_none()
+}
+
+fn keyword_parameter_accepts_quality(
+    keyword: &impl FixedKeywordParameterCarrier,
+    quality: &KeywordQuality,
+) -> bool {
+    let Some((preposition, nominal_number)) = keyword.fixed_keyword_parameter() else {
+        return matches!(quality, KeywordQuality::Reference(_));
+    };
+    match quality {
+        KeywordQuality::Reference(_) => false,
+        KeywordQuality::Prepositional(value) => {
+            prepositional_keyword_quality_matches(value, preposition, nominal_number)
+        }
+        KeywordQuality::Coordination(KeywordQualityCoordination::KeywordQualityCoordination(
+            value,
+        )) => value.members.iter().all(|quality| {
+            prepositional_keyword_quality_matches(quality, preposition, nominal_number)
+        }),
+    }
+}
+
+fn prepositional_keyword_quality_matches(
+    quality: &PrepositionalKeywordQuality,
+    parameter_preposition: u16,
+    nominal_number: Option<deckmaste_construction_core::macro_def::FixedKeywordNominalNumber>,
+) -> bool {
+    match quality {
+        PrepositionalKeywordQuality::PrepositionalKeywordQuality(value) => {
+            let preposition = verb_frame_role_preposition_for_preposition(value.preposition);
+            frame_complement_pair_role_from_keys(preposition.terminal, preposition.member)
+                == Some(usize::from(parameter_preposition))
+                && nominal_number.is_none_or(|number| {
+                    matches!(
+                        (number, number_for_nominal(&value.nominal)),
+                        (
+                            deckmaste_construction_core::macro_def::FixedKeywordNominalNumber::Singular,
+                            Number::Singular
+                        ) | (
+                            deckmaste_construction_core::macro_def::FixedKeywordNominalNumber::Plural,
+                            Number::Plural
+                        )
+                    )
+                })
         }
     }
 }
