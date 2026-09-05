@@ -27,3 +27,16 @@ Acceptance: `FEATURE_NAMES` is gone, the census's permitted split is unchanged
 on the current grammar, and adding a `Feature` variant is picked up without an
 xtask edit. Gate on `cargo test --workspace` — this is an emit-contract
 surface. Standard constraints apply.
+
+## Landing record
+
+Blocked before verification: `kata refresh` repeatedly refused this feature
+because sibling workspace `construction-compiled-consumer-values-fixture-behaviour`
+has divergent working-copy change `ltpuymsqmppzumkuvzxukkowytrrursq`.
+The refusal persisted from 20:18 through 20:21 PDT after the prescribed
+jj-sensei harmony repair confirmed this workspace clean. No gates or corpus
+measurements were run on the stale tree; this change is not ready to integrate.
+
+Deviations and additions: none. Assurance: restored 0, re-spelled 0, ignored
+0, added 1, removed 0. STOP: refresh blocker recorded; no grammar or selection
+change was made. Glossary gap: none.

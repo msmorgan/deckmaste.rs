@@ -144,6 +144,35 @@ impl<T> Spanned<T> {
 }
 
 impl Feature {
+    const ALL: &[Self] = &[
+        Self::ConcordClass,
+        Self::BareLocativeComplement,
+        Self::BareLocativeLicense,
+        Self::Cardinality,
+        Self::Compoundability,
+        Self::Countability,
+        Self::HomographLicense,
+        Self::MannerAnaphorClass,
+        Self::ModifierLicense,
+        Self::DeterminerNumber,
+        Self::FusedHeadLicense,
+        Self::PrepositionComplementKind,
+        Self::LocativeTemporalLicense,
+        Self::NominalForm,
+        Self::NominalLicense,
+        Self::Number,
+        Self::Onset,
+        Self::Participle,
+        Self::PossessiveEnding,
+        Self::PrepositionAttachment,
+        Self::Properness,
+        Self::Relationality,
+    ];
+
+    pub(crate) const fn all() -> &'static [Self] {
+        Self::ALL
+    }
+
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
             Self::ConcordClass => &[

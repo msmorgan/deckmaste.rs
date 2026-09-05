@@ -421,35 +421,9 @@ impl BodyClassifier<'_> {
 }
 
 fn is_declared_feature_identifier(identifier: &str) -> bool {
-    // Hand-copied from deckmaste_construction_core's sealed `Feature`;
-    // `construction-core-feature-key-inventory` publishes the list to consume.
-    const FEATURE_NAMES: [&str; 22] = [
-        "bare_locative_complement",
-        "bare_locative_license",
-        "cardinality",
-        "compoundability",
-        "concord_class",
-        "countability",
-        "determiner_number",
-        "fused_head_license",
-        "homograph_license",
-        "locative_temporal_license",
-        "manner_anaphor_class",
-        "modifier_license",
-        "nominal_form",
-        "nominal_license",
-        "number",
-        "onset",
-        "participle",
-        "possessive_ending",
-        "preposition_attachment",
-        "preposition_complement_kind",
-        "properness",
-        "relationality",
-    ];
     let snake = to_snake_case(identifier);
-    FEATURE_NAMES.iter().any(|feature| {
-        snake == *feature
+    deckmaste_construction_core::feature_keys().any(|feature| {
+        snake == feature
             || snake.starts_with(&format!("{feature}_"))
             || snake.ends_with(&format!("_{feature}"))
     }) || snake == "license"
@@ -579,6 +553,13 @@ mod tests {
             classify_body(&structural_name_with_lexical_body, &lexical_members),
             LicensingCheckerKind::ForbiddenLexicalIdentity,
         );
+    }
+
+    #[test]
+    fn classifier_recognizes_every_published_feature_key() {
+        for feature in deckmaste_construction_core::feature_keys() {
+            assert!(is_declared_feature_identifier(feature));
+        }
     }
 
     #[test]

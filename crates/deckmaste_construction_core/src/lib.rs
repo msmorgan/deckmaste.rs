@@ -33,6 +33,14 @@ pub use crate::report::TerminalBindingDeclaration;
 pub use crate::report::TerminalBindingDeclarationKind;
 pub use crate::validate::ValidatedDeclarations;
 
+/// Returns the sealed construction feature keys used by grammar declarations.
+pub fn feature_keys() -> impl ExactSizeIterator<Item = &'static str> {
+    feature::Feature::all()
+        .iter()
+        .copied()
+        .map(feature::Feature::key)
+}
+
 /// Parses one grammar-wide declaration invocation.
 ///
 /// # Errors
