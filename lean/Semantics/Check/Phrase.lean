@@ -1025,176 +1025,176 @@ def sliceTyOf : Option Predicate → Option CardType → Option CardType
     | none => gty
 
 mutual
-  def NounPhrase.delta (bs : Bindings) : NounPhrase → List Binding
+  def NounPhrase.introduced (bs : Bindings) : NounPhrase → List Binding
     | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
     | .theRest _ _ | .pro _ _ _ | .attachHost _ _ | .designated _ _ => []
-    | .asType _ n _ => NounPhrase.delta bs n
-    | .resolvedPermanent n => NounPhrase.delta bs n
-    | .asMarker _ n => NounPhrase.delta bs n
-    | .described d p => DetPhrase.delta bs d (p.kindOr .object) p (Predicate.delta bs p)
-    | .eachOf g => NounPhrase.delta bs g
-    | .both l r => NounPhrase.delta (NounPhrase.delta bs l ++ bs) r ++ NounPhrase.delta bs l
-    | .eitherOf l r => NounPhrase.delta bs l ++ NounPhrase.delta bs r
+    | .asType _ n _ => NounPhrase.introduced bs n
+    | .resolvedPermanent n => NounPhrase.introduced bs n
+    | .asMarker _ n => NounPhrase.introduced bs n
+    | .described d p => DetPhrase.introduced bs d (p.kindOr .object) p (Predicate.introduced bs p)
+    | .eachOf g => NounPhrase.introduced bs g
+    | .both l r => NounPhrase.introduced (NounPhrase.introduced bs l ++ bs) r ++ NounPhrase.introduced bs l
+    | .eitherOf l r => NounPhrase.introduced bs l ++ NounPhrase.introduced bs r
     | .librarySlice _ amt whose =>
       ⟨.the, outputPlur whose.plur amt.plur,
-        .object none (some .library) none none amt.exact⟩ :: NounPhrase.delta bs whose
-    | .namesAgree _ g => NounPhrase.delta bs g
+        .object none (some .library) none none amt.exact⟩ :: NounPhrase.introduced bs whose
+    | .namesAgree _ g => NounPhrase.introduced bs g
     | .someOf q d g =>
       ⟨.part, q.plur, .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact⟩
-        :: (SliceCount.delta bs q ++ OptPredicate.delta bs d ++ NounPhrase.delta bs g)
+        :: (SliceCount.introduced bs q ++ OptPredicate.introduced bs d ++ NounPhrase.introduced bs g)
     | .pileOf q none =>
       ⟨.part, q.plur,
         .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩
-        :: SliceCount.delta bs q
+        :: SliceCount.introduced bs q
     | .pileOf q (some by_) =>
       ⟨.part, q.plur,
         .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩
-        :: (SliceCount.delta bs q ++ NounPhrase.delta bs by_)
-    | .possessorOf _ n => ⟨.the, n.plur, .player false⟩ :: (NounPhrase.selfSubjDelta n ++ NounPhrase.delta bs n)
+        :: (SliceCount.introduced bs q ++ NounPhrase.introduced bs by_)
+    | .possessorOf _ n => ⟨.the, n.plur, .player false⟩ :: (NounPhrase.selfSubjIntroduced n ++ NounPhrase.introduced bs n)
     | .oneEachOf roles pool =>
       ⟨.bare, .many, .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none⟩
-        :: (Predicate.deltaAll bs roles ++ NounPhrase.delta bs pool)
+        :: (Predicate.introducedAll bs roles ++ NounPhrase.introduced bs pool)
   termination_by structural x => x
 
-  def OptPredicate.delta (bs : Bindings) : Option Predicate → List Binding
+  def OptPredicate.introduced (bs : Bindings) : Option Predicate → List Binding
     | none => []
-    | some p => Predicate.delta bs p
+    | some p => Predicate.introduced bs p
   termination_by structural x => x
 
-  def Predicate.delta (bs : Bindings) : Predicate → List Binding
-    | .abilityOf n => NounPhrase.delta bs n
-    | .activatedBy n => NounPhrase.delta bs n
-    | .targets m _ => NounPhrase.delta bs m
-    | .hasPossessor _ n => NounPhrase.delta bs n
-    | .castBy n _ => NounPhrase.delta bs n
+  def Predicate.introduced (bs : Bindings) : Predicate → List Binding
+    | .abilityOf n => NounPhrase.introduced bs n
+    | .activatedBy n => NounPhrase.introduced bs n
+    | .targets m _ => NounPhrase.introduced bs m
+    | .hasPossessor _ n => NounPhrase.introduced bs n
+    | .castBy n _ => NounPhrase.introduced bs n
     | .inCombat _ none => []
-    | .inCombat _ (some m) => NounPhrase.delta bs m
-    | .counterKindOn n => NounPhrase.delta bs n
-    | .happenedTo (.mk _ _ what) => OptComplement.delta bs what
-    | .castFrom z => ZoneExpr.delta bs z
-    | .named src => NameSource.delta bs src
+    | .inCombat _ (some m) => NounPhrase.introduced bs m
+    | .counterKindOn n => NounPhrase.introduced bs n
+    | .happenedTo (.mk _ _ what) => OptComplement.introduced bs what
+    | .castFrom z => ZoneExpr.introduced bs z
+    | .named src => NameSource.introduced bs src
     | .hasDesignation _ none => []
-    | .hasDesignation _ (some h) => NounPhrase.delta bs h
-    | .attachedBy _ by_ => NounPhrase.delta bs by_
-    | .attachedTo host => NounPhrase.delta bs host
-    | .inPile p => NounPhrase.delta bs p
-    | .inZone z => ZoneExpr.delta bs z
-    | .and ps => Predicate.deltaAll bs ps
+    | .hasDesignation _ (some h) => NounPhrase.introduced bs h
+    | .attachedBy _ by_ => NounPhrase.introduced bs by_
+    | .attachedTo host => NounPhrase.introduced bs host
+    | .inPile p => NounPhrase.introduced bs p
+    | .inZone z => ZoneExpr.introduced bs z
+    | .and ps => Predicate.introducedAll bs ps
     | .not _ => []
-    | .or ps => if Predicate.joins ps then Predicate.deltaAll bs ps else []
-    | .otherThan n => NounPhrase.delta bs n
-    | .compare _ _ b => Amount.delta bs b
-    | .superlative _ _ d => Predicate.delta bs d
+    | .or ps => if Predicate.joins ps then Predicate.introducedAll bs ps else []
+    | .otherThan n => NounPhrase.introduced bs n
+    | .compare _ _ b => Amount.introduced bs b
+    | .superlative _ _ d => Predicate.introduced bs d
     | .withMostVotes => []
     | .choseExtreme _ => [outcomeB .namedNumber]
-    | .compareOver dom _ _ bound => gapB :: (Predicate.delta bs dom ++ Amount.delta bs bound)
+    | .compareOver dom _ _ bound => gapB :: (Predicate.introduced bs dom ++ Amount.introduced bs bound)
     | _ => []
   termination_by structural x => x
 
-  def Predicate.deltaAll (bs : Bindings) : List Predicate → List Binding
+  def Predicate.introducedAll (bs : Bindings) : List Predicate → List Binding
     | [] => []
-    | p :: ps => Predicate.delta bs p ++ Predicate.deltaAll bs ps
+    | p :: ps => Predicate.introduced bs p ++ Predicate.introducedAll bs ps
   termination_by structural x => x
 
-  def DetPhrase.delta (bs : Bindings) (d : DetPhrase) (k : Kind) (p : Predicate)
+  def DetPhrase.introduced (bs : Bindings) (d : DetPhrase) (k : Kind) (p : Predicate)
       (pd : List Binding) : List Binding :=
     match d with
-    | .target q => sized q.exact (bindFor .target q.plur k p) :: (Quantity.delta bs q ++ pd)
-    | .count q _ => sized q.exact (bindFor .count q.plur k p) :: (Quantity.delta bs q ++ pd)
+    | .target q => sized q.exact (bindFor .target q.plur k p) :: (Quantity.introduced bs q ++ pd)
+    | .count q _ => sized q.exact (bindFor .count q.plur k p) :: (Quantity.introduced bs q ++ pd)
     | .the => if p.choiceRead then pd else bindFor .the .one k p :: pd
     | d => bindFor d.det d.plur k p :: pd
 
-  def LibraryPlace.delta (bs : Bindings) : LibraryPlace → List Binding
+  def LibraryPlace.introduced (bs : Bindings) : LibraryPlace → List Binding
     | .oneEnd _ => []
     | .eitherEnd none => []
-    | .eitherEnd (some n) => NounPhrase.delta bs n
+    | .eitherEnd (some n) => NounPhrase.introduced bs n
     | .shuffled => []
 
 
-  def ZoneExpr.delta (bs : Bindings) : ZoneExpr → List Binding
-    | .zone _ (.possessedBy n) => NounPhrase.delta bs n
+  def ZoneExpr.introduced (bs : Bindings) : ZoneExpr → List Binding
+    | .zone _ (.possessedBy n) => NounPhrase.introduced bs n
     | .zone _ .bare => []
-    | .library pl _ _ (.possessedBy n) => LibraryPlace.delta bs pl ++ NounPhrase.delta bs n
-    | .library pl _ _ .bare => LibraryPlace.delta bs pl
+    | .library pl _ _ (.possessedBy n) => LibraryPlace.introduced bs pl ++ NounPhrase.introduced bs n
+    | .library pl _ _ .bare => LibraryPlace.introduced bs pl
   termination_by structural x => x
 
-  def ZoneExpr.deltaAll (bs : Bindings) : List ZoneExpr → List Binding
+  def ZoneExpr.introducedAll (bs : Bindings) : List ZoneExpr → List Binding
     | [] => []
-    | z :: zs => ZoneExpr.delta bs z ++ ZoneExpr.deltaAll bs zs
+    | z :: zs => ZoneExpr.introduced bs z ++ ZoneExpr.introducedAll bs zs
   termination_by structural x => x
 
-  def NameSource.delta (bs : Bindings) : NameSource → List Binding
+  def NameSource.introduced (bs : Bindings) : NameSource → List Binding
     | .printed _ => []
     | .chosen => []
-    | .sameAs n => NounPhrase.delta bs n
+    | .sameAs n => NounPhrase.introduced bs n
 
 
-  def EventSource.delta (bs : Bindings) : EventSource → List Binding
+  def EventSource.introduced (bs : Bindings) : EventSource → List Binding
     | .anywhere => []
-    | .zones zs => ZoneExpr.deltaAll bs zs
-    | .anywhereBut zs => ZoneExpr.deltaAll bs zs
+    | .zones zs => ZoneExpr.introducedAll bs zs
+    | .anywhereBut zs => ZoneExpr.introducedAll bs zs
   termination_by structural x => x
 
-  def OptComplement.delta (bs : Bindings) : Option EventComplement → List Binding
+  def OptComplement.introduced (bs : Bindings) : Option EventComplement → List Binding
     | none => []
-    | some (.involving what) => NounPhrase.delta bs what
-    | some (.fromZones src what) => EventSource.delta bs src ++ OptComplement.delta bs what
-    | some (.intoZone to what) => ZoneExpr.delta bs to ++ OptComplement.delta bs what
-    | some (.atZone z) => ZoneExpr.delta bs z
+    | some (.involving what) => NounPhrase.introduced bs what
+    | some (.fromZones src what) => EventSource.introduced bs src ++ OptComplement.introduced bs what
+    | some (.intoZone to what) => ZoneExpr.introduced bs to ++ OptComplement.introduced bs what
+    | some (.atZone z) => ZoneExpr.introduced bs z
   termination_by structural x => x
 
-  def Amount.delta (bs : Bindings) : Amount → List Binding
+  def Amount.introduced (bs : Bindings) : Amount → List Binding
     | .lit _ => []
-    | .statOf _ nom => NounPhrase.delta bs nom
-    | .paid _ n => NounPhrase.delta bs n
+    | .statOf _ nom => NounPhrase.introduced bs nom
+    | .paid _ n => NounPhrase.introduced bs n
     | .eventTally _ who (.mk _ _ what) =>
-      NounPhrase.delta bs who ++ OptComplement.delta (NounPhrase.delta bs who ++ bs) what
-    | .countOf g => NounPhrase.delta bs g
-    | .aggregate _ _ g => NounPhrase.delta bs g
+      NounPhrase.introduced bs who ++ OptComplement.introduced (NounPhrase.introduced bs who ++ bs) what
+    | .countOf g => NounPhrase.introduced bs g
+    | .aggregate _ _ g => NounPhrase.introduced bs g
     | .thatMuch | .chosenNumber _ | .votesFor _ | .theOutcome _ | .coinsShowing _
     | .greatestStoredMatch _ | .groupSize | .theDifference => []
-    | .letter l => letterDelta l bs
-    | .arith _ a b => Amount.delta bs a ++ Amount.delta (Amount.intro bs a) b
-    | .devotion who _ _ => NounPhrase.delta bs who
-    | .half _ a => Amount.delta bs a
-    | .aggregateOver _ dom _ => Predicate.delta bs dom
-    | .distinctCount _ dom => NounPhrase.delta bs dom
-    | .upTo b => outcomeB .ceilingShortfall :: Amount.delta bs b
+    | .letter l => introducedLetters l bs
+    | .arith _ a b => Amount.introduced bs a ++ Amount.introduced (Amount.intro bs a) b
+    | .devotion who _ _ => NounPhrase.introduced bs who
+    | .half _ a => Amount.introduced bs a
+    | .aggregateOver _ dom _ => Predicate.introduced bs dom
+    | .distinctCount _ dom => NounPhrase.introduced bs dom
+    | .upTo b => outcomeB .ceilingShortfall :: Amount.introduced bs b
   termination_by structural x => x
 
-  /-- The stack after an amount, Idris `amtIntro`: not always `delta ++ bs`, because a nested
+  /-- The stack after an amount, Idris `amtIntro`: not always `introduced ++ bs`, because a nested
   amount is read at its outer amount's own intro. -/
   def Amount.intro (bs : Bindings) : Amount → Bindings
     | .lit _ => bs
-    | .statOf _ nom => NounPhrase.delta bs nom ++ bs
-    | .paid _ n => NounPhrase.delta bs n ++ bs
+    | .statOf _ nom => NounPhrase.introduced bs nom ++ bs
+    | .paid _ n => NounPhrase.introduced bs n ++ bs
     | .eventTally _ who (.mk _ _ what) =>
-      OptComplement.delta (NounPhrase.delta bs who ++ bs) what ++ (NounPhrase.delta bs who ++ bs)
-    | .countOf g => NounPhrase.delta bs g ++ bs
-    | .aggregate _ _ g => NounPhrase.delta bs g ++ bs
+      OptComplement.introduced (NounPhrase.introduced bs who ++ bs) what ++ (NounPhrase.introduced bs who ++ bs)
+    | .countOf g => NounPhrase.introduced bs g ++ bs
+    | .aggregate _ _ g => NounPhrase.introduced bs g ++ bs
     | .thatMuch | .chosenNumber _ | .votesFor _ | .theOutcome _ | .coinsShowing _
     | .greatestStoredMatch _ | .groupSize | .theDifference => bs
-    | .letter l => letterDelta l bs ++ bs
+    | .letter l => introducedLetters l bs ++ bs
     | .arith _ a b => Amount.intro (Amount.intro bs a) b
-    | .devotion who _ _ => NounPhrase.delta bs who ++ bs
+    | .devotion who _ _ => NounPhrase.introduced bs who ++ bs
     | .half _ a => Amount.intro bs a
-    | .aggregateOver _ dom _ => Predicate.delta bs dom ++ bs
-    | .distinctCount _ dom => NounPhrase.delta bs dom ++ bs
+    | .aggregateOver _ dom _ => Predicate.introduced bs dom ++ bs
+    | .distinctCount _ dom => NounPhrase.introduced bs dom ++ bs
     | .upTo b => outcomeB .ceilingShortfall :: Amount.intro bs b
   termination_by structural x => x
 
-  def Quantity.delta (bs : Bindings) : Quantity → List Binding
+  def Quantity.introduced (bs : Bindings) : Quantity → List Binding
     | .range _ _ => []
-    | .upToOf a => Amount.delta bs a
-    | .exactlyOf a => Amount.delta bs a
+    | .upToOf a => Amount.introduced bs a
+    | .exactlyOf a => Amount.introduced bs a
 
 
-  def SliceCount.delta (bs : Bindings) : SliceCount → List Binding
-    | .counted q => Quantity.delta bs q
+  def SliceCount.introduced (bs : Bindings) : SliceCount → List Binding
+    | .counted q => Quantity.introduced bs q
     | .whole => []
 
 
-  def NounPhrase.selfSubjDelta : NounPhrase → List Binding
+  def NounPhrase.selfSubjIntroduced : NounPhrase → List Binding
     | .asType t .this _ =>
       [⟨.self, .one, .object (some t) (some .battlefield) none none none⟩]
     | .attachHost _ (.type t) =>
@@ -1244,7 +1244,7 @@ mutual
 
 end
 
-def nomIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.delta bs n ++ bs
+def nomIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.introduced bs n ++ bs
 
 def sliceTy (bs : Bindings) (d : Option Predicate) (g : NounPhrase) : Option CardType :=
   sliceTyOf d (NounPhrase.ty bs g)
@@ -1299,9 +1299,9 @@ def NounPhrase.counterMemoryOk (bs : Bindings) : NounPhrase → Bool
 def NounPhrase.testSubjectOk (bs : Bindings) : NounPhrase → Bool
   | .described .the _ => true
   | .librarySlice _ _ _ => true
-  | n => (NounPhrase.delta bs n).isEmpty
+  | n => (NounPhrase.introduced bs n).isEmpty
 
-def NounPhrase.bindingless (bs : Bindings) (n : NounPhrase) : Bool := (NounPhrase.delta bs n).isEmpty
+def NounPhrase.bindingless (bs : Bindings) (n : NounPhrase) : Bool := (NounPhrase.introduced bs n).isEmpty
 
 /-- Idris `EventAgent`: an optional agent that introduces nothing. -/
 def eventAgentOk (bs : Bindings) : Option NounPhrase → Bool
@@ -1419,11 +1419,11 @@ def NounPhrase.attackerOk (bs : Bindings) (n : NounPhrase) : Bool :=
 
 /-! ## Agents, choices, and the stacks they leave -/
 
-def NounPhrase.agentDelta (bs : Bindings) : NounPhrase → List Binding
-  | .described .each p => bindFor .the .one (p.kindOr .object) p :: Predicate.delta bs p
-  | n => NounPhrase.delta bs n
+def NounPhrase.agentIntroduced (bs : Bindings) : NounPhrase → List Binding
+  | .described .each p => bindFor .the .one (p.kindOr .object) p :: Predicate.introduced bs p
+  | n => NounPhrase.introduced bs n
 
-def agentIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.agentDelta bs n ++ bs
+def agentIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.agentIntroduced bs n ++ bs
 
 def agentCtx (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
@@ -1437,21 +1437,21 @@ def kindDomainOk : KindAxis → Option NounPhrase → Bool
   | _, some _ => true
   | ax, none => ax.closed
 
-def NounPhrase.chosenDelta (bs : Bindings) : NounPhrase → List Binding
+def NounPhrase.chosenIntroduced (bs : Bindings) : NounPhrase → List Binding
   | .described (.a _) p =>
     let k := p.kindOr .object
-    chosenBind (chosenDet k .a) .one k p :: Predicate.delta bs p
+    chosenBind (chosenDet k .a) .one k p :: Predicate.introduced bs p
   | .described (.count q _) p =>
     let k := p.kindOr .object
-    chosenBind (chosenDet k .count) q.plur k p :: (Quantity.delta bs q ++ Predicate.delta bs p)
-  | .namesAgree _ g => NounPhrase.chosenDelta bs g
-  | n => NounPhrase.delta bs n
+    chosenBind (chosenDet k .count) q.plur k p :: (Quantity.introduced bs q ++ Predicate.introduced bs p)
+  | .namesAgree _ g => NounPhrase.chosenIntroduced bs g
+  | n => NounPhrase.introduced bs n
 
-def chosenIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.chosenDelta bs n ++ bs
+def chosenIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.chosenIntroduced bs n ++ bs
 
 def chosenIntroBy (bs : Bindings) : Plurality → NounPhrase → NounPhrase → Bindings
-  | .one, by_, n => NounPhrase.delta bs by_ ++ (NounPhrase.chosenDelta (agentIntro bs by_) n ++ bs)
-  | .many, by_, n => pluralizeDelta (NounPhrase.chosenDelta (agentIntro bs by_) n) ++ nomIntro bs by_
+  | .one, by_, n => NounPhrase.introduced bs by_ ++ (NounPhrase.chosenIntroduced (agentIntro bs by_) n ++ bs)
+  | .many, by_, n => pluralizeIntroduced (NounPhrase.chosenIntroduced (agentIntro bs by_) n) ++ nomIntro bs by_
 
 def chooseIntro (bs : Bindings) : Option NounPhrase → NounPhrase → Bindings
   | none, n => chosenIntro bs n
@@ -1462,7 +1462,7 @@ def optAmtIntro (bs : Bindings) : Option Amount → Bindings
   | some a => Amount.intro bs a
 
 def Delta.intro (bs : Bindings) (d : Delta Amount) : Bindings := Amount.intro bs d.amount
-def Delta.delta (bs : Bindings) (d : Delta Amount) : List Binding := Amount.delta bs d.amount
+def Delta.introduced (bs : Bindings) (d : Delta Amount) : List Binding := Amount.introduced bs d.amount
 
 def FlipScope.intro (bs : Bindings) : FlipScope → Bindings
   | .count n => Amount.intro bs n
@@ -1491,14 +1491,14 @@ def SearchScope.zone : SearchScope → Option Zone
   | .oneZone z => some z.sort
   | .someZones _ _ => none
 
-def SearchScope.delta (bs : Bindings) : SearchScope → List Binding
-  | .oneZone z => ZoneExpr.delta bs z
+def SearchScope.introduced (bs : Bindings) : SearchScope → List Binding
+  | .oneZone z => ZoneExpr.introduced bs z
   | .someZones none _ => []
-  | .someZones (some whose) _ => NounPhrase.delta bs whose
+  | .someZones (some whose) _ => NounPhrase.introduced bs whose
 
 def Exposed.intro (bs : Bindings) : Exposed → Bindings
   | .cards n => nomIntro bs n
-  | .zone z => ZoneExpr.delta bs z ++ bs
+  | .zone z => ZoneExpr.introduced bs z ++ bs
   | .choice _ => bs
 
 def VisibleThing.intro (bs : Bindings) : VisibleThing → Bindings
@@ -1513,7 +1513,7 @@ def visibilityOk : ExposeVerb → VisibleThing → Bool
   | .lookAt, .wholeHand => false
   | _, .objects _ => true
 
-def selfSubjIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.selfSubjDelta n ++ nomIntro bs n
+def selfSubjIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.selfSubjIntroduced n ++ nomIntro bs n
 
 def subjCtx (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
@@ -1538,15 +1538,15 @@ def dropGaps : List Binding → List Binding
   | b :: bs => b :: dropGaps bs
 
 mutual
-  def Condition.delta (bs : Bindings) : Condition → List Binding
+  def Condition.introduced (bs : Bindings) : Condition → List Binding
     | .exists_ _ => []
-    | .happened who _ => NounPhrase.selfSubjDelta who
+    | .happened who _ => NounPhrase.selfSubjIntroduced who
     | .gameIs _ => []
     | .noHolder _ => []
-    | .matches n _ => NounPhrase.delta bs n ++ NounPhrase.selfSubjDelta n
-    | .compareAmt subj _ bound => gapB :: (Amount.delta (Amount.intro bs subj) bound ++ Amount.delta bs subj)
+    | .matches n _ => NounPhrase.introduced bs n ++ NounPhrase.selfSubjIntroduced n
+    | .compareAmt subj _ bound => gapB :: (Amount.introduced (Amount.intro bs subj) bound ++ Amount.introduced bs subj)
     | .dealtThisWay _ => []
-    | .choseThisWay who _ => NounPhrase.selfSubjDelta who
+    | .choseThisWay who _ => NounPhrase.selfSubjIntroduced who
     | .preventedFromSource _ => []
     | .flipCalled _ _ => []
     | .flipFace _ => []
@@ -1554,14 +1554,14 @@ mutual
     | .anyResultIs _ _ => []
     | .rolledDoubles => []
     | .not (.compareAmt subj _ bound) =>
-      Amount.delta (Amount.intro bs subj) bound ++ Amount.delta bs subj
-    | .not c => dropGaps (Condition.delta bs c)
-    | .and cs => Condition.deltaAll bs cs
+      Amount.introduced (Amount.intro bs subj) bound ++ Amount.introduced bs subj
+    | .not c => dropGaps (Condition.introduced bs c)
+    | .and cs => Condition.introducedAll bs cs
     | .or _ => []
 
-  def Condition.deltaAll (bs : Bindings) : List Condition → List Binding
+  def Condition.introducedAll (bs : Bindings) : List Condition → List Binding
     | [] => []
-    | c :: cs => Condition.delta bs c ++ Condition.deltaAll bs cs
+    | c :: cs => Condition.introduced bs c ++ Condition.introducedAll bs cs
 end
 
 def Condition.remarkAt : Condition → Option ((Binding → Bool) × Option CardType)
@@ -1576,7 +1576,7 @@ def Condition.remark (bs : Bindings) (c : Condition) : Bindings :=
   | none => bs
   | some (q, t) => markFirst q t bs
 
-def Condition.intro (bs : Bindings) (c : Condition) : Bindings := Condition.delta bs c ++ c.remark bs
+def Condition.intro (bs : Bindings) (c : Condition) : Bindings := Condition.introduced bs c ++ c.remark bs
 
 def interveningIntro (bs : Bindings) : Option Condition → Bindings
   | none => bs

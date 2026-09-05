@@ -520,7 +520,7 @@ def choiceSortAt : Kind → Option ChoiceSort
   | .player => some .player
   | _ => none
 
-def choiceDeltaAt (k : Kind) : List Binding :=
+def introducedChoiceAt (k : Kind) : List Binding :=
   match choiceSortAt k with
   | none => []
   | some s => [s.binding]
@@ -598,7 +598,7 @@ def defineLetter (l : Letter) : Bindings → Bindings
     if openLetter l b then ⟨.the, b.plur, b.payload⟩ :: defineLetter l bs
     else b :: defineLetter l bs
 
-def letterDelta (l : Letter) (bs : Bindings) : List Binding :=
+def introducedLetters (l : Letter) (bs : Bindings) : List Binding :=
   if countLetter l bs == 0 then [letterB l] else []
 
 def countManysAny : Bindings → Nat
@@ -770,7 +770,7 @@ def pluralizeBinding (b : Binding) : Binding :=
   | .self => b
   | _ => { b with plur := .many }
 
-def pluralizeDelta (bs : Bindings) : Bindings := bs.map pluralizeBinding
+def pluralizeIntroduced (bs : Bindings) : Bindings := bs.map pluralizeBinding
 
 def stampMoves : Option Stamp → Bool
   | none => false
@@ -1358,7 +1358,7 @@ def chapterMarksOk : List ChapterNumber → Bool
   | [] => false
   | ns => chapterMarksDistinct ns && ns.all (· != 0)
 
-def typeLineNonEmpty (supertypes : List Supertype) (types : List CardType)
+def hasAnyTypeCharacteristic (supertypes : List Supertype) (types : List CardType)
     (subtypes : List Subtype) : Bool :=
   !(supertypes.isEmpty && types.isEmpty && subtypes.isEmpty)
 
@@ -1376,7 +1376,7 @@ def permanentSpellType : Option CardType → Bool
   | some .land => false
   | some t => t.permanent
 
-def CardType.isSpell : CardType → Bool
+def CardType.isInstantOrSorcery : CardType → Bool
   | .instant | .sorcery => true
   | _ => false
 

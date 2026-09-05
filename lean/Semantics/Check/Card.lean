@@ -15,34 +15,34 @@ inductive FaceSide where
   | front | back
   deriving DecidableEq, Repr
 
-/-- A card is a permanent card or a spell card by its types [CR#110.4a]. -/
+/-- A card is a permanent card or an instant or sorcery card by its types [CR#110.4a]. -/
 inductive CardClass where
-  | permanentCard | spellCard
+  | permanentCard | instantOrSorceryCard
   deriving DecidableEq, Repr
 
 def cardClassOf : List CardType → CardClass
   | [] => .permanentCard
-  | t :: ts => if t.isSpell then .spellCard else cardClassOf ts
+  | t :: ts => if t.isInstantOrSorcery then .instantOrSorceryCard else cardClassOf ts
 
 def anyPermanentType (tys : List CardType) : Bool := tys.any CardType.permanent
-def anySpellType (tys : List CardType) : Bool := tys.any CardType.isSpell
+def anyInstantOrSorceryType (tys : List CardType) : Bool := tys.any CardType.isInstantOrSorcery
 def hasNonKindredType (tys : List CardType) : Bool := tys.any (· != .kindred)
 
 def typesCombinable (tys : List CardType) : Bool :=
-  !(anyPermanentType tys && anySpellType tys) && (!tys.elem .kindred || hasNonKindredType tys)
+  !(anyPermanentType tys && anyInstantOrSorceryType tys) && (!tys.elem .kindred || hasNonKindredType tys)
 
 def keywordCardOk : CardClass → KeywordLabel → Bool
   | .permanentCard, k => (keywordFactsFor k).elim false (·.onPermanentCard)
-  | .spellCard, k => (keywordFactsFor k).elim false (·.onSpellCard)
+  | .instantOrSorceryCard, k => (keywordFactsFor k).elim false (·.onInstantOrSorceryCard)
 
-def StaticSpec.onSpellCardOk : StaticSpec → Bool
+def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
   | .deontic _ .forbid deeds .patient _ _ _ _ =>
     deeds.all fun deed => deedZoneOf deed .patient == some .stack
   | .altCost .this _ => true
   | .costs .this _ => true
   | .addedCost _ _ => true
-  | .onlyDuring _ _ se => se.onSpellCardOk
-  | .conditionally se _ _ => se.onSpellCardOk
+  | .onlyDuring _ _ se => se.onInstantOrSorceryCardOk
+  | .conditionally se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 
 def classAbilityOk : CardClass → Ability → Bool
@@ -51,14 +51,14 @@ def classAbilityOk : CardClass → Ability → Bool
   | .permanentCard, .alsoForKeywords ab _ => classAbilityOk .permanentCard ab
   | .permanentCard, .italicHead _ ab => classAbilityOk .permanentCard ab
   | .permanentCard, _ => true
-  | .spellCard, .keyword k _ _ => keywordCardOk .spellCard k
-  | .spellCard, .activated c _ _ _ _ _ => c.offBattlefield
-  | .spellCard, .triggered _ _ _ _ _ _ _ _ => true
-  | .spellCard, .static se => se.onSpellCardOk
-  | .spellCard, .alsoForKeywords ab _ => classAbilityOk .spellCard ab
-  | .spellCard, .spell _ _ => true
-  | .spellCard, .italicHead _ ab => classAbilityOk .spellCard ab
-  | .spellCard, .mayBeginOnBattlefield => false
+  | .instantOrSorceryCard, .keyword k _ _ => keywordCardOk .instantOrSorceryCard k
+  | .instantOrSorceryCard, .activated c _ _ _ _ _ => c.offBattlefield
+  | .instantOrSorceryCard, .triggered _ _ _ _ _ _ _ _ => true
+  | .instantOrSorceryCard, .static se => se.onInstantOrSorceryCardOk
+  | .instantOrSorceryCard, .alsoForKeywords ab _ => classAbilityOk .instantOrSorceryCard ab
+  | .instantOrSorceryCard, .spell _ _ => true
+  | .instantOrSorceryCard, .italicHead _ ab => classAbilityOk .instantOrSorceryCard ab
+  | .instantOrSorceryCard, .mayBeginOnBattlefield => false
   | _, .thatAbility _ => false
 
 def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
@@ -136,17 +136,17 @@ def jointBindings : List QualitySort → Bindings → Bindings
   | [], bs => bs
   | q :: qs, bs => qualityB q :: jointBindings qs bs
 
-def Ability.choiceDelta (bs : Bindings) : Ability → List Binding
-  | .activated _ instr _ _ _ _ => instr.choiceDelta
-  | .triggered _ _ _ _ _ _ _ instr => instr.choiceDelta
-  | .static se => se.choiceDelta bs
-  | .alsoForKeywords ab _ => Ability.choiceDelta bs ab
-  | .italicHead _ ab => Ability.choiceDelta bs ab
-  | .spell _ instr => instr.choiceDelta
+def Ability.introducedChoices (bs : Bindings) : Ability → List Binding
+  | .activated _ instr _ _ _ _ => instr.introducedChoices
+  | .triggered _ _ _ _ _ _ _ instr => instr.introducedChoices
+  | .static se => se.introducedChoices bs
+  | .alsoForKeywords ab _ => Ability.introducedChoices bs ab
+  | .italicHead _ ab => Ability.introducedChoices bs ab
+  | .spell _ instr => instr.introducedChoices
   | _ => []
 
-def textChoiceDelta (bs : Bindings) (text : List Ability) : List Binding :=
-  text.flatMap (Ability.choiceDelta bs)
+def textIntroducedChoices (bs : Bindings) (text : List Ability) : List Binding :=
+  text.flatMap (Ability.introducedChoices bs)
 
 def jointChoicesOk (qs : List QualitySort) (made : List Binding) : Bool :=
   qs.all fun q => countChoice (.quality q) made != 0
@@ -172,14 +172,14 @@ def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
   refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
     textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
     refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD [] ++
-    refuse (jointChoicesOk f.choices (textChoiceDelta bs c.text)) .jointChoices
+    refuse (jointChoicesOk f.choices (textIntroducedChoices bs c.text)) .jointChoices
 
 /-- A half reads its own cost's letters and the choices the shared line announces. -/
 def SharedLineHalf.bindings (shared : CardFace) (h : SharedLineHalf) : Bindings :=
   jointBindings shared.choices (costLetters h.cost)
 
-def SharedLineHalf.choiceDelta (shared : CardFace) (h : SharedLineHalf) : List Binding :=
-  textChoiceDelta (h.bindings shared) h.text
+def SharedLineHalf.introducedChoices (shared : CardFace) (h : SharedLineHalf) : List Binding :=
+  textIntroducedChoices (h.bindings shared) h.text
 
 def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
   let line := shared.characteristics
@@ -256,7 +256,7 @@ def Card.check : Card → List Refusal
     line.lineLaws ++ refuse (anyPermanentType line.types) .cardLine ++
       left.check shared ++ right.check shared ++
       refuse (jointChoicesOk shared.choices
-        (left.choiceDelta shared ++ right.choiceDelta shared)) .jointChoices
+        (left.introducedChoices shared ++ right.introducedChoices shared)) .jointChoices
   | .adventurer normal adventure =>
     normal.check .front ++ adventure.check .front ++
       refuse (adventureInsetOk adventure.characteristics) .adventureInset

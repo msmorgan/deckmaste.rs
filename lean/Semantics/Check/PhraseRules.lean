@@ -122,7 +122,7 @@ mutual
         refuse (countManys (.quality .number) bs != 0) .numberChoiceInScope
     | .compareOver dom measure _ bound =>
       refuse k.phrasal (.phrasal k) ++ Predicate.check k bs dom ++
-        Amount.check (bindFor .the .one k dom :: (Predicate.delta bs dom ++ bs)) measure ++
+        Amount.check (bindFor .the .one k dom :: (Predicate.introduced bs dom ++ bs)) measure ++
         Amount.check bs bound
     | .inZone z => kindCheck k (some .object) ++ ZoneExpr.check bs z
     | .inPile pile =>
@@ -336,7 +336,7 @@ mutual
     | .aggregateOver _ dom body =>
       let k := dom.kindOr .object
       refuse k.phrasal (.phrasal k) ++ Predicate.check k bs dom ++
-        Amount.check (bindFor .the .one k dom :: (Predicate.delta bs dom ++ bs)) body
+        Amount.check (bindFor .the .one k dom :: (Predicate.introduced bs dom ++ bs)) body
     | .distinctCount ax dom =>
       refuse ax.ok .kindAxisSort ++ NounPhrase.check (some .object) bs dom
     | .upTo b => Amount.check bs b

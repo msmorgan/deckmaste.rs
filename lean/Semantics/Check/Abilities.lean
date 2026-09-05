@@ -36,7 +36,7 @@ def Exchanged.intro (bs : Bindings) : Exchanged → Bindings
   | .lifeTotals parties => nomIntro bs parties
   | .controlOf a b => nomIntro (nomIntro bs a) b
   | .cardsAcross a b => nomIntro (nomIntro bs a) b
-  | .zones a b => ZoneExpr.delta (ZoneExpr.delta bs a ++ bs) b ++ ZoneExpr.delta bs a ++ bs
+  | .zones a b => ZoneExpr.introduced (ZoneExpr.introduced bs a ++ bs) b ++ ZoneExpr.introduced bs a ++ bs
   | .values a b => Amount.intro (Amount.intro bs a) b
   | .textBoxes a b => nomIntro (nomIntro bs a) b
 
@@ -141,26 +141,26 @@ def colorOpOk : QualityOp → ColorSpec → Bool
 
 def ptDelta (bs : Bindings) : Option (Amount × Amount) → List Binding
   | none => []
-  | some (p, t) => Amount.delta (Amount.intro bs p) t ++ Amount.delta bs p
+  | some (p, t) => Amount.introduced (Amount.intro bs p) t ++ Amount.introduced bs p
 
 def Stat.modifyOk : Stat → Bool
   | .power | .toughness => true
   | _ => false
 
-def CostShift.delta (bs : Bindings) : CostShift → List Binding
-  | .less a _ => Amount.delta bs a
-  | .more a => Amount.delta bs a
+def CostShift.introduced (bs : Bindings) : CostShift → List Binding
+  | .less a _ => Amount.introduced bs a
+  | .more a => Amount.introduced bs a
   | .run _ _ _ => []
 
 def gatePayer : Binding := ⟨.the, .one, .player false⟩
 
-def CountBound.delta (bs : Bindings) : CountBound → List Binding
-  | .moreThan k => Amount.delta bs k
-  | .additional q => Quantity.delta bs q
+def CountBound.introduced (bs : Bindings) : CountBound → List Binding
+  | .moreThan k => Amount.introduced bs k
+  | .additional q => Quantity.introduced bs q
 
 def deonticBoundOk (bs : Bindings) (ds : Deeds) : Option CountBound → Bool
   | none => true
-  | some b => ds.all deedBoundedOk && (b.delta bs).isEmpty
+  | some b => ds.all deedBoundedOk && (b.introduced bs).isEmpty
 
 def DeonticPatient.intro (bs : Bindings) : DeonticPatient → Bindings
   | .noPatient => bs
@@ -179,7 +179,7 @@ def counterpartFits (bs : Bindings) (ds : Deeds) (r : Role) (m : NounPhrase) (mo
 
 /-- A counterpart named after `n` must not be `n` read back. -/
 def counterpartNotSelf (bs : Bindings) (n : NounPhrase) : NounPhrase → Bool
-  | .pro r pl .whole => !r.tracksObject || countReach r pl (NounPhrase.delta bs n) == 0
+  | .pro r pl .whole => !r.tracksObject || countReach r pl (NounPhrase.introduced bs n) == 0
   | _ => true
 
 def complementAtOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (c : DeedComplement) :
@@ -292,7 +292,7 @@ def eachStackOk (outer out : Bindings) : Bool :=
   keepsOuterOf outer out || (partsDistributed outer && closesOwnParts outer out)
 
 def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Binding :=
-  pluralizeDelta (out.take (out.length - (agentIntro bs s).length))
+  pluralizeIntroduced (out.take (out.length - (agentIntro bs s).length))
 
 def mayCtx (bs : Bindings) (d : NounPhrase) : Bindings := agentIntro bs d
 
@@ -402,7 +402,7 @@ def Characteristics.pt (c : Characteristics) : Option (Amount × Amount) :=
 def Characteristics.typed (c : Characteristics) : Bool := !c.types.isEmpty
 def Characteristics.ptOk (c : Characteristics) : Bool := !c.types.elem .creature || ptWritten c.pt
 def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
-  typeLineNonEmpty c.supertypes c.types c.subtypes
+  hasAnyTypeCharacteristic c.supertypes c.types c.subtypes
 def Characteristics.canonical (c : Characteristics) : Bool :=
   colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes
 def Characteristics.additionUnnamed (c : Characteristics) : Bool := c.name.isNone
@@ -452,7 +452,7 @@ def TokenSpec.headTy (bs : Bindings) : TokenSpec → Option CardType
   | .asThose => tyOfThoseAny .token bs
   | .copyOf src _ => NounPhrase.ty bs src
 
-def TokenSpec.delta (bs : Bindings) : TokenSpec → List Binding
+def TokenSpec.introduced (bs : Bindings) : TokenSpec → List Binding
   | .written t => ptDelta bs t.characteristics.pt
   | _ => []
 
@@ -603,7 +603,7 @@ def grantSubjectFits (zn : Option Zone) (reg : Option StackRegime) (ab : Ability
 def grantSubjectOk (bs : Bindings) (ab : Ability) (n : NounPhrase) : Bool :=
   grantSubjectFits (NounPhrase.zone bs n) n.regime ab
 
-def Ability.letterDelta : Ability → List Binding
+def Ability.introducedLetters : Ability → List Binding
   | .keyword _ (some (.number (.letter l))) _ => [letterB l]
   | _ => []
 
@@ -866,7 +866,7 @@ def mayProfile (bodyP : InstrProfile) (didP : Option InstrProfile) (notd : Optio
 mutual
   def Instruction.profile (bs : Bindings) : Instruction → InstrProfile
     | .dealDamage src amt to =>
-      sameIntro (nomIntro (Amount.delta (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
+      sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
     | .controllerSacrifices n =>
       ⟨⟨.the, .one, .player false⟩ :: selfSubjIntro bs n,
@@ -881,12 +881,12 @@ mutual
     | .fights a b => sameIntro (nomIntro (nomIntro bs a) b) []
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
-    | .doesntUntapNext n steps => sameIntro (Amount.delta bs steps ++ nomIntro bs n) []
-    | .skipsNext w _ count => sameIntro (Amount.delta bs count ++ nomIntro bs w) []
+    | .doesntUntapNext n steps => sameIntro (Amount.introduced bs steps ++ nomIntro bs n) []
+    | .skipsNext w _ count => sameIntro (Amount.introduced bs count ++ nomIntro bs w) []
     | .extraTurn w count =>
-      ⟨Amount.delta bs count ++ nomIntro bs w, turnRefB :: (Amount.delta bs count ++ nomIntro bs w),
+      ⟨Amount.introduced bs count ++ nomIntro bs w, turnRefB :: (Amount.introduced bs count ++ nomIntro bs w),
        none, []⟩
-    | .additionalPart who _ _ count _ => sameIntro (Amount.delta bs count ++ optAgentIntro bs who) []
+    | .additionalPart who _ _ count _ => sameIntro (Amount.introduced bs count ++ optAgentIntro bs who) []
     | .losesCounters who _ amt => sameIntro (optAmtIntro (nomIntro bs who) amt) []
     | .removeFromCombat n => sameIntro (nomIntro bs n) []
     | .attachTo what host => sameIntro (nomIntro (nomIntro bs what) host) []
@@ -932,7 +932,7 @@ mutual
     | .expose _ who what => sameIntro (what.intro (nomIntro bs who)) []
     | .search who sc q p =>
       let bs' := nomIntro bs who
-      sameIntro (Quantity.delta bs' q ++ Predicate.delta bs' p ++ sc.delta bs' ++ bs')
+      sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none⟩]
@@ -947,7 +947,7 @@ mutual
     | .continuously se _ => sameIntro (StaticSpec.intro bs se) []
     | .create agent count spec _ =>
       let bs' := Amount.intro (nomIntro bs agent) count
-      sameIntro (spec.delta bs' ++ bs')
+      sameIntro (spec.introduced bs' ++ bs')
         [⟨.a, outputPlur agent.plur count.plur,
           .object (spec.headTy bs') (some .battlefield) none (some .token) none⟩]
     | .getsEmblem who _ => sameIntro (nomIntro bs who) []
@@ -976,22 +976,22 @@ mutual
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
       let bodyP := Instruction.profile bs' body
-      ⟨bs, pluralizeDelta (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
-        pluralizeDelta (NounPhrase.delta bs grp) ++ bs, none, []⟩
+      ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
+        pluralizeIntroduced (NounPhrase.introduced bs grp) ++ bs, none, []⟩
     | .forEachKindOf _ dom q body =>
       let bs' := kindValueIntro bs q dom
       let bodyP := Instruction.profile bs' body
-      ⟨bs, pluralizeDelta (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
-        pluralizeDelta (dom.elim [] (NounPhrase.delta bs)) ++ bs, none, []⟩
+      ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
+        pluralizeIntroduced (dom.elim [] (NounPhrase.introduced bs)) ++ bs, none, []⟩
     | .repeat_ _ => sameIntro bs []
     | .repeated n body =>
       let bs' := Amount.intro bs n
       let bodyP := Instruction.profile bs' body
-      ⟨bs', pluralizeDelta (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++ bs', none,
+      ⟨bs', pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++ bs', none,
        [outcomeB .repeatCount]⟩
     | .sequentially es => Instruction.seqProfile bs es
     | .simultaneously es => Instruction.simProfile bs es
-    | .modal q _ => sameIntro (Quantity.delta bs q ++ bs) []
+    | .modal q _ => sameIntro (Quantity.introduced bs q ++ bs) []
     | .delayed _ _ _ _ => sameIntro bs []
     | .reflexively body _ => Instruction.profile bs body
     | .thisWay body _ _ => Instruction.profile bs body
@@ -1034,14 +1034,14 @@ mutual
 
   def StaticSpec.intro (bs : Bindings) : StaticSpec → Bindings
     | .definesLetter l amt => defineLetter l (Amount.intro bs amt)
-    | .modify n _ d => Delta.delta (selfSubjIntro bs n) d ++ selfSubjIntro bs n
+    | .modify n _ d => Delta.introduced (selfSubjIntro bs n) d ++ selfSubjIntro bs n
     | .definesPt n _ amt =>
-      outcomeB .namedNumber :: (Amount.delta (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
+      outcomeB .namedNumber :: (Amount.introduced (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
     | .switchesPt n => selfSubjIntro bs n
-    | .costs n sh => sh.delta (selfSubjIntro bs n) ++ selfSubjIntro bs n
+    | .costs n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ => bs
-    | .gains n ab => ab.letterDelta ++ selfSubjIntro bs n
+    | .gains n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .gainsAbilitiesOf n _ src _ => nomIntro (nomIntro bs n) src
     | .deontic n _ _ _ _ _ _ _ => selfSubjIntro bs n
     | .skips who _ => nomIntro bs who
@@ -1077,7 +1077,7 @@ def Instruction.intro (bs : Bindings) (e : Instruction) : Bindings := (e.profile
 def Instruction.preIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).pre
 def Instruction.annIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).announced
 def Instruction.riderIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).riderCtx
-def Instruction.deedDelta (bs : Bindings) (e : Instruction) : List Binding := (e.profile bs).deed
+def Instruction.introducedDeeds (bs : Bindings) (e : Instruction) : List Binding := (e.profile bs).deed
 def keepsOuter (bs : Bindings) (e : Instruction) : Bool := keepsOuterOf bs (e.intro bs)
 
 def enactKeepsOuter (bs : Bindings) : Option NounPhrase → Instruction → Bool
@@ -1089,7 +1089,7 @@ def enactKeepsOuter (bs : Bindings) : Option NounPhrase → Instruction → Bool
 
 def Instruction.annSeqs (bs : Bindings) : List Instruction → Bindings
   | [] => bs
-  | e :: es => e.deedDelta bs ++ Instruction.annSeqs bs es
+  | e :: es => e.introducedDeeds bs ++ Instruction.annSeqs bs es
 
 def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | .sequentially es => Instruction.annSeqs bs es
@@ -1097,10 +1097,10 @@ def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | .ifDone body _ _ => Instruction.replacedCtx bs body
   | .onlyIf e _ _ => Instruction.replacedCtx bs e
   | .if_ _ _ _ => bs
-  | e => e.deedDelta bs ++ e.annIntro bs
+  | e => e.introducedDeeds bs ++ e.annIntro bs
 
 def Instruction.otherwiseCtx (bs : Bindings) (e : Instruction) : Bindings :=
-  outcomesOnly (e.deedDelta bs) ++ e.annIntro bs
+  outcomesOnly (e.introducedDeeds bs) ++ e.annIntro bs
 
 def reflexCtx (bs : Bindings) (body : Instruction) : Bindings := settleTargets (body.intro bs)
 
@@ -1124,49 +1124,49 @@ def Ability.namesThisDoor : Ability → Bool
   | _ => false
 
 mutual
-  def Instruction.choiceDelta : Instruction → List Binding
-    | .choose _ _ (.described (.a _) p) _ _ => choiceDeltaAt (p.kindOr .object)
+  def Instruction.introducedChoices : Instruction → List Binding
+    | .choose _ _ (.described (.a _) p) _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ _ => []
-    | .sequentially es => Instruction.choiceDeltaAll es
-    | .may _ body _ _ => body.choiceDelta
-    | .ifDone body _ _ => body.choiceDelta
+    | .sequentially es => Instruction.introducedChoicesAll es
+    | .may _ body _ _ => body.introducedChoices
+    | .ifDone body _ _ => body.introducedChoices
     | _ => []
   termination_by structural e => e
 
-  def Instruction.choiceDeltaAll : List Instruction → List Binding
+  def Instruction.introducedChoicesAll : List Instruction → List Binding
     | [] => []
-    | e :: es => Instruction.choiceDeltaAll es ++ e.choiceDelta
+    | e :: es => Instruction.introducedChoicesAll es ++ e.introducedChoices
   termination_by structural es => es
 end
 
-def Cost.delta (bs : Bindings) (c : Cost) : List Binding :=
+def Cost.introduced (bs : Bindings) (c : Cost) : List Binding :=
   let out := c.intro bs
   out.take (out.length - bs.length)
 
 mutual
-  def StaticSpec.choiceDelta (bs : Bindings) : StaticSpec → List Binding
+  def StaticSpec.introducedChoices (bs : Bindings) : StaticSpec → List Binding
     | .entersChoice _ q _ _ => [q.binding]
     | .attachChoice _ q _ => [q.binding]
-    | .andAlso _ parts => StaticSpec.partsChoiceDelta bs parts
-    | .addedCost c _ => c.delta bs
+    | .andAlso _ parts => StaticSpec.partsIntroducedChoices bs parts
+    | .addedCost c _ => c.introduced bs
     | _ => []
   termination_by structural se => se
 
-  def StaticSpec.partsChoiceDelta (bs : Bindings) : List StaticSpec → List Binding
+  def StaticSpec.partsIntroducedChoices (bs : Bindings) : List StaticSpec → List Binding
     | [] => []
-    | se :: rest => StaticSpec.partsChoiceDelta bs rest ++ StaticSpec.choiceDelta bs se
+    | se :: rest => StaticSpec.partsIntroducedChoices bs rest ++ StaticSpec.introducedChoices bs se
   termination_by structural parts => parts
 end
 
 /-- The stack after an ability line: the choices its text announced. -/
 def Ability.intro (bs : Bindings) : Ability → Bindings
   | .keyword _ _ _ => bs
-  | .activated _ instr _ _ _ _ => instr.choiceDelta ++ bs
-  | .triggered _ _ _ _ _ _ _ instr => instr.choiceDelta ++ bs
-  | .static se => se.choiceDelta bs ++ bs
+  | .activated _ instr _ _ _ _ => instr.introducedChoices ++ bs
+  | .triggered _ _ _ _ _ _ _ instr => instr.introducedChoices ++ bs
+  | .static se => se.introducedChoices bs ++ bs
   | .alsoForKeywords ab _ => Ability.intro bs ab
   | .italicHead _ ab => Ability.intro bs ab
-  | .spell _ instr => instr.choiceDelta ++ bs
+  | .spell _ instr => instr.introducedChoices ++ bs
   | .mayBeginOnBattlefield => bs
   | .thatAbility _ => bs
 

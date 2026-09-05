@@ -30,7 +30,7 @@ def itVerbed (verb : VerbLabel) : NounPhrase := .pro (.stamped verb) .one .whole
 def thatTurn : NounPhrase := .pro .thatTurn .one .whole
 /-- "it", read as the subject of the condition just stated. -/
 def itCondSubject (bs : Bindings) (condition : Condition) : NounPhrase :=
-  .pro .bare .one (.top (Condition.delta bs condition).length)
+  .pro .bare .one (.top (Condition.introduced bs condition).length)
 
 /-- "that <word>", e.g. `that .player`. -/
 def that (w : NounWord) : NounPhrase := .pro (.word w) .one .whole
@@ -346,7 +346,7 @@ def dealsDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounP
   .dealDamage source
     (.statOf (.stat .power)
       (.pro .bare .one
-        (.top (NounPhrase.selfSubjDelta source ++ NounPhrase.delta bs source).length)))
+        (.top (NounPhrase.selfSubjIntroduced source ++ NounPhrase.introduced bs source).length)))
     recipient
 
 /-- A token's characteristics from the parts a creature token names. -/
@@ -438,7 +438,7 @@ def ownSubject (subject : NounPhrase) : NounPhrase :=
   .pro .bare subject.plur (.top (selfSubjIntro [] subject).length)
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 def lookedCards (slice : NounPhrase) : NounPhrase :=
-  .pro .bare slice.plur (.top (NounPhrase.delta [] slice).length)
+  .pro .bare slice.plur (.top (NounPhrase.introduced [] slice).length)
 /-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
 in any order and the rest on top in any order" -/
 def lookAndSort (looker whose : NounPhrase) (amount : Amount) : Instruction :=

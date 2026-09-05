@@ -40,7 +40,7 @@ def AsThough.check (bs : Bindings) : AsThough → List Refusal
     match purpose with
     | none => []
     | some sp => sp.check bs
-  | .greater _ amt => Amount.check bs amt ++ refuse (Amount.delta bs amt).isEmpty .bindingless
+  | .greater _ amt => Amount.check bs amt ++ refuse (Amount.introduced bs amt).isEmpty .bindingless
 
 def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
   | .lifeTotals parties => NounPhrase.check (some .player) bs parties ++ refuse (twoPartiesOk parties) .twoParties
@@ -54,7 +54,7 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
     NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
       refuse (cardSwapZonesOk (NounPhrase.zone bs a) (NounPhrase.zone bs' b)) .cardSwapZones
   | .zones a b =>
-    ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.delta bs a ++ bs) b ++
+    ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.introduced bs a ++ bs) b ++
       refuse (zoneSwapOk a.sort b.sort) .zoneSwap
   | .values a b =>
     let bs' := Amount.intro bs a
@@ -169,7 +169,7 @@ mutual
   def Instruction.check (bs : Bindings) : Instruction → List Refusal
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
-      let bs'' := Amount.delta bs' amt ++ nomIntro bs src
+      let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
       NounPhrase.check (some .object) bs src ++ Amount.check bs' amt ++ NounPhrase.check none bs'' to ++
         refuse to.perMemberOk .perMember ++ refuse (to.damageRecipient bs'') .damageRecipient
     | .fights a b =>
@@ -373,7 +373,7 @@ mutual
     | .onlyIf e c otherwise =>
       let bs' := e.preIntro bs
       Instruction.check bs e ++ Condition.check bs' c ++
-        Instruction.checkOpt (Condition.delta bs' c ++ e.otherwiseCtx bs) otherwise
+        Instruction.checkOpt (Condition.introduced bs' c ++ e.otherwiseCtx bs) otherwise
     | .if_ c e otherwise =>
       Condition.check bs c ++ Instruction.check (c.intro bs) e ++
         Instruction.checkOpt (e.otherwiseCtx (c.intro bs)) otherwise
@@ -557,7 +557,7 @@ mutual
   termination_by structural s => s
 
   def CopyExcept.check (bs : Bindings) : CopyExcept → List Refusal
-    | .types types subtypes => refuse (typeLineNonEmpty [] types subtypes) .lineNonEmpty
+    | .types types subtypes => refuse (hasAnyTypeCharacteristic [] types subtypes) .lineNonEmpty
     | .name _ | .thisAbility | .nonlegendary | .color _ => []
     | .chars t _ =>
       Characteristics.checkWritten bs t ++ refuse t.copyBundleSays .copyBundle ++
@@ -672,7 +672,7 @@ mutual
         refuse (visibilityOk v what) .visibilityOk
     | .triggersAdditionally ev q =>
       GameEvent.check bs ev ++ Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++
-        refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.delta bs q).isEmpty .quantLiteral ++
+        refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral ++
         refuse (triggerCountOk ev.name) .triggerCountOk
     | .entersRider n rider =>
       NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider ++

@@ -541,7 +541,7 @@ theorem anyTargetIsPlaceless : NounPhrase.zone [] (target anyTarget) = none := b
 
 theorem anyTargetTakesDamage : (target anyTarget).damageRecipient [] = true := by decide
 
-theorem youAndBindsNothing : NounPhrase.delta [] (youAnd thisCreature) = [] := by decide
+theorem youAndBindsNothing : NounPhrase.introduced [] (youAnd thisCreature) = [] := by decide
 
 /-- "If a player is dealt damage this way, you draw a card." -/
 theorem okDealtThisWayAfterDamage :
@@ -914,9 +914,9 @@ theorem badOwnEmptyDelta :
 theorem okOwnReadsOneInDelta :
     Instruction.check []
       (sharedSubject (target creature)
-        [ .modify (.pro .bare .one (.top (NounPhrase.delta [] (target creature)).length)) .power
+        [ .modify (.pro .bare .one (.top (NounPhrase.introduced [] (target creature)).length)) .power
             (.up (.lit 1)),
-          .modify (.pro .bare .one (.top (NounPhrase.delta [] (target creature)).length))
+          .modify (.pro .bare .one (.top (NounPhrase.introduced [] (target creature)).length))
             .toughness (.up (.lit 1)) ]
         none) = [] := by
   decide
@@ -926,11 +926,11 @@ theorem badSharedSubjectTwoInDelta :
       (sharedSubject (.both (target creature) (target artifact))
         [ .modify
             (.pro .bare .one
-              (.top (NounPhrase.delta [] (.both (target creature) (target artifact))).length))
+              (.top (NounPhrase.introduced [] (.both (target creature) (target artifact))).length))
             .power (.up (.lit 1)),
           .modify
             (.pro .bare .one
-              (.top (NounPhrase.delta [] (.both (target creature) (target artifact))).length))
+              (.top (NounPhrase.introduced [] (.both (target creature) (target artifact))).length))
             .toughness (.up (.lit 1)) ]
         none) = [.anaphor .bare .one 2, .anaphor .bare .one 2] := by
   decide

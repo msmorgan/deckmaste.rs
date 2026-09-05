@@ -69,7 +69,7 @@ declared. Lean has no induction-recursion, so the port splits every layer:
 2. **Attributes** (`Check/Words`, `Check/Phrase`, `Check/Triggers`,
    `Check/Abilities`): every function the Idris declared beside its syntax —
    the antecedent stack (`Bindings`), what a phrase introduces
-   (`NounPhrase.delta`, `Amount.intro`, `Instruction.profile`), its kind,
+   (`NounPhrase.introduced`, `Amount.intro`, `Instruction.profile`), its kind,
    number, zone, and type. They take the stack as an argument and pass the
    shifted stack into each field the Idris typed at the shifted index.
    Checker-only vocabulary (`CardClass`, `FaceSide`, the designation facts

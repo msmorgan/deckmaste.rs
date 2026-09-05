@@ -28,10 +28,10 @@ def Door.namesHost : Door → Bool
 def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option NounPhrase) : Bool :=
   (match by_ with
    | none => true
-   | some w => (NounPhrase.delta bs w).isEmpty) &&
+   | some w => (NounPhrase.introduced bs w).isEmpty) &&
   (match under with
    | none => true
-   | some u => u.plur.isOne && (NounPhrase.delta bs u).isEmpty) &&
+   | some u => u.plur.isOne && (NounPhrase.introduced bs u).isEmpty) &&
   !(byEffect && by_.isSome)
 
 def causedByOk (byEffect : Bool) (by_ : Option NounPhrase) : Bool := !(byEffect && by_.isSome)
@@ -96,7 +96,7 @@ def DamageKind.sourceZone : DamageKind → Option Zone
 
 def HeaderPossessor.intro (bs : Bindings) : HeaderPossessor → Bindings
   | .noPossessor => bs
-  | .byPlayer n => NounPhrase.selfSubjDelta n ++ agentIntro bs n
+  | .byPlayer n => NounPhrase.selfSubjIntroduced n ++ agentIntro bs n
   | .byTurn _ => bs
 
 def HeaderPossessor.ok : HeaderPossessor → Bool
@@ -195,7 +195,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .draws who => nomIntro bs who
   | .losesGame who => nomIntro bs who
   | .enters n _ => moveIntro bs none n (some .battlefield)
-  | .combat .attackerOf n (some whom) => NounPhrase.delta bs whom ++ selfSubjIntro bs n
+  | .combat .attackerOf n (some whom) => NounPhrase.introduced bs whom ++ selfSubjIntro bs n
   | .combat _ n none => selfSubjIntro bs n
   | .combat _ _ (some m) => nomIntro bs m
   | .attacksWith _ _ attackers => nomIntro bs attackers
@@ -203,7 +203,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
   | .dealsDamage _ _ (some m) => outcomeB .damageDealt :: nomIntro bs m
   | .casts _ what _ => nomIntro bs what
-  | .becomesTarget n by_ => NounPhrase.delta bs by_ ++ selfSubjIntro bs n
+  | .becomesTarget n by_ => NounPhrase.introduced bs by_ ++ selfSubjIntro bs n
   | .beginningOf _ _ whose => whose.intro bs
   | .statusEvent n _ => selfSubjIntro bs n
   | .gameBecomes _ => bs
@@ -215,7 +215,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .tokensCreated n _ _ _ => nomIntro bs n
   | .chapterMark _ => bs
   | .activates _ what => nomIntro bs what
-  | .statBecomes n _ v => Amount.delta bs v ++ selfSubjIntro bs n
+  | .statBecomes n _ v => Amount.introduced bs v ++ selfSubjIntro bs n
   | .flipsCoin who none => outcomeB .coinFlipped :: nomIntro bs who
   | .flipsCoin who (some _) => nomIntro bs who
   | .rollsDice who _ _ _ => outcomeB .rollResult :: nomIntro bs who
