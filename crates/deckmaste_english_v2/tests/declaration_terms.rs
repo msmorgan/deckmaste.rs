@@ -95,8 +95,8 @@ fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
     }
 
     assert_eq!(
-        keyword_abilities, 196,
-        "195 builtins plus one same-plugin row"
+        keyword_abilities, 201,
+        "200 builtins plus one same-plugin row"
     );
     assert_eq!(
         lexical_counter_kinds, 30,

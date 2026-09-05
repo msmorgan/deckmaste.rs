@@ -1,0 +1,5 @@
+KeywordAbility(
+    name: "Swampwalk",
+    spelling: "swampwalk",
+    grammar: FixedKeyword(surface: "swampwalk"),
+)

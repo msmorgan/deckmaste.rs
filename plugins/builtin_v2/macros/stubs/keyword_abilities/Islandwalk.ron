@@ -1,0 +1,5 @@
+KeywordAbility(
+    name: "Islandwalk",
+    spelling: "islandwalk",
+    grammar: FixedKeyword(surface: "islandwalk"),
+)

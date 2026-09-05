@@ -68,6 +68,7 @@ pub enum CoreVerbIdentity {
     Do,
     Draw,
     Enter,
+    Exert,
     Flip,
     Gain,
     Get,
@@ -84,14 +85,17 @@ pub enum CoreVerbIdentity {
     Remove,
     Return,
     Roll,
+    Share,
     Skip,
     Turn,
     Unattach,
+    Unlock,
+    Win,
     Would,
 }
 
 impl CoreVerbIdentity {
-    const ALL: [Self; 38] = [
+    const ALL: [Self; 42] = [
         Self::Add,
         Self::Attack,
         Self::Become,
@@ -110,6 +114,7 @@ impl CoreVerbIdentity {
         Self::Do,
         Self::Draw,
         Self::Enter,
+        Self::Exert,
         Self::Flip,
         Self::Gain,
         Self::Get,
@@ -126,9 +131,12 @@ impl CoreVerbIdentity {
         Self::Remove,
         Self::Return,
         Self::Roll,
+        Self::Share,
         Self::Skip,
         Self::Turn,
         Self::Unattach,
+        Self::Unlock,
+        Self::Win,
         Self::Would,
     ];
 }
@@ -155,6 +163,7 @@ impl CoreVerbIdentity {
             Self::Do => "core-verb:Do",
             Self::Draw => "core-verb:Draw",
             Self::Enter => "core-verb:Enter",
+            Self::Exert => "core-verb:Exert",
             Self::Flip => "core-verb:Flip",
             Self::Gain => "core-verb:Gain",
             Self::Get => "core-verb:Get",
@@ -171,9 +180,12 @@ impl CoreVerbIdentity {
             Self::Remove => "core-verb:Remove",
             Self::Return => "core-verb:Return",
             Self::Roll => "core-verb:Roll",
+            Self::Share => "core-verb:Share",
             Self::Skip => "core-verb:Skip",
             Self::Turn => "core-verb:Turn",
             Self::Unattach => "core-verb:Unattach",
+            Self::Unlock => "core-verb:Unlock",
+            Self::Win => "core-verb:Win",
             Self::Would => "core-verb:Would",
         }
     }
@@ -1668,6 +1680,7 @@ mod tests {
             (CoreVerbIdentity::Die, "die", "dies", None, 1),
             (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 3),
             (CoreVerbIdentity::Enter, "enter", "enters", None, 5),
+            (CoreVerbIdentity::Exert, "exert", "exerts", None, 1),
             (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
             (CoreVerbIdentity::Gain, "gain", "gains", None, 3),
             (CoreVerbIdentity::Get, "get", "gets", None, 1),
@@ -1688,6 +1701,7 @@ mod tests {
             (CoreVerbIdentity::Remove, "remove", "removes", None, 1),
             (CoreVerbIdentity::Return, "return", "returns", None, 1),
             (CoreVerbIdentity::Roll, "roll", "rolls", None, 1),
+            (CoreVerbIdentity::Share, "share", "shares", None, 2),
             (CoreVerbIdentity::Skip, "skip", "skips", None, 1),
             (CoreVerbIdentity::Turn, "turn", "turns", Some("turned"), 1),
             (
@@ -1697,6 +1711,8 @@ mod tests {
                 None,
                 1,
             ),
+            (CoreVerbIdentity::Unlock, "unlock", "unlocks", None, 1),
+            (CoreVerbIdentity::Win, "win", "wins", None, 2),
             (CoreVerbIdentity::Become, "become", "becomes", None, 1),
             (CoreVerbIdentity::Cause, "cause", "causes", None, 1),
             (CoreVerbIdentity::Cost, "cost", "costs", None, 1),

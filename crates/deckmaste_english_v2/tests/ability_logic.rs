@@ -4526,9 +4526,16 @@ fn reciprocal_modal_boundary_failure_spans_are_literal() {
 }
 
 #[test]
-fn plain_modal_rejects_every_deferred_or_malformed_surface_as_an_ordinary_failure() {
+fn plain_modal_accepts_conditional_choice_count_and_rejects_malformed_surfaces() {
     let parser = parser();
     let context = context("Context Card", false);
+    let conditional_choice_count = "Choose one. If this spell was kicked, choose any number instead.\n• You gain 1 life.\n• You gain 2 life.";
+    // “Modal choices”: “Bullet groups also use complete-sentence headers when the choice count is conditional.”
+    let selected = assert_one_logic_candidate(&parser, &context, conditional_choice_count);
+    assert_eq!(
+        selected.render(&context, parser.environment()),
+        conditional_choice_count,
+    );
     for text in [
         "Choose one —",
         "Choose one —\n",
@@ -4545,7 +4552,6 @@ fn plain_modal_rejects_every_deferred_or_malformed_surface_as_an_ordinary_failur
         "Choose one —\n• You gain 1 life.\n• you gain 2 life.",
         "Choose one —\n• First — You gain 1 life.\n• Second — You gain 2 life.",
         "Choose up to five {P} worth of modes.\n{P} — You gain 1 life.\n{P} — You gain 2 life.",
-        "Choose one. If this spell was kicked, choose any number instead.\n• You gain 1 life.\n• You gain 2 life.",
         "Choose one or more —\n• You gain 1 life.\n• You gain 2 life.\nYou may choose the same mode more than once.",
         "Escalate {1}\nChoose one —\n• You gain 1 life.\n• You gain 2 life.",
         "Landfall — Choose one —\n• You gain 1 life.\n• You gain 2 life.",

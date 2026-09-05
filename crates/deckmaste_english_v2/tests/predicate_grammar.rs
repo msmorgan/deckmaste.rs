@@ -1103,7 +1103,7 @@ fn quoted_deferred_interiors_remain_exact_ordinary_failures() {
         observed,
         [
             (28, 38, "Ward—Pay".to_owned()),
-            (94, 100, "shares".to_owned()),
+            (105, 113, "feelings".to_owned()),
         ]
     );
 }

@@ -58,6 +58,11 @@ keywordFacts =
   , { word := "Banding", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "BandsWithOther", paramShapes := [QualityParam] } defaultKeywordFacts
   , { word := "Landwalk", paramShapes := [QualityParam] } defaultKeywordFacts
+  , { word := "Forestwalk", paramShapes := [NoParam] } defaultKeywordFacts
+  , { word := "Islandwalk", paramShapes := [NoParam] } defaultKeywordFacts
+  , { word := "Mountainwalk", paramShapes := [NoParam] } defaultKeywordFacts
+  , { word := "Plainswalk", paramShapes := [NoParam] } defaultKeywordFacts
+  , { word := "Swampwalk", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Changeling", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "Crew", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Saddle", paramShapes := [NumberParam] } defaultKeywordFacts

@@ -448,6 +448,26 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
+            label: "Forestwalk",
+            ..D
+        },
+        Row {
+            label: "Islandwalk",
+            ..D
+        },
+        Row {
+            label: "Mountainwalk",
+            ..D
+        },
+        Row {
+            label: "Plainswalk",
+            ..D
+        },
+        Row {
+            label: "Swampwalk",
+            ..D
+        },
+        Row {
             label: "Changeling",
             on_spell_card: true,
             ..D
@@ -1490,7 +1510,7 @@ const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, functionsOnSt
                             deckmaste_construction_core::macro_def::Metadata, which is \
                             deny_unknown_fields over spelling/grammar/noun_class/category, so a \
                             home in the stub schema moves that crate's English-v2 metadata seam \
-                            and all 195 stubs rather than this overlay.";
+                            and all 200 stubs rather than this overlay.";
 
 const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole) stay hand-kept per \
                             deed: they are the gate on a deontic clause ([noun] can't/must \

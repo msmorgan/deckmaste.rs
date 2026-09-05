@@ -66,6 +66,9 @@
         Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
     ]),
+    (identity: Exert, bare: "exert", third_person: "exerts", frames: [
+        Predicate([ObjectNounPhrase]),
+    ]),
     (identity: Flip, bare: "flip", third_person: "flips", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
@@ -145,6 +148,10 @@
     (identity: Roll, bare: "roll", third_person: "rolls", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
+    (identity: Share, bare: "share", third_person: "shares", frames: [
+        Predicate([ObjectNounPhrase]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "With"), ObjectNounPhrase]),
+    ]),
     (identity: Skip, bare: "skip", third_person: "skips", frames: [
         Predicate([ObjectNounPhrase]),
     ]),
@@ -152,6 +159,13 @@
         Predicate([Literal("face"), Literal("up")]),
     ]),
     (identity: Unattach, bare: "unattach", third_person: "unattaches", frames: [
+        Predicate([ObjectNounPhrase]),
+    ]),
+    (identity: Unlock, bare: "unlock", third_person: "unlocks", frames: [
+        Predicate([ObjectNounPhrase]),
+    ]),
+    (identity: Win, bare: "win", third_person: "wins", frames: [
+        Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Would, bare: "would", third_person: "would", frames: [Auxiliary]),

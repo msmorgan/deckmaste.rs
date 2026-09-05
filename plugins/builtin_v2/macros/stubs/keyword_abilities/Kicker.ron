@@ -4,5 +4,6 @@ KeywordAbility(
     spelling: "kicker",
     grammar: FixedKeyword(
         surface: "kicker",
+        participial_adjective: (surface: "kicked",),
     ),
 )
