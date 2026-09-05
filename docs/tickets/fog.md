@@ -17,7 +17,7 @@ sharpen it.
 
 ## english-v2
 
-Eight entries below. Six are families demoted from `planned/` on 2026-09-03:
+Nine entries below. Six are families demoted from `planned/` on 2026-09-03:
 they were pinned as a nine-deep serial chain of near-identical tickets whose
 bodies all deferred their design to the same audit, which is not a pinned shape.
 The seventh records gaps neither grammar ever had; the eighth is residue routed
@@ -269,6 +269,27 @@ does.
 Hangs on: `english-v2-grammatical-relations` (the object/adjunct distinction it
 needs) and the attachment device parked under
 `english-v2-attachment-class-declared`.
+
+### Door half-level trigger (`When you unlock this door, …`)
+
+Residue routed from `english-v2-lexical-inventory-2026-09-05`. The `unlock` verb
+identity landed in that batch and gained **zero** corpus identities: on the
+witness `When you unlock this door, draw a card.` the parse now advances through
+`unlock` and stops at bytes 21..25, on `door`. So the missing pieces are the
+`door` noun and the half-level referent a Room's two halves need, not the verb.
+
+`workbench-room-halves` owns the game-model side and is **done**; nothing live
+owns the English-v2 parity, which is why this entry exists rather than a
+`Hangs on:` pointer to a closed ticket.
+
+Shape it should take: the `door` noun declaration plus whatever reference form
+addresses one half of a two-halved Room, so the trigger clause composes out of
+existing trigger grammar. Count the units with `jq` before graduating — the
+lexical-inventory batch measured the row at 30 units by surface, of which none
+was reachable.
+
+Hangs on: nothing live. Graduate on a corpus count plus a pinned shape for the
+half-level referent.
 
 ### Shared gaps (neither v1 nor v2 covers)
 
