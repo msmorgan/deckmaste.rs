@@ -1597,3 +1597,39 @@ Where no identity claim covers the bytes the declared type still wins —
 `This Vehicle's power is equal to the number of lands you control.` keeps its
 proper-Noun possessive owner, and `a card named Alpine Watchdog` keeps its
 catalog identity.
+
+## Amendment: Status and Designation are not grammatical categories (2026-09-05)
+
+Deriving the full finite paradigm of every keyword-action verb
+(`english-v2-keyword-action-verb-inflections`) produced ties between a derived
+participle and a grammar-side lexical class spelling the same bytes:
+`tapped`/`untapped` (the `Status` vocabulary, [CR#110.5]) and `goaded`,
+`suspected` (the `DesignationTerm` codec, [CR#701.15b,701.60b]). The first
+ruling, a specificity tier ranking authored over derived rows, was withdrawn
+the same day: the tie is a symptom of a Game Model concept carried as an
+Oracle-English lexical class (CONTEXT-MAP: Oracle English keeps linguistic
+terms; Status and Designation belong to the Game Model).
+
+**Ruling.** Status and Designation are not grammatical categories. The grammar
+sees `goaded`, `suspected`, `saddled`, `harnessed`, `tapped`, `untapped` as
+the participles of their declared keyword actions — one owner each, produced
+by the same inflection machinery as every other participle — used
+attributively (`goaded creature`) or predicatively (`is goaded`, `becomes
+tapped`); `monstrous` as an adjective; `the monarch`, `the initiative`, `the
+city's blessing` as noun phrases; `face down`, `phased out` as the adjective
+phrases they are. The `Status` vocabulary and `DesignationTerm` codec are
+retired from the grammar together with the constructions that exist only to
+consume them (`predicative_designation`, `PredicativeStatus`, the
+designation-with-value form); the surfaces they covered are re-covered by the
+general predicative/attributive constructions. `DesignationDecl` bodies in
+`plugins/builtin_v2` remain as Game Model data (what a designation is, its
+persistence) and contribute no grammar term; mapping the participle of a
+declared verb to the designation it confers is semantics' work through the
+verb declaration, not the grammar's. No downstream reads `DesignationTerm`
+from the parse tree, so no consumer moves.
+
+**Consequence for landings.** A tie between a derived inflection and a
+grammar-side class spelling the same bytes is a symptom of a Game Model
+category in the grammar and is resolved by retiring the class, never by a
+ranking tier and never by a guard. Coverage may move both ways during the
+retirement; every identity that changes analysis is listed with old and new.

@@ -229,3 +229,13 @@ Keyword Surface are cased together as the one word they form: capitalized only
 where that word begins a sentence or a keyword line — *Islandwalk*, *Snow
 swampwalk*, *Enchanted creature has mountainwalk.*
 _Avoid_: Prefix for the Keyword Quality it binds to
+
+## Status, Designation (Game Model terms — not grammatical categories)
+
+`tapped`, `goaded`, `suspected`, `saddled` are the **Participles** of their
+keyword-action verbs, used attributively or predicatively; `monstrous` is an
+**Adjective**; `the monarch`, `the initiative` are **Noun Phrases**; `face down`
+is an **Adjective Phrase**. Whether such a form names a status [CR#110.5] or a
+designation [CR#701.15b] is Game Model semantics resolved through the verb
+declaration, never a grammatical class. _Avoid_ "Status", "Designation" as the
+name of a vocabulary, codec, or construction in the grammar (ruling 2026-09-05).
