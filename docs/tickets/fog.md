@@ -216,8 +216,8 @@ and `win` ARE lexeme gaps, proved by `that controls a land` and `If you control
 a Goblin` selecting; `was kicked` IS a lexeme gap, proved by `was exiled`
 selecting; `named` had zero units under this key and was dropped.
 
-Routed residue: `vocab Color` is misnamed ([CR#105.4]) — `english-v2-rename-color-vocabulary`,
-not folded into the lexical batch because its replacement name is unpinned.
+Routed residue: the vocabulary is renamed `ColorWord` ([CR#105.4]) by
+`english-v2-rename-color-vocabulary`, rather than folded into the lexical batch.
 The `only … each turn` family landed 2026-09-05 as
 `english-v2-frequency-adverbial-family` (95 units gained, measured on change
 `mkvwwvzuwytw`, lock `covered` 19,564); what remains of it is the 18-unit

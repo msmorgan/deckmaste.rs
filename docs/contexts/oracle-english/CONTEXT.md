@@ -33,6 +33,13 @@ The conventional citation form used to identify a Lexeme.
 **Word Form**:
 An inflected surface form of a Lexeme.
 
+**Color Word** (project term):
+One of the eight Word Forms *white*, *blue*, *black*, *red*, *green*,
+*colorless*, *multicolored*, and *monocolored*. The first five name the Game
+Model Colors [CR#105.1]; the last three state an object's color property, and
+*colorless* and *multicolored* are not Colors [CR#105.4].
+_Avoid_: Color for the lexical Category
+
 **Realization**:
 The relationship by which an abstract grammatical value is expressed in a
 surface form.

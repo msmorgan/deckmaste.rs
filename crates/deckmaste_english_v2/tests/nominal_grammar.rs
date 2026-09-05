@@ -1698,7 +1698,12 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                 LexicalProvenanceKind::FormLiteral,
                 "form:non_color_modifier/non_color_modifier/0/affix",
             ),
-            (31, 36, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
+            (
+                31,
+                36,
+                LexicalProvenanceKind::Vocab,
+                "vocab:ColorWord/Black",
+            ),
             (
                 36,
                 46,

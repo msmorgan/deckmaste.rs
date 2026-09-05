@@ -4,7 +4,7 @@ needs: []
 **The colour-property adjective class is one member short.** `Create a 1/1
 monocolored Servo artifact creature token.` and `This permanent is
 monocolored.` both select; replace *monocolored* with *colorless* and both
-fail. `vocab Color` holds the five colour words and two of the three
+fail. `vocab ColorWord` holds the five colour words and two of the three
 colour-cardinality adjectives, and nothing else in the grammar spells the
 third.
 
@@ -40,7 +40,7 @@ Defect sentences (census, first-failure offset in the whole-face unit):
   token.`, `Create a 1/1 white Servo artifact creature token.`, `This permanent
   is monocolored.`
 
-Pinned shape: **add `Colorless = "colorless"` to `vocab Color`
+Pinned shape: **add `Colorless = "colorless"` to `vocab ColorWord`
 (`crates/deckmaste_english_v2/src/constructions.rs:184`) and change nothing
 else.**
 
@@ -52,7 +52,7 @@ multicolored [CR#105.2b] present, colorless [CR#105.2c] **absent**. Eight
 members complete the class; the grammar declares seven. There is no ninth: any
 further colour word would have to be a sixth colour, which [CR#105.1] excludes.
 
-The four consumers of `lex Color` are all standalone `lex(color)` forms — no
+The four consumers of `lex ColorWord` are all standalone `lex(color)` forms — no
 host fusion, nothing embedded inside another form — so the new member reaches
 every position the existing members reach with no construction work:
 
@@ -68,11 +68,11 @@ every position the existing members reach with no construction work:
 
 Witness chains, checked link by link for constituency:
 
-- `Create a 1/1 colorless Servo artifact creature token.` — `lex Color` →
+- `Create a 1/1 colorless Servo artifact creature token.` — `lex ColorWord` →
   `color_modifier` (form `lex(color)`, a standalone `NominalModifier`) →
   nominal → object. Every link is a node; `monocolored` selects through this
   exact chain today.
-- `This permanent is colorless.` — `lex Color` → `predicative_color` (form
+- `This permanent is colorless.` — `lex ColorWord` → `predicative_color` (form
   `lex(color)`) → `PredicativeColorComplement` → `PredicativeComplement`
   (`:1236`) → copular predicate. `monocolored` selects through this exact chain
   today.
@@ -112,7 +112,7 @@ rivalry the new member exposes.
 
 Routed, not in scope. The vocabulary is **misnamed**: [CR#105.4] states
 "'Multicolored' is not a color. Neither is 'colorless.'", and the class already
-holds *monocolored* and *multicolored* today, so `vocab Color` names a colour
+holds *monocolored* and *multicolored* today, so `vocab ColorWord` names a colour
 system while holding a colour-**property** class. This ticket does not create
 that defect and does not fix it; adding the eighth member sharpens it. Mint the
 rename at landing (blast radius measured 2026-09-05: five sites in
@@ -147,7 +147,7 @@ Standard constraints apply.
 
 Measured on change `ppxwomzppxxl` after refresh, lock covered 19,469.
 
-PROVE. Added only `Colorless = "colorless"` to `vocab Color`; no scanner,
+PROVE. Added only `Colorless = "colorless"` to `vocab ColorWord`; no scanner,
 construction, selection, or word-naming guard changed. The five probes and the
 three existing controls select and render byte-exactly. Full roundtrip reports
 19,469 clean of 19,469 accepted; ambiguity reports zero unresolved ties and

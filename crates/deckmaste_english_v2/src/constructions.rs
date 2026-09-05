@@ -183,7 +183,7 @@ constructions! {
         Yourselves = "yourselves",
     }
     vocab Variable { X = "X", Y = "Y", }
-    vocab Color {
+    vocab ColorWord {
         Black = "black",
         Blue = "blue",
         Colorless = "colorless",
@@ -1776,7 +1776,7 @@ constructions! {
         form predicative_adjective = lex(adjective);
     }
     construction predicative_color: PredicativeColorComplement {
-        element PredicativeColorValue { color: lex Color, }
+        element PredicativeColorValue { color: lex ColorWord, }
         form predicative_color = lex(color);
     }
     construction predicative_designation: PredicativeDesignationComplement {
@@ -2497,7 +2497,7 @@ constructions! {
         form bare_locative_noun = noun(noun);
     }
     construction color_modifier: NominalModifier {
-        element ColorModifier { color: lex Color, }
+        element ColorModifier { color: lex ColorWord, }
         derive modifier_license = Values::Unrestricted;
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2596,7 +2596,7 @@ constructions! {
         form noun_modifier = noun(noun);
     }
     construction non_color_modifier: NominalModifier {
-        element NonColorModifier { color: lex Color, }
+        element NonColorModifier { color: lex ColorWord, }
         derive modifier_license = Values::Unrestricted;
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -4161,7 +4161,7 @@ constructions! {
         form common_noun_choice_list = choices;
     }
     construction fused_color_nominal: Nominal {
-        element FusedColorNominal { color: lex Color, }
+        element FusedColorNominal { color: lex ColorWord, }
         derive concord_class = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive nominal_form = Values::BareSingularNoun;
