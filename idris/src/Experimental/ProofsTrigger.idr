@@ -97,6 +97,20 @@ badPluralAttackDefender : Unspellable (GameEvent []) (\ok =>
           (OneDefender (PlayerGroup YourOpponents) {sg = ok}))
 badPluralAttackDefender Refl impossible
 
+||| "Whenever you attack, …" — the active player declares the attack
+||| [CR#508.1], and the ability triggers on the creatures they control being
+||| declared [CR#508.3d].
+public export
+okPlayerAttacksHeader : GameEvent []
+okPlayerAttacksHeader = Macros.attacks You
+
+||| "Whenever target creature card in your graveyard attacks, …"
+public export
+badGraveyardAttacker : Unspellable (GameEvent []) (\ok =>
+  Attacks (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+          NoDefender {ak = ok})
+badGraveyardAttacker Oh impossible
+
 ||| "Whenever a creature enters during your turn, draw a card."
 public export
 okHeaderOwnTurnWindow : Ability

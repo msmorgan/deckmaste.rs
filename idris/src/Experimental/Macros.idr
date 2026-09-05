@@ -2365,16 +2365,16 @@ entersWithFewerCounters n amt kind =
   EntersRider n (WithCounters amt (PrintedKind kind) Fewer) {zn}
 
 public export
-attacks : (n : Noun bs Object) ->
-          {auto 0 zn : ZoneIs (nounZone n) Battlefield} -> GameEvent bs
-attacks n = Attacks n NoDefender {zn}
+attacks : {k : Kind} -> (n : Noun bs k) ->
+          {auto 0 ak : Attacker n} -> GameEvent bs
+attacks n = Attacks n NoDefender {ak}
 
 public export
 attacksPlayer : {k : Kind} -> (n : Noun bs Object) -> (whom : Noun (nomIntro n) k) ->
-                {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+                {auto 0 ak : Attacker n} ->
                 {auto 0 sg : nounPlur whom = OneOf} ->
                 {auto 0 at : Attackable whom} -> GameEvent bs
-attacksPlayer n whom = Attacks n (OneDefender whom {sg} {at}) {zn}
+attacksPlayer n whom = Attacks n (OneDefender whom {sg} {at}) {ak}
 
 public export
 dealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->

@@ -393,6 +393,10 @@ featureAltOk : DeedFeature -> Role -> List CardType -> Bool
 featureAltOk f r ts = maybe False (\v => deedAltOk v r ts) (featureLabel f)
 
 public export
+featureKindOk : DeedFeature -> Role -> Kind -> Bool
+featureKindOk f r k = maybe False (\v => deedKindOk v r k) (featureLabel f)
+
+public export
 deedZoneOf : VerbLabel -> Role -> Maybe Zone
 deedZoneOf v r = roleZone (deedRoleOf v r)
 

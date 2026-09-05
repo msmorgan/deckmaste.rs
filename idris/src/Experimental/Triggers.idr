@@ -189,9 +189,9 @@ mutual
     Enters : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
              {auto 0 sk : EntrySource from} -> GameEvent bs
-    Attacks : (n : Noun bs Object) ->
+    Attacks : {k : Kind} -> (n : Noun bs k) ->
               (whom : AttackDefender (nomIntro n)) ->
-              {auto 0 zn : ZoneIs (nounZone n) Battlefield} ->
+              {auto 0 ak : Attacker n} ->
               GameEvent bs
     AttacksWith : (who : Noun bs Player) ->
                   (whom : AttackDefender (nomIntro who)) ->

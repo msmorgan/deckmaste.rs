@@ -422,6 +422,20 @@ agateBladeAssassin =
                          , Macros.gainsLife You (Lit 1) ]) ]
        (Just (1, 3))
 
+||| Bard, Heir of Girion
+public export
+bardHeirOfGirion : Card
+bardHeirOfGirion =
+  Macros.card "Bard, Heir of Girion"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Archer"] [Creature])
+       [ Macros.keyword "Reach"
+       , Macros.keyword "Vigilance"
+       , Static (Macros.getsPt (Macros.allOf (Macros.otherCreatureYouControl Macros.thisCreature))
+                               (Up (Lit 1)) (Up (Lit 1)))
+       , Macros.triggered Whenever (Macros.attacks You) (Draw You (Lit 1)) ]
+       (Just (4, 4))
+
 ||| Fiend Binder
 public export
 fiendBinder : Card

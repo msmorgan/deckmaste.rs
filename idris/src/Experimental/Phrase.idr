@@ -2841,6 +2841,21 @@ featureNounOk : {bs : Bindings} -> {k : Kind} ->
                 DeedFeature -> Role -> Noun bs k -> Bool
 featureNounOk f r n = maybe False (\v => deedNounOk v r n) (featureLabel f)
 
+||| Who declares an attack: the active player [CR#508.1] or a creature they
+||| control [CR#508.1a]. The deed table's agent role decides which kinds
+||| attack, the `Attacking` feature keeps the object reading's type gate, and
+||| an object attacker is a battlefield permanent — `attackableKind`'s
+||| counterpart on the declaring side.
+public export
+attackerOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+attackerOk {k} n = featureKindOk Attacking Agent k
+                && featureNounOk Attacking Agent n
+                && combatPartyKind k (nounZone n)
+
+public export
+Attacker : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+Attacker n = So (attackerOk n)
+
 ||| A plural possessor must distribute over players [CR#102.1].
 public export
 partPossessorOk : {bs : Bindings} -> Maybe (Noun bs Player) -> Bool

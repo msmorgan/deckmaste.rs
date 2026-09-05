@@ -638,7 +638,7 @@ actFacts =
   , { agentRole := MkDeedRole [Player] [] True Nothing
     , patientRole := MkDeedRole [Object] [] False (Just Battlefield)
     } (plainAct "Fully Unlock")
-  , { agentRole := MkDeedRole [Object] [Creature] True (Just Battlefield)
+  , { agentRole := MkDeedRole [Object, Player] [Creature] True (Just Battlefield)
     , patientRole := MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield)
     , actFeature := Just Attacking
     , actCounterfactual := Just ObjectPremise
