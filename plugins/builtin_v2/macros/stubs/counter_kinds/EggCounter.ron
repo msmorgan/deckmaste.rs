@@ -1,0 +1,6 @@
+CounterKind(
+    name: "EggCounter",
+    params: [],
+    spelling: "egg",
+    body: Counter(name: "EggCounter", scope: Object),
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "RadCounter",
+    params: [],
+    spelling: "rad",
+    body: Counter(name: "RadCounter", scope: Player),
+)

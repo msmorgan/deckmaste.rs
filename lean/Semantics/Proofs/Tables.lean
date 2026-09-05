@@ -27,4 +27,21 @@ theorem designationLabelsDistinct : distinctDesignationLabels designationTable =
 
 theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
+theorem spaceSculptorConfersEverySector :
+    ["alpha sector", "beta sector", "gamma sector"].all
+      (fun label => conferralOk label (.byKeyword "SpaceSculptor")) = true := by decide
+
+theorem unlockConfersEitherDoor :
+    ["left half unlocked", "right half unlocked"].all
+      (fun label => conferralOk label (.byDeed (.core .unlock))) = true := by decide
+
+theorem storiedDoesNotConferCitysBlessing :
+    conferralOk "the city's blessing" (.byKeyword "Storied") = false := by decide
+
+theorem unlockDoesNotConferSector :
+    conferralOk "alpha sector" (.byDeed (.core .unlock)) = false := by decide
+
+theorem coreFactsIncludeTheirDeclaredConferrals :
+    (coreDeedFacts .unlock).confers = ["left half unlocked", "right half unlocked"] := by decide
+
 end Semantics.Proofs.Tables

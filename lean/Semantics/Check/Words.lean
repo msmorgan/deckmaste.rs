@@ -1,5 +1,5 @@
 import Semantics.Words
-import Semantics.Events
+import Semantics.Check.Facts
 
 /-!
 # Semantics.Check.Words
@@ -13,8 +13,7 @@ Every function keeps its Idris name and clauses. `So (f x)` obligations are the 
 functions here; the rule layer turns them into refusals. Everything is structurally recursive
 so `decide` can run it.
 
-The keyword facts table (`keywordFacts`, generated into `FactsGen.idr` by xtask) is not here
-yet; the keyword predicates take the table as an argument until it is.
+Registry data lives in `Check.Facts`; this module interprets its declared columns.
 -/
 
 namespace Semantics
@@ -116,207 +115,11 @@ def atLeastTwo : Nat → Bool
 
 /-! ## The act facts table -/
 
-/-- The Entity domain a referent is drawn from: a player, an object, or either [CR#102.1,109.1]. -/
-inductive EntityDomain where
-  | player | object | either
-  deriving DecidableEq, Repr
-
-/-- An object class [CR#109.1]: the overlapping ways an object is classified. -/
-inductive ObjectClass where
-  | card | token | spell | permanent | emblem | ability
-  deriving DecidableEq, Repr
-
-/-- What a referent must be: an Entity domain, optionally narrowed by object classes and card
-types. Only an object has a class. Empty `classes` admit no ability; empty `types` admit only a
-noun that names no type (`deedAltOk`), so a row that takes any typed noun lists `allTypes`. -/
-structure ReferentSort where
-  domain : EntityDomain
-  classes : List ObjectClass := []
-  types : List CardType := []
-  deriving Repr, BEq
-
-/-- Which kinds a domain admits: `.either` admits both, the others admit only their own. -/
-def EntityDomain.admits : EntityDomain → Kind → Bool
-  | .player, .player => true
-  | .object, .object => true
-  | .either, .object => true
-  | .either, .player => true
-  | _, _ => false
-
-/-- A domain's admitted kinds, listed; kept for callers built around a kind list rather than a
-membership test. -/
-def EntityDomain.kinds : EntityDomain → List Kind
-  | .player => [.player]
-  | .object => [.object]
-  | .either => [.object, .player]
-
-structure DeedRole where
-  sort : Option ReferentSort  -- none = no noun fills this role
-  bare : Bool
-  zone : Option Zone
-  deriving Repr, BEq
-
-def noRole : DeedRole := ⟨none, false, none⟩
-
-/-- The card types a role's sort names; an absent sort names none. -/
-def DeedRole.types (dr : DeedRole) : List CardType := dr.sort.elim [] (·.types)
-
-inductive PremiseSort where
-  | object | mana | value
-  deriving DecidableEq, Repr
-
-/-- The keyword actions [CR#701.1] a core constructor must name, declared so a guard reads a
-feature rather than a verb's spelling. A deed the core rules define carries no feature: it is a
-`CoreDeed` constructor, which a guard matches on directly. -/
-inductive DeedFeature where
-  | librarySearch | sacrificing | tapping
-  deriving DecidableEq, Repr
-
-/-- What the checker knows about one deed. The record carries no label: the deed itself is the
-key, and each of the three sources keys its rows its own way. -/
-structure ActFacts where
-  participle : Option String := none
-  dest : Option Zone := none
-  stepwise : Bool := false
-  loci : List Zone := []
-  intransitive : Bool := false
-  agentRole : DeedRole := noRole
-  patientRole : DeedRole := noRole
-  feature : Option DeedFeature := none
-  counterfactual : Option PremiseSort := none
-  rides : Bool := false
-  plays : Bool := false
-  bounded : Bool := false
-  /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
-  own library is a different deed. -/
-  opponentsLibrary : Bool := false
-  /-- The designation this keyword action's expansion confers, if any [CR#701.37a]. -/
-  confers : Option DesignationLabel := none
-  deriving Repr, BEq
-
-private def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
-private def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
-private def permanentTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
-private def spellTypes : List CardType :=
-  [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
-private def allTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
-
-/-- The keyword actions [CR#701.1], keyed by the label the registry declares: one-shot verbs in
-effect position that confer nothing, unlike the keyword abilities of the keyword facts table.
-This table is open — a set release adds a row — which is why a deed of this source is a label
-and not a constructor. -/
-def actFacts : List (KeywordActionLabel × ActFacts) :=
-  [ ("Destroy",
-      { participle := some "destroyed", dest := some .graveyard,
-        agentRole := playerAgent, patientRole := fieldObject }),
-    ("Sacrifice",
-      { participle := some "sacrificed", dest := some .graveyard,
-        agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        feature := some .sacrificing, bounded := true }),
-    ("Exile",
-      { participle := some "exiled", dest := some .exile, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
-    ("Discard",
-      { participle := some "discarded", dest := some .graveyard,
-        agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩ }),
-    ("Mill",
-      { participle := some "milled", dest := some .graveyard,
-        agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, some .library⟩ }),
-    ("Scry", { stepwise := true, agentRole := playerAgent }),
-    ("Surveil", { stepwise := true, agentRole := playerAgent }),
-    ("Tap",
-      { participle := some "tapped", agentRole := playerAgent, patientRole := fieldObject,
-        feature := some .tapping }),
-    ("Untap",
-      { participle := some "untapped", agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        bounded := true }),
-    ("Search",
-      { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
-        agentRole := playerAgent, feature := some .librarySearch, bounded := true }),
-    ("Shuffle", { loci := [.library], agentRole := playerAgent }),
-    ("Proliferate", { agentRole := playerAgent }),
-    ("The Ring Tempts You", { confers := some "Ring-bearer" }),
-    ("Transform",
-      { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
-    ("Convert",
-      { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
-    ("Meld",
-      { dest := some .battlefield, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
-    ("Cast",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩,
-        counterfactual := some .object, rides := true, plays := true, bounded := true }),
-    ("Play",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩,
-        counterfactual := some .object, rides := true, plays := true, bounded := true }),
-    /- Effects that specifically counter abilities widen this beyond a spell alone [CR#113.9]. -/
-    ("Counter",
-      { agentRole := ⟨none, true, some .stack⟩,
-        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
-        rides := true }),
-    ("Activate",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩, bounded := true }),
-    ("Regenerate",
-      { participle := some "regenerated", agentRole := ⟨none, true, none⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        rides := true, bounded := true }),
-    ("Vote", { agentRole := playerAgent, bounded := true }),
-    ("Venture Into The Dungeon", {}),
-    ("Adapt", {}),
-    ("Airbend", { dest := some .exile, agentRole := playerAgent }),
-    ("Amass", { agentRole := playerAgent }),
-    ("Assemble", {}),
-    ("Attach", { agentRole := playerAgent }),
-    ("Behold", { agentRole := playerAgent }),
-    ("Blight", { agentRole := playerAgent }),
-    ("Bolster", {}),
-    ("Clash", { agentRole := playerAgent }),
-    ("Cloak", { dest := some .battlefield, agentRole := playerAgent }),
-    ("Collect Evidence", { dest := some .exile, agentRole := playerAgent }),
-    ("Connive", {}),
-    ("Create", { dest := some .battlefield, agentRole := playerAgent }),
-    ("Detain", {}),
-    ("Discover", { agentRole := playerAgent }),
-    ("Double", {}),
-    ("Earthbend", { agentRole := playerAgent }),
-    ("Endure", {}),
-    ("Exchange", { agentRole := playerAgent }),
-    ("Exert", { agentRole := playerAgent }),
-    ("Explore", {}),
-    ("Face A Villainous Choice", { agentRole := playerAgent }),
-    ("Fateseal", { stepwise := true, agentRole := playerAgent, opponentsLibrary := true }),
-    ("Fight", {}),
-    ("Forage", { agentRole := playerAgent }),
-    ("Goad", { agentRole := playerAgent, confers := some "goaded" }),
-    ("Harness", { confers := some "harnessed" }),
-    ("Heal", {}),
-    ("Incubate", { dest := some .battlefield, agentRole := playerAgent }),
-    ("Investigate", { dest := some .battlefield, agentRole := playerAgent }),
-    ("Learn", {}),
-    ("Manifest", { dest := some .battlefield, agentRole := playerAgent }),
-    ("Manifest Dread", { agentRole := playerAgent }),
-    ("Monstrosity", { confers := some "monstrous" }),
-    ("Populate", {}),
-    ("Recruit", { agentRole := playerAgent }),
-    ("Reveal", { agentRole := playerAgent }),
-    ("Support", {}),
-    ("Suspect", { agentRole := playerAgent, confers := some "suspected" }),
-    ("Time Travel", {}),
-    ("Triple", {}),
-    ("Waterbend", { agentRole := playerAgent }) ]
-
 /-- The deeds the core rules define, as a total function: every constructor of the closed
 taxonomy has a row, so no lookup here can fail. Attacking and blocking are the turn-based
 actions of the declare-attackers and declare-blockers steps [CR#508.1,509.1]; unlocking and
 fully unlocking belong to a card type's own rules, not to a keyword [CR#709.5f,709.5i]. -/
-def coreDeedFacts : CoreDeed → ActFacts
+private def coreDeedRuleFacts : CoreDeed → ActFacts
   /- The declaring side of an attack is the active player or a creature they control
   [CR#508.1,508.1a]. -/
   | .attack =>
@@ -377,6 +180,9 @@ def distinctAbilityDeedLabels : List (KeywordLabel × ActFacts) → Bool
   | f :: fs => !(fs.map (·.1)).elem f.1 && distinctAbilityDeedLabels fs
 
 /-- The facts for a deed, dispatched on its source. A core deed always has them. -/
+def coreDeedFacts (deed : CoreDeed) : ActFacts :=
+  { coreDeedRuleFacts deed with confers := coreDeedConferrals deed }
+
 def deedFacts : Deed → Option ActFacts
   | .core d => some (coreDeedFacts d)
   | .action l => (actFacts.find? (·.1 == l)).map (·.2)
@@ -1111,21 +917,6 @@ def Subtype.label : Subtype → String
   | .of _ label => label
   | .spell label => label
 
-/-- What a subtype declares about the card frame it sits on: a Saga's chapter frame [CR#714.1],
-an Adventure's inset [CR#715.1], a Room's doors [CR#709.5j]. -/
-inductive FrameFeature where
-  | chapters | adventureInset | doors
-  deriving DecidableEq, Repr
-
-structure SubtypeFacts where
-  subtype : Subtype
-  frame : FrameFeature
-  deriving Repr, BEq
-
-def subtypeFacts : List SubtypeFacts :=
-  [ ⟨.of .enchantment "Saga", .chapters⟩, ⟨.spell "Adventure", .adventureInset⟩,
-    ⟨.of .enchantment "Room", .doors⟩ ]
-
 def Subtype.frame (s : Subtype) : Option FrameFeature :=
   (subtypeFacts.find? (·.subtype == s)).map (·.frame)
 
@@ -1186,49 +977,6 @@ def OptOrdinal.ok : Option Ordinal → Bool
 The grammar names a designation by its label (`DesignationLabel`); what the checker knows
 about one lives here. The table is the open part: a keyword's expansion (Ascend's, Monstrosity's)
 brings its designation with it, and the CR adds new ones without touching the grammar. -/
-
-inductive DesignationScope where
-  | heldBy (holder : Kind)
-  | heldByCard
-  | heldByGame
-  deriving DecidableEq, Repr
-
-structure DesignationFacts where
-  label : DesignationLabel
-  scope : DesignationScope
-  /-- Whether an instruction may confer it directly ("becomes the monarch"); a designation that
-  only a rule confers (the commander) is not conferred by text. -/
-  effectful : Bool
-  zone : Option Zone
-  type : Option CardType
-  /-- Which half of a Room permanent this designation unlocks, for the two that do. -/
-  half : Option RoomHalf := none
-  deriving Repr, BEq
-
-def playerHeld (label : String) : DesignationFacts :=
-  ⟨label, .heldBy .player, true, none, none, none⟩
-
-def permanentHeld (label : String) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, none, none⟩
-
-/-- The designations the CR defines today: those of
-[CR#701.15b,701.37b,701.54b,701.60b,701.64b], the keyword ones of
-[CR#702.112b,702.131c,702.158b,702.171b,702.195b], levels [CR#716.2b], solved [CR#719.3b], the
-monarch and the initiative [CR#725.1,726.1], day and night [CR#731.1]. Which keyword or deed
-confers a row is not carried here: it is declared with the conferrer itself, in
-`keywordFacts`/`actFacts`, and read back by `conferralOk`. -/
-def designationTable : List DesignationFacts := [
-  playerHeld "the monarch", playerHeld "the initiative",
-  playerHeld "the city's blessing", playerHeld "an enduring story",
-  permanentHeld "goaded", permanentHeld "Ring-bearer", permanentHeld "monstrous",
-  permanentHeld "renowned", permanentHeld "suspected", permanentHeld "prepared",
-  permanentHeld "alpha sector", permanentHeld "beta sector", permanentHeld "gamma sector",
-  permanentHeld "saddled", permanentHeld "harnessed", permanentHeld "level",
-  permanentHeld "solved", { permanentHeld "left half unlocked" with half := some .left },
-  { permanentHeld "right half unlocked" with half := some .right },
-  ⟨"commander", .heldByCard, false, none, none, none⟩,
-  ⟨"day", .heldByGame, true, none, none, none⟩,
-  ⟨"night", .heldByGame, true, none, none, none⟩ ]
 
 def findDesignation (label : DesignationLabel) : List DesignationFacts → Option DesignationFacts
   | [] => none
@@ -1316,28 +1064,6 @@ def DefinedSlots.power : DefinedSlots → Bool
 def DefinedSlots.toughness : DefinedSlots → Bool
   | .powerAlone => false
   | _ => true
-
-structure CounterFacts where
-  label : String
-  /-- What the counter is placed on: an object or a player [CR#122.1]. -/
-  holder : Kind
-  deriving Repr, BEq
-
-def counterFacts : List CounterFacts :=
-  [ ⟨"Charge", .object⟩, ⟨"Time", .object⟩, ⟨"Lore", .object⟩, ⟨"Poison", .player⟩,
-    ⟨"Age", .object⟩, ⟨"Stun", .object⟩, ⟨"Energy", .player⟩, ⟨"Oil", .object⟩,
-    ⟨"Loyalty", .object⟩, ⟨"Quest", .object⟩, ⟨"Finality", .object⟩, ⟨"Shield", .object⟩,
-    ⟨"Storage", .object⟩, ⟨"Fade", .object⟩, ⟨"Spore", .object⟩, ⟨"Experience", .player⟩,
-    ⟨"Depletion", .object⟩, ⟨"Level", .object⟩, ⟨"Verse", .object⟩, ⟨"Rad", .player⟩,
-    ⟨"Ki", .object⟩, ⟨"Divinity", .object⟩, ⟨"Study", .object⟩, ⟨"Plan", .object⟩,
-    ⟨"Ice", .object⟩, ⟨"Doom", .object⟩, ⟨"Tide", .object⟩, ⟨"Soul", .object⟩,
-    ⟨"Page", .object⟩, ⟨"Fuse", .object⟩, ⟨"Flood", .object⟩, ⟨"Bounty", .object⟩,
-    ⟨"Strike", .object⟩, ⟨"Hour", .object⟩, ⟨"Growth", .object⟩, ⟨"Egg", .object⟩,
-    ⟨"Dream", .object⟩, ⟨"Brick", .object⟩, ⟨"Blood", .object⟩, ⟨"Omen", .object⟩,
-    ⟨"Luck", .object⟩, ⟨"Plague", .object⟩, ⟨"Slime", .object⟩, ⟨"Fungus", .object⟩,
-    ⟨"Wish", .object⟩, ⟨"Wind", .object⟩, ⟨"Stash", .object⟩, ⟨"Scream", .object⟩,
-    ⟨"Defense", .object⟩, ⟨"Hone", .object⟩, ⟨"Sleight", .object⟩, ⟨"Spite", .object⟩,
-    ⟨"Rev", .object⟩, ⟨"Intervention", .object⟩, ⟨"Suspect", .object⟩, ⟨"Bloodstain", .object⟩ ]
 
 def distinctCounterLabels : List CounterFacts → Bool
   | [] => true

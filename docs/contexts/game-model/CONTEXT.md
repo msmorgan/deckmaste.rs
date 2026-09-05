@@ -397,6 +397,12 @@ Effects identify without it being an Ability or a copiable value. The CR names
 each Designation on its own — goaded ([CR#701.15b]), the city's blessing
 ([CR#702.131c]) — rather than defining the class.
 
+**Designation Conferrer** (project term):
+A Keyword Ability, Keyword Action, or Core Deed whose expansion gives a
+Designation. One conferrer may give several Designations: space sculptor gives
+sector designations ([CR#702.158a]), and unlocking gives the corresponding
+door's unlocked designation ([CR#709.5f]).
+
 **Primitive Keyword Ability** (project term):
 A Keyword Ability whose semantics are represented directly rather than
 decomposed into component Abilities.

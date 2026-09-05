@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "the city's blessing",
     grammar: FixedTerm(surface: "the city's blessing"),
-    body: DesignationDecl(name: "CitysBlessing", definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
+    body: DesignationDecl(name: "CitysBlessing", conferrers: [KeywordAbility("Ascend")], definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
 )

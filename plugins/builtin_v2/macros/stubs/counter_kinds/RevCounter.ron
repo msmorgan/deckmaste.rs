@@ -1,0 +1,6 @@
+CounterKind(
+    name: "RevCounter",
+    params: [],
+    spelling: "rev",
+    body: Counter(name: "RevCounter", scope: Object),
+)

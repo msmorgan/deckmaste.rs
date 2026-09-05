@@ -1,16 +1,14 @@
-//! `cargo xtask facts` — the RON macro stubs are the workbench's label
-//! vocabulary, so the Idris keyword facts table is generated from them
-//! (`docs/decisions/workbench-ron-shaped-and-label-rulings.md` §2).
+//! Generate workbench registry facts from the `builtin_v2` declarations and
+//! checker-column overlays. Lean receives actions, keywords, counters,
+//! designations, and frame subtypes; the reference Idris module retains its
+//! keyword table.
 //!
-//! Three subcommands:
-//!  - `facts generate` — write `idris/src/Experimental/FactsGen.idr` from
-//!    `plugins/builtin_v2/macros/stubs/keyword_abilities/*.ron` plus the
-//!    gate-column overlay below.
-//!  - `facts check` — regenerate in memory and fail if the committed module
-//!    differs, so the generated file can't be hand-edited into drift.
-//!  - `facts labels` — the two-way label-set report over four tables, each
-//!    printed with the scope rule that says which directions bind and with
-//!    the recorded reason for every label the scope rule exempts.
+//! `facts generate` writes both modules; `facts check` rejects drift in either
+//! one. `facts labels` retains the reference Idris label-set audit and its
+//! scope exceptions.
+
+mod action_overlay;
+mod lean;
 
 use std::fs;
 use std::path::Path;
@@ -28,7 +26,7 @@ pub struct FactsArgs {
 
 #[derive(Debug, Subcommand)]
 enum FactsCmd {
-    /// Write the generated Idris keyword facts module.
+    /// Write the generated Lean and Idris facts modules.
     Generate(PathArgs),
     /// Fail if the committed generated module differs from a fresh one.
     Check(PathArgs),
@@ -1333,18 +1331,15 @@ fn stub_shape(dir: &Path, name: &str) -> anyhow::Result<Option<Shape>> {
         return Ok(None);
     }
     let src = fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let raw = stub_field(&src, "params").unwrap_or("[]");
-    let inner = raw
-        .strip_prefix('[')
-        .and_then(|r| r.strip_suffix(']'))
-        .with_context(|| format!("{name}: `params` is not a list: {raw}"))?;
-    let params: Vec<&str> = inner
-        .split(',')
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .collect();
+    let declaration = deckmaste_construction_core::macro_def::read_str(&path, &src)?;
+    let params = declaration
+        .params()
+        .unwrap_or_default()
+        .iter()
+        .map(deckmaste_construction_core::macro_def::ParameterType::as_str)
+        .collect::<Vec<_>>();
     let shape = Shape::from_params(&params).with_context(|| {
-        format!("{name}: parameter signature outside the workbench vocabulary: {raw}")
+        format!("{name}: parameter signature outside the workbench vocabulary: {params:?}")
     })?;
     Ok(Some(shape))
 }
@@ -1427,8 +1422,11 @@ fn render(root: &Path) -> anyhow::Result<String> {
 }
 
 fn run_generate(root: &Path) -> anyhow::Result<()> {
+    let lean_text = lean::render(root)?;
     let path = root.join(GENERATED);
     let text = render(root)?;
+    fs::write(root.join(lean::GENERATED), lean_text)?;
+    println!("wrote {}", lean::GENERATED);
     fs::write(&path, &text).with_context(|| format!("writing {}", path.display()))?;
     println!(
         "wrote {} ({} rows)",
@@ -1439,6 +1437,13 @@ fn run_generate(root: &Path) -> anyhow::Result<()> {
 }
 
 fn run_check(root: &Path) -> anyhow::Result<()> {
+    let lean_path = root.join(lean::GENERATED);
+    anyhow::ensure!(
+        fs::read_to_string(&lean_path)? == lean::render(root)?,
+        "{} is stale: re-run `cargo xtask facts generate`",
+        lean_path.display()
+    );
+    println!("{} is up to date", lean_path.display());
     let path = root.join(GENERATED);
     let fresh = render(root)?;
     let committed =

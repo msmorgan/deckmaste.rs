@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "suspected",
     grammar: FixedTerm(surface: "suspected"),
-    body: DesignationDecl(name: "Suspected", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: DesignationDecl(name: "Suspected", conferrers: [KeywordAction("Suspect")], definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
 )

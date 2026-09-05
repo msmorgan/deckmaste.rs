@@ -42,6 +42,49 @@ const EXPECTED_NAMES: &[&str] = &[
     "VigilanceCounter",
 ];
 
+const SEMANTIC_ONLY_NAMES: &[&str] = &[
+    "BloodCounter",
+    "BloodstainCounter",
+    "BountyCounter",
+    "BrickCounter",
+    "DepletionCounter",
+    "DivinityCounter",
+    "DoomCounter",
+    "DreamCounter",
+    "EggCounter",
+    "FinalityCounter",
+    "FloodCounter",
+    "FungusCounter",
+    "FuseCounter",
+    "GrowthCounter",
+    "HoneCounter",
+    "HourCounter",
+    "IceCounter",
+    "InterventionCounter",
+    "KiCounter",
+    "LevelCounter",
+    "OmenCounter",
+    "PageCounter",
+    "PlagueCounter",
+    "PlanCounter",
+    "QuestCounter",
+    "RadCounter",
+    "RevCounter",
+    "ScreamCounter",
+    "SleightCounter",
+    "SlimeCounter",
+    "SoulCounter",
+    "SpiteCounter",
+    "StashCounter",
+    "StorageCounter",
+    "StrikeCounter",
+    "StudyCounter",
+    "SuspectCounter",
+    "TideCounter",
+    "WindCounter",
+    "WishCounter",
+];
+
 fn counter<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a NormalizedDeclaration {
     declarations
         .iter()
@@ -62,12 +105,15 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
         .filter(|declaration| declaration.identity().kind() == DeclarationKind::CounterKind)
         .collect::<Vec<_>>();
 
+    let mut expected = EXPECTED_NAMES.to_vec();
+    expected.extend_from_slice(SEMANTIC_ONLY_NAMES);
+    expected.sort_unstable();
     assert_eq!(
         counters
             .iter()
             .map(|declaration| declaration.identity().name())
             .collect::<Vec<_>>(),
-        EXPECTED_NAMES,
+        expected,
     );
     for declaration in &counters {
         assert_eq!(declaration.params(), Some([].as_slice()));
@@ -76,7 +122,9 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             panic!("{} has one literal spelling", declaration.identity())
         };
         assert!(!spelling.ends_with(" counter"));
-        if matches!(declaration.identity().name(), "P1P1Counter" | "M1M1Counter") {
+        if matches!(declaration.identity().name(), "P1P1Counter" | "M1M1Counter")
+            || SEMANTIC_ONLY_NAMES.contains(&declaration.identity().name())
+        {
             assert!(declaration.grammar().is_none());
         } else {
             let grammar = declaration

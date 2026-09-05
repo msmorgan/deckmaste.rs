@@ -1,0 +1,6 @@
+CounterKind(
+    name: "FuseCounter",
+    params: [],
+    spelling: "fuse",
+    body: Counter(name: "FuseCounter", scope: Object),
+)

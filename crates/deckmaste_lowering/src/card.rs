@@ -267,10 +267,10 @@ mod tests {
             deckmaste_card::Card::DoubleFaced {
                 layout: deckmaste_card::DoubleFacedLayout::Transforming,
                 front: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 },
                 back: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 }
             }
         );
@@ -288,10 +288,10 @@ mod tests {
             deckmaste_card::Card::DoubleFaced {
                 layout: deckmaste_card::DoubleFacedLayout::ModalDfc,
                 front: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 },
                 back: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 }
             }
         );
@@ -308,10 +308,10 @@ mod tests {
             .lower(),
             deckmaste_card::Card::Split {
                 left: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 },
                 right: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 }
             }
         );
@@ -328,9 +328,9 @@ mod tests {
             .lower(),
             deckmaste_card::Card::Flip {
                 normal: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 },
-                alternative: deckmaste_card::Characteristics { name: _, .. }
+                alternative: deckmaste_card::Characteristics { .. }
             }
         );
     }
@@ -346,9 +346,9 @@ mod tests {
             .lower(),
             deckmaste_card::Card::Adventurer {
                 normal: deckmaste_card::CardFace {
-                    characteristics: deckmaste_card::Characteristics { name: _, .. }
+                    characteristics: deckmaste_card::Characteristics { .. }
                 },
-                adventure: deckmaste_card::Characteristics { name: _, .. }
+                adventure: deckmaste_card::Characteristics { .. }
             }
         );
     }

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "HourCounter",
+    params: [],
+    spelling: "hour",
+    body: Counter(name: "HourCounter", scope: Object),
+)

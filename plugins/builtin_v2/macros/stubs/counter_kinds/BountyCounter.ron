@@ -1,0 +1,6 @@
+CounterKind(
+    name: "BountyCounter",
+    params: [],
+    spelling: "bounty",
+    body: Counter(name: "BountyCounter", scope: Object),
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "SpiteCounter",
+    params: [],
+    spelling: "spite",
+    body: Counter(name: "SpiteCounter", scope: Object),
+)

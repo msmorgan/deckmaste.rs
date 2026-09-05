@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "goaded",
     grammar: FixedTerm(surface: "goaded"),
-    body: DesignationDecl(name: "Goaded", definition: Stored(scope: Object, shape: Relation, uniqueness: None, persistence: EffectSupplied)),
+    body: DesignationDecl(name: "Goaded", conferrers: [KeywordAction("Goad")], definition: Stored(scope: Object, shape: Relation, uniqueness: None, persistence: EffectSupplied)),
 )

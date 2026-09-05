@@ -39,7 +39,7 @@ predicates and events are one `inCombat`/`combat` each over a
 `CombatRelation`; `statOf` takes a `ProjAxis`; `arith` takes an `ArithOp`;
 `or` joins kinds ("creature or player") where `joined` used to; designations
 are labels (`DesignationLabel := String`) whose facts live in a checker table
-(`Check/Words`), so a keyword's expansion can bring its own; and
+(`Check/Facts`), so a keyword's expansion can bring its own; and
 `Characteristics` is flat and is exactly [CR#109.3]'s list, with
 `power`/`toughness`/`loyalty`/`defense : Option Amount` (`none` is the printed
 `*` a characteristic-defining ability fills), wrapped by the two records that
@@ -48,6 +48,16 @@ characteristics and the choices its text announces as it enters — and a
 `CharacteristicBundle` is a characteristics set as an effect writes it, with
 the token qualities an effect can add [CR#111.3]. Planechase and Archenemy are
 not ported.
+
+## Registry facts
+
+`cargo xtask facts generate` writes `Semantics/Check/Facts.lean` from the
+builtin_v2 registry declarations and xtask's checker-column overlays.
+`cargo xtask facts check` rejects stale Lean or reference Idris output.
+`FactTypes.lean` owns the shared data columns; `Check/Words` and
+`Check/Keywords` interpret them. Designation conferrers are declared on
+`DesignationDecl` and generate lists, including all sectors and both doors.
+The table-integrity pins remain part of `lean/scripts/build`.
 
 ## Numbers
 

@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "harnessed",
     grammar: FixedTerm(surface: "harnessed"),
-    body: DesignationDecl(name: "Harnessed", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: DesignationDecl(name: "Harnessed", conferrers: [KeywordAction("Harness")], definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
 )

@@ -73,12 +73,47 @@ impl Lower for deckmaste_semantics::DesignationDef {
     }
 }
 
+impl Lower for deckmaste_semantics::CoreDeed {
+    type Target = deckmaste_core::CoreDeed;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::Attack => deckmaste_core::CoreDeed::Attack,
+            Self::Block => deckmaste_core::CoreDeed::Block,
+            Self::Target => deckmaste_core::CoreDeed::Target,
+            Self::Copy => deckmaste_core::CoreDeed::Copy,
+            Self::Draw => deckmaste_core::CoreDeed::Draw,
+            Self::GainLife => deckmaste_core::CoreDeed::GainLife,
+            Self::LoseGame => deckmaste_core::CoreDeed::LoseGame,
+            Self::WinGame => deckmaste_core::CoreDeed::WinGame,
+            Self::Spend => deckmaste_core::CoreDeed::Spend,
+            Self::Trigger => deckmaste_core::CoreDeed::Trigger,
+            Self::Put => deckmaste_core::CoreDeed::Put,
+            Self::Return => deckmaste_core::CoreDeed::Return,
+            Self::GainControl => deckmaste_core::CoreDeed::GainControl,
+            Self::Unlock => deckmaste_core::CoreDeed::Unlock,
+            Self::FullyUnlock => deckmaste_core::CoreDeed::FullyUnlock,
+        }
+    }
+}
+
+impl Lower for deckmaste_semantics::DesignationConferrer {
+    type Target = deckmaste_core::DesignationConferrer;
+    fn lower(self) -> <Self as Lower>::Target {
+        match self {
+            Self::KeywordAbility(label) => Self::Target::KeywordAbility(label.lower()),
+            Self::KeywordAction(label) => Self::Target::KeywordAction(label.lower()),
+            Self::CoreDeed(deed) => Self::Target::CoreDeed(deed.lower()),
+        }
+    }
+}
+
 impl Lower for deckmaste_semantics::DesignationDecl {
     type Target = deckmaste_core::DesignationDecl;
     fn lower(self) -> <Self as Lower>::Target {
         deckmaste_core::DesignationDecl {
             name: self.name.lower(),
             definition: self.definition.lower(),
+            conferrers: self.conferrers.lower(),
         }
     }
 }
@@ -255,11 +290,13 @@ mod tests {
         assert_matches!(
             deckmaste_semantics::DesignationDecl {
                 name: "X".into(),
+                conferrers: [].into(),
                 definition: minimal_designation_def()
             }
             .lower(),
             deckmaste_core::DesignationDecl {
                 name: _,
+                conferrers: _,
                 definition: deckmaste_core::DesignationDef::Stored {
                     scope: deckmaste_core::DesignationScope::Object,
                     shape: deckmaste_core::DesignationShape::Flag,
@@ -269,5 +306,21 @@ mod tests {
                 }
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod conferrer_tests {
+    use crate::Lower;
+
+    #[test]
+    fn declaration_conferrers_survive_lowering() {
+        let source: deckmaste_semantics::DesignationDecl = deckmaste_semantics::ron::options()
+            .from_str(r#"DesignationDecl(name: "test", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime), conferrers: [KeywordAbility("a"), KeywordAction("b"), CoreDeed(Unlock)])"#)
+            .unwrap();
+        let expected: deckmaste_core::DesignationDecl = deckmaste_core::ron::options()
+            .from_str(r#"DesignationDecl(name: "test", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime), conferrers: [KeywordAbility("a"), KeywordAction("b"), CoreDeed(Unlock)])"#)
+            .unwrap();
+        assert_eq!(source.lower(), expected);
     }
 }

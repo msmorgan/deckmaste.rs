@@ -341,6 +341,7 @@ pub fn minimal_designation_decl() -> deckmaste_semantics::DesignationDecl {
     deckmaste_semantics::DesignationDecl {
         name: "X".into(),
         definition: minimal_designation_def(),
+        conferrers: [].into(),
     }
 }
 

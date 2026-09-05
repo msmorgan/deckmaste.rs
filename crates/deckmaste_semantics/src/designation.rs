@@ -70,14 +70,45 @@ pub enum DesignationDef {
     DerivedIf(Arc<Condition>),
 }
 
+/// A deed defined by the core rules, independently of the open keyword-action
+/// registry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum CoreDeed {
+    Attack,
+    Block,
+    Target,
+    Copy,
+    Draw,
+    GainLife,
+    LoseGame,
+    WinGame,
+    Spend,
+    Trigger,
+    Put,
+    Return,
+    GainControl,
+    Unlock,
+    FullyUnlock,
+}
+
+/// The declared source of a designation in an expansion.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DesignationConferrer {
+    KeywordAbility(Ident),
+    KeywordAction(Ident),
+    CoreDeed(CoreDeed),
+}
+
 /// A designation declaration (§6, taxonomy §8): an open `Ident`
 /// vocabulary carrying a definition. Declaration-file type (like `MacroDef`);
-/// references to designations elsewhere use a bare `Ident`. No loader wiring
-/// yet.
+/// references to designations elsewhere use a bare `Ident`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DesignationDecl {
     pub name: Ident,
     pub definition: DesignationDef,
+    /// Expansions that confer this designation; empty when none are declared.
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub conferrers: Arc<[DesignationConferrer]>,
 }
 
 #[cfg(test)]

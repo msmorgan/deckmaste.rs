@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "day or night",
     grammar: FixedTerm(surface: "day or night"),
-    body: DesignationDecl(name: "DayNight", definition: Stored(scope: Game, shape: Enum([Day, Night]), uniqueness: PerGame, persistence: Permanently)),
+    body: DesignationDecl(name: "DayNight", definition: Stored(scope: Game, shape: Enum(["Day", "Night"]), uniqueness: PerGame, persistence: Permanently)),
 )

@@ -120,7 +120,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("shape: Enum([Day, Night])")
+            .contains(r#"shape: Enum(["Day", "Night"])"#)
     );
     assert!(
         day_night
@@ -149,7 +149,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("shape: Enum([Alpha, Beta, Gamma])")
+            .contains(r#"shape: Enum(["Alpha", "Beta", "Gamma"])"#)
     );
     assert!(
         sector

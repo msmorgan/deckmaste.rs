@@ -1,0 +1,6 @@
+CounterKind(
+    name: "LevelCounter",
+    params: [],
+    spelling: "level",
+    body: Counter(name: "LevelCounter", scope: Object),
+)

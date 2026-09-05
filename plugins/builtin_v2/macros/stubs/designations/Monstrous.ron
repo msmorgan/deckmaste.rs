@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "monstrous",
     grammar: FixedTerm(surface: "monstrous"),
-    body: DesignationDecl(name: "Monstrous", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: DesignationDecl(name: "Monstrous", conferrers: [KeywordAction("Monstrosity")], definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
 )

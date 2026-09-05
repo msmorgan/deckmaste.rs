@@ -60,7 +60,7 @@ fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
 
     let mut keyword_abilities = 0;
     let mut lexical_counter_kinds = 0;
-    let mut structured_counter_kinds = 0;
+    let mut nonlexical_counter_kinds = 0;
     let mut designations = 0;
 
     for declaration in &declarations {
@@ -82,7 +82,7 @@ fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
                 lexical_counter_kinds += 1;
             }
             DeclarationKind::CounterKind if declaration.grammar().is_none() => {
-                structured_counter_kinds += 1;
+                nonlexical_counter_kinds += 1;
             }
             DeclarationKind::Designation if position == Some(GrammarPosition::FixedTerm) => {
                 DesignationTerm::new(&environment, id.clone()).unwrap_or_else(|| {
@@ -103,8 +103,8 @@ fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
         "29 builtins plus one same-plugin row"
     );
     assert_eq!(
-        structured_counter_kinds, 2,
-        "the two structured P/T identities stay grammar-less"
+        nonlexical_counter_kinds, 42,
+        "two structured P/T identities plus forty semantics-only declarations stay grammar-less"
     );
     assert_eq!(designations, 20, "19 builtins plus one same-plugin row");
 
