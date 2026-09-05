@@ -53,8 +53,12 @@ landing's tree, the witness is still a parse failure and never regressed.
 ## Landing record
 
 Measured after `kata refresh` on feature change `llxsktkv` against its
-refreshed parent. The checked-in coverage lock still records 17,068 covered
-units; it was not blessed because the ambiguity STOP below prevents a landing.
+refreshed parent. The implementer's numbers below were taken on the pre-R10
+base; the reviewer re-measured on the refreshed tree (change `llxsktkv`,
+lock `covered` = 17,114) and the re-measured numbers are in
+`### Review corrections`. The checked-in coverage lock still records 17,114
+covered units; it was not blessed because the ambiguity STOP below prevents a
+landing.
 
 ### PROVE
 
@@ -66,8 +70,9 @@ units; it was not blessed because the ambiguity STOP below prevents a landing.
   word-naming guard was added.
 - `PredicativeComplement` now has an always-present
   `ScalarEquality: PredicativeScalarEqualityComplement` arm. Its construction
-  is optional `FloatedQuantifier` plus the existing `ScalarEquality`, whose
-  with-preposition value is the existing `ScalarMeasureValue`.
+  is optional `FloatedQuantifier` plus the existing `ScalarEquality`
+  (`equal to <ScalarValue>`). See `### Review corrections` for why the
+  `ScalarMeasureValue` the ticket names is not the reused category.
 - Focused assurance selects red and Goblin subject-gap relatives, both singular
   and coordinated scalar equalities, and both forms of the inherited witness:
   `Target land becomes a 3/3 creature.` and `Target land becomes a 3/3
@@ -114,6 +119,14 @@ units; it was not blessed because the ambiguity STOP below prevents a landing.
   comparison line. Therefore no printed lock delta exists to paste, `--bless`
   was not run, and the separate roundtrip command was not run. The coverage run
   itself observed 0 roundtrip mismatches.
+- Deviation/addition: `predicative_complement_predicate` was recategorized from
+  `VerbPhrase` to a new `PredicativeComplementLexicalVerbPhrase` member of the
+  existing `LexicalVerbPhrase` sum, so an ordinary copular predicate can take
+  the nonprepositional predicate-adjunct host. Added by the reviewer; see
+  `### Review corrections`.
+- Deviation/addition: 6 corpus units containing `enter the battlefield` change
+  their selected analysis from a wrong predicate-nominal reading to
+  `enter_location`. Added by the reviewer; see `### Review corrections`.
 - Deviation/addition: refreshed trunk exposed an unrelated borrow-after-move
   compile defect in `crates/xtask/src/english_v2/corpus.rs`.
   `write_parser_metrics(&mut diagnostics)` was reborrowed as
@@ -166,11 +179,213 @@ units; it was not blessed because the ambiguity STOP below prevents a landing.
   3,777 specificity-resolved, 2 unresolved ties, 15,264 parse failures, and 0
   internal failures.
 
+### Review corrections
+
+Reviewer: Opus landing reviewer, 2026-09-04, after a second `kata refresh` onto
+the R10 (`english-v2-possessive-nominal-form-collapse`) line. Gates were run
+once on that refreshed tree. Verdict: **REJECTED-PENDING-RULING** — the two
+selection ties survive the refresh and their resolution is outside this ticket.
+
+Re-measured on the refreshed tree (feature change `llxsktkv`, base lock
+`covered` = 17,114):
+
+| quantity | base (lock/trunk) | tree | delta |
+| --- | ---: | ---: | ---: |
+| selected units | 17,114 | 17,421 | +307 |
+| newly covered / dropped | — | 307 / 0 | +307 / -0 |
+| unique | 13,468 | 13,614 | +146 |
+| specificity-resolved | 3,646 | 3,807 | +161 |
+| unresolved ties | 0 | 2 | +2 |
+| parse failures | 15,527 | 15,218 | -309 |
+| construction declarations | 388 | 389 | +1 |
+
+The `+146` unique and `+161` specificity-resolved account for the whole `+307`,
+so no unit already selected on trunk changed its resolution class.
+
+Per-unit selection-neutrality proof (`ambiguity --json`, trunk content vs this
+tree, both at `--workers 8`): 307 newly selected, 0 lost, 928 units changed
+their selected construction path. 922 of the 928 are the pure recategorization
+(`VerbPhrase{PredicativeComplementPredicate}` becomes
+`VerbPhraseBaseVerbPhrase` +
+`PredicativeComplementLexicalVerbPhrase{PredicativeComplementPredicate}`) and
+are identical once that rewrite is normalized away.
+The remaining 6 are a **selection correction this landing makes and the
+implementer did not disclose**: `Grafdigger's Cage`, `Kunoros, Hound of
+Athreos`, `Recommission`, `Silver Surfer, Cosmic Voyager`, `Soulless Jailer`
+and `Weathered Runestone` all contain `enter the battlefield`. On trunk they
+selected `predicative_complement_predicate` with a **predicate-nominal**
+complement — `the battlefield` read as a predicative Nominal, which is wrong
+English and a wrong analysis. On this tree they select `enter_location` with
+`the battlefield` as an Object, which is correct. The extra `base_verb_phrase`
+node the recategorization inserts is what lets the locative analysis win the
+specificity comparison.
+
+Competing construction pair behind the specificity-share rise (census item):
+of the 161 newly specificity-resolved units, 124 are decided at the possessive
+owner between `possessive_self_reference` (the card naming itself, which wins)
+and `possessive_singular_reference`; the next largest, 85, is
+`coordinated_noun_phrase` against `genitive_determiner_coordination_reference`.
+None of the 307 newly *selected* units has both `possessive_self_reference` and
+`possessive_singular_nominal` among its candidates — that third route is what
+produces the two ties below.
+
+Findings corrected in this record, none requiring a code change:
+
+- MEDIUM — the record claimed the scalar-equality arm reuses `ScalarMeasureValue`
+  and that its identities select "through `predicative_complement_predicate`".
+  Both are false. `scalar_measure_value` is `<ScalarMeasure> <ScalarThreshold |
+  ScalarComparison>` (`power 2 or greater`), not `equal to <count>`; the
+  category that spells `equal to <count>` is the existing `ScalarEquality`
+  (`equal to <ScalarValue>`), already reused by `power_toughness_value` and by
+  the equality verb codecs. The implementer built the arm on `ScalarEquality`,
+  which satisfies the ticket's actual pin — an existing category, no new sealed
+  atom — while departing from the category the ticket names. The ticket's own
+  premise is the error; verified by reading both construction declarations.
+  Corrected in PROVE and in the identity-list preamble. And the hosts are
+  `finite_copular_predicate` (130), `declared_object_predicative_verb_phrase`
+  (3) and `predicative_complement_predicate` (2), not one host.
+- MEDIUM — undisclosed addition: recategorizing `predicative_complement_predicate`
+  from `VerbPhrase` to the new `PredicativeComplementLexicalVerbPhrase` member of
+  the `LexicalVerbPhrase` sum is a structural change beyond "widen the complement
+  role". It is inside the ticket's letter (the 2026-09-04 note inherits the
+  `Target land becomes a 3/3 creature until end of turn.` witness, which only a
+  nonprepositional predicate-adjunct host can select) but belonged in Deviations
+  and additions. Recorded there now. Probed for over-admission: the new sum
+  member reaches `predicate_adjunct_predicate` (nonprepositional adjuncts:
+  duration, purpose, frequency, manner), `stacked_predicate_adjunct_predicate`,
+  `as_though_predicate` and `alternative_predicate`. Prepositional adjuncts on
+  copular predicates were already reachable before and after through
+  `base_verb_phrase -> VerbPhrase -> PrepositionalPredicateAdjunctHost`, so
+  nothing was widened there. The corpus shows no unit selecting an
+  English-rejecting adjunct on a copular predicate: every one of the 126
+  ordinary-copular gains reads correctly.
+- MEDIUM — the `same`/`true` deferral was not written down anywhere a future
+  claimant would find it. Appended as a dated one-line note to
+  `docs/tickets/planned/english-v2-adjective-inventory.md`.
+- LOW — the implementer's census figures (17,068 -> 17,375, 13,452/3,616 ->
+  13,598/3,777, form-literal vocabulary overlaps 5) were measured on the pre-R10
+  base and are stale; the table above supersedes them. The `+307`/`0 lost` shape
+  is unchanged. On the refreshed tree the form-literal vocabulary overlaps are
+  9 and the licensed vocabulary/lexicon homographs 2, both inherited from trunk.
+
+Assurance counts verified against the diff: restored 0; re-spelled 0; ignored 0;
+added 2 (`copular_scalar_equalities_use_the_predicative_complement_sum`,
+`copular_complements_accept_color_nominal_and_duration_witnesses`); removed 0.
+Both use the pre-existing `assert_selected_with_specificity` helper, which
+requires a unique or specificity-resolved decision with exactly one survivor,
+zero exception uses, an exact round-trip render and covered ownership — no
+weakening. No `checked by`, `require`, or comment in the diff names a lexeme,
+construction, verb, noun, preposition or card. No citation-bearing file changed.
+
+Gate artifacts on the refreshed tree (all foreground, `--workers 8`,
+`CARGO_BUILD_JOBS=8`):
+
+- `cargo fmt --all` — clean, `jj st` reports no changes afterwards.
+- `cargo clippy -p deckmaste_english_v2 --all-targets -- -D warnings` —
+  `Finished dev profile ... in 8.85s`.
+- `cargo clippy -p xtask --all-targets -- -D warnings` —
+  `Finished dev profile ... in 11.51s`.
+- `DECKMASTE_COVERAGE_LOCK=report cargo xtask english_v2 coverage --check` —
+  `summary {"total_units":32641,"selected_units":17421,"covered_units":17421,
+  "selected_uncovered_units":0,"parse_failures":15218,"unresolved_ties":2,
+  "internal_failures":0,...,"roundtrip_mismatch_units":0,
+  "ownership_failure_units":0,"licensing_checker_permitted":20,
+  "licensing_checker_forbidden":0,"traversal_failure_units":0,
+  "leaf_traversal_failure_units":0,"gap_spans":0,"overlap_spans":0,
+  "synthetic_claims":0,"provenance_plan_mismatches":0} lock_mode=report`, then
+  `Error: coverage gate rejected 2 unresolved ambiguities`. Because the gate
+  stops on the ties it prints no lock comparison line, so `--bless` was not run
+  and there is no lock delta to paste. The newly-covered set was computed
+  directly against `english-v2-coverage.lock`: 307 added, 0 dropped.
+- `cargo xtask english_v2 ambiguity --require-resolved` —
+  `summary selected=17421 / unique=13614 / specificity_resolved=3807 /
+  exception_resolved=0 / unresolved_ties=2 / parse_failures=15218 /
+  internal_failures=0 / exception_uses=0`, then
+  `Error: English-v2 ambiguity census has 2 unresolved ties`.
+- `cargo test` was not run to completion by the reviewer: the corpus gates
+  reject first and the landing cannot proceed. The implementer's recorded run
+  (`deckmaste_english_v2` 144 + 106, `xtask` 453 + 12, determinism 1, flavor 1,
+  2 doctests, every result `test result: ok`) stands on the pre-R10 base and
+  must be re-run by whoever resumes this ticket.
+
+Performance advisory (reviewer's runs, refreshed tree): `coverage` 8 workers,
+104.894 s wall, 118,127 ns/B, host load 4.88 / 7.04 / 7.99; `ambiguity`
+8 workers, 112.401 s wall, 147,335 ns/B, host load 6.46 / 7.97 / 8.43. Both
+exceed the 16.26 s quiet-host ceiling and are reported, not fitted to.
+**Contention stamp: 2 concurrent workloads — one executor
+(`english-v2-granted-ability-coordination`, codex sol, live on
+`constructions.rs`) plus this review.**
+
+### STOP — ruling question (blocks integration)
+
+The two ties the implementer reported **survive the R10 refresh unchanged**.
+The R10 collapse renamed nothing in the surviving pair. Both identities are
+`unresolved_tie`, both surviving candidates are identical except at the
+possessive owner, and their specificity vectors are equal element for element,
+so no specificity comparison can decide them.
+
+- `9ba9f50f538a3566e7c63df0e94d05db5d65d1c7b76427c0c6eb1e2fcb10f64d` —
+  Daretti, Rocketeer Engineer —
+  `Daretti's power is equal to the greatest mana value among artifacts you control.`
+  Surviving candidates 3 and 5 (`ordering: "equal", decisive: "tie"`), differing
+  only at path index 9:
+  - candidate 3: `... UnqualifiedReferenceGenitiveDeterminerReference,
+    PossessivePossessive, PossessiveOwnerPossessiveSelfReference,
+    NominalBareSingularNominal, HeadNounSingularHead,
+    FiniteCopularPredicateFiniteCopularPredicate,
+    PredicativeScalarEqualityComplementPredicativeScalarEquality, ...`
+  - candidate 5: `... UnqualifiedReferenceGenitiveDeterminerReference,
+    PossessivePossessive, PossessiveOwnerPossessiveSingularNominal,
+    NominalBareSingularNominal, HeadNounSingularHead,
+    FiniteCopularPredicateFiniteCopularPredicate,
+    PredicativeScalarEqualityComplementPredicativeScalarEquality, ...`
+- `d0556136f9c3127edac724ae4b91b9816cb93f5134e1fd6ea69263e07d488ed1` —
+  Nightmare —
+  `Nightmare's power and toughness are each equal to the number of Swamps you control.`
+  Surviving candidates 4 and 5 (`ordering: "equal", decisive: "tie"`), differing
+  only at path index 14: `PossessiveOwnerPossessiveSelfReference` against
+  `PossessiveOwnerPossessiveSingularNominal`, every other one of the 33 path
+  entries and all 33 specificity entries identical.
+
+Cause, verified in the declarations. `possessive_self_reference: PossessiveOwner`
+is `{ spelling: identity SelfReferenceSpelling }`;
+`possessive_singular_nominal: PossessiveOwner` is `{ head: lex Noun }` with
+`require all(head.countability is Count, head.properness is Proper)`. When a
+card's self-reference short name is *also* a declared proper Noun the two spell
+the identical surface with the identical specificity vector. Both these cards
+are exactly that:
+`plugins/builtin_v2/macros/stubs/subtypes/creature/Nightmare.ron` declares
+`grammar: Noun(singular: "Nightmare")` and
+`plugins/builtin_v2/macros/stubs/subtypes/planeswalker/Daretti.ron` declares
+`grammar: Noun(singular: "Daretti", plural: Unavailable)`.
+
+The collision is pre-existing in the possessive-owner family; trunk carries 0
+unresolved ties only because neither clause parsed before this landing supplied
+the scalar-equality complement. This landing exposes it, it does not cause it.
+The intended reading is the self-reference in both cases.
+
+**The question.** How should `PossessiveOwner` order the self-reference identity
+route against the proper-Noun lexeme route? The ticket's fences forbid the three
+local escapes (a dominance edge, an exception, or a narrowed copular form), and
+every structural answer — retiring `possessive_singular_nominal` now that R10's
+`possessive_singular_reference` generalizes it, or making the self-reference
+identity outrank a homographic proper Noun — is a change to the possessive-owner
+family this ticket must stop before. That family is
+`english-v2-possessive-nominal-form-collapse`'s (R10, landed 2026-09-04), which
+already recorded a sibling redundancy observation of its own about
+`demonstrative_possessive_reference`.
+
+Until that is ruled on, this work cannot integrate: both
+`coverage --check` and `ambiguity --require-resolved` reject on the two ties, so
+the coverage lock cannot be blessed and the 307 correct gains cannot land.
+
 #### Newly selected identities: scalar-equality analysis (137)
 
-Each identity below selects through `predicative_complement_predicate` ->
-`PredicativeScalarEqualityComplement` -> `ScalarEquality` ->
-`ScalarMeasureValue` (possibly inside a larger selected clause).
+Each identity below selects through the copular host ->
+`PredicativeScalarEqualityComplement` -> `ScalarEquality` -> `ScalarValue`
+(possibly inside a larger selected clause). Re-measured hosts on the refreshed
+tree: `finite_copular_predicate` 130, `declared_object_predicative_verb_phrase`
+3, `predicative_complement_predicate` 2.
 
 - `9018b33beac0a9ee4a591dc936a96303cad1a109d21c1b44ae1ccd95f9a77906` — Abominable Treefolk
 - `f2ad526d84134129403afe7330e38b0b278775fdb93f6ec44dba49b448391ed4` — Altar Golem

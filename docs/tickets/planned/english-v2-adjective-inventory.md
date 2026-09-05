@@ -21,3 +21,9 @@ form literals (`additional`, `next`, `other`) collide with adjective vocab
 members today and become unconditional load errors once adjectives are
 lexemes — re-route them through the inventory first. Coverage must
 not drop; standard constraints apply.
+
+2026-09-04: `english-v2-copular-complement-sum` widened every copular complement
+site to the whole `PredicativeComplement` sum, so
+`The same is true for creature spells you control…` now has a complement site to
+reach but still fails for want of `same` and `true` in the adjective inventory —
+this ticket owns them.
