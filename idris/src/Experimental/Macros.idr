@@ -82,14 +82,7 @@ public export
 MkToken : {0 bs : Bindings} ->
           Maybe (p : Amount bs ** Amount (amtIntro p)) -> List Color ->
           TypeLine -> List Ability -> Maybe String -> TokenChars bs
-MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs [] l abs nm []
-
-public export
-MkSupertypedToken : {0 bs : Bindings} ->
-                    Maybe (p : Amount bs ** Amount (amtIntro p)) ->
-                    List Color -> List Supertype ->
-                    TypeLine -> List Ability -> Maybe String -> TokenChars bs
-MkSupertypedToken {bs} pt cs sups l abs nm = MkTokenChars {bs} pt cs sups l abs nm []
+MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs l abs nm []
 
 public export
 target : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
@@ -255,42 +248,41 @@ spell = IsSpell
 
 public export
 frontFace : (name : String) -> (cost : Maybe ManaCost) ->
-            (supers : List Supertype) -> (line : TypeLine) ->
+            (line : TypeLine) ->
             (text : AbilitySeq (costLetters cost)) -> (box : Maybe PrintedBox) ->
             CardFace
-frontFace name cost supers line text box =
-  MkFace (MkCharacteristics name cost [] supers line text box)
+frontFace name cost line text box =
+  MkFace (MkCharacteristics name cost [] line text box)
 
 public export
-backFace : (name : String) -> (supers : List Supertype) -> (line : TypeLine) ->
+backFace : (name : String) -> (line : TypeLine) ->
            (text : AbilitySeq []) -> (box : Maybe PrintedBox) -> CardFace
-backFace name supers line text box =
-  MkFace (MkCharacteristics name Nothing [] supers line text box)
+backFace name line text box =
+  MkFace (MkCharacteristics name Nothing [] line text box)
 
 ||| [CR#710.1] a flip card's alternative characteristics, [CR#715.2] an Adventure's
 public export
 alternative : (name : String) -> (cost : Maybe ManaCost) ->
-              (supers : List Supertype) -> (line : TypeLine) ->
+              (line : TypeLine) ->
               (text : AbilitySeq (costLetters cost)) -> (box : Maybe PrintedBox) ->
               Characteristics
-alternative name cost supers line text box =
-  MkCharacteristics name cost [] supers line text box
+alternative name cost line text box =
+  MkCharacteristics name cost [] line text box
 
 public export
-cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+cardOf : (name : String) -> (cost : Maybe ManaCost) ->
          (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
          (box : Maybe PrintedBox) ->
          {auto 0 ln : CardLine line} ->
-         {auto 0 sp : CardSupers supers} ->
          {auto 0 tx : CardText line text} ->
          {auto 0 ch : CardChapters line text} ->
          {auto 0 bx : CardBox Front line text box} ->
          {auto 0 mc : CardCost Front line cost} ->
          {auto 0 dr : DoorFrame text} ->
          Card
-cardOf name cost supers line text box =
-  SingleFaced (MkFace (MkCharacteristics name cost [] supers line text box))
-              {fl = MkCharacteristicsLaws {ln} {sp} {tx} {ch} {bx} {mc} {dr}}
+cardOf name cost line text box =
+  SingleFaced (MkFace (MkCharacteristics name cost [] line text box))
+              {fl = MkCharacteristicsLaws {ln} {tx} {ch} {bx} {mc} {dr}}
 
 public export
 printedBox : Maybe (Integer, Integer) -> Maybe PrintedBox
@@ -306,15 +298,15 @@ defenseBox : Integer -> Maybe PrintedBox
 defenseBox n = Just (DefenseBox (PrintedNum n))
 
 public export
-card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+card : (name : String) -> (cost : Maybe ManaCost) ->
        (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
        (stats : Maybe (Integer, Integer)) ->
        {auto 0 fl : FaceLaws Front
-                    (MkFace (MkCharacteristics name cost [] supers line text
+                    (MkFace (MkCharacteristics name cost [] line text
                                                (printedBox stats)))} ->
        Card
-card name cost supers line text stats =
-  SingleFaced (MkFace (MkCharacteristics name cost [] supers line text
+card name cost line text stats =
+  SingleFaced (MkFace (MkCharacteristics name cost [] line text
                                          (printedBox stats))) {fl}
 
 public export
@@ -324,18 +316,18 @@ levelBand range pow tou text =
   MkLevelBand range (PtBox (PrintedNum pow) (PrintedNum tou)) text
 
 public export
-leveler : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
+leveler : (name : String) -> (cost : Maybe ManaCost) ->
           (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
           (stats : Maybe (Integer, Integer)) -> (bands : List LevelBand) ->
           {auto 0 nf : FaceLaws Front
-                       (MkFace (MkCharacteristics name cost [] supers line text
+                       (MkFace (MkCharacteristics name cost [] line text
                                                   (printedBox stats)))} ->
           {auto 0 lv : So (levelerFrameOk line (printedBox stats) bands)} ->
           {auto 0 bl : LevelBandsLaws line bands} ->
           {auto 0 dj : So (bandsDisjoint bands)} ->
           Card
-leveler name cost supers line text stats bands =
-  Leveler (MkFace (MkCharacteristics name cost [] supers line text
+leveler name cost line text stats bands =
+  Leveler (MkFace (MkCharacteristics name cost [] line text
                                      (printedBox stats))) bands
           {nf} {lv} {bl} {dj}
 
@@ -347,17 +339,17 @@ prototypeAlt cost pow tou =
 
 public export
 prototype : (name : String) -> (cost : Maybe ManaCost) ->
-            (supers : List Supertype) -> (line : TypeLine) ->
+            (line : TypeLine) ->
             (text : AbilitySeq (costLetters cost)) ->
             (stats : Maybe (Integer, Integer)) -> (alt : PrototypeAlt) ->
             {auto 0 nf : FaceLaws Front
-                         (MkFace (MkCharacteristics name cost [] supers line text
+                         (MkFace (MkCharacteristics name cost [] line text
                                                     (printedBox stats)))} ->
             {auto 0 pf : So (prototypeFrameOk line (printedBox stats))} ->
             {auto 0 al : PrototypeAltLaws line alt} ->
             Card
-prototype name cost supers line text stats alt =
-  Prototype (MkFace (MkCharacteristics name cost [] supers line text
+prototype name cost line text stats alt =
+  Prototype (MkFace (MkCharacteristics name cost [] line text
                                        (printedBox stats))) alt
             {nf} {pf} {al}
 
@@ -1260,7 +1252,7 @@ may decider body = May decider body Nothing Nothing
 public export
 creatureTokOf : (pow : Amount bs) -> (tou : Amount (amtIntro pow)) ->
                 List Color -> List Subtype -> TokenChars bs
-creatureTokOf pow tou cs ss = MkToken (Just (pow ** tou)) cs (MkTypeLine ss [Creature]) [] Nothing
+creatureTokOf pow tou cs ss = MkToken (Just (pow ** tou)) cs (MkTypeLine [] [Creature] ss) [] Nothing
 
 public export
 creatureTok : (pow : Nat) -> (tou : Nat) -> List Color -> List Subtype -> TokenChars bs
@@ -1268,11 +1260,11 @@ creatureTok pow tou cs ss = creatureTokOf (Lit pow) (Lit tou) cs ss
 
 public export
 subtypesOnly : List Subtype -> TypeLine
-subtypesOnly ss = MkTypeLine ss []
+subtypesOnly ss = MkTypeLine [] [] ss
 
 public export
 typesOnly : List CardType -> TypeLine
-typesOnly ts = MkTypeLine [] ts
+typesOnly ts = MkTypeLine [] ts []
 
 public export
 create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
@@ -1321,7 +1313,7 @@ becomesColor {bs} n cs d = Continuously {bs} (Becomes n Sets (Colored cs) {ok}) 
 
 public export
 basicLandLine : (ss : List Subtype) -> {auto 0 bl : BasicLandTypes ss} -> TypeLine
-basicLandLine ss = MkTypeLine ss []
+basicLandLine ss = MkTypeLine [] [] ss
 
 
 public export

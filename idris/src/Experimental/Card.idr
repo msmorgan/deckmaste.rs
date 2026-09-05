@@ -190,6 +190,7 @@ cardCostOk Front tys (Just _) = not (elem Land tys)
 public export
 data CardLine : TypeLine -> Type where
   MkCardLine : {auto 0 ne : So (lineNonEmpty l)} ->
+               {auto 0 sp : CardSupers l.supers} ->
                {auto 0 dst : So (typesDistinct l.tys)} ->
                {auto 0 cmb : So (typesCombinable l.tys)} ->
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
@@ -253,7 +254,6 @@ record Characteristics where
   name : String
   cost : Maybe ManaCost
   choices : List QualitySort
-  supers : List Supertype
   line : TypeLine
   text : AbilitySeq (jointBindings choices (costLetters cost))
   box : Maybe PrintedBox
@@ -292,7 +292,6 @@ public export
 data CharacteristicsLaws : FaceSide -> Characteristics -> Type where
   MkCharacteristicsLaws : {0 side : FaceSide} -> {0 c : Characteristics} ->
                           {auto 0 ln : CardLine c.line} ->
-                          {auto 0 sp : CardSupers c.supers} ->
                           {auto 0 tx : CardText c.line c.text} ->
                           {auto 0 ch : CardChapters c.line c.text} ->
                           {auto 0 bx : CardBox side c.line c.text c.box} ->
@@ -455,11 +454,9 @@ data Card : Type where
               {auto 0 lf : FaceLaws Front left} ->
               {auto 0 rf : FaceLaws Front right} -> Card
 
-  SharedLineSplit : (line : TypeLine) -> (supers : List Supertype) ->
-                    (box : Maybe PrintedBox) ->
+  SharedLineSplit : (line : TypeLine) -> (box : Maybe PrintedBox) ->
                     (left : SharedLineHalf) -> (right : SharedLineHalf) ->
                     {auto 0 ln : CardLine line} ->
-                    {auto 0 sp : CardSupers supers} ->
                     {auto 0 pc : So (anyPermanentType line.tys)} ->
                     {auto 0 lh : SharedLineHalfLaws line box left} ->
                     {auto 0 rh : SharedLineHalfLaws line box right} -> Card

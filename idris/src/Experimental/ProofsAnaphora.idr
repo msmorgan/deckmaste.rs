@@ -1827,7 +1827,7 @@ okCondSubjectRead =
                     (Macros.becomes
                        (Macros.itCondSubject
                           (NotCond (Matches Macros.thisEnchantment Macros.creature)))
-                       (MkTypeLine [creatureType "Angel"] [Creature])
+                       (MkTypeLine [] [Creature] [creatureType "Angel"])
                        (Just Macros.untilEndOfTurn))
                     Nothing ]
 
@@ -1839,7 +1839,7 @@ badCondUnwindowedRead : Unspellable (Instruction []) (\ok =>
   Sequentially [ Macros.destroy (Macros.target Macros.creature)
                , If (NotCond (Matches Macros.thisEnchantment Macros.creature))
                     (Macros.becomes ((Macros.It) {ok})
-                                    (MkTypeLine [creatureType "Angel"] [Creature])
+                                    (MkTypeLine [] [Creature] [creatureType "Angel"])
                                     (Just Macros.untilEndOfTurn))
                     Nothing ])
 badCondUnwindowedRead Refl impossible

@@ -228,7 +228,7 @@ badPurposelessSpend IsNonEmpty impossible
 public export
 okNameMatchAfterChooser : Card
 okNameMatchAfterChooser =
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing
                               Openly)
        , Activated (Mana [Macros.pip Blue])
@@ -239,7 +239,7 @@ okNameMatchAfterChooser =
 
 public export
 badNameMatchBeforeChooser : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Activated (Mana [Macros.pip Blue])
                    (CounterSpell
                       (Macros.target (And [Macros.spell,
@@ -250,7 +250,7 @@ badNameMatchBeforeChooser Refl impossible
 
 public export
 badNameMatchWrongSort : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Activated (Mana [Macros.pip Blue])
                    (CounterSpell
@@ -307,7 +307,7 @@ badAltCostClause Oh impossible
 public export
 okChosenColorAfterChooser : Card
 okChosenColorAfterChooser =
-  Macros.card "" Nothing [] (MkTypeLine [] [Land])
+  Macros.card "" Nothing (MkTypeLine [] [Land] [])
        [ Static (EntersChoice Macros.thisLand (QSort Color) Nothing Openly)
        , Activated TapSymbol
            (AddMana You (Lit 1) (OfChosenColor Nothing) []) Nothing Nothing Nothing
@@ -317,7 +317,7 @@ okChosenColorAfterChooser =
 ||| "{T}: Add one mana of the chosen color."
 public export
 badChosenColorNoChooser : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Land])
+  Macros.card "" Nothing (MkTypeLine [] [Land] [])
        [ Activated TapSymbol
            (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) Nothing Nothing Nothing Nothing ]
        Nothing)
@@ -428,7 +428,7 @@ badTappedForManaOffField Oh impossible
 public export
 okTapForChosenColorMana : Card
 okTapForChosenColorMana =
-  Macros.card "" Nothing [] (MkTypeLine [] [Artifact])
+  Macros.card "" Nothing (MkTypeLine [] [Artifact] [])
        [ Static (Macros.entersChoosing Macros.thisArtifact Color)
        , Macros.triggered Whenever
            (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
@@ -442,7 +442,7 @@ okTapForChosenColorMana =
 ||| COLOR alone; "mana of the chosen color" is `okTapForChosenColorMana`.
 public export
 badTapForChosenNonManaType : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Artifact])
+  Macros.card "" Nothing (MkTypeLine [] [Artifact] [])
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
        , Macros.triggered Whenever
            (TappedForMana Nothing (Macros.a (And [Macros.land, HasSupertype Basic]))
@@ -519,27 +519,27 @@ okUnnamedAddition : Instruction []
 okUnnamedAddition =
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black]
-                            (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
+                            (MkTypeLine [] [] [creatureType "Zombie"]) [] Nothing)
                    Nothing
 
 ||| "Target creature becomes a Zombie named Bob in addition to its other types."
 public export
 badNamedAddition : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
-                   (MkToken Nothing [] (MkTypeLine [creatureType "Zombie"] []) [] (Just "Bob"))
+                   (MkToken Nothing [] (MkTypeLine [] [] [creatureType "Zombie"]) [] (Just "Bob"))
                    Nothing {ok = ok})
 badNamedAddition Oh impossible
 
 public export
 badRepeatedAdditionColor : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
-                   (MkToken Nothing [Black, Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
+                   (MkToken Nothing [Black, Black] (MkTypeLine [] [] [creatureType "Zombie"]) [] Nothing)
                    Nothing {ok = ok})
 badRepeatedAdditionColor Oh impossible
 
 public export
 badRepeatedAdditionType : Unspellable (Instruction []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
-                   (MkToken Nothing [] (MkTypeLine [] [Artifact, Artifact]) [] Nothing)
+                   (MkToken Nothing [] (MkTypeLine [] [Artifact, Artifact] []) [] Nothing)
                    Nothing {ok = ok})
 badRepeatedAdditionType Oh impossible

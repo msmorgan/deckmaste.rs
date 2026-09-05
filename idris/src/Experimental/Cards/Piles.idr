@@ -10,8 +10,8 @@ import Experimental.Macros
 public export
 tezzeretsGatebreaker : Card
 tezzeretsGatebreaker =
-  Macros.card "Tezzeret's Gatebreaker" (Just [Macros.generic 4]) []
-       (MkTypeLine [] [Artifact])
+  Macros.card "Tezzeret's Gatebreaker" (Just [Macros.generic 4])
+       (MkTypeLine [] [Artifact] [])
        [ Macros.triggered When (Enters Macros.thisArtifact Nothing)
            (Sequentially
               [ Macros.lookAt ((Macros.topSlice (Lit 5)))
@@ -46,8 +46,8 @@ public export
 tyrantsChoice : Card
 tyrantsChoice =
   Macros.card "Tyrant's Choice"
-       (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 1, Macros.pip Black])
+       (MkTypeLine [] [Sorcery] [])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
               [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
@@ -64,8 +64,8 @@ public export
 councilsJudgment : Card
 councilsJudgment =
   Macros.card "Council's Judgment"
-       (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
               [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
@@ -80,8 +80,8 @@ public export
 orchardElemental : Card
 orchardElemental =
   Macros.card "Orchard Elemental"
-       (Just [Macros.generic 5, Macros.pip Green]) []
-       (MkTypeLine [creatureType "Elemental"] [Creature])
+       (Just [Macros.generic 5, Macros.pip Green])
+       (MkTypeLine [] [Creature] [creatureType "Elemental"])
        [ Macros.abilityWord "council's dilemma"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
               (Sequentially
@@ -98,8 +98,8 @@ public export
 pleaForPower : Card
 pleaForPower =
   Macros.card "Plea for Power"
-       (Just [Macros.generic 3, Macros.pip Blue]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 3, Macros.pip Blue])
+       (MkTypeLine [] [Sorcery] [])
        [ Macros.abilityWord "will of the council"
            (Spell Nothing (Sequentially
               [ Macros.voteStartingWith You (Macros.each AnyPlayer) Openly
@@ -113,8 +113,8 @@ pleaForPower =
 public export
 coercivePortal : Card
 coercivePortal =
-  Macros.card "Coercive Portal" (Just [Macros.generic 4]) []
-       (MkTypeLine [] [Artifact])
+  Macros.card "Coercive Portal" (Just [Macros.generic 4])
+       (MkTypeLine [] [Artifact] [])
        [ Macros.abilityWord "will of the council"
            (Macros.triggered At (BeginningOf ThePart Upkeep (ByPlayer You))
               (Sequentially
@@ -134,8 +134,8 @@ public export
 custodiSquire : Card
 custodiSquire =
   Macros.card "Custodi Squire"
-       (Just [Macros.generic 4, Macros.pip White]) []
-       (MkTypeLine [creatureType "Spirit", creatureType "Cleric"] [Creature])
+       (Just [Macros.generic 4, Macros.pip White])
+       (MkTypeLine [] [Creature] [creatureType "Spirit", creatureType "Cleric"])
        [ Macros.keyword "Flying"
        , Macros.abilityWord "will of the council"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
@@ -155,8 +155,8 @@ public export
 lieutenantsOfTheGuard : Card
 lieutenantsOfTheGuard =
   Macros.card "Lieutenants of the Guard"
-       (Just [Macros.generic 4, Macros.pip White]) []
-       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       (Just [Macros.generic 4, Macros.pip White])
+       (MkTypeLine [] [Creature] [creatureType "Human", creatureType "Soldier"])
        [ Macros.abilityWord "council's dilemma"
            (Macros.triggered When (Enters Macros.thisCreature Nothing)
               (Sequentially
@@ -187,8 +187,8 @@ public export
 deathOrGlory : Card
 deathOrGlory =
   Macros.card "Death or Glory"
-       (Just [Macros.generic 4, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 4, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles You
                       (Macros.allOf (And [Macros.creature,
@@ -202,8 +202,8 @@ public export
 steamAugury : Card
 steamAugury =
   Macros.card "Steam Augury"
-       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red]) []
-       (MkTypeLine [] [Instant])
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles You ((Macros.Them)) 2 []
@@ -216,8 +216,8 @@ steamAugury =
 public export
 doOrDie : Card
 doOrDie =
-  Macros.card "Do or Die" (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [] [Sorcery])
+  Macros.card "Do or Die" (Just [Macros.generic 1, Macros.pip Black])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles You
                       (Macros.allOf (And [Macros.creature,
@@ -234,7 +234,7 @@ lilianaOfTheVeil : Card
 lilianaOfTheVeil =
   Macros.cardOf "Liliana of the Veil"
        (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black])
-       [Legendary] (MkTypeLine [planeswalkerType "Liliana"] [Planeswalker])
+       (MkTypeLine [Legendary] [Planeswalker] [planeswalkerType "Liliana"])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           ((Macros.discard (Macros.each AnyPlayer) (Macros.a (InZone Macros.handZ))))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 2))

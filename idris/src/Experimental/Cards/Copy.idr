@@ -16,8 +16,8 @@ public export
 repeatedReverberation : Card
 repeatedReverberation =
   Macros.card "Repeated Reverberation"
-       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [] [Instant])
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Delayed
                   (Casts You (Macros.a (And [Macros.instant, Macros.spell])) Nothing)
                   [ Casts You (Macros.a (And [Macros.sorcery, Macros.spell])) Nothing
@@ -41,7 +41,7 @@ frontlineHeroismCopy =
     (Sequentially
        [ Macros.create (Lit 1)
            (MkToken (Just (Lit 1 ** Lit 1)) [Red]
-                    (MkTypeLine [creatureType "Soldier"] [Creature])
+                    (MkTypeLine [] [Creature] [creatureType "Soldier"])
                     [Macros.keyword "Haste"] Nothing)
        , Copy FromStack You (Macros.That SpellW) (Lit 1) []
        , CopyTargets (Macros.That CopyW) (Macros.That TokenW) ])
@@ -62,8 +62,8 @@ flawlessForgeryLine =
 public export
 twincast : Card
 twincast =
-  Macros.card "Twincast" (Just [Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [] [Instant])
+  Macros.card "Twincast" (Just [Macros.pip Blue, Macros.pip Blue])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
@@ -74,8 +74,8 @@ twincast =
 public export
 fork : Card
 fork =
-  Macros.card "Fork" (Just [Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [] [Instant])
+  Macros.card "Fork" (Just [Macros.pip Red, Macros.pip Red])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Copy FromStack You
                       (Macros.target (And [Macros.instantOrSorcery, Macros.spell]))
@@ -87,8 +87,8 @@ public export
 meletisCharlatan : Card
 meletisCharlatan =
   Macros.card "Meletis Charlatan"
-       (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       (Just [Macros.generic 2, Macros.pip Blue])
+       (MkTypeLine [] [Creature] [creatureType "Human", creatureType "Wizard"])
        [ Macros.activated (Compound [Mana [Macros.generic 2, Macros.pip Blue], TapSymbol])
                           (Sequentially
                       [ Copy FromStack
@@ -112,8 +112,8 @@ echoMagesFourthLevel =
 public export
 strionicResonator : Card
 strionicResonator =
-  Macros.card "Strionic Resonator" (Just [Macros.generic 2]) []
-       (MkTypeLine [] [Artifact])
+  Macros.card "Strionic Resonator" (Just [Macros.generic 2])
+       (MkTypeLine [] [Artifact] [])
        [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
            (Sequentially
               [ Copy FromStack You
@@ -151,8 +151,8 @@ rowansTalentCopy =
 public export
 ringsOfBrighthearth : Card
 ringsOfBrighthearth =
-  Macros.card "Rings of Brighthearth" (Just [Macros.generic 3]) []
-       (MkTypeLine [] [Artifact])
+  Macros.card "Rings of Brighthearth" (Just [Macros.generic 3])
+       (MkTypeLine [] [Artifact] [])
        [ Macros.triggeredIf Whenever
            (Activates You (Macros.a (AbilityHead AnyActivated)))
            (Macros.itIsntAnAbility IsManaAbility)
@@ -166,9 +166,9 @@ public export
 ironManBleedingEdge : Card
 ironManBleedingEdge =
   Macros.card "Iron Man, Bleeding Edge"
-       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [creatureType "Human", creatureType "Hero"]
-                   [Artifact, Creature])
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue])
+       (MkTypeLine [Legendary] [Artifact, Creature]
+                   [creatureType "Human", creatureType "Hero"])
        [ Macros.keyword "Flying"
        , Macros.triggeredOnlyOnce Whenever
            (Casts You (Macros.a (And [Macros.artifact, Macros.spell])) Nothing)
@@ -181,8 +181,8 @@ public export
 donalHeraldOfWings : Card
 donalHeraldOfWings =
   Macros.card "Donal, Herald of Wings"
-       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue])
+       (MkTypeLine [Legendary] [Creature] [creatureType "Human", creatureType "Wizard"])
        [ Macros.triggeredOnlyOnce Whenever
            (Casts You
               (Macros.a (And [ Macros.creature, Macros.spell
@@ -193,7 +193,7 @@ donalHeraldOfWings =
            (Macros.may You
               (Copy FromStack You ((Macros.It)) (Lit 1)
                  [ExceptChars (MkToken (Just (Lit 1 ** Lit 1)) []
-                                       (MkTypeLine [creatureType "Spirit"] [])
+                                       (MkTypeLine [] [] [creatureType "Spirit"])
                                        [] Nothing)
                               True])) ]
        (Just (3, 3))
@@ -202,22 +202,22 @@ public export
 tawnosTheToymaker : Card
 tawnosTheToymaker =
   Macros.card "Tawnos, the Toymaker"
-       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [creatureType "Human", creatureType "Artificer"] [Creature])
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Blue])
+       (MkTypeLine [Legendary] [Creature] [creatureType "Human", creatureType "Artificer"])
        [ Macros.triggered Whenever
                           (Casts You (Macros.a (And [Or [HasSubtype (creatureType "Beast"), HasSubtype (creatureType "Bird")],
                                               Macros.creature, Macros.spell])) Nothing)
                           (Macros.may You
                       (Copy FromStack You ((Macros.It)) (Lit 1)
-                                 [ExceptTypes (MkTypeLine [] [Artifact])])) ]
+                                 [ExceptTypes (MkTypeLine [] [Artifact] [])])) ]
        (Just (3, 5))
 
 public export
 bonusRound : Card
 bonusRound =
   Macros.card "Bonus Round"
-       (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Delayed (Casts (Macros.a AnyPlayer)
                                (Macros.a (And [Macros.instantOrSorcery,
                                                Macros.spell])) Nothing)
@@ -233,8 +233,8 @@ public export
 melekIzzetParagon : Card
 melekIzzetParagon =
   Macros.card "Melek, Izzet Paragon"
-       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Red]) [Legendary]
-       (MkTypeLine [creatureType "Weird", creatureType "Wizard"] [Creature])
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Red])
+       (MkTypeLine [Legendary] [Creature] [creatureType "Weird", creatureType "Wizard"])
        [ Static (Visibility Reveal You TopOfLibrary)
        , Static ((Macros.mayPlayDeed "Cast" You (Macros.allOf (And [Macros.spell, Macros.instantOrSorcery])) Nothing (PlayRider (Just Macros.onTopZ) Nothing Nothing False ItsOwnCost)))
        , Macros.triggered Whenever

@@ -117,17 +117,17 @@ okStillALand : StaticSpec []
 okStillALand =
   Becomes (Macros.allOf Macros.land) Sets
           (Bundle (MkToken (Just (Lit 2 ** Lit 2)) []
-                           (MkTypeLine [] [Creature]) [] Nothing) (Just Land))
+                           (MkTypeLine [] [Creature] []) [] Nothing) (Just Land))
 
 ||| "Target creature becomes a Coward until end of turn. It's still a land."
 public export
 badStillOnSubtypeSet : Unspellable (StaticSpec []) (\ok =>
-  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing) (Just Land)) {ok = ok})
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [] [creatureType "Coward"]) [] Nothing) (Just Land)) {ok = ok})
 badStillOnSubtypeSet Oh impossible
 
 public export
 badStillAnInstant : Unspellable (StaticSpec []) (\ok =>
-  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) (Just Instant)) {ok = ok})
+  Becomes (Macros.target Macros.creature) Sets (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact] []) [] Nothing) (Just Instant)) {ok = ok})
 badStillAnInstant Oh impossible
 
 ||| "Target creature gets +1/+0."
@@ -154,7 +154,7 @@ public export
 badDoubleExtension : Unspellable (StaticSpec []) (\ok =>
   AlsoOffBattlefield
     (AlsoOffBattlefield
-       (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing) Nothing))) {nx = ok})
+       (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (Bundle (MkToken Nothing [] (MkTypeLine [] [Artifact] []) [] Nothing) Nothing))) {nx = ok})
 badDoubleExtension Oh impossible
 
 ||| "If you would draw a card, draw two cards instead."

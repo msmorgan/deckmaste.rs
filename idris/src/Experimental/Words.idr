@@ -3330,16 +3330,18 @@ public export
 ChapterMarks : List ChapterNumber -> Type
 ChapterMarks ns = So (chapterMarksOk ns)
 
+||| [CR#205.1] the type line: supertypes, card types and subtypes, in printed order [CR#205.4a,205.3b].
 public export
 record TypeLine where
   constructor MkTypeLine
-  subs : List Subtype
+  supers : List Supertype
   tys : List CardType
+  subs : List Subtype
 
 public export
 lineNonEmpty : TypeLine -> Bool
-lineNonEmpty (MkTypeLine [] []) = False
-lineNonEmpty (MkTypeLine _ _) = True
+lineNonEmpty (MkTypeLine _ [] []) = False
+lineNonEmpty (MkTypeLine _ _ _) = True
 
 
 public export
@@ -3513,13 +3515,13 @@ typesDistinct (t :: ts) = not (elem t ts) && typesDistinct ts
 
 public export
 addedFits : Maybe CardType -> TypeLine -> Bool
-addedFits subj (MkTypeLine [] tys) = True
-addedFits subj (MkTypeLine (s :: ss) tys) =
+addedFits subj (MkTypeLine sups tys []) = True
+addedFits subj (MkTypeLine sups tys (s :: ss)) =
   (any (subtypeFits s) tys ||
    (case subj of
       Nothing => False
       Just t => subtypeFits s t)) &&
-  addedFits subj (MkTypeLine ss tys)
+  addedFits subj (MkTypeLine sups tys ss)
 
 public export
 AddedFits : Maybe CardType -> TypeLine -> Type
@@ -3532,8 +3534,8 @@ anyNewType subj (t :: ts) = not (tyIs t subj) || anyNewType subj ts
 
 public export
 addsSomething : Maybe CardType -> TypeLine -> Bool
-addsSomething subj (MkTypeLine [] tys) = anyNewType subj tys
-addsSomething subj (MkTypeLine (_ :: _) tys) = True
+addsSomething subj (MkTypeLine _ tys []) = anyNewType subj tys
+addsSomething subj (MkTypeLine _ tys (_ :: _)) = True
 
 public export
 AddsSomething : Maybe CardType -> TypeLine -> Type
@@ -3558,8 +3560,8 @@ retainable Sorcery = False
 public export
 retentionOk : TypeLine -> Maybe CardType -> Bool
 retentionOk tl Nothing = True
-retentionOk (MkTypeLine _ []) (Just t) = False
-retentionOk (MkTypeLine _ (u :: us)) (Just t) = retainable t
+retentionOk (MkTypeLine _ [] _) (Just t) = False
+retentionOk (MkTypeLine _ (u :: us) _) (Just t) = retainable t
 
 public export
 RetentionOk : TypeLine -> Maybe CardType -> Type

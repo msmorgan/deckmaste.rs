@@ -628,7 +628,7 @@ badThatCreatureIsDamagedSelf Refl impossible
 public export
 okLastChosenAfterChooser : Card
 okLastChosenAfterChooser =
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing
                               Openly)
        , Static (DamageRule AnyDamage
@@ -639,7 +639,7 @@ okLastChosenAfterChooser =
 
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
                                                 Macros.ofTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly) ]
@@ -648,7 +648,7 @@ badLastChosenBeforeChooser Oh impossible
 
 public export
 badLastChosenWrongSort : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (DamageRule AnyDamage (DealtBy (Macros.allOf (And [Macros.source,
                                                 Macros.ofTheLastChosen Color {ok = ok}]))) (ToRecipient You) (Prevent CutAll Nothing) Repeatedly) ]
@@ -738,7 +738,7 @@ okSoldierToken =
 ||| creature type [CR#205.3m].
 public export
 badZombieArtifactToken : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [creatureType "Zombie"] [Artifact])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [] [Artifact] [creatureType "Zombie"])
                           [] Nothing) {sf = ok})
 badZombieArtifactToken Oh impossible
 
@@ -747,14 +747,14 @@ badZombieArtifactToken Oh impossible
 ||| its creating ability defines [CR#111.3].
 public export
 badCreatureTokenNoPt : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {tp = ok})
+  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [] [Creature] [creatureType "Soldier"]) [] Nothing) {tp = ok})
 badCreatureTokenNoPt Oh impossible
 
 ||| "Create a 1/1 white token.": refuses `tt` -- a token represents a
 ||| permanent [CR#111.1], which carries a permanent card type [CR#110.4a].
 public export
 badTypelessToken : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] []) [] Nothing) {tt = ok})
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [] [] []) [] Nothing) {tt = ok})
 badTypelessToken Oh impossible
 
 ||| "You gain life equal to your life total."

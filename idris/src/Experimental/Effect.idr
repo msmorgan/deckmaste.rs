@@ -768,7 +768,6 @@ mutual
     constructor MkTokenChars
     pt : Maybe (p : Amount bs ** Amount (amtIntro p))
     colors : List Color
-    supers : List Supertype
     line : TypeLine
     abilities : List (AbilityAt [])
     name : Maybe String
@@ -780,7 +779,7 @@ mutual
 
   public export
   tokenTyped : {0 bs : Bindings} -> TokenChars bs -> Bool
-  tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys)
+  tokenTyped t = lineNonEmpty (MkTypeLine [] t.line.tys [])
 
   public export
   tokenPtOk : {0 bs : Bindings} -> TokenChars bs -> Bool
@@ -789,7 +788,7 @@ mutual
   public export
   tokenCanonical : {0 bs : Bindings} -> TokenChars bs -> Bool
   tokenCanonical t = colorsDistinct t.colors && typesDistinct t.line.tys
-                       && supersDistinct t.supers
+                       && supersDistinct t.line.supers
 
   public export
   additionUnnamed : {0 bs : Bindings} -> TokenChars bs -> Bool
@@ -811,13 +810,13 @@ mutual
   lossWritesTypes t =
     isNothing t.pt && not (someWritten t.colors) && not (someWritten t.abilities)
       && isNothing t.name && not (someWritten t.quals)
-      && (lineNonEmpty t.line || someWritten t.supers)
+      && (lineNonEmpty t.line || someWritten t.line.supers)
 
   public export
   bundleOk : {0 bs : Bindings} -> QualityOp -> Maybe CardType -> Maybe Zone ->
              TokenChars bs -> Maybe CardType -> Bool
   bundleOk Adds ty z t ret =
-    (addsSomething ty t.line || someWritten t.supers) && addedFits ty t.line
+    (addsSomething ty t.line || someWritten t.line.supers) && addedFits ty t.line
       && tokenCanonical t && tokenAbilitiesOk t && tokenQualsFit t
       && additionUnnamed t && isNothing ret
   bundleOk Sets ty z t ret =

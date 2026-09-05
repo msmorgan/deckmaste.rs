@@ -120,14 +120,14 @@ okTokenKeywordAbility : Instruction []
 okTokenKeywordAbility =
   Macros.create (Lit 1)
     (MkToken (Just (Lit 1 ** Lit 1)) [White]
-             (MkTypeLine [creatureType "Soldier"] [Creature])
+             (MkTypeLine [] [Creature] [creatureType "Soldier"])
              [KeywordAbility "Flying" Nothing Nothing] Nothing)
 
 ||| "Create a 1/1 white Soldier creature token with 'Draw two cards.'"
 public export
 badTokenSpellAbility : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
-                                 (MkTypeLine [creatureType "Soldier"] [Creature])
+                                 (MkTypeLine [] [Creature] [creatureType "Soldier"])
                                  [Spell Nothing (Draw You (Lit 1))] Nothing) {ta = ok})
 badTokenSpellAbility Oh impossible
 
@@ -161,7 +161,7 @@ badYourChoiceNumber Oh impossible
 public export
 okReaderAfterChooser : Card
 okReaderAfterChooser =
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature)]))
@@ -170,7 +170,7 @@ okReaderAfterChooser =
 
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
                       (Up (Lit 1)) (Up (Lit 1)))
@@ -180,7 +180,7 @@ badReaderBeforeChooser Refl impossible
 
 public export
 badTwoChoosersOneSortRead : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly)
        , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
@@ -191,7 +191,7 @@ badTwoChoosersOneSortRead Refl impossible
 
 public export
 badChosenReadWrongSort : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing Openly)
        , Static (Macros.getsPt (Macros.allOf (And [Macros.creature,
                                    Macros.ofChosen (SubtypeQ Creature) {ok = ok}]))
@@ -201,7 +201,7 @@ badChosenReadWrongSort Refl impossible
 
 public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
+  Macros.card "" Nothing (MkTypeLine [] [Creature] [creatureType "Angel"])
        [ Static (Gains Macros.thisCreature
                        (KeywordAbility "Protection" (Just (ParamQuality (Macros.ofChosen Color {ok = ok}))) Nothing))
        , Static (EntersChoice Macros.thisCreature (QSort Color) Nothing Openly) ]
@@ -210,7 +210,7 @@ badChosenProtectionBeforeChoice Refl impossible
 
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
+  Macros.card "" Nothing (MkTypeLine [] [Enchantment] [])
        [ Static (Becomes (Macros.allOf (And [Macros.creature, HasPossessor ControllerAx You])) Adds (ChosenQuality (Macros.ofChosen (SubtypeQ Creature) {ok = ok})))
        , Static (EntersChoice Macros.thisEnchantment (QSort (SubtypeQ Creature)) Nothing Openly) ]
        Nothing)

@@ -213,7 +213,7 @@ public export
 badAfterReflexiveReadsTrigger : Unspellable (Instruction []) (\ok =>
   Sequentially [Reflexively (Macros.mills You (Lit 4) You)
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
-                                                     (MkTypeLine [creatureType "Soldier"] [Creature])
+                                                     (MkTypeLine [] [Creature] [creatureType "Soldier"])
                                                      [] Nothing)),
                 SetStatus Tapped (Macros.That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badAfterReflexiveReadsTrigger (Refl, _) impossible
@@ -433,14 +433,14 @@ public export
 okTokenSingleSupertype : Instruction []
 okTokenSingleSupertype =
   Macros.create (Lit 1)
-    (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary]
-       (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
+    (MkToken (Just (Lit 20 ** Lit 20)) [Black]
+       (MkTypeLine [Legendary] [Creature] [creatureType "Avatar"]) [] (Just "Marit Lage"))
 
 ||| "create a legendary legendary 20/20 black Avatar creature token"
 public export
 badTokenDuplicateSupertype : Unspellable (Instruction []) (\ok =>
   Macros.create (Lit 1)
-    (MkSupertypedToken (Just (Lit 20 ** Lit 20)) [Black] [Legendary, Legendary]
-       (MkTypeLine [creatureType "Avatar"] [Creature]) [] (Just "Marit Lage"))
+    (MkToken (Just (Lit 20 ** Lit 20)) [Black]
+       (MkTypeLine [Legendary, Legendary] [Creature] [creatureType "Avatar"]) [] (Just "Marit Lage"))
     {tc = ok})
 badTokenDuplicateSupertype Oh impossible

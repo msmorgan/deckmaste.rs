@@ -45,7 +45,7 @@ badTransformedArrivalOffField Oh impossible
 public export
 okPileWordAfterPartition : Card
 okPileWordAfterPartition =
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.Them)) 2 []
@@ -59,7 +59,7 @@ okPileWordAfterPartition =
 public export
 okCardWordReadsPiles : Card
 okCardWordReadsPiles =
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent ((Macros.Them)) 2 []
@@ -69,7 +69,7 @@ okCardWordReadsPiles =
 ||| "Reveal the top five cards of your library. Put those piles into your hand."
 public export
 badPileWordWithoutAPartition : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , Macros.move (Macros.Those PileW {ok = ok}) Macros.handZ ]) ]
@@ -102,7 +102,7 @@ badPilePartitiveWithoutAPartition Refl impossible
 public export
 okMembershipInAPile : Card
 okMembershipInAPile =
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , SeparateIntoPiles Macros.anOpponent (Macros.Them) 2 []
@@ -115,7 +115,7 @@ okMembershipInAPile =
 ||| piles into your hand." -- no effect grouped them into piles [CR#700.3].
 public export
 badMembershipWithoutAPartition : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.revealCards (Macros.topSlice (Lit 5))
                   , Macros.move (Macros.allOf (And [IsCard,
@@ -137,7 +137,7 @@ okStatusOnBattlefieldNoun =
 public export
 okStatusOnPermanentAfterPartition : Card
 okStatusOnPermanentAfterPartition =
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
                   , SetStatus FaceDown
@@ -147,7 +147,7 @@ okStatusOnPermanentAfterPartition =
 
 public export
 badPileFaceAsAStatus : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ SeparateIntoPiles Macros.anOpponent (Macros.allOf Macros.creature) 2 []
                   , SetStatus FaceDown (Macros.Those PileW) {sh = ok} ]) ]
@@ -246,7 +246,7 @@ namedAdditionalPartAnchor =
 public export
 okDoorHeaderOnSharedLine : Card
 okDoorHeaderOnSharedLine =
-  SharedLineSplit (MkTypeLine [enchantmentType "Room"] [Enchantment]) [] Nothing
+  SharedLineSplit (MkTypeLine [] [Enchantment] [enchantmentType "Room"]) Nothing
     (MkSharedHalf "" (Just [Macros.generic 1, Macros.pip Red])
        [ Macros.triggered When (UnlocksDoor You ThisDoor) (Draw You (Lit 1)) ])
     (MkSharedHalf "" (Just [Macros.generic 3, Macros.pip Red])
@@ -254,7 +254,7 @@ okDoorHeaderOnSharedLine =
 
 public export
 badDelayedDoorDeixis : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+  Macros.card "" Nothing (MkTypeLine [] [Instant] [])
     [Spell Nothing (Delayed (UnlocksDoor You ThisDoor) [] Nothing (Draw You (Lit 1))
                     {so = Absent})]
     Nothing {fl = ok})

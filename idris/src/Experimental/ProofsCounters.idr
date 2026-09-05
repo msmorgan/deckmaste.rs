@@ -132,7 +132,7 @@ badMoveCountersSelf Oh impossible
 ||| "Create a 1/1 creature creature token."
 public export
 badTokenDuplicateType : Unspellable (Instruction []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [] [Creature, Creature] [])
                           [] Nothing) {tc = ok})
 badTokenDuplicateType Oh impossible
 
@@ -493,7 +493,7 @@ badBecomesZombieLand Oh impossible
 ||| "Target creature becomes in addition to its other types."
 public export
 badBecomesNothing : Unspellable (Instruction []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {ok = ok})
+  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] [] []) Nothing {ok = ok})
 badBecomesNothing Oh impossible
 
 ||| "Target creature becomes a creature in addition to its other types."

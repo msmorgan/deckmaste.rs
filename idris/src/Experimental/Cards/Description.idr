@@ -85,7 +85,7 @@ zimoneDrawTwo =
 
 aerialVolley : Card
 aerialVolley =
-  Macros.card "Aerial Volley" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
+  Macros.card "Aerial Volley" (Just [Macros.pip Green]) (MkTypeLine [] [Instant] [])
        [Spell Nothing (Macros.dealsDivided This (Lit 3)
                             (Described (TargetDet (Macros.oneThrough 3)) (And [Macros.creature, HasKeyword (TheKeyword "Flying")])))] Nothing
 
@@ -96,8 +96,8 @@ terrifyingPresenceAnchor = And [Macros.creature, OtherThan (Macros.target Macros
 timelyReinforcements : Card
 timelyReinforcements =
   Macros.card "Timely Reinforcements"
-       (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 2, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Sequentially
                   [ If (CompareAmt (PlayerStatOf LifeTotal You) Less
                                    (PlayerStatOf LifeTotal Macros.anOpponent))
@@ -121,8 +121,8 @@ survivalCache =
 nightmarishEnd : Card
 nightmarishEnd =
   Macros.card "Nightmarish End"
-       (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [] [Instant])
+       (Just [Macros.generic 2, Macros.pip Black])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Sequentially
                   [ Macros.gets (Macros.target Macros.creature)
                                 (Down (LetterVal X)) (Down (LetterVal X))
@@ -132,8 +132,8 @@ nightmarishEnd =
 
 topple : Card
 topple =
-  Macros.card "Topple" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+  Macros.card "Topple" (Just [Macros.generic 2, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Macros.exile
                   (Macros.target
                      (And [Macros.creature,
@@ -167,7 +167,7 @@ croakingCounterpartCopy =
     (TokenCopyOf (Macros.target (And [ Macros.creature
                                      , Not (HasSubtype (creatureType "Frog")) ]))
                  [ExceptChars (MkToken (Just (Lit 1 ** Lit 1)) [Green]
-                                       (MkTypeLine [creatureType "Frog"] [])
+                                       (MkTypeLine [] [] [creatureType "Frog"])
                                        [] Nothing)
                               False])
     []
@@ -179,8 +179,8 @@ public export
 blessedReversal : Card
 blessedReversal =
   Macros.card "Blessed Reversal"
-       (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [] [Instant])
+       (Just [Macros.generic 1, Macros.pip White])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Macros.gainsLife You
                   (Macros.times 3 (Macros.countOf (And [Macros.creature, CombatRel AttackerOf You])))) ]
        Nothing
@@ -188,8 +188,8 @@ blessedReversal =
 public export
 extinction : Card
 extinction =
-  Macros.card "Extinction" (Just [Macros.generic 4, Macros.pip Black]) []
-       (MkTypeLine [] [Sorcery])
+  Macros.card "Extinction" (Just [Macros.generic 4, Macros.pip Black])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Macros.destroy (Macros.allOf (And [Macros.creature,
                                             OfYourChoice (SubtypeQ Creature) Nothing]))) ]
        Nothing
@@ -198,8 +198,8 @@ public export
 defensiveManeuvers : Card
 defensiveManeuvers =
   Macros.card "Defensive Maneuvers"
-       (Just [Macros.generic 3, Macros.pip White]) []
-       (MkTypeLine [] [Instant])
+       (Just [Macros.generic 3, Macros.pip White])
+       (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
                             (Up (Lit 0)) (Up (Lit 4))
@@ -210,8 +210,8 @@ public export
 witchsVengeance : Card
 witchsVengeance =
   Macros.card "Witch's Vengeance"
-       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature,
                                          OfYourChoice (SubtypeQ Creature) Nothing]))
                             (Down (Lit 3)) (Down (Lit 3))
@@ -223,15 +223,15 @@ public export
 phyrexianRebirth : Card
 phyrexianRebirth =
   Macros.card "Phyrexian Rebirth"
-       (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 4, Macros.pip White, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Sequentially
                   [ Macros.destroy (Macros.allOf Macros.creature)
                   , Create You (Lit 1)
                            (TokenWritten
                               (MkToken (Just (LetterVal X ** LetterVal X)) []
-                                       (MkTypeLine [creatureType "Phyrexian", creatureType "Horror"]
-                                                   [Artifact, Creature])
+                                       (MkTypeLine [] [Artifact, Creature]
+                                                   [creatureType "Phyrexian", creatureType "Horror"])
                                        [] Nothing))
                            []
                   , Define X (CountOf
@@ -242,8 +242,8 @@ public export
 damningVerdict : Card
 damningVerdict =
   Macros.card "Damning Verdict"
-       (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 3, Macros.pip White, Macros.pip White])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Macros.destroy
                   (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))) ]
        Nothing
@@ -252,8 +252,8 @@ public export
 hazardousConditions : Card
 hazardousConditions =
   Macros.card "Hazardous Conditions"
-       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Macros.gets (Macros.allOf (And [Macros.creature, Not (HasCounters Nothing)]))
                             (Down (Lit 2)) (Down (Lit 2))
                             (Just Macros.untilEndOfTurn)) ]
@@ -263,7 +263,7 @@ public export
 approachOfTheSecondSun : Card
 approachOfTheSecondSun =
   Macros.card "Approach of the Second Sun"
-       (Just [Macros.generic 6, Macros.pip White]) [] (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 6, Macros.pip White]) (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (If (AndCond
                       [ Matches This (CastFrom (Macros.handOf You))
                       , Macros.happenedInvolving SpellCast
@@ -364,8 +364,8 @@ public export
 lucidDreams : Card
 lucidDreams =
   Macros.card "Lucid Dreams"
-       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [] [Sorcery])
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (Sequentially
                   [ Draw You (LetterVal X)
                   , Define X (DistinctCount CardTypeAxis
@@ -376,8 +376,8 @@ lucidDreams =
 public export
 roguesGallery : Card
 roguesGallery =
-  Macros.card "Rogues' Gallery" (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [] [Sorcery])
+  Macros.card "Rogues' Gallery" (Just [Macros.generic 2, Macros.pip Black])
+       (MkTypeLine [] [Sorcery] [])
        [ Spell Nothing (ForEachKindOf ColorAxis Nothing Color
                   (Macros.move (Described (TargetDet (Macros.upTo 1)) (And [Macros.creature, Macros.ofChosen Color,
                                         InZone (Macros.graveyardOf You)]))
@@ -523,7 +523,7 @@ yourOpponentsHaveMoreLifeThanYou =
 public export
 disarm : Card
 disarm =
-  Macros.card "Disarm" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
+  Macros.card "Disarm" (Just [Macros.pip Blue]) (MkTypeLine [] [Instant] [])
        [ Spell Nothing (Unattach
                   (Macros.allOf (And [ HasSubtype (artifactType "Equipment")
                               , AttachedTo (Macros.target Macros.creature) ]))) ]
@@ -635,7 +635,7 @@ atKnifepointCrime =
             Nothing
             (Macros.create (Lit 1)
                (MkToken (Just (Lit 1 ** Lit 1)) [Red]
-                        (MkTypeLine [creatureType "Mercenary"] [Creature])
+                        (MkTypeLine [] [Creature] [creatureType "Mercenary"])
                         [ Macros.activatedOnlyDuring TapSymbol
                             (Macros.gets (Macros.target Macros.creatureYouControl)
                                          (Up (Lit 1)) (Up (Lit 0))
@@ -647,7 +647,7 @@ public export
 atKnifepoint : Card
 atKnifepoint =
   Macros.card "At Knifepoint"
-       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Red]) []
-       (MkTypeLine [] [Enchantment])
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Red])
+       (MkTypeLine [] [Enchantment] [])
        [ Description.atKnifepointOutlaws, Description.atKnifepointCrime ]
        Nothing
