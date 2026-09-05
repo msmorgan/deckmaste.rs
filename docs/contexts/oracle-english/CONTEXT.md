@@ -36,8 +36,9 @@ An inflected surface form of a Lexeme.
 **Color Word** (project term):
 One of the eight Word Forms *white*, *blue*, *black*, *red*, *green*,
 *colorless*, *multicolored*, and *monocolored*. The first five name the Game
-Model Colors [CR#105.1]; the last three state an object's color property, and
-*colorless* and *multicolored* are not Colors [CR#105.4].
+Model Colors [CR#105.1]; the last three state how many of those Colors an
+object has [CR#105.2a..105.2c], and neither *multicolored* nor *colorless* is
+itself a Color [CR#105.4].
 _Avoid_: Color for the lexical Category
 
 **Realization**:
