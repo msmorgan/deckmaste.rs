@@ -165,13 +165,14 @@ def Characteristics.check (side : FaceSide) (c : Characteristics) : List Refusal
   let bs := jointBindings c.choices (costLetters c.cost)
   refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
     textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
-    refuse (cardCostOk side c.types c.cost) .cardCost ++
+    refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD [] ++
     refuse (jointChoicesOk c.choices (textChoiceDelta bs c.text)) .jointChoices
 
 def SharedLineHalf.check (shared : Characteristics) (h : SharedLineHalf) : List Refusal :=
   Ability.checkText (costLetters h.cost) h.text ++ textLaws shared h.text ++
     refuse (cardBoxOk .front shared.types h.text shared) .cardBox ++
-    refuse (cardCostOk .front shared.types h.cost) .cardCost
+    refuse (cardCostOk .front shared.types h.cost) .cardCost ++
+    (h.cost.map ManaCost.check).getD []
 
 def adventureInsetOk (c : Characteristics) : Bool := c.subtypes.elem (.spell "Adventure")
 def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
@@ -218,6 +219,7 @@ def prototypeFrameOk (inner : Characteristics) : Bool :=
 def prototypeAltCheck (inner alternative : Characteristics) : List Refusal :=
   refuse alternative.cost.isSome .cardCost ++
     refuse (alternative.cost.elim true manaRun) .manaRun ++
+    (alternative.cost.map ManaCost.check).getD [] ++
     refuse alternative.ptWritten .prototypeFrame ++
     refuse (cardBoxOk .front inner.types [] alternative) .cardBox
 

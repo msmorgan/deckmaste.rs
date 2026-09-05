@@ -641,6 +641,13 @@ mutual
   termination_by structural cs => cs
 end
 
+/-- A keyword whose parameter cost the controller pays ("cumulative upkeep {2}", "ward {2}")
+takes a cost payable by you; a deed done by another player is not a payment of it. -/
+def keywordCostPaidByYou (k : KeywordLabel) : Option KeywordParam → Bool
+  | some (.cost c) => !(keywordFactsFor k).elim false (·.paidCost) || c.paidByYou
+  | _ => true
+
+
 def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYou
 
 mutual

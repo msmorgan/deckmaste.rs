@@ -32,6 +32,16 @@ def ctxCheck (ctx : Option Kind) (fixed : Option Kind) : List Refusal :=
 
 def CounterKind.check (c : CounterKind) : List Refusal := refuse c.known .knownCounter
 
+/-- The halves of a hybrid or Phyrexian symbol are distinct [CR#107.4e,107.4f]. -/
+def ManaSymbol.ok : ManaSymbol → Bool
+  | .hybrid left right => halvesDistinct left right
+  | .phyrexian color second => phyrexianDistinct color second
+  | _ => true
+
+def ManaSymbol.check (m : ManaSymbol) : List Refusal := refuse m.ok .manaSymbolOk
+
+def ManaCost.check (c : ManaCost) : List Refusal := c.flatMap ManaSymbol.check
+
 def ProjAxis.check : ProjAxis → List Refusal
   | .counter c => c.check
   | _ => []
@@ -52,7 +62,8 @@ mutual
   def Predicate.check (k : Kind) (bs : Bindings) : Predicate → List Refusal
     | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _ | .isAttached _
     | .isCard | .isToken | .isEmblem | .isCopyOfACard | .isTransformed
-    | .hasStatus _ | .isSource | .manaCostHas _ | .isManaAbility => kindCheck k (some .object)
+    | .hasStatus _ | .isSource | .isManaAbility => kindCheck k (some .object)
+    | .manaCostHas m => kindCheck k (some .object) ++ ManaSymbol.check m
     | .anyPlayer | .opponent => kindCheck k (some .player)
     | .chosenPlayer ref =>
       let n := countChoice .player bs

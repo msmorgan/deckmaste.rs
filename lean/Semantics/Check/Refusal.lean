@@ -158,6 +158,8 @@ inductive Refusal where
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)
   | keywordCost (k : KeywordLabel)
+  /-- A keyword whose parameter is a cost the controller pays takes a cost payable by you. -/
+  | keywordCostPaidByYou (k : KeywordLabel)
   | deedFits
   | deedRides
   | verbPatientOk
@@ -200,6 +202,8 @@ inductive Refusal where
   | damageOpUse
   | ctrlOverride
   | manaRun
+  /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
+  | manaSymbolOk
   | forEachAmount
   | costAction
   | notCompound

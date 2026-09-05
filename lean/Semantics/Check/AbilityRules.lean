@@ -70,7 +70,7 @@ def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
     Amount.check bs amt ++ (match floor with | none => [] | some f => Amount.check bs f)
   | .more amt => Amount.check bs amt
-  | .run r _ _ => refuse (manaRun r) .manaRun
+  | .run r _ _ => refuse (manaRun r) .manaRun ++ ManaCost.check r
 
 def CountBound.check (bs : Bindings) : CountBound → List Refusal
   | .moreThan k => Amount.check bs k
@@ -456,7 +456,7 @@ mutual
   termination_by structural rs => rs
 
   def Cost.check (bs : Bindings) : Cost → List Refusal
-    | .mana c => refuse (manaRun c) .manaRun
+    | .mana c => refuse (manaRun c) .manaRun ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
     | .perform e => Instruction.check bs e ++ refuse e.costActionOk .costAction
@@ -713,7 +713,8 @@ mutual
          | none => []
          | some b => Ability.check [] b) ++
         refuse (keywordParamFits k param) (.keywordParamFits k) ++
-        refuse (keywordBodyFits k body) (.keywordBodyFits k)
+        refuse (keywordBodyFits k body) (.keywordBodyFits k) ++
+        refuse (keywordCostPaidByYou k param) (.keywordCostPaidByYou k)
     | .activated cost instr window limit guard activator =>
       let bsc := dropLetter .x bs
       Cost.check bsc cost ++ Instruction.check (publicOnly (cost.intro bsc)) instr ++

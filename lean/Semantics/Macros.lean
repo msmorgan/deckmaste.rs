@@ -79,6 +79,10 @@ def bare (p : Predicate) : NounPhrase := .described .bare p
 /-- "a …" -/
 def a (p : Predicate) : NounPhrase := .described (.a .unmarked) p
 
+/-- "a … at random" -/
+def aAtRandom (p : Predicate) : NounPhrase := .described (.a .atRandom) p
+/-- "a … of their choice", the chooser being the last-mentioned player. -/
+def aTheirChoice (p : Predicate) : NounPhrase := .described (.a (.theirChoice (.top 1))) p
 /-- "the …" -/
 def the (p : Predicate) : NounPhrase := .described .the p
 
@@ -223,6 +227,13 @@ def party : NounPhrase := partyOf .you
 def generic (amount : Nat) : ManaSymbol := .simple (.generic amount)
 def pip (color : Color) : ManaSymbol := .simple (.specific (.of color))
 def colorlessPip : ManaSymbol := .simple (.specific .colorless)
+/-- "{A/B}" -/
+def hybridPip (left right : Color) : ManaSymbol := .hybrid (.specific (.of left)) right
+/-- "{1} for each …", "{R} for each …": a mana cost scaled by an amount. -/
+def scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
+  match unit with
+  | .generic => .scaled (.mana [generic 1]) amount
+  | .run cost => .scaled (.mana cost) amount
 
 /-! ## Durations -/
 
@@ -456,6 +467,12 @@ def regenerates (subject : NounPhrase) : GameEvent :=
 /-! ## Abilities -/
 
 def keyword (label : KeywordLabel) : Ability := .keyword label none none
+/-- "<keyword> <cost>" -/
+def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
+  .keyword label (some (.cost cost)) none
+/-- "As <subject> enters, choose a <quality>." -/
+def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
+  .entersChoice subject (.quality sort) none .openly
 
 def triggered (word : TriggerWord) (event : GameEvent) (instruction : Instruction) : Ability :=
   .triggered word event [] none [] none none none instruction
