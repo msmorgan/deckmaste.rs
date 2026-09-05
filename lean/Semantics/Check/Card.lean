@@ -65,7 +65,7 @@ def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))
 
 def chapterLineOk (subs : List Subtype) : Ability → Bool
-  | .triggered (.chapterMark _) _ _ _ _ _ _ _ => subs.elem (.of .enchantment "Saga")
+  | .triggered (.chapterMark _) _ _ _ _ _ _ _ => framesWith .chapters subs
   | .italicHead _ ab => chapterLineOk subs ab
   | .alsoForKeywords ab _ => chapterLineOk subs ab
   | _ => true
@@ -179,7 +179,7 @@ def SharedLineHalf.check (shared : Characteristics) (h : SharedLineHalf) : List 
     refuse (cardCostOk .front shared.types h.cost) .cardCost ++
     (h.cost.map ManaCost.check).getD []
 
-def adventureInsetOk (c : Characteristics) : Bool := c.subtypes.elem (.spell "Adventure")
+def adventureInsetOk (c : Characteristics) : Bool := framesWith .adventureInset c.subtypes
 def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
 
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/

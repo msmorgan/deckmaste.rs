@@ -169,6 +169,7 @@ inductive PremiseSort where
 rather than a verb's spelling. -/
 inductive DeedFeature where
   | attacking | blocking | targeting | controlGrant | librarySearch | sacrificing | unlocking
+  | tapping
   deriving DecidableEq, Repr
 
 structure ActFacts where
@@ -217,7 +218,7 @@ def actFacts : List ActFacts :=
     { label := "Scry", stepwise := true, agentRole := playerAgent },
     { label := "Surveil", stepwise := true, agentRole := playerAgent },
     { label := "Tap", participle := some "tapped", agentRole := playerAgent,
-      patientRole := fieldObject },
+      patientRole := fieldObject, feature := some .tapping },
     { label := "Untap", participle := some "untapped", agentRole := playerAgent,
       patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
       bounded := true },
@@ -1069,6 +1070,30 @@ def Subtype.label : Subtype → String
   | .of _ label => label
   | .spell label => label
 
+/-- What a subtype declares about the card frame it sits on: a Saga's chapter frame [CR#714.1],
+an Adventure's inset [CR#715.1], a Room's doors [CR#709.5j]. -/
+inductive FrameFeature where
+  | chapters | adventureInset | doors
+  deriving DecidableEq, Repr
+
+structure SubtypeFacts where
+  subtype : Subtype
+  frame : FrameFeature
+  deriving Repr, BEq
+
+def subtypeFacts : List SubtypeFacts :=
+  [ ⟨.of .enchantment "Saga", .chapters⟩, ⟨.spell "Adventure", .adventureInset⟩,
+    ⟨.of .enchantment "Room", .doors⟩ ]
+
+def Subtype.frame (s : Subtype) : Option FrameFeature :=
+  (subtypeFacts.find? (·.subtype == s)).map (·.frame)
+
+def framesWith (f : FrameFeature) (subs : List Subtype) : Bool := subs.any (·.frame == some f)
+
+def distinctSubtypeFacts : List SubtypeFacts → Bool
+  | [] => true
+  | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
+
 def spaceHosted : SubtypeSpace → Option CardType → Bool
   | .basicLand, ty => tyIs .land ty
   | .land, ty => tyIs .land ty
@@ -1137,16 +1162,18 @@ structure DesignationFacts where
   type : Option CardType
   /-- The keyword whose expansion confers it, if a keyword owns it. -/
   keyword : Option KeywordLabel
+  /-- Which half of a Room permanent this designation unlocks, for the two that do. -/
+  half : Option RoomHalf := none
   deriving Repr, BEq
 
 def playerHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .player, true, none, none, keyword⟩
+  ⟨label, .heldBy .player, true, none, none, keyword, none⟩
 
 def creatureHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, some .creature, keyword⟩
+  ⟨label, .heldBy .object, true, some .battlefield, some .creature, keyword, none⟩
 
 def permanentHeld (label : String) (keyword : Option KeywordLabel := none) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, none, keyword⟩
+  ⟨label, .heldBy .object, true, some .battlefield, none, keyword, none⟩
 
 /-- The designations the CR defines today: those of [CR#701.15b,701.37b,701.54b,701.60b,701.64b], the keyword ones of [CR#702.112b,702.131c,702.158b,702.171b,702.195b], levels [CR#716.2b], solved [CR#719.3b], the monarch and the initiative [CR#725.1,726.1], day and night [CR#731.1]. -/
 def designationTable : List DesignationFacts := [
@@ -1156,10 +1183,11 @@ def designationTable : List DesignationFacts := [
   creatureHeld "renowned" (some "Renown"), creatureHeld "suspected", creatureHeld "prepared",
   creatureHeld "Alpha sector", creatureHeld "Beta sector", creatureHeld "Gamma sector",
   permanentHeld "saddled" (some "Saddle"), permanentHeld "harnessed", permanentHeld "level",
-  permanentHeld "solved", permanentHeld "left half unlocked", permanentHeld "right half unlocked",
-  ⟨"commander", .heldByCard, false, none, none, none⟩,
-  ⟨"day", .heldByGame, true, none, none, none⟩,
-  ⟨"night", .heldByGame, true, none, none, none⟩ ]
+  permanentHeld "solved", { permanentHeld "left half unlocked" with half := some .left },
+  { permanentHeld "right half unlocked" with half := some .right },
+  ⟨"commander", .heldByCard, false, none, none, none, none⟩,
+  ⟨"day", .heldByGame, true, none, none, none, none⟩,
+  ⟨"night", .heldByGame, true, none, none, none, none⟩ ]
 
 def findDesignation (label : DesignationLabel) : List DesignationFacts → Option DesignationFacts
   | [] => none
@@ -1208,14 +1236,12 @@ def designationHolderOk (label : DesignationLabel) (z : Option Zone) : Bool :=
   | some (.heldBy .object) => zoneIsB z .battlefield
   | _ => false
 
-def RoomHalf.designation : RoomHalf → DesignationLabel
-  | .left => "left half unlocked"
-  | .right => "right half unlocked"
+/-- The table's own label for a Room half, where a guard needs the label itself rather than the
+half; the empty label where the table names none. -/
+def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
+  ((designationTable.find? (·.half == some h)).map (·.label)).getD ""
 
-def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf :=
-  if label == RoomHalf.left.designation then some .left
-  else if label == RoomHalf.right.designation then some .right
-  else none
+def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
 
 /-- Idris `GivingWarrant d`: instructed conferral needs an effectful designation; conferral by
 a keyword must be by the keyword that owns that designation. -/

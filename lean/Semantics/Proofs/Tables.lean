@@ -6,9 +6,9 @@ import Semantics.Check.Card
 
 Table-integrity pins: not a port of an Idris family, but `decide` theorems asserting what the
 checker's label tables assume of themselves — that `actFacts`, `counterFacts`, `keywordFacts`,
-and `designationTable` each name every row once. A duplicate label would let one row shadow
-another silently, so each table's existing `distinct*` validator is asserted here rather than
-left unchecked.
+`designationTable`, and `subtypeFacts` each name every row once. A duplicate label would let one
+row shadow another silently, so each table's existing `distinct*` validator is asserted here
+rather than left unchecked.
 -/
 
 open Semantics Semantics.Macros
@@ -22,5 +22,7 @@ theorem counterLabelsDistinct : distinctCounterLabels counterFacts = true := by 
 theorem keywordWordsDistinct : distinctKeywordWords keywordFacts = true := by decide
 
 theorem designationLabelsDistinct : distinctDesignationLabels designationTable = true := by decide
+
+theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
 end Semantics.Proofs.Tables

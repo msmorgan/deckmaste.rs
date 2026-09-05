@@ -225,7 +225,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .verbedEvent who _ none _ => optAgentIntro bs who
   | .verbedEvent _ v (some what) _ =>
     moveIntro bs (some v) what ((actDestOf v).elim (NounPhrase.zone bs what) some)
-  | .tappedForMana _ what _ => outcomeB .manaProduced :: stampIntro bs (some "Tap") what
+  | .tappedForMana _ what _ => outcomeB .manaProduced :: stampIntro bs (featureLabel .tapping) what
   | .unlocksDoor _ door => door.intro bs
   | .nthOccurrence _ _ ev => GameEvent.after bs ev
   | .triggers what => nomIntro bs what
