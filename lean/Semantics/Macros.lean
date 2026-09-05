@@ -114,6 +114,7 @@ def onTopIn (arrangement : Arrangement) : ZoneExpr :=
   .library (.oneEnd .top) (some arrangement) none .bare
 /-- "on the bottom of its owner's library" -/
 def onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
+def onTop : ZoneExpr := .library (.oneEnd .top) none none .bare
 def handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 def graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
@@ -566,6 +567,12 @@ def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
 def triggeredIf (event : GameEvent) (condition : Condition)
     (instruction : Instruction) : Ability :=
   .triggered event [] none [] none none (some condition) instruction
+/-- "Whenever <event>, <instruction>. This ability triggers only once each turn." -/
+def triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : Instruction) :
+    Ability :=
+  .triggered event [] none [] none (some limit) none instruction
+/-- "if it isn't <p>", read of the ability just named. -/
+def itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability) p)
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   .entersChoice subject (.quality sort) none .openly

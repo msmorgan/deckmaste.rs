@@ -1,6 +1,7 @@
 import Semantics
 import Semantics.Macros
 import Semantics.Check.Card
+import Semantics.Cards.Copy
 import Semantics.Cards.Piles
 
 /-!
