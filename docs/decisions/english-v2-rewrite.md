@@ -1628,13 +1628,19 @@ the participles of their declared keyword actions — one owner each, produced
 by the same inflection machinery as every other participle — used
 attributively (`goaded creature`) or predicatively (`is goaded`, `becomes
 tapped`); `monstrous` as an adjective; `the monarch`, `the initiative`, `the
-city's blessing` as noun phrases; `face down`, `phased out` as the adjective
-phrases they are. The `Status` vocabulary and `DesignationTerm` codec are
+city's blessing` as noun phrases; `face down` as the adjective phrase it
+is; `phased out` as the participle of the intransitive phrasal verb `phase out`
+(the CR itself writes `phases out` [CR#702.26b]) — a verb is a verb whether or
+not the CR files it under 701, and a participle derives from the verb's paradigm
+without any frame being asserted for it: an intransitive verb has a participle
+used adjectivally, and a frame declared only to reach a participle is a
+fabrication. The `Status` vocabulary and `DesignationTerm` codec are
 retired from the grammar together with the constructions that exist only to
 consume them (`predicative_designation`, `PredicativeStatus`, the
 designation-with-value form); the surfaces they covered are re-covered by the
-general predicative/attributive constructions. `DesignationDecl` bodies in
-`plugins/builtin_v2` remain as Game Model data (what a designation is, its
+general predicative/attributive constructions. A designation word with no English verb behind it (`prepared`, `monstrous`,
+`renowned`) is an authored adjective row on its declaration, never a minted verb.
+`DesignationDecl` bodies in `plugins/builtin_v2` remain as Game Model data (what a designation is, its
 persistence) and contribute no grammar term; mapping the participle of a
 declared verb to the designation it confers is semantics' work through the
 verb declaration, not the grammar's. No downstream reads `DesignationTerm`
