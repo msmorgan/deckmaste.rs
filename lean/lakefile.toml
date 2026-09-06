@@ -1,12 +1,11 @@
-# Semantics workbench ported from Idris, and the Oracle English grammar design model.
+# Semantics workbench ported from Idris.
 #
-#   lake build English             -- grammar model and witnesses
 #   lake build Semantics           -- syntax, checker, macros (the inner loop)
 #   lake build SemanticsCards      -- plus the printed-card bench
 #   lake build                     -- plus the pin suites (the full gate; ./scripts/build adds --wfail)
 name = "mtg"
 version = "0.1.0"
-defaultTargets = ["Semantics", "SemanticsCards", "SemanticsProofs", "English"]
+defaultTargets = ["Semantics", "SemanticsCards", "SemanticsProofs"]
 
 [leanOptions]
 # Idris `%unbound_implicits off`: every implicit is written out.
@@ -23,7 +22,3 @@ roots = ["Semantics.Cards"]
 [[lean_lib]]
 name = "SemanticsProofs"
 roots = ["Semantics.Proofs"]
-
-[[lean_lib]]
-name = "English"
-roots = ["English"]

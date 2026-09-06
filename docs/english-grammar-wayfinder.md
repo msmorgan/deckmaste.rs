@@ -1,7 +1,7 @@
 # English grammar workbench and migration
 
 Direction: [English grammar design in Lean](decisions/english-lean-design-workbench.md).
-Design the whole intended grammar in `lean/English` beside `Semantics`, then
+Design the whole intended grammar in the standalone `english/` Lake project, then
 migrate `english_v2`'s `constructions!` implementation. The workbench is a formal
 model; executable parsing/rendering and production consumption are optional.
 
@@ -62,7 +62,7 @@ each implementation obligation an owner:
 | Copular complement consolidation, polarity, type modifiers | `english-lean-grammar-composition` |
 | Arithmetic, fractions, comparisons, degree phrases | `english-lean-grammar-composition` |
 | Bare temporal adjuncts swallowed as passive objects | `english-lean-grammar-composition` and `english-lean-selection-laws` |
-| Door/half references | `english-lean-grammar-composition`; Game Model meaning remains Semantics' concern |
+| Door/half references | `english-lean-grammar-composition`; game-reference resolution is outside English |
 | Shared gaps: relative and complement clauses, coordination, anaphoric forms | `english-lean-grammar-model` for scope, then composition |
 | Reminder/editorial text and document layouts | `english-lean-document-grammar` |
 | Historical tail buckets, including unowned and unbucketed cases | Model scope review, then migration design or the refreshed long-tail register |

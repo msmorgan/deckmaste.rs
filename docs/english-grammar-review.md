@@ -37,7 +37,7 @@ under its intended combinations.
 The negative/adverse probes above were checked with Lean LSP scratch code,
 not installed as tests requiring undesirable grammar to stay accepted. They
 are recorded as findings to resolve. The positive interaction witnesses and
-quotation regression assertion are tracked in `lean/English/Interactions.lean`.
+quotation regression assertion are tracked in `english/English/Interactions.lean`.
 All wording is synthetic; no named card transcription or corpus census is
 being presented as proof of these claims.
 
@@ -99,8 +99,8 @@ the post-migration long tail. The eleven passive-temporal obligations and the
 named gap/relative obligations remain owned by the existing wayfinder.
 
 **Recommendation, high confidence:** make grammatical contextual admissibility
-explicit before selection. English should check whether an antecedent or gap
-is structurally available; Semantics should determine what it denotes. Keep
+explicit before selection. English should check the grammatical distribution of omitted material and
+gap dependencies without resolving game referents. Keep
 lexical distributions and feature propagation declarative.
 
 **Less certain:** the best context representation: indexed occurrences,
@@ -109,27 +109,18 @@ turn every combination into another Category. The decisive challenges are
 nested dependencies, an inaccessible antecedent, and coordination with
 independent bindings.
 
-### 4. Surface contracts and layout validity
+### 4. Textual inputs; card/layout validation excluded
 
-`Atom.word`, symbol and notation payloads are arbitrary strings supplied by
-lexical relations. The model assumes they respect boundary ownership. Exact
-`Spells` theorems therefore apply under those supplied surfaces; they do not
-validate lexical transcription or source normalization. `Faces.layout` is an
-unconstrained tag alongside documents. Range and chapter headers are lexical
-notation. A level band requires a nonempty Document where the style guide
-allows zero ability lines after its statistics (§15, “Leveler cards”).
+The user clarified that English is a standalone NLP grammar for parsing and
+bracketing, with no interaction with Semantics. The proposed separate
+card/layout-validation responsibility is withdrawn: it was outside the task.
+The projects now have independent Lake roots at `english/` and `lean/`.
 
-**Recommendation:** assign typography, textual group cardinalities and source
-boundary checks to English/document validation; keep game legality and
-interpretation in Semantics. Give normalization and lexical payload validity
-an explicit contract rather than inferring correctness from exact spelling
-of fixture data. Frame metadata may remain external if its required
-relationship to text boxes has a named validator/owner.
-
-**Less certain:** precisely which layout checks belong inside English's
-admissibility judgment versus a neighboring document-validation relation.
-This should not block the basic phrase carrier, but it must be settled before
-claims about complete frame/document validation or migration correspondence.
+English retains supplied notation and analyzes delimiters, sentence/paragraph
+structure, section order and separate text portions. It does not prove range
+validity, mode-choice legality, face counts or card legality. The empty-section
+finding concerns textual cardinality only. Surface relations remain useful for
+establishing that alternative grammatical trees cover the same text.
 
 ## Scope-map disposition
 
@@ -137,7 +128,7 @@ All sixteen guide sections remain assigned in the design document. Reviewing
 those assignments yields these closure units, rather than a card-count gate:
 
 - §§1–3 and §§8,14–15: consolidate document composition, phrase/document
-  distinctions, canonical collections, and explicit surface/layout contracts.
+  distinctions, canonical collections, and textual boundary contracts.
 - §§4–7 and §§9–13: finish lexical distributions, feature propagation,
   contextual dependencies and the ordinary clause/phrase combinations above.
   Populating attested lexical/template data is distinct from missing schemas.
@@ -153,14 +144,25 @@ design closure as the accepted decision requires.
 
 ## Validation and status
 
-The full `lean/scripts/build` passes all 68 jobs with warnings treated as
-errors. All prior 117 theorem declarations remain unchanged. Added: 12 named
+Before the project split, the full `lean/scripts/build` passed all 68 jobs
+with warnings treated as errors. All prior 117 theorem declarations remain unchanged. Added: 12 named
 interaction assertions, removed/re-spelled/ignored/restored: zero. Lean LSP
 checked all 12 declarations for axioms and source warnings: only subsets of
 `propext`, `Quot.sound`, `Classical.choice`; no placeholders or custom axioms.
 
 This review pass and the bounded quotation fix are ready for inspection.
-The review ticket remains WIP: the four residual boundaries above need the
-user's design decisions and subsequent closure work. The recommendations are
-proposals, not newly accepted rulings; migration is not unblocked by this
-report or by the green build.
+The review ticket remains WIP for grammatical closure work. The initial
+questions about representation were premature: investigation of concrete
+interactions is the agent's responsibility. The clarified NLP scope is settled;
+remaining implementation choices will be worked through before another
+residual decision is presented. Migration is not unblocked by a green build.
+
+
+## Independent-project validation
+
+After the user's boundary clarification, `english/scripts/build` passes its
+13 jobs and `lean/scripts/build` passes its 56 jobs independently. Each
+project has its own root, manifest, toolchain file and build artifacts; neither
+manifest contains dependencies. An import probe in each project confirms the
+other project's root module is unavailable. Lean LSP checks the English root
+at its new path. All 129 existing English theorem declarations moved unchanged.

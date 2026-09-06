@@ -62,3 +62,25 @@ The report records the concrete counterexamples and uncertainty on each
 recommendation. After discussion, implement or assign the resulting finite
 closure obligations under this review before unblocking migration design.
 No other WIP ticket was edited.
+
+
+## User clarification and project separation
+
+English is JUST an NLP grammar for parsing/bracketing Oracle English. It must
+not interact with Semantics; the user requested separate Lake projects.
+English now lives under `english/`; `lean/` is the independent Semantics
+project. The accepted design decision records that boundary. Game-reference
+resolution, card validation and frame legality are outside this review.
+
+The earlier implementation-choice questions were premature. Investigate and
+resolve grammar representation choices against concrete evidence; only a real
+residual user decision should return to the grilling frontier. Continue the
+review's grammar closure work after validating the project split.
+
+
+Project split verified: `english/scripts/build` passes 13 jobs;
+`lean/scripts/build` passes 56 jobs. Both cross-project import probes fail with
+the expected unknown-module result. LSP diagnostics are clean at the new
+English root. All 129 English theorem declarations were moved unchanged;
+no Semantics source or assertion changed. The two manifests have no package
+dependencies. Historical done-ticket paths remain as landing provenance.

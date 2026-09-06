@@ -1,6 +1,6 @@
 # English grammar design
 
-This is the evolving design of `lean/English`, under the
+This is the evolving design of `english/English`, under the
 [accepted decision](decisions/english-lean-design-workbench.md). Scope is
 Vintage-playable Magic as specified in `CLAUDE.md`. The
 [Oracle English glossary](contexts/oracle-english/CONTEXT.md) owns linguistic
@@ -86,7 +86,7 @@ are review criteria over these structures rather than additional syntax.
 | 2. Capitalization | Lexical case, proper names/type names, sentence and keyword-line initial case | Document realization |
 | 3. Punctuation and glyphs | Clause/coordination punctuation; cost colon; labels and dashes; parentheses, quotes and apostrophes; hyphens, signs and slashes; bullets, bars, brackets, mana/other symbols, infinity | Document, using composition's constituent boundaries |
 | 4. Numbers, quantities, comparisons | Count determiners versus scalar notation; variables; number/amount/much/many; arithmetic, comparison and rounding phrases | Composition; notation realization in document |
-| 5. Names and anaphora | Names and self-reference, pronouns, demonstratives, chosen/former/latter references, this-way/event anaphora | Composition; capitalization in document; denotation belongs to Semantics |
+| 5. Names and anaphora | Names and self-reference, pronouns, demonstratives, chosen/former/latter references, this-way/event anaphora | Composition and document capitalization; game-reference resolution is outside this project |
 | 6. Object/player/target descriptions | Nominal and NP, determinatives versus Determiner function, quantification, ordered modifiers, Targeting Marker, owner/controller and zone/event postmodifiers | Composition |
 | 7. Type grammar | Noun and attributive uses, subtype/supertype features, non- polarity, plural morphology/agreement, choosing names/types, retained characteristics | Composition; type-line and case in document |
 | 8. Ability architecture | Spell, activated, triggered and static text; cost/effect/instruction boundaries; loyalty, ability words, intervening conditions, delayed/reflexive triggers, shared keyword lines | Document, with clauses/conditions supplied by composition |
@@ -192,7 +192,7 @@ card-driven scheduling:
 | Frames and grammatical relations | Ordered arguments and fixed lexical markers are modeled; copular NP/Adjective Phrase/PP complements and retained-object passives use declared frame data. Automatic active-to-passive frame conversion is outside this model's claims. |
 | Agreement | Finite heads declare form/agreement relations, including invariant modals. Binary same-category coordination resolves `and` NPs to plural; mixed-person/mixed-number and `or` proximity agreement remain a review decision, not silently licensed by a guessed rule. |
 | Subordination and gaps | Finite/nonfinite clause embedding, one NP relative gap and explicit across-conjunct sharing are modeled. Extraction islands, whose/pied-piping, zero versus overt/nonrestrictive relatives and right-node raising need distinct discharge/placement decisions before their acceptance is asserted. |
-| Ellipsis and anaphora | VP ellipsis carries an explicit grammatical antecedent; this models recoverability as an input. Discourse accessibility, omitted destinations, nominal ellipsis and door/half/former/latter reference resolution are not proved. Review must choose which are grammatical context judgments versus semantic resolution. |
+| Ellipsis and anaphora | VP ellipsis carries an explicit grammatical antecedent; this models recoverability as an input. Discourse accessibility, omitted destinations, nominal ellipsis and door/half/former/latter reference resolution are not proved. Review must model the grammatical distribution of these forms; game-reference resolution is outside English. |
 | Adjuncts | Host/dependent licensing and before/after placement are explicit. Marked subordinate clauses are distinguished from bare clauses. Bare temporal NPs still need a distribution feature; the eleven passive-temporal obligations remain migration/review challenges. |
 | Quantities and comparisons | Cardinal-to-determinative projection, Measure Phrase arithmetic and selected comparative complements are modeled. Variable binding, fractions/rounding spellings and full countability constraints are documentary/lexical extensions; arithmetic truth is not grammatical acceptance. |
 
@@ -223,7 +223,7 @@ only the structural vocabulary; the shared Grammar owns recursive licensing.
 | §15, Saga/Class/leveler | Chapter dash rows, cost-and-Level headers, level range/stat/body bands, with ordinary grammar inside each section | Populate validated numeral/range forms and challenge multi-chapter headers; grouping text by section is modeled, chapter/level game meaning is not. |
 | §15, Cases | Separate To solve and Solved sections, including an activated ability in the latter | The optional prescribed solve reminder uses the general reminder mechanism; exact template population remains lexical/document work. |
 | §15, dice/Stations | Distinct vertical-bar and em-dash die rows, en-dash range witness, and bound-plus Station thresholds | Check row coverage/order constraints and multiline sections against representative layouts before migration. |
-| §15, Rooms and faces/halves | `Faces` holds independent typed Documents for Room doors, transforming/modal/split/Adventure/aftermath/meld/prepare portions; no combined name is inserted into a sentence | Face counts, names, costs, prototype/flip/reversible/mutate layout metadata and which text box owns them must be pinned at the production correspondence boundary. |
+| §15, Rooms and faces/halves | `Faces` holds independent typed Documents for Room doors, transforming/modal/split/Adventure/aftermath/meld/prepare portions; no combined name is inserted into a sentence | Separate supplied text portions and their visible boundaries are inputs. Face counts, card legality and frame metadata validation are outside the NLP grammar. |
 | §15, standalone frame reminders | A reminder can form an independent document paragraph, using the same grammar and nesting check | Exact source-specific templates, including siege reminders, need population; no semantic effect is inferred from parenthesization. |
 | §7, type lines | Supertypes precede a nonempty type group, then optional dash/subtypes; wrong group order is excluded | Lexical catalog completeness and capitalization conformance remain external evidence. |
 
@@ -250,7 +250,7 @@ source-derived design; they do not define its inventory.
 | Copular complements, type modifiers and polarity | Composition: NP/Adjective Phrase/PP licensing rather than status-specific forms |
 | Arithmetic, fractions, comparisons, degree Adverb Phrases | Composition: value/measure syntax and attachment; document: surface notation |
 | Eleven passive-temporal misselections | Composition: complement/adjunct distinction; selection: reject unsupported object readings while retaining legitimate scope alternatives |
-| Door/half references, former/latter and event references | Composition: syntactic referential forms; document: embedding/layout; Semantics owns their meaning |
+| Door/half references, former/latter and event references | Composition: syntactic referential forms; document: textual boundaries; no game-reference resolution |
 | Shared gaps, relatives, complement clauses and coordination | Composition: extraction constraints, pied-piping, nonrestrictive attachment, correlative coordination, gapping and right-node raising |
 | Reminder/editorial text and unowned/unbucketed historical tails | Document and design review: representative challenges and explicitly routed residuals |
 
@@ -377,3 +377,14 @@ concrete document-closure and canonical-representation gaps, in addition to
 the feature/context and scope-classification assumptions above. The review's
 residual recommendations await discussion; they are not accepted rulings.
 The review ticket remains open until those design blockers are resolved.
+
+
+## Independent project boundary
+
+English is a standalone NLP grammar for parsing and bracketing Oracle English,
+as clarified by the user on 2026-09-05. The project root is `english/`, with its
+own Lake configuration and warning-free `scripts/build` gate. It has no
+interaction or dependency with the separate `lean/` Semantics project.
+Grammatical dependencies and textual boundaries are in scope; game-reference
+resolution, card validation and frame legality are not. Surface relations are
+used to compare grammatical analyses, not to create a card-validation service.

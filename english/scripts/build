@@ -1,0 +1,4 @@
+#!/bin/sh
+# Check the complete grammar model and its witnesses, with warnings treated as errors.
+cd "$(dirname "$0")/.." || exit 1
+exec lake build --wfail "$@"

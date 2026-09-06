@@ -1,7 +1,7 @@
 # English grammar design in Lean
 
 Accepted 2026-09-05. Design the intended Oracle English grammar top-down in a
-Lean `English` module beside `Semantics`, then migrate `english_v2`'s
+standalone Lean `English` project, then migrate `english_v2`'s
 `constructions!` grammar to that design. Consolidation and missing general
 grammar are both in scope. The failure frontier resumes driving work only for
 the subsequent long tail. The [wayfinder](../english-grammar-wayfinder.md)
@@ -9,10 +9,14 @@ records the work sequence and disposition of earlier tickets.
 
 ## The workbench's contract
 
-`English` is a formal model of the proposed grammatical structure. It belongs
-to the Oracle English bounded context in [CONTEXT-MAP.md](../../CONTEXT-MAP.md);
-`Semantics` belongs to Game Model. Grammatical acceptance does not require
-semantic validity. The [rewrite's source hierarchy](english-v2-rewrite.md#source-hierarchy-and-support-corpus)
+`English` is a standalone NLP grammar for parsing and bracketing Oracle
+English. It belongs to the Oracle English bounded context in
+[CONTEXT-MAP.md](../../CONTEXT-MAP.md). The `english/` and `lean/` directories
+are separate Lake projects with independent roots, manifests, toolchain files
+and build commands. They have no dependency on or interaction with each other.
+English does not produce or consume Semantics values, perform game-reference
+resolution, or validate cards/game layouts. Surface relations support claims
+about the grammatical analyses of text. The [rewrite's source hierarchy](english-v2-rewrite.md#source-hierarchy-and-support-corpus)
 still applies: the style guide supplies structural direction, the supported
 Oracle corpus supplies conformance evidence, and rules meaning is consulted
 where needed. Existing grammar shapes and acceptance are evidence to examine,
@@ -29,7 +33,7 @@ Realization must connect structures to surfaces before claiming anything about
 textual ambiguity. Distinguish raw grammatical ambiguity, selection ties, and
 ambiguity deliberately retained in a canonical representation. The existing
 [scope ruling](english-v2-rewrite.md#amendment-one-scope-device-principles-before-packing-2026-09-04)
-preserves alternatives for Semantics; uniqueness of a representative does not
+preserves grammatical alternatives; uniqueness of a representative does not
 assert uniqueness of interpretation. Define admissible derivations separately
 from preference and packing. Acyclic preference alone does not rule out ties,
 and an arbitrary deterministic choice does not justify a reading.
@@ -86,3 +90,15 @@ temporary compatibility work. Faster corpus completion is a hypothesis, not a
 promise. Global uniqueness proofs, the amount of counterexample automation,
 and which existing selection mechanisms survive remain open. The formal model
 is useful even if production never consumes it and no executable parser is built.
+
+
+## Clarification: independent NLP project (2026-09-05)
+
+The user clarified that English is JUST the NLP grammar for parsing/bracketing
+Oracle English, with no interaction with Semantics, and requested two separate
+Lake projects. This supersedes earlier wording that positioned retained
+readings as an interface to Semantics. Textual sentence/paragraph/section
+boundaries and grammatical dependencies remain English concerns; game meaning,
+reference resolution to game entities, face legality and card validation are
+not English obligations. Investigate grammatical representation choices against
+concrete interactions before presenting any residual decision to the user.

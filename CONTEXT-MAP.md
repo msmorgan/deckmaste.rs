@@ -15,8 +15,10 @@ between them has the meaning assigned by the context in which it is used.
 - **Comprehensive Rules → Game Model**: the CR is the ultimate authority for
   Magic rules terms; project terms may extend that vocabulary without changing
   CR meanings.
-- **Oracle English ↔ Game Model**: Oracle English interprets rules text as Game
-  Model concepts and realizes those concepts as English rules text.
+- **Oracle English and Game Model**: Oracle English describes the linguistic
+  structure of rules text; Game Model describes game concepts. The English
+  NLP workbench and Semantics workbench are separate Lake projects with no
+  interaction or dependency between them.
 - **Shared spellings**: terms such as Object and Predicate may have different
   meanings in the two contexts. The owning glossary controls each meaning; a
   term borrowed by the other context retains its owner's meaning.

@@ -1,12 +1,4 @@
-# lean — Semantics and English workbenches in Lean 4
-
-`English` is the Oracle English grammar design model beside `Semantics`.
-It uses grammatical and realization relations, with checked structural and
-surface witnesses; it does not require an executable parser or renderer.
-See the [grammar design](../docs/english-grammar-design.md) for scope and open
-decisions. Run `./scripts/build English` for its warning-free gate. The default
-build includes both workbenches. The remaining sections describe `Semantics`
-and its authoring conventions.
+# Semantics workbench in Lean 4
 
 The semantics workbench models the card language's syntax and checks its
 structural obligations. `Semantics/*.lean` contains plain inductives;
@@ -17,7 +9,7 @@ remains in Rust.
 
 Run `lean/scripts/build` from the repository root, or `./scripts/build` from
 this directory. It builds the syntax, checker, macros, printed-card bench,
-pin suites, and English model with warnings treated as failures. For the
+and pin suites with warnings treated as failures. For the
 semantics inner loop, run `lake build Semantics` from this directory.
 
 Lean is the active workbench. The [succession decision](../docs/decisions/lean-is-the-workbench.md)
