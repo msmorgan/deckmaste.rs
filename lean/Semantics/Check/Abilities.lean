@@ -898,13 +898,13 @@ def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : Deed) (e 
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .move what to _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
-     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what (to.map ZoneExpr.sort)) ++ nomIntro bs s),
+     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what (some to.sort)) ++ nomIntro bs s),
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .setStatus _ n =>
     ⟨nomIntro bs s, distributedDelta bs s (stampIntro bs' (some v) n) ++ nomIntro bs s, none, []⟩
   | .many, _ => ⟨nomIntro bs s, nomIntro bs s, none, ep.deed⟩
   | .one, .move what to _ =>
-    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what (to.map ZoneExpr.sort)),
+    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what (some to.sort)),
      some (stampIntro bs' (some v) what), []⟩
   | .one, .setStatus _ n => ⟨nomIntro bs' n, stampIntro bs' (some v) n, none, []⟩
   | .one, _ => ep
@@ -982,7 +982,7 @@ mutual
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what to _ =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (to.map ZoneExpr.sort)), none, []⟩
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (some to.sort)), none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
@@ -1020,7 +1020,7 @@ mutual
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
     | .enact v (.move what to _) none =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (to.map ZoneExpr.sort)),
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (some to.sort)),
        some (stampIntro bs (some v) what), []⟩
     | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
     | .enact _ e none => Instruction.profile bs e

@@ -168,14 +168,9 @@ def regenerate (subject : NounPhrase) : Semantics.Instruction :=
       (.verbedEvent none (.action "Destroy") (some patient) none none)
       [] none (regenerationApplication patient) .nextTimeOnly none) (some .thisTurn)
 
-/-- A countered spell goes to its owner's graveyard; a countered ability simply leaves
- the stack [CR#701.6a]. -/
+/-- Counter is one labeled stack-to-graveyard move. -/
 def counterSpell (subject : NounPhrase) : Semantics.Instruction :=
-  let patient : NounPhrase := .pro .bare subject.plur (.operand 0)
-  .withOperands [subject] <|
-    .doIf (.matches patient (.abilityHead .anyOnStack))
-      (.enact (.action "Counter") (.move patient none []))
-      (some (.enact (.action "Counter") (.move patient (some (.zone .graveyard .bare)) [])))
+  .enact (.action "Counter") (.move subject (.zone .graveyard .bare) [])
 
 /-- Losing counters is removal from the named player. Capturing that player first keeps
 amount references in the order the sentence introduces them. -/

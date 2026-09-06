@@ -375,11 +375,11 @@ theorem okCounterSpell : Instruction.check [] (Primitives.Instruction.counterSpe
 
 /-- "Counter target creature." -/
 theorem badCounterPermanent :
-    Instruction.check [] (Primitives.Instruction.counterSpell (target creature)) = [.zoneFits, .zoneFits, .zoneFits] := by decide
+    Instruction.check [] (Primitives.Instruction.counterSpell (target creature)) = [.zoneFits] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Instruction.check [] (Primitives.Instruction.counterSpell (target anyTarget)) = [.zoneFits, .zoneFits] := by decide
+    Instruction.check [] (Primitives.Instruction.counterSpell (target anyTarget)) = [.movable, .zoneFits] := by decide
 
 /-- "Companion — Each permanent card in your starting deck has mana value 2 or less." -/
 theorem okCompanionCharacteristicRead :

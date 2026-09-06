@@ -6,11 +6,11 @@ namespace Semantics.Proofs.InstructionForms
 
 theorem exileOmittedAgent :
     exile thisPermanent =
-      Instruction.enact (.action "Exile") (.move thisPermanent (some exileZone) []) none := by rfl
+      Instruction.enact (.action "Exile") (.move thisPermanent exileZone []) none := by rfl
 
 theorem exileNamedAgent :
     exile thisPermanent (agent := NounPhrase.you) =
-      Instruction.enact (.action "Exile") (.move thisPermanent (some exileZone) []) (some .you) := by rfl
+      Instruction.enact (.action "Exile") (.move thisPermanent exileZone []) (some .you) := by rfl
 
 theorem chooseOmittedAgent :
     choose (a creature) = Instruction.choose none (a creature) .openly none none := by rfl
@@ -26,6 +26,6 @@ theorem chooseSecretlyNamedAgent :
 theorem millNamedAgent :
     mill (.lit 3) .you (agent := .you) =
       Instruction.enact (.action "Mill")
-        (.move (.librarySlice .top (.lit 3) .you) (some graveyard) []) (some .you) := by rfl
+        (.move (.librarySlice .top (.lit 3) .you) graveyard []) (some .you) := by rfl
 
 end Semantics.Proofs.InstructionForms

@@ -231,8 +231,8 @@ def ZoneExpr.shuffles : ZoneExpr → Bool
   | .zone _ _ => false
   | .library place _ _ _ => place.shuffles
 
-def afterMoveTo (to : Option ZoneExpr) (out : Bindings) : Bindings :=
-  if to.any ZoneExpr.shuffles then afterShuffle out else out
+def afterMoveTo (to : ZoneExpr) (out : Bindings) : Bindings :=
+  if to.shuffles then afterShuffle out else out
 
 def sourceZone : Option EventSource → Option Zone
   | some (.zones [z]) => some z.sort

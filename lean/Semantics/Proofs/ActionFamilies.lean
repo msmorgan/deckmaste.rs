@@ -47,10 +47,10 @@ theorem badEmblemWithSpellAbility :
 
 
 private def exiledAbility : Bindings :=
-  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) (some exileZone) [])
+  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) exileZone [])
 
-private def removedAbility : Bindings :=
-  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) none [])
+private def graveyardAbility : Bindings :=
+  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) graveyard [])
 
 theorem exiledAbilityKeepsItsLocation :
     NounPhrase.zone exiledAbility (that .ability) = some .exile := by decide
@@ -66,26 +66,26 @@ theorem exiledAbilityIsNotASpellOrCard :
     NounPhrase.check none exiledAbility (that .card) = [.anaphor (.word .card) .one 0] := by decide
 
 theorem exiledAbilityCannotBeCountered :
-    Instruction.check exiledAbility (Primitives.Instruction.counterSpell (that .ability)) = [.zoneFits, .zoneFits, .zoneFits] := by decide
+    Instruction.check exiledAbility (Primitives.Instruction.counterSpell (that .ability)) = [.zoneFits] := by decide
 
-theorem absentDestinationHasNoArrivalZone :
-    NounPhrase.zone removedAbility (that .ability) = none := by decide
+theorem movementPublishesItsRequiredDestination :
+    NounPhrase.zone graveyardAbility (that .ability) = some .graveyard := by decide
 
-theorem absentDestinationAcceptsStackExit :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) none []) = [] := by decide
+theorem movementAcceptsAnAbilitySubject :
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard []) = [] := by decide
 
-theorem absentDestinationRejectsEntryRiders :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) none [.entersAs .tapped]) =
+theorem graveyardDestinationRejectsEntryRiders :
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard [.entersAs .tapped]) =
       [.ridersFit] := by decide
 
-theorem absentDestinationRejectsCounterRiders :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) none
-      [.withCounters (.lit 1) (.printed plusOnePlusOne) .fresh]) = [.ridersFit] := by decide
+theorem graveyardDestinationAcceptsCounterRiders :
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard
+      [.withCounters (.lit 1) (.printed plusOnePlusOne) .fresh]) = [] := by decide
 
-theorem pronounExitPreservesCopyOriginAndOuterBindings :
+theorem pronounMovePreservesCopyOriginAndOuterBindings :
     Instruction.intro [⟨.the, .one, .ability (some .copy)⟩, ⟨.the, .one, .player false⟩]
-      (.move (that .ability) none []) =
-      [⟨.the, .one, .ability (some .copy) none⟩, ⟨.the, .one, .player false⟩] := by rfl
+      (.move (that .ability) graveyard []) =
+      [⟨.the, .one, .ability (some .copy) (some .graveyard)⟩, ⟨.the, .one, .player false⟩] := by rfl
 
 theorem abilityUnionRetainsCommonLocation :
     (unionPayload (.ability none (some .exile)) (.ability none (some .exile))).map
@@ -130,7 +130,7 @@ theorem clearDamageDoesNotPublishDamageDealt :
 
 
 theorem movingThisAbilityRetainsAbilityIdentity :
-    Instruction.intro [] (.move thisAbility (some exileZone) []) =
+    Instruction.intro [] (.move thisAbility exileZone []) =
       [⟨.self, .one, .ability none (some .exile)⟩] := by rfl
 
 
@@ -193,16 +193,16 @@ theorem regenerationInstallationPublishesNoImmediateOutcome :
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
     NounPhrase.zone (Instruction.intro []
       (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
-      (that .ability) = none := by decide
+      (that .ability) = some .graveyard := by decide
 
 theorem counterPreservesTheAbilityCategory :
     NounPhrase.check none (Instruction.intro []
       (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
-theorem counterClosesItsPrivateFrame :
-    (Instruction.intro [] (Primitives.Instruction.counterSpell (target spell))).any
-      Binding.isOperandFrame = false := by decide
+theorem counterIsSingleEnactedMove (subject : NounPhrase) :
+    Primitives.Instruction.counterSpell subject =
+      .enact (.action "Counter") (.move subject graveyard []) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (Instruction.intro []
@@ -255,7 +255,7 @@ theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
 theorem conditionalForgettingKeepsTheOperandScope :
     Instruction.check [] (.withOperands [a (.inZone yourLibrary)] (.sequentially [
       .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
-      .move (operand 0) (some graveyard) []])) = [] := by decide
+      .move (operand 0) graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :
     Instruction.check [] (Primitives.Instruction.fight

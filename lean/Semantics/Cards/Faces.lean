@@ -56,7 +56,7 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 def missyFaceDownReturn : Ability :=
   whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.otherThan thisCreature])))
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.move it (some battlefield) [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.entersAs .tapped, Primitives.TokenRider.under Primitives.NounPhrase.you],
+      [ Primitives.Instruction.move it battlefield [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.entersAs .tapped, Primitives.TokenRider.under Primitives.NounPhrase.you],
         Primitives.Instruction.establish
           (Primitives.StaticSpec.qualityChange it .sets
             (Primitives.QualityPayload.bundle
@@ -77,7 +77,7 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
         [ whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [nontoken, creatureYouControl, Primitives.Predicate.otherThan thisCreature])))
             (offer
               (Primitives.Instruction.sequentially
-                [ Primitives.Instruction.move it (some battlefield) [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.under (ownerOf it)],
+                [ Primitives.Instruction.move it battlefield [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.under (ownerOf it)],
                   Primitives.Instruction.establish
                     (Primitives.StaticSpec.qualityChange it .sets
                       (Primitives.QualityPayload.bundle

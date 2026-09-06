@@ -384,7 +384,7 @@ mutual
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
         (agent : NounPhrase := .you)
-    | move (subject : NounPhrase) (to : Option ZoneExpr) (riders : List TokenRider)
+    | move (subject : NounPhrase) (to : ZoneExpr) (riders : List TokenRider)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount) (exceptions : List CopyExcept)
         (agent : NounPhrase := .you)
     | chooseNewTargets (subject : NounPhrase)

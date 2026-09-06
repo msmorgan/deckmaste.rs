@@ -33,7 +33,7 @@ def suspendedSentence : Instruction :=
 theorem okSuspendedSentence : Instruction.check [] suspendedSentence = [] := by decide
 
 def flickeringSpirit : Instruction :=
-  Primitives.Instruction.sequentially [exile thisCreature, Primitives.Instruction.move it (some battlefield) [Primitives.TokenRider.under (ownerOf it)]]
+  Primitives.Instruction.sequentially [exile thisCreature, Primitives.Instruction.move it battlefield [Primitives.TokenRider.under (ownerOf it)]]
 theorem okFlickeringSpirit : Instruction.check [] flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
@@ -192,7 +192,7 @@ theorem okMartyrsCry : Instruction.check [] martyrsCry = [] := by decide
 def anotherRound : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (counted anyNumber creatureYouControl),
-      Primitives.Instruction.move them (some battlefield) [Primitives.TokenRider.under (ownerOf them)],
+      Primitives.Instruction.move them battlefield [Primitives.TokenRider.under (ownerOf them)],
       Primitives.Instruction.repeat_ (Primitives.Repetition.moreTimes (Primitives.Amount.letter .x)) ]
 theorem okAnotherRound : Instruction.check [] anotherRound = [] := by decide
 

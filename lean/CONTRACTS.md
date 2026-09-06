@@ -532,21 +532,24 @@ codec still limits declaration combinations; changing that codec is outside
 this fold.
 
 
-### Movement without an arrival zone
+### Movement destinations
 
-`Instruction.move` carries an optional destination. `some destination` keeps
-the existing destination, arrangement, type, and rider checks; `none` records
-an exit without asserting an arrival zone and requires no riders. Both forms
-check the subject and preserve its reference publication. Destinationless
-movement does not itself mean countering: that label and a spell's graveyard
-destination belong to the Counter expansion [CR#701.6a].
+`Instruction.move` requires a destination. Every move checks its destination,
+arrangement, subject types, and riders, and publishes the stated destination.
+There is no destinationless movement instruction.
+
+User ruling (2026-09-06): Counter is one enactment of the Counter label around
+stack-to-graveyard movement, uniformly for its spell or ability subject. This
+supersedes the prior optional-destination design and its ability-specific branch.
+The enacted movement retains the stack-source obligation. The rule defining
+Counter supplies stack removal and a spell's graveyard destination [CR#701.6a];
+this uniform expansion is the workbench's chosen representation, not an added
+runtime lifetime model.
 
 An ability binding stores its zone, initially the stack. Movement updates that
-zone while retaining its ability identity and copy origin. An exited ability
-can still be referenced as an ability, but a stack reference and counter/copy
-checks require actual stack evidence. Element bindings and unions retain
-location evidence rather than restoring a hardcoded stack location. This is
-reference-state checking, not a runtime lifetime or state-based-action model.
+zone while retaining its ability identity and copy origin. A stack reference
+and counter/copy checks require actual stack evidence. Element bindings and
+unions retain location evidence rather than restoring a hardcoded stack location.
 
 `Instruction.clearDamage` removes all marked damage from a permanent. Its
 subject must be an object on the battlefield, but need not currently be a
@@ -587,11 +590,10 @@ controller tap the permanent, and remove it from combat if applicable. A static
 regeneration replacement uses that application repeatedly; it does not install
 a further shield [CR#701.19a..701.19c].
 
-Counter selects between an enacted exit for an ability and an enacted move to
-the graveyard for a spell. Both retain the stack-source obligation [CR#701.6a].
-Conditional publication conservatively joins branch facts, so it does not invent
-an arrival zone for an ability or leave a countered object on the stack. The
-pre-state remains available to postposed conditions such as Ertai's Trickery.
+Counter expands directly to `enact Counter (move subject graveyard [])`.
+It reads the subject once and needs no operand capture or ability/spell branch.
+The movement pre-state remains available to postposed conditions such as
+Ertai's Trickery.
 An alternative may also re-read the primary clause's stated amount, as in
 Caustic Bronco's "otherwise ... that much"; this is a numeric reference, not
 evidence that the primary branch actually happened.

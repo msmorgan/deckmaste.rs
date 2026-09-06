@@ -9,6 +9,11 @@ replacement, and payload vocabulary plus the local operation folds below. Apply 
 Scope narrowed by the user on 2026-09-06. This ticket does not depend on the
 other planned folds or the parked query, binding, and event mechanisms.
 
+**Subsequent ruling (2026-09-06):** the user replaced optional movement destinations
+with required destinations and chose a single Counter-labeled graveyard move for
+both spells and abilities. The original landing record below describes the earlier
+tree; the current shape is documented in [the workbench contract](../../../lean/CONTRACTS.md#movement-destinations).
+
 ## Action families
 
 - Make `fight` a normal keyword-action macro whose two damage instructions
@@ -197,3 +202,37 @@ coverage-command performance were not remeasured; no parser throughput or
 runtime execution claim is made. Lean compilation and checked card syntax are
 not a proof that an engine executes the expansions correctly. The expansions
 were reviewed directly against the cited rules.
+
+## Required-destination follow-up
+
+User ruling on 2026-09-06, implemented in `xypwtusp`: `Instruction.move` again
+requires `ZoneExpr`, and Counter is exactly one Counter-labeled graveyard move.
+Its ability/spell branch and operand frame are removed. The body is the same
+for either subject category; the existing enacted source check still requires
+the stack. The current contract above supersedes the original exit design.
+
+Follow-up evidence (English lock covered count **20,254**):
+
+- Full Lean gate: **75 jobs passed**, warnings fatal. Rust closure reports no affected
+  workspace crates; citation checks report **0 noncompliant, 0 stale**, with
+  the single changed citation audited against its text.
+- All **816** checked card declarations and **1,638** named proof declarations
+  remain. **43** existing proof declarations were re-spelled or corrected, and
+  **6** retired-shape witnesses were replaced as listed below. No extra proof
+  declarations, ignored tests, or unaccounted removals.
+- The four `absentDestination*` witnesses now check required destination
+  publication, ability movement, refusal of battlefield-entry riders at a
+  graveyard destination, and admission of zone-independent counter riders.
+  `pronounExitPreservesCopyOriginAndOuterBindings` becomes
+  `pronounMovePreservesCopyOriginAndOuterBindings` with the explicit graveyard.
+  `counterClosesItsPrivateFrame` becomes `counterIsSingleEnactedMove`, proving
+  the requested macro equation for every subject.
+- Counter diagnostics lose duplicated branch refusals. A mixed player/object
+  subject now also reports the move's `movable` refusal. Countered ability
+  references carry the uniform stated destination while preserving their
+  ability category and failing subsequent stack-reference checks.
+
+No core constructor was added. Parser coverage, selection, structural-law,
+licensing, inventory, and performance measurements were not rerun for this
+Lean-only change; English lock coverage remains **20,254**. Runtime object
+lifetime is not implemented by the reference checker.

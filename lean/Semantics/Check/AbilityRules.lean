@@ -215,17 +215,11 @@ mutual
         refuse (choiceOrderOk first (some voters)) .choiceOrder
     | .move what to riders =>
       let bs' := nomIntro bs what
-      NounPhrase.check none bs what ++
-        (match to with
-         | some destination =>
-           ZoneExpr.check bs' destination ++ TokenRider.checkAll bs' riders ++
-             refuse what.movable .movable ++ refuse destination.destOk .destOk ++
-             refuse (orderOk what.plur destination) .arrangementOk ++
-             refuse (destTypeOk (NounPhrase.ty bs what) destination.sort) .placeable ++
-             refuse (ridersFitZone riders destination.sort) .ridersFit
-         | none =>
-           TokenRider.checkAll bs' riders ++ refuse what.movable .movable ++
-             refuse riders.isEmpty .ridersFit)
+      NounPhrase.check none bs what ++ ZoneExpr.check bs' to ++ TokenRider.checkAll bs' riders ++
+        refuse what.movable .movable ++ refuse to.destOk .destOk ++
+        refuse (orderOk what.plur to) .arrangementOk ++
+        refuse (destTypeOk (NounPhrase.ty bs what) to.sort) .placeable ++
+        refuse (ridersFitZone riders to.sort) .ridersFit
     | .copy src what times exc agent =>
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what

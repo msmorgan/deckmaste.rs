@@ -52,11 +52,11 @@ theorem badBothArmsAntecedent :
 
 /-- "Put target creature onto the battlefield." -/
 theorem okMoveToBattlefield :
-    Instruction.check [] (.move (target creature) (some battlefield) []) = [] := by decide
+    Instruction.check [] (.move (target creature) battlefield []) = [] := by decide
 
 /-- "Put target creature into your library." -/
 theorem badMoveToBareLibrary :
-    Instruction.check [] (.move (target creature) (some library) []) = [.destOk] := by decide
+    Instruction.check [] (.move (target creature) library []) = [.destOk] := by decide
 
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
@@ -77,11 +77,11 @@ theorem badChooseSomeOf :
 
 /-- "Exile target creature." -/
 theorem okMoveToExile :
-    Instruction.check [] (.move (target creature) (some exileZone) []) = [] := by decide
+    Instruction.check [] (.move (target creature) exileZone []) = [] := by decide
 
 /-- "Put target creature onto the stack." -/
 theorem badMoveToStack :
-    Instruction.check [] (.move (target creature) (some stack) []) = [.destOk] := by decide
+    Instruction.check [] (.move (target creature) stack []) = [.destOk] := by decide
 
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
@@ -171,7 +171,7 @@ theorem badStackAnaphorAfterCounteringAbility :
     Instruction.check []
       (.sequentially
         [ Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated)), Primitives.Instruction.counterSpell (that .stack) ])
-      = [.anaphor (.word .stack) .one 0, .zoneFits, .zoneFits] := by
+      = [.anaphor (.word .stack) .one 0, .zoneFits] := by
   decide
 
 def afterAnyTargetDamage : Bindings :=
