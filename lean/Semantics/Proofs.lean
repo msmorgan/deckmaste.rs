@@ -8,6 +8,7 @@ import Semantics.Proofs.Lookback
 import Semantics.Proofs.ControllerSacrifice
 import Semantics.Proofs.ReferenceScopes
 import Semantics.Proofs.Authoring
+import Semantics.Proofs.MacroParameters
 import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Choice
 import Semantics.Proofs.Counters

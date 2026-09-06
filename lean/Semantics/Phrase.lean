@@ -36,6 +36,11 @@ inductive ObservationPoint where
   deriving DecidableEq, Repr
 
 mutual
+  /-- Ordered inputs to a semantic binding scope; each input is read once. -/
+  inductive CaptureInput where
+    | subject (expression : NounPhrase)
+    | value (expression : Amount)
+
   /-- Whose zone: "your graveyard", or a bare zone name. -/
   inductive ZoneScope where
     | bare
@@ -48,6 +53,8 @@ mutual
     | shuffled
 
   inductive ZoneExpr where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : ZoneExpr)
+    | inCaller (scope : Nat) (body : ZoneExpr)
     | zone (zone : Zone) (scope : ZoneScope)
     | library (place : LibraryPlace) (order : Option Arrangement) (offset : Option Ordinal)
         (scope : ZoneScope)
@@ -80,6 +87,8 @@ mutual
     | mk (event : GameEvent) (lookback : Lookback)
 
   inductive Predicate where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Predicate)
+    | inCaller (scope : Nat) (body : Predicate)
     | hasType (type : CardType)
     | hasSubtype (subtype : Subtype)
     | hasSupertype (supertype : Supertype)
@@ -148,6 +157,8 @@ mutual
     | bare
 
   inductive NounPhrase where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : NounPhrase)
+    | inCaller (scope : Nat) (body : NounPhrase)
     /-- The participant bound by the nearest lookback, viewed one entity at a time. -/
     | gap (kind : Kind)
     /-- the source, by self-name or "this spell" [CR#113.7] -/
@@ -176,6 +187,9 @@ mutual
     | oneEachOf (roles : List Predicate) (pool : NounPhrase)
 
   inductive Amount where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Amount)
+    | inCaller (scope : Nat) (body : Amount)
+    | parameter (scope index : Nat) (shape : AmountShape)
     | lit (value : Int)
     | statOf (axis : ProjAxis) (subject : NounPhrase)
     | countOf (group : NounPhrase)
@@ -199,6 +213,8 @@ mutual
     | upTo (bound : Amount)
 
   inductive Quantity where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Quantity)
+    | inCaller (scope : Nat) (body : Quantity)
     | range (low high : Option Nat)
     | upToOf (amount : Amount)
     | exactlyOf (amount : Amount)
@@ -224,6 +240,8 @@ mutual
 
 
   inductive Condition where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Condition)
+    | inCaller (scope : Nat) (body : Condition)
     | duringPart (part : TurnPart) (whose : Option NounPhrase)
     /-- "if there is a …" -/
     | exists_ (subject : NounPhrase)
@@ -245,6 +263,8 @@ mutual
     | or (disjuncts : List Condition)
 
   inductive GameEvent where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : GameEvent)
+    | inCaller (scope : Nat) (body : GameEvent)
     | zoneChange (subject : NounPhrase) (from_ : Option EventSource)
         (to : Option ZoneExpr) (observation : ObservationPoint)
     | draws (player : NounPhrase)
@@ -295,7 +315,7 @@ mutual
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
-deriving instance Repr, BEq for ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
+deriving instance Repr, BEq for CaptureInput, ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
   EventSource, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
   Quantity, SliceCount, Door, RollWatch, HeaderPossessor, Condition, GameEvent, Causing
 
@@ -345,5 +365,13 @@ attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semanti
 classify_semantic_syntax
 
 attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.gap
+  Semantics.Quantity.withBindings Semantics.Quantity.inCaller
+  Semantics.ZoneExpr.withBindings Semantics.ZoneExpr.inCaller
+  Semantics.Condition.withBindings Semantics.Condition.inCaller
+  Semantics.NounPhrase.withBindings Semantics.NounPhrase.inCaller
+  Semantics.GameEvent.withBindings Semantics.GameEvent.inCaller
+  Semantics.CaptureInput Semantics.Amount.parameter
+  Semantics.Amount.withBindings Semantics.Amount.inCaller
+  Semantics.Predicate.withBindings Semantics.Predicate.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit

@@ -129,3 +129,80 @@ Standard constraints apply.
 The deferred collection-member binder, aggregation and numeric-anaphora redesign,
 result collections, cost-symbol expansion, and Rust implementation remain out of
 scope. Capturing an Amount parameter does not pull those designs into this ticket.
+
+## Landing record
+
+Implemented on change `ylroosyt`; the unchanged English v2 lock contains 20,254
+covered identities. Standard constraints apply.
+
+- One `semantic_macro` declaration now generates registration, lexical context,
+  typed captures, and caller-scope handling. All 440 existing hand-written
+  macro definitions use it. Direct calls return their semantic type; `expand`
+  preserves the named authoring call without granting additional trust.
+- Subject and amount captures share values by actual binding address, in
+  declaration order at the expansion location. Nested captures forward aliases;
+  splices preserve caller references and support explicit noun parameters,
+  including callback type aliases. Internal binding carriers have no generated
+  public primitive. Fight, regeneration, and player-counter removal use named
+  captures; ordinary one-use counter movement needs none.
+- Noun results retain their context, additions, returned address, and value.
+  Scope exit and containing noun constructors preserve updates and explicit
+  type/marker views. Temporary caller
+  masks remain distinct from permanent forgetting. Existing classifier and
+  identity checks follow scoped syntax, including enacted moves, opponent
+  libraries, nested replacements, definition costs, and self-counterparts.
+- Authoring inspects aliases, projections, containers, discarded values, and
+  higher-order applications. Helper inspection skips only an instantiated
+  definition graph free of semantic content; semantic types prevent concealed
+  function parameters from bypassing evidence checks. Per-inspection caching
+  avoids repeated ordinary list unfolding without changing the heartbeat limit.
+
+### Assurance and scope
+
+No silent loss: comparison with the pre-change sources preserves all 4,124
+named declarations in the 44 original card/proof files. All 15 card source files,
+including 816 `Spelled` definitions, are byte-identical. No card was removed or
+newly admitted by an edited bench term.
+
+Test accounting: restored 0; re-spelled 2 named theorems
+(`conditionalForgettingKeepsTheOperandScope`, `badFightGroup`) plus the shared
+`ActionFamilies.operand` helper; ignored 0; added 78 named theorems and 10
+negative authoring guards; removed 0. The fight-group witness remains rejected:
+its diagnostic is now singular-power/per-member damage failure, replacing
+failures caused by the retired singular private operand representation.
+
+`Proofs/MacroParameters.lean` distinguishes value capture from repeated reads,
+independent identical selections from aliases, dependent declaration order from
+body-use order, caller references from macro-local mentions, and explicit body
+parameters from unlicensed semantic variables. It covers direct/explicit
+expansion and all supported scoped result types. Existing proof modules remain
+in the full gate; no `sorry`, new axioms, or native decision shortcuts were added.
+
+Deviations and additions: Quantity, ZoneExpr, Condition, and GameEvent receive
+the same scope forms as the six explicitly named result types, so semantic
+expressions compose consistently. The noun-result representation and inspection
+cache were required by returned capture identity and unchanged bench authoring.
+The glossary's existing Semantic Macro definition now covers its parameter modes;
+no new glossary concept was needed. Deferred collection/binder mechanisms,
+cost-symbol expansion, and Rust implementation remain untouched.
+
+The Rust grammar, declarations, coverage lock, and selection machinery are
+unchanged. There are no changed construction analyses, licensing guards, lexical
+ownership rules, homograph/form inventories, or lowering artifacts. Accordingly,
+compiler roundtrip/census/CPU-per-byte measurements were not rerun for this Lean
+change; `cargo xtask gate --changed` reports no affected workspace crates.
+
+### Validation
+
+The final `lean/scripts/build` warning-as-error gate passes all 77 jobs,
+including the entire card bench and proof suites. All 78 new theorems were
+inspected with `#print axioms`; their sole dependency is standard `propext`.
+The final incremental build took 62.74 seconds at a starting one-minute host
+load of 4.24, with 24 logical CPUs and Lake's default worker setting. This is
+Lean build telemetry, not an English corpus performance measurement.
+
+Citation checking reports 0 noncompliant strings and 0 stale citations; the
+diff audit's one changed citation site was read against its rule text.
+`cargo xtask gate --changed` reports no affected Rust crates, and
+`kata kanban check` passes. Final refresh was a no-op. No unresolved
+design/ruling contradiction remains.

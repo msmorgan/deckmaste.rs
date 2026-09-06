@@ -30,6 +30,7 @@ structure EventFacts where
 /-- Event properties used by magnitudes, replacements, counts, durations, and concurrency.
 Participant and payload obligations are checked directly on the event's fields. -/
 def GameEvent.facts : GameEvent → EventFacts
+  | .withBindings _ _ body | .inCaller _ body => body.facts
   | .damage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
     { hasMagnitude := true }
   | .beginningOf _ _ _ => { boundsDuration := false }
@@ -45,6 +46,10 @@ def GameEvent.facts : GameEvent → EventFacts
   | .tokensCreated _ _ _ _ | .statBecomes _ _ _ | .flipsCoin _ _ | .rollsDice _ _ _ _
   | .paysCost _ _ _ _ | .tappedForMana _ _ _ | .commitsCrime _ => {}
 termination_by structural ev => ev
+
+def GameEvent.scopeBody : GameEvent → GameEvent
+  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | body => body
 
 def interceptOk (ev : GameEvent) : Bool := ev.facts.interceptable
 def triggerCountOk (ev : GameEvent) : Bool := ev.facts.countable

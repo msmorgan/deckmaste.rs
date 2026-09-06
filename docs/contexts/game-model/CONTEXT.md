@@ -343,6 +343,8 @@ are not copied.
 **Semantic Macro** (project term):
 A named, trusted expansion into semantic expressions. Its name provides an
 attachment point for spellings; its expansion supplies the modeled meaning.
+Its named arguments can capture a subject's identity or a numeric value, or
+supply syntax whose references retain their caller's scope.
 Checking the expansion's admissibility does not establish its rules fidelity.
 _Avoid_: treating a deed label alone as its meaning
 

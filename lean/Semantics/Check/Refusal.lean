@@ -16,6 +16,8 @@ non-vacuous pin claims.
 namespace Semantics
 
 inductive Refusal where
+  | amountParameter (scope index : Nat)
+  | lexicalScope (scope : Nat)
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
   | kindMismatch (expected found : Kind)

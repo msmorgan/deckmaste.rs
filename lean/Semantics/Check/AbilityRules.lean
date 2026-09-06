@@ -59,7 +59,7 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
   | .values a b =>
     let bs' := Amount.intro bs a
     Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
-      refuse b.settableValue .settableValue ++ refuse (!selfExchanged a b) .selfExchanged
+      refuse b.settableValue .settableValue ++ refuse (!selfExchanged bs a b) .selfExchanged
   | .textBoxes a b =>
     let bs' := nomIntro bs a
     NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
@@ -146,8 +146,11 @@ def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
 
 mutual
   def Instruction.check (bs : Bindings) : Instruction → List Refusal
-    | .withOperands subjects body =>
-      Instruction.checkOperands bs subjects ++ Instruction.check (captureOperands bs subjects) body
+    | .withBindings scope inputs body =>
+      (CaptureInput.checkAllIn none bs inputs).refusals ++ Instruction.check (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Instruction.check (enterCaller scope bs) body
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
@@ -401,11 +404,6 @@ mutual
     | _ => []
   termination_by structural rep => rep
 
-  def Instruction.checkOperands (bs : Bindings) : List NounPhrase → List Refusal
-    | [] => []
-    | n :: ns => NounPhrase.check none bs n ++ Instruction.checkOperands (nomIntro bs n) ns
-  termination_by structural ns => ns
-
   def Instruction.checkOpt (bs : Bindings) : Option Instruction → List Refusal
     | none => []
     | some e => Instruction.check bs e
@@ -438,6 +436,11 @@ mutual
   termination_by structural rs => rs
 
   def Cost.check (bs : Bindings) : Cost → List Refusal
+    | .withBindings scope inputs body =>
+      (CaptureInput.checkAllIn none bs inputs).refusals ++ Cost.check (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Cost.check (enterCaller scope bs) body
     | .mana c => refuse (manaRun c) .manaRun ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
@@ -605,6 +608,11 @@ mutual
   termination_by structural rs => rs
 
   def StaticSpec.check (bs : Bindings) : StaticSpec → List Refusal
+    | .withBindings scope inputs body =>
+      (CaptureInput.checkAllIn none bs inputs).refusals ++ StaticSpec.check (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        StaticSpec.check (enterCaller scope bs) body
     | .modification n what d =>
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) d.amount ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield ++ refuse what.modifyOk .modifyStat

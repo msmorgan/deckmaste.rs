@@ -27,7 +27,25 @@ their semantic fields are inspected recursively. `Semantics.Macros.Primitives`
 provides named wrappers with definitionally identical constructor signatures.
 `Instruction.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
 they are expansion carriers owned by the trusted macro layer. Existing idiomatic
-macros are registered there too. Defaults retain their macro calls.
+macros use `semantic_macro` declarations. Defaults retain their macro calls.
+
+A declaration generates the hidden construction context, parameter bindings, and
+registration from one ordinary Lean definition body. It returns its semantic
+type directly; `expand` is a transparent identity, not a trust boundary. Only
+registered definitions are trusted. Neither helpers, discarded arguments, nor
+projections may conceal raw semantic syntax, even if their result is ordinary
+data. Inspection skips ordinary helper bodies only after scanning the instantiated
+expansion's reachable definitions for semantic types, constructors, and calls;
+its arguments are still inspected. This includes semantic functions hidden in
+containers and supplied higher-order macro calls. Generated binding and
+caller-scope constructors have no public primitive.
+
+A supplied parameterized body is inspected under evidence for its explicit noun
+parameters. Other semantic free variables remain refused. Callback type aliases
+are resolved during type elaboration; callbacks receive the receiving macro's
+construction context. A caller cannot substitute a different hidden lexical
+context. The authoring tree records formal body binders and their uses as well
+as the enclosing named call.
 
 The kernel proves that the retained authoring tree contains no raw semantic
 constructor and that the resulting card passes the checker. Correspondence
@@ -558,31 +576,61 @@ outcome. Regeneration composes this primitive with tapping and conditional
 removal from combat inside a destruction replacement.
 
 
-### Captured operands and expanded actions
+### Semantic macro parameters and expanded actions
 
-`Instruction.withOperands` resolves noun operands once, left to right, in their
-actual context. An unavailable required operand prevents the entire body. Each
-`Window.operand` reads the nearest lexical frame, including inside an effect
-established by the body. The frame is checker-private; it adds no ordinary
-pronoun candidate. Its addresses point to the original binding slots rather
-than payload-equal copies. Literal subjects without public mentions are inline
-values. Nested scopes resolve their arguments against the outer frame before
-opening their own frame; updates reach the same captured object. Forgetting an
-ordinary discourse mention keeps its slot private until the last capture closes;
-all aliases continue to share its identity across filtering and conditional joins.
+`semantic_macro` accepts `capture NounPhrase`, `capture Amount`, and `splice T`
+annotations alongside ordinary configuration arguments. A captured subject is
+selected or resolved once; its repeated uses retain that identity while reading
+current properties. A captured amount retains one value, while ordinary Amount
+arguments substitute an expression that can be read repeatedly. The overloaded
+capture operation derives its input kind from the annotated Lean type.
 
-This is necessary for multi-operand macros. For example, a second target that
-uses an existing X introduces no new X. Computing its introduction pattern in
-an empty context can mistake the existing X for a new binding and shift a prior
-pronoun past its object. Captures use the actual introductions, while the older
-kind-pattern windows above remain appropriate only at their documented immediate
-boundaries. This operand scope is independent of the deferred collection-member
-binder and numeric aggregation design.
+`withBindings` and `inCaller` are private expansion forms for NounPhrase,
+Predicate, Amount, Quantity, ZoneExpr, Condition, GameEvent, Cost, Instruction,
+and StaticSpec. Bindings contain an ordered list of typed inputs. Captures occur
+left to right at that node, including inside conditions and repetition. Two
+identical argument expressions remain two selections. A nested macro forwards
+an existing parameter reference; a fresh argument creates a fresh capture.
+No macro registry or construction-time context object survives in the result.
 
-Fight uses a single creature-and-battlefield guard for both captured subjects,
-then simultaneous damage at each subject's power. The whole-body operand scope
-also retains target resolution requirements [CR#701.14a..701.14c]. The checker
-no longer borrows attacking-creature admissibility for fight.
+`Window.parameter` and `Amount.parameter` carry generated scope and slot keys.
+Authors use parameter names. The checker frame points to actual slots, including
+outer inline slots, rather than payload-equal copies. It adds no ordinary
+pronoun candidate. An inline subject remains a returned value when its private
+frame closes. A noun result carries its full context, additions, returned
+address, and value, so a macro can return any captured subject. Movement updates
+that returned subject while the scope is live. Explicit resolved/type/marker
+views remain attached to the returned value.
+
+Captured numeric and noun reads retain the structural facts their consumers
+need. Numeric facts include literal cardinality; noun facts include source and
+payer roles, opponent restrictions, and two-party coordination. Checks that
+inspect enacted moves, library slices, replacement nesting, self-reference, or
+definition costs follow scopes and their capture obligations. Reusing a value introduces no second copy of its original
+syntax. Inputs are still checked, including unused captures; a malformed
+reference does not gain validity by being captured. Capture itself adds no
+whole-body success requirement. Any required availability guard belongs in the
+ordinary macro body.
+
+A `splice` preserves caller references by temporarily masking mentions from the
+receiving macro. Its body can explicitly accept macro-local subjects through
+noun parameters. Temporary masks preserve live addresses and are distinct from
+permanently forgotten mentions. Leaving caller scope restores visibility without
+undoing updates or resurrecting forgotten mentions. Captures keep forgotten
+slots private until their final scope closes; aliases share their identity
+through filtering and branch joins.
+
+Captures use actual introductions in the current context. An existing X in a
+later target therefore introduces no second X and cannot shift an earlier
+reference accidentally. The older kind-pattern windows above remain appropriate
+only at their documented immediate boundaries. Collection-member binding,
+aggregation, and the numeric-anaphora redesign remain separate work.
+
+Fight uses an ordinary creature-and-battlefield guard for both captured subjects,
+then simultaneous damage at each subject's power [CR#701.14a..701.14c]. Group
+subjects are rejected by the singular power read and per-member damage checks;
+the checker no longer relies on a failed singular private reference to reject
+them or borrows attacking-creature admissibility for fight.
 
 Regeneration installation creates a next-time-this-turn destruction replacement.
 The Regenerate label belongs to its application: clear marked damage, have the

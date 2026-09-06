@@ -134,7 +134,7 @@ theorem movingThisAbilityRetainsAbilityIdentity :
       [⟨.self, .one, .ability none (some .exile)⟩] := by rfl
 
 
-private def operand (i : Nat) : NounPhrase := .pro .bare .one (.operand i)
+private def operand (i : Nat) : NounPhrase := .pro .bare .one (.parameter 0 i)
 
 /-- Equal-looking target phrases name two objects, rather than one shared payload. -/
 theorem distinctOperandsHaveDistinctAddresses :
@@ -253,7 +253,7 @@ theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
     (operand 0).zone (closeOperands moved) = some .graveyard := by decide
 
 theorem conditionalForgettingKeepsTheOperandScope :
-    Instruction.check [] (.withOperands [a (.inZone yourLibrary)] (.sequentially [
+    Instruction.check [] (.withBindings 0 [.subject (a (.inZone yourLibrary))] (.sequentially [
       .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
       .move (operand 0) graveyard []])) = [] := by decide
 

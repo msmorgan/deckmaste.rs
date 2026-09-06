@@ -103,6 +103,15 @@ inductive Plurality where
   | one | many
   deriving DecidableEq, Repr
 
+/-- Static number facts carried by a typed parameter read and checked against its binding. -/
+structure AmountShape where
+  exact : Option Nat
+  nonZero : Bool
+  plurality : Plurality
+  read : Bool
+  literal : Bool
+  deriving DecidableEq, Repr, BEq
+
 inductive NameAgreement where
   | differentNames | sameName
   deriving DecidableEq, Repr
@@ -252,8 +261,21 @@ inductive SlotCarrier where
   | permanent | card | spell
   deriving DecidableEq, Repr
 
+/-- Structural facts retained by a captured subject, independent of its current properties. -/
+structure NounShape where
+  kind : Kind
+  ability : Bool
+  isYou : Bool
+  selfDefined : Bool
+  ascribable : Bool
+  twoParties : Bool
+  opponentOnly : Bool
+  bareThis : Bool
+  deriving DecidableEq, Repr
+
 /-- How a pronoun is written: what it reaches back for. -/
 inductive Reach where
+  | parameter (shape : NounShape)
   | bare
   | atSlot (slot : SlotCarrier)
   | stamped (verb : Deed)
@@ -267,8 +289,8 @@ inductive Reach where
 /-- The stretch of the antecedent stack a pronoun resolves in. -/
 inductive Window where
   | whole
-  /-- A lexical operand captured by the nearest instruction binder. -/
-  | operand (index : Nat)
+  /-- A generated subject read in its lexical macro scope. -/
+  | parameter (scope index : Nat)
   | top (depth : Nat)
   | below (depth : Nat)
   | introduced (pattern : List Kind)

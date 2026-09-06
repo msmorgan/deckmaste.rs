@@ -257,6 +257,7 @@ inductive Payload where
   | player (chosen : Bool)
   | quality (q : QualitySort)
   | outcome (sort : OutcomeSort)
+  | amount (shape : AmountShape)
   | gap
   | letter (l : Letter)
   | turnRef
@@ -266,9 +267,12 @@ inductive Payload where
   | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
   | join (l r : Payload)
   /-- Checker-private lexical frame. Addresses are relative to the tail below the frame. -/
-  | operandFrame (slots : List (Option (List Nat) × Determiner × Plurality × Payload))
+  | parameterFrame (scope callerWidth : Nat)
+      (slots : List (Option (List Nat) × Determiner × Plurality × Payload))
   /-- A forgotten ordinary mention retained solely for an active lexical capture. -/
   | hidden (value : Payload)
+  /-- Temporary caller-view masking; unlike forgetting, it is restored after the supplied body. -/
+  | masked (scope : Nat) (value : Payload)
   deriving Repr
 
 mutual
@@ -277,13 +281,15 @@ mutual
     | .player a, .player b => a == b
     | .quality a, .quality b => a == b
     | .outcome a, .outcome b => a == b
+    | .amount a, .amount b => a == b
     | .gap, .gap | .turnRef, .turnRef => true
     | .letter a, .letter b => a == b
     | .ability a b, .ability c d => a == c && b == d
     | .pile a b c, .pile d e f => a == d && b == e && c == f
     | .join a b, .join c d => a.same c && b.same d
-    | .operandFrame a, .operandFrame b => Payload.sameSlots a b
+    | .parameterFrame s w a, .parameterFrame t v b => s == t && w == v && Payload.sameSlots a b
     | .hidden a, .hidden b => a.same b
+    | .masked s a, .masked t b => s == t && a.same b
     | _, _ => false
   termination_by structural a => a
 
@@ -307,7 +313,8 @@ def kind : Payload → Kind
   | .player _ => .player
   | .quality q => .quality q
   | .outcome _ => .outcome
-  | .gap | .operandFrame _ | .hidden _ => .gap
+  | .gap | .parameterFrame _ _ _ | .hidden _ | .masked _ _ => .gap
+  | .amount _ => .quality .number
   | .letter l => .letter l
   | .turnRef => .turnRef
   | .ability _ _ => .object
@@ -316,12 +323,32 @@ def kind : Payload → Kind
 
 
 def isHidden : Payload → Bool
-  | .hidden _ => true
+  | .hidden _ | .masked _ _ => true
   | _ => false
 
 def visible : Payload → Payload
-  | .hidden p => p
+  | .hidden p | .masked _ p => p.visible
   | p => p
+
+def isForgotten : Payload → Bool
+  | .hidden _ => true
+  | .masked _ p => p.isForgotten
+  | _ => false
+
+def withVisible : Payload → Payload → Payload
+  | .hidden p, value => .hidden (p.withVisible value)
+  | .masked scope p, value => .masked scope (p.withVisible value)
+  | _, value => value
+
+def withoutMasks : Payload → Payload
+  | .masked _ p => p.withoutMasks
+  | .hidden p => .hidden p.withoutMasks
+  | p => p
+
+def restoreMasks : Payload → Payload → Payload
+  | .masked scope p, value => .masked scope (p.restoreMasks value)
+  | .hidden p, value => p.restoreMasks value
+  | _, value => value
 
 end Payload
 
@@ -628,8 +655,11 @@ mutual
       some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
     | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
     | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
-    | .operandFrame a, .operandFrame b =>
-      (unionOperandSlots a b).map fun slots => (.gap, .operandFrame slots)
+    | .amount a, .amount b => if a == b then some (.quality .number, .amount a) else none
+    | .parameterFrame s w a, .parameterFrame t v b =>
+      if s == t && w == v then
+        (unionOperandSlots a b).map fun slots => (.gap, .parameterFrame s w slots)
+      else none
     | _, _ => none
   termination_by structural p => p
 
@@ -653,8 +683,8 @@ def unionBinding (b c : Binding) : Option Binding :=
     let p := b.payload.visible
     let q := c.payload.visible
     let value ← if p == q then some p else (unionPayload p q).map Prod.snd
-    pure ⟨b.det, b.plur,
-      if b.payload.isHidden || c.payload.isHidden then .hidden value else value⟩
+    let value := if b.payload.isForgotten || c.payload.isForgotten then .hidden value else value
+    pure ⟨b.det, b.plur, b.payload.restoreMasks (c.payload.restoreMasks value)⟩
   else none
 
 def unionBindings : Bindings → Bindings → Option Bindings
@@ -715,6 +745,7 @@ def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
 
 /-- The reaches that resolve to an object binding a move can re-stamp. -/
 def Reach.tracksObject : Reach → Bool
+  | .parameter shape => shape.kind == .object
   | .bare | .atSlot _ | .stamped _ | .tokenBorn => true
   | _ => false
 
@@ -807,6 +838,7 @@ def NounWord.kind : NounWord → Kind
   | _ => .object
 
 def Reach.kind : Reach → Kind
+  | .parameter shape => shape.kind
   | .word w => w.kind
   | .unionHalf w => w.kind
   | .verbed _ w _ => w.kind
@@ -851,6 +883,8 @@ def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : List CardType)
 
 def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
   match r with
+  | .parameter shape =>
+    Kind.lte b.kind shape.kind && pl.isOne == b.plur.isOne && (!shape.ability || wordNow .ability b)
   | .bare => Kind.lte .object b.kind && pl.isOne == b.plur.isOne
   | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
   | .stamped v => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && stampIs v b.payload.prov
@@ -900,7 +934,7 @@ def introductionWidth : List Kind → Bindings → Option Nat
 
 def Binding.isOperandFrame (b : Binding) : Bool :=
   match b.payload with
-  | .operandFrame _ => true
+  | .parameterFrame _ _ _ => true
   | _ => false
 
 /-- Ordinary bindings have one address component; an inline frame value has two. -/
@@ -908,7 +942,7 @@ def bindingAt (bs : Bindings) : List Nat → Option Binding
   | [i] => (bs[i]?).map fun b => { b with payload := b.payload.visible }
   | [i, j] => do
     let b ← bs[i]?
-    let .operandFrame slots := b.payload | none
+    let .parameterFrame _ _ slots := b.payload | none
     let (_, det, pl, payload) ← slots[j]?
     pure ⟨det, pl, payload⟩
   | _ => none
@@ -916,18 +950,19 @@ def bindingAt (bs : Bindings) : List Nat → Option Binding
 def setBindingAt (bs : Bindings) (address : List Nat) (value : Binding) : Bindings :=
   match address with
   | [i] =>
-    let value := if (bs[i]?).elim false (fun b => b.payload.isHidden) then
-        { value with payload := .hidden value.payload } else value
+    let value := match bs[i]? with
+      | some old => { value with payload := old.payload.withVisible value.payload }
+      | none => value
     bs.set i value
   | [i, j] =>
     match bs[i]? with
     | some b =>
       match b.payload with
-      | .operandFrame slots =>
+      | .parameterFrame scope width slots =>
         match slots[j]? with
         | some (address, _, _, _) =>
           let slots := slots.set j (address, value.det, value.plur, value.payload)
-          bs.set i { b with payload := .operandFrame slots }
+          bs.set i { b with payload := .parameterFrame scope width slots }
         | none => bs
       | _ => bs
     | none => bs
@@ -937,10 +972,12 @@ def shiftAddress (by_ : Nat) : List Nat → List Nat
   | [] => []
   | i :: rest => (i + by_) :: rest
 
-def operandAddress (bs : Bindings) (index : Nat) : Option (List Nat) := do
-  let frame ← bs.findIdx? Binding.isOperandFrame
+def operandAddress (bs : Bindings) (index : Nat) (scope : Nat := 0) : Option (List Nat) := do
+  let frame ← bs.findIdx? fun b => match b.payload with
+    | .parameterFrame key _ _ => key == scope
+    | _ => false
   let b ← bs[frame]?
-  let .operandFrame slots := b.payload | none
+  let .parameterFrame _ _ slots := b.payload | none
   let (address, _, _, _) ← slots[index]?
   pure (address.elim [frame, index] (shiftAddress (frame + 1)))
 
@@ -948,7 +985,7 @@ def windowAddresses (w : Window) (bs : Bindings) : List (List Nat) :=
   let visible := bs.zipIdx |>.filter (fun (b, _) => !b.isOperandFrame && !b.payload.isHidden)
   let select := fun xs : List (Binding × Nat) => xs.map (fun (_, i) => [i])
   match w with
-  | .operand i => (operandAddress bs i).toList
+  | .parameter scope i => (operandAddress bs i scope).toList
   | .whole => select visible
   | .top n => select (visible.take n)
   | .below n => select (visible.drop n)
@@ -956,6 +993,26 @@ def windowAddresses (w : Window) (bs : Bindings) : List (List Nat) :=
     (introductionWidth pattern (visible.map Prod.fst)).elim [] (fun n => select (visible.take n))
   | .outsideIntroduced pattern =>
     (introductionWidth pattern (visible.map Prod.fst)).elim [] (fun n => select (visible.drop n))
+
+def callerBoundary (scope : Nat) (bs : Bindings) : Option Nat := do
+  let frame ← bs.findIdx? fun b => match b.payload with
+    | .parameterFrame key _ _ => key == scope
+    | _ => false
+  let binding ← bs[frame]?
+  let .parameterFrame _ width _ := binding.payload | none
+  pure (frame + 1 + width)
+
+/-- Hide macro-local mentions while retaining physical slots and lexical references. -/
+def enterCaller (scope : Nat) (bs : Bindings) : Bindings :=
+  let boundary := (callerBoundary scope bs).getD bs.length
+  bs.zipIdx |>.map fun (b, i) =>
+    if i < boundary && !b.isOperandFrame then { b with payload := .masked scope b.payload } else b
+
+/-- Restore the incoming visibility without undoing updates or permanent forgetting. -/
+def leaveCaller (before after : Bindings) : Bindings :=
+  let width := after.length - before.length
+  after.take width ++ (before.zip (after.drop width)).map fun (old, current) =>
+    { current with payload := old.payload.restoreMasks current.payload.withoutMasks }
 
 def view (w : Window) (bs : Bindings) : Bindings :=
   (windowAddresses w bs).filterMap (bindingAt bs)
@@ -975,12 +1032,61 @@ where
     | [] => []
     | b :: bs => if b.isOperandFrame then bs else b :: removeFrame bs
 
+/-- Carry a returned address through the same removals as `closeOperands`. Inline
+values owned by the closing frame have no surviving address. -/
+def closeOperandAddress (bs : Bindings) (address : List Nat) : Option (List Nat) := do
+  let index :: path := address | none
+  let frame ← bs.findIdx? Binding.isOperandFrame
+  if index == frame then none
+  else
+    let remaining := bs.eraseIdx frame
+    let index := if index > frame then index - 1 else index
+    if remaining.any Binding.isOperandFrame then some (index :: path)
+    else
+      let binding ← remaining[index]?
+      if binding.payload.isHidden then none
+      else some (((remaining.take index).filter (fun b => !b.payload.isHidden)).length :: path)
+
+/-- A noun result retains its returned value even when its private inline slot closes. -/
+structure NounResult where
+  context : Bindings
+  address : Option (List Nat)
+  value : Option Binding
+  additions : Bindings := []
+
+def NounResult.close (bs : Bindings) (result : NounResult) : NounResult :=
+  let closed := closeOperands result.context
+  { context := closed
+    address := result.address >>= closeOperandAddress result.context
+    value := (result.address >>= bindingAt result.context).or result.value
+    additions := closed.take (closed.length - bs.length) }
+
+def NounResult.introduced (_bs : Bindings) (result : NounResult) : List Binding := result.additions
+
+def introducedNounResult (bs additions : Bindings) (ownsHead : Bool) : NounResult :=
+  let address := if ownsHead && !additions.isEmpty then some [0] else none
+  let context := additions ++ bs
+  ⟨context, address, address >>= bindingAt context, additions⟩
+
+/-- A containing noun publishes its own mentions over the child's updated context. -/
+def NounResult.prepend (child : NounResult) (additions : Bindings) : NounResult :=
+  { introducedNounResult child.context additions true with
+    additions := additions ++ child.additions }
+
+def NounResult.withValue (result : NounResult) (fallback : Binding)
+    (view : Binding → Binding) : NounResult :=
+  let value := view (result.value.getD fallback)
+  let context := result.address.elim result.context
+    (fun address => setBindingAt result.context address value)
+  { result with value := some value, context
+                additions := context.take result.additions.length }
+
 /-- Active captures keep physical slots stable even when ordinary discourse forgets
 an object. Every alias continues to read and update the same private slot. -/
 def filterContext (keep : Binding → Bool) (bs : Bindings) : Bindings :=
   if bs.any Binding.isOperandFrame then
     bs.map fun b =>
-      if b.isOperandFrame || b.payload.isHidden || keep b then b
+      if b.isOperandFrame || b.payload.isForgotten || keep { b with payload := b.payload.visible } then b
       else { b with payload := .hidden b.payload }
   else bs.filter keep
 

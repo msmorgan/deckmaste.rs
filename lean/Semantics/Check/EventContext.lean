@@ -34,7 +34,7 @@ observed endpoint, including excluded origins. -/
 def EventSource.admits (z : Zone) : EventSource → Bool
   | .anywhere => true
   | .zones zs => zs.any (fun origin => origin.sort == z)
-  | .anywhereBut zs => !zs.any (fun origin => match origin with
+  | .anywhereBut zs => !zs.any (fun origin => match origin.scopeBody with
       | .zone sort .bare => sort == z
       | .library _ _ _ .bare => z == .library
       | _ => false)
@@ -114,6 +114,8 @@ def HeaderPossessor.ok : HeaderPossessor → Bool
 mutual
 /-- The stack a trigger's body reads while the event is happening. -/
 def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
+  | .withBindings scope inputs body => closeOperands (body.intro (captureBindings bs scope inputs))
+  | .inCaller scope body => leaveCaller bs (body.intro (enterCaller scope bs))
   | .damage _ none none => bs
   | .zoneChange n src dest observation =>
     let origin := (sourceZone src).orElse (fun _ =>
@@ -162,6 +164,8 @@ termination_by structural ev => ev
 
 /-- The stack a trigger's body reads after the event has happened. -/
 def GameEvent.after (bs : Bindings) : GameEvent → Bindings
+  | .withBindings scope inputs body => closeOperands (body.after (captureBindings bs scope inputs))
+  | .inCaller scope body => leaveCaller bs (body.after (enterCaller scope bs))
   | .damage _ none none => bs
   | .zoneChange n src to _ =>
     let subjects := moveIntro bs none n (to.map ZoneExpr.sort)
@@ -220,6 +224,7 @@ termination_by structural c => c
 end
 
 def GameEvent.namesThisDoor : GameEvent → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.namesThisDoor
   | .unlocksDoor _ .thisDoor => true
   | .nthOccurrence _ _ ev => GameEvent.namesThisDoor ev
   | .causes _ what => GameEvent.namesThisDoor what
@@ -294,7 +299,7 @@ def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
 def chapterDefaultsOk (ev : GameEvent) (alts : List GameEvent) (wh : Option Concurrent)
     (joins : List JoinedHeader) (w : Option Timing) (l : Option UsageLimit)
     (i : Option Condition) : Bool :=
-  match ev with
+  match ev.scopeBody with
   | .chapterMark _ =>
     alts.isEmpty && wh.isNone && joins.isEmpty && w.isNone && l.isNone && i.isNone
   | _ => true
@@ -303,6 +308,7 @@ def GameEvent.headerNontarget (bs : Bindings) (ev : GameEvent) : Bool :=
   !anyTargetedAt (GameEvent.intro bs ev)
 
 def GameEvent.headerStatusOk : GameEvent → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.headerStatusOk
   | .statusEvent _ v => v.markable
   | _ => true
 
@@ -316,6 +322,7 @@ Only `statBecomes` carries one: "whenever this creature's power becomes 3 or les
 game value that may be below zero, so it is `signed`. Every arm is written out so that a new
 event carrying an `Amount` cannot slip in unclassified. -/
 def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
+  | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   | .zoneChange _ _ _ _ | .draws _ | .losesGame _ => []
   | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .damage _ _ _ => []
   | .beginningOf _ _ _ | .casts _ _ _ | .becomesTarget _ _ | .statusEvent _ _ => []
@@ -329,6 +336,7 @@ def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
 
 /-- Idris `TokenPhrase n`: a counted or indefinite description that seeds tokens. -/
 def NounPhrase.tokenPhrase : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.tokenPhrase
   | .described (.count _ _) p => p.seedsToken
   | .described (.a _) p => p.seedsToken
   | _ => false

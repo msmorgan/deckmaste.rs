@@ -19,8 +19,7 @@ theorem okFightCreatures :
 /-- "Two target creatures fight target creature." -/
 theorem badFightGroup :
     Instruction.check [] (fight (.described (.target (exactly 2)) creature) (target creature))
-      = [.anaphor .bare .one 0, .anaphor .bare .one 0, .anaphor .bare .one 0,
-         .anaphor .bare .one 0, .damageRecipient] := by
+      = [.singular, .perMember] := by
   decide
 
 /-- "This deals 2 damage to any target and 1 damage to any other target." -/

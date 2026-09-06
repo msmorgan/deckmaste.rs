@@ -89,7 +89,22 @@ def attachmentHostKindCheck (word : Option AttachWord) (k : Kind) : List Refusal
     refuse (word.elim true (fun w => w == .enchanted || Kind.lte k .object)) .attachFits
 
 mutual
+  def CaptureInput.checkAllIn (gap : Option Kind) (bs : Bindings) :
+      List CaptureInput → CheckResult
+    | [] => (⟨[], false⟩ : CheckResult)
+    | .subject n :: rest =>
+      NounPhrase.checkIn gap none bs n ++ CaptureInput.checkAllIn gap (nomIntro bs n) rest
+    | .value a :: rest =>
+      Amount.checkIn gap bs a ++ CaptureInput.checkAllIn gap (Amount.intro bs a) rest
+  termination_by structural inputs => inputs
+
   def Predicate.checkIn (gap : Option Kind) (k : Kind) (bs : Bindings) : Predicate → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        Predicate.checkIn gap k (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Predicate.checkIn gap k (enterCaller scope bs) body
     | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _
     | .isCard | .isToken | .isEmblem | .isCopyOfACard | .currentFace _
     | .hasStatus _ | .isSource | .isManaAbility => kindCheck k (some .object)
@@ -241,6 +256,12 @@ mutual
 
   def NounPhrase.checkIn (gap : Option Kind) (ctx : Option Kind) (bs : Bindings) : NounPhrase →
     CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        NounPhrase.checkIn gap ctx (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        NounPhrase.checkIn gap ctx (enterCaller scope bs) body
     | .gap k => ⟨ctxCheck ctx (some k) ++ refuse (gap == some k) .lookbackSubject, true⟩
     | .this | .theGrantor _ => ctxCheck ctx (some .object)
     | .you | .combatPlayer _ | .playerGroup _ => ctxCheck ctx (some .player)
@@ -337,6 +358,12 @@ mutual
     | _ => (⟨[], false⟩ : CheckResult)
 
   def Quantity.checkIn (gap : Option Kind) (bs : Bindings) : Quantity → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        Quantity.checkIn gap (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Quantity.checkIn gap (enterCaller scope bs) body
     | .range _ _ => (⟨[], false⟩ : CheckResult)
     | .upToOf a => Amount.checkIn gap bs a
     | .exactlyOf a => Amount.checkIn gap bs a
@@ -349,6 +376,18 @@ mutual
   termination_by structural q => q
 
   def Amount.checkIn (gap : Option Kind) (bs : Bindings) : Amount → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        Amount.checkIn gap (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Amount.checkIn gap (enterCaller scope bs) body
+    | .parameter scope index shape =>
+      let bound := operandAddress bs index scope >>= bindingAt bs
+      let valid := bound.any fun b => match b.payload with
+        | .amount stored => stored == shape
+        | _ => false
+      refuse valid (.amountParameter scope index)
     | .lit _ | .letter _ => (⟨[], false⟩ : CheckResult)
     | .statOf axis n =>
       axis.check ++ NounPhrase.checkIn gap (some axis.scope) bs n ++ refuse n.plur.isOne .singular
@@ -423,6 +462,12 @@ mutual
   termination_by structural p => p
 
   def ZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : ZoneExpr → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        ZoneExpr.checkIn gap (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        ZoneExpr.checkIn gap (enterCaller scope bs) body
     | .zone z scope => ZoneScope.checkIn gap z bs scope
     | .library place ord off scope =>
       LibraryPlace.checkIn gap bs place ++ refuse (place.arrangementOk ord) .placeArrangementFits ++
@@ -458,6 +503,12 @@ mutual
 
 
   def Condition.checkIn (gap : Option Kind) (bs : Bindings) : Condition → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        Condition.checkIn gap (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        Condition.checkIn gap (enterCaller scope bs) body
     | .duringPart _ who =>
       OptNoun.checkIn gap (some .player) bs who ++ refuse (partPossessorOk who) .windowOk
     | .exists_ n => NounPhrase.checkIn gap none bs n ++ refuse n.existentialMention
@@ -564,6 +615,12 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
   | some z => ZoneExpr.checkIn gap bs z
 
   def GameEvent.checkIn (gap : Option Kind) (bs : Bindings) : GameEvent → CheckResult
+    | .withBindings scope inputs body =>
+      CaptureInput.checkAllIn gap bs inputs ++
+        GameEvent.checkIn gap (captureBindings bs scope inputs) body
+    | .inCaller scope body =>
+      refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
+        GameEvent.checkIn gap (enterCaller scope bs) body
     | .zoneChange n from_ to observation =>
       let subjects := nomIntro bs n
       let origins := OptEventSource.introduced subjects from_ ++ subjects

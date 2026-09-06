@@ -261,6 +261,8 @@ mutual
     | copyOf (source : NounPhrase) (exceptions : List CopyExcept)
 
   inductive StaticSpec where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : StaticSpec)
+    | inCaller (scope : Nat) (body : StaticSpec)
     | modification (subject : NounPhrase) (stat : Stat) (delta : Delta Amount)
     | ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount)
     | ptSwitch (subject : NounPhrase)
@@ -325,6 +327,8 @@ mutual
     | asCopyOf (optional : Bool) (source : NounPhrase) (exceptions : List CopyExcept)
 
   inductive Cost where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Cost)
+    | inCaller (scope : Nat) (body : Cost)
     | mana (cost : ManaCost)
     | scaled (cost : Cost) (amount : Amount)
     | tapSymbol
@@ -356,9 +360,9 @@ mutual
     | emblem (abilities : List Ability)
 
   inductive Instruction where
-    /-- Resolve operands once, in order, and bind them for the body. An unresolved required
-    operand prevents the entire body; the bindings also scope delayed effects it creates. -/
-    | withOperands (subjects : List NounPhrase) (body : Instruction)
+    /-- Bind ordered typed inputs for the body, without an implicit whole-body precondition. -/
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Instruction)
+    | inCaller (scope : Nat) (body : Instruction)
     | dealDamage (source : NounPhrase) (amount : Amount) (recipient : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
     | turnOver (subject : NounPhrase)
@@ -481,4 +485,6 @@ attribute [semantic_expression] Semantics.Instruction Semantics.StaticSpec Seman
 
 classify_semantic_syntax
 
-attribute [internal_expansion] Semantics.Instruction.enact
+attribute [internal_expansion] Semantics.Instruction.enact Semantics.Instruction.withBindings
+  Semantics.Instruction.inCaller Semantics.Cost.withBindings Semantics.Cost.inCaller
+  Semantics.StaticSpec.withBindings Semantics.StaticSpec.inCaller

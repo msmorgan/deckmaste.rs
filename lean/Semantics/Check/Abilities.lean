@@ -14,12 +14,23 @@ namespace Semantics
 
 /-! ## Small attributes -/
 
+def Instruction.scopeBody : Instruction → Instruction
+  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | body => body
+
+def StaticSpec.scopeBody : StaticSpec → StaticSpec
+  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | body => body
+
+
 def AsThough.sort : AsThough → PremiseSort
   | .of _ => .object
   | .mana _ _ _ => .mana
   | .greater _ _ => .value
 
 def twoPartiesOk : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => twoPartiesOk body
+  | .pro (.parameter shape) _ _ => shape.twoParties
   | .and [l, r] => l.plur == .one && r.plur == .one
   | .described d _ => (d.quant >>= Quantity.exact) == some 2
   | _ => false
@@ -55,6 +66,7 @@ def Exchanged.costOk : Exchanged → Bool
 /-- The numerical values an exchange can set [CR#701.12g]: a life total, a power or
 toughness, or a rolled result. -/
 def Amount.settableValue : Amount → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.settableValue
   | .statOf (.playerStat .lifeTotal) _ => true
   | .statOf (.stat .power) _ => true
   | .statOf (.stat .toughness) _ => true
@@ -63,11 +75,31 @@ def Amount.settableValue : Amount → Bool
 
 /-- Two halves naming one value: each would become equal to its own previous value, so the
 sentence states nothing. -/
-def selfExchanged : Amount → Amount → Bool
-  | .theOutcome a, .theOutcome b => a == b
-  | .statOf (.playerStat a) .you, .statOf (.playerStat b) .you => a == b
-  | .statOf (.stat a) (.asType t .this _), .statOf (.stat b) (.asType u .this _) => a == b && t == u
-  | _, _ => false
+def Amount.scopeBody : Amount → Amount
+  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | body => body
+
+def Amount.exchangedSubject : Amount → Option (ProjAxis × NounPhrase)
+  | .withBindings scope inputs body =>
+    body.exchangedSubject.map fun (axis, subject) => (axis, .withBindings scope inputs subject)
+  | .inCaller scope body =>
+    body.exchangedSubject.map fun (axis, subject) => (axis, .inCaller scope subject)
+  | .statOf axis subject => some (axis, subject)
+  | _ => none
+
+def selfExchanged (bs : Bindings) (left right : Amount) : Bool :=
+  match left.exchangedSubject, right.exchangedSubject with
+  | some (axis, a), some (otherAxis, b) =>
+    let first := a.result bs
+    let second := b.result first.context
+    let sameAddress := match first.address, second.address with
+      | some a, some b => shiftAddress (second.introduced first.context).length a == b
+      | _, _ => false
+    axis == otherAxis && (sameAddress || (a.isYou && b.isYou) ||
+      (a.selfDefinedOk && b.selfDefinedOk && a.ty bs == b.ty first.context))
+  | _, _ => match left.scopeBody, right.scopeBody with
+    | .theOutcome a, .theOutcome b => a == b
+    | _, _ => false
 
 def TokenQuality.hosted (tys : List CardType) : TokenQuality → Bool
   | .withEveryType space => tys.any fun t => spaceHosted space [t]
@@ -92,6 +124,8 @@ def optCounterSourceScope : Option CounterKindSource → Kind → Bool
   | some s, k => s.scope k
 
 def Amount.unit : Amount → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.unit
+  | .parameter _ _ shape => shape.exact == some 1
   | .lit n => n == 1
   | _ => false
 
@@ -178,9 +212,16 @@ def counterpartFits (bs : Bindings) (ds : Deeds) (r : Role) (m : NounPhrase) (mo
     (if moved then none else NounPhrase.zone bs m)
 
 /-- A counterpart named after `n` must not be `n` read back. -/
-def counterpartNotSelf (bs : Bindings) (n : NounPhrase) : NounPhrase → Bool
-  | .pro r pl .whole => !r.tracksObject || countReach r pl (NounPhrase.introduced bs n) == 0
-  | _ => true
+def counterpartNotSelf (bs : Bindings) (n m : NounPhrase) : Bool :=
+  let subject := n.result bs
+  let counterpart := m.result subject.context
+  let added := (counterpart.introduced subject.context).length
+  let sameAddress := match subject.address, counterpart.address with
+    | some source, some target => shiftAddress added source == target
+    | _, _ => false
+  !sameAddress && match counterpart.address with
+    | some [index] => !(added ≤ index && index < added + (subject.introduced bs).length)
+    | _ => true
 
 def complementAtOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (c : DeedComplement) :
     Bool :=
@@ -222,6 +263,8 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
 
 /-- The object an enacted move is done to; a status change carries its own zone law. -/
 def Instruction.enactPatient : Instruction → Option NounPhrase
+  | .withBindings scope inputs body => body.enactPatient.map (.withBindings scope inputs)
+  | .inCaller scope body => body.enactPatient.map (.inCaller scope)
   | .move n _ _ => some n
   | _ => none
 
@@ -229,6 +272,7 @@ mutual
   /-- Whether a player phrase can only name opponents: "an opponent", "your opponents", "each
   opponent". -/
   def Predicate.opponentOnly : Predicate → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
     | .opponent => true
     | .and ps => Predicate.anyOpponentOnly ps
     | _ => false
@@ -238,20 +282,36 @@ mutual
 end
 
 def NounPhrase.opponentOnly : NounPhrase → Bool
+  | .pro (.parameter shape) _ _ => shape.opponentOnly
+  | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
   | .described _ p => p.opponentOnly
   | .playerGroup .yourOpponents => true
   | .eachOf g => g.opponentOnly
   | _ => false
 
+def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
+  | .withBindings scope inputs body => body.libraryOwner.map (.withBindings scope inputs)
+  | .inCaller scope body => body.libraryOwner.map (.inCaller scope)
+  | .librarySlice _ _ whose => some whose
+  | _ => none
+
 /-- The library a look opens: the possessor of the slice looked at. -/
 def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
-  | .sequentially (.expose .lookAt (.cards (.librarySlice _ _ whose)) _ :: _) => some whose
-  | .expose .lookAt (.cards (.librarySlice _ _ whose)) _ => some whose
+  | .withBindings scope inputs body => body.lookedLibraryOwner.map (.withBindings scope inputs)
+  | .inCaller scope body => body.lookedLibraryOwner.map (.inCaller scope)
+  | .sequentially (first :: _) => first.lookedLibraryOwner
+  | .expose .lookAt (.cards subject) _ => subject.libraryOwner
   | _ => none
 
 /-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
 def enactLibraryOwnerOk (v : Deed) (e : Instruction) : Bool :=
   !actOpponentsLibrary v || e.lookedLibraryOwner.elim true NounPhrase.opponentOnly
+
+def NounPhrase.bareThis : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.bareThis
+  | .pro (.parameter shape) _ _ => shape.bareThis
+  | .this => true
+  | _ => false
 
 /-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
 battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
@@ -259,18 +319,20 @@ The Idris carried this on each verb's macro. -/
 def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
   match e.enactPatient with
   | none => true
-  | some .this => true
   | some n =>
+    if n.bareThis then true else
     match actZoneOf v with
     | none => true
     | some z => zoneIsB (NounPhrase.zone bs n) z
 
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
 def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.ctrlOverrideOk
   | .possessorOf ax _ => possessorKind ax .object
   | n => n.plur.isOne
 
 def Amount.forEach : Amount → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.forEach
   | .arith .times _ _ => true
   | _ => false
 
@@ -307,6 +369,8 @@ def ProjAxis.deck : ProjAxis → Bool
   | _ => false
 
 def Amount.deckBound : Amount → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.deckBound
+  | .parameter _ _ shape => shape.literal
   | .lit _ => true
   | _ => false
 
@@ -314,6 +378,7 @@ mutual
   /-- A card set aside for the starting deck is outside the game [CR#103.2b], so only its
   characteristics are readable [CR#109.3]. -/
   def Predicate.deckReadable : Predicate → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.deckReadable
     | .isCard | .hasType _ | .hasSubtype _ => true
     | .compare axes _ bound => axes.all ProjAxis.deck && bound.deckBound
     | .and ps | .or ps => Predicate.deckReadableAll ps
@@ -370,6 +435,7 @@ def distinctTerms : List KeywordTerm → Bool
 
 mutual
   def Predicate.regime : Predicate → Option StackRegime
+    | .withBindings _ _ body | .inCaller _ body => body.regime
     | .castBy _ _ | .castFrom _ | .wasCast => some .atCasting
     | .hasPossessor .controller _ => some .atResolution
     | .and ps => Predicate.regimeAll ps
@@ -387,6 +453,7 @@ mutual
 end
 
 def NounPhrase.regime : NounPhrase → Option StackRegime
+  | .withBindings _ _ body | .inCaller _ body => body.regime
   | .described _ p => p.regime
   | .namesAgree _ g => g.regime
   | _ => none
@@ -511,10 +578,12 @@ def ridersFitZone (rs : List TokenRider) (z : Zone) : Bool := ridersZoneFree rs 
 /-! ## Static and instruction attributes -/
 
 def StaticSpec.isCoord : StaticSpec → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.isCoord
   | .conjunction _ _ => true
   | _ => false
 
 def StaticSpec.notCarvedOut : StaticSpec → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.notCarvedOut
   | .retention _ _ => false
   | _ => true
 
@@ -566,6 +635,7 @@ def DamageOp.useOk : DamageOp → ReplUse → Bool
   | .scale _, _ => true
 
 def Cost.isCompound : Cost → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.isCompound
   | .compound _ => true
   | _ => false
 
@@ -596,6 +666,7 @@ def Ability.grantedKeyword : Ability → Option KeywordLabel
   | _ => none
 
 def StaticSpec.keyword : StaticSpec → Option KeywordLabel
+  | .withBindings _ _ body | .inCaller _ body => body.keyword
   | .conditional se _ _ => se.keyword
   | .abilityGrant _ ab => ab.grantedKeyword
   | _ => none
@@ -650,6 +721,7 @@ def Ability.introducedLetters : Ability → List Binding
 
 mutual
   def StaticSpec.clauseOk : StaticSpec → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.clauseOk
     | .ptDefinition _ _ _ => false
     | .altCost _ _ => false
     | .conjunction _ parts => StaticSpec.partsClauseOk parts
@@ -665,6 +737,7 @@ end
 /-! How many times a cost turns the source itself over [CR#107.5,107.6]. -/
 mutual
   def Cost.selfTapUses : Cost → Nat
+    | .withBindings _ _ body | .inCaller _ body => body.selfTapUses
     | .scaled c _ => c.selfTapUses
     | .tapSymbol => 1
     | .untapSymbol => 1
@@ -686,6 +759,7 @@ end
 
 mutual
   def Cost.tapOnce : Cost → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.tapOnce
     | .scaled c _ => c.tapOnce
     | .compound cs => Cost.selfTapCount cs ≤ 1
     | .or cs => Cost.allTapOnce cs
@@ -700,12 +774,14 @@ end
 
 mutual
   def Cost.paidByYou : Cost → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.paidByYou
     | .scaled c _ => c.paidByYou
     /- A life payment targets its payer; granting life may target anyone [CR#119.4]. -/
-    | .perform (.changeLife (.down _) who) => who.isYou
-    | .perform (.changeLife _ _) => true
-    | .perform (.enact _ _ (some subj)) => subj.isYou
-    | .perform _ => true
+    | .perform instruction =>
+      match instruction.scopeBody with
+      | .changeLife (.down _) who => who.isYou
+      | .enact _ _ (some subj) => subj.isYou
+      | _ => true
     | .compound cs => Cost.allPaidByYou cs
     | .or cs => Cost.allPaidByYou cs
     | _ => true
@@ -730,6 +806,7 @@ def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYo
 
 mutual
   def Cost.offBattlefield : Cost → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.offBattlefield
     | .scaled c _ => c.offBattlefield
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
     | .compound cs => Cost.allOffBattlefield cs
@@ -745,6 +822,7 @@ end
 
 mutual
   def Cost.payable : Cost → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.payable
     | .scaled c _ => c.payable
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
     | .or cs => Cost.allPayable cs
@@ -758,6 +836,7 @@ mutual
 end
 
 def Instruction.heldUntilOk : Instruction → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.heldUntilOk
   | .setStatus .phasedOut _ => true
   | .move _ _ _ => true
   | .enact _ (.move _ _ _) none => true
@@ -779,10 +858,13 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
-  | .withOperands _ body => body.reflexEncloseUse
+  | .withBindings _ _ body | .inCaller _ body => body.reflexEncloseUse
   | .skipPart _ _ _ => .notYetTaken
   | .insertPart _ _ _ _ (some _) => .notYetTaken
-  | .establish (.controlGrant _ _) _ => .reflexive
+  | .establish spec _ =>
+    match spec.scopeBody with
+    | .controlGrant _ _ => .reflexive
+    | _ => .agentless
   | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .createObject _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
@@ -793,8 +875,14 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
   | .doOnlyIf e _ _ => e.reflexEncloseUse
   | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ => .notOneAction
-  | .repeat_ (.fixed _ (.pay _ _ _)) => .reflexive
-  | .repeat_ (.fixed _ (.withContinuation (.optional _) (.pay _ _ _) none _)) => .reflexive
+  | .repeat_ (.fixed _ body) =>
+    match body.scopeBody with
+    | .pay _ _ _ => .reflexive
+    | .withContinuation (.optional _) payment none _ =>
+      match payment.scopeBody with
+      | .pay _ _ _ => .reflexive
+      | _ => .notOneAction
+    | _ => .notOneAction
   | .repeat_ _ => .notOneAction
   | .sequentially _ | .simultaneously _ | .chooseModes _ _ | .replace _ _ | .triggerReflexively _
       _
@@ -804,13 +892,21 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | _ => .agentless
 
 def Instruction.thisWayOutcomeOk : Instruction → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.thisWayOutcomeOk
   | .delay _ _ _ _ => false
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | _ => true
 
+def StaticSpec.definitionCostOk : StaticSpec → Bool
+  | .withBindings _ inputs body => inputs.all CaptureInput.costNounOk && body.definitionCostOk
+  | .inCaller _ body => body.definitionCostOk
+  | .letterDefinition _ _ => true
+  | _ => false
+
 mutual
   def Instruction.costActionOk : Instruction → Bool
-    | .withOperands subjects body => subjects.all NounPhrase.costNounOk && body.costActionOk
+    | .withBindings _ inputs body => inputs.all CaptureInput.costNounOk && body.costActionOk
+    | .inCaller _ body => body.costActionOk
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
     | .insertPart _ _ _ _ none => true
@@ -828,7 +924,7 @@ mutual
     | .setGameDesignation _ | .conclude _ _ | .drawGame | .changeLife _ _ | .draw
         _ _
     | .createObject _ (.emblem _) _ => true
-    | .establish (.letterDefinition _ _) none => true
+    | .establish spec none => spec.definitionCostOk
     | .separateIntoPiles grp _ _ _ => grp.costNounOk
     | .copy _ what _ _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
@@ -877,6 +973,7 @@ mutual
 end
 
 def Instruction.isInstead : Instruction → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.isInstead
   | .replace _ _ => true
   | _ => false
 
@@ -932,9 +1029,12 @@ def branchContext (base left right : Bindings) : Bindings :=
 
 mutual
   def Instruction.profile (bs : Bindings) : Instruction → InstrProfile
-    | .withOperands subjects body =>
-      let p := Instruction.profile (captureOperands bs subjects) body
+    | .withBindings scope inputs body =>
+      let p := Instruction.profile (captureBindings bs scope inputs) body
       ⟨closeOperands p.pre, closeOperands p.announced, p.rider.map closeOperands, p.deed⟩
+    | .inCaller scope body =>
+      let p := Instruction.profile (enterCaller scope bs) body
+      ⟨leaveCaller bs p.pre, leaveCaller bs p.announced, p.rider.map (leaveCaller bs), p.deed⟩
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
@@ -1087,6 +1187,8 @@ mutual
   termination_by structural es => es
 
   def Cost.intro (bs : Bindings) : Cost → Bindings
+    | .withBindings scope inputs body => closeOperands (body.intro (captureBindings bs scope inputs))
+    | .inCaller scope body => leaveCaller bs (body.intro (enterCaller scope bs))
     | .mana c => if manaHasX c then letterB .x :: bs else bs
     | .scaled c _ => Cost.intro bs c
     | .loyaltySymbol .downX => letterB .x :: bs
@@ -1101,6 +1203,8 @@ mutual
   termination_by structural cs => cs
 
   def StaticSpec.intro (bs : Bindings) : StaticSpec → Bindings
+    | .withBindings scope inputs body => closeOperands (body.intro (captureBindings bs scope inputs))
+    | .inCaller scope body => leaveCaller bs (body.intro (enterCaller scope bs))
     | .letterDefinition l amt => defineLetter l (Amount.intro bs amt)
     | .modification n _ d => Delta.introduced (selfSubjIntro bs n) d ++ selfSubjIntro bs n
     | .ptDefinition n _ amt =>
@@ -1169,6 +1273,7 @@ def thisWayCtx (bs : Bindings) (body : Instruction) (ev : GameEvent) : Bindings 
   settleTargets (GameEvent.after (body.intro bs) ev)
 
 def Instruction.namesThisDoor : Instruction → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.namesThisDoor
   | .delay ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor
   | .holdUntil _ ev => ev.namesThisDoor
   | .triggerThisWay _ ev _ => ev.namesThisDoor
@@ -1186,6 +1291,7 @@ def Ability.namesThisDoor : Ability → Bool
 
 mutual
   def Instruction.introducedChoices : Instruction → List Binding
+    | .withBindings _ _ body | .inCaller _ body => body.introducedChoices
     | .choose _ (.described (.a _) p) _ _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ _ => []
     | .sequentially es => Instruction.introducedChoicesAll es
@@ -1205,6 +1311,8 @@ def Cost.introduced (bs : Bindings) (c : Cost) : List Binding :=
 
 mutual
   def StaticSpec.introducedChoices (bs : Bindings) : StaticSpec → List Binding
+    | .withBindings scope inputs body => body.introducedChoices (captureBindings bs scope inputs)
+    | .inCaller scope body => body.introducedChoices (enterCaller scope bs)
     | .choice _ _ q _ _ => [q.binding]
     | .conjunction _ parts => StaticSpec.partsIntroducedChoices bs parts
     | .addedCost c _ => c.introduced bs
@@ -1335,6 +1443,7 @@ def TokenRider.ridersSlots : List TokenRider → List (Amount × NumberRegime)
 /-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and
 a performed instruction declare their own. -/
 def Cost.numberSlots : Cost → List (Amount × NumberRegime)
+  | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   | .mana _ => []
   | .scaled _ amount => [(amount, .clamped)]
   | .tapSymbol | .untapSymbol | .loyaltySymbol _ => []
@@ -1342,6 +1451,7 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
 
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
+  | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   | .modification _ _ delta => delta.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
   | .ptDefinition _ _ amount => [(amount, .signed)]
@@ -1367,7 +1477,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
-  | .withOperands _ _ => []
+  | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .setStatus _ _ | .turnOver _ | .combat _ _ => []
@@ -1393,7 +1503,9 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
   | .shiftResult _ amount => [(amount, .clamped)]
   | .storeResults _ | .rerollStored _ _ _ => []
-  | .establish (.letterDefinition _ amount) none => [(amount, .clamped)]
+  | .establish spec none => match spec.scopeBody with
+    | .letterDefinition _ amount => [(amount, .clamped)]
+    | _ => []
   | .establish _ _ => []
   | .createObject count spec _ => (count, .clamped) ::
       (match spec with

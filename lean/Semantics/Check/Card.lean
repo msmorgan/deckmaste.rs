@@ -36,6 +36,7 @@ def keywordCardOk : CardClass → KeywordLabel → Bool
   | .instantOrSorceryCard, k => (keywordFactsFor k).elim false (·.onInstantOrSorceryCard)
 
 def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.onInstantOrSorceryCardOk
   | .deonticRule _ .forbid deeds .patient _ _ _ _ =>
     deeds.all fun deed => deedZoneOf deed .patient == some .stack
   | .altCost .this _ => true
@@ -64,7 +65,10 @@ def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))
 
 def chapterLineOk (subs : List Subtype) : Ability → Bool
-  | .triggered (.chapterMark _) _ _ _ _ _ _ _ => framesWith .chapters subs
+  | .triggered event _ _ _ _ _ _ _ =>
+    match event.scopeBody with
+    | .chapterMark _ => framesWith .chapters subs
+    | _ => true
   | .italicHead _ ab => chapterLineOk subs ab
   | .alsoForKeywords ab _ => chapterLineOk subs ab
   | _ => true
@@ -79,6 +83,7 @@ mutual
   printed `*` was explicit; here the absent slot is the star, so the definer must be found
   wherever it sits. -/
   def StaticSpec.definedSlots : StaticSpec → List DefinedSlots
+    | .withBindings _ _ body | .inCaller _ body => body.definedSlots
     | .ptDefinition _ sl _ => [sl]
     | .conditional se _ _ => se.definedSlots
     | .conjunction _ parts => StaticSpec.definedSlotsAll parts
@@ -139,7 +144,10 @@ def Ability.keywordWantsModes : Ability → Bool
   | _ => false
 
 def Ability.writesModes : Ability → Bool
-  | .spell _ (.chooseModes _ _) => true
+  | .spell _ instruction =>
+    match instruction.scopeBody with
+    | .chooseModes _ _ => true
+    | _ => false
   | .italicHead _ ab => ab.writesModes
   | .alsoForKeywords ab _ => ab.writesModes
   | _ => false
