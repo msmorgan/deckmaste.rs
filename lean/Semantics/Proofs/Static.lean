@@ -219,20 +219,20 @@ theorem badUnlessConjunction :
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :
-    Instruction.check [] (.becomeBlocking thisCreature (a (.and [creature, attacking])))
+    Instruction.check [] (Primitives.Instruction.becomeBlocking thisCreature (a (.and [creature, attacking])))
       = [] := by
   decide
 
 /-- "Target land blocks an attacking creature.": a land an effect has made a creature blocks
 [CR#205.1b,509.1a]. -/
 theorem okLandBecomesBlocking :
-    Instruction.check [] (.becomeBlocking (target land) (a (.and [creature, attacking])))
+    Instruction.check [] (Primitives.Instruction.becomeBlocking (target land) (a (.and [creature, attacking])))
       = [] := by
   decide
 
 /-- "This creature blocks target planeswalker." -/
 theorem badBecomesBlockingPlaneswalker :
-    Instruction.check [] (.becomeBlocking thisCreature (target (.hasType .planeswalker)))
+    Instruction.check [] (Primitives.Instruction.becomeBlocking thisCreature (target (.hasType .planeswalker)))
       = [.deedNounOk (.core .block)] := by
   decide
 

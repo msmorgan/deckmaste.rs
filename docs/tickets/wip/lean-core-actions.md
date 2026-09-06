@@ -95,3 +95,46 @@ This is the Lean pass. The completed
 [Rust fight decomposition](../done/core-fight-primitive-to-macro.md) and the
 planned [runtime designation work](core-getdesignation-scopes-and-eviction.md)
 are related implementation history/work, not additional deliveries here.
+
+## Implementation progress
+
+`zonrmskl` implements combat/attachment updates, turn/part insertion, and
+shared token/emblem creation. `lake build Semantics` and the targeted Turn,
+Faces, Zone, card Turn/Faces/Counters, and new ActionFamilies pin builds pass.
+This is an intermediate checkpoint, not completion evidence for this ticket.
+
+The Counter macro's mixed spell/ability case is awaiting a user decision:
+existing `doIf` intentionally hides its condition's mentions, as pinned by
+`badLeadingConditionAntecedent`, so placing the target in such a conditional
+would silently lose its later reference. The implementation has not changed
+that scope law or retired `counterSpell`. Fight, regeneration, movement/ability
+zone corrections, and counter-removal expansion also remain to do.
+
+
+Read-only expansion recon identified additional preservation conflicts:
+
+- Fight's current source admissibility differs from own-power damage:
+  `Damage.okFightLand` accepts its land operand, while `badFightPermanent`
+  requires a deed-noun refusal. The proposed damage expansion changes those
+  exact results and needs a scope for each fighter's own-power read.
+- A regeneration replacement can publish its event patient, but the direct
+  instruction and replacement do not have identical introduced bindings or
+  refusal multiplicity. The graveyard negative must keep its single
+  `zoneIs battlefield` refusal; a naive expansion adds `zoneFits`.
+- `loseCounters` reads its player before its amount, whereas `removeCounters`
+  reads quantity before holder. A player mentioned by the first operand can
+  supply the amount's life-total read today; a direct macro loses that scope.
+  The newly published removal outcome is authorized, but operand-order loss
+  is not.
+
+These findings do not change the recorded checks. The independently implemented
+families have been refreshed onto the completed attachment and characteristic
+folds; macro additions and both copy-type proofs retain both changes.
+
+The refreshed partial tree passes `lean/scripts/build` with warnings fatal
+(74 jobs), including the 11 new ActionFamilies proofs. This is evidence for
+the implemented families, not completion of the outstanding macro folds.
+
+Proposed scope decision, not yet adopted: retain the implemented families and
+move fight, regeneration, countering/movement, and counter-removal expansion
+to a separate design ticket that resolves the listed checking/scope contracts.

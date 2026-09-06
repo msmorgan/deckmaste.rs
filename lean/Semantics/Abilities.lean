@@ -190,6 +190,20 @@ inductive DeckCondition where
   | deckSizeOverMinimum (extra : Nat)
   deriving Repr, BEq
 
+/-- Combat participation is independent of the set of blocking relations. -/
+inductive CombatParticipation where
+  | attacking (defender : Option NounPhrase)
+  | blocked (value : Bool)
+  | outsideCombat
+  deriving Repr, BEq
+
+inductive CombatUpdate where
+  | participation (state : CombatParticipation)
+  /-- Adding a blocker makes its attacker blocked; removing the relation leaves that
+  blockedness unchanged. -/
+  | blocking (move : AttachMove) (attacker : NounPhrase)
+  deriving Repr, BEq
+
 mutual
   inductive Repetition where
     | again
@@ -340,17 +354,17 @@ mutual
     results : Quantity
     instruction : Instruction
 
+  inductive CreationSpec where
+    | token (spec : TokenSpec) (riders : List TokenRider)
+    | emblem (abilities : List Ability)
+
   inductive Instruction where
     | dealDamage (source : NounPhrase) (amount : Amount) (recipient : NounPhrase)
     | fight (left right : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
     | turnOver (subject : NounPhrase)
-    | removeFromCombat (subject : NounPhrase)
-    | attachTo (subject : NounPhrase) (host : NounPhrase)
-    | unattach (subject : NounPhrase)
-    | becomeBlocking (subject : NounPhrase) (blocked : NounPhrase)
-    | stopBlocking (subject : NounPhrase) (blocked : NounPhrase)
-    | becomeAttacking (subject : NounPhrase) (defender : Option NounPhrase)
+    | combat (subject : NounPhrase) (update : CombatUpdate)
+    | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
     | regenerate (subject : NounPhrase)
     /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
     | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
@@ -393,9 +407,7 @@ mutual
     | storeResults (on : NounPhrase)
     | rerollStored (quantity : Quantity) (whose : NounPhrase) (agent : NounPhrase := .you)
     | establish (spec : StaticSpec) (duration : Option Duration)
-    | create (count : Amount) (token : TokenSpec) (riders : List TokenRider)
-        (agent : NounPhrase := .you)
-    | getEmblem (abilities : List Ability) (agent : NounPhrase := .you)
+    | createObject (count : Amount) (spec : CreationSpec) (agent : NounPhrase := .you)
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
@@ -429,8 +441,7 @@ mutual
     | triggerThisWay (body : Instruction) (event : GameEvent) (trigger : Instruction)
     | skipUntap (subject : NounPhrase) (steps : Amount)
     | skipPart (part : TurnPart) (count : Amount) (agent : NounPhrase := .you)
-    | addTurn (count : Amount) (agent : NounPhrase := .you)
-    | addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
+    | insertPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
         (followedBy : Option TurnPart) (agent : Option NounPhrase := none)
 
   inductive KeywordParam where
@@ -465,7 +476,7 @@ end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, CharacteristicEdit, AbilitySelection,
   TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
-  ManaRider, CopyExcept, RollRow, Repetition, Instruction, KeywordParam, AbilityLost, Ability
+  ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam, AbilityLost, Ability
 
 end Semantics
 

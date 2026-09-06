@@ -367,12 +367,12 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Instruction.check []
-      (.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) [] (agent := .you)) = []
+      (Primitives.Instruction.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) [] (agent := .you)) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Instruction.check [] (.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [] (agent :=
+    Instruction.check [] (Primitives.Instruction.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [] (agent :=
         .you))
       = [.lineNonEmpty] := by
   decide
@@ -394,7 +394,7 @@ theorem badCopyPermanent :
 theorem okSetStatusOnBattlefield :
     Instruction.check []
       (.sequentially
-        [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
+        [ Primitives.Instruction.create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -412,7 +412,7 @@ theorem badStackCopyAsToken :
 theorem badTokenCopyAsCopyMention :
     Instruction.check []
       (.sequentially
-        [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
+        [ Primitives.Instruction.create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0, .zoneIs .battlefield] := by
   decide
@@ -716,14 +716,14 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Instruction.check [] (.sequentially [flipCoins 1 (agent := .you), .addTurn (.coinsShowing .heads)
+    Instruction.check [] (.sequentially [flipCoins 1 (agent := .you), Primitives.Instruction.addTurn (.coinsShowing .heads)
         (agent := .you)])
       = [] := by
   decide
 
 /-- "Take an extra turn for each coin that comes up heads." -/
 theorem badCoinsShowingWithoutFlip :
-    Instruction.check [] (.addTurn (.coinsShowing .heads) (agent := .you)) = [.coinFlipInScope] :=
+    Instruction.check [] (Primitives.Instruction.addTurn (.coinsShowing .heads) (agent := .you)) = [.coinFlipInScope] :=
         by
   decide
 

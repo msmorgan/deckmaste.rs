@@ -195,7 +195,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
 theorem okCreatedThenCountered :
     Instruction.check []
       (.sequentially
-        [ .create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent
+        [ Primitives.Instruction.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent
             := .you),
           .putCounters (.lit 1) p11 it ]) = [] := by
   decide
@@ -203,7 +203,7 @@ theorem okCreatedThenCountered :
 theorem badDistributedCreationIt :
     Instruction.check []
       (.sequentially
-        [ .create (.lit 1)
+        [ Primitives.Instruction.create (.lit 1)
             (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := (each
                 .anyPlayer)),
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 0] := by
@@ -490,13 +490,13 @@ theorem okAnaphoricTokenAfterToken :
     Instruction.check []
       (.sequentially
         [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
-          .create (.lit 2) .asThose [] (agent := .you) ]) = [] := by
+          Primitives.Instruction.create (.lit 2) .asThose [] (agent := .you) ]) = [] := by
   decide
 
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
     Instruction.check []
-      (.sequentially [destroy (target creature), .create (.lit 2) .asThose [] (agent := .you)])
+      (.sequentially [destroy (target creature), Primitives.Instruction.create (.lit 2) .asThose [] (agent := .you)])
       = [.tokenSpecInScope 0] := by
   decide
 

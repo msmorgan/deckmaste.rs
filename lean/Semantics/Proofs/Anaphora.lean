@@ -789,7 +789,7 @@ theorem badIndefiniteChosenPlayerRead :
 
 /-- "that turn" after exactly one extra turn is minted -/
 theorem okThatTurnAfterOneTurn :
-    NounPhrase.check (some .turnRef) (Instruction.intro [] (.addTurn (.lit 1) (agent := .you)))
+    NounPhrase.check (some .turnRef) (Instruction.intro [] (Primitives.Instruction.addTurn (.lit 1) (agent := .you)))
         thatTurn
       = [] := by
   decide

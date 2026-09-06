@@ -86,3 +86,46 @@ def color (color : Color) : Semantics.CopyExcept := .edits [.colors .sets (.some
 
 register_semantic_macros
 end Semantics.Macros.Primitives.CopyExcept
+
+namespace Semantics.Macros.Primitives.Instruction
+
+def removeFromCombat (subject : NounPhrase) : Semantics.Instruction :=
+  .combat subject (.participation .outsideCombat)
+
+def becomeAttacking (subject : NounPhrase) (defender : Option NounPhrase) : Semantics.Instruction :=
+  .combat subject (.participation (.attacking defender))
+
+def becomeBlocking (subject blocked : NounPhrase) : Semantics.Instruction :=
+  .combat subject (.blocking .attached blocked)
+
+def stopBlocking (subject blocked : NounPhrase) : Semantics.Instruction :=
+  .combat subject (.blocking .unattached blocked)
+
+def attachTo (subject host : NounPhrase) : Semantics.Instruction :=
+  .enact (.action "Attach") (.attachment .attached subject (some host))
+
+def unattach (subject : NounPhrase) : Semantics.Instruction :=
+  .attachment .unattached subject none
+
+def addTurn (count : Amount) (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) :
+    Semantics.Instruction := .insertPart .turn none count none (some agent)
+
+def addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
+    (followedBy : Option TurnPart) (agent : Option NounPhrase := none) : Semantics.Instruction :=
+  .insertPart part anchor count followedBy agent
+
+register_semantic_macros
+end Semantics.Macros.Primitives.Instruction
+
+namespace Semantics.Macros.Primitives.Instruction
+
+def create (count : Amount) (token : TokenSpec) (riders : List TokenRider)
+    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
+  .createObject count (.token token riders) agent
+
+def getEmblem (abilities : List Ability)
+    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
+  .createObject (.lit 1) (.emblem abilities) agent
+
+register_semantic_macros
+end Semantics.Macros.Primitives.Instruction

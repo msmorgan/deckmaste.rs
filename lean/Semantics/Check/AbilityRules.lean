@@ -164,29 +164,28 @@ mutual
       NounPhrase.check none bs n ++ refuse (k == .object) .statusHolder ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield ++ refuse v.markable .statusMarkable
     | .turnOver what => NounPhrase.check (some .object) bs what ++ zoneIsCheck (NounPhrase.zone bs what) .battlefield
-    | .removeFromCombat n => NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .attachTo what host =>
-      let kh := host.kindOr .object
+    | .combat n update =>
+      let bs' := nomIntro bs n
+      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
+        (match update with
+         | .participation .outsideCombat => []
+         | .participation (.blocked _) =>
+           refuse (deedNounOk bs (.core .attack) .agent n) (.deedNounOk (.core .attack))
+         | .participation (.attacking whom) =>
+           refuse (deedNounOk bs (.core .attack) .agent n) (.deedNounOk (.core .attack)) ++
+             AttackDefender.check bs' whom
+         | .blocking _ what =>
+           refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
+             NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
+             refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block)))
+    | .attachment move what host =>
       NounPhrase.check (some .object) bs what ++ zoneIsCheck (NounPhrase.zone bs what) .battlefield ++
-        NounPhrase.check none (nomIntro bs what) host ++
-        refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player))
-    | .unattach what => NounPhrase.check (some .object) bs what ++ zoneIsCheck (NounPhrase.zone bs what) .battlefield
-    | .becomeBlocking n what =>
-      let bs' := nomIntro bs n
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
-        NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
-        refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block))
-    | .stopBlocking n what =>
-      let bs' := nomIntro bs n
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
-        NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
-        refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block))
-    | .becomeAttacking n whom =>
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (deedNounOk bs (.core .attack) .agent n) (.deedNounOk (.core .attack)) ++
-        AttackDefender.check (nomIntro bs n) whom
+        (match host with
+         | none => refuse (move == .unattached) .attachFits
+         | some host =>
+           let kh := host.kindOr .object
+           NounPhrase.check none (nomIntro bs what) host ++
+             refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player)))
     | .regenerate n => NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .doAndForbid e deed what =>
       let bs' := e.riderIntro bs
@@ -282,14 +281,14 @@ mutual
     | .establish se span =>
       StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
         refuse (durationOk span) .durationOk ++ refuse se.clauseOk .clauseStatic
-    | .create count spec riders agent =>
+    | .createObject count spec agent =>
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
-      NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++ TokenSpec.check bs'' spec ++
-        TokenRider.checkAll bs'' riders
-    | .getEmblem abl who =>
-      NounPhrase.check (some .player) bs who ++ refuse (emblemAbilitiesOk abl) .emblemAbilities ++
-        Ability.checkAll [] abl
+      NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
+        (match spec with
+         | .token token riders => TokenSpec.check bs'' token ++ TokenRider.checkAll bs'' riders
+         | .emblem abilities => refuse (emblemAbilitiesOk abilities) .emblemAbilities ++
+             Ability.checkAll [] abilities)
     | .putCounters amt kind on =>
       let bs' := Amount.intro bs amt
       let bs'' := kind.intro bs'
@@ -398,11 +397,10 @@ mutual
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .skipPart _ count who =>
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .addTurn count who =>
-      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .addPart part anchor count followedBy who =>
+    | .insertPart part anchor count followedBy who =>
       OptNoun.check (some .player) bs who ++ Amount.check (optAgentIntro bs who) count ++
-        refuse part.proper .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
+        refuse (part.proper || (part == .turn && who.isSome && anchor.isNone && followedBy.isNone))
+          .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
         refuse (followedBy.elim true TurnPart.proper) .windowOk
   termination_by structural e => e
 

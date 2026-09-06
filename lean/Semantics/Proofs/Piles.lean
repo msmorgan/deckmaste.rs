@@ -204,7 +204,7 @@ theorem removeOwnCounterKinds :
     Instruction.check [] (.removeCounters (some (exactly 1)) (some .own) .you) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
-    Instruction.check [] (.addPart .upkeep (some .mainPhase) (.lit 1) none (agent := (some .you)))
+    Instruction.check [] (Primitives.Instruction.addPart .upkeep (some .mainPhase) (.lit 1) none (agent := (some .you)))
       = [] := by
   decide
 

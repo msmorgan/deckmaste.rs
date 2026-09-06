@@ -622,12 +622,12 @@ theorem badInstantOntoBattlefield :
 
 /-- "Remove target creature from combat." -/
 theorem okRemoveFromCombatOnBattlefield :
-    Instruction.check [] (.removeFromCombat (target creature)) = [] := by decide
+    Instruction.check [] (Primitives.Instruction.removeFromCombat (target creature)) = [] := by decide
 
 /-- "Remove target creature card in your graveyard from combat." -/
 theorem badRemoveFromCombatGraveyard :
     Instruction.check []
-      (.removeFromCombat (target (.and [creature, .inZone (graveyardOf .you)])))
+      (Primitives.Instruction.removeFromCombat (target (.and [creature, .inZone (graveyardOf .you)])))
       = [.zoneIs .battlefield] := by
   decide
 

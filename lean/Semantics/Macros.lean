@@ -557,11 +557,11 @@ def creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List
 /-- "create N <token>" -/
 def create (count : Amount) (token : CharacteristicBundle) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
-  .create count (.written token) [] (agent := agent)
+  Primitives.Instruction.create count (.written token) [] (agent := agent)
 /-- "create N <token> tapped and attacking" -/
 def createTappedAttacking (count : Amount) (token : CharacteristicBundle)
     (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .create count (.written token) [.entersAs .tapped, .entersAttacking none] (agent := agent)
+  Primitives.Instruction.create count (.written token) [.entersAs .tapped, .entersAttacking none] (agent := agent)
 
 /-- "for each color of mana spent to cast <n>" -/
 def colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
@@ -641,18 +641,18 @@ def phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (.setStatus .phasedOut subject) event
 /-- "attach <what> to it": the object the sentence just named. -/
 def attachToIt (what : NounPhrase) : Instruction :=
-  .attachTo what (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] what).map Binding.kind)))
+  Primitives.Instruction.attachTo what (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] what).map Binding.kind)))
 /-- "there is an additional <part> [after <anchor>]" -/
 def addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
-  .addPart part anchor count none (agent := none)
+  Primitives.Instruction.addPart part anchor count none (agent := none)
 /-- "there is an additional <part> after this phase, followed by an additional <next>" -/
 def addPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount) (next : TurnPart) :
     Instruction :=
-  .addPart part anchor count (some next) (agent := none)
+  Primitives.Instruction.addPart part anchor count (some next) (agent := none)
 /-- "<player> gets an additional <part>" -/
 def getAdditionalPart (part : TurnPart) (count : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
-  .addPart part none count none (agent := some agent)
+  Primitives.Instruction.addPart part none count none (agent := some agent)
 /-- "<subject> can't attack [this turn]" -/
 def forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider)

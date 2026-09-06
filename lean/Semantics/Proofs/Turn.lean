@@ -307,7 +307,7 @@ theorem badDurationEndAnOpponent :
 /-- "You get an emblem with 'At the beginning of your end step, draw a card.'" -/
 theorem okTriggeredEmblem :
     Instruction.check []
-      (.getEmblem
+      (Primitives.Instruction.getEmblem
         [at_ (.beginningOf .the .endStep (.byPlayer .you)) (draw (.lit 1) (agent := .you))] (agent
             := .you))
       = [] := by
@@ -315,18 +315,18 @@ theorem okTriggeredEmblem :
 
 /-- "You get an emblem with 'flying'." -/
 theorem badKeywordEmblem :
-    Instruction.check [] (.getEmblem [keyword "Flying"] (agent := .you)) = [.emblemAbilities] := by
+    Instruction.check [] (Primitives.Instruction.getEmblem [keyword "Flying"] (agent := .you)) = [.emblemAbilities] := by
         decide
 
 /-- "You get an emblem." -/
 theorem badEmptyEmblem :
-    Instruction.check [] (.getEmblem [] (agent := .you)) = [.emblemAbilities] := by decide
+    Instruction.check [] (Primitives.Instruction.getEmblem [] (agent := .you)) = [.emblemAbilities] := by decide
 
 /-- "… At the beginning of that turn's end step, you lose the game." -/
 theorem okDeicticTurnAfterExtraTurn :
     Instruction.check []
       (.sequentially
-        [ .addTurn (.lit 1) (agent := .you),
+        [ Primitives.Instruction.addTurn (.lit 1) (agent := .you),
           delay (.beginningOf .the .endStep (.byTurn thatTurn)) (.conclude .loseGame (agent :=
               .you)) ])
       = [] := by
@@ -344,12 +344,12 @@ theorem badDeicticTurnWithoutIntroducer :
 
 /-- "After this combat phase, there is an additional upkeep step." -/
 theorem okAdditionalUpkeep :
-    Instruction.check [] (.addPart .upkeep (some .combat) (.lit 1) none (agent := none)) = [] := by
+    Instruction.check [] (Primitives.Instruction.addPart .upkeep (some .combat) (.lit 1) none (agent := none)) = [] := by
   decide
 
 /-- "After this combat phase, there is an additional turn." -/
 theorem badAdditionalTurn :
-    Instruction.check [] (.addPart .turn (some .combat) (.lit 1) none (agent := none))
+    Instruction.check [] (Primitives.Instruction.addPart .turn (some .combat) (.lit 1) none (agent := none))
       = [.windowOk] := by
   decide
 
@@ -452,18 +452,18 @@ theorem badIfDoneOverAgentlessBody :
 
 /-- "Take an extra turn after this one. If you do, draw a card." -/
 theorem badIfDoneOverScheduledBody :
-    Instruction.check [] (Primitives.Instruction.doIfDone (.addTurn (.lit 1) (agent := .you)) (some (draw (.lit 1) (agent
+    Instruction.check [] (Primitives.Instruction.doIfDone (Primitives.Instruction.addTurn (.lit 1) (agent := .you)) (some (draw (.lit 1) (agent
         := .you))) none)
       = [.reflexEnclosure] := by
   decide
 
-def oneExtraTurn : Bindings := Instruction.intro [] (.addTurn (.lit 1) (agent := .you))
+def oneExtraTurn : Bindings := Instruction.intro [] (Primitives.Instruction.addTurn (.lit 1) (agent := .you))
 
 /-- "Take an extra turn after this one. Skip the draw step of that turn." -/
 theorem okThatTurnAfterASingleTurn :
     NounPhrase.check (some .turnRef) oneExtraTurn thatTurn = [] := by decide
 
-def twoExtraTurns : Bindings := Instruction.intro oneExtraTurn (.addTurn (.lit 1) (agent := .you))
+def twoExtraTurns : Bindings := Instruction.intro oneExtraTurn (Primitives.Instruction.addTurn (.lit 1) (agent := .you))
 
 theorem badThatTurnAfterTwoTurns :
     NounPhrase.check (some .turnRef) twoExtraTurns thatTurn = [.anaphor .thatTurn .one 2] := by
@@ -493,24 +493,24 @@ theorem badTokenDuplicateSupertype :
 
 theorem okExtraTurnAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (.addTurn (lifeTotalOf they) (agent := (target .opponent))) = [] := by decide
+      (Primitives.Instruction.addTurn (lifeTotalOf they) (agent := (target .opponent))) = [] := by decide
 
 theorem badExtraTurnAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (.addTurn (lifeTotalOf they) (agent := .you)) = [.anaphor (.word .player) .one 0] := by decide
+      (Primitives.Instruction.addTurn (lifeTotalOf they) (agent := .you)) = [.anaphor (.word .player) .one 0] := by decide
 
 theorem badExtraTurnForwardSubject :
-    Instruction.check [] (.addTurn (lifeTotalOf (target .opponent)) (agent := they))
+    Instruction.check [] (Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := they))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [.addTurn (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent := they)]) =
+      [Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent := they)]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
     countLetter .x (Instruction.intro []
-      (.addTurn (plus (.letter .x) (.letter .x)) (agent := .you))) = 1 := by decide
+      (Primitives.Instruction.addTurn (plus (.letter .x) (.letter .x)) (agent := .you))) = 1 := by decide
 
 theorem okSkipNextAmountReadsSubject :
     Instruction.check [qualityB .color]
@@ -539,31 +539,31 @@ theorem okSkipNextNestedAmountIntroducesLetterOnce :
 
 theorem okAdditionalPartAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (.addPart .upkeep none (lifeTotalOf they) none (agent := (some (target .opponent))))
+      (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := (some (target .opponent))))
       = [] := by
   decide
 
 theorem badAdditionalPartAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (.addPart .upkeep none (lifeTotalOf they) none (agent := (some .you)))
+      (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := (some .you)))
       = [.anaphor (.word .player) .one 0] := by
   decide
 
 theorem badAdditionalPartForwardSubject :
-    Instruction.check [] (.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent :=
+    Instruction.check [] (Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent :=
         (some they)))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := (some .you)), .draw
+      [Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := (some .you)), .draw
           (.lit 1) (agent := they)])
       = [] := by
   decide
 
 theorem okAdditionalPartNestedAmountIntroducesLetterOnce :
     countLetter .x (Instruction.intro []
-      (.addPart .upkeep none (plus (.letter .x) (.letter .x)) none (agent := (some .you))))
+      (Primitives.Instruction.addPart .upkeep none (plus (.letter .x) (.letter .x)) none (agent := (some .you))))
       = 1 := by
   decide
 
@@ -587,16 +587,16 @@ theorem okUntapAmountIntroducesPlayer :
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :
     Instruction.check (nomIntro [] (target .opponent))
-      (.addPart .upkeep none (lifeTotalOf they) none (agent := none)) = [] := by decide
+      (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := none)) = [] := by decide
 
 theorem badAdditionalPartWithoutSubjectOrOuterContext :
-    Instruction.check [] (.addPart .upkeep none (lifeTotalOf they) none (agent := none))
+    Instruction.check [] (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := none))
       = [.anaphor (.word .player) .one 0] := by decide
 
 /-- Nested amounts leave their most recent mention first, followed by the outer context. -/
 theorem okExtraTurnNestedAmountOrder :
     (Instruction.intro [qualityB .color]
-      (.addTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) (agent :=
+      (Primitives.Instruction.addTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) (agent :=
           .you)))
       = [turnRefB, ⟨.target, .one, .player false⟩,
          ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩,
@@ -611,7 +611,7 @@ theorem okSkipNextNestedAmountOrder :
 
 theorem okAdditionalPartNestedAmountOrder :
     (Instruction.intro []
-      (.addPart .upkeep none
+      (Primitives.Instruction.addPart .upkeep none
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none (agent := none)))
       = [⟨.target, .one, .player false⟩,
          ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl

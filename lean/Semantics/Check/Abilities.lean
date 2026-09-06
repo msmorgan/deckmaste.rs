@@ -785,10 +785,9 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .skipPart _ _ _ => .notYetTaken
-  | .addTurn _ _ => .notYetTaken
-  | .addPart _ _ _ _ (some _) => .notYetTaken
+  | .insertPart _ _ _ _ (some _) => .notYetTaken
   | .establish (.controlGrant _ _) _ => .reflexive
-  | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .create _ _ _ _
+  | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .createObject _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
   | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
@@ -817,20 +816,15 @@ mutual
   def Instruction.costActionOk : Instruction → Bool
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
-    | .addTurn _ who => who.costNounOk
-    | .addPart _ _ _ _ none => true
-    | .addPart _ _ _ _ (some who) => who.costNounOk
+    | .insertPart _ _ _ _ none => true
+    | .insertPart _ _ _ _ (some who) => who.costNounOk
     | .distribute _ _ among => among.costNounOk
     | .fight a _ => a.costNounOk
     | .turnOver n => n.costNounOk
     | .setStatus _ n => n.costNounOk
     | .loseCounters _ _ who => who.costNounOk
-    | .removeFromCombat n => n.costNounOk
-    | .attachTo what _ => what.costNounOk
-    | .unattach what => what.costNounOk
-    | .becomeBlocking n _ => n.costNounOk
-    | .stopBlocking n _ => n.costNounOk
-    | .becomeAttacking n _ => n.costNounOk
+    | .combat n _ => n.costNounOk
+    | .attachment _ what _ => what.costNounOk
     | .regenerate n => n.costNounOk
     | .doAndForbid e _ _ => e.costActionOk
     | .gainDesignation n _ _ _ => n.costNounOk
@@ -838,7 +832,7 @@ mutual
     | .unlock (.doorOf _ room) => room.costNounOk
     | .setGameDesignation _ | .conclude _ _ | .drawGame | .counterSpell _ | .changeLife _ _ | .draw
         _ _
-    | .getEmblem _ _ => true
+    | .createObject _ (.emblem _) _ => true
     | .establish (.letterDefinition _ _) none => true
     | .separateIntoPiles grp _ _ _ => grp.costNounOk
     | .copy _ what _ _ _ => what.costNounOk
@@ -854,7 +848,7 @@ mutual
     | .flipCoins _ who => who.costNounOk
     | .rollDice _ _ who => who.costNounOk
     | .rerollStored _ _ who => who.costNounOk
-    | .create _ _ _ agent => agent.costNounOk
+    | .createObject _ _ agent => agent.costNounOk
     | .putCounters _ _ on => on.costNounOk
     | .removeCounters _ _ from_ => from_.costNounOk
     | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
@@ -943,18 +937,18 @@ mutual
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
     | .skipPart _ count w => sameIntro (Amount.intro (nomIntro bs w) count) []
-    | .addTurn count w =>
-      let afterCount := Amount.intro (nomIntro bs w) count
-      ⟨afterCount, turnRefB :: afterCount, none, []⟩
-    | .addPart _ _ count _ who => sameIntro (Amount.intro (optAgentIntro bs who) count) []
+    | .insertPart part _ count _ who =>
+      let afterCount := Amount.intro (optAgentIntro bs who) count
+      if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
+      else sameIntro afterCount []
     | .loseCounters _ amt who => sameIntro (optAmtIntro (nomIntro bs who) amt) []
-    | .removeFromCombat n => sameIntro (nomIntro bs n) []
-    | .attachTo what host => sameIntro (nomIntro (nomIntro bs what) host) []
-    | .unattach what => sameIntro (nomIntro bs what) []
-    | .becomeBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
-    | .stopBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
-    | .becomeAttacking n none => sameIntro (nomIntro bs n) []
-    | .becomeAttacking n (some whom) => sameIntro (nomIntro (nomIntro bs n) whom) []
+    | .combat n update =>
+      let bs' := nomIntro bs n
+      match update with
+      | .participation (.attacking whom) => sameIntro (optAgentIntro bs' whom) []
+      | .blocking _ what => sameIntro (nomIntro bs' what) []
+      | _ => sameIntro bs' []
+    | .attachment _ what host => sameIntro (optAgentIntro (nomIntro bs what) host) []
     | .regenerate n => sameIntro (nomIntro bs n) []
     | .doAndForbid e _ _ => Instruction.profile bs e
     | .gainDesignation n _ _ _ => sameIntro (nomIntro bs n) []
@@ -1006,12 +1000,13 @@ mutual
     | .storeResults on => sameIntro (nomIntro bs on) []
     | .rerollStored _ whose who => sameIntro (nomIntro (nomIntro bs who) whose) []
     | .establish se _ => sameIntro (StaticSpec.intro bs se) []
-    | .create count spec _ agent =>
+    | .createObject count spec agent =>
       let bs' := Amount.intro (nomIntro bs agent) count
-      sameIntro (spec.introduced bs' ++ bs')
-        [⟨.a, outputPlur agent.plur count.plur,
-          .object (spec.headTy bs') (some .battlefield) none (some .token) none⟩]
-    | .getEmblem _ who => sameIntro (nomIntro bs who) []
+      let (mentions, types, zone, origin) := match spec with
+        | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
+        | .emblem _ => ([], [], Zone.command, none)
+      sameIntro (mentions ++ bs')
+        [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none⟩]
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
@@ -1363,9 +1358,8 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
-  | .fight _ _ | .setStatus _ _ | .turnOver _ | .removeFromCombat _ => []
-  | .attachTo _ _ | .unattach _ | .becomeBlocking _ _ | .stopBlocking _ _ => []
-  | .becomeAttacking _ _ | .regenerate _ | .doAndForbid _ _ _ => []
+  | .fight _ _ | .setStatus _ _ | .turnOver _ | .combat _ _ => []
+  | .attachment _ _ _ | .regenerate _ | .doAndForbid _ _ _ => []
   | .gainDesignation _ _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
   | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
@@ -1390,8 +1384,10 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .storeResults _ | .rerollStored _ _ _ => []
   | .establish (.letterDefinition _ amount) none => [(amount, .clamped)]
   | .establish _ _ => []
-  | .create count _ riders _ => (count, .clamped) :: TokenRider.ridersSlots riders
-  | .getEmblem _ _ => []
+  | .createObject count spec _ => (count, .clamped) ::
+      (match spec with
+       | .token _ riders => TokenRider.ridersSlots riders
+       | .emblem _ => [])
   | .putCounters amount _ _ => [(amount, .clamped)]
   | .distribute _ amount _ => [(amount, .clamped)]
   | .removeCounters _ _ _ => []
@@ -1407,7 +1403,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
   | .skipUntap _ steps => [(steps, .clamped)]
   | .skipPart _ count _ => [(count, .clamped)]
-  | .addTurn count _ => [(count, .clamped)]
-  | .addPart _ _ count _ _ => [(count, .clamped)]
+  | .insertPart _ _ count _ _ => [(count, .clamped)]
 
 end Semantics
