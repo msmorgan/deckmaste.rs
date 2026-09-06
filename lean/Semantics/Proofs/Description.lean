@@ -512,11 +512,11 @@ theorem badEmptyPartyRoles :
 
 /-- "a fortified land" -/
 theorem okFortifiedLand :
-    NounPhrase.check (some .object) [] (a (.and [land, .isAttached (some .fortified)])) = [] := by decide
+    NounPhrase.check (some .object) [] (a (.and [land, Primitives.Predicate.isAttached (some .fortified)])) = [] := by decide
 
 /-- "a fortified creature" [CR#301.6,301.5]. -/
 theorem badFortifiedCreature :
-    NounPhrase.check (some .object) [] (a (.and [creature, .isAttached (some .fortified)]))
+    NounPhrase.check (some .object) [] (a (.and [creature, Primitives.Predicate.isAttached (some .fortified)]))
       = [.contradictionFree] := by
   decide
 

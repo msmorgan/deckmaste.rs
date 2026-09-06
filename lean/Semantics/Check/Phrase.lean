@@ -38,6 +38,7 @@ mutual
     | .qualityNoun q _ => some (.quality q)
     | .counterKindOn _ => some (.quality .counterKind)
     | .hasDesignation d _ => d.holder
+    | .attachment .host _ _ => none
     | .compare axes _ _ => (axes.head?).map (·.scope)
     | .superlative _ _ dom => dom.kind?
     | .compareOver dom _ _ _ => dom.kind?
@@ -368,8 +369,7 @@ end
 
 mutual
   def Predicate.attachWordsIn : Predicate → List AttachWord
-    | .isAttached (some w) => [w]
-    | .attachedBy (some w) _ => [w]
+    | .attachment .host (some w) _ => [w]
     | .and ps => Predicate.attachWordsInAll ps
     | .or ps => Predicate.attachWordsInAll ps
     | _ => []
@@ -385,7 +385,7 @@ mutual
     | .inCombat .attackedBy _ => none
     | .inCombat _ _ => some .battlefield
     | .hasDesignation d _ => d.seedZone
-    | .isAttached _ | .attachedBy _ _ | .attachedTo _ | .isToken | .isTransformed | .hasStatus _ =>
+    | .attachment _ _ _ | .isToken | .currentFace _ | .hasStatus _ =>
       some .battlefield
     | .isEmblem => some .command
     | .targets _ _ => some .stack
@@ -421,7 +421,6 @@ end
 mutual
   def Predicate.seedsToken : Predicate → Bool
     | .isToken => true
-    | .isTransformed => false
     | .and ps => Predicate.seedsTokenAny ps
     | .or ps => Predicate.seedsTokenAll ps
     | .compareOver dom _ _ _ => dom.seedsToken
@@ -1149,8 +1148,7 @@ mutual
     | .named src => NameSource.introduced bs src
     | .hasDesignation _ none => []
     | .hasDesignation _ (some h) => NounPhrase.introduced bs h
-    | .attachedBy _ by_ => NounPhrase.introduced bs by_
-    | .attachedTo host => NounPhrase.introduced bs host
+    | .attachment _ _ (some counterpart) => NounPhrase.introduced bs counterpart
     | .inPile p => NounPhrase.introduced bs p
     | .inZone z => ZoneExpr.introduced bs z
     | .and ps => Predicate.introducedAll bs ps

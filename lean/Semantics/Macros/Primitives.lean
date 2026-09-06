@@ -39,3 +39,20 @@ def either (left right : Semantics.Cost) : Semantics.Cost := .or [left, right]
 
 register_semantic_macros
 end Semantics.Macros.Primitives.Cost
+
+namespace Semantics.Macros.Primitives.Predicate
+
+def isAttached (word : Option AttachWord) : Semantics.Predicate :=
+  .attachment .host word none
+
+def attachedBy (word : Option AttachWord) (by_ : NounPhrase) : Semantics.Predicate :=
+  .attachment .host word (some by_)
+
+def attachedTo (host : NounPhrase) : Semantics.Predicate :=
+  .attachment .attachment none (some host)
+
+/-- A transformed permanent is the whole double-faced permanent with its back face up. -/
+def isTransformed : Semantics.Predicate := .currentFace .back
+
+register_semantic_macros
+end Semantics.Macros.Primitives.Predicate

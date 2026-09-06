@@ -95,14 +95,14 @@ mutual
     | colorCount (comparator : Comparator) (count : Nat)
     | named (source : NameSource)
     | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
-    | isAttached (word : Option AttachWord)
-    | attachedBy (word : Option AttachWord) (by_ : NounPhrase)
-    | attachedTo (host : NounPhrase)
+    | attachment (side : AttachmentSide) (word : Option AttachWord)
+        (counterpart : Option NounPhrase)
     | isCard
     | isToken
     | isEmblem
     | isCopyOfACard
-    | isTransformed
+    /-- The whole single double-faced permanent has this side up [CR#701.27g]. -/
+    | currentFace (side : CardFaceSide)
     | hasStatus (status : Status)
     | hasCounters (kind : Option CounterKind)
     | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)

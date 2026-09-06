@@ -1,3 +1,4 @@
+import Semantics.Proofs.Attachments
 import Semantics.Proofs.Composition
 import Semantics.Proofs.Lookback
 import Semantics.Proofs.ControllerSacrifice

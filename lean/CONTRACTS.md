@@ -41,6 +41,29 @@ The anaphora bench's `manifestPlacement` is explicitly a placement-only fragment
 of manifest [CR#701.40a]. It retains that bench's prior semantic value; it does
 not model face-down characteristics or the turn-up special action.
 
+## Attachment predicates and current face
+
+`Predicate.attachment` explicitly identifies whether its candidate is the host
+or the attachment. The optional attachment word restricts the relation's kind;
+it never supplies direction. An absent counterpart tests existence. A present
+counterpart retains its own quantity and introduces exactly its original
+mentions, including nested targets, into the surrounding phrase.
+
+Host predicates admit object and player domains. Enchanted-player predicates
+are accepted, consistent with the existing enchanted-player noun and
+[CR#303.4b]. Equipped or fortified player hosts are refused. Existing host
+card-type restrictions, quantified attachment counts, and counterpart target
+publication remain checked. The old `isAttached`, `attachedBy`, and `attachedTo`
+names are trusted macros over the shared predicate.
+
+`currentFace` describes a single double-faced permanent as a whole. Its front
+and back alternatives are distinct from face-up and face-down Status. The
+`isTransformed` macro expands to the back alternative: prior transformation,
+copying back-face characteristics, or a back-face-up component in a merged or
+melded object is insufficient [CR#701.27g]. The checker validates the predicate's
+object domain and battlefield context; runtime evaluation of current game state
+remains Rust's responsibility. The fold does not claim an execution proof.
+
 ## Historical events
 
 `LookbackClause` contains a `GameEvent` and a time window. The `relative` macro

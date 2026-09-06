@@ -25,7 +25,7 @@ the parked binding, query, result, or event mechanisms implicitly.
 
 The other independently claimable tickets are:
 
-- [Attachment and face predicates](../planned/lean-core-attachment-and-face-predicates.md).
+- [Attachment and face predicates](../done/lean-core-attachment-and-face-predicates.md).
 - [Characteristic edits and keyword arguments](../planned/lean-core-characteristics-and-keyword-arguments.md).
 - [Events and static specs](../planned/lean-core-events-and-static-specs.md).
 - [Action expansions](../planned/lean-core-actions.md).

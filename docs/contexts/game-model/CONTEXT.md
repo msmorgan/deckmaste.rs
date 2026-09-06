@@ -283,6 +283,19 @@ A non-face set of characteristics used in a rules-defined situation, such as a
 flip card's upside-down characteristics or an adventurer card's inset Adventure
 characteristics ([CR#710.1,715.2]).
 
+**Attachment**:
+An Aura, Equipment, or Fortification in its relationship to the Object or
+Player it is attached to ([CR#701.3a]).
+
+**Attachment Host** (project term):
+The Object or Player to which an Attachment is attached ([CR#701.3a]). An
+Aura may enchant an Object or Player; Equipment and Fortifications have their
+respective creature and land host restrictions ([CR#303.4b,301.5,301.6]).
+
+**Card Face Side** (project term):
+The front or back position of a double-faced permanent's face ([CR#701.27g]),
+distinct from its face-up or face-down Status ([CR#110.5]).
+
 **Copy**:
 An Object that has acquired the copiable values of another Object's
 characteristics and, for an Object on the stack, the choices made when casting

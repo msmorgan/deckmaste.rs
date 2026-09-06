@@ -83,10 +83,15 @@ instance : HAppend CheckResult (List Refusal) CheckResult :=
 instance : HAppend (List Refusal) CheckResult CheckResult :=
   ⟨fun a b => ⟨a ++ b.refusals, b.usedGap⟩⟩
 
+/-- Aura hosts can be objects or players; the other attachment words require objects. -/
+def attachmentHostKindCheck (word : Option AttachWord) (k : Kind) : List Refusal :=
+  refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player)) ++
+    refuse (word.elim true (fun w => w == .enchanted || Kind.lte k .object)) .attachFits
+
 mutual
   def Predicate.checkIn (gap : Option Kind) (k : Kind) (bs : Bindings) : Predicate → CheckResult
-    | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _ | .isAttached _
-    | .isCard | .isToken | .isEmblem | .isCopyOfACard | .isTransformed
+    | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _
+    | .isCard | .isToken | .isEmblem | .isCopyOfACard | .currentFace _
     | .hasStatus _ | .isSource | .isManaAbility => kindCheck k (some .object)
     | .manaCostHas m => kindCheck k (some .object) ++ ManaSymbol.check m
     | .anyPlayer | .opponent => kindCheck k (some .player)
@@ -127,12 +132,18 @@ mutual
       refuse (d.holder == some k) (.designationHolder d k) ++
         refuse (holder.isNone || d.possessorOk) (.designationPossessorFits d) ++
         OptNoun.checkIn gap (some .player) bs holder
-    | .attachedBy _ by_ => kindCheck k (some .object) ++ NounPhrase.checkIn gap (some .object) bs
-      by_
-    | .attachedTo host =>
-      let kh := host.kindOr .object
-      kindCheck k (some .object) ++ NounPhrase.checkIn gap none bs host ++
-        refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player))
+    | .attachment side word counterpart =>
+      (match side with
+       | .host => attachmentHostKindCheck word k
+       | .attachment => kindCheck k (some .object)) ++
+        (match counterpart with
+         | none => (⟨[], false⟩ : CheckResult)
+         | some n =>
+           match side with
+           | .host => NounPhrase.checkIn gap (some .object) bs n
+           | .attachment => NounPhrase.checkIn gap none bs n ++
+               attachmentHostKindCheck word (n.kindOr .object) ++
+               refuse (attachWordsOk word.toList (NounPhrase.headTys bs n)) .attachFits)
     | .hasCounters kind =>
       kindCheck k (some .object) ++ OptCounterKind.checkIn gap kind ++
         refuse (counterKindNamed .object kind) (.counterKindNamed .object)

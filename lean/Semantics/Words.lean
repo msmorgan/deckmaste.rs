@@ -473,6 +473,16 @@ inductive Conferral where
   | byDeed (deed : Deed)
   deriving DecidableEq, Repr
 
+/-- Which endpoint of an attachment relation the predicate describes. -/
+inductive AttachmentSide where
+  | host | attachment
+  deriving DecidableEq, Repr
+
+/-- The current side of a single double-faced permanent, independently of its Status. -/
+inductive CardFaceSide where
+  | front | back
+  deriving DecidableEq, Repr
+
 inductive AttachWord where
   | enchanted | equipped | fortified
   deriving DecidableEq, Repr
