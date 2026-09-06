@@ -1,5 +1,9 @@
 # Conferrals come from registries
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 ## Decision
 
 Type, subtype, counter, and designation behavior is sourced from loaded

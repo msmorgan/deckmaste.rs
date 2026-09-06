@@ -1,5 +1,9 @@
 # Builtin-v2 macro spelling and grammar
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 Amended 2026-08-18: verb grammar declarations carry grammatical valence, and
 the parser consumes declaration-backed vocabulary through one normalized open
 inventory during both bootstrap and final plugin loading.

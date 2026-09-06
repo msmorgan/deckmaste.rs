@@ -1,5 +1,9 @@
 # Semantics, spelling, lowering — the card-grammar split
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 Settled 2026-08-02, after the action-role-reshape landed. This decision is
 the design contract for the semantics-grammar program; the ticket map in §15
 implements it. Like every decision doc: it records intended design, current

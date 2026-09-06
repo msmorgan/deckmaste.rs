@@ -1,5 +1,9 @@
 # Card authoring binds no implicits
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 ## Decision
 
 A card in the authoring bench never binds an implicit argument. No proof

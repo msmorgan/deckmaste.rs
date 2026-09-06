@@ -1,5 +1,9 @@
 # The workbench is RON-shaped
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 **Every construction in the Idris workbench must be producible by the RON
 re-emitter from a RON node, and every macro must name a RON macro. The
 workbench checks RON re-emitted into it; it is not a second authoring

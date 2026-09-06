@@ -21,8 +21,10 @@ requires explicit review rather than an opportunistic refactor.
   Registries are the authority for open named behavior.
 - [Types grant capabilities](types-grant-capabilities.md) — Current
   characteristics positively grant the capabilities subsystems consume.
-- [Idris is a soundness gate](idris-is-a-soundness-gate.md) — Idris validates
-  semantic model shape without becoming a second engine.
+- [Lean is the workbench](lean-is-the-workbench.md) — Active semantics modeling
+  and theorem-form pins; Idris is reference only. The Rust card gate is pending.
+- [Idris is a soundness gate](idris-is-a-soundness-gate.md) — Superseded for
+  workbench choice; its legacy emitter remains until the Lean card gate lands.
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md) —
   One typed template drives both rendering and parsing.
 - [State-based actions are data](state-based-actions-are-data.md) — Ordinary

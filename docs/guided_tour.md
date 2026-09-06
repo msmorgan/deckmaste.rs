@@ -62,15 +62,21 @@ without card-specific code.
 
 ## Invalid descriptions fail at the boundary
 
-[`Spec.idr`](../idris/src/Spec.idr) describes card-description states that must be
-unrepresentable. Its named `failing` blocks pin both rejection and diagnostic:
-`tBadTargetOutOfRange` reads a target slot that was never announced,
-`tBadEventActorMultiKind` asks a mixed event family for an actor not every event
-supplies, and `tBadModalOverCount` chooses more modes than exist.
+[`Card.check`](../lean/Semantics/Check/Card.lean) checks a card-language term
+and returns its complete refusal list. A `Spelled` card carries a proof that
+this list is empty. The checker reads structural and declared features for
+bindings, kinds, zones and card frames; the Rust engine executes game behavior.
 
-`cargo xtask idris-check plugins/canon` emits the supported Rust card
-definitions into that model and typechecks them. The Idris code is a grammar
-oracle, not a second game engine; runtime semantics remain in Rust.
+The [pin suites](../lean/Semantics/Proofs/) give exact positive and negative
+witnesses. For example, `okChoosePlayerOrPlaneswalker` accepts a joined-kind
+choice, while `badChooseYou` proves the single `choiceClause` refusal for
+“Choose you.” Both live in `Proofs/Anaphora.lean` and use kernel `decide`.
+Run `lean/scripts/build` to check the workbench and its card bench.
+
+The [Rust-to-Lean card gate](tickets/planned/lean-card-soundness-gate.md) remains
+pending. The current workbench build proves the terms supplied to Lean; it does
+not yet certify every loaded Rust card. The [succession decision](decisions/lean-is-the-workbench.md)
+records that boundary and the frozen Idris reference.
 
 ## Run the whole path
 

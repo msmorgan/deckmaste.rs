@@ -1,5 +1,9 @@
 # Core is explicit regions
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 **Every binding in `deckmaste_core` is a declared parameter or a numbered
 definition, and every reference is a register read. Core never resolves
 anything; lowering resolves once, and the engine reads by index.**

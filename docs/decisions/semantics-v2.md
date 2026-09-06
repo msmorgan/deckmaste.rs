@@ -1,5 +1,9 @@
 # Semantics v2 — the encoded-English shape
 
+> Workbench succession (2026-09-05): current workbench evidence lives in
+> `lean/`; Idris paths below are historical. See
+> [Lean is the workbench](lean-is-the-workbench.md).
+
 Draft — not settled (2026-08-07). This decision fixes the target shape of
 the semantics layer — the form the macro and card rewrite aims at — and the
 rules for growing it. It realizes the

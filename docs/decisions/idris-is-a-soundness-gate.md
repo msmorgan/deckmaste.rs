@@ -1,5 +1,10 @@
 # Idris is a soundness gate
 
+> Superseded for workbench choice (2026-09-05) by
+> [Lean is the workbench](lean-is-the-workbench.md). The legacy emitter is
+> replaced when [lean-card-soundness-gate](../tickets/planned/lean-card-soundness-gate.md)
+> lands; the original rationale below is historical.
+
 ## Decision
 
 The Idris model is a design probe and soundness gate for expanded card data, not
@@ -23,6 +28,6 @@ intrinsic to engine execution.
 
 ## Tracked references
 
-- [Idris README](../../idris/README.md)
+- [Current Lean workbench](../../lean/README.md)
 - [Keyword policy](../keyword-policy.md)
 - [Rules taxonomy](../rules-taxonomy.md)

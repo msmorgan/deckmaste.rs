@@ -113,14 +113,13 @@ Parameterized keywords live entirely in the `Composite` macro layer:
   render codec and a matching parse codec (the `TemplateIndex`), so one authored
   template both prints the keyword and recognizes it in oracle text.
 
-**Card soundness is measured post-expansion.** A card is re-emitted *after*
-`Expand::expand_all` — the keyword having desugared to `Composite{name,
-abilities}` (or a bare primitive) — and typechecked with `idris2 --check`
-(`crates/deckmaste_plugin/src/idris_emit.rs`). The Idris model maps a keyword by
-**name** and reasons over its *expanded abilities*; the parameterization shape
-plays no part in the gate. Parameterization is therefore free to be as
-expressive as the macro layer allows — correctness is judged on what it expands
-to, not on the invocation's shape.
+**Card soundness is measured post-expansion.** A card's meaning is the
+expanded semantic data: a named composite keeps its keyword identity and
+expanded abilities. The [Lean checker](../lean/Semantics/Check/Card.lean)
+and its declared-feature laws are the workbench reference for that data;
+macro parameterization describes how the invocation supplies it. The existing
+Rust-to-Idris emitter is legacy tooling, pending the Lean card gate described
+in §14.
 
 ## 5. Typed cycling — mirror Landwalk
 
@@ -171,9 +170,9 @@ confirm the vocabulary carries no weight:
 
 **Policy: a cleanup ticket removes `KeywordDecl`, the `ParamShape` enum, the
 `keyword_shape` load-time check, and the `keywords` registry field.** Keyword
-macros may then declare any param signature; `idris2 --check` on the expanded
-card is the sole soundness gate. The stale `keyword.rs` re-emit-gate comment is
-removed with them.
+macros may then declare any param signature; the expanded card is judged
+against the Lean checker and its declared-feature laws (§14). The stale
+`keyword.rs` re-emit-gate comment is removed with them.
 
 ## 7. Invariants the ability policy commits to
 
@@ -184,8 +183,8 @@ removed with them.
   name, so `LoseAbility` / `Has(KeywordRef)` name paths behave uniformly.
 - Keyword names are open and data-driven; the primitive set is the only closed
   keyword vocabulary (`ParamShape` is retired, not preserved).
-- Card soundness is post-expansion (`idris2 --check` on desugared abilities); no
-  pre-expansion shape gate exists or is reintroduced.
+- Card soundness is post-expansion, against the Lean checker and its
+  declared-feature laws; no closed keyword-signature registry is reintroduced.
 
 ---
 
@@ -308,16 +307,23 @@ used only in composition.
   — so **no shared verb yet**. Mint one only if a further consumer makes the
   desugaring painful.
 
-## 14. Idris + soundness (actions)
+## 14. Lean checker and soundness (actions)
 
-`Action::Composite(KeywordAction, Box<Instruction>)` is the action-side twin
-of `KeywordAbility::Composite`; Idris `Composite : KeywordActionSpec ->
-Instruction -> Action`. The committed atom vocabulary (the seven parameterized
-`KeywordAction` verbs — Scry, Surveil, Fateseal, Mill, Draw, Destroy, Fight) is
-minimal and **grows with card pressure**; an `Action::Composite` whose atom has
-no Idris `KeywordActionSpec` constructor (Fateseal today) is a re-emit **gap**
-(coverage, not failure — `crates/deckmaste_plugin/src/idris_emit.rs`). Action
-soundness is post-expansion, by name, exactly as for abilities.
+Keyword actions have open labels and expanded instruction bodies. Macros
+construct those bodies; the label records which named action occurred.
+The Lean checker reads declared features for roles, scopes and conferrals,
+rather than requiring a new syntax constructor for each action name.
+`Semantics/Check/Facts.lean` is generated from builtin_v2 declarations and
+checker-column overlays. A missing declaration or required overlay is a
+visible generation gap; `cargo xtask facts check` detects stale generated data.
+
+`lean/scripts/build` checks the syntax, laws, card bench and exact-result proof
+pins. It is the active workbench gate. The separate
+[lean-card-soundness-gate](tickets/planned/lean-card-soundness-gate.md) ticket
+replaces the legacy Rust-to-Idris card emitter with Rust-to-Lean re-emission.
+Until that lands, the workbench build does not claim to validate every loaded
+Rust card. [Lean is the workbench](decisions/lean-is-the-workbench.md) records
+the succession; the handwritten Idris model is reference only.
 
 ---
 
@@ -352,8 +358,9 @@ This policy authorizes, but does not itself perform:
    `Action`/`PlayerAction` variant yet (§10). Search `[CR#701.23]` is now
    represented by `Binder::{Search, SearchOne}`; its grammar is present, while
    runtime search/choice consumption remains an engine seam.
-7. **Close the Idris action gap** — add `Fateseal` (and further composites as
-   their macros land) to `KeywordActionSpec` (§14).
+7. **Complete the Lean card gate** — re-emit expanded semantic data into the
+   active workbench, reporting translation gaps explicitly (§14). New action
+   names are declarations and macros, not workbench enum constructors.
 8. **Build the staged composite actions** — Explore, Connive, Bolster, Search-
    dependent actions, and the rest of §11 as card pressure demands.
 

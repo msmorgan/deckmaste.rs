@@ -83,7 +83,7 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   ADR — read the root **`CONTEXT-MAP.md`** and follow it to the owning
   glossary: `docs/contexts/game-model/CONTEXT.md` for Magic and engine-semantic
   concepts, `docs/contexts/oracle-english/CONTEXT.md` for grammar and
-  realization. Core, the engine and the Idris workbench use ONE Game Model term
+  realization. Core, the engine and the Lean workbench use ONE Game Model term
   per concept; Oracle English keeps its linguistic terms even where a spelling
   (Object, Predicate) means something else in the Game Model. Honour each
   entry's `_Avoid_` line.
@@ -160,9 +160,10 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
 - Symbol questions (where defined, who calls it, what variants, what signature) →
   rust-analyzer LSP first, grep second. The LSP tool is deferred — subagents must load
   it explicitly (ToolSearch `select:LSP`) before use.
-- Current code shape: `cargo xtask map enums` (core taxonomy variant dump) and
-  `cargo xtask map idris` (Idris constructor map) regenerate on demand — prefer these
-  over re-reading source or trusting prose in old plans/specs, which goes stale.
+- Current code shape: `cargo xtask map enums` regenerates the Rust taxonomy.
+  For Lean constructor lookup, use the Lean LSP and `lean/Semantics/Words.lean`
+  or `lean/Semantics/Abilities.lean` directly until `cargo xtask map lean` exists.
+  Current declarations take precedence over constructor inventories in old plans.
 - Plans/specs: never restate standard constraints (jj, fmt, clippy, CR citations,
   wizards regen, assurance — they live here); write "standard constraints apply" plus deltas
   only. Context sections cite prior docs and describe deltas; re-derived subsystem

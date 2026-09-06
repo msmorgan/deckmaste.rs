@@ -33,7 +33,7 @@ Elves.*
 ## Start here
 
 The [guided tour](docs/guided_tour.md) follows one card from Oracle text through
-the typed cache, shared rules engine, and Idris proof boundary. It is the
+the typed cache, shared rules engine, and Lean workbench boundary. It is the
 shortest path through the repository; `cargo run` takes the executable side of
 that path into the client shown above.
 
@@ -287,33 +287,27 @@ and the legacy renderer remain as shadow oracles — measurements, not authoriti
 
 ---
 
-## The Idris gate (`idris/`)
+## The Lean workbench (`lean/`)
 
-`idris/` holds a dependently-typed model of the card grammar, written in
-Idris 2. It began as a standalone probe and now runs as a soundness gate:
-`cargo xtask idris-check` re-emits each supported card's loaded core
-representation into the model and type-checks it. The grammar is built from
-closed enums refined by total type-functions, so whole classes of nonsense are
-unrepresentable rather than merely rejected — there is no ill-formed term to
-write down in the first place. For example: the "that card" anaphor cannot be
-named in a trigger whose event supplies no object; a counter's carrier — a
-player versus a permanent — is fixed by the counter's kind; a target index
-cannot exceed what was announced. Each is an invariant the Rust types leave to
-a runtime check.
+[`lean/`](lean/README.md) is the active design and checking workbench for the
+semantic card language. Its syntax is built from ordinary Lean inductives;
+checker functions compute bindings, kinds, zones and exact refusal lists.
+A `Spelled` card carries a kernel-checked proof that `Card.check` accepts it.
+The model guides the shared Rust vocabulary; game execution remains in the
+Rust engine.
 
-The model is deliberately not a second engine — it models the *grammar*, not
-the rules, and runs no games; runtime semantics live in one engine so two
-implementations cannot drift. Its obligations are representation-soundness
-proofs (unbound-anaphor soundness, target-index range and cardinality,
-distinctness constraints). Today the mirror sits on `deckmaste_core`; as part
-of the grammar split, it is being reattached to the intermediate grammar so the
-proof boundary matches the cached representation. What carries over to the
-Rust side is the *shape* of a sound data model — which distinctions earn their
-own type, which constructors are really one parameterized constructor, which
-invariants ought to hold — and a mechanic the model cannot express cleanly
-marks a gap in the shared vocabulary of primitives. Like the rest of the
-repository, its rules-bearing code cites the Comprehensive Rules by number and
-is checked by `cargo xtask cite check`.
+Run `lean/scripts/build` to build the syntax, checker, macros, printed-card
+bench and proof-pin suites with warnings treated as failures. Positive and
+negative pins use `decide` to fix the exact result of a checker call.
+`Semantics/Check/Facts.lean` supplies the registry-derived keyword-action,
+keyword-ability, counter, designation and frame-subtype facts;
+`cargo xtask facts check` detects generated-table drift.
+
+[Lean is the workbench](docs/decisions/lean-is-the-workbench.md) records the
+succession. Idris is retained as a frozen reference and legacy emitter target.
+The Rust-to-Lean card-soundness gate is still
+[tracked work](docs/tickets/planned/lean-card-soundness-gate.md), rather than a
+claim made by the current workbench build.
 
 ---
 
@@ -333,7 +327,7 @@ records that plan). The near-term work runs in three strands:
    the intermediate vocabulary (bare engine variants stop being recoverable
    syntax, made near-zero-churn by identity macros); consolidating frames into
    `deckmaste_spelling`; inline target sugar and its scope elaboration; and
-   reattaching the Idris mirror to the intermediate grammar.
+   connecting the intermediate grammar to the Lean card-soundness gate.
 2. **Deriving the English grammar and growing recovery.** The constructicon
    migration above, alongside the frame-coverage rounds — with the regex
    pipeline and legacy renderer as shadow oracles until recovery replaces them
