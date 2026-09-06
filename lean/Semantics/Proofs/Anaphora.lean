@@ -525,7 +525,7 @@ theorem okPluralAbilityReadAfterCopy :
 
 /-- "Copy target activated ability. You may choose new targets for that ability." Refused:
 the copy is itself an ability [CR#707.10], so the singular ability read reaches the original
-and the copy alike. `that .abilityCopy` spells the copy (`okAbilityCopyReadAfterCopy`). -/
+and the copy alike. `that (.copied .ability)` spells the copy (`okAbilityCopyReadAfterCopy`). -/
 theorem badSingularAbilityReadAfterCopy :
     Instruction.check []
       (.sequence
@@ -539,7 +539,7 @@ theorem okAbilityCopyReadAfterCopy :
     Instruction.check []
       (.sequence
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [] (agent := .you),
-          offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ]) = [] := by
+          offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ]) = [] := by
   decide
 
 /-- An ability goes on the stack with no card associated with it [CR#405.1]. -/

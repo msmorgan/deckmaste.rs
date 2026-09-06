@@ -658,52 +658,71 @@ def mkStamp : Option Deed → Option Zone → Bool → Option Stamp
   | none, _, _ => none
   | some v, oldZn, moved => some ⟨v, onFieldZone oldZn, moved⟩
 
-def halfReaches (w : NounWord) : Payload → Bool
-  | .join l r => halfReaches w l || halfReaches w r
-  | .object ty _ _ _ _ =>
-    match w with
-    | .type t => tyIs t ty
-    | .permanent => ty.isNone
-    | _ => false
-  | .player _ => w == .player
+/-- A type refinement reads one object's evidence, never a different half of a join. -/
+def payloadHasType (t : CardType) : Payload → Bool
+  | .object ty _ _ _ _ => tyIs t ty
   | _ => false
 
-/-- Which bindings a noun word reads. The Idris clauses match on `(word, payload)` pairs; here
-the payload is matched first and the word inside, clause for clause. -/
+/-- Copy origin belongs to the same object or ability that the word selects. -/
+def payloadIsCopy : Payload → Bool
+  | .object _ _ _ og _ | .ability og => isCopyOrigin og
+  | _ => false
+
+def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
+  match w with
+  | .ofType word t => halfWordReaches word pl && payloadHasType t pl
+  | .copied word => halfWordReaches word pl && payloadIsCopy pl
+  | word =>
+    match pl with
+    | .object ty _ _ _ _ =>
+      match word with
+      | .type t => tyIs t ty
+      | .permanent => ty.isNone
+      | _ => false
+    | .player _ => word == .player
+    | _ => false
+
+def halfReaches (w : NounWord) : Payload → Bool
+  | .join l r => halfReaches w l || halfReaches w r
+  | pl => halfWordReaches w pl
+
+/-- A word's carrier discipline and each refinement must hold on the same binding. -/
 def wordReaches (w : NounWord) (b : Binding) : Bool :=
-  match b.payload with
-  | .object ty zn pv og _ =>
-    match w with
-    | .type t => onFieldZone zn && tyIs t ty
-    | .card => isCardZone zn
-    | .typedCard t => isCardZone zn && tyIs t ty
-    | .spell => onStackZone zn
-    | .permanent => onFieldZone zn || stampWasField pv
-    | .token => onFieldZone zn && isTokenOrigin og
-    | .copy => isCopyOrigin og
-    | .stack => onStackZone zn
-    | _ => false
-  | .player _ => w == .player
-  | pl@(.join _ _) =>
-    match w with
-    | .type t => halfReaches (.type t) pl
-    | .player => halfReaches .player pl
-    | .permanent => halfReaches .permanent pl
-    | .join => Kind.lte .player b.kind
-    | .stack => onStackZone pl.zone
-    | _ => false
-  | .ability og =>
-    match w with
-    | .ability => true
-    | .abilityCopy => isCopyOrigin og
-    | .stack => true
-    | _ => false
-  | .pile _ _ _ => w == .pile
-  | pl =>
-    match w with
-    | .join => pl.joined && Kind.lte .player b.kind
-    | .stack => onStackZone pl.zone
-    | _ => false
+  match w with
+  | .ofType word t => wordReaches word b && payloadHasType t b.payload
+  | .copied word => wordReaches word b && payloadIsCopy b.payload
+  | w =>
+    match b.payload with
+    | .object ty zn pv og _ =>
+      match w with
+      | .type t => onFieldZone zn && tyIs t ty
+      | .card => isCardZone zn
+      | .spell => onStackZone zn
+      | .permanent => onFieldZone zn || stampWasField pv
+      | .token => onFieldZone zn && isTokenOrigin og
+      | .copy => isCopyOrigin og
+      | .stack => onStackZone zn
+      | _ => false
+    | .player _ => w == .player
+    | pl@(.join _ _) =>
+      match w with
+      | .type t => halfReaches (.type t) pl
+      | .player => halfReaches .player pl
+      | .permanent => halfReaches .permanent pl
+      | .join => Kind.lte .player b.kind
+      | .stack => onStackZone pl.zone
+      | _ => false
+    | .ability _ =>
+      match w with
+      | .ability => true
+      | .stack => true
+      | _ => false
+    | .pile _ _ _ => w == .pile
+    | pl =>
+      match w with
+      | .join => pl.joined && Kind.lte .player b.kind
+      | .stack => onStackZone pl.zone
+      | _ => false
 
 /-- A self-binding is never read by a noun word. -/
 def wordNow (w : NounWord) (b : Binding) : Bool :=
@@ -712,6 +731,7 @@ def wordNow (w : NounWord) (b : Binding) : Bool :=
   | _ => wordReaches w b
 
 def NounWord.kind : NounWord → Kind
+  | .ofType word _ | .copied word => word.kind
   | .player => .player
   | .join => .join .object .player
   | .pile => .pile
@@ -727,13 +747,14 @@ def Reach.kind : Reach → Kind
 def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
 def Stamp.feature (s : Stamp) : Option DeedFeature := deedFeatureOf s.verb
 
-def verbedWordOk : NounWord → Stamp → Option CardType → Option Zone → Bool
-  | .type t, st, ty, _ => st.wasField && tyIs t ty
-  | .card, _, _, zn => isCardZone zn
-  | .typedCard t, _, ty, zn => isCardZone zn && tyIs t ty
-  | .spell, _, _, zn => onStackZone zn
-  | .permanent, st, _, _ => st.wasField
-  | _, _, _, _ => false
+def verbedWordOk : NounWord → Stamp → Option CardType → Option Zone → Option Origin → Bool
+  | .ofType word t, st, ty, zn, og => verbedWordOk word st ty zn og && tyIs t ty
+  | .copied word, st, ty, zn, og => verbedWordOk word st ty zn og && isCopyOrigin og
+  | .type t, st, ty, _, _ => st.wasField && tyIs t ty
+  | .card, _, _, zn, _ => isCardZone zn
+  | .spell, _, _, zn, _ => onStackZone zn
+  | .permanent, st, _, _, _ => st.wasField
+  | _, _, _, _, _ => false
 
 def stampIs (v : Deed) : Option Stamp → Bool
   | none => false
@@ -756,8 +777,8 @@ def survivesShuffle (b : Binding) : Bool :=
 def afterShuffle (bs : Bindings) : Bindings := bs.filter survivesShuffle
 
 def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : Option CardType)
-    (zn : Option Zone) : Bool :=
-  stampedBy v st && verbedWordOk w st ty zn
+    (zn : Option Zone) (og : Option Origin) : Bool :=
+  stampedBy v st && verbedWordOk w st ty zn og
 
 def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
   match r with
@@ -770,7 +791,8 @@ def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
   | .verbed v w _ =>
     match b.payload with
-    | .object ty zn (some st) _ _ => pl.isOne == b.plur.isOne && stampWordOk v w st ty zn
+    | .object ty zn (some st) og _ =>
+      pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
     | _ => false
   | .thatTurn => Kind.lte .turnRef b.kind && pl.isOne == b.plur.isOne
 
@@ -1040,22 +1062,44 @@ def CombatRelation.bare : CombatRelation → Bool
 
 /-! ## Attachment, status, counters -/
 
-def attachHeadOk : AttachWord → NounWord → Bool
-  | .enchanted, _ => true
-  | .equipped, .type .creature => true
-  | .equipped, .permanent => true
-  | .fortified, .type .land => true
-  | _, _ => false
-
 def NounWord.attachHostZone : NounWord → Option Zone
-  | .type _ | .card | .typedCard _ | .spell | .permanent | .token => some .battlefield
+  | .ofType word _ | .copied word => word.attachHostZone
+  | .type _ | .card | .spell | .permanent | .token => some .battlefield
   | .copy => some .stack
   | _ => none
 
 def NounWord.attachHostTy : NounWord → Option CardType
+  | .ofType _ t => some t
+  | .copied word => word.attachHostTy
   | .type t => some t
-  | .typedCard t => some t
   | _ => none
+
+/-- Whether a word names an ability, independently of its additional refinements. -/
+def NounWord.isAbility : NounWord → Bool
+  | .ability => true
+  | .ofType word _ | .copied word => word.isAbility
+  | _ => false
+
+/-- Attachment profiles currently carry one type. Conflicting refinements cannot silently
+choose that type by order; richer type evidence belongs to the type-conjunction contract. -/
+def NounWord.attachRefinementsOk : NounWord → Bool
+  | .ofType word t =>
+    word.attachRefinementsOk && word.kind == .object && !word.isAbility &&
+      word.attachHostTy.all (· == t)
+  | .copied word => word.attachRefinementsOk && word.kind == .object
+  | _ => true
+
+def attachHeadOk (a : AttachWord) : NounWord → Bool
+  | .ofType word t =>
+    (NounWord.ofType word t).attachRefinementsOk && attachHeadOk a word
+  | .copied word => (NounWord.copied word).attachRefinementsOk && attachHeadOk a word
+  | word =>
+    match a, word with
+    | .enchanted, _ => true
+    | .equipped, .type .creature => true
+    | .equipped, .permanent => true
+    | .fortified, .type .land => true
+    | _, _ => false
 
 def DefinedSlots.power : DefinedSlots → Bool
   | .toughnessAlone => false

@@ -112,7 +112,7 @@ def strionicResonator : Spelled := spelled <| .singleFaced
               [ .copy .fromStack
                   (target (.and [.abilityHead .anyTriggered, .hasPossessor .controller .you]))
                   (.lit 1) [] (agent := .you),
-                offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ]) ] } }
+                offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ]) ] } }
 
 /-- Mister Fantastic -/
 def misterFantasticCopy : Ability :=
@@ -121,7 +121,7 @@ def misterFantasticCopy : Ability :=
       [ .copy .fromStack
           (target (.and [.abilityHead .anyTriggered, .hasPossessor .controller .you]))
           (.lit 2) [] (agent := .you),
-        offer (.chooseNewTargets (those .abilityCopy)) (agent := .you) ])
+        offer (.chooseNewTargets (those (.copied .ability))) (agent := .you) ])
 theorem okMisterFantasticCopy : Ability.check [] misterFantasticCopy = [] := by decide
 
 /-- Rowan's Talent -/
@@ -132,7 +132,7 @@ def rowansTalentCopy : Ability :=
                  .abilityOf (.attachHost .enchanted (.type .planeswalker)) ])))
     (.sequence
       [ .copy .fromStack (that .ability) (.lit 1) [] (agent := .you),
-        offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ])
+        offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ])
 theorem okRowansTalentCopy : Ability.check [] rowansTalentCopy = [] := by decide
 
 /-- Rings of Brighthearth -/
@@ -145,7 +145,7 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
             (.offer (.pay (.mana [generic 2]) .once (agent := .you))
               (some (.sequence
                 [ .copy .fromStack (that .ability) (.lit 1) [] (agent := .you),
-                  offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ]))
+                  offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ]))
               none (agent := .you)) ] } }
 
 /-- Iron Man, Bleeding Edge -/

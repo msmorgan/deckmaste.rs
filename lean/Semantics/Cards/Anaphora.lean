@@ -411,7 +411,7 @@ theorem bioplasmTypedReadStillRefused :
       = 0 := by
   decide
 theorem bioplasmTypedCardReadWrites :
-    countReach (.verbed (.action "Exile") (.typedCard .creature) .attributive) .one
+    countReach (.verbed (.action "Exile") (.ofType .card .creature) .attributive) .one
       bioplasmAfterTest = 1 := by
   decide
 

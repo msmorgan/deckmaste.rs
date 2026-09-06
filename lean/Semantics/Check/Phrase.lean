@@ -965,8 +965,7 @@ def NounPhrase.existentialMention (n : NounPhrase) : Bool := n.det == some .bare
 the reading word, never the antecedent stack. -/
 def NounPhrase.isAbility : NounPhrase → Bool
   | .described _ p => p.seedsAbility
-  | .pro (.word .ability) _ _ => true
-  | .pro (.word .abilityCopy) _ _ => true
+  | .pro (.word word) _ _ => word.isAbility
   | .asMarker .ability _ => true
   | .eachOf g => g.isAbility
   | .namesAgree _ g => g.isAbility

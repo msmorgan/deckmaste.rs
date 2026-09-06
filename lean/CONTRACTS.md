@@ -8,12 +8,12 @@ the existence of a checking function.
 
 ## Scheduling fields
 
-For `doesntUntapNext`, `skipsNext`, `extraTurn`, and `additionalPart`, let `bs`
+For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`
 be the input context. The subject is checked in `bs`. Its amount is checked in
 `nomIntro bs subject`; an absent optional subject leaves `bs` unchanged through
 `optAgentIntro`. Part, anchor, and following-part fields carry no references.
 No scheduling field introduces an enclosed scope. The output is
-`Amount.intro afterSubject amount`; `extraTurn` additionally puts `turnRefB`
+`Amount.intro afterSubject amount`; `addTurn` additionally puts `turnRefB`
 on the announced/output context, after checking the amount. Its pre-context
 has no turn reference. These inputs apply equally to checks and profiles.
 
@@ -34,11 +34,11 @@ be inferred from a failed pronoun:
 | Simultaneous instructions | Thread announcements; sibling events do not read each other's outcomes. |
 | Predicate sibling modifiers, condition siblings | Check in the same containing context; do not make conjunction sequential. |
 | Alternatives, modes and result-table rows | Branch from their enclosing context; successful branch-local mentions are not unconditionally exported. A mode's cost precedes its own body. |
-| `may`, `ifDone` | The success arm sees the body output; the failure arm starts before the body. |
-| `if_`, `onlyIf` | The condition/body order and `otherwiseCtx` are explicit; conditional execution exports no unconditional event outcome. |
-| `forEachOf`, `forEachKindOf`, `repeated` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
+| `offer`, `doIfDone` | The success arm sees the body output; the failure arm starts before the body. |
+| `doIf`, `doOnlyIf` | The condition/body order and `otherwiseCtx` are explicit; conditional execution exports no unconditional event outcome. |
+| `doForEach`, `doForEachKind`, `repeatTimes` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
 | `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is a separate open contract. |
-| Delayed, reflexive and `thisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
+| Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |
 | Event alternatives and joined headers | Check arms from the common input; `sharedCtx`/`joinedCtx` compute what the combined header can expose. |
 | Activated abilities | Check the cost after dropping its local X; the body sees only public cost mentions. Timing, guard and activator clauses use the ability's enclosing context. |
@@ -48,6 +48,48 @@ be inferred from a failed pronoun:
 | Named-card choice domain | The card-description predicate is closed (`Predicate.check .object []`). Other choice-domain payloads use the consumer's context. |
 
 ## Index duties
+
+### Noun words and refinements
+
+`NounWord.ofType word ty` narrows a word by written type evidence;
+`NounWord.copied word` narrows it by copy origin. They replace `typedCard ty`
+with `ofType card ty`, and `abilityCopy` with `copied ability`. Each retains
+the base word's carrier and kind. This follows the distinction between a type
+word's implicit permanent carrier and an explicit card or spell word
+[CR#109.2..109.2b], and between an original ability and a copy that is itself
+an ability [CR#707.10]. No arbitrary predicate replaces the read discipline.
+
+The remaining heads each supply an independent read requirement:
+
+| Head | Requirement retained by refinements |
+| --- | --- |
+| `type ty` | Current battlefield carrier and remembered type; `ofType permanent ty` is not equivalent because `permanent` can also read a former battlefield carrier through its stamp. |
+| `card`, `spell` | Their current card-zone or stack carrier. |
+| `permanent`, `token` | Battlefield/stamp discipline for the former; current battlefield plus token origin for the latter. |
+| `copy` | An object-payload copy, without imposing a card, spell, or permanent carrier; `copied ability` separately retains the ability head. There is no generic object word to expand this head through. |
+| `ability`, `player`, `pile` | The corresponding payload category. |
+| `stack`, `join` | The existing shared-stack and joined-reference disciplines, including their kind constraints. |
+
+`wordReaches` applies refinements to the same binding. `halfReaches` applies
+the whole refined word within each join half; it cannot take a type from one
+half and copy origin from another. `verbedWordOk` retains the deed stamp and
+event-carrier checks, and now receives origin so a copied refinement can
+compose with that read. Ordinary self exclusion, plurality, windows,
+uniqueness counting, `Reach.tracksObject`, and re-stamping policy are unchanged.
+
+[Proofs/NounWords](Semantics/Proofs/NounWords.lean) pins matching identities,
+incompatible types/carriers, original versus copied abilities, ambiguity,
+join-half isolation, and provenance. Its three general commutativity theorems
+cover type/copy refinement order in direct, half, and verbed matchers.
+These refinements have no binding effects; this does not assert commutativity
+of arbitrary Predicate modifiers.
+
+Bindings still retain one optional type. Refinements test that evidence;
+they do not repair the first-type behavior of Predicate conjunctions.
+`lean-conjunction-type-evidence` owns richer evidence and disjunction policy.
+Attachment profiles also retain one type: `attachRefinementsOk` prevents
+conflicting refinements from silently selecting that type by order. Existing
+single-type attachment spellings retain their profiles and verdicts.
 
 The source inventory is the indexed `data` declarations and parameterized
 records in `idris/src/Experimental/*.idr`, including proof datatypes. An
@@ -212,7 +254,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `BasicLandType` | The old `basicLandLine` macro has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; ordinary characteristic subtype validation remains `subsFitLine`. |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `Delta Amount` consumers check the carried amount. |
-| `GivingWarrant` | `conferralOk` at `Instruction.gainsDesignation` checks the designation and its declared conferrer together. |
+| `GivingWarrant` | `conferralOk` at `Instruction.gainDesignation` checks the designation and its declared conferrer together. |
 | `DesignationHolder` | `designationHolderOk` and the declared designation scope/holder checks at designation consumers. |
 | `AxesAt` | `axesAt` in `Predicate.check` requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | `Status.category` derives the category from the status. No separate category argument can disagree; consumers retain `Status.markable` and status-holder checks. |

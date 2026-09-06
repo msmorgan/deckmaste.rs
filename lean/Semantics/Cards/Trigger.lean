@@ -706,7 +706,7 @@ def bioplasm : Spelled := spelled <| .singleFaced
                 .doIf bioplasmCardTest
                   (get thisCreature
                     (.up (.statOf (.stat .power)
-                      (theVerbed (.action "Exile") (.typedCard .creature) .attributive .one)))
+                      (theVerbed (.action "Exile") (.ofType .card .creature) .attributive .one)))
                     (.up (.statOf (.stat .toughness) (itVerbed (.action "Exile"))))
                     (some .thisTurn))
                   none ]) ],

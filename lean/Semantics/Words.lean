@@ -234,10 +234,10 @@ inductive NounWord where
   | stack
   /-- "Whenever you activate an ability, … copy THAT ABILITY" -/
   | ability
-  /-- "Copy target triggered ability you control. You may choose new targets for THE COPY" -/
-  | abilityCopy
-  /-- "the exiled creature card", "that land card": the type narrows the card word. -/
-  | typedCard (type : CardType)
+  /-- A written type narrows the word without replacing its carrier requirement. -/
+  | ofType (word : NounWord) (type : CardType)
+  /-- Copy origin narrows the word; an ability copy still has the ability head [CR#707.10]. -/
+  | copied (word : NounWord)
   /-- "Put THAT PILE into your hand and the other into your graveyard." -/
   | pile
   deriving DecidableEq, Repr
