@@ -8,15 +8,21 @@ inductive LabelKind where
 
 inductive DocumentCategory where
   | sentence | body | ability | document | cost | quotedText
-  | section | modal | parenthetical | costComponent | symbol | label (kind : LabelKind := .abilityWord) | notation | mode | modes
+  | section | modal | parenthetical | costComponent | symbol
+  | label (kind : LabelKind := .abilityWord) | notation | mode | modes
   | supertype | type | subtype | supertypes | types | subtypes | typeLine
+  deriving DecidableEq
+
+inductive KeywordSeparator where
+  | comma | semicolon
   deriving DecidableEq
 
 /-- Structural families, independent of any particular frame or keyword identity. -/
 inductive DocumentRule where
   | sentence | body | ordinary | document
   | costAction | costSymbol | costs | activated
-  | keywordLine | quote | reminder | mode | modeList | modes | sentenceModes | weightedMode
+  | keywordLine (separator : KeywordSeparator := .comma)
+  | quote | reminder | mode | modeList | modes | sentenceModes | weightedMode
   | label (kind : LabelKind := .abilityWord) | chapter | classLevel | levelBand
   | solve | solved | dieRow | dieDashRow | station
   | supertypes | types | subtypes | typeLine | subtypedLine

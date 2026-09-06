@@ -16,6 +16,11 @@ and build artifacts. There are no package dependencies. `English.lean` imports
 the grammar and all checked witnesses. Surface relations let the model compare
 analyses of the same text; an executable parser or renderer is not required.
 
+The reviewed candidate entry point is `English.Analysis.Reading`: composition
+and realization together with lexical-feature and dependency constraints.
+`Analysis.Selected` and `Analysis.package` operate on those checked readings.
+The lower-level fragment modules retain their individual proof contracts.
+
 See the [design](../docs/english-grammar-design.md),
 [review](../docs/english-grammar-review.md), and
 [decision](../docs/decisions/english-lean-design-workbench.md).

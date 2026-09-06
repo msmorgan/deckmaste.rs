@@ -97,6 +97,31 @@ active and passive patterns of Subject and Complement realization.
 **Polarity**:
 The grammatical distinction between positive and negative expressions.
 
+**Countability**:
+The distinction between count and mass uses of a noun. A Lexeme may license
+both uses; Number and choice of Determiner constrain which use is available.
+
+**Genitive**:
+A grammatical form expressing possession or a related dependency, including
+possessive determinatives and phrases marked with an apostrophe ending.
+
+**Relative Clause**:
+A dependent Clause that modifies a nominal expression or supplements another
+expression, with a relative element connected to a position in the Clause.
+
+**Extraction**:
+A grammatical dependency between a displaced expression and its Gap, subject
+to constraints on the intervening constituent boundaries.
+
+**Right Node Raising**:
+A sharing Construction in which material following a Coordination fills a
+corresponding unpronounced position in each Conjunct.
+
+**Identity Claim** (project term):
+A lexical claim backed by a spelling supplied by the parse context or a
+catalog. It records the source of the spelling without resolving a game
+Referent.
+
 **Ellipsis**:
 The omission of material whose grammatical content is recoverable from an
 Antecedent or context.

@@ -106,6 +106,11 @@ inductive Construction (Lexeme : Type) where
   | keyword (head : Lexeme) (parameter : Option Category) (placement : KeywordPlacement)
   | determine (number : Number)
   | barePlural
+  | bareMass
+  | attributive (head : Lexeme) (number : Number)
+  | targeting (head : Lexeme) (number : Number)
+  | rightNodeRaising (result filler : Category)
+  | genitive (number : Number)
   | quantify (number : Number)
   | compare (marker : Lexeme)
   | measure (marker : Lexeme)
@@ -131,6 +136,10 @@ structure Lexicon (Lexeme : Type) where
   keyword : Lexeme → Option Category → KeywordPlacement → Prop := fun _ _ _ => False
   keywordForm : Lexeme → Surface → Prop := fun _ _ => False
   keywordSuffix : Lexeme → String → Prop := fun _ _ => False
+  attributive : Lexeme → Prop := fun _ => False
+  targeting : Lexeme → Prop := fun _ => False
+  identity : Lexeme → Category → Prop := fun _ _ => False
+  identityForm : Lexeme → Category → Surface → Prop := fun _ _ _ => False
   word : Lexeme → Category → Prop := fun _ _ => False
   wordForm : Lexeme → Category → Surface → Prop := fun _ _ _ => False
   verb : Lexeme → InflectionalForm → Voice → List (FrameItem Lexeme) → Prop := fun _ _ _ _ => False
@@ -171,6 +180,8 @@ inductive AdjunctLicense : Category → Category → Placement → Prop where
       AdjunctLicense (.clause finiteness) .prepositionPhrase .after
   | conditional {finiteness : Finiteness} :
       AdjunctLicense (.clause finiteness) (.subordinateClause .finite) .after
+  | temporal {form : InflectionalForm} {voice : Voice} {agreement : Agreement} :
+      AdjunctLicense (.verbPhrase form voice) (.nounPhrase agreement) .after
   | degree : AdjunctLicense .adjectivePhrase .adverbPhrase .before
 
 def coordinationResult (coordinator : Coordinator) (category : Category) : Category :=
@@ -216,6 +227,8 @@ inductive DocumentProduction : DocumentRule → List Category → Category → P
       [.document .cost, .document .body] (.document .ability)
   | keywordLine {n : Nat} : DocumentProduction .keywordLine
       (List.replicate (n + 1) .keywordPhrase) (.document .ability)
+  | keywordSeparated {n : Nat} : DocumentProduction (.keywordLine .semicolon)
+      (List.replicate (n + 2) .keywordPhrase) (.document .ability)
   | quote : DocumentProduction .quote [.document .document] (.document .quotedText)
   | mode : DocumentProduction .mode [.document .body] (.document .mode)
   | modeList {n : Nat} : DocumentProduction .modeList
@@ -268,6 +281,14 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       [.determinativePhrase number, .nominal number] (.nounPhrase ⟨.third, number⟩)
   | barePlural : Production lexicon .barePlural [.nominal .plural]
       (.nounPhrase ⟨.third, .plural⟩)
+  | bareMass : Production lexicon .bareMass [.nominal .singular]
+      (.nounPhrase ⟨.third, .singular⟩)
+  | attributive {head : Lexeme} {number : Number} : lexicon.attributive head →
+      Production lexicon (.attributive head number) [.nominal number] (.nominal number)
+  | targeting {head : Lexeme} {number : Number} : lexicon.targeting head →
+      Production lexicon (.targeting head number) [.nominal number] (.nominal number)
+  | genitive {number : Number} {agreement : Agreement} :
+      Production lexicon (.genitive number) [.nounPhrase agreement] (.determinativePhrase number)
   | quantify {number : Number} : Production lexicon (.quantify number)
       [.cardinalNumeral number] (.determinativePhrase number)
   | compare {marker : Lexeme} : lexicon.comparison marker →
@@ -306,6 +327,10 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Production lexicon (.coordinate .or_ (.nounPhrase left) (.nounPhrase right))
         [.nounPhrase left, .nounPhrase right] (.nounPhrase right)
 
+inductive RelativeForm where
+  | that_ | zero | fronted | supplementary
+  deriving DecidableEq
+
 /-- One recursive tree for phrases, clauses, missing positions and their antecedents. -/
 inductive Syntax (Lexeme : Type) where
   | noun (lexeme : Lexeme) (number : Number)
@@ -313,20 +338,29 @@ inductive Syntax (Lexeme : Type) where
   | modify (modifier head : Syntax Lexeme)
   | marker (lexeme : Lexeme)
   | word (lexeme : Lexeme) (category : Category)
+  | identity (lexeme : Lexeme) (category : Category)
   | node (construction : Construction Lexeme) (children : List (Syntax Lexeme))
   | gap (category : Category)
   | frameCoordination (coordinator : Coordinator) (left right : List (Syntax Lexeme))
   | sharedCoordination (coordinator : Coordinator) (category : Category)
       (left right : Syntax Lexeme)
-  | relative (number : Number) (head body : Syntax Lexeme)
+  | relativeForm (number : Number) (head body : Syntax Lexeme)
+      (form : RelativeForm) (front : List (Syntax Lexeme))
   | ellipsis (form : InflectionalForm) (voice : Voice := .active)
+
+
+abbrev Syntax.relative {L : Type} (number : Number) (head body : Syntax L)
+    (form : RelativeForm := .that_) (front : List (Syntax L) := []) : Syntax L :=
+  .relativeForm number head body form front
 
 mutual
   /-- Structural reminder nesting check; lexical spellings are assumed to respect atom ownership. -/
   def Syntax.reminderFree {Lexeme : Type} : Syntax Lexeme → Bool
     | .node (.document .reminder) _ => false
     | .node _ children => reminderFreeChildren children
-    | .modify left right | .relative _ left right | .sharedCoordination _ _ left right =>
+    | .relativeForm _ left right _ front =>
+        left.reminderFree && right.reminderFree && reminderFreeChildren front
+    | .modify left right | .sharedCoordination _ _ left right =>
         left.reminderFree && right.reminderFree
     | .frameCoordination _ left right => reminderFreeChildren left && reminderFreeChildren right
     | _ => true
@@ -345,8 +379,10 @@ inductive SubjectPosition where
 
 /-- Agreement is read at the clause boundary; disjunction consults the nearer conjunct. -/
 def subjectAgreement {Lexeme : Type} (position : SubjectPosition) : Syntax Lexeme → Option Agreement
-  | .word _ (.nounPhrase agreement) | .gap (.nounPhrase agreement) => some agreement
+  | .identity _ (.nounPhrase agreement) | .word _ (.nounPhrase agreement) | .gap (.nounPhrase
+    agreement) => some agreement
   | .node (.determine number) _ => some ⟨.third, number⟩
+  | .node .bareMass _ => some ⟨.third, .singular⟩
   | .node .barePlural _ => some ⟨.third, .plural⟩
   | .node (.coordinate .and_ (.nounPhrase left) (.nounPhrase right)) _ =>
       some (left.additive right)
@@ -387,7 +423,8 @@ mutual
     | .node (.auxiliary _ form _ _ voice _) children =>
         .verbPhrase form voice :: childAntecedents children
     | .node _ children => childAntecedents children
-    | .modify a b | .relative _ a b | .sharedCoordination _ _ a b =>
+    | .relativeForm _ a b _ front => a.antecedents ++ childAntecedents front ++ b.antecedents
+    | .modify a b | .sharedCoordination _ _ a b =>
         a.antecedents ++ b.antecedents
     | .frameCoordination _ a b => childAntecedents a ++ childAntecedents b
     | _ => []
@@ -426,6 +463,9 @@ mutual
     | word {context : List Category} {lexeme : Lexeme}
         {category : Category} : WordCategory category →
         lexicon.word lexeme category → JudgesIn lexicon context (.word lexeme category) category []
+    | identity {context : List Category} {head : Lexeme} {category : Category} :
+        WordCategory category → lexicon.identity head category →
+        JudgesIn lexicon context (.identity head category) category []
     | node {context : List Category} {construction : Construction Lexeme}
         {children : List (Syntax Lexeme)}
         {categories gaps : List Category} {category : Category} :
@@ -436,7 +476,8 @@ mutual
         {frame : List (FrameItem Lexeme)} {voice : Voice}
         {children : List (Syntax Lexeme)} {gaps : List Category} :
         lexicon.verb head form voice frame → JudgeFrameIn lexicon context children frame gaps →
-        JudgesIn lexicon context (.node (.verb head form frame voice) children) (.verbPhrase form voice) gaps
+        JudgesIn lexicon context (.node (.verb head form frame voice) children) (.verbPhrase form
+          voice) gaps
     | finite {context : List Category} {agreement subjectFeatures : Agreement}
         {form : InflectionalForm} {voice : Voice}
         {subject predicate : Syntax Lexeme}
@@ -445,7 +486,8 @@ mutual
         JudgesIn lexicon context predicate (.verbPhrase form voice) predicateGaps →
         FiniteLicense lexicon predicate agreement →
         subjectAgreement .beforeVerb subject = some agreement →
-        JudgesIn lexicon context (.node (.finite agreement form voice) [subject, predicate]) (.clause .finite)
+        JudgesIn lexicon context (.node (.finite agreement form voice) [subject, predicate])
+          (.clause .finite)
           (subjectGaps ++ predicateGaps)
     | reminder {context : List Category} {body : Syntax Lexeme} :
         JudgesIn lexicon context body (.document .body) [] → body.reminderFree = true →
@@ -464,6 +506,22 @@ mutual
         JudgesIn lexicon context head (.nominal number) [] →
         JudgesIn lexicon context body (.clause .finite) [.nounPhrase ⟨.third, number⟩] →
         JudgesIn lexicon context (.relative number head body) (.nominal number) []
+    | rightNodeRaising {context : List Category} {result filler : Category}
+        {body head : Syntax Lexeme} :
+        JudgesIn lexicon context body result [filler] →
+        JudgesIn lexicon context head filler [] →
+        JudgesIn lexicon context (.node (.rightNodeRaising result filler) [body,head]) result []
+    | zeroRelative {context : List Category} {number : Number} {head body : Syntax Lexeme} :
+        JudgesIn lexicon context head (.nominal number) [] →
+        JudgesIn lexicon context body (.clause .finite) [.nounPhrase ⟨.third, number⟩] →
+        JudgesIn lexicon context (.relative number head body .zero) (.nominal number) []
+    | frontedRelative {context : List Category} {number : Number} {head body front : Syntax Lexeme}
+        {form : RelativeForm} {gap : Category} :
+        (form = .fronted ∨ form = .supplementary) →
+        JudgesIn lexicon context head (.nominal number) [] →
+        JudgesIn lexicon context front gap [] →
+        JudgesIn lexicon context body (.clause .finite) [gap] →
+        JudgesIn lexicon context (.relative number head body form [front]) (.nominal number) []
     | ellipsis {context : List Category} {form : InflectionalForm} {voice : Voice} :
         Category.verbPhrase form voice ∈ context →
         JudgesIn lexicon context (.ellipsis form voice) (.verbPhrase form voice) []
@@ -480,7 +538,8 @@ mutual
         {categories headGaps tailGaps : List Category} :
         JudgesIn lexicon context head category headGaps →
         JudgeChildrenIn lexicon context tail categories tailGaps →
-        JudgeChildrenIn lexicon context (head :: tail) (category :: categories) (headGaps ++ tailGaps)
+        JudgeChildrenIn lexicon context (head :: tail) (category :: categories) (headGaps ++
+          tailGaps)
   /-- Fixed markers are matched to their declared frame positions, without spelling guards. -/
   inductive JudgeFrameIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       List Category → List (Syntax Lexeme) → List (FrameItem Lexeme) → List Category → Prop where
@@ -490,7 +549,8 @@ mutual
         {frame : List (FrameItem Lexeme)} {headGaps tailGaps : List Category} :
         JudgesIn lexicon context head complement.category headGaps →
         JudgeFrameIn lexicon context tail frame tailGaps →
-        JudgeFrameIn lexicon context (head :: tail) (.argument complement :: frame) (headGaps ++ tailGaps)
+        JudgeFrameIn lexicon context (head :: tail) (.argument complement :: frame) (headGaps ++
+          tailGaps)
     | fixed {context : List Category} {marker : Lexeme} {tail : List (Syntax Lexeme)}
         {frame : List (FrameItem Lexeme)}
         {gaps : List Category} : JudgeFrameIn lexicon context tail frame gaps →
@@ -501,7 +561,8 @@ mutual
         {headGaps tailGaps : List Category} :
         JudgesIn lexicon context head complement.category headGaps →
         JudgeFrameIn lexicon context tail frame tailGaps →
-        JudgeFrameIn lexicon context (.marker marker :: head :: tail) (.marked marker complement :: frame)
+        JudgeFrameIn lexicon context (.marker marker :: head :: tail) (.marked marker complement
+          :: frame)
           (headGaps ++ tailGaps)
     | coordinate {context : List Category} {coordinator : Coordinator}
         {left right : List (Syntax Lexeme)}
@@ -527,8 +588,9 @@ abbrev JudgeChildren {L : Type} (lexicon : Lexicon L) := JudgeChildrenIn lexicon
 abbrev JudgeFrame {L : Type} (lexicon : Lexicon L) := JudgeFrameIn lexicon []
 
 namespace Judges
-export JudgesIn (noun adjective modify word node verb finite reminder gap sharedCoordination
-  relative ellipsis paragraph)
+export JudgesIn (noun adjective modify word identity node verb finite reminder gap
+  sharedCoordination
+  rightNodeRaising relative zeroRelative frontedRelative ellipsis paragraph)
 end Judges
 namespace JudgeChildren
 export JudgeChildrenIn (nil cons)
@@ -568,9 +630,11 @@ inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Pro
       DocumentLinearizes .costs items (Surface.join [.closing ","] items)
   | activated {a b : Surface} :
       DocumentLinearizes .activated [a, b] (a ++ ([.closing ":"] : Surface) ++ b)
-  | keywordLine {items : List Surface} :
-      DocumentLinearizes .keywordLine items
-        ((Surface.join [.closing ","] items).capitalize)
+  | keywordLine {items : List Surface} : DocumentLinearizes .keywordLine items
+      ((Surface.join [.closing ","] items).capitalize)
+  | keywordSeparated {items : List Surface} :
+      DocumentLinearizes (.keywordLine .semicolon) items
+        ((Surface.join [.closing ";"] items).capitalize)
   | quote {a : Surface} : DocumentLinearizes .quote [a] a.quote
   | reminder {a : Surface} :
       DocumentLinearizes .reminder [a]
@@ -623,6 +687,15 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
   | determine {number : Number} {a b : Surface} :
       Linearizes lexicon (.determine number) [a, b] (a ++ b)
   | barePlural {a : Surface} : Linearizes lexicon .barePlural [a] a
+  | bareMass {a : Surface} : Linearizes lexicon .bareMass [a] a
+  | attributive {head : Lexeme} {number : Number} {a m : Surface} :
+      lexicon.markerForm head m → Linearizes lexicon (.attributive head number) [a] (m ++ a)
+  | targeting {head : Lexeme} {number : Number} {a m : Surface} :
+      lexicon.markerForm head m → Linearizes lexicon (.targeting head number) [a] (m ++ a)
+  | rightNodeRaising {result filler : Category} {a b : Surface} :
+      Linearizes lexicon (.rightNodeRaising result filler) [a,b] (a ++ b)
+  | genitive {number : Number} {a : Surface} :
+      Linearizes lexicon (.genitive number) [a] (a ++ [.closing "'s"])
   | quantify {number : Number} {a : Surface} : Linearizes lexicon (.quantify number) [a] a
   | compare {marker : Lexeme} {a m : Surface} : lexicon.markerForm marker m →
       Linearizes lexicon (.compare marker) [a] (m ++ a)
@@ -657,7 +730,8 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
   | preposedAdjunct {host dependent : Category} {a b : Surface} :
       Linearizes lexicon (.adjunct host dependent .before) [a, b] (b ++ a)
   | coordinate {coordinator : Coordinator} {category right : Category} {a b : Surface} :
-      Linearizes lexicon (.coordinate coordinator category right) [a, b] (a ++ coordinator.surface ++ b)
+      Linearizes lexicon (.coordinate coordinator category right) [a, b] (a ++ coordinator.surface
+        ++ b)
 
 mutual
   /-- Realization does not choose a reading or certify grammatical licensing. -/
@@ -674,6 +748,9 @@ mutual
         Realizes lexicon (.marker lexeme) surface
     | word {lexeme : Lexeme} {category : Category} {surface : Surface} :
         lexicon.wordForm lexeme category surface → Realizes lexicon (.word lexeme category) surface
+    | identity {head : Lexeme} {category : Category} {surface : Surface} :
+        lexicon.identityForm head category surface → Realizes lexicon (.identity head category)
+          surface
     | node {construction : Construction Lexeme} {children : List (Syntax Lexeme)}
         {surfaces : List Surface} {surface : Surface} :
         RealizeChildren lexicon children surfaces →
@@ -693,6 +770,16 @@ mutual
     | relative {number : Number} {head body : Syntax Lexeme} {a b : Surface} :
         Realizes lexicon head a → Realizes lexicon body b →
         Realizes lexicon (.relative number head body) (a ++ (["that"] : Surface) ++ b)
+    | zeroRelative {number : Number} {head body : Syntax Lexeme} {a b : Surface} :
+        Realizes lexicon head a → Realizes lexicon body b →
+        Realizes lexicon (.relative number head body .zero) (a ++ b)
+    | frontedRelative {number : Number} {head body front : Syntax Lexeme} {a b f : Surface} :
+        Realizes lexicon head a → Realizes lexicon front f → Realizes lexicon body b →
+        Realizes lexicon (.relative number head body .fronted [front]) (a ++ f ++ b)
+    | supplementaryRelative {number : Number} {head body front : Syntax Lexeme} {a b f : Surface} :
+        Realizes lexicon head a → Realizes lexicon front f → Realizes lexicon body b →
+        Realizes lexicon (.relative number head body .supplementary [front])
+          (a ++ [.closing ","] ++ f ++ b ++ [.closing ","])
     | ellipsis {form : InflectionalForm} {voice : Voice} :
         Realizes lexicon (.ellipsis form voice) []
   inductive RealizeChildren {Lexeme : Type} (lexicon : Lexicon Lexeme) :

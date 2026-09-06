@@ -96,7 +96,8 @@ def destroyObjects : Syntax Lexeme := .node (.verb .destroy .plain objectFrame) 
 
 theorem coordinated_complement : Derives lexicon destroyObjects (.verbPhrase .plain) :=
   .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩
-    (.argument (complement := ⟨.object, .nounPhrase plural⟩) (.closedNode (.coordinate rfl) (.cons creatures_derives (.cons artifacts_derives .nil))) .nil)
+    (.argument (complement := ⟨.object, .nounPhrase plural⟩) (.closedNode (.coordinate rfl) (.cons
+      creatures_derives (.cons artifacts_derives .nil))) .nil)
 
 /-- The identical NP tree fills Subject, Object and a preposition's Complement. -/
 theorem noun_phrase_relations :

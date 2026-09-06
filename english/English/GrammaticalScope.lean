@@ -70,14 +70,16 @@ theorem same_class_iff {lexicon : Lexicon L} {category : Category} {surface : Su
 
 /-- Lexical identity survives scope variation even when different lexemes spell alike. -/
 def constructionLexemes : Construction L → List L
-  | .keyword head _ _ | .compare head | .measure head | .preposition head _
+  | .attributive head _ | .targeting head _ | .keyword head _ _ | .compare head | .measure head |
+    .preposition head _
   | .verb head _ _ _ | .auxiliary head _ _ _ _ _ | .subordinate head _ => [head]
   | _ => []
 
 mutual
   def lexicalLeaves : Syntax L → List L
-    | .noun head _ | .adjective head | .marker head | .word head _ => [head]
-    | .modify a b | .sharedCoordination _ _ a b | .relative _ a b =>
+    | .noun head _ | .adjective head | .marker head | .word head _ | .identity head _ => [head]
+    | .relativeForm _ a b _ front => lexicalLeaves a ++ childLeaves front ++ lexicalLeaves b
+    | .modify a b | .sharedCoordination _ _ a b =>
         lexicalLeaves a ++ lexicalLeaves b
     | .node construction children => constructionLexemes construction ++ childLeaves children
     | .frameCoordination _ a b => childLeaves a ++ childLeaves b
@@ -129,7 +131,8 @@ mutual
     | .node construction children => hostNode construction (hostChildren children)
     | .sharedCoordination c cat a b =>
         .sharedCoordination c cat (hostStructure a) (hostStructure b)
-    | .relative n a b => .relative n (hostStructure a) (hostStructure b)
+    | .relativeForm n a b form front =>
+        .relative n (hostStructure a) (hostStructure b) form (hostChildren front)
     | .frameCoordination c a b => .frameCoordination c (hostChildren a) (hostChildren b)
     | tree => tree
   def hostChildren : List (Syntax L) → List (Syntax L)

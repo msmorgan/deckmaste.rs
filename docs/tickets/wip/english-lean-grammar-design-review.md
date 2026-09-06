@@ -39,100 +39,53 @@ classification of the corpus and global absence of unintended ties are not
 review gates. Standard constraints apply.
 
 
-## Review checkpoint — 2026-09-05
+## Review result
 
-Review evidence and proposed residual decisions are in
-[english-grammar-review.md](../../english-grammar-review.md), change `nqzqyuro`.
-The review pass is complete; acceptance is not yet satisfied and this ticket
-must not integrate as done. The user requested a grilling round on residuals.
+The [review report](../../english-grammar-review.md) and
+[revised design](../../english-grammar-design.md) record the resolved
+architecture, finite interaction challenges and exact limits. English and
+Semantics are separate Lake projects. Consolidation includes canonical
+collections; declaration-backed role preference; mixed agreement; contextual
+ellipsis; lexical feature and extraction constraints; frame-boundary and
+shared-dependent scope; identity preference; and the final checked-candidate
+interface. The migration-design ticket and wayfinder carry the explicit
+elaborations and inherited regression obligations. No residual user decision
+requires a grilling round; no model-wide completeness claim is made.
 
-Implemented the bounded nested-quotation punctuation fix and added twelve
-positive interaction assertions: a real nested-mobile class with four distinct
-admitted readings, exact packing, quotation embedding, and exact deep-quote
-spelling. All previous 117 theorem declarations remain unchanged; none were
-removed, re-spelled, ignored or restored. The complete Lean build passes all
-68 jobs with warnings as errors. LSP diagnostics and all twelve axiom audits
-are clean, using only standard axioms. Production code/corpus counts and
-coverage were untouched; no coverage gain or loss is claimed.
+## Landing record
 
-Outstanding closure decisions: grammatical evidence and locality for
-preference/scope; canonical groups and document/phrase boundaries; contextual
-admissibility and feature propagation; source/layout validation ownership.
-The report records the concrete counterexamples and uncertainty on each
-recommendation. After discussion, implement or assign the resulting finite
-closure obligations under this review before unblocking migration design.
-No other WIP ticket was edited.
+**PROVE.** This is the workbench exception under the accepted Lean design
+ADR. Production Rust, lexical data, the coverage lock and selected corpus
+analyses are unchanged; there is no production coverage loss or gain.
+All 117 pre-review theorem declarations remain. The model's named laws and
+inhabited/exclusion challenges are listed in the review. The final candidate
+contract checks lexical features and extraction before selection and packing.
+English and Semantics have independent Lake configurations and no dependency
+on each other. Final gate evidence is recorded below after refresh.
 
+**DISCLOSE.** Source theorem declarations: 297, including 180 additions.
+Four baseline assertions were re-spelled: `elliptic_antecedent`,
+`elliptic_surface`, `nested_reminder_rejected`, and
+`qualification_sites_excluded`. Their grammatical outcomes are preserved;
+the private `admitted_maximum` helper was made public without changing its
+statement. Removed, ignored, restored: zero each. Generic proofs and fixtures
+were adapted to the consolidated carriers. Semantics source/assertions were
+not changed. Existing long lines were wrapped to the Lean width convention.
 
-## User clarification and project separation
+Deviations/additions: consolidation was explicitly authorized in this review;
+the user also required the independent Lake project split and the NLP-only
+boundary. New glossary terms describe countability, genitives, relatives,
+extraction, right node raising, parentheticals and Identity Claims. No CR
+citation was added or changed. All additional witness modules implement the
+review's named structural challenges. The draft reminder-isolation assumption
+was corrected against supported Oracle text before commitment. Concurrent
+same-file LSP axiom audits returned inconsistent results; sequential and
+compiled-environment audits replace that evidence. The only source-scan flag
+is an inspected local notation for the full candidate type, not a proof escape.
+No regression or recorded-ruling contradiction was integrated around.
 
-English is JUST an NLP grammar for parsing/bracketing Oracle English. It must
-not interact with Semantics; the user requested separate Lake projects.
-English now lives under `english/`; `lean/` is the independent Semantics
-project. The accepted design decision records that boundary. Game-reference
-resolution, card validation and frame legality are outside this review.
-
-The earlier implementation-choice questions were premature. Investigate and
-resolve grammar representation choices against concrete evidence; only a real
-residual user decision should return to the grilling frontier. Continue the
-review's grammar closure work after validating the project split.
-
-
-Project split verified: `english/scripts/build` passes 13 jobs;
-`lean/scripts/build` passes 56 jobs. Both cross-project import probes fail with
-the expected unknown-module result. LSP diagnostics are clean at the new
-English root. All 129 English theorem declarations were moved unchanged;
-no Semantics source or assertion changed. The two manifests have no package
-dependencies. Historical done-ticket paths remain as landing provenance.
-
-## Consolidation checkpoint
-
-Implemented flat document, paragraph, cost, keyword-line, modal and type
-collections; ordinary initial-adverbial clauses; shared modal paragraph hosts;
-empty textual sections; and explicit document-coordination exclusion. Added
-scope equivalence over actual grammatical trees, its quotient packing key,
-lexical/host invariants, and inhabited interaction checks including quotation.
-The review report records the exact laws and limits. English passes 16 build
-jobs; 129 prior theorem declarations are retained, 38 added, none removed or
-ignored. All 32 new public assertions pass Lean LSP axiom/source audits.
-Declaration-backed preference, partial-frame coordination and ordinary grammar
-closure remain in scope here. This checkpoint does not complete the ticket.
-
-## Marked-role and partial-frame checkpoint
-
-Added declared marked Complements, coordination of nonempty portions of a Verb
-Frame, inhabited pair/shared-Object witnesses, and a local declaration-backed
-role preference. First-eligible PP occurrence checks include positive and
-negative right-periphery cases. Preference has cycle exclusion, finite
-survivor existence, enumeration independence and an inhabited selection check.
-All 167 preceding theorem declarations remain; 24 added, none removed or
-ignored. All 23 new public assertions passed Lean LSP axiom/source audits.
-The review report names the still-missing generalizations; this remains WIP.
-
-## Mixed-agreement checkpoint
-
-Added mixed NP person/number coordination and clause-boundary agreement,
-including the position-dependent proximity rule for alternatives. Eight new
-positive/negative assertions pass Lean LSP axiom/source audits. All 191 prior
-declarations remain; English passes 19 jobs. Inverted-clause syntax itself is
-not claimed. Other feature/dependency closure and broader scope/preference
-obligations remain open.
-
-## Contextual ellipsis checkpoint
-
-Ellipsis is now an omitted VP form/voice, not a recursively supplied antecedent
-syntax tree. Paragraph judgments accumulate earlier overt VP projections;
-quotation resets that context. Inline parentheticals inherit preceding context
-without exporting their internal antecedents. The initial draft isolated
-reminders too; the supported Renegade Doppelganger wording disproved that
-assumption, and the draft was corrected before commitment.
-
-Fourteen interaction assertions cover source order, form matching, quotation,
-and an inhabited inline reminder. Two shared context helpers are also proved.
-The earlier ellipsis and reminder assertions are re-spelled against the new
-shape with their intended outcomes retained. English builds all 20 jobs with
-warnings as errors. Sequential LSP verification and independent import-based
-axiom checks report standard axioms only; concurrent same-file verification
-had returned inconsistent `sorryAx` reports and is not used as evidence.
-This remains a bounded grammatical recoverability context, not reference
-resolution or a full theory of discourse ellipsis.
+**REPORT.** Evidence is for `rmkonlyw` and its refreshed descendants. Production
+coverage, selection census and performance telemetry are not measured or
+claimed by this workbench ticket. Remaining fragment elaborations and source
+contract obligations are explicit in the design and pinned as migration-design
+inputs; they are not hidden under corpus completeness or a tail-loop claim.

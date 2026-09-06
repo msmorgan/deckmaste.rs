@@ -12,4 +12,11 @@ import English.FrameInteractions
 import English.AgreementInteractions
 import English.EllipsisInteractions
 
+import English.FrameScope
+import English.FeatureInteractions
+import English.DependencyInteractions
+import English.AnalysisInteractions
+import English.SharingInteractions
+import English.BoundaryInteractions
+
 /-! Oracle English grammar design workbench, independent of the Semantics model. -/

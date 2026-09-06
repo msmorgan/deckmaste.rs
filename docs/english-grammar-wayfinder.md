@@ -25,6 +25,20 @@ Document modeling and selection proofs can proceed after the shared composition
 model; the review checks their interaction. Production replacement boundaries
 are chosen after that review, not prescribed by the old Group R order.
 
+## Reviewed model and migration boundary
+
+The review's final candidate interface is `Analysis.Reading`, combining
+composition, lexical-feature constraints and extraction constraints before
+selection and packing. The [design](english-grammar-design.md) and
+[review](english-grammar-review.md) name its proven fragments and elaboration
+obligations. Raw `Admissible` alone is not the reviewed candidate contract.
+
+Migration design must pin general role sequences/context lifting, further
+scope moves, qualification/distributive distributions, remaining relative/wh
+and omission forms, and lexical/source-boundary enforcement for the slices
+that need them. These are explicit grammar/correspondence work, not a return
+to card-by-card tail coverage. Existing named regressions keep their owners.
+
 ## Existing unclaimed migration work
 
 These ticket identities retain the detailed examples, negative cases, and

@@ -201,7 +201,8 @@ def quotedInstruction : Witness Lexeme lexicon (.clause .finite) :=
    .node (.cons gainQuoted.realizes .nil) .imperative⟩
 
 def nestedQuote := unary (unary (unary (unary (unary quotedInstruction
-  .sentence .sentence) (.body rfl) .body) .ordinary .ordinary) (.document rfl) .document) .quote .quote
+  .sentence .sentence) (.body rfl) .body) .ordinary .ordinary) (.document rfl) .document) .quote
+    .quote
 
 def reminderProse : Witness Lexeme lexicon (.document .parenthetical) :=
   ⟨.node (.document .reminder) [body.tree], [.opening "("] ++ body.surface ++ [.closing ")"],
@@ -223,7 +224,8 @@ def dieDashRow := binary level body .dieDashRow .dieDashRow
 def station := binary threshold keywordLine .station .station
 
 def typeLine := ternary (unary legendary (.supertypes (n := 1)) .supertypes)
-  (unary creature (.types (n := 0)) .types) (unary elf (.subtypes (n := 0)) .subtypes) .subtypedLine .subtypedLine
+  (unary creature (.types (n := 0)) .types) (unary elf (.subtypes (n := 0)) .subtypes)
+    .subtypedLine .subtypedLine
 
 /-- Faces contain independent typed text boxes; spelling never inserts a combined name. -/
 structure Faces where

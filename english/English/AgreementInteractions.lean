@@ -40,7 +40,8 @@ def mixed (left right : Agreement) (different : left ≠ right) :
   ⟨.node (.coordinate .and_ (.nounPhrase left) (.nounPhrase right))
      [(pronoun left).tree, (pronoun right).tree],
    (pronoun left).surface ++ (["and"] : Surface) ++ (pronoun right).surface,
-   .node (.mixedAdditive different) (.cons (pronoun left).derives (.cons (pronoun right).derives .nil)),
+   .node (.mixedAdditive different) (.cons (pronoun left).derives (.cons (pronoun right).derives
+     .nil)),
    .node (.cons (pronoun left).realizes (.cons (pronoun right).realizes .nil)) .coordinate⟩
 
 def mixedClause (left right : Agreement) (different : left ≠ right) :

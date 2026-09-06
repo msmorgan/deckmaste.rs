@@ -36,7 +36,10 @@ private def terminalPeriod : Surface → Bool
 
 /-- An embedded quoted sentence already owns the enclosing sentence's terminal period. -/
 def Surface.finishSentence (surface : Surface) : Surface :=
-  if terminalPeriod surface.reverse then surface else surface ++ [.closing "."]
+  if terminalPeriod surface.reverse then surface else
+    match surface.reverse with
+    | .closing "," :: rest => rest.reverse ++ [.closing "."]
+    | _ => surface ++ [.closing "."]
 
 def Atom.nestedQuote : Atom → Atom
   | .opening "\"" => .opening "'"

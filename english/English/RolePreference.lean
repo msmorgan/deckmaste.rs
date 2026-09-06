@@ -101,7 +101,8 @@ mutual
   def roleCount : Syntax L → Nat
     | .node (.verb _ _ frame _) children => markedCount frame + roleChildren children
     | .node _ children => roleChildren children
-    | .modify a b | .relative _ a b | .sharedCoordination _ _ a b => roleCount a + roleCount b
+    | .relativeForm _ a b _ front => roleCount a + roleCount b + roleChildren front
+    | .modify a b | .sharedCoordination _ _ a b => roleCount a + roleCount b
     | .frameCoordination _ a b => roleChildren a + roleChildren b
     | .ellipsis _ _ => 0
     | _ => 0
