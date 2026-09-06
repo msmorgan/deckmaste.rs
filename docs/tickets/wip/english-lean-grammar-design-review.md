@@ -37,3 +37,28 @@ all Lean targets pass without proof placeholders. Remaining uncertainties are
 explicit, not hidden behind a claim of complete grammar. Exhaustive
 classification of the corpus and global absence of unintended ties are not
 review gates. Standard constraints apply.
+
+
+## Review checkpoint — 2026-09-05
+
+Review evidence and proposed residual decisions are in
+[english-grammar-review.md](../../english-grammar-review.md), change `nqzqyuro`.
+The review pass is complete; acceptance is not yet satisfied and this ticket
+must not integrate as done. The user requested a grilling round on residuals.
+
+Implemented the bounded nested-quotation punctuation fix and added twelve
+positive interaction assertions: a real nested-mobile class with four distinct
+admitted readings, exact packing, quotation embedding, and exact deep-quote
+spelling. All previous 117 theorem declarations remain unchanged; none were
+removed, re-spelled, ignored or restored. The complete Lean build passes all
+68 jobs with warnings as errors. LSP diagnostics and all twelve axiom audits
+are clean, using only standard axioms. Production code/corpus counts and
+coverage were untouched; no coverage gain or loss is claimed.
+
+Outstanding closure decisions: grammatical evidence and locality for
+preference/scope; canonical groups and document/phrase boundaries; contextual
+admissibility and feature propagation; source/layout validation ownership.
+The report records the concrete counterexamples and uncertainty on each
+recommendation. After discussion, implement or assign the resulting finite
+closure obligations under this review before unblocking migration design.
+No other WIP ticket was edited.

@@ -365,3 +365,15 @@ must connect these abstractions to actual frame-pair/nested-mobile grammar and
 challenge document embeddings before migration decisions. Neither package
 uniqueness nor the feature-order proofs justify assigning all equal-text trees
 to one class, nor do they establish Oracle adequacy or Rust correctness.
+
+
+## Whole-model review status
+
+The [2026-09-05 review](english-grammar-review.md) finds the formal foundation
+useful but does not yet approve defining the production migration. It adds a
+checked four-reading nested-mobile class and its quotation embedding, and
+repairs terminal punctuation at deeper quote nesting. It also identifies
+concrete document-closure and canonical-representation gaps, in addition to
+the feature/context and scope-classification assumptions above. The review's
+residual recommendations await discussion; they are not accepted rulings.
+The review ticket remains open until those design blockers are resolved.

@@ -28,12 +28,15 @@ def Atom.capitalize : Atom → Atom
   | .word text => .word text.capitalize
   | atom => atom
 
+/-- Read the terminal punctuation through any number of enclosing quotation marks. -/
+private def terminalPeriod : Surface → Bool
+  | .closing "." :: _ => true
+  | .closing "\"" :: rest | .closing "'" :: rest => terminalPeriod rest
+  | _ => false
+
 /-- An embedded quoted sentence already owns the enclosing sentence's terminal period. -/
 def Surface.finishSentence (surface : Surface) : Surface :=
-  match surface.reverse with
-  | .closing "\"" :: .closing "." :: _ | .closing "'" :: .closing "." :: _ => surface
-  | .closing "." :: _ => surface
-  | _ => surface ++ [.closing "."]
+  if terminalPeriod surface.reverse then surface else surface ++ [.closing "."]
 
 def Atom.nestedQuote : Atom → Atom
   | .opening "\"" => .opening "'"
