@@ -94,7 +94,9 @@ def vodalianIllusionist : Ability :=
 theorem okVodalianIllusionist : Ability.check [] vodalianIllusionist = [] := by decide
 def witchsMist : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .black], Primitives.Cost.tapSymbol])
-    (destroy (target (Primitives.Predicate.and [creature, happenedTo .damageTaken .thisTurn])))
+    (destroy (target (Primitives.Predicate.and [creature, happenedTo
+      (Primitives.GameEvent.isDealtDamage .any (Primitives.NounPhrase.asMarker .permanent (relative
+      .object))) .thisTurn])))
 theorem okWitchsMist : Ability.check [] witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
@@ -678,8 +680,9 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.mana [pip .black])
             (loseLife
-              (.lit 1) (agent := (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedToInvolving .damageTaken
-                  .thisTurn thisCreature])))) ],
+              (.lit 1) (agent := (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
+                happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some (relative
+                .player))) .thisTurn])))) ],
       power := stat 2, toughness := stat 2 } }
 
 def idolOfOblivion : Spelled := spelled <| .singleFaced
@@ -687,7 +690,8 @@ def idolOfOblivion : Spelled := spelled <| .singleFaced
     { name := "Idol of Oblivion", cost := some [generic 2], types := [.artifact],
       text :=
         [ activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
-            (happenedInvolving .tokenCreation Primitives.NounPhrase.you .thisTurn (a Primitives.Predicate.isToken)),
+            (happened (Primitives.GameEvent.tokensCreated (a Primitives.Predicate.isToken) false
+              (some (relative .player)) none) Primitives.NounPhrase.you .thisTurn),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 8], Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice thisArtifact
               (agent := Primitives.NounPhrase.you))])
             (create (.lit 1) (creatureToken 10 10 [] [creatureType "Eldrazi"])) ] } }

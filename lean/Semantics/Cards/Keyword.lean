@@ -885,8 +885,10 @@ def dreamThief : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.doOnlyIf (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
-              (happenedInvolving .spellCast Primitives.NounPhrase.you .thisTurn
-                (a (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .blue, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))
+              (happened (Primitives.GameEvent.casts (relative .player) (some (a
+                (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .blue,
+                Primitives.Predicate.otherThan Primitives.NounPhrase.this]))) none)
+                Primitives.NounPhrase.you .thisTurn)
               none) ],
       power := stat 2, toughness := stat 1 } }
 
@@ -897,7 +899,9 @@ def brightspearZealot : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Vigilance",
           Primitives.Ability.static (onlyWhile (getsPt thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 0)))
-            (Primitives.Condition.compareAmt (eventCountInvolving .spellCast Primitives.NounPhrase.you .thisTurn (a spell)) .atLeast (.lit 2))) ],
+            (Primitives.Condition.compareAmt (eventCount (Primitives.GameEvent.casts (relative
+              .player) (some (a spell)) none) Primitives.NounPhrase.you .thisTurn) .atLeast (.lit
+              2))) ],
       power := stat 2, toughness := stat 4 } }
 
 def deepwayNavigator : Spelled := spelled <| .singleFaced
@@ -913,8 +917,9 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (onlyWhile
             (getsPt (allOf (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Merfolk"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)))
-            (happenedInvolving .attackDeclaration Primitives.NounPhrase.you .thisTurn
-              (counted (atLeast 3) (Primitives.Predicate.hasSubtype (creatureType "Merfolk"))))) ],
+            (happened (Primitives.GameEvent.attacksWith (relative .player) none (counted (atLeast 3)
+              (Primitives.Predicate.hasSubtype (creatureType "Merfolk")))) Primitives.NounPhrase.you
+              .thisTurn)) ],
       power := stat 2, toughness := stat 2 } }
 
 def bloodfireEnforcers : Spelled := spelled <| .singleFaced
@@ -1091,7 +1096,8 @@ def merfolkFalconer : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           whenever
             (Primitives.GameEvent.casts Primitives.NounPhrase.you
-              (a (Primitives.Predicate.compareOver spell (paidCostRead (.byKeyword "Kicker") none it) .atLeast (.lit 1)))
+              (some (a (Primitives.Predicate.compareOver spell (paidCostRead (.byKeyword "Kicker")
+                none it) .atLeast (.lit 1))))
               none)
             (scry (.lit 2) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
@@ -1140,7 +1146,8 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 
 /-- Tourach, Dread Cantor -/
 def tourachDiscardTrigger : Ability :=
-  whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a Primitives.Predicate.isCard)) none)
+  whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a
+    Primitives.Predicate.isCard)) none none)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature)
 theorem okTourachDiscardTrigger : Ability.check [] tourachDiscardTrigger = [] := by decide
 
@@ -1226,7 +1233,9 @@ def towerWinder : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequence
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
                 revealIt, move foundCard hand,
-                Primitives.Instruction.doIf (happenedAt (.verbedAct (.action "Search")) Primitives.NounPhrase.you .thisWay yourLibrary) shuffle
+                Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
+                  (relative .player)) (.action "Search") none none (some yourLibrary))
+                  Primitives.NounPhrase.you .thisWay) shuffle
                   none ]) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -1258,7 +1267,9 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
         [ keyword "Lifelink",
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Condition.or
-              [ Primitives.Condition.happened it (Primitives.LookbackClause.mk .entry .triggering (some (Primitives.EventComplement.fromZones (Primitives.EventSource.zones [graveyardOf Primitives.NounPhrase.you]) none))),
+              [ Primitives.Condition.happened it (Primitives.LookbackClause.mk
+                (Primitives.GameEvent.enters (relative .object) (some (Primitives.EventSource.zones
+                [graveyardOf Primitives.NounPhrase.you]))) .triggering),
                 Primitives.Condition.matches it (Primitives.Predicate.and [castBy Primitives.NounPhrase.you, Primitives.Predicate.castFrom (graveyardOf Primitives.NounPhrase.you)]) ])
             (Primitives.Instruction.triggerReflexively (exile it)
               (create (.lit 1)
@@ -1302,7 +1313,8 @@ def darkbladeAgentGrants : Ability :=
         Primitives.StaticSpec.abilityGrant thisCreature
           (whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer)) (Primitives.Instruction.draw (.lit 1) (agent :=
               Primitives.NounPhrase.you))) ])
-    (happened (.verbedAct (.action "Surveil")) Primitives.NounPhrase.you .thisTurn) .asLongAs)
+    (happened (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "Surveil") none
+      none none) Primitives.NounPhrase.you .thisTurn) .asLongAs)
 theorem okDarkbladeAgentGrants : Ability.check [] darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
@@ -1404,7 +1416,8 @@ def marketGnome : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequence [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1)
             (agent := Primitives.NounPhrase.you)]),
-          triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "Exile") (some thisCreature) none)
+          triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "Exile") (some
+            thisCreature) none none)
             (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead (.keyword "Craft")))))
             (Primitives.Instruction.sequence [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
       power := stat 0, toughness := stat 3 } }
@@ -1585,7 +1598,9 @@ def battlegateMimic : Spelled := spelled <| .singleFaced
     { name := "Battlegate Mimic", cost := some [generic 1, hybridPip .red .white], types := [.creature],
       subtypes := [creatureType "Shapeshifter"],
       text :=
-        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .red, Primitives.Predicate.colorIs .white])) none)
+        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+          (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .red,
+          Primitives.Predicate.colorIs .white]))) none)
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.conjunction none
                 [ Primitives.StaticSpec.modification thisCreature .power (Primitives.Delta.set (.lit 4)),
@@ -1639,7 +1654,9 @@ def artificersAssistant : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Bird"],
       text :=
         [ keyword "Flying",
-          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [historic, spell])) none) (scry (.lit 1) (agent := Primitives.NounPhrase.you))
+          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+            (Primitives.Predicate.and [historic, spell]))) none) (scry (.lit 1) (agent :=
+            Primitives.NounPhrase.you))
               ],
       power := stat 1, toughness := stat 1 } }
 

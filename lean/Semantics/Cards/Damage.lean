@@ -168,7 +168,9 @@ def arbalestElite : Ability :=
         Primitives.Instruction.skipUntap thisCreature (.lit 1) ])
 theorem okArbalestElite : Ability.check [] arbalestElite = [] := by decide
 def sizzlingBarrage : Instruction :=
-  Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target (Primitives.Predicate.and [creature, happenedTo .blockDeclaration .thisTurn]))
+  Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target
+    (Primitives.Predicate.and [creature, happenedTo (Primitives.GameEvent.combat .blockerOf
+    (Primitives.NounPhrase.asMarker .permanent (relative .object)) none) .thisTurn]))
 theorem okSizzlingBarrage : Instruction.check [] sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
   whenever (attacks (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation "goaded" none])))
@@ -271,7 +273,8 @@ def psychicPurge : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.causes
               (Primitives.Causing.source (a (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack],
                                  Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])))
-              (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "Discard") (some Primitives.NounPhrase.this) none))
+              (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "Discard")
+                (some Primitives.NounPhrase.this) none none))
             (loseLife (.lit 5) (agent := (that .player))) ] } }
 
 /-- Chandra Nalaar -/
@@ -827,9 +830,9 @@ theorem okSaheeliRaiPlusOne : Instruction.check [] saheeliRaiPlusOne = [] := by 
 def sarkhansUnsealingLine : Ability :=
   whenever
     (Primitives.GameEvent.casts Primitives.NounPhrase.you
-      (a (Primitives.Predicate.and [creature, spell,
+      (some (a (Primitives.Predicate.and [creature, spell,
                 Primitives.Predicate.or [ Primitives.Predicate.compare [.stat .power] .eq (.lit 4), Primitives.Predicate.compare [.stat .power] .eq (.lit 5),
-                      Primitives.Predicate.compare [.stat .power] .eq (.lit 6) ]]))
+                      Primitives.Predicate.compare [.stat .power] .eq (.lit 6) ]])))
       none)
     (Primitives.Instruction.dealDamage thisEnchantment (.lit 4) (target anyTarget))
 theorem okSarkhansUnsealingLine : Ability.check [] sarkhansUnsealingLine = [] := by decide
@@ -864,7 +867,9 @@ def incinerate : Spelled := spelled <| .singleFaced
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget),
               Primitives.Instruction.establish
                 (objectCant (.action "Regenerate")
-                  (a (Primitives.Predicate.and [creature, Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk .damageTaken .thisWay none)])))
+                  (a (Primitives.Predicate.and [creature, Primitives.Predicate.happenedTo
+                    (Primitives.LookbackClause.mk (Primitives.GameEvent.isDealtDamage .any
+                    (Primitives.NounPhrase.asMarker .permanent (relative .object))) .thisWay)])))
                 (some Primitives.Duration.thisTurn) ]) ] } }
 
 def ashZealot : Spelled := spelled <| .singleFaced
@@ -874,7 +879,8 @@ def ashZealot : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "FirstStrike",
           keyword "Haste",
-          whenever (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (a (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard])) none)
+          whenever (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (some (a
+            (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard]))) none)
             (Primitives.Instruction.dealDamage thisCreature (.lit 3) (that .player)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1256,7 +1262,9 @@ def frostwielder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature,
-              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk .damageTaken .thisTurn (some (Primitives.EventComplement.involving thisCreature)))])))
+              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
+                (Primitives.GameEvent.dealsDamage .any thisCreature (some
+                (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn)])))
             [] none (exile it) .repeatedly none),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.dealDamage thisCreature (.lit 1) (target anyTarget)) ],
       power := stat 1, toughness := stat 2 } }
@@ -1275,7 +1283,8 @@ def theFallen : Ability :=
   at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
     (Primitives.Instruction.dealDamage thisCreature (.lit 1)
       (each (Primitives.Predicate.and [Primitives.Predicate.or [Primitives.Predicate.opponent, Primitives.Predicate.hasType .planeswalker],
-                   happenedToInvolving .damageTaken .thisGame thisCreature])))
+                   happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some
+                     (relative (.join .player .object)))) .thisGame])))
 theorem okTheFallen : Ability.check [] theFallen = [] := by decide
 /-- Cavalcade of Calamity -/
 def cavalcadeOfCalamity : Ability :=

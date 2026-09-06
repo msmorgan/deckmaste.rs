@@ -1,3 +1,4 @@
+import Semantics.Proofs.Lookback
 import Semantics.Proofs.ControllerSacrifice
 import Semantics.Proofs.ReferenceScopes
 import Semantics.Proofs.Authoring

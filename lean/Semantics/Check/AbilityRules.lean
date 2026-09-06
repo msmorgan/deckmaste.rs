@@ -643,7 +643,7 @@ mutual
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
         Instruction.check (interceptCtx bs alts ev) repl ++
         refuse (untriggeredLimitOk limit) .untriggeredLimit ++
-        refuse (interceptOk ev.name) .interceptable ++ refuse (interceptArmsOk alts) .interceptable
+        refuse (interceptOk ev) .interceptable ++ refuse (interceptArmsOk alts) .interceptable
     | .damageRule _ src scope op use =>
       let bs' := src.intro bs
       let bs'' := scope.intro bs'
@@ -660,7 +660,7 @@ mutual
     | .additionalTriggers ev q =>
       GameEvent.check bs ev ++ Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral ++
-        refuse (triggerCountOk ev.name) .triggerCountOk
+        refuse (triggerCountOk ev) .triggerCountOk
     | .entryRider n rider =>
       NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield

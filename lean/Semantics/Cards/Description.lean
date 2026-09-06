@@ -270,9 +270,12 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.doIf
             (Primitives.Condition.and
               [ Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.castFrom (handOf Primitives.NounPhrase.you)),
-                happenedInvolving .spellCast Primitives.NounPhrase.you .thisGame
-                  (a (Primitives.Predicate.and [ spell, Primitives.Predicate.otherThan Primitives.NounPhrase.this,
-                             Primitives.Predicate.named (Primitives.NameSource.printed "Approach of the Second Sun") ])) ])
+                happened (Primitives.GameEvent.casts (relative .player) (some (a
+                  (Primitives.Predicate.and [ spell, Primitives.Predicate.otherThan
+                  Primitives.NounPhrase.this,
+                             Primitives.Predicate.named (Primitives.NameSource.printed
+                               "Approach of the Second Sun") ]))) none) Primitives.NounPhrase.you
+                               .thisGame ])
             (Primitives.Instruction.conclude .winGame (agent := Primitives.NounPhrase.you))
             (some (Primitives.Instruction.sequence
               [ move Primitives.NounPhrase.this (nthFromTop (.nth 7)), gainLife (.lit 7) (agent := Primitives.NounPhrase.you) ]))) ] } }
@@ -402,7 +405,9 @@ theorem okNongreenSpellsOrAbilities :
 
 /-- Hot Pursuit -/
 def twoOrMorePlayersHaveLost : Condition :=
-  Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo .gameLoss .thisGame])) .atLeast (.lit 2)
+  Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and
+    [Primitives.Predicate.anyPlayer, happenedTo (Primitives.GameEvent.losesGame (relative .player))
+    .thisGame])) .atLeast (.lit 2)
 theorem okTwoOrMorePlayersHaveLost : Condition.check [] twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
@@ -417,7 +422,8 @@ theorem okCreatureSpellFromAmongExiled :
     NounPhrase.check (some .object) [] creatureSpellFromAmongExiled = [] := by decide
 
 def ringHasTemptedYouTwiceThisGame : Condition :=
-  Primitives.Condition.compareAmt (eventCount (.verbedAct (.action "The Ring Tempts You")) Primitives.NounPhrase.you .thisGame)
+  Primitives.Condition.compareAmt (eventCount (Primitives.GameEvent.verbedEvent (some (relative
+    .player)) (.action "The Ring Tempts You") none none none) Primitives.NounPhrase.you .thisGame)
     .atLeast (.lit 2)
 theorem okRingHasTemptedYouTwiceThisGame :
     Condition.check [] ringHasTemptedYouTwiceThisGame = [] := by decide

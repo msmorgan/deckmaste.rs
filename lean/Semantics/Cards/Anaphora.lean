@@ -477,12 +477,14 @@ theorem okExileTopThenPutFromAmong : Instruction.check [] exileTopThenPutFromAmo
 
 /-- Thought Sponge -/
 def greatestCardsAnOpponentDrew : Amount :=
-  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount .cardDrawn they .thisTurn)
+  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount
+    (Primitives.GameEvent.draws (relative .player)) they .thisTurn)
 theorem okGreatestCardsAnOpponentDrew : Amount.check [] greatestCardsAnOpponentDrew = [] := by
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.anyPlayer
-    (eventCountInvolving (.verbedAct (.action "Discard")) they .thisWay everyObject)
+    (eventCount (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "Discard")
+      (some (allOf (Primitives.Predicate.inZone hand))) none none) they .thisWay)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check [] greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -672,8 +674,10 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                 sacrifice (those .permanent) (agent := (those .player)),
                 Primitives.Instruction.doForEach
                   (each (Primitives.Predicate.and [ Primitives.Predicate.anyPlayer,
-                                Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk (.verbedAct (.action "Sacrifice")) .thisWay
-                                  (some (Primitives.EventComplement.involving (a permanent)))) ]))
+                                Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
+                                  (Primitives.GameEvent.verbedEvent (some (relative .player))
+                                  (.action "Sacrifice") (some (a permanent)) none none) .thisWay)
+                                  ]))
                   (Primitives.Instruction.sequence
                     [ Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they)) (agent := they),
                       Primitives.Instruction.doIf (itsACard permanentCard) (move itCard battlefield)

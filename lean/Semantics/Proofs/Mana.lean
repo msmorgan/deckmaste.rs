@@ -435,7 +435,7 @@ def afterALandTapForMana : Bindings :=
   GameEvent.after [] (.tappedForMana (some (a .anyPlayer)) (a land) none)
 
 def afterAPlainLandTap : Bindings :=
-  GameEvent.after [] (.verbedEvent (some (a .anyPlayer)) (.action "Tap") (some (a land)) none)
+  GameEvent.after [] (.verbedEvent (some (a .anyPlayer)) (.action "Tap") (some (a land)) none none)
 
 /-- "one mana of any type that land produced" -/
 theorem okProducedByTapEvent :

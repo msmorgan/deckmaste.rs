@@ -87,7 +87,8 @@ theorem badMoveToStack :
 theorem okLookbackObjectDied :
     Ability.check []
       (.triggered (.enters thisCreature none) [] none [] none none
-        (some (.happened (a creature) (.mk .death .thisTurn none))) (draw (.lit 1) (agent := .you)))
+        (some (.happened (a creature) (.mk (.dies (.asMarker .permanent (.gap .object)))
+          .thisTurn))) (draw (.lit 1) (agent := .you)))
             = [] := by
   decide
 
@@ -95,14 +96,16 @@ theorem okLookbackObjectDied :
 theorem badLookbackPlayerDied :
     Ability.check []
       (.triggered (.enters thisCreature none) [] none [] none none
-        (some (.happened .you (.mk .death .thisTurn none))) (draw (.lit 1) (agent := .you)))
+        (some (.happened .you (.mk (.dies (.asMarker .permanent (.gap .object))) .thisTurn))) (draw
+          (.lit 1) (agent := .you)))
       = [.lookbackSubject] := by
   decide
 
 theorem badLookbackObjectCast :
     Ability.check []
       (.triggered (.enters thisCreature none) [] none [] none none
-        (some (.happened (a creature) (.mk .spellCast .thisTurn none))) (draw (.lit 1) (agent :=
+        (some (.happened (a creature) (.mk (.casts (.gap .player) none none) .thisTurn))) (draw
+          (.lit 1) (agent :=
             .you)))
       = [.lookbackSubject] := by
   decide
@@ -110,27 +113,22 @@ theorem badLookbackObjectCast :
 /-- "target creature that entered this turn" -/
 theorem okHappenedToObjectEntry :
     NounPhrase.check (some .object) []
-      (target (.and [creature, .happenedTo (.mk .entry .thisTurn none)])) = [] := by
+      (target (.and [creature, .happenedTo (.mk (.enters (.gap .object) none) .thisTurn)])) = [] :=
+        by
   decide
 
 /-- "target creature who cast a spell this turn" -/
 theorem badHappenedToObjectCast :
     NounPhrase.check (some .object) []
-      (target (.and [creature, .happenedTo (.mk .spellCast .thisTurn none)]))
+      (target (.and [creature, .happenedTo (.mk (.casts (.gap .player) none none) .thisTurn)]))
       = [.lookbackSubject] := by
   decide
 
 /-- "each opponent who died this turn" -/
 theorem badHappenedToPlayerDied :
     NounPhrase.check (some .player) []
-      (each (.and [.opponent, .happenedTo (.mk .death .thisTurn none)])) = [.lookbackSubject] := by
-  decide
-
-/-- "each opponent who a state matched this turn" -/
-theorem badStateMatchLookback :
-    NounPhrase.check (some .player) []
-      (each (.and [.opponent, .happenedTo (.mk .stateMatch .thisTurn none)]))
-      = [.lookbackSubject] := by
+      (each (.and [.opponent, .happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+        .thisTurn)])) = [.lookbackSubject] := by
   decide
 
 /-- "Choose a creature you control." -/
@@ -211,37 +209,36 @@ theorem badSortedClassOnNumberKeyword :
 /-- "{T}: Draw a card. Activate only if you created a creature this turn." -/
 theorem okTokenCreationLookbackComplement :
     Condition.check []
-      (.happened .you (.mk .tokenCreation .thisTurn (some (.involving (a creature))))) = [] := by
-  decide
-
-/-- "{T}: Draw a card. Activate only if you created this turn." -/
-theorem badBareTokenCreationLookback :
-    Condition.check [] (.happened .you (.mk .tokenCreation .thisTurn none))
-      = [.complementWritten] := by
+      (.happened .you (.mk (.tokensCreated (a (.and [creature, .isToken])) false (some (.gap
+        .player)) none) .thisTurn)) = [] := by
   decide
 
 /-- "creature that was dealt damage by this creature this turn" -/
 theorem okDamageTakenComplement :
     Predicate.check .object []
-      (.happenedTo (.mk .damageTaken .thisTurn (some (.involving thisCreature)))) = [] := by
+      (.happenedTo (.mk (.dealsDamage .any thisCreature (some (.asMarker .permanent (.gap
+        .object)))) .thisTurn)) = [] := by
   decide
 
 /-- "Destroy target creature that attacked with this creature this turn." -/
 theorem badAttackerComplementOnObject :
     Predicate.check .object []
-      (.happenedTo (.mk .attackDeclaration .thisTurn (some (.involving thisCreature))))
-      = [.lookbackComplement] := by
+      (.happenedTo (.mk (.combat .attackerOf (.asMarker .permanent (.gap .object)) (some
+        thisCreature)) .thisTurn))
+      = [.attackable] := by
   decide
 
 /-- "if you've cast a creature spell this turn" -/
 theorem okCastComplementOnObject :
-    Condition.check [] (.happened .you (.mk .spellCast .thisTurn (some (.involving (a creature)))))
+    Condition.check [] (.happened .you (.mk (.casts (.gap .player) (some (a (.and [creature,
+      spell]))) none) .thisTurn))
       = [] := by
   decide
 
 theorem badPlayerCastComplement :
-    Condition.check [] (.happened .you (.mk .spellCast .thisTurn (some (.involving anOpponent))))
-      = [.lookbackComplement] := by
+    Condition.check [] (.happened .you (.mk (.casts (.gap .player) (some anOpponent) none)
+      .thisTurn))
+      = [.kindMismatch .object .player, .zoneIs .stack] := by
   decide
 
 /-- "target spell cast from your graveyard" -/
@@ -255,115 +252,79 @@ theorem badCastFromStack :
 /-- "… that was put somewhere from the battlefield this turn." -/
 theorem okPlacementOriginBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk .placement .thisTurn (some (.fromZones (.zones [battlefield]) none))))
+      (.happenedTo (.mk (.leaves (.gap .object) (some (.zones [battlefield]))) .thisTurn))
       = [] := by
-  decide
-
-/-- "… that died from the battlefield this turn." -/
-theorem badDeathOriginZone :
-    Predicate.check .object []
-      (.happenedTo (.mk .death .thisTurn (some (.fromZones (.zones [battlefield]) none))))
-      = [.lookbackSource] := by
   decide
 
 /-- "if you've cast a spell from your hand this turn" -/
 theorem okCastOriginFromHand :
     Condition.check []
-      (.happened .you (.mk .spellCast .thisTurn (some (.fromZones (.zones [hand]) none))))
+      (.happened .you (.mk (.casts (.gap .player) none (some (.zones [hand]))) .thisTurn))
         = [] := by
   decide
 
 /-- "if you've cast a spell from the stack this turn" -/
 theorem badCastOriginFromStack :
     Condition.check []
-      (.happened .you (.mk .spellCast .thisTurn (some (.fromZones (.zones [stack]) none))))
-      = [.lookbackSource] := by
+      (.happened .you (.mk (.casts (.gap .player) none (some (.zones [stack]))) .thisTurn))
+      = [.playableFrom] := by
   decide
 
 /-- "if you've cast a spell from this turn" -/
 theorem badEmptyOriginCoordination :
     Condition.check []
-      (.happened .you (.mk .spellCast .thisTurn (some (.fromZones (.zones []) none))))
-      = [.lookbackSource] := by
+      (.happened .you (.mk (.casts (.gap .player) none (some (.zones []))) .thisTurn))
+      = [.playableFrom] := by
   decide
 
 /-- "if you've cast a creature spell from your hand this turn" -/
 theorem okOriginPayloadInvolving :
     Condition.check []
       (.happened .you
-        (.mk .spellCast .thisTurn
-          (some (.fromZones (.zones [hand]) (some (.involving (a creature))))))) = [] := by
-  decide
-
-/-- "if you've cast a spell from your hand from the command zone this turn" -/
-theorem badNestedOriginPayload :
-    Condition.check []
-      (.happened .you
-        (.mk .spellCast .thisTurn
-          (some (.fromZones (.zones [hand]) (some (.fromZones (.zones [command]) none))))))
-      = [.complementPlain] := by
+        (.mk (.casts (.gap .player) (some (a (.and [creature, spell]))) (some (.zones [hand])))
+          .thisTurn)) = [] := by
   decide
 
 /-- "if you've cast a spell from anywhere other than this turn" -/
 theorem badEmptyOriginExclusion :
     Condition.check []
-      (.happened .you (.mk .spellCast .thisTurn (some (.fromZones (.anywhereBut []) none))))
-      = [.lookbackSource] := by
+      (.happened .you (.mk (.casts (.gap .player) none (some (.anywhereBut []))) .thisTurn))
+      = [.playableFrom] := by
   decide
 
 /-- "… that died this turn." -/
 theorem okDeathLookbackWithoutOrigin :
-    Predicate.check .object [] (.happenedTo (.mk .death .thisTurn none)) = [] := by decide
-
-/-- "… that died from anywhere this turn." -/
-theorem badDeathOriginAnywhere :
-    Predicate.check .object []
-      (.happenedTo (.mk .death .thisTurn (some (.fromZones .anywhere none))))
-        = [.lookbackSource] := by
-  decide
+    Predicate.check .object [] (.happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+      .thisTurn)) = [] := by decide
 
 /-- "… that was put into a graveyard from the battlefield this turn." -/
 theorem okPlacementIntoGraveyard :
     Predicate.check .object []
       (.happenedTo
-        (.mk .placement .thisTurn
-          (some (.intoZone graveyard (some (.fromZones (.zones [battlefield]) none)))))) = [] := by
+        (.mk (.putInto (.gap .object) graveyard (some (.zones [battlefield]))) .thisTurn)) = [] :=
+          by
   decide
 
 /-- "… that was put into the battlefield this turn." -/
 theorem badPlacementIntoBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk .placement .thisTurn (some (.intoZone battlefield none))))
+      (.happenedTo (.mk (.putInto (.gap .object) battlefield none) .thisTurn))
       = [.lookbackDest] := by
-  decide
-
-/-- "… that was put into your graveyard into exile this turn." -/
-theorem badNestedDestination :
-    Predicate.check .object []
-      (.happenedTo
-        (.mk .placement .thisTurn
-          (some (.intoZone (graveyardOf .you) (some (.intoZone exileZone none))))))
-      = [.complementSourced] := by
   decide
 
 /-- "if you shuffled your library this way" -/
 theorem okShuffleLocusAtLibrary :
     Condition.check []
       (.happened .you
-        (.mk (.verbedAct (.action "Shuffle")) .thisWay (some (.atZone yourLibrary))))
+        (.mk (.verbedEvent (some (.gap .player)) (.action "Shuffle") none none (some yourLibrary))
+          .thisWay))
       = [] := by
-  decide
-
-/-- "if a creature died in your graveyard this way" -/
-theorem badLocusOnDeath :
-    Condition.check []
-      (.happened (a creature) (.mk .death .thisWay (some (.atZone (graveyardOf .you)))))
-      = [.lookbackLocus] := by
   decide
 
 /-- "if you searched this way, shuffle" -/
 theorem badBareSearchLookback :
-    Condition.check [] (.happened .you (.mk (.verbedAct (.action "Search")) .thisWay none))
+    Condition.check [] (.happened .you (.mk (.verbedEvent (some (.gap .player)) (.action "Search")
+      none none none) .thisWay))
       = [.complementWritten] := by
   decide
 
@@ -371,7 +332,8 @@ theorem badBareSearchLookback :
 theorem badShuffleLocusAtGraveyard :
     Condition.check []
       (.happened .you
-        (.mk (.verbedAct (.action "Shuffle")) .thisWay (some (.atZone (graveyardOf .you)))))
+        (.mk (.verbedEvent (some (.gap .player)) (.action "Shuffle") none none (some (graveyardOf
+          .you))) .thisWay))
       = [.lookbackLocus] := by
   decide
 
@@ -393,12 +355,13 @@ theorem badResolvedOnBattlefield :
 
 /-- "if it entered this turn" -/
 theorem okEntryLookbackWithoutOrigin :
-    Predicate.check .object [] (.happenedTo (.mk .entry .thisTurn none)) = [] := by decide
+    Predicate.check .object [] (.happenedTo (.mk (.enters (.gap .object) none) .thisTurn)) = [] :=
+      by decide
 
 /-- "if it entered from the battlefield" -/
 theorem badEntryOriginBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk .entry .thisTurn (some (.fromZones (.zones [battlefield]) none))))
+      (.happenedTo (.mk (.enters (.gap .object) (some (.zones [battlefield]))) .thisTurn))
       = [.lookbackSource] := by
   decide
 
@@ -437,14 +400,8 @@ theorem badLoopElementRead :
 theorem okActivationLookbackComplement :
     Condition.check []
       (.happened .you
-        (.mk .abilityActivation .thisTurn (some (.involving (a (.abilityHead .anyActivated))))))
+        (.mk (.activates (.gap .player) (a (.abilityHead .anyActivated))) .thisTurn))
       = [] := by
-  decide
-
-/-- "if you activated a loyalty ability this turn" -/
-theorem badBareActivationLookback :
-    Condition.check [] (.happened .you (.mk .abilityActivation .thisTurn none))
-      = [.complementWritten] := by
   decide
 
 /-- "on top of your library in any order, third from the top" -/
@@ -587,36 +544,44 @@ theorem badDealtThisWayAbility :
 
 /-- "the number of creatures that died this turn" -/
 theorem okDeathTally :
-    Amount.check [] (.eventTally .count (a creature) (.mk .death .thisTurn none)) = [] := by decide
+    Amount.check [] (.eventTally .count (a creature) (.mk (.dies (.asMarker .permanent (.gap
+      .object))) .thisTurn)) = [] := by decide
 
 /-- "the amount of creatures that died this turn" -/
 theorem badDeathSum :
-    Amount.check [] (.eventTally .sum (a creature) (.mk .death .thisTurn none)) = [.tallyOk] := by
+    Amount.check [] (.eventTally .sum (a creature) (.mk (.dies (.asMarker .permanent (.gap
+      .object))) .thisTurn)) = [.tallyOk] := by
   decide
 
 /-- "creature that died this turn" -/
 theorem okObjectDeathLookbackSubject :
-    Predicate.check .object [] (.happenedTo (.mk .death .thisTurn none)) = [] := by decide
+    Predicate.check .object [] (.happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+      .thisTurn)) = [] := by decide
 
 /-- "creature that won a coin flip this turn" -/
 theorem badCreatureWonFlip :
-    Predicate.check .object [] (.happenedTo (.mk .flipWin .thisTurn none))
+    Predicate.check .object [] (.happenedTo (.mk (.flipsCoin (.gap .player) (some .wins))
+      .thisTurn))
       = [.lookbackSubject] := by
   decide
 
 /-- "the number of dice you rolled this turn" -/
 theorem okRollTally :
-    Amount.check [] (.eventTally .count .you (.mk .diceRoll .thisTurn none)) = [] := by decide
+    Amount.check [] (.eventTally .count .you (.mk (.rollsDice (.gap .player) .one none .anyResult)
+      .thisTurn)) = [] := by decide
 
 /-- "the amount of dice you rolled this turn" -/
 theorem badRollAsMagnitude :
-    Amount.check [] (.eventTally .sum .you (.mk .diceRoll .thisTurn none)) = [.tallyOk] := by decide
+    Amount.check [] (.eventTally .sum .you (.mk (.rollsDice (.gap .player) .one none .anyResult)
+      .thisTurn)) = [.tallyOk] := by decide
 
 theorem youWonAFlipThisTurn :
-    Condition.check [] (.happened .you (.mk .flipWin .thisTurn none)) = [] := by decide
+    Condition.check [] (.happened .you (.mk (.flipsCoin (.gap .player) (some .wins)) .thisTurn)) =
+      [] := by decide
 
 theorem youRolledADieThisTurn :
-    Condition.check [] (.happened .you (.mk .diceRoll .thisTurn none)) = [] := by decide
+    Condition.check [] (.happened .you (.mk (.rollsDice (.gap .player) .one none .anyResult)
+      .thisTurn)) = [] := by decide
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
@@ -687,12 +652,7 @@ theorem badPayCostlessKeyword :
 
 /-- "if you paid life this turn" -/
 theorem youPaidLifeThisTurn :
-    Condition.check [] (.happened .you (.mk .lifePayment .thisTurn none)) = [] := by decide
-
-/-- "if you paid a cost this turn" -/
-theorem badBarePaymentLookback :
-    Condition.check [] (.happened .you (.mk .costPayment .thisTurn none)) = [.lookbackSubject] := by
-  decide
+    Condition.check [] (.happened .you (.mk (.paysLife (.gap .player)) .thisTurn)) = [] := by decide
 
 def afterAnUpToChoice : Bindings := Instruction.intro [] (choose (counted (upTo 1) creature))
 
@@ -734,22 +694,23 @@ theorem badReadsShuffledLibraryCard :
 
 /-- "Whenever you scry, …" -/
 theorem okPatientlessScry :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") none none) = [] := by decide
+    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") none none none) = [] := by decide
 
 /-- "Whenever you scry a card, …" -/
 theorem badScryPatient :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") (some (a (.inZone library))) none)
+    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") (some (a (.inZone library))) none
+      none)
       = [.verbPatientOk] := by
   decide
 
 /-- "Whenever discards a card, …" -/
 theorem badVoicelessAct :
-    GameEvent.check [] (.verbedEvent none (.action "Scry") none none) = [.verbedVoiceOk] := by
+    GameEvent.check [] (.verbedEvent none (.action "Scry") none none none) = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever a card is put, …" -/
 theorem badPassiveWithoutParticiple :
-    GameEvent.check [] (.verbedEvent none (.core .put) (some (a .isCard)) none)
+    GameEvent.check [] (.verbedEvent none (.core .put) (some (a .isCard)) none none)
       = [.verbedVoiceOk] := by
   decide
 
@@ -757,47 +718,51 @@ theorem badPassiveWithoutParticiple :
 theorem okIntransitiveBecomes :
     GameEvent.check []
       (.verbedEvent none (.action "Transform") (some (a creature))
-        (some (.hasSubtype (creatureType "Phyrexian")))) = [] := by
+        (some (.hasSubtype (creatureType "Phyrexian"))) none) = [] := by
   decide
 
 /-- "Whenever a card is milled into a Phyrexian, …" -/
 theorem badBecomesWithoutIntransitive :
     GameEvent.check []
       (.verbedEvent none (.action "Mill") (some (a (.inZone library)))
-        (some (.hasSubtype (creatureType "Phyrexian")))) = [.verbBecomesOk] := by
+        (some (.hasSubtype (creatureType "Phyrexian"))) none) = [.verbBecomesOk] := by
   decide
 
 /-- "Whenever you discard a card, …" -/
 theorem okDiscardFromHand :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone hand))) none)
+    GameEvent.check [] (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone hand))) none
+      none)
       = [] := by
   decide
 
 /-- "Whenever a card in a graveyard is destroyed, …" -/
 theorem badDestroyInGraveyard :
-    GameEvent.check [] (.verbedEvent none (.action "Destroy") (some (a (.inZone graveyard))) none)
+    GameEvent.check [] (.verbedEvent none (.action "Destroy") (some (a (.inZone graveyard))) none
+      none)
       = [.zoneFits] := by
   decide
 
 /-- "Whenever you discard a permanent you control, …" -/
 theorem badDiscardFromBattlefield :
     GameEvent.check []
-      (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone battlefield))) none)
+      (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone battlefield))) none none)
       = [.zoneFits] := by
   decide
 
 /-- "if you drew a card this turn" -/
 theorem okPlayerDrawLookback :
-    Condition.check [] (.happened .you (.mk .cardDrawn .thisTurn none)) = [] := by decide
+    Condition.check [] (.happened .you (.mk (.draws (.gap .player)) .thisTurn)) = [] := by decide
 
 /-- "if you dealt damage to an opponent this turn" -/
 theorem badPlayerDamageDealer :
-    Condition.check [] (.happened .you (.mk .damageDealing .thisTurn none))
+    Condition.check [] (.happened .you (.mk (.dealsDamage .any (.gap .object) none) .thisTurn))
       = [.lookbackSubject] := by
   decide
 
 theorem joinedDealerDamageComplement :
-    lookbackComplementOk .damageDealing .object (.join .object .player) = true := by decide
+    LookbackClause.check .object []
+      (.mk (.dealsDamage .any (.gap .object) (some (a (.or [creature, .anyPlayer])))) .thisTurn)
+      = [] := by decide
 
 theorem lastChosenPlayerRead :
     Predicate.check .player [ChoiceSort.binding .player, ChoiceSort.binding .player]

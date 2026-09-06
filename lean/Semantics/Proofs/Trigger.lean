@@ -14,13 +14,14 @@ namespace Semantics.Proofs.Trigger
 
 /-- "Whenever you cast a spell, draw a card." -/
 theorem okCastsSingularComplement :
-    Ability.check [] (whenever (.casts .you (a spell) none) (draw (.lit 1) (agent := .you)))
+    Ability.check [] (whenever (.casts .you (some (a spell)) none) (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check [] (whenever (.casts .you (allOf spell) none) (draw (.lit 1) (agent := .you)))
+    Ability.check [] (whenever (.casts .you (some (allOf spell)) none) (draw (.lit 1) (agent :=
+      .you)))
       = [.singular] := by
   decide
 
@@ -28,7 +29,7 @@ theorem badCastsPluralComplement :
 theorem okWhileDoingCast :
     Ability.check []
       (.triggered (attacks thisCreature) []
-        (some (.whileDoing (.casts .you (a spell) none))) [] none none none
+        (some (.whileDoing (.casts .you (some (a spell)) none))) [] none none none
         (draw (.lit 1) (agent := .you))) = [] := by
   decide
 

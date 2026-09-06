@@ -664,14 +664,17 @@ theorem okTheLadyOfOtariaLine : StaticSpec.check [] theLadyOfOtariaLine = [] := 
 
 /-- Clergy of the Holy Nimbus -/
 def clergyOfTheHolyNimbus : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.verbedEvent none (.action "Destroy") (some thisCreature) none) [] none
+  Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.verbedEvent
+    none (.action "Destroy") (some thisCreature) none none) [] none
     (Primitives.Instruction.regenerate it) .repeatedly none)
 theorem okClergyOfTheHolyNimbus : Ability.check [] clergyOfTheHolyNimbus = [] := by decide
 /-- Rampant Frogantua -/
 def rampantFrogantuaPump : Ability :=
   Primitives.Ability.static (getsPt thisCreature
-    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo .gameLoss .thisGame])))
-    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo .gameLoss .thisGame]))))
+    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
+      happenedTo (Primitives.GameEvent.losesGame (relative .player)) .thisGame])))
+    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
+      happenedTo (Primitives.GameEvent.losesGame (relative .player)) .thisGame]))))
 theorem okRampantFrogantuaPump : Ability.check [] rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
 def maskwoodNexusTypes : Ability :=

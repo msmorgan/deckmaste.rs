@@ -750,14 +750,16 @@ theorem badDestroySource : Instruction.check [] (destroy (target source)) = [.zo
 /-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
 theorem okCombatDamageComplement :
     Predicate.check .object []
-      (.happenedTo (.mk .combatDamage .thisTurn (some (.involving thisCreature)))) = [] := by
+      (.happenedTo (.mk (.dealsDamage .combatOnly thisCreature (some (.asMarker .permanent (.gap
+        .object)))) .thisTurn)) = [] := by
   decide
 
 /-- "creature that was dealt combat damage by a color this turn" -/
 theorem badCombatDamageComplement :
     Predicate.check .object []
-      (.happenedTo (.mk .combatDamage .thisTurn (some (.involving (a (quality .color))))))
-      = [.lookbackComplement] := by
+      (.happenedTo (.mk (.dealsDamage .combatOnly (a (quality .color)) (some (.asMarker .permanent
+        (.gap .object)))) .thisTurn))
+      = [.kindMismatch .object (.quality .color)] := by
   decide
 
 /-- "Target creature gets +1/+1 until end of turn." -/

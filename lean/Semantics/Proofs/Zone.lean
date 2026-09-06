@@ -874,13 +874,8 @@ theorem badUnflipInstruction :
 
 /-- "… if a creature died this turn, …" -/
 theorem okDeathLookback :
-    Condition.check [] (.happened (a creature) (.mk .death .thisTurn none)) = [] := by decide
-
-/-- "… if a creature was put this turn, …" -/
-theorem badPlacementLookback :
-    Condition.check [] (.happened (a creature) (.mk .placement .thisTurn none))
-      = [.complementWritten] := by
-  decide
+    Condition.check [] (.happened (a creature) (.mk (.dies (.asMarker .permanent (.gap .object)))
+      .thisTurn)) = [] := by decide
 
 /-- "Counter target activated ability." -/
 theorem okCounterAbility :

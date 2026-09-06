@@ -1,4 +1,5 @@
 import Semantics.Check.Words
+import Semantics.Phrase
 
 /-!
 # Semantics.Check.Events
@@ -8,133 +9,52 @@ The event facts table and the lookback, deed, and play-window rules of `Events.i
 
 namespace Semantics
 
-def counterEventName : CounterMove → CounterBatch → EventName
-  | .put, _ => .counterPlacement
-  | .removed, .emptying => .lastCounterRemoval
-  | .removed, _ => .counterRemoval
-
 /-- Only a removal empties a named kind, so only it has a last counter. -/
 def counterBatchOk : CounterBatch → CounterMove → Option CounterKind → Bool
   | .emptying, .removed, kind => kind.isSome
   | .emptying, _, _ => false
   | _, _, _ => true
 
-def FlipCall.eventName : FlipCall → EventName
-  | .wins => .flipWin
-  | .loses => .flipLoss
-
-def PaymentOutcome.eventName : PaymentOutcome → EventName
-  | .paid => .costPayment
-  | .unpaid => .costNonpayment
-
-def LifeMove.eventName : LifeMove → EventName
-  | .up => .lifeGain
-  | .down => .lifeLoss
-
 def LifeMove.outcome : LifeMove → OutcomeSort
   | .up => .lifeGained
   | .down => .lifeLost
 
 structure EventFacts where
-  subjectKinds : List Kind
-  complementKinds : List (Kind × Kind)
-  bareRefused : List Kind
-  hasMagnitude : Bool
-  interceptable : Bool
-  countable : Bool
-  boundsDuration : Bool
-  underway : Bool
+  hasMagnitude : Bool := false
+  interceptable : Bool := true
+  countable : Bool := false
+  boundsDuration : Bool := true
+  underway : Bool := false
   deriving Repr, BEq
 
-def EventName.facts : EventName → EventFacts
-  | .death => ⟨[.object], [], [], false, true, false, true, false⟩
-  | .departure => ⟨[.object], [], [], false, true, false, true, false⟩
-  | .damageTaken =>
-    ⟨[.object, .player], [(.object, .object), (.player, .object)], [], true, true, false, true, false⟩
-  | .cardDrawn => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .entry => ⟨[.object], [], [], false, true, false, true, false⟩
-  | .attackDeclaration =>
-    ⟨[.object, .player], [(.player, .object), (.player, .player), (.object, .player)], [],
-     false, true, false, true, false⟩
-  | .blockDeclaration => ⟨[.object], [(.object, .object)], [], false, true, false, true, false⟩
-  | .combatDamage =>
-    ⟨[.object], [(.object, .object), (.object, .player)], [], true, true, false, true, false⟩
-  | .partBeginning => ⟨[.object, .player], [], [], false, true, false, false, false⟩
-  | .spellCast => ⟨[.player], [(.player, .object)], [], false, true, false, true, true⟩
-  | .statusChange => ⟨[], [], [], false, true, false, true, false⟩
-  | .turnedFaceUp => ⟨[], [], [], false, true, false, true, false⟩
-  | .phasingChange => ⟨[], [], [], false, true, false, true, false⟩
-  | .blockedDeclaration => ⟨[.object], [(.object, .object)], [], false, true, false, true, false⟩
-  | .attachment => ⟨[.object], [], [], false, true, false, true, false⟩
-  | .unattachment => ⟨[.object], [], [], false, true, false, true, false⟩
-  | .lastCounterRemoval => ⟨[], [], [], false, true, false, true, false⟩
-  | .lifeGain => ⟨[.player], [], [], true, true, false, true, false⟩
-  | .lifeLoss => ⟨[.player], [], [], true, true, false, true, false⟩
-  | .gameDesignation => ⟨[], [], [], false, true, false, true, false⟩
-  | .placement => ⟨[.object], [], [.object], false, true, false, true, false⟩
-  | .counterPlacement => ⟨[], [], [], false, true, false, true, false⟩
-  | .counterRemoval => ⟨[], [], [], false, true, false, true, false⟩
-  | .gameLoss => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .tokenCreation => ⟨[.player], [(.player, .object)], [.player], false, true, false, true, false⟩
-  | .chapterArrival => ⟨[], [], [], false, false, false, true, false⟩
-  | .abilityActivation =>
-    ⟨[.player], [(.player, .object)], [.player], false, true, false, true, true⟩
-  | .statValueChange => ⟨[], [], [], false, true, false, true, false⟩
-  | .flipWin => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .flipLoss => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .coinFlip => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .diceRoll => ⟨[.player], [], [], false, true, false, true, false⟩
-  | .costPayment => ⟨[], [], [], false, true, false, true, false⟩
-  | .costNonpayment => ⟨[], [], [], false, true, false, true, false⟩
-  | .lifePayment => ⟨[.player], [], [], true, true, false, true, false⟩
-  | .becomesTarget =>
-    ⟨[.object, .player], [(.object, .object), (.player, .object)], [], false, true, false, true, false⟩
-  | .damageDealing =>
-    ⟨[.object], [(.object, .object), (.object, .player)], [], true, true, false, true, false⟩
-  | .verbedAct v =>
-    ⟨.player :: (if (actPatientKindsOf v).elem .object then [.object] else []),
-     (actPatientKindsOf v).map (fun k => (.player, k)),
-     (if actNamesPatient v || actNamesLocus v then [.player] else []),
-     false, true, false, true, actStepwiseOf v⟩
-  | .stateMatch => ⟨[], [], [], false, true, false, true, false⟩
-  | .abilityTrigger => ⟨[.object], [], [], false, false, true, true, false⟩
-  | .crimeCommission => ⟨[.player], [], [], false, true, false, true, false⟩
-  /- a mana ability with {T} in its cost resolving and producing mana [CR#106.12a] -/
-  | .tappedForMana =>
-    ⟨[.player, .object], [(.player, .object)], [.player], false, true, false, true, false⟩
+/-- Event properties used by magnitudes, replacements, counts, durations, and concurrency.
+Participant and payload obligations are checked directly on the event's fields. -/
+def GameEvent.facts : GameEvent → EventFacts
+  | .isDealtDamage _ _ | .dealsDamage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
+    { hasMagnitude := true }
+  | .beginningOf _ _ _ => { boundsDuration := false }
+  | .casts _ _ _ | .activates _ _ => { underway := true }
+  | .chapterMark _ => { interceptable := false }
+  | .triggers _ => { interceptable := false, countable := true }
+  | .verbedEvent _ v _ _ _ => { underway := actStepwiseOf v }
+  | .unlocksDoor _ _ => { underway := actStepwiseOf (.core .unlock) }
+  | .nthOccurrence _ _ ev | .causes _ ev => ev.facts
+  | .dies _ | .leaves _ _ | .draws _ | .losesGame _ | .enters _ _ | .combat _ _ _
+  | .attacksWith _ _ _ | .attachment _ _ _ | .becomesTarget _ _ | .statusEvent _ _
+  | .gameBecomes _ | .stateHolds _ | .putInto _ _ _ | .counterEvent _ _ _ _ _ _
+  | .tokensCreated _ _ _ _ | .statBecomes _ _ _ | .flipsCoin _ _ | .rollsDice _ _ _ _
+  | .paysCost _ _ _ _ | .tappedForMana _ _ _ | .commitsCrime _ => {}
+termination_by structural ev => ev
 
-def kindIn : Kind → List Kind → Bool
-  | .join a b, ks => kindIn a ks && kindIn b ks
-  | k, ks => ks.elem k
+def interceptOk (ev : GameEvent) : Bool := ev.facts.interceptable
+def triggerCountOk (ev : GameEvent) : Bool := ev.facts.countable
+def durationEventOk (ev : GameEvent) : Bool := ev.facts.boundsDuration
+def eventUnderwayOk (ev : GameEvent) : Bool := ev.facts.underway
+def eventHasMagnitude (ev : GameEvent) : Bool := ev.facts.hasMagnitude
 
-def kindAny : Kind → List Kind → Bool
-  | .join a b, ks => kindAny a ks || kindAny b ks
-  | k, ks => ks.elem k
-
-/-- The Idris splits the subject join first, then the complement join; two structural
-recursions. -/
-def kindPairInC (ks : Kind) : Kind → List (Kind × Kind) → Bool
-  | .join a b, ps => kindPairInC ks a ps && kindPairInC ks b ps
-  | kc, ps => ps.elem (ks, kc)
-
-def kindPairIn : Kind → Kind → List (Kind × Kind) → Bool
-  | .join a b, kc, ps => kindPairIn a kc ps && kindPairIn b kc ps
-  | ks, kc, ps => kindPairInC ks kc ps
-
-def interceptOk (ev : EventName) : Bool := ev.facts.interceptable
-def triggerCountOk (ev : EventName) : Bool := ev.facts.countable
-def durationEventOk (ev : EventName) : Bool := ev.facts.boundsDuration
-def eventUnderwayOk (ev : EventName) : Bool := ev.facts.underway
-def eventHasMagnitude (ev : EventName) : Bool := ev.facts.hasMagnitude
-
-def tallyOk : TallyOp → EventName → Bool
+def tallyOk : TallyOp → GameEvent → Bool
   | .count, _ => true
   | .sum, ev => eventHasMagnitude ev
-
-def lookbackSubjectOk (ev : EventName) (k : Kind) : Bool := kindIn k ev.facts.subjectKinds
-def lookbackComplementOk (ev : EventName) (ks kc : Kind) : Bool :=
-  kindPairIn ks kc ev.facts.complementKinds
-def bareLookbackOk (ev : EventName) (k : Kind) : Bool := !kindAny k ev.facts.bareRefused
 
 def Role.counter : Role → Role
   | .agent => .patient
@@ -224,23 +144,6 @@ def Zone.placementOriginOk : Zone → Bool
 def Zone.entryOriginOk : Zone → Bool
   | .battlefield => false
   | _ => true
-
-def lookbackOriginOk : EventName → Zone → Bool
-  | .spellCast, z => playableFrom (some z)
-  | .placement, z => z.placementOriginOk
-  | .entry, z => z.entryOriginOk
-  | _, _ => false
-
-def eventNamesOrigin (ev : EventName) : Bool :=
-  [Zone.battlefield, .graveyard, .library, .hand, .exile, .command, .stack].any (lookbackOriginOk ev)
-
-def lookbackDestOk : EventName → Zone → Bool
-  | .placement, z => z.placementDestOk
-  | _, _ => false
-
-def lookbackLocusOk : EventName → Zone → Bool
-  | .verbedAct v, z => (actLociOf v).elem z
-  | _, _ => false
 
 /-- Idris `Possessable z`: the zones a player owns. -/
 def Zone.possessable : Zone → Bool

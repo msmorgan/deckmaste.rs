@@ -353,9 +353,9 @@ def DeckCondition.check : DeckCondition → List Refusal
 
 /-! ## Keywords and regimes -/
 
-def bodyEventRegime (ev : GameEvent) : Option StackRegime :=
-  match ev.name with
-  | .spellCast => some .atCasting
+def bodyEventRegime : GameEvent → Option StackRegime
+  | .casts _ _ _ => some .atCasting
+  | .nthOccurrence _ _ ev | .causes _ ev => bodyEventRegime ev
   | _ => none
 
 def allTermsBare (ks : List KeywordTerm) : Bool := ks.all KeywordTerm.bare

@@ -480,7 +480,8 @@ def silverquillSilencer : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not land))),
-          whenever (Primitives.GameEvent.casts anOpponent (a (Primitives.Predicate.and [spell, Primitives.Predicate.named Primitives.NameSource.chosen])) none)
+          whenever (Primitives.GameEvent.casts anOpponent (some (a (Primitives.Predicate.and [spell,
+            Primitives.Predicate.named Primitives.NameSource.chosen]))) none)
             (Primitives.Instruction.sequence [loseLife (.lit 3) (agent := they), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -846,7 +847,7 @@ def rhysticStudy : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rhystic Study", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (Primitives.GameEvent.casts anOpponent (a spell) none)
+        [ whenever (Primitives.GameEvent.casts anOpponent (some (a spell)) none)
             (doUnless (offer (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) (Primitives.Cost.mana [generic 1])
                 (agent := (that .player))) ] } }
 
@@ -857,7 +858,7 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Avatar", creatureType "Wizard"],
       text :=
         [ keyword "Vigilance",
-          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a spell) none)
+          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a spell)) none)
             (Primitives.Instruction.sequence
               [ get (each creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
                 scry (.lit 1) (agent := Primitives.NounPhrase.you) ]),
@@ -1200,7 +1201,9 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
                 (Primitives.Instruction.sequence
                   [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Vraska, Scheming Gorgon")),
                     revealCards it, move it hand ]) (agent := Primitives.NounPhrase.you),
-              Primitives.Instruction.doIf (happenedAt (.verbedAct (.action "Search")) Primitives.NounPhrase.you .thisWay yourLibrary) shuffle
+              Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
+                (relative .player)) (.action "Search") none none (some yourLibrary))
+                Primitives.NounPhrase.you .thisWay) shuffle
                 none ]) ] } }
 
 /-- Old-Growth Dryads -/

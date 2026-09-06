@@ -90,6 +90,7 @@ def Predicate.inKind (p : Predicate) (k : Kind) : Bool :=
   | none => true
 
 def NounPhrase.kind? : NounPhrase → Option Kind
+  | .gap k => some k
   | .you | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
   | .described _ p => p.kind?
   | .eachOf g => g.kind?
@@ -228,34 +229,15 @@ def sourceZone : Option EventSource → Option Zone
   | some (.zones [z]) => some z.sort
   | _ => none
 
-def lookbackZonesOk (ev : EventName) : List ZoneExpr → Bool
-  | [] => false
-  | zs => zs.all fun z => lookbackOriginOk ev z.sort
+def EventSource.zonesOk (ok : Zone → Bool) : EventSource → Bool
+  | .anywhere => true
+  | .zones zs | .anywhereBut zs => !zs.isEmpty && zs.all (fun z => ok z.sort)
 
-def lookbackSourceOk (ev : EventName) : EventSource → Bool
-  | .anywhere => eventNamesOrigin ev
-  | .zones zs => lookbackZonesOk ev zs
-  | .anywhereBut zs => lookbackZonesOk ev zs
-
-def complementPlain : Option EventComplement → Bool
-  | none => true
-  | some (.involving _) => true
-  | some _ => false
-
-def complementSourced : Option EventComplement → Bool
-  | none => true
-  | some (.involving _) => true
-  | some (.fromZones _ _) => true
-  | some _ => false
-
-def LookbackClause.event : LookbackClause → EventName
-  | .mk ev _ _ => ev
+def LookbackClause.event : LookbackClause → GameEvent
+  | .mk ev _ => ev
 
 def LookbackClause.window : LookbackClause → Lookback
-  | .mk _ w _ => w
-
-def LookbackClause.complement : LookbackClause → Option EventComplement
-  | .mk _ _ what => what
+  | .mk _ w => w
 
 /-! ## What a predicate seeds -/
 
@@ -922,7 +904,8 @@ def NounPhrase.countedMention : NounPhrase → Bool
   | n => n.det == some .count || n.det == some .target
 
 def NounPhrase.ascribable : NounPhrase → Bool
-  | .this => true
+  | .gap _ => true
+  | .this | .designated _ _ => true
   | _ => false
 
 def NounPhrase.isYou : NounPhrase → Bool
@@ -996,6 +979,7 @@ def NounPhrase.remarkTest : NounPhrase → Option (Binding → Bool)
 /-! ## Number -/
 
 def NounPhrase.plur : NounPhrase → Plurality
+  | .gap _ => .one
   | .this | .theGrantor _ | .combatPlayer _ | .you | .attachHost _ _ | .designated _ _ => .one
   | .asType _ n _ => n.plur
   | .resolvedPermanent n => n.plur
@@ -1063,6 +1047,7 @@ def sliceTyOf : Option Predicate → List CardType → List CardType
 
 mutual
   def NounPhrase.introduced (bs : Bindings) : NounPhrase → List Binding
+    | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
     | .theRest _ _ | .pro _ _ _ | .attachHost _ _ | .designated _ _ => []
     | .asType _ n _ => NounPhrase.introduced bs n
@@ -1107,7 +1092,7 @@ mutual
     | .inCombat _ none => []
     | .inCombat _ (some m) => NounPhrase.introduced bs m
     | .counterKindOn n => NounPhrase.introduced bs n
-    | .happenedTo (.mk _ _ what) => OptComplement.introduced bs what
+    | .happenedTo (.mk ev _) => GameEvent.mentioned bs ev
     | .castFrom z => ZoneExpr.introduced bs z
     | .named src => NameSource.introduced bs src
     | .hasDesignation _ none => []
@@ -1172,20 +1157,95 @@ mutual
     | .anywhereBut zs => ZoneExpr.introducedAll bs zs
   termination_by structural x => x
 
-  def OptComplement.introduced (bs : Bindings) : Option EventComplement → List Binding
+  def OptNoun.introduced (bs : Bindings) : Option NounPhrase → List Binding
     | none => []
-    | some (.involving what) => NounPhrase.introduced bs what
-    | some (.fromZones src what) => EventSource.introduced bs src ++ OptComplement.introduced bs what
-    | some (.intoZone to what) => ZoneExpr.introduced bs to ++ OptComplement.introduced bs what
-    | some (.atZone z) => ZoneExpr.introduced bs z
-  termination_by structural x => x
+    | some n => NounPhrase.introduced bs n
+  termination_by structural n => n
+
+  def OptEventSource.introduced (bs : Bindings) : Option EventSource → List Binding
+    | none => []
+    | some src => EventSource.introduced bs src
+  termination_by structural src => src
+
+  def OptZoneExpr.introduced (bs : Bindings) : Option ZoneExpr → List Binding
+    | none => []
+    | some z => ZoneExpr.introduced bs z
+  termination_by structural z => z
+
+  /-- Nouns mentioned in a historical event pattern. Observing history does not move the
+  current bindings or introduce a new event outcome. The bound gap introduces nothing. -/
+  def GameEvent.mentioned (bs : Bindings) : GameEvent → List Binding
+    | .dies n | .isDealtDamage _ n | .draws n | .losesGame n | .statusEvent n _
+    | .flipsCoin n _ | .paysLife n | .lifeChanges n _ | .triggers n | .commitsCrime n =>
+      NounPhrase.introduced bs n
+    | .leaves n src | .enters n src =>
+      let ns := NounPhrase.introduced bs n
+      OptEventSource.introduced (ns ++ bs) src ++ ns
+    | .combat _ n other | .dealsDamage _ n other =>
+      let ns := NounPhrase.introduced bs n
+      OptNoun.introduced (ns ++ bs) other ++ ns
+    | .attacksWith who whom attackers =>
+      let ws := NounPhrase.introduced bs who
+      let ds := OptNoun.introduced (ws ++ bs) whom
+      NounPhrase.introduced (ds ++ ws ++ bs) attackers ++ ds ++ ws
+    | .attachment _ n host | .becomesTarget n host | .activates n host =>
+      let ns := NounPhrase.introduced bs n
+      NounPhrase.introduced (ns ++ bs) host ++ ns
+    | .beginningOf _ _ .noPossessor | .beginningOf _ _ (.byTurn _) => []
+    | .beginningOf _ _ (.byPlayer n) => NounPhrase.introduced bs n
+    | .casts who what src =>
+      let ws := NounPhrase.introduced bs who
+      let ns := OptNoun.introduced (ws ++ bs) what
+      OptEventSource.introduced (ns ++ ws ++ bs) src ++ ns ++ ws
+    | .gameBecomes _ | .stateHolds _ | .chapterMark _ => []
+    | .putInto n dest src =>
+      let ns := NounPhrase.introduced bs n
+      let zs := ZoneExpr.introduced (ns ++ bs) dest
+      OptEventSource.introduced (zs ++ ns ++ bs) src ++ zs ++ ns
+    | .counterEvent _ _ n _ by_ _ =>
+      let ns := NounPhrase.introduced bs n
+      OptNoun.introduced (ns ++ bs) by_ ++ ns
+    | .tokensCreated n _ by_ under =>
+      let ns := NounPhrase.introduced bs n
+      let ws := OptNoun.introduced (ns ++ bs) by_
+      OptNoun.introduced (ws ++ ns ++ bs) under ++ ws ++ ns
+    | .statBecomes n _ value =>
+      let ns := NounPhrase.introduced bs n
+      Amount.introduced (ns ++ bs) value ++ ns
+    | .rollsDice n _ _ _ => NounPhrase.introduced bs n
+    | .paysCost who _ whose _ =>
+      let ws := OptNoun.introduced bs who
+      NounPhrase.introduced (ws ++ bs) whose ++ ws
+    | .verbedEvent who _ what becomes locus =>
+      let ws := OptNoun.introduced bs who
+      let ns := OptNoun.introduced (ws ++ bs) what
+      let ps := OptPredicate.introduced (ns ++ ws ++ bs) becomes
+      OptZoneExpr.introduced (ps ++ ns ++ ws ++ bs) locus ++ ps ++ ns ++ ws
+    | .tappedForMana who what _ =>
+      let ws := OptNoun.introduced bs who
+      NounPhrase.introduced (ws ++ bs) what ++ ws
+    | .unlocksDoor who .thisDoor => NounPhrase.introduced bs who
+    | .unlocksDoor who (.doorOf _ room) =>
+      let ws := NounPhrase.introduced bs who
+      NounPhrase.introduced (ws ++ bs) room ++ ws
+    | .nthOccurrence _ _ ev => GameEvent.mentioned bs ev
+    | .causes cause ev =>
+      let cs := Causing.mentioned bs cause
+      GameEvent.mentioned (cs ++ bs) ev ++ cs
+  termination_by structural ev => ev
+
+  def Causing.mentioned (bs : Bindings) : Causing → List Binding
+    | .source n => NounPhrase.introduced bs n
+    | .event ev => GameEvent.mentioned bs ev
+    | .anEffect => []
+  termination_by structural cause => cause
 
   def Amount.introduced (bs : Bindings) : Amount → List Binding
     | .lit _ => []
     | .statOf _ nom => NounPhrase.introduced bs nom
     | .paid _ n => NounPhrase.introduced bs n
-    | .eventTally _ who (.mk _ _ what) =>
-      NounPhrase.introduced bs who ++ OptComplement.introduced (NounPhrase.introduced bs who ++ bs) what
+    | .eventTally _ who (.mk ev _) =>
+      NounPhrase.introduced bs who ++ GameEvent.mentioned (NounPhrase.introduced bs who ++ bs) ev
     | .countOf g => NounPhrase.introduced bs g
     | .aggregate _ _ g => NounPhrase.introduced bs g
     | .thatMuch | .chosenNumber _ | .votesFor _ | .theOutcome _ | .coinsShowing _
@@ -1205,8 +1265,9 @@ mutual
     | .lit _ => bs
     | .statOf _ nom => NounPhrase.introduced bs nom ++ bs
     | .paid _ n => NounPhrase.introduced bs n ++ bs
-    | .eventTally _ who (.mk _ _ what) =>
-      OptComplement.introduced (NounPhrase.introduced bs who ++ bs) what ++ (NounPhrase.introduced bs who ++ bs)
+    | .eventTally _ who (.mk ev _) =>
+      GameEvent.mentioned (NounPhrase.introduced bs who ++ bs) ev ++ NounPhrase.introduced bs who ++
+        bs
     | .countOf g => NounPhrase.introduced bs g ++ bs
     | .aggregate _ _ g => NounPhrase.introduced bs g ++ bs
     | .thatMuch | .chosenNumber _ | .votesFor _ | .theOutcome _ | .coinsShowing _
@@ -1244,6 +1305,7 @@ mutual
 
 
   def NounPhrase.zone (bs : Bindings) : NounPhrase → Option Zone
+    | .gap _ => none
     | .this | .combatPlayer _ | .you | .playerGroup _ | .eitherOf _ _
     | .possessorOf _ _ | .designated _ _ => none
     | .asType _ _ _ => some .battlefield
@@ -1264,6 +1326,7 @@ mutual
   termination_by structural x => x
 
   def NounPhrase.ty (bs : Bindings) : NounPhrase → List CardType
+    | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
     | .eitherOf _ _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
     | .asType t _ _ => [t]
@@ -1673,6 +1736,7 @@ def setZoneReach (r : Reach) (pl : Plurality) (p : Option Deed) (z : Option Zone
 /-- The stack after `n` moves to `z` under verb `p`, Idris `moveIntro`. -/
 def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zone) : Bindings :=
   match n with
+  | .gap _ => bs
   | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .oneEachOf _ _ | .pileOf _ _ =>
     setZoneHead p z (nomIntro bs n)
   | .eachOf g => moveIntro bs p g z

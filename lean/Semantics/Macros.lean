@@ -579,41 +579,20 @@ def noManaSpentToCast (spell : NounPhrase) : Condition :=
 
 /-- "between N and M" -/
 def fromTo (low high : Nat) : Quantity := .range (some low) (some high)
-/-- "the number of <event>s <who> <lookback> involving <what>" -/
-def eventCountInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
-    (what : NounPhrase) : Amount :=
-  .eventTally .count who (.mk event lookback (some (.involving what)))
-/-- "the number of times <event> happened to <who> <lookback>" -/
-def eventCount (event : EventName) (who : NounPhrase) (lookback : Lookback) : Amount :=
-  .eventTally .count who (.mk event lookback none)
-/-- "if <who> <event>ed <what> <lookback>" -/
-def happenedInvolving (event : EventName) (who : NounPhrase) (lookback : Lookback)
-    (what : NounPhrase) : Condition :=
-  .happened who (.mk event lookback (some (.involving what)))
-/-- "if <who> <event>ed <lookback>" -/
-def happened (event : EventName) (who : NounPhrase) (lookback : Lookback) : Condition :=
-  .happened who (.mk event lookback none)
-/-- "that <event>ed <lookback>" -/
-def happenedTo (event : EventName) (lookback : Lookback) : Predicate :=
-  .happenedTo (.mk event lookback none)
-/-- "that <event>ed <what> <lookback>" -/
-def happenedToInvolving (event : EventName) (lookback : Lookback) (what : NounPhrase) : Predicate :=
-  .happenedTo (.mk event lookback (some (.involving what)))
-/-- "the total <event> by <who> <lookback>" -/
-def eventSum (event : EventName) (who : NounPhrase) (lookback : Lookback) : Amount :=
-  .eventTally .sum who (.mk event lookback none)
-/-- "the number of times <who> <event>ed <what> from <source> <lookback>" -/
-def eventCountFrom (event : EventName) (who : NounPhrase) (lookback : Lookback) (what : NounPhrase)
-    (source : EventSource) : Amount :=
-  .eventTally .count who (.mk event lookback (some (.fromZones source (some (.involving what)))))
-/-- "if <who> <event>ed <what> from <source> <lookback>" -/
-def happenedFrom (event : EventName) (who : NounPhrase) (lookback : Lookback) (what : NounPhrase)
-    (source : EventSource) : Condition :=
-  .happened who (.mk event lookback (some (.fromZones source (some (.involving what)))))
-/-- "if <who> <event>ed at <zone> <lookback>" -/
-def happenedAt (event : EventName) (who : NounPhrase) (lookback : Lookback) (zone : ZoneExpr) :
-    Condition :=
-  .happened who (.mk event lookback (some (.atZone zone)))
+/-- The participant described by the nearest enclosing lookback. -/
+def relative (kind : Kind) : NounPhrase := .gap kind
+/-- The number of occurrences of a historical event involving the subject. -/
+def eventCount (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Amount :=
+  .eventTally .count who (.mk event lookback)
+/-- A historical event involving the subject. -/
+def happened (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Condition :=
+  .happened who (.mk event lookback)
+/-- A historical event whose gap stands for the entity being described. -/
+def happenedTo (event : GameEvent) (lookback : Lookback) : Predicate :=
+  .happenedTo (.mk event lookback)
+/-- The accumulated magnitude of historical events involving the subject. -/
+def eventSum (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Amount :=
+  .eventTally .sum who (.mk event lookback)
 /-- "if there is no <designation>" -/
 def thereIsNo (designation : DesignationLabel) : Condition := .noHolder designation
 /-- "<subject>'s <keyword> cost was paid", read back. -/
@@ -998,7 +977,7 @@ def lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :
   .counterEvent .removed (some kind) subject .emptying none false
 /-- "<subject> regenerates": the verb as an event. -/
 def regenerates (subject : NounPhrase) : GameEvent :=
-  .verbedEvent none (.action "Regenerate") (some subject) none
+  .verbedEvent none (.action "Regenerate") (some subject) none none
 
 /-! ## Abilities -/
 
@@ -1121,10 +1100,10 @@ def renownExpansion (count : Nat) : Ability :=
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 def stormExpansion : Ability :=
-  when (.casts .you thisSpell none)
+  when (.casts .you (some thisSpell) none)
     (.sequence
-      [ .copy .fromStack thisSpell (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn
-            (a (.and [spell, .otherThan thisSpell]))) [] (agent := .you),
+      [ .copy .fromStack thisSpell (eventCount (.casts (relative .player) (some (a (.and [spell,
+        .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [] (agent := .you),
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ])
 /-- "Storm" with its reminder text. -/
 def storm : Ability := .keyword "Storm" none (some stormExpansion)

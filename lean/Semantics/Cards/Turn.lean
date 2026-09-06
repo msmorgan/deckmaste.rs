@@ -60,14 +60,17 @@ theorem okKjeldoranFrostbeast : Ability.check [] kjeldoranFrostbeast = [] := by 
 
 /-- Tippy-Toe, Terrific Partner -/
 def tippyToe : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) (happened .lifeGain Primitives.NounPhrase.you .thisTurn)
+  triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer
+    Primitives.NounPhrase.you)) (happened (Primitives.GameEvent.lifeChanges (relative .player) .up)
+    Primitives.NounPhrase.you .thisTurn)
     (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
 theorem okTippyToe : Ability.check [] tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
   abilityWord "raid"
     (triggeredIf (Primitives.GameEvent.beginningOf .each .postcombatMain (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-      (happened .attackDeclaration Primitives.NounPhrase.you .thisTurn)
+      (happened (Primitives.GameEvent.combat .attackerOf (relative .player) none)
+        Primitives.NounPhrase.you .thisTurn)
       (exile (topSlice (.lit 1))))
 theorem okBrazenCannonade : Ability.check [] brazenCannonade = [] := by decide
 
@@ -229,7 +232,9 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequence
             [ Primitives.Instruction.setStatus .untapped
-                (allOf (Primitives.Predicate.and [creature, happenedTo .attackDeclaration .thisTurn])),
+                (allOf (Primitives.Predicate.and [creature, happenedTo (Primitives.GameEvent.combat
+                  .attackerOf (Primitives.NounPhrase.asMarker .permanent (relative .object)) none)
+                  .thisTurn])),
               addPartThen .combat (some .mainPhase) (.lit 1) .mainPhase ]) ] } }
 
 def fullThrottleFirstLine : Instruction := addPart .combat (some .mainPhase) (.lit 2)
@@ -332,8 +337,10 @@ def fettergeist : Spelled := spelled <| .singleFaced
 
 def chainVeilEndStep : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-    (Primitives.Condition.not (happenedInvolving .abilityActivation Primitives.NounPhrase.you .thisTurn
-      (a (Primitives.Predicate.and [Primitives.Predicate.abilityHead .loyalty, Primitives.Predicate.abilityOf (a (Primitives.Predicate.hasType .planeswalker))]))))
+    (Primitives.Condition.not (happened (Primitives.GameEvent.activates (relative .player) (a
+      (Primitives.Predicate.and [Primitives.Predicate.abilityHead .loyalty,
+      Primitives.Predicate.abilityOf (a (Primitives.Predicate.hasType .planeswalker))])))
+      Primitives.NounPhrase.you .thisTurn))
     (loseLife (.lit 2) (agent := Primitives.NounPhrase.you))
 theorem okChainVeilEndStep : Ability.check [] chainVeilEndStep = [] := by decide
 
@@ -524,6 +531,8 @@ def berserk : Spelled := spelled <| .singleFaced
                   (some untilEndOfTurn),
                 delay (Primitives.GameEvent.beginningOf .the .endStep Primitives.HeaderPossessor.noPossessor)
                   (Primitives.Instruction.doOnlyIf (destroy (that (.type .creature)))
-                    (happened .attackDeclaration (that (.type .creature)) .thisTurn) none) ]) ] } }
+                    (happened (Primitives.GameEvent.combat .attackerOf
+                      (Primitives.NounPhrase.asMarker .permanent (relative .object)) none) (that
+                      (.type .creature)) .thisTurn) none) ]) ] } }
 
 end Semantics.Cards

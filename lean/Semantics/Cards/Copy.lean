@@ -26,8 +26,10 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.delay
-            (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [instant, spell])) none)
-            [ Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [sorcery, spell])) none,
+            (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a (Primitives.Predicate.and
+              [instant, spell]))) none)
+            [ Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+              (Primitives.Predicate.and [sorcery, spell]))) none,
               Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead .loyalty)) ]
             (some Primitives.Duration.thisTurn)
             (Primitives.Instruction.sequence
@@ -38,8 +40,10 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
 def frontlineHeroismCopy : Ability :=
   whenever
     (Primitives.GameEvent.casts Primitives.NounPhrase.you
-      (a (Primitives.Predicate.and [ spell,
-                 Primitives.Predicate.targets (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .soleTarget ]))
+      (some (a (Primitives.Predicate.and [ spell,
+                 Primitives.Predicate.targets (a (Primitives.Predicate.and [creature,
+                   Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
+                   .soleTarget ])))
       none)
     (Primitives.Instruction.sequence
       [ create (.lit 1)
@@ -156,7 +160,9 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Hero"],
       text :=
         [ keyword "Flying",
-          triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [artifact, spell])) none) Primitives.UsageLimit.actionOncePerTurn
+          triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+            (Primitives.Predicate.and [artifact, spell]))) none)
+            Primitives.UsageLimit.actionOncePerTurn
             (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary] (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you))
                 ],
       power := stat 3, toughness := stat 5 } }
@@ -170,8 +176,9 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOnlyOnce
             (Primitives.GameEvent.casts Primitives.NounPhrase.you
-              (a (Primitives.Predicate.and [ creature, spell, Primitives.Predicate.not (Primitives.Predicate.hasSupertype .legendary),
-                         Primitives.Predicate.hasKeyword (.the "Flying") ]))
+              (some (a (Primitives.Predicate.and [ creature, spell, Primitives.Predicate.not
+                (Primitives.Predicate.hasSupertype .legendary),
+                         Primitives.Predicate.hasKeyword (.the "Flying") ])))
               none)
             Primitives.UsageLimit.actionOncePerTurn
             (offer
@@ -190,9 +197,10 @@ def tawnosTheToymaker : Spelled := spelled <| .singleFaced
       text :=
         [ whenever
             (Primitives.GameEvent.casts Primitives.NounPhrase.you
-              (a (Primitives.Predicate.and [ Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (creatureType "Beast"),
+              (some (a (Primitives.Predicate.and [ Primitives.Predicate.or [
+                Primitives.Predicate.hasSubtype (creatureType "Beast"),
                                Primitives.Predicate.hasSubtype (creatureType "Bird") ],
-                         creature, spell ]))
+                         creature, spell ])))
               none)
             (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.types [.artifact] []] (agent := Primitives.NounPhrase.you)) (agent :=
                 Primitives.NounPhrase.you)) ],
@@ -204,7 +212,8 @@ def bonusRound : Spelled := spelled <| .singleFaced
     { name := "Bonus Round", cost := some [generic 1, pip .red, pip .red], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.delay
-            (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (a (Primitives.Predicate.and [instantOrSorcery, spell])) none)
+            (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (some (a
+              (Primitives.Predicate.and [instantOrSorcery, spell]))) none)
             [] (some untilEndOfTurn)
             (Primitives.Instruction.sequence
               [ Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := (that .player)),
@@ -222,7 +231,8 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
             (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, instantOrSorcery])) none
               (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)),
           whenever
-            (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [instantOrSorcery, spell])) (some yourLibrary))
+            (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a (Primitives.Predicate.and
+              [instantOrSorcery, spell]))) (some (Primitives.EventSource.zones [yourLibrary])))
             (Primitives.Instruction.sequence
               [ Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := Primitives.NounPhrase.you),
                 offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := Primitives.NounPhrase.you) ]) ],

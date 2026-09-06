@@ -22,6 +22,13 @@ inductive ColorTerm where
   | chosen (ref : ChoiceRef)
   deriving DecidableEq, Repr
 
+/-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
+color written or chosen; the six types of [CR#106.1b]. -/
+inductive ManaTypeTerm where
+  | colorless
+  | ofColor (color : ColorTerm)
+  deriving Repr, BEq
+
 mutual
   /-- Whose zone: "your graveyard", or a bare zone name. -/
   inductive ZoneScope where
@@ -62,16 +69,9 @@ mutual
     | zones (zones : List ZoneExpr)
     | anywhereBut (zones : List ZoneExpr)
 
-  /-- What an event happened to, from where, into where. -/
-  inductive EventComplement where
-    | involving (subject : NounPhrase)
-    | fromZones (source : EventSource) (rest : Option EventComplement)
-    | intoZone (destination : ZoneExpr) (rest : Option EventComplement)
-    | atZone (zone : ZoneExpr)
-
-  /-- "… that died this turn": an event, a lookback, and what it involved. -/
+  /-- A historical event whose gap denotes the entity being described. -/
   inductive LookbackClause where
-    | mk (event : EventName) (lookback : Lookback) (complement : Option EventComplement)
+    | mk (event : GameEvent) (lookback : Lookback)
 
   inductive Predicate where
     | hasType (type : CardType)
@@ -142,6 +142,8 @@ mutual
     | bare
 
   inductive NounPhrase where
+    /-- The participant bound by the nearest lookback, viewed one entity at a time. -/
+    | gap (kind : Kind)
     /-- the source, by self-name or "this spell" [CR#113.7] -/
     | this
     | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
@@ -198,12 +200,100 @@ mutual
   inductive SliceCount where
     | counted (quantity : Quantity)
     | whole
+  inductive Door where
+    | thisDoor
+    | doorOf (state : Option LockState) (room : NounPhrase)
+
+  /-- Which roll results a trigger watches. -/
+  inductive RollWatch where
+    | anyResult
+    | resultIn (quantity : Quantity)
+    | highestNatural
+
+  /-- Whose turn part a "beginning of" header names. -/
+  inductive HeaderPossessor where
+    | noPossessor
+    | byPlayer (player : NounPhrase)
+    | byTurn (turn : NounPhrase)
+
+
+  inductive Condition where
+    /-- "if there is a …" -/
+    | exists_ (subject : NounPhrase)
+    | happened (subject : NounPhrase) (lookback : LookbackClause)
+    | gameIs (designation : DesignationLabel)
+    | noHolder (designation : DesignationLabel)
+    | matches (subject : NounPhrase) (predicate : Predicate)
+    | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
+    | dealtThisWay (predicate : Predicate)
+    | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
+    | preventedFromSource (predicate : Predicate)
+    | flipCalled (caller : NounPhrase) (call : FlipCall)
+    | flipFace (face : CoinFace)
+    | voteLead (label : VoteLabel) (orTied : Bool)
+    | anyResultIs (comparator : Comparator) (bound : Amount)
+    | rolledDoubles
+    | not (condition : Condition)
+    | and (conjuncts : List Condition)
+    | or (disjuncts : List Condition)
+
+  inductive GameEvent where
+    | dies (subject : NounPhrase)
+    | leaves (subject : NounPhrase) (from_ : Option EventSource)
+    | isDealtDamage (kind : DamageKind) (subject : NounPhrase)
+    | draws (player : NounPhrase)
+    | losesGame (player : NounPhrase)
+    | enters (subject : NounPhrase) (from_ : Option EventSource)
+    /-- "attacks", "attacks you", "blocks", "becomes blocked by …": an object's combat event,
+    with the counterpart the sentence names. -/
+    | combat (relation : CombatRelation) (subject : NounPhrase) (counterpart : Option NounPhrase)
+    /-- "you attack with one or more creatures". -/
+    | attacksWith (player : NounPhrase) (defender : Option NounPhrase) (attackers : NounPhrase)
+    | attachment (move : AttachMove) (subject : NounPhrase) (host : NounPhrase)
+    | dealsDamage (kind : DamageKind) (source : NounPhrase) (patient : Option NounPhrase)
+    | beginningOf (quantifier : PartQuant) (part : TurnPart) (whose : HeaderPossessor)
+    | casts (player : NounPhrase) (spell : Option NounPhrase) (from_ : Option EventSource)
+    | becomesTarget (subject : NounPhrase) (by_ : NounPhrase)
+    | statusEvent (subject : NounPhrase) (status : Status)
+    /-- The game gains a designation: "it becomes night" [CR#731.1]. -/
+    | gameBecomes (designation : DesignationLabel)
+    | stateHolds (condition : Condition)
+    | putInto (subject : NounPhrase) (destination : ZoneExpr) (from_ : Option EventSource)
+    | counterEvent (move : CounterMove) (kind : Option CounterKind) (subject : NounPhrase)
+        (batch : CounterBatch) (by_ : Option NounPhrase) (byEffect : Bool)
+    | tokensCreated (tokens : NounPhrase) (byEffect : Bool) (by_ : Option NounPhrase)
+        (under : Option NounPhrase)
+    | chapterMark (chapters : List ChapterNumber)
+    | activates (player : NounPhrase) (ability : NounPhrase)
+    | statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount)
+    | flipsCoin (player : NounPhrase) (call : Option FlipCall)
+    /-- `sides = none` is "whenever you roll a die", any die. -/
+    | rollsDice (player : NounPhrase) (batch : DiceBatch) (sides : Option Nat) (watch : RollWatch)
+    | paysCost (player : Option NounPhrase) (outcome : PaymentOutcome) (whose : NounPhrase)
+        (keyword : KeywordLabel)
+    | paysLife (player : NounPhrase)
+    | lifeChanges (player : NounPhrase) (move : LifeMove)
+    | verbedEvent (agent : Option NounPhrase) (verb : Deed) (patient : Option NounPhrase)
+        (becomes : Option Predicate) (locus : Option ZoneExpr)
+    /-- A mana ability with {T} in its cost resolving and producing mana [CR#106.12a]. -/
+    | tappedForMana (player : Option NounPhrase) (source : NounPhrase)
+        (type : Option ManaTypeTerm)
+    | unlocksDoor (player : NounPhrase) (door : Door)
+    | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
+    | triggers (ability : NounPhrase)
+    | commitsCrime (player : NounPhrase)
+    | causes (cause : Causing) (event : GameEvent)
+
+  inductive Causing where
+    | source (source : NounPhrase)
+    | event (event : GameEvent)
+    | anEffect
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
 deriving instance Repr, BEq for ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
-  EventSource, EventComplement, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
-  Quantity, SliceCount
+  EventSource, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
+  Quantity, SliceCount, Door, RollWatch, HeaderPossessor, Condition, GameEvent, Causing
 
 inductive SearchScope where
   | oneZone (zone : ZoneExpr)
@@ -226,27 +316,6 @@ inductive Ballot where
   | byCandidate (candidates : NounPhrase)
   deriving Repr, BEq
 
-inductive Condition where
-  /-- "if there is a …" -/
-  | exists_ (subject : NounPhrase)
-  | happened (subject : NounPhrase) (lookback : LookbackClause)
-  | gameIs (designation : DesignationLabel)
-  | noHolder (designation : DesignationLabel)
-  | matches (subject : NounPhrase) (predicate : Predicate)
-  | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
-  | dealtThisWay (predicate : Predicate)
-  | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
-  | preventedFromSource (predicate : Predicate)
-  | flipCalled (caller : NounPhrase) (call : FlipCall)
-  | flipFace (face : CoinFace)
-  | voteLead (label : VoteLabel) (orTied : Bool)
-  | anyResultIs (comparator : Comparator) (bound : Amount)
-  | rolledDoubles
-  | not (condition : Condition)
-  | and (conjuncts : List Condition)
-  | or (disjuncts : List Condition)
-  deriving Repr, BEq
-
 inductive Exposed where
   | cards (cards : NounPhrase)
   | zone (zone : ZoneExpr)
@@ -266,10 +335,11 @@ inductive DurationEnd where
 
 end Semantics
 
-attribute [semantic_expression] Semantics.NounPhrase Semantics.Predicate Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition
+attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
+  Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition
 
 classify_semantic_syntax
 
-attribute [internal_expansion] Semantics.NounPhrase.pro
+attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.gap
 
 attribute [semantic_literal] Semantics.Amount.lit

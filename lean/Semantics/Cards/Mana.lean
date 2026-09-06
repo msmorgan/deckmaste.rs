@@ -657,7 +657,9 @@ def secretsOfTheDead : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secrets of the Dead", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom (graveyardOf Primitives.NounPhrase.you)])) none)
+        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+          (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom (graveyardOf
+          Primitives.NounPhrase.you)]))) none)
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
 
 def coalStoker : Spelled := spelled <| .singleFaced
@@ -676,7 +678,9 @@ def vegaTheWatcher : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Bird", creatureType "Spirit"],
       text :=
         [ keyword "Flying",
-          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [spell, Primitives.Predicate.not (Primitives.Predicate.castFrom (handOf Primitives.NounPhrase.you))])) none)
+          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+            (Primitives.Predicate.and [spell, Primitives.Predicate.not
+            (Primitives.Predicate.castFrom (handOf Primitives.NounPhrase.you))]))) none)
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -709,7 +713,8 @@ theorem okCausticBroncoLoss : Instruction.check [] causticBroncoLoss = [] := by 
 def darkFortressMana : Ability :=
   activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black], [.of .red]]) [] (agent :=
       Primitives.NounPhrase.you))
-    (Primitives.Condition.or [ happened .entry thisLand .thisTurn,
+    (Primitives.Condition.or [ happened (Primitives.GameEvent.enters (relative .object) none)
+      thisLand .thisTurn,
            exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ])
 theorem okDarkFortressMana : Ability.check [] darkFortressMana = [] := by decide
 
@@ -844,7 +849,9 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           keyword "Vigilance",
           triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-            (Primitives.Condition.not (happenedFrom .spellCast Primitives.NounPhrase.you .thisTurn (a spell) (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])))
+            (Primitives.Condition.not (happened (Primitives.GameEvent.casts (relative .player) (some
+              (a spell)) (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])))
+              Primitives.NounPhrase.you .thisTurn))
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -855,7 +862,9 @@ def gnarlbackRhino : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Rhino"],
       text :=
         [ keyword "Trample",
-          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [spell, Primitives.Predicate.targets thisCreature .someTarget])) none)
+          whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+            (Primitives.Predicate.and [spell, Primitives.Predicate.targets thisCreature
+            .someTarget]))) none)
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -865,7 +874,8 @@ def prismariPianist : Spelled := spelled <| .singleFaced
     { name := "Prismari Pianist", cost := some [generic 1, pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Djinn", creatureType "Bard"],
       text :=
-        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [instantOrSorcery, spell])) none)
+        [ whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+          (Primitives.Predicate.and [instantOrSorcery, spell]))) none)
             (Primitives.Instruction.replace
               (Primitives.Instruction.create (.lit 1)
                 (Primitives.TokenSpec.written (creatureToken 1 1 [.blue, .red] [creatureType "Elemental"])) [] (agent :=
@@ -911,7 +921,9 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
                 revealIt,
                 move foundCard hand,
-                Primitives.Instruction.doIf (happenedAt (.verbedAct (.action "Search")) Primitives.NounPhrase.you .thisWay yourLibrary) shuffle
+                Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
+                  (relative .player)) (.action "Search") none none (some yourLibrary))
+                  Primitives.NounPhrase.you .thisWay) shuffle
                     none ]) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -946,7 +958,9 @@ def upTheBeanstalk : Spelled := spelled <| .singleFaced
     { name := "Up the Beanstalk", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
         [ triggeredJoined (Primitives.GameEvent.enters Primitives.NounPhrase.this none)
-            [joinedHead (Primitives.GameEvent.casts Primitives.NounPhrase.you (a (Primitives.Predicate.and [spell, Primitives.Predicate.compare [.stat .manaValue] .atLeast (.lit 5)])) none)]
+            [joinedHead (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+              (Primitives.Predicate.and [spell, Primitives.Predicate.compare [.stat .manaValue]
+              .atLeast (.lit 5)]))) none)]
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
 
 /-- Sheltered Valley -/
@@ -996,8 +1010,9 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (entersChoosing thisCreature .number),
           whenever
             (Primitives.GameEvent.casts (a Primitives.Predicate.opponent)
-              (a (Primitives.Predicate.and [spell,
-                        Primitives.Predicate.compare [.stat .manaValue, .stat .power, .stat .toughness] .eq chosenNumber]))
+              (some (a (Primitives.Predicate.and [spell,
+                        Primitives.Predicate.compare [.stat .manaValue, .stat .power, .stat
+                          .toughness] .eq chosenNumber])))
               none)
             (Primitives.Instruction.sequence [loseLife (.lit 2) (agent := (that .player)), Primitives.Instruction.draw (.lit 1) (agent :=
                 Primitives.NounPhrase.you)]) ],

@@ -533,7 +533,7 @@ theorem goadedAttacksOther :
 
 /-- "as you scry": a concurrent window with no printed card on the bench. -/
 theorem whileScrying :
-    Concurrent.check [] (.whileDoing (.verbedEvent (some .you) (.action "Scry") none none))
+    Concurrent.check [] (.whileDoing (.verbedEvent (some .you) (.action "Scry") none none none))
       = [] := by
   decide
 

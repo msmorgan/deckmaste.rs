@@ -333,6 +333,8 @@ Amounts and collections are not References.
 The mentions available to a Reference under its containing grammatical
 construction. An ordinary pronoun requires a unique compatible antecedent in
 that scope; an explicit shared-subject reference belongs to its owning clause.
+A historical-event predicate binds the entity it describes locally; a nested
+historical-event predicate establishes its own scope.
 _Avoid_: author-chosen numeric stack depth
 
 **Referent Sort** (project term):

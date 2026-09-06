@@ -130,17 +130,22 @@ def kratosStoicFather : Ability :=
 theorem okKratosStoicFather : Ability.check [] kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
-    (happened .death (a creature) .thisTurn)
+    (happened (Primitives.GameEvent.dies (Primitives.NounPhrase.asMarker .permanent (relative
+      .object))) (a creature) .thisTurn)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature)
 theorem okVashtaNerada : Ability.check [] vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
   at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-    (Primitives.Instruction.putCounters (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.opponent, happenedTo .damageTaken .thisTurn]))
+    (Primitives.Instruction.putCounters (forEach 1 (Primitives.Predicate.and
+      [Primitives.Predicate.opponent, happenedTo (Primitives.GameEvent.isDealtDamage .any (relative
+      .player)) .thisTurn]))
       (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature)
 theorem okFuriousSpinesplitter : Ability.check [] furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
-    (happened .lifeLoss Primitives.NounPhrase.you .lastTurn) (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature)
+    (happened (Primitives.GameEvent.lifeChanges (relative .player) .down) Primitives.NounPhrase.you
+      .lastTurn) (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed
+      plusOnePlusOne) thisCreature)
 theorem okPaladinOfAtonement : Ability.check [] paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
@@ -213,7 +218,8 @@ def curseOfVengeance : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura", enchantmentType "Curse"],
       text :=
         [ keywordSubject "Enchant" Primitives.Predicate.anyPlayer,
-          whenever (Primitives.GameEvent.casts (Primitives.NounPhrase.attachHost .enchanted .player) (a spell) none)
+          whenever (Primitives.GameEvent.casts (Primitives.NounPhrase.attachHost .enchanted .player)
+            (some (a spell)) none)
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Spite")) thisAura),
           when (Primitives.GameEvent.losesGame (Primitives.NounPhrase.attachHost .enchanted .player))
             (Primitives.Instruction.sequence
@@ -436,7 +442,9 @@ def tromell : Spelled := spelled <| .singleFaced
               [ Primitives.Instruction.repeatTimes (Primitives.Amount.letter .x) proliferate,
                 Primitives.Instruction.define .x
                   (countOf (Primitives.Predicate.and [ nontoken, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
-                                   Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk .entry .thisTurn none) ])) ]) ],
+                                   Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
+                                     (Primitives.GameEvent.enters (relative .object) none)
+                                     .thisTurn) ])) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Runadi, Behemoth Caller -/
@@ -795,7 +803,9 @@ def sengirVampire : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Vampire"],
       text :=
         [ keyword "Flying",
-          whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, happenedToInvolving .damageTaken .thisTurn thisCreature])))
+          whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, happenedTo
+            (Primitives.GameEvent.dealsDamage .any thisCreature (some
+            (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn])))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -897,7 +907,8 @@ theorem okKorvoldCombatTrigger : Ability.check [] korvoldCombatTrigger = [] := b
 def mirelurkQueenTrigger : Ability :=
   triggeredOnlyOnce
     (Primitives.GameEvent.verbedEvent none (.action "Mill")
-      (some (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone library]))) none)
+      (some (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land,
+        Primitives.Predicate.inZone library]))) none none)
     Primitives.UsageLimit.oncePerTurn
     (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne)
         thisCreature])
@@ -911,7 +922,8 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
       text :=
         [ keywordQuality "Protection" (Primitives.Predicate.colorIs .black),
           triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
-            (happenedInvolving .damageDealing thisCreature .thisTurn anOpponent)
+            (happened (Primitives.GameEvent.dealsDamage .any (relative .object) (some anOpponent))
+              thisCreature .thisTurn)
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) it) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -923,8 +935,8 @@ def ichorShade : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
             (Primitives.Condition.happened (a (Primitives.Predicate.or [artifact, creature]))
-              (Primitives.LookbackClause.mk .placement .thisTurn
-                (some (Primitives.EventComplement.intoZone graveyard (some (Primitives.EventComplement.fromZones (Primitives.EventSource.zones [battlefield]) none))))))
+              (Primitives.LookbackClause.mk (Primitives.GameEvent.putInto (relative .object)
+                graveyard (some (Primitives.EventSource.zones [battlefield]))) .thisTurn))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -939,8 +951,9 @@ def asmiraHolyAvenger : Spelled := spelled <| .singleFaced
           at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
             (Primitives.Instruction.putCounters
               (Primitives.Amount.eventTally .count (a creature)
-                (Primitives.LookbackClause.mk .placement .thisTurn
-                  (some (Primitives.EventComplement.intoZone (graveyardOf Primitives.NounPhrase.you) (some (Primitives.EventComplement.fromZones (Primitives.EventSource.zones [battlefield]) none))))))
+                (Primitives.LookbackClause.mk (Primitives.GameEvent.putInto (relative .object)
+                  (graveyardOf Primitives.NounPhrase.you) (some (Primitives.EventSource.zones
+                  [battlefield]))) .thisTurn))
               (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1029,7 +1042,8 @@ def stonebindersFamiliar : Spelled := spelled <| .singleFaced
 
 /-- Nazgûl -/
 def nazgulRingTrigger : Ability :=
-  whenever (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "The Ring Tempts You") none none)
+  whenever (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
+    "The Ring Tempts You") none none none)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne)
       (each (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Wraith"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okNazgulRingTrigger : Ability.check [] nazgulRingTrigger = [] := by decide

@@ -3,25 +3,11 @@ import Semantics.Words
 /-!
 # Semantics.Events
 
-The event vocabulary a trigger watches and a lookback asks about. Port of
-`idris/src/Experimental/Events.idr`, syntax only; the event names and facts the checker
-classifies with live in `Check/Events`.
+Shared event parameters, deed sets, and play-window values. Event patterns themselves
+live in the recursive phrase model; their facts are checked in `Check/Events`.
 -/
 
 namespace Semantics
-
-/-- The event a lookback names ("that died this turn"); an act event names its verb. -/
-inductive EventName where
-  | death | departure | damageTaken | cardDrawn | entry | attackDeclaration | blockDeclaration
-  | combatDamage | partBeginning | spellCast | statusChange | turnedFaceUp | phasingChange
-  | blockedDeclaration | attachment | unattachment | lastCounterRemoval | lifeGain | lifeLoss
-  | gameDesignation | placement | counterPlacement | counterRemoval | gameLoss | tokenCreation
-  | chapterArrival | abilityActivation | statValueChange | flipWin | flipLoss
-  | coinFlip | diceRoll | costPayment | costNonpayment | lifePayment | becomesTarget
-  | damageDealing
-  | verbedAct (verb : Deed)
-  | stateMatch | abilityTrigger | crimeCommission | tappedForMana
-  deriving DecidableEq, Repr
 
 /-- The deeds a deontic rule ranges over ("can't attack or block"): each is a core rules deed,
 a declared keyword action, or the verb a keyword ability defines. -/

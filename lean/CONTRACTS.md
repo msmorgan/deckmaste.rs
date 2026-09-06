@@ -41,6 +41,27 @@ The anaphora bench's `manifestPlacement` is explicitly a placement-only fragment
 of manifest [CR#701.40a]. It retains that bench's prior semantic value; it does
 not model face-down characteristics or the turn-up special action.
 
+## Historical events
+
+`LookbackClause` contains a `GameEvent` and a time window. The `relative` macro
+marks the participant described by the enclosing predicate or condition.
+That participant is checked against the host kind by the same recursive checker
+that validates ordinary event participants. A gap outside a lookback is refused;
+a nested lookback binds its own participant and cannot supply its parent's gap.
+Repeated occurrences may refer to the same participant, but each lookback must
+use its own bound participant at least once.
+
+`GameEvent.facts` supplies magnitude, replacement, counting, duration, and
+concurrency properties directly from the event constructor. Source sets and
+exclusions use `EventSource`; named actions carry an optional locus checked
+against their declared features. A cast may leave its spell unspecified, which
+introduces no spell reference. Historical-event profiles retain named
+participants without simulating a new event or introducing its outcome.
+
+`Proofs/Lookback.lean` checks binding isolation, retained references, source and
+locus validation, and event-fact preservation through modifiers. These are
+checker guarantees; no engine history-query implementation is claimed.
+
 ## Grammatical references and internal windows
 
 Ordinary `it`, `them`, and worded pronouns resolve in the whole containing
@@ -307,8 +328,8 @@ by exact-refusal theorems; it is not an authorable term.
 
 | Reference datatype | Lean duty |
 |---|---|
-| `LookbackSubject` | `lookbackSubjectOk` in `LookbackClause.check`. |
-| `LookbackComplement` | `lookbackComplementOk` in `OptComplement.check`. |
+| `LookbackSubject` | `LookbackClause.check` binds the described participant, and the shared event checker validates each use. |
+| `LookbackComplement` | Ordinary `GameEvent` participant checks; there is no separate complement-kind table. |
 | `ChoiceMode` | `ChoiceMode.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Possessable` | `Zone.possessable` in `ZoneScope.check`. |
 
@@ -324,9 +345,9 @@ by exact-refusal theorems; it is not an authorable term.
 | `NameSource` | `NameSource.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `ChoiceDomain` | `sortedDomainCheck` checks both domain contents and `ChoiceDomain.sort` at `qualityNoun`, `ofYourChoice`, `entersChoice`, and `attachChoice`. |
 | `EventSource` | `EventSource.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `EventComplement` | `OptComplement.check` receives the event and subject kind, then checks complement kind and source/destination/locus. Replacement by ordinary event fields is owned by `lean-lookback-carries-a-game-event`. |
-| `ComplementWritten` | `LookbackClause.check` requires a complement unless `bareLookbackOk` admits its absence. |
-| `LookbackClause` | `LookbackClause.check` and `lookbackSubjectOk` receive the subject kind; `OptComplement.check` receives that same kind and event. |
+| `EventComplement` | Retired in favor of event participant, source, destination, and locus fields. |
+| `ComplementWritten` | Required event fields cannot be omitted. An action that declares a locus requires that locus in the shared event checker. |
+| `LookbackClause` | The shared checker validates the carried event under a locally bound participant of the host kind. |
 | `Predicate` | `Predicate.check` receives an expected kind, checks every child, and uses `kindCheck`; conjunction children share a scope, joined alternatives receive their own inferred kinds. |
 | `DetPhrase` | `DetPhrase.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `RolesOk` | `rolesOk` in `NounPhrase.oneEachOf`, alongside per-role `Predicate.checkAll` and object-kind checks. |
@@ -362,16 +383,16 @@ by exact-refusal theorems; it is not an authorable term.
 
 | Reference datatype | Lean duty |
 |---|---|
-| `ManaTypeTerm` | `ManaTypeTerm.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `ManaTypeTerm` | `ManaTypeTerm.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Duration` | `Duration.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `AttackDefender` | `AttackDefender.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `DamagePatient` | `DamagePatient.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `Door` | `Door.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `RollWatch` | `RollWatch.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `AttackDefender` | `AttackDefender.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `DamagePatient` | `DamagePatient.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `Door` | `Door.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `RollWatch` | `RollWatch.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `CrimeSubject` | `GameEvent.commitsCrime` checks a player subject and singularity. |
-| `GameEvent` | `GameEvent.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `Causing` | `Causing.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `HeaderPossessor` | `HeaderPossessor.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `GameEvent` | `GameEvent.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `Causing` | `Causing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `HeaderPossessor` | `HeaderPossessor.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `TriggerWindow` | Merged into `Timing.duringPart`; `Timing.check` checks the possessor and `windowOk`. |
 | `Timing` | `Timing.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 | `AltEvent` | `headerEventCheck` checks each alternative event for header nontargeting and valid status. The old header-word index is gone; the event determines its own event class. |

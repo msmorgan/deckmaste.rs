@@ -229,8 +229,10 @@ def bushiTenderfoot : Spelled := spelled <| .flip
       text :=
         [ when
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [ creature,
-                              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk .damageTaken .thisTurn
-                                (some (Primitives.EventComplement.involving thisCreature))) ])))
+                              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
+                                (Primitives.GameEvent.dealsDamage .any thisCreature (some
+                                (Primitives.NounPhrase.asMarker .permanent (relative .object))))
+                                .thisTurn) ])))
             (Primitives.Instruction.setStatus .flipped thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
@@ -349,7 +351,7 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
         [ Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           when
             (Primitives.GameEvent.verbedEvent none (.action "Transform")
-              (some (Primitives.NounPhrase.attachHost .equipped (.type .creature))) none)
+              (some (Primitives.NounPhrase.attachHost .equipped (.type .creature))) none none)
             (transform thisEquipment),
           keywordCosting "Equip" (Primitives.Cost.mana [generic 1]) ] } }
   { characteristics :=
@@ -387,7 +389,8 @@ def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced
         [ whenever
             (Primitives.GameEvent.verbedEvent none (.action "Transform")
               (some (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
-              (some (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Human"))])))
+              (some (Primitives.Predicate.and [creature, Primitives.Predicate.not
+                (Primitives.Predicate.hasSubtype (creatureType "Human"))])) none)
             (create (.lit 1) (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -479,7 +482,8 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
               (Primitives.GameEvent.enters (a (Primitives.Predicate.and [enchantment, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
               [ joinedHead
                   (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.core .fullyUnlock)
-                    (some (a (Primitives.Predicate.hasSubtype (enchantmentType "Room")))) none) ]
+                    (some (a (Primitives.Predicate.hasSubtype (enchantmentType "Room")))) none none)
+                      ]
               (loseLife (.lit 1) (agent := (each Primitives.Predicate.opponent)))) ],
       power := stat 2, toughness := stat 2 } }
 
