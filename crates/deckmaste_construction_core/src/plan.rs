@@ -7,6 +7,7 @@ use crate::semantic::SemanticPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NamedKind {
+    Module,
     Type,
     Trait,
     Function,
@@ -36,6 +37,7 @@ impl ItemKey {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SourceDeclarationKind {
+    FrameFamily,
     Construction,
     AbstractProduct,
     AbstractSum,
@@ -308,6 +310,7 @@ pub(crate) fn plan_emission(plan: &SemanticPlan) -> syn::Result<EmissionPlan> {
     items.extend(crate::emit::visit::emit(plan)?);
     items.extend(crate::emit::rules::emit(plan)?);
     items.extend(crate::emit::build::emit(plan)?);
+    items.extend(crate::emit::frame::emit(plan));
 
     let mut keys = HashSet::new();
     for item in &items {
@@ -2602,7 +2605,7 @@ mod tests {
                     name,
                 } => Some(name.clone()),
                 ItemKey::Named {
-                    kind: NamedKind::Trait | NamedKind::Function | NamedKind::Constant,
+                    kind: NamedKind::Module | NamedKind::Trait | NamedKind::Function | NamedKind::Constant,
                     ..
                 }
                 | ItemKey::Impl { .. } => None,

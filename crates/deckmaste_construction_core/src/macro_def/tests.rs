@@ -1582,3 +1582,41 @@ KeywordAbility(
         );
     }
 }
+
+#[test]
+fn grammatical_frame_items_preserve_relation_category_marker_and_optionality() {
+    let declaration = read_str(source_path("Act.ron"), r#"KeywordAction(
+        name: "Act", spelling: "act", grammar: Verb(bare: "act", frame_set: Custom(frames: [[
+            Argument(relation: Object, category: "NounPhrase"),
+            Optional(Marked((vocabulary: "Preposition", member: "To"), (relation: Complement, category: "NounPhrase"))),
+            Fixed(vocabulary: "Particle", member: "Up"),
+        ]]))
+    )"#).unwrap();
+    assert_eq!(
+        declaration.grammar.unwrap().recipe,
+        GrammarRecipe::Verb {
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![
+                    FrameItem::Argument(FrameComplement {
+                        relation: FrameRelation::Object,
+                        category: "NounPhrase".to_owned()
+                    }),
+                    FrameItem::Optional(Box::new(FrameItem::Marked(
+                        FrameLexicalRef {
+                            vocabulary: "Preposition".to_owned(),
+                            member: "To".to_owned()
+                        },
+                        FrameComplement {
+                            relation: FrameRelation::Complement,
+                            category: "NounPhrase".to_owned()
+                        },
+                    ))),
+                    FrameItem::Fixed(FrameLexicalRef {
+                        vocabulary: "Particle".to_owned(),
+                        member: "Up".to_owned()
+                    }),
+                ]]
+            },
+        }
+    );
+}

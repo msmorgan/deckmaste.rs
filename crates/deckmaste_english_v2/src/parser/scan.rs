@@ -232,7 +232,7 @@ fn inject_checked_completion_rejection_for_test(observation: &mut StructuralObse
 }
 
 pub(super) fn rules_for_root<R: GeneratedParseRoot>()
--> Vec<Rule<Category, LexicalTerminal, RootRuleId>> {
+-> Vec<Rule<'static, Category, LexicalTerminal, RootRuleId>> {
     let mut rules = RULES
         .iter()
         .map(|rule| Rule {

@@ -84,6 +84,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 }
             })
         }))
+        .chain(
+            validated
+                .frame_families
+                .iter()
+                .flat_map(|family| family.categories.iter().map(ToString::to_string)),
+        )
         .collect::<HashSet<_>>();
     let root_names = roots
         .iter()

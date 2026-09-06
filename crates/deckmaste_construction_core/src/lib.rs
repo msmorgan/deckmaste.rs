@@ -1,6 +1,8 @@
 mod emit;
 mod feature;
 mod format;
+pub mod frame;
+mod frame_family;
 mod identifier;
 pub mod macro_def;
 mod model;
@@ -15,6 +17,7 @@ mod validate;
 #[cfg(test)]
 mod test_support;
 
+pub use crate::frame_family::FrameFamilySource;
 pub use crate::model::*;
 pub use crate::plan::DeclarationKey;
 pub use crate::plan::EmissionPlan;

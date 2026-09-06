@@ -727,6 +727,7 @@ fn item_key_name(key: &ItemKey) -> String {
     match key {
         ItemKey::Named { kind, name } => {
             let kind = match kind {
+                NamedKind::Module => "module",
                 NamedKind::Type => "type",
                 NamedKind::Trait => "trait",
                 NamedKind::Function => "function",
@@ -747,6 +748,7 @@ fn item_key_name(key: &ItemKey) -> String {
 
 fn declaration_kind_name(kind: SourceDeclarationKind) -> &'static str {
     match kind {
+        SourceDeclarationKind::FrameFamily => "frame family",
         SourceDeclarationKind::Construction => "construction",
         SourceDeclarationKind::AbstractProduct => "abstract product",
         SourceDeclarationKind::AbstractSum => "abstract sum",

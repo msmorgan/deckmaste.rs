@@ -228,19 +228,7 @@ enum CoreVerbFrame {
     ProVerb,
 }
 
-#[derive(Debug, Deserialize)]
-enum CoreVerbTailAtom {
-    Literal(String),
-    Lex(String, String),
-    OptionalLex(String, String),
-    MarkedRole(String, String, String),
-    OptionalMarkedRole(String, String, String),
-    Amount,
-    ObjectNounPhrase,
-    PredicativeComplement,
-    Role(String),
-    OptionalRole(String),
-}
+type CoreVerbTailAtom = CustomTailAtom;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct IndexedVerbInventoryReading {
@@ -255,19 +243,7 @@ struct OwnedVerbFrameKey {
     atoms: Vec<OwnedVerbFrameAtom>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum OwnedVerbFrameAtom {
-    Literal(String),
-    Lex(String, String),
-    OptionalLex(String, String),
-    MarkedRole(String, String, String),
-    OptionalMarkedRole(String, String, String),
-    Amount,
-    ObjectNounPhrase,
-    PredicativeComplement,
-    Role(String),
-    OptionalRole(String),
-}
+type OwnedVerbFrameAtom = CustomTailAtom;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VerbInventoryReading {
@@ -823,20 +799,7 @@ impl ParserEnvironment {
             .into_iter()
             .flat_map(|record| &record.frames)
             .flat_map(|frame| &frame.atoms)
-            .filter_map(|atom| match atom {
-                OwnedVerbFrameAtom::Lex(terminal, member)
-                | OwnedVerbFrameAtom::OptionalLex(terminal, member)
-                | OwnedVerbFrameAtom::MarkedRole(terminal, member, _)
-                | OwnedVerbFrameAtom::OptionalMarkedRole(terminal, member, _) => {
-                    Some((terminal.as_str(), member.as_str()))
-                }
-                OwnedVerbFrameAtom::Literal(_)
-                | OwnedVerbFrameAtom::Amount
-                | OwnedVerbFrameAtom::ObjectNounPhrase
-                | OwnedVerbFrameAtom::PredicativeComplement
-                | OwnedVerbFrameAtom::Role(_)
-                | OwnedVerbFrameAtom::OptionalRole(_) => None,
-            })
+            .filter_map(CustomTailAtom::lexical_reference)
             .collect()
     }
 
@@ -1306,7 +1269,7 @@ impl OwnedVerbFrameKey {
                 .atoms
                 .iter()
                 .zip(frame.atoms())
-                .all(|(owned, runtime)| owned.matches(*runtime)))
+                .all(|(owned, runtime)| owned_frame_atom_matches(owned, *runtime)))
         .then_some(OwnedVerbFrameMatch {
             pair_preposition: None,
         })
@@ -1348,48 +1311,37 @@ struct OwnedVerbFrameMatch {
     pair_preposition: Option<(String, String)>,
 }
 
-impl OwnedVerbFrameAtom {
-    fn is_required_complement(&self) -> bool {
-        matches!(self, Self::ObjectNounPhrase | Self::Role(_))
-    }
-
-    fn is_optional(&self) -> bool {
-        matches!(
-            self,
-            Self::OptionalLex(_, _) | Self::OptionalMarkedRole(_, _, _) | Self::OptionalRole(_)
-        )
-    }
-
-    fn matches(&self, runtime: VerbFrameAtom) -> bool {
-        match (self, runtime) {
-            (Self::Literal(owned), VerbFrameAtom::Literal(runtime))
-            | (Self::Role(owned), VerbFrameAtom::Role(runtime))
-            | (Self::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => owned == runtime,
-            (
-                Self::Lex(owned_terminal, owned_variant),
-                VerbFrameAtom::Lex(runtime_terminal, runtime_variant),
-            )
-            | (
-                Self::OptionalLex(owned_terminal, owned_variant),
-                VerbFrameAtom::OptionalLex(runtime_terminal, runtime_variant),
-            ) => owned_terminal == runtime_terminal && owned_variant == runtime_variant,
-            (
-                Self::MarkedRole(owned_terminal, owned_variant, owned_role),
-                VerbFrameAtom::MarkedRole(runtime_terminal, runtime_variant, runtime_role),
-            )
-            | (
-                Self::OptionalMarkedRole(owned_terminal, owned_variant, owned_role),
-                VerbFrameAtom::OptionalMarkedRole(runtime_terminal, runtime_variant, runtime_role),
-            ) => {
-                owned_terminal == runtime_terminal
-                    && owned_variant == runtime_variant
-                    && owned_role == runtime_role
-            }
-            (Self::Amount, VerbFrameAtom::Amount)
-            | (Self::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
-            | (Self::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
-            _ => false,
+fn owned_frame_atom_matches(atom: &CustomTailAtom, runtime: VerbFrameAtom) -> bool {
+    match (atom, runtime) {
+        (CustomTailAtom::Literal(owned), VerbFrameAtom::Literal(runtime))
+        | (CustomTailAtom::Role(owned), VerbFrameAtom::Role(runtime))
+        | (CustomTailAtom::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => {
+            owned == runtime
         }
+        (
+            CustomTailAtom::Lex(owned_terminal, owned_variant),
+            VerbFrameAtom::Lex(runtime_terminal, runtime_variant),
+        )
+        | (
+            CustomTailAtom::OptionalLex(owned_terminal, owned_variant),
+            VerbFrameAtom::OptionalLex(runtime_terminal, runtime_variant),
+        ) => owned_terminal == runtime_terminal && owned_variant == runtime_variant,
+        (
+            CustomTailAtom::MarkedRole(owned_terminal, owned_variant, owned_role),
+            VerbFrameAtom::MarkedRole(runtime_terminal, runtime_variant, runtime_role),
+        )
+        | (
+            CustomTailAtom::OptionalMarkedRole(owned_terminal, owned_variant, owned_role),
+            VerbFrameAtom::OptionalMarkedRole(runtime_terminal, runtime_variant, runtime_role),
+        ) => {
+            owned_terminal == runtime_terminal
+                && owned_variant == runtime_variant
+                && owned_role == runtime_role
+        }
+        (CustomTailAtom::Amount, VerbFrameAtom::Amount)
+        | (CustomTailAtom::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
+        | (CustomTailAtom::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
+        _ => false,
     }
 }
 
@@ -1402,18 +1354,7 @@ fn normalize_plugin_frame_set(frame_set: &VerbFrameSet) -> Vec<OwnedVerbFrameKey
     };
     let mut frames = Vec::new();
     for frame in declared_frames {
-        let atoms = frame
-            .into_iter()
-            .map(|atom| match atom {
-                CustomTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
-                CustomTailAtom::Lex(terminal, variant) => {
-                    OwnedVerbFrameAtom::Lex(terminal, variant)
-                }
-                CustomTailAtom::Amount => OwnedVerbFrameAtom::Amount,
-                CustomTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,
-                CustomTailAtom::PredicativeComplement => OwnedVerbFrameAtom::PredicativeComplement,
-            })
-            .collect();
+        let atoms = frame;
         let frame = OwnedVerbFrameKey {
             class: VerbFrameClass::Predicate,
             atoms,
@@ -1481,30 +1422,6 @@ fn index_verb_inventory_readings(
     (running, initial)
 }
 
-fn owned_core_verb_frame_atoms(atoms: Vec<CoreVerbTailAtom>) -> Vec<OwnedVerbFrameAtom> {
-    atoms
-        .into_iter()
-        .map(|atom| match atom {
-            CoreVerbTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
-            CoreVerbTailAtom::Lex(terminal, variant) => OwnedVerbFrameAtom::Lex(terminal, variant),
-            CoreVerbTailAtom::OptionalLex(terminal, variant) => {
-                OwnedVerbFrameAtom::OptionalLex(terminal, variant)
-            }
-            CoreVerbTailAtom::MarkedRole(terminal, variant, role) => {
-                OwnedVerbFrameAtom::MarkedRole(terminal, variant, role)
-            }
-            CoreVerbTailAtom::OptionalMarkedRole(terminal, variant, role) => {
-                OwnedVerbFrameAtom::OptionalMarkedRole(terminal, variant, role)
-            }
-            CoreVerbTailAtom::Amount => OwnedVerbFrameAtom::Amount,
-            CoreVerbTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,
-            CoreVerbTailAtom::PredicativeComplement => OwnedVerbFrameAtom::PredicativeComplement,
-            CoreVerbTailAtom::Role(value) => OwnedVerbFrameAtom::Role(value),
-            CoreVerbTailAtom::OptionalRole(value) => OwnedVerbFrameAtom::OptionalRole(value),
-        })
-        .collect()
-}
-
 fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnvironmentError> {
     let declarations = ron::from_str::<Vec<CoreVerbDeclaration>>(include_str!("core_verbs.ron"))
         .map_err(
@@ -1561,7 +1478,7 @@ fn core_verb_declaration_records() -> Result<Vec<VerbInventoryRecord>, ParserEnv
             .map(|frame| match frame {
                 CoreVerbFrame::Predicate(atoms) => OwnedVerbFrameKey {
                     class: VerbFrameClass::Predicate,
-                    atoms: owned_core_verb_frame_atoms(atoms),
+                    atoms,
                 },
                 CoreVerbFrame::Auxiliary => OwnedVerbFrameKey {
                     class: VerbFrameClass::Auxiliary,

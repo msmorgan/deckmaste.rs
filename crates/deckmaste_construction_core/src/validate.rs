@@ -10697,7 +10697,7 @@ fn validate_roots(
             _ => None,
         })
         .collect();
-    if roots.is_empty() {
+    if roots.is_empty() && raw.frame_families.is_empty() {
         combine(
             &mut errors,
             syn::Error::new(
@@ -10755,7 +10755,7 @@ fn validate_roots(
             );
         }
     }
-    if !roots.iter().any(|root| root.eoi) {
+    if raw.frame_families.is_empty() && !roots.iter().any(|root| root.eoi) {
         combine(
             &mut errors,
             syn::Error::new_spanned(
@@ -10764,7 +10764,7 @@ fn validate_roots(
             ),
         );
     }
-    if !roots.iter().any(|root| root.standalone_render) {
+    if raw.frame_families.is_empty() && !roots.iter().any(|root| root.standalone_render) {
         combine(
             &mut errors,
             syn::Error::new_spanned(

@@ -208,7 +208,7 @@ struct MaterializationResultFor<V, C, K = Category, M = Lexical, T = (), O = (),
 }
 
 struct MaterializationKernel<'a, R, T, V, C, K: 'static, L: 'static, M, Build, E = BuildRejection> {
-    rules: &'a [Rule<K, L, R>],
+    rules: &'a [Rule<'a, K, L, R>],
     rule_index: fn(R) -> usize,
     public_construction: fn(R) -> Option<C>,
     lexical_matcher: fn(L) -> M,

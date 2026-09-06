@@ -455,7 +455,10 @@ impl Serialize for DerivedSurface {
 }
 
 /// One ordered lexical schema for the complements and fixed markers a verb licenses.
-pub type VerbFrame = Vec<CustomTailAtom>;
+pub type VerbFrame = Vec<FrameItem>;
+
+/// Compatibility spelling for the tail-codec migration.
+pub type CustomTailAtom = FrameItem;
 
 /// The grammatical Verb Frames owned by one verb definition.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -467,16 +470,106 @@ pub enum VerbFrameSet {
     Custom { frames: Vec<VerbFrame> },
 }
 
-/// The complete serialized atom vocabulary for a custom verb tail.
+/// The shared serialized atom vocabulary of core and plugin Verb Frames.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum CustomTailAtom {
+pub enum FrameItem {
+    Argument(FrameComplement),
+    Fixed(FrameLexicalRef),
+    Marked(FrameLexicalRef, FrameComplement),
+    Optional(Box<FrameItem>),
     Literal(String),
-    /// A fixed vocabulary member, as `(vocabulary, member)`, that the frame
-    /// selects instead of spelling the marker as a literal.
+    /// A fixed lexical member, given by vocabulary and member identity.
     Lex(String, String),
+    OptionalLex(String, String),
+    /// A lexical marker and the grammar category of its selected Complement.
+    MarkedRole(String, String, String),
+    OptionalMarkedRole(String, String, String),
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
+    Role(String),
+    OptionalRole(String),
+}
+
+/// A grammatical relation is independent of the category realizing it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum FrameRelation {
+    Subject,
+    Object,
+    Complement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrameComplement {
+    pub relation: FrameRelation,
+    pub category: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrameLexicalRef {
+    pub vocabulary: String,
+    pub member: String,
+}
+
+impl FrameItem {
+    #[must_use]
+    pub const fn is_required_complement(&self) -> bool {
+        matches!(
+            self,
+            Self::Argument(_) | Self::Marked(_, _) | Self::ObjectNounPhrase | Self::Role(_)
+        )
+    }
+
+    #[must_use]
+    pub const fn is_optional(&self) -> bool {
+        matches!(
+            self,
+            Self::Optional(_)
+                | Self::OptionalLex(_, _)
+                | Self::OptionalMarkedRole(_, _, _)
+                | Self::OptionalRole(_)
+        )
+    }
+
+    #[must_use]
+    pub fn lexical_reference(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::Fixed(marker) | Self::Marked(marker, _) => {
+                Some((&marker.vocabulary, &marker.member))
+            }
+            Self::Optional(item) => item.lexical_reference(),
+            Self::Lex(vocabulary, member)
+            | Self::OptionalLex(vocabulary, member)
+            | Self::MarkedRole(vocabulary, member, _)
+            | Self::OptionalMarkedRole(vocabulary, member, _) => Some((vocabulary, member)),
+            _ => None,
+        }
+    }
+
+    fn valid_payload(&self) -> bool {
+        match self {
+            Self::Argument(complement) => !complement.category.is_empty(),
+            Self::Fixed(marker) => !marker.vocabulary.is_empty() && !marker.member.is_empty(),
+            Self::Marked(marker, complement) => {
+                !marker.vocabulary.is_empty()
+                    && !marker.member.is_empty()
+                    && !complement.category.is_empty()
+            }
+            Self::Optional(item) => !item.is_optional() && item.valid_payload(),
+            Self::Literal(value) => valid_surface(value),
+            Self::Lex(vocabulary, member) | Self::OptionalLex(vocabulary, member) => {
+                !vocabulary.is_empty() && !member.is_empty()
+            }
+            Self::MarkedRole(vocabulary, member, role)
+            | Self::OptionalMarkedRole(vocabulary, member, role) => {
+                !vocabulary.is_empty() && !member.is_empty() && !role.is_empty()
+            }
+            Self::Role(role) | Self::OptionalRole(role) => !role.is_empty(),
+            Self::Amount | Self::ObjectNounPhrase | Self::PredicativeComplement => true,
+        }
+    }
 }
 
 /// A category-safe declaration name.
@@ -2481,28 +2574,12 @@ fn validate_frame_set(
             ));
         }
         for atom in frame {
-            match atom {
-                CustomTailAtom::Literal(literal) if !valid_surface(literal) => {
-                    return Err(validation_error_at(
-                        path,
-                        position,
-                        ValidationError::InvalidCustomLiteral,
-                    ));
-                }
-                CustomTailAtom::Lex(vocabulary, member)
-                    if vocabulary.is_empty() || member.is_empty() =>
-                {
-                    return Err(validation_error_at(
-                        path,
-                        position,
-                        ValidationError::InvalidCustomLiteral,
-                    ));
-                }
-                CustomTailAtom::Literal(_)
-                | CustomTailAtom::Lex(_, _)
-                | CustomTailAtom::Amount
-                | CustomTailAtom::ObjectNounPhrase
-                | CustomTailAtom::PredicativeComplement => {}
+            if !atom.valid_payload() {
+                return Err(validation_error_at(
+                    path,
+                    position,
+                    ValidationError::InvalidCustomLiteral,
+                ));
             }
         }
     }
@@ -2525,7 +2602,7 @@ fn validate_surface(
     Ok(())
 }
 
-fn valid_surface(surface: &str) -> bool {
+pub(crate) fn valid_surface(surface: &str) -> bool {
     !surface.is_empty()
         && surface.trim() == surface
         && !surface

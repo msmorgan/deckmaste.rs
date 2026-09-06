@@ -30,6 +30,7 @@ use crate::validate::CategoryRenderCapability;
 /// The one sealed semantic authority produced after validation succeeds.
 #[derive(Debug)]
 pub(crate) struct SemanticPlan {
+    pub(crate) frame_families: Vec<crate::frame_family::FrameFamilyPlan>,
     declaration_keys: Vec<DeclarationKey>,
     constructions: Vec<ConstructionPlan>,
     #[allow(dead_code, reason = "Task 3 consumes sealed abstract product rows")]
@@ -1587,6 +1588,9 @@ impl SemanticPlan {
             .declarations
             .iter()
             .map(DeclarationKey::from_source)
+            .chain(source.frame_families.iter().map(|family| {
+                DeclarationKey::new(SourceDeclarationKind::FrameFamily, family.name.to_string())
+            }))
             .collect();
         let morphologies = source
             .declarations
@@ -1739,7 +1743,9 @@ impl SemanticPlan {
             .collect();
         let runtime = RuntimeEmissionPlan::seal(&terminals, &constructions, &roots)?;
 
+        let frame_families = crate::frame_family::seal(source, &constructions, &terminals)?;
         Ok(Self {
+            frame_families,
             declaration_keys,
             constructions,
             products,

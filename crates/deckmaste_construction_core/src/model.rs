@@ -10,6 +10,7 @@ use syn::Path;
 #[derive(Debug)]
 pub struct Declarations {
     pub declarations: Vec<Declaration>,
+    pub frame_families: Vec<crate::frame_family::FrameFamilySource>,
 }
 
 impl Declarations {

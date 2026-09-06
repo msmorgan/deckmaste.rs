@@ -15,10 +15,10 @@ pub(crate) enum RulePosition<N, L> {
     Lexical(L),
 }
 
-pub(crate) struct Rule<N: 'static, L: 'static, R> {
+pub(crate) struct Rule<'rules, N, L, R> {
     pub id: R,
     pub lhs: N,
-    pub rhs: &'static [RulePosition<N, L>],
+    pub rhs: &'rules [RulePosition<N, L>],
 }
 
 #[derive(Clone)]
@@ -1288,6 +1288,52 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+
+    #[test]
+    fn environment_owned_rules_preserve_distinct_forest_families() {
+        let rhs = [
+            vec![RulePosition::Nonterminal(1_u8)],
+            vec![RulePosition::Lexical('a')],
+            vec![RulePosition::Lexical('a')],
+        ];
+        let rules = rhs
+            .iter()
+            .enumerate()
+            .map(|(id, rhs)| Rule {
+                id,
+                lhs: u8::from(id != 0),
+                rhs,
+            })
+            .collect::<Vec<_>>();
+        let forest = parse(
+            &rules,
+            0,
+            1,
+            |terminal, start| {
+                (start == 0 && terminal == 'a')
+                    .then_some(LexicalMatch {
+                        end: 1,
+                        value: terminal,
+                        owner: Some("lexical:a"),
+                    })
+                    .into_iter()
+                    .collect()
+            },
+            |_, _, _| true,
+        )
+        .expect("borrowed runtime productions accept");
+        let root = forest.accepted_roots().next().expect("one root rule");
+        assert_eq!(root.families.len(), 2);
+        let child_rules = root
+            .families
+            .iter()
+            .map(|family| match family.children.as_slice() {
+                [Child::Node(child)] => forest.node(*child).rule,
+                _ => panic!("each root alternative preserves its child node"),
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(child_rules, BTreeSet::from([1, 2]));
+    }
 
     #[test]
     fn selected_derivation_spans_retain_exact_owner_and_range() {

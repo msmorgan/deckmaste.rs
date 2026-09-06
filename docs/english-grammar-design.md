@@ -237,6 +237,33 @@ engineering cost; preparation size/time and parse work are measured, not assumed
 cheap. A demonstrated limitation is reported against this design rather than
 worked around with another hand-enumerated tail.
 
+The compiler capability is declared with `frame_family` inside `constructions!`:
+
+```rust
+frame_family LexicalVerbPhrase {
+    categories: [NounPhrase, PrepositionPhrase, MeasurePhrase],
+    roles: [ObjectNounPhrase = Object(NounPhrase), Amount = Complement(MeasurePhrase)],
+    coordinators: [Coordinator::And, Coordinator::Or, Coordinator::AndOr],
+}
+```
+
+The generated module composes its prepared root with the invocation's ordinary
+rules and typed child categories. `PreparedGrammar::new` resolves lexical rows
+against that declared inventory; its `rules`, `scan` and `build` methods supply
+the existing chart and materializer interfaces. `LexicalVerbPhrase::try_new`
+checks head ownership and the complete member sequence. The finite child sum
+retains the generated categories' feature carriers, and delegates their rendering
+and traversal to the ordinary generated functions. Standalone child-root
+punctuation does not enter an embedded frame.
+
+`FrameItem` in `construction_core::macro_def` is the shared serialized language;
+`CustomTailAtom` remains a compatibility alias for the immediate migration.
+`Argument`, `Fixed`, `Marked` and `Optional` distinguish the grammatical cases.
+The `roles` table resolves old core/plugin role spellings; new arguments state
+their relation and category directly. Literal strings have no lexical owner and
+are rejected by the prepared registry. The consumer ticket registers this
+capability in the production category graph and removes the named tail codecs.
+
 ### Admission, selection and retained alternatives
 
 The final pipeline is checked composition → feature/dependency/context

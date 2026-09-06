@@ -39,11 +39,26 @@ pub mod environment {
     pub(crate) struct VerbInventoryReading {
         reference: VerbInventoryRef,
         onset: Onset,
+        pair_preposition: Option<(String, String)>,
     }
 
     impl VerbInventoryReading {
         pub(crate) fn new(reference: VerbInventoryRef, onset: Onset) -> Self {
-            Self { reference, onset }
+            Self {
+                reference,
+                onset,
+                pair_preposition: None,
+            }
+        }
+
+        pub(crate) fn with_pair_preposition(mut self, marker: Option<(&str, &str)>) -> Self {
+            self.pair_preposition = marker.map(|(v, m)| (v.to_owned(), m.to_owned()));
+            self
+        }
+        pub(crate) fn frame_complement_pair_preposition(&self) -> Option<(&str, &str)> {
+            self.pair_preposition
+                .as_ref()
+                .map(|(v, m)| (v.as_str(), m.as_str()))
         }
 
         pub(crate) fn reference(&self) -> &VerbInventoryRef {
@@ -186,16 +201,7 @@ pub mod environment {
             frames
                 .iter()
                 .flatten()
-                .filter_map(|atom| match atom {
-                    deckmaste_construction_core::macro_def::CustomTailAtom::Lex(
-                        terminal,
-                        member,
-                    ) => Some((terminal.as_str(), member.as_str())),
-                    deckmaste_construction_core::macro_def::CustomTailAtom::Literal(_)
-                    | deckmaste_construction_core::macro_def::CustomTailAtom::Amount
-                    | deckmaste_construction_core::macro_def::CustomTailAtom::ObjectNounPhrase
-                    | deckmaste_construction_core::macro_def::CustomTailAtom::PredicativeComplement => None,
-                })
+                .filter_map(deckmaste_construction_core::macro_def::FrameItem::lexical_reference)
                 .collect()
         }
 
@@ -1159,6 +1165,7 @@ pub mod declaration_verb_fixture {
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum RulePosition<Category, Lexical> {
         Nonterminal(Category),
+        AdjacentNonterminal(Category),
         Lexical(Lexical),
     }
 
@@ -1354,14 +1361,13 @@ pub mod declaration_verb_fixture {
                             == deckmaste_construction_core::macro_def::GrammarPosition::Verb)
                         .then_some((declaration, grammar))
                 })
-                .filter(|(declaration, grammar)| {
-                    let deckmaste_construction_core::macro_def::GrammarRecipe::Verb { frame_set } =
-                        grammar.recipe()
-                    else {
-                        return false;
-                    };
-                    fixture_frames_for(declaration.identity().name(), frame_set)
-                        .contains(&frame.atoms())
+                .filter(|(declaration, _)| {
+                    self.environment.verb_frame_licenses(
+                        &crate::environment::VerbInventoryRef::Declaration(
+                            declaration.identity().clone(),
+                        ),
+                        *frame,
+                    )
                 })
                 .filter_map(|(declaration, grammar)| {
                     grammar
@@ -1371,6 +1377,19 @@ pub mod declaration_verb_fixture {
                         .and_then(|surface| {
                             self.word_end(surface.text(), LexicalBoundary::Separated)
                                 .map(|end| {
+                                    let reference =
+                                        crate::environment::VerbInventoryRef::Declaration(
+                                            declaration.identity().clone(),
+                                        );
+                                    let pair_marker =
+                                        if frame.atoms() == [VerbFrameAtom::FrameComplementPair] {
+                                            self.environment
+                                                .verb_frame_role_preposition_keys(&reference)
+                                                .first()
+                                                .copied()
+                                        } else {
+                                            None
+                                        };
                                     (
                                         end,
                                         crate::environment::VerbInventoryReading::new(
@@ -1378,7 +1397,8 @@ pub mod declaration_verb_fixture {
                                                 declaration.identity().clone(),
                                             ),
                                             surface.onset(),
-                                        ),
+                                        )
+                                        .with_pair_preposition(pair_marker),
                                     )
                                 })
                         })
@@ -1639,6 +1659,29 @@ pub mod declaration_verb_fixture {
             form role_preemption =
                 verb(head) object lex(RolePreposition::Selected) destination;
         }
+        codec PairVerb {
+            generate declaration_verb {
+                position = Verb;
+                tail = [FrameComplementPair];
+                feature = ConcordClass;
+            }
+        }
+        construction frame_complement_pair: FrameComplementPair {
+            element PairedComplement { object: Nominal, marker: lex RolePreposition, complement: Nominal, }
+            form pair = object lex(marker) complement;
+        }
+        construction paired_predicate: PairedPredicate {
+            element PairedPredicateValue {
+                head: lex PairVerb,
+                members: seq FrameComplementPair separated by position {
+                    pair = " and "; first = ", "; middle = ", "; last = ", and ";
+                } checked by pair_members_match_role(head.verb_frame_role_prepositions),
+            }
+            require len(members) >= 2;
+            derive head.concord_class = Values::Other;
+            form paired_predicate = verb(head) members;
+        }
+        root PairedPredicate { punctuation = "."; eoi = true; standalone_render = true; }
         root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root Nominal { punctuation = "."; eoi = true; standalone_render = true; }
         root RolePhrase { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1680,7 +1723,20 @@ pub mod declaration_verb_fixture {
             else {
                 return false;
             };
-            fixture_frames_for(id.name(), frame_set).contains(&frame.atoms())
+            let frames = fixture_frames_for(id.name(), frame_set);
+            if frame.atoms() == [VerbFrameAtom::FrameComplementPair] {
+                return frames.iter().any(|atoms| {
+                    matches!(
+                        atoms,
+                        [
+                            VerbFrameAtom::ObjectNounPhrase,
+                            VerbFrameAtom::Lex(_, _),
+                            VerbFrameAtom::Role(_)
+                        ]
+                    )
+                });
+            }
+            frames.contains(&frame.atoms())
         }
     }
 
@@ -2381,6 +2437,99 @@ pub mod declaration_verb_fixture {
             ],
             "open-only rendering owns one exact disjoint complete lexical partition",
         );
+    }
+
+    fn pair_members_match_role(
+        members: &[FrameComplementPair],
+        roles: &mut VerbFrameRolePreemption,
+    ) -> bool {
+        let markers = members
+            .iter()
+            .map(|member| match member {
+                FrameComplementPair::FrameComplementPair(value) => {
+                    verb_frame_role_preposition_for_role_preposition(value.marker)
+                }
+            })
+            .collect::<Vec<_>>();
+        let Some(first) = markers.first().copied() else {
+            return false;
+        };
+        if !roles.is_pending(first) || markers.iter().any(|marker| *marker != first) {
+            return false;
+        }
+        roles.fill(first);
+        true
+    }
+
+    pub(crate) fn run_frame_complement_pair() {
+        #[derive(Default)]
+        struct Leaves {
+            nouns: usize,
+            markers: usize,
+            heads: usize,
+        }
+        impl Visitor for Leaves {
+            fn visit_object_word(&mut self, _: ObjectWord) {
+                self.nouns += 1;
+            }
+            fn visit_role_preposition(&mut self, _: RolePreposition) {
+                self.markers += 1;
+            }
+            fn visit_verb_inventory(&mut self, _: &crate::environment::VerbInventoryRef) {
+                self.heads += 1;
+            }
+        }
+        let environment = environment();
+        let context = ParseContext::default();
+        let role = frame_complement_pair_role_from_keys("RolePreposition", "Selected").unwrap();
+        let declaration =
+            DeclarationPairVerb::new(&environment, id(&environment, "Selector"), role).unwrap();
+        let nominal = || {
+            Nominal::BareNominal(BareNominal {
+                word: ObjectWord::Object,
+            })
+        };
+        let pair = || {
+            FrameComplementPair::FrameComplementPair(PairedComplement {
+                object: nominal(),
+                marker: RolePreposition::Selected,
+                complement: nominal(),
+            })
+        };
+        let wrong_marker = FrameComplementPair::FrameComplementPair(PairedComplement {
+            object: nominal(),
+            marker: RolePreposition::Free,
+            complement: nominal(),
+        });
+        let checked_members = |first, second| {
+            build_checked(
+                RuleId::PairedPredicateValueMembersSequencePair,
+                &[
+                    BuildValue::Leaf(Leaf::PairVerb {
+                        verb: declaration.clone(),
+                        concord_class: ConcordClass::Other,
+                        inflectional_form: InflectionalForm::Plain,
+                        onset: Onset::Consonant,
+                    }),
+                    BuildValue::FrameComplementPair(first, FeatureConstraint::Any),
+                    BuildValue::Leaf(Leaf::Literal(" and ")),
+                    BuildValue::FrameComplementPair(second, FeatureConstraint::Any),
+                ],
+                &context,
+            )
+        };
+        assert_eq!(checked_members(pair(), wrong_marker).unwrap(), None);
+        assert!(checked_members(pair(), pair()).unwrap().is_some());
+        assert!(PairedPredicateValue::new(declaration.clone(), vec![]).is_none());
+        let value = PairedPredicateValue::new(declaration, vec![pair(), pair(), pair()]).unwrap();
+        let predicate = PairedPredicate::PairedPredicate(value);
+        assert_eq!(
+            predicate.render(&context, &environment),
+            "Select object onto object, object onto object, and object onto object."
+        );
+        let mut leaves = Leaves::default();
+        walk_paired_predicate(&mut leaves, &predicate);
+        assert_eq!((leaves.nouns, leaves.markers, leaves.heads), (6, 3, 1));
     }
 
     pub(crate) fn run_role_preemption() {
@@ -8388,4 +8537,12 @@ fn direct_intrinsic_sum_render_derives_selected_concord_class_without_writer() {
 #[test]
 fn declared_two_value_feature_admits_one_wrapper_only() {
     fixture::assert_declared_two_value_feature_admits_one_wrapper_only();
+}
+
+#[path = "support/runtime_frames.rs"]
+mod runtime_frames;
+
+#[test]
+fn declaration_verb_frame_complement_pair_crosses_compiled_boundaries() {
+    declaration_verb_fixture::run_frame_complement_pair();
 }

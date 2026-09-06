@@ -146,11 +146,14 @@ pub(crate) fn parse_declarations(tokens: TokenStream) -> syn::Result<Declaration
 impl Parse for Declarations {
     fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let mut declarations = Vec::new();
+        let mut frame_families = Vec::new();
         while !input.is_empty() {
             if input.peek(Token![#]) {
                 return Err(deferred(input.span(), "doc comments"));
             }
-            if input.peek(keyword::construction) {
+            if peek_ident(input, "frame_family") {
+                frame_families.push(input.parse()?);
+            } else if input.peek(keyword::construction) {
                 declarations.push(Declaration::Construction(parse_construction(input)?));
             } else if peek_ident(input, "abstract") {
                 declarations.push(parse_abstract_declaration(input)?);
@@ -180,7 +183,10 @@ impl Parse for Declarations {
                 ));
             }
         }
-        Ok(Self { declarations })
+        Ok(Self {
+            declarations,
+            frame_families,
+        })
     }
 }
 
