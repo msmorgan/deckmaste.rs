@@ -386,7 +386,6 @@ mutual
     /-- A named deed done: the deed's own facts row gates the agent, the patient and the zones
     the sentence may name, whichever of the three sources defines it. -/
     | enact (verb : Deed) (instruction : Instruction) (agent : Option NounPhrase := none)
-    | haveControllerSacrifice (subject : NounPhrase)
     | pay (cost : Cost) (times : PayTimes) (agent : NounPhrase := .you)
     | offer (body : Instruction) (ifDid : Option Instruction) (ifNot : Option Instruction)
         (agent : NounPhrase := .you)

@@ -722,7 +722,6 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
-  | .haveControllerSacrifice _ => .reflexive
   | .skipPart _ _ _ => .notYetTaken
   | .addTurn _ _ => .notYetTaken
   | .addPart _ _ _ _ (some _) => .notYetTaken
@@ -758,7 +757,6 @@ def Instruction.thisWayOutcomeOk : Instruction → Bool
 mutual
   def Instruction.costActionOk : Instruction → Bool
     | .dealDamage src _ _ => src.costNounOk
-    | .haveControllerSacrifice n => n.costNounOk
     | .skipUntap n _ => n.costNounOk
     | .addTurn _ who => who.costNounOk
     | .addPart _ _ _ _ none => true
@@ -877,11 +875,6 @@ mutual
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
-    | .haveControllerSacrifice n =>
-      ⟨⟨.the, .one, .player false⟩ :: selfSubjIntro bs n,
-       ⟨.the, .one, .player false⟩ ::
-         moveIntro bs (some (deedLabel .sacrificing)) n (some .graveyard),
-       none, []⟩
     | .distribute v amt among =>
       let bs' := Amount.intro (v.intro bs) amt
       match v with
@@ -1353,7 +1346,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
   | .loseCounters _ amount _ => optClamped amount
-  | .enact _ _ _ | .haveControllerSacrifice _ | .pay _ _ _ => []
+  | .enact _ _ _ | .pay _ _ _ => []
   | .offer _ _ _ _ | .doIfDone _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   -- The letter X, defined by the text [CR#107.1b,107.3]: a defined X is a count, not a
   -- game value, so a calculation below zero reads as zero.

@@ -89,6 +89,34 @@ prefix isolation for arbitrary non-letter introductions; the comparison and
 chooser scopes are also proved for arbitrary outer contexts. These are reference-checking laws,
 not positional lowering or runtime object-identity proofs.
 
+## Controller as the subject of a sacrifice
+
+`controllerSacrifices subject` composes `controllerOf`, an owned subject read,
+and `sacrifice`. The relational noun introduces the target object once and
+then its controller; the deed's body reads that object without declaring a
+second target. `NounPhrase.introducesOwnReferent` distinguishes a phrase's own
+introduced referent from mentions nested in its arguments. For such phrases,
+the read selects the controller and that referent; nested object descriptions
+cannot make the patient ambiguous. Coordinated references have no single
+introduced head and retain ordinary ambiguity checks. An already-referential subject is read directly again because
+it introduces no new object. The ordinary sacrifice expansion moves the
+patient to the graveyard and records sacrifice provenance [CR#701.21a].
+
+The Arcum Dagsson fragment retains the former constructor's input and
+post-action bindings: one controller and the same artifact creature, now in
+the graveyard with its sacrifice stamp. Subsequent player, card and stamped
+permanent reads use those bindings. The generic deed machinery additionally
+provides an explicit stamped rider context; the removed special constructor
+had no rider context and fell back to its unstamped input. This representation
+change is intentional and separately pinned.
+
+`Proofs/ControllerSacrifice.lean` proves the full profile for arbitrary outer
+contexts, target multiplicity, the existing-reference case, and later reads.
+No controller-sacrifice constructor or dedicated validation, profile, cost,
+reflexive-enclosure or number-slot arm remains. Macro authoring still establishes
+trusted expansion origin; these are checker/reference guarantees, not an engine
+execution proof.
+
 ## Scheduling fields
 
 For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`

@@ -1282,6 +1282,19 @@ mutual
 
 end
 
+/-- Whether the phrase introduces its own referent first, before mentions nested in its
+arguments. Coordinated references have no single such head. -/
+def NounPhrase.introducesOwnReferent (n : NounPhrase) : Bool :=
+  !(NounPhrase.selfSubjIntroduced n).isEmpty || nominal n
+where
+  nominal : NounPhrase → Bool
+    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .namesAgree _ n =>
+      nominal n
+    | .described .the p => !p.choiceRead
+    | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .pileOf _ _
+    | .possessorOf _ _ | .oneEachOf _ _ => true
+    | _ => false
+
 def nomIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.introduced bs n ++ bs
 
 def sliceTy (bs : Bindings) (d : Option Predicate) (g : NounPhrase) : List CardType :=

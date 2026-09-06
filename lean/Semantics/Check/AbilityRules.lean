@@ -343,9 +343,6 @@ mutual
         refuse (enactPatientZoneOk (agentCtx bs subj) v e) .zoneFits ++
         refuse (enactLibraryOwnerOk v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
-    | .haveControllerSacrifice n =>
-      NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .pay c _ who =>
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
         refuse c.payable .payable ++ refuse (payAgreesOk who c) .payAgrees

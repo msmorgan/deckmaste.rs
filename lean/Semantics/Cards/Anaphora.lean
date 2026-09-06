@@ -653,7 +653,7 @@ def aggressiveInstinct : Spelled := spelled <| .singleFaced
 
 /-- Arcum Dagsson -/
 def arcumDagssonSacrifice : Instruction :=
-  Primitives.Instruction.haveControllerSacrifice (target (Primitives.Predicate.and [artifact, creature]))
+  controllerSacrifices (target (Primitives.Predicate.and [artifact, creature]))
 theorem okArcumDagssonSacrifice : Instruction.check [] arcumDagssonSacrifice = [] := by decide
 
 /-- Vaevictis Asmadi, the Dire -/

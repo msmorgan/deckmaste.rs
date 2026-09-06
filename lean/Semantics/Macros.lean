@@ -757,6 +757,18 @@ def getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
 itself announced. -/
 def ownSubject (subject : NounPhrase) : NounPhrase :=
   .pro .bare subject.plur (.introduced ((selfSubjIntro [] subject).map Binding.kind))
+/-- "<subject>'s controller sacrifices it" [CR#701.21a]. The relational subject
+introduces the object once; the deed re-reads that introduction. An already-referential
+subject introduces no new object and can be read directly again. -/
+def controllerSacrifices (subject : NounPhrase) : Instruction :=
+  let controller := controllerOf subject
+  let patient :=
+    if subject.introducesOwnReferent then
+      .pro .bare subject.plur (.introduced [.player, subject.kindOr .object])
+    else if (selfSubjIntro [] subject).isEmpty then subject
+    else ownSubject controller
+  sacrifice patient (agent := controller)
+
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 def lookedCards (slice : NounPhrase) : NounPhrase :=
   .pro .bare slice.plur (.introduced ((NounPhrase.introduced [] slice).map Binding.kind))
