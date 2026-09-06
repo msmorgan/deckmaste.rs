@@ -1,6 +1,13 @@
 ---
 needs: [ci-lean-gate]
 ---
+**Deferred by the user (2026-09-06): `semantics_v2` must exist before this
+emitter is implemented.** Completing `ci-lean-gate` alone does not make this
+work ready. The emitter must consume the actual v2 card representation and
+macro expansions. Do not build an adapter from the current expanded RON or
+invent a Lean/Rust crosswalk to work around the missing prerequisite. This
+ticket remains unimplemented; the existing Idris gate stays in place meanwhile.
+
 **The Lean workbench, not the Idris mirror, is the soundness gate for card
 data.** Today `cargo xtask idris-check <plugin>` re-emits every expanded
 RON card as an `idris/src/Semantics.idr` term through

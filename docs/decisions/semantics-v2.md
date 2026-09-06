@@ -74,8 +74,11 @@ their consumer vocabulary. The value itself is never stored, and
 countability is the read site's, not the record's. The record is kind-indexed: a binding can
 record only the data its kind can have (an object's head type and zone;
 a player or quality has neither), so an ill-sorted binding — "a player
-in your hand" — is unrepresentable rather than merely unused. Never
-rules classifications: timing
+in your hand" — is unrepresentable rather than merely unused. The payload of a
+binding at a joined kind remains open; it will be settled with the execution
+shape described in [The kind index joins; union marking is
+spelling](kind-index-joins-union-marking-is-spelling.md), including whether the
+binding carries its antecedent's kind pair. Never rules classifications: timing
 (announce vs. resolution), staleness, and agreement are always functions
 of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives
@@ -128,9 +131,12 @@ the word.
 Top-level constructors are the engine primitive basis and nothing else. The
 classification is consulted per word, never re-derived: the core taxonomy
 (`cargo xtask map enums`) plus the builtin macro definitions
-(`plugins/builtin/macros/`) are the record of the whittling. Keyword actions
-and keyword abilities are phrase-shaped macros over the basis, mirroring the
-real definitions' name, params, and body — the hand-written Idris macro layer
+(`plugins/builtin/macros/`) are the record of the whittling. Keyword actions,
+keyword abilities, and common phrasings generally are phrase-shaped macros over
+the basis, mirroring the real definitions' name, params, and body. A core shape
+is judged by lowerability and by its algebra; meta constructs are legitimate in
+the core. Phrasing knowledge belongs to the card language or the spelling
+declarations. The hand-written Idris macro layer
 is a stand-in to be generated from those definitions eventually. The
 `Composite` tag is itself basis: `destroy x = Composite Destroy (Move x
 Graveyard)` keeps the tag that deontics key on — indestructible cants the

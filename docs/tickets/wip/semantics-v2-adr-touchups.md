@@ -73,3 +73,49 @@ reference list is maintained separately.
 - No other section of the contract is touched in passing.
 
 Standard constraints apply.
+
+## Confirmed decisions (2026-09-06)
+
+The design interview is complete and the user confirmed the recommended edits:
+common phrasings belong above the primitive basis alongside keyword macros;
+the joined-kind binding payload stays explicitly open. No new execution
+representation is selected.
+
+## Landing record
+
+Change `vnzynvvxykypvtmunknpntuyvtxukosw`, lock `covered` 20,254 (2026-09-06).
+
+### PROVE
+
+The ADR diff touches only the two authorized sections: §6 widens the macro
+vocabulary and states the lowerability/algebra criterion for core shapes; §3
+explicitly leaves joined-kind payloads open and points to the existing
+execution-shape discussion. The settled kind-index ADR is unchanged.
+
+This is documentation only. No card, construction, test, or licensing guard
+changed; tests restored 0, re-spelled 0, ignored 0, added 0, removed 0. No
+coverage identity was added or lost, and no English structural law changed.
+The existing target of the new Markdown link was checked. Citation checks
+report zero noncompliant strings and zero stale references; the diff introduces
+no citation sites. The ticket graph has no duplicates, cycles, or dangling
+dependencies.
+
+### DISCLOSE
+
+The user approved the content during the design interview; there is no pending
+design approval or implicit decision about the shape of a join. No glossary
+term was introduced.
+
+Addition beyond the ADR ticket's consumption boundary: the planned
+`lean-card-soundness-gate` ticket records the user's explicit deferral until
+`semantics_v2` exists. This is a scheduling correction requested in the same
+interview, not emitter implementation or completion. Its status and dependency
+edges are unchanged. No Lean/Rust adapter or crosswalk was added.
+
+### REPORT
+
+Provenance: `vnzynvvxykypvtmunknpntuyvtxukosw`, lock `covered` 20,254.
+The coverage lock and declaration data are unchanged. English selection,
+construction, licensing, homograph, and form-literal/vocabulary inventories
+were not remeasured. No coverage performance run, host-load/worker telemetry,
+or ns/B measurement is claimed for this documentation change.
