@@ -133,7 +133,7 @@ above. It reports zero ownership, construction-traversal, leaf-traversal,
 roundtrip, unresolved-tie or internal failures. The unchanged lock records
 20,254 covered identities.
 
-Performance advisory: the final coverage command took 176.280s against
+Performance advisory: the final coverage command took 176 seconds (rounded) against
 the 16.26-second quiet-host ceiling, using 4 workers; accepted per-byte
 thread CPU was 142,846 ns/B. Host load was 5.03 / 6.36 / 5.75 (1 / 5 / 15
 minutes), with other checks running on the host; this is not a quiet-host
