@@ -548,7 +548,7 @@ theorem abilityIsOnTheStack : Payload.zone (.ability none) = some .stack := by d
 theorem joinedCreatureTy :
     tyOfReach (.word .join) .one
       (Instruction.intro [] (.dealDamage .this (.lit 3) (target (.or [creature, .anyPlayer]))))
-      = some .creature := by
+      = [.creature] := by
   decide
 
 theorem anyTargetIsPlaceless : NounPhrase.zone [] (target anyTarget) = none := by decide
@@ -836,20 +836,20 @@ theorem noTokenAsThoseWithoutAntecedent : countTokenSpecs [] = 0 := by decide
 
 theorem oneTokenIsOneSpec :
     countTokenSpecs
-      [⟨.a, .one, .object (some .creature) (some .battlefield) none (some .token) none⟩]
+      [⟨.a, .one, .object [.creature] (some .battlefield) none (some .token) none⟩]
       = 1 := by
   decide
 
 theorem manyTokensAreOneSpec :
     countTokenSpecs
-      [⟨.a, .many, .object (some .creature) (some .battlefield) none (some .token) none⟩]
+      [⟨.a, .many, .object [.creature] (some .battlefield) none (some .token) none⟩]
       = 1 := by
   decide
 
 /-- A non-token object leaves no definition whatever its plurality. -/
 theorem oneNonTokenIsNoSpec :
     countTokenSpecs
-      [⟨.the, .one, .object (some .creature) (some .battlefield) none none none⟩] = 0 := by
+      [⟨.the, .one, .object [.creature] (some .battlefield) none none none⟩] = 0 := by
   decide
 
 /-- "where X is ..." -/

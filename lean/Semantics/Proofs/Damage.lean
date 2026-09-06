@@ -201,7 +201,7 @@ theorem okStructuredDisjunction :
 /-- "other creature or land" -/
 theorem badOtherInOr :
     Predicate.check .object
-      [⟨.target, .one, .object (some .creature) (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩]
       (.or [.and [creature, .other], land]) = [.coordinableDisjuncts] := by
   decide
 

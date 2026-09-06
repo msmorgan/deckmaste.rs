@@ -84,12 +84,42 @@ cover type/copy refinement order in direct, half, and verbed matchers.
 These refinements have no binding effects; this does not assert commutativity
 of arbitrary Predicate modifiers.
 
-Bindings still retain one optional type. Refinements test that evidence;
-they do not repair the first-type behavior of Predicate conjunctions.
-`lean-conjunction-type-evidence` owns richer evidence and disjunction policy.
-Attachment profiles also retain one type: `attachRefinementsOk` prevents
-conflicting refinements from silently selecting that type by order. Existing
-single-type attachment spellings retain their profiles and verdicts.
+### Remembered type evidence
+
+Bindings preserve card-type facts as canonical, duplicate-free lists. A conjunction
+unions its written card types; their order does not select a grammatical head.
+An artifact creature supports both type words [CR#205.2b]. `[]` means no known
+card type, not a claim that the referent has no types. Explicit card-type evidence
+is retained before the existing subtype-derived fallback; a creature subtype does
+not add a creature fact to an explicitly Kindred description. The separate
+`Predicate.seedType` presupposition calculation is not stored type evidence.
+
+A same-kind disjunction retains only facts common to every alternative. Joined
+kinds keep separate evidence in each `HeadTy`/`Payload` half, with intersection
+within each half's alternatives. A read must satisfy all refinements within one
+half. The legacy flattened `Payload.ty` projection skips nonobject halves; it
+must not be used to borrow evidence across halves. Choice-arm payloads and
+same-kind group summaries also intersect their facts; narrowing a group or
+remarking a tested referent adds facts to that referent.
+
+Type alternatives retain conjunction/disjunction structure for role checks:
+conjunction combines facts, disjunction requires each alternative to support the
+role. An entirely unknown description retains the previous no-evidence behavior
+for stat and deed checks. Damage and attachment checks can use any supporting
+type within one conjunctive alternative. Attachment profiles collect every type
+refinement, including when seeding or moving their referent.
+
+Movement retains the remembered facts and changes the carrier separately.
+A battlefield type word then stops matching, while a correspondingly refined
+card word can match the card in exile [CR#109.2,109.2a,110.1]. This is evidence
+for reference resolution, not a simulation of continuous characteristic changes.
+
+`Proofs/TypeEvidence.lean` proves `pureTypePermutation` for arbitrary lists of
+pure card-type modifiers, including duplicates and the empty list. Its concrete
+pins cover both type words, missing types, common versus alternative evidence,
+joined halves, damage, attachment profiles, and movement. This does not assert
+that arbitrary modifiers with binding effects commute.
+
 
 The source inventory is the indexed `data` declarations and parameterized
 records in `idris/src/Experimental/*.idr`, including proof datatypes. An
@@ -245,7 +275,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `Joins` | `joinKinds`, `Predicate.kindOfAll`, and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
 | `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; expansion agreement is owned by `lean-enact-expansion-boundary`. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Binding` has no separate kind field that can disagree. |
-| `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive optional type evidence. Preservation of conjunction evidence is owned by `lean-conjunction-type-evidence`. |
+| `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Targetable` | `Kind.targetable` at `DetPhrase.check`, copying and target consumers. |
 | `Targeter` | `Kind.targeter` in `Predicate.check` and `DeonticPatient.check`. |
@@ -269,8 +299,7 @@ by exact-refusal theorems; it is not an authorable term.
   characteristic text remains closed.
 - `Binding`'s kind/payload pair and `unionPayload`'s returned dependent pair:
   the kind is now derived from the payload, so there is no separate index to
-  validate. Union representation and retained type evidence remain part of
-  `lean-conjunction-type-evidence`.
+  validate. Union payloads retain only card-type facts shared by both arms.
 - Other erased implicit binders on functions and macros refer to these same
   datatype duties; erasing the binder does not remove the obligation at the
   resulting term's consumer. In particular, macros are not an independent

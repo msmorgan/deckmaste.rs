@@ -599,7 +599,7 @@ theorem okExtraTurnNestedAmountOrder :
       (.addTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) (agent :=
           .you)))
       = [turnRefB, ⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩,
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩,
          qualityB .color] := by rfl
 
 theorem okSkipNextNestedAmountOrder :
@@ -607,20 +607,20 @@ theorem okSkipNextNestedAmountOrder :
       (.skipPart .drawStep
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) (agent := .you)))
       = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
 
 theorem okAdditionalPartNestedAmountOrder :
     (Instruction.intro []
       (.addPart .upkeep none
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none (agent := none)))
       = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
 
 theorem okUntapNestedAmountOrder :
     (Instruction.intro []
       (.skipUntap .this
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
       = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object (some .creature) (some .battlefield) none none (some 1)⟩] := by rfl
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
 
 end Semantics.Proofs.Turn

@@ -70,7 +70,7 @@ def selfExchanged : Amount → Amount → Bool
   | _, _ => false
 
 def TokenQuality.hosted (tys : List CardType) : TokenQuality → Bool
-  | .withEveryType space => tys.any fun t => spaceHosted space (some t)
+  | .withEveryType space => tys.any fun t => spaceHosted space [t]
   | .withQuality q =>
     match q.qualityReadHost with
     | none => true
@@ -408,7 +408,7 @@ def Characteristics.canonical (c : Characteristics) : Bool :=
 def Characteristics.additionUnnamed (c : Characteristics) : Bool := c.name.isNone
 def Characteristics.lossWritesTypes (c : Characteristics) : Bool :=
   c.pt.isNone && c.colors.isEmpty && c.text.isEmpty && c.name.isNone && c.lineNonEmpty
-def Characteristics.headTy (c : Characteristics) : Option CardType := lastType c.types
+def Characteristics.headTy (c : Characteristics) : List CardType := normalizeTypes c.types
 def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
   let said := (if ptWritten c.pt then 1 else 0) + (if !c.colors.isEmpty then 1 else 0) +
     (if c.lineNonEmpty then 1 else 0)
@@ -428,7 +428,7 @@ def CharacteristicBundle.qualsFit (b : CharacteristicBundle) : Bool :=
 def CharacteristicBundle.lossWritesTypes (b : CharacteristicBundle) : Bool :=
   b.characteristics.lossWritesTypes && b.qualities.isEmpty
 
-def bundleOk (op : QualityOp) (ty : Option CardType) (z : Option Zone)
+def bundleOk (op : QualityOp) (ty : List CardType) (z : Option Zone)
     (b : CharacteristicBundle) (ret : Option CardType) : Bool :=
   let t := b.characteristics
   match op with
@@ -447,7 +447,7 @@ def becomesOk (bs : Bindings) (op : QualityOp) (n : NounPhrase) : QualityPayload
   | .chosenQuality q => q.qualityReadOk && hostedRead bs q n
   | .colored cs => cs.ok && colorOpOk op cs
 
-def TokenSpec.headTy (bs : Bindings) : TokenSpec → Option CardType
+def TokenSpec.headTy (bs : Bindings) : TokenSpec → List CardType
   | .written t => t.characteristics.headTy
   | .asThose => tyOfThoseAny .token bs
   | .copyOf src _ => NounPhrase.ty bs src

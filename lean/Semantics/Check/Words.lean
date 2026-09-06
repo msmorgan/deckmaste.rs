@@ -20,6 +20,17 @@ namespace Semantics
 
 /-! ## Card types and stats -/
 
+/-- Canonical order for remembered type facts; order in the written modifiers is immaterial. -/
+def normalizeTypes (types : List CardType) : List CardType :=
+  [ .creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle,
+    .kindred ].filter (· ∈ types)
+
+def mergeTypes (left right : List CardType) : List CardType :=
+  normalizeTypes (left ++ right)
+
+def commonTypes (left right : List CardType) : List CardType :=
+  normalizeTypes (left.filter (· ∈ right))
+
 def Stat.comparedType : Stat → Option CardType
   | .power => some .creature
   | .toughness => some .creature
@@ -241,7 +252,7 @@ def pileMentionFace : List PileFace → Option PileFace
 /-- What a binding knows about its referent. The Idris indexes this by `Kind`; here the kind
 is derived from the payload by `Payload.kind`. -/
 inductive Payload where
-  | object (ty : Option CardType) (zone : Option Zone) (prov : Option Stamp) (orig : Option Origin)
+  | object (ty : List CardType) (zone : Option Zone) (prov : Option Stamp) (orig : Option Origin)
       (size : Option Nat)
   | player (chosen : Bool)
   | quality (q : QualitySort)
@@ -293,15 +304,15 @@ def zone : Payload → Option Zone
   | .join l r => (l.zone).elim r.zone some
   | _ => none
 
-def joinSeed : Option CardType → Option CardType → Option CardType
-  | none, t => t
-  | t, none => t
-  | some t, some u => if t == u then some t else none
+def joinSeed : List CardType → List CardType → List CardType
+  | [], t => t
+  | t, [] => t
+  | t, u => commonTypes t u
 
-def ty : Payload → Option CardType
+def ty : Payload → List CardType
   | .object t _ _ _ _ => t
   | .join l r => joinSeed l.ty r.ty
-  | _ => none
+  | _ => []
 
 def size : Payload → Option Nat
   | .object _ _ _ _ sz => sz
@@ -331,7 +342,7 @@ def joined : Payload → Bool
 end Payload
 
 def Binding.zone (b : Binding) : Option Zone := b.payload.zone
-def Binding.ty (b : Binding) : Option CardType := b.payload.ty
+def Binding.ty (b : Binding) : List CardType := b.payload.ty
 def Binding.size (b : Binding) : Option Nat := b.payload.size
 def Binding.face (b : Binding) : Option PileFace := b.payload.face
 
@@ -343,7 +354,7 @@ def sized (sz : Option Nat) : Binding → Binding
 
 /-- The head type(s) a phrase seeds, one per join half. -/
 inductive HeadTy where
-  | sole (ty : Option CardType)
+  | sole (ty : List CardType)
   | join (a b : HeadTy)
   deriving Repr, BEq
 
@@ -533,7 +544,7 @@ def restSource (k : Kind) : Bindings → Option Binding
   | b :: bs => if objGroup k b then some b else restSource k bs
 
 def zoneOfGroup (k : Kind) (bs : Bindings) : Option Zone := restSource k bs >>= (·.zone)
-def tyOfGroup (k : Kind) (bs : Bindings) : Option CardType := restSource k bs >>= (·.ty)
+def tyOfGroup (k : Kind) (bs : Bindings) : List CardType := (restSource k bs).elim [] (·.ty)
 def provOfGroup (k : Kind) (bs : Bindings) : Option Stamp := restSource k bs >>= (·.payload.prov)
 
 def anyTargeted (k : Kind) : Bindings → Bool
@@ -541,9 +552,9 @@ def anyTargeted (k : Kind) : Bindings → Bool
   | b@⟨.target, _, _⟩ :: bs => Kind.lte k b.kind || anyTargeted k bs
   | _ :: bs => anyTargeted k bs
 
-def anchorTyOk (t : CardType) : Option CardType → Bool
-  | none => true
-  | some t' => t == t'
+def anchorTyOk (t : CardType) : List CardType → Bool
+  | [] => true
+  | ts => ts.contains t
 
 def anyTargetedAt : Bindings → Bool
   | [] => false
@@ -567,14 +578,14 @@ def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α �
 /-- The binding two arms of a choice agree on, if any: the union of their payloads. -/
 def unionPayload : Payload → Payload → Option (Kind × Payload)
   | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
-    some (.object, .object (agreedField (· == ·) t1 t2) (agreedField (· == ·) z1 z2)
+    some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
       (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
   | .ability o1, .ability o2 => some (.object, .ability (agreedField (· == ·) o1 o2))
   | .player a, .player b => if a == b then some (.player, .player a) else none
   | .object _ _ _ o1 _, .ability o2 =>
-    some (.object, .object none (some .stack) none (agreedField (· == ·) o1 o2) none)
+    some (.object, .object [] (some .stack) none (agreedField (· == ·) o1 o2) none)
   | .ability o1, .object _ _ _ o2 _ =>
-    some (.object, .object none (some .stack) none (agreedField (· == ·) o1 o2) none)
+    some (.object, .object [] (some .stack) none (agreedField (· == ·) o1 o2) none)
   | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
   | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
   | _, _ => none
@@ -629,9 +640,7 @@ def stampWasField : Option Stamp → Bool
 
 /-! ## Pronoun reach -/
 
-def tyIs (t : CardType) : Option CardType → Bool
-  | none => false
-  | some t' => t == t'
+def tyIs (t : CardType) (types : List CardType) : Bool := types.contains t
 
 def isCardZone : Option Zone → Bool
   | some .graveyard | some .exile | some .hand | some .library | some .command => true
@@ -677,7 +686,7 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
     | .object ty _ _ _ _ =>
       match word with
       | .type t => tyIs t ty
-      | .permanent => ty.isNone
+      | .permanent => ty.isEmpty
       | _ => false
     | .player _ => word == .player
     | _ => false
@@ -747,7 +756,7 @@ def Reach.kind : Reach → Kind
 def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
 def Stamp.feature (s : Stamp) : Option DeedFeature := deedFeatureOf s.verb
 
-def verbedWordOk : NounWord → Stamp → Option CardType → Option Zone → Option Origin → Bool
+def verbedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
   | .ofType word t, st, ty, zn, og => verbedWordOk word st ty zn og && tyIs t ty
   | .copied word, st, ty, zn, og => verbedWordOk word st ty zn og && isCopyOrigin og
   | .type t, st, ty, _, _ => st.wasField && tyIs t ty
@@ -760,11 +769,12 @@ def stampIs (v : Deed) : Option Stamp → Bool
   | none => false
   | some st => stampedBy v st
 
-def markTy (ty : Option CardType) : Binding → Binding
-  | ⟨det, plur, .object none zn st og sz⟩ => ⟨det, plur, .object ty zn st og sz⟩
+def markTy (ty : List CardType) : Binding → Binding
+  | ⟨det, plur, .object old zn st og sz⟩ =>
+    ⟨det, plur, .object (mergeTypes old ty) zn st og sz⟩
   | b => b
 
-def markFirst (q : Binding → Bool) (ty : Option CardType) : Bindings → Bindings
+def markFirst (q : Binding → Bool) (ty : List CardType) : Bindings → Bindings
   | [] => []
   | b :: bs => if q b then markTy ty b :: bs else b :: markFirst q ty bs
 
@@ -776,7 +786,7 @@ def survivesShuffle (b : Binding) : Bool :=
 
 def afterShuffle (bs : Bindings) : Bindings := bs.filter survivesShuffle
 
-def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : Option CardType)
+def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : List CardType)
     (zn : Option Zone) (og : Option Origin) : Bool :=
   stampedBy v st && verbedWordOk w st ty zn og
 
@@ -809,8 +819,8 @@ def provOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Stamp :=
   firstReach r pl bs >>= (·.payload.prov)
 def zoneOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Zone :=
   firstReach r pl bs >>= (·.zone)
-def tyOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option CardType :=
-  firstReach r pl bs >>= (·.ty)
+def tyOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : List CardType :=
+  (firstReach r pl bs).elim [] (·.ty)
 def faceOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option PileFace :=
   firstReach r pl bs >>= (·.face)
 
@@ -831,8 +841,8 @@ def countTokenSpecs : Bindings → Nat
     if isTokenOrigin og then countTokenSpecs bs + 1 else countTokenSpecs bs
   | _ :: bs => countTokenSpecs bs
 
-def tyOfThoseAny (w : NounWord) : Bindings → Option CardType
-  | [] => none
+def tyOfThoseAny (w : NounWord) : Bindings → List CardType
+  | [] => []
   | b :: bs => if wordNow w b then b.ty else tyOfThoseAny w bs
 
 def countChoosers (bs : Bindings) : Nat := countOnes .player bs + countManys .player bs
@@ -868,11 +878,12 @@ def CardType.damageable : CardType → Bool
   | _ => false
 
 /-- `[]` means unknown-therefore-permissive, at both levels. -/
-def damageableHeadTysOk (alts : List (List CardType)) : Bool := alts.all (·.all CardType.damageable)
+def damageableHeadTysOk (alts : List (List CardType)) : Bool :=
+  alts.all fun types => types.isEmpty || types.any CardType.damageable
 
 /-- A copy of an ability is itself an ability [CR#707.10]: the source's payload shape, not its
 kind, decides which object the copy is. -/
-def copyPayloadIn : Kind → Bool → Option CardType → Option Zone → Payload
+def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
   | .object, true, _, _ => .ability (some .copy)
   | .object, false, ty, z => .object ty z none (some .copy) none
   | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
@@ -948,7 +959,7 @@ def distinctSubtypeFacts : List SubtypeFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
 
-def spaceHosted : SubtypeSpace → Option CardType → Bool
+def spaceHosted : SubtypeSpace → List CardType → Bool
   | .basicLand, ty => tyIs .land ty
   | .land, ty => tyIs .land ty
   | .creature, ty => tyIs .creature ty || tyIs .kindred ty
@@ -1068,11 +1079,11 @@ def NounWord.attachHostZone : NounWord → Option Zone
   | .copy => some .stack
   | _ => none
 
-def NounWord.attachHostTy : NounWord → Option CardType
-  | .ofType _ t => some t
+def NounWord.attachHostTy : NounWord → List CardType
+  | .ofType word t => mergeTypes word.attachHostTy [t]
   | .copied word => word.attachHostTy
-  | .type t => some t
-  | _ => none
+  | .type t => [t]
+  | _ => []
 
 /-- Whether a word names an ability, independently of its additional refinements. -/
 def NounWord.isAbility : NounWord → Bool
@@ -1080,25 +1091,25 @@ def NounWord.isAbility : NounWord → Bool
   | .ofType word _ | .copied word => word.isAbility
   | _ => false
 
-/-- Attachment profiles currently carry one type. Conflicting refinements cannot silently
-choose that type by order; richer type evidence belongs to the type-conjunction contract. -/
+/-- Type refinements require an object with characteristics; multiple types can coexist
+[CR#205.2b]. The profile retains them all. -/
 def NounWord.attachRefinementsOk : NounWord → Bool
-  | .ofType word t =>
-    word.attachRefinementsOk && word.kind == .object && !word.isAbility &&
-      word.attachHostTy.all (· == t)
+  | .ofType word _ =>
+    word.attachRefinementsOk && word.kind == .object && !word.isAbility
   | .copied word => word.attachRefinementsOk && word.kind == .object
   | _ => true
 
-def attachHeadOk (a : AttachWord) : NounWord → Bool
-  | .ofType word t =>
-    (NounWord.ofType word t).attachRefinementsOk && attachHeadOk a word
-  | .copied word => (NounWord.copied word).attachRefinementsOk && attachHeadOk a word
-  | word =>
-    match a, word with
+def NounWord.base : NounWord → NounWord
+  | .ofType word _ | .copied word => word.base
+  | word => word
+
+def attachHeadOk (a : AttachWord) (word : NounWord) : Bool :=
+  word.attachRefinementsOk &&
+    match a, word.base with
     | .enchanted, _ => true
-    | .equipped, .type .creature => true
+    | .equipped, .type _ => word.attachHostTy.contains .creature
     | .equipped, .permanent => true
-    | .fortified, .type .land => true
+    | .fortified, .type _ => word.attachHostTy.contains .land
     | _, _ => false
 
 def DefinedSlots.power : DefinedSlots → Bool
@@ -1176,20 +1187,19 @@ def CardType.permanent : CardType → Bool
   | .kindred | .instant | .sorcery => false
   | _ => true
 
-def permanentSpellType : Option CardType → Bool
-  | none => false
-  | some .land => false
-  | some t => t.permanent
+def permanentSpellType (types : List CardType) : Bool :=
+  types.any CardType.permanent && !types.contains .land &&
+    !types.contains .instant && !types.contains .sorcery
 
 def CardType.isInstantOrSorcery : CardType → Bool
   | .instant | .sorcery => true
   | _ => false
 
-def placeableTy : Option CardType → Bool
-  | none => true
-  | some t => t.permanent
+def placeableTy (types : List CardType) : Bool :=
+  types.isEmpty ||
+    (types.any CardType.permanent && !types.any CardType.isInstantOrSorcery)
 
-def destTypeOk (ty : Option CardType) : Zone → Bool
+def destTypeOk (ty : List CardType) : Zone → Bool
   | .battlefield => placeableTy ty
   | _ => true
 
@@ -1220,15 +1230,15 @@ def typesDistinct : List CardType → Bool
   | [] => true
   | t :: ts => !ts.elem t && typesDistinct ts
 
-def addedFits (subj : Option CardType) (types : List CardType) (subtypes : List Subtype) : Bool :=
+def addedFits (subj : List CardType) (types : List CardType) (subtypes : List Subtype) : Bool :=
   subtypes.all fun s =>
-    types.any s.fits || (match subj with | none => false | some t => s.fits t)
+    types.any s.fits || subj.any s.fits
 
-def anyNewType (subj : Option CardType) : List CardType → Bool
+def anyNewType (subj : List CardType) : List CardType → Bool
   | [] => false
   | t :: ts => !tyIs t subj || anyNewType subj ts
 
-def addsSomething (subj : Option CardType) (types : List CardType) (subtypes : List Subtype) :
+def addsSomething (subj : List CardType) (types : List CardType) (subtypes : List Subtype) :
     Bool :=
   match subtypes with
   | [] => anyNewType subj types

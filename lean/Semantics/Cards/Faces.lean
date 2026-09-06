@@ -293,7 +293,7 @@ def vesuvanShapeshifterCopyDuration : Instruction :=
             (offer (.setStatus .faceDown thisCreature) (agent := .you))) ])
     (some (.untilEvent (.statusEvent thisCreature .faceDown)))
 theorem okVesuvanShapeshifterCopyDuration :
-    Instruction.check [⟨.a, .one, .object (some .creature) (some .battlefield) none none none⟩]
+    Instruction.check [⟨.a, .one, .object [.creature] (some .battlefield) none none none⟩]
       vesuvanShapeshifterCopyDuration = [] := by
   decide
 

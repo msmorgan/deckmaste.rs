@@ -312,26 +312,26 @@ theorem badDiscardThisCreature :
 /-- "another creature" -/
 theorem okOtherAnchored :
     Predicate.check .object
-      [⟨.target, .one, .object (some .creature) (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩]
       (.and [creature, .other]) = [] := by
   decide
 
 /-- "another other creature" -/
 theorem badDoubleOther :
     Predicate.check .object
-      [⟨.target, .one, .object (some .creature) (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩]
       (.and [creature, .other, .other]) = [.otherAnchored] := by
   decide
 
 /-- "You discard a card." -/
 theorem okDiscardHandCard :
-    Instruction.check [⟨.a, .one, .object none none none none none⟩]
+    Instruction.check [⟨.a, .one, .object [] none none none none⟩]
       (discard (a (.inZone hand)) (agent := .you)) = [] := by
   decide
 
 /-- "You discard it." -/
 theorem badDiscardIt :
-    Instruction.check [⟨.a, .one, .object none none none none none⟩] (discard it (agent := .you))
+    Instruction.check [⟨.a, .one, .object [] none none none none⟩] (discard it (agent := .you))
       = [.zoneFits] := by
   decide
 

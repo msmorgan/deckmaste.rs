@@ -114,7 +114,7 @@ def soleAlt : List CardType → List (List CardType)
   | ts => [ts]
 
 def attachTysOk (w : AttachWord) (ts : List CardType) : Bool :=
-  ts.all fun t => attachHeadOk w (.type t)
+  ts.isEmpty || ts.any fun t => attachHeadOk w (.type t)
 
 def attachWordsOk (ws : List AttachWord) (alts : List (List CardType)) : Bool :=
   ws.all fun w => alts.all (attachTysOk w)
@@ -127,7 +127,7 @@ def allNegated (negs : List CardType) : List CardType → Bool
   | [] => true
   | t :: ts => negs.elem t && allNegated negs ts
 
-def anchorTyFits : List CardType → Option CardType → Bool
+def anchorTyFits : List CardType → List CardType → Bool
   | [], _ => true
   | us, t => us.any (anchorTyOk · t)
 
@@ -142,14 +142,14 @@ def zoneOr (z : Zone) : Option Zone → Zone
 /-- The binding payload for a phrase at kind `k` seeding `ty`. -/
 def joinHalfPayload : Kind → HeadTy → Payload
   | .object, .sole ty => .object ty none none none none
-  | .object, .join _ _ => .object none none none none none
+  | .object, .join _ _ => .object [] none none none none
   | .player, _ => .player false
   | .quality q, _ => .quality q
   | .join l r, .join a b => .join (joinHalfPayload l a) (joinHalfPayload r b)
   | .join l r, .sole ty => .join (joinHalfPayload l (.sole ty)) (joinHalfPayload r (.sole ty))
   | _, _ => .gap
 
-def elemPayload : Kind → Bool → Option CardType → Option Zone → Option Stamp → Payload
+def elemPayload : Kind → Bool → List CardType → Option Zone → Option Stamp → Payload
   | .object, true, _, _, _ => .ability none
   | .object, false, ty, zn, pv => .object ty zn pv none (some 1)
   | .player, _, _, _, _ => .player false
@@ -260,61 +260,68 @@ def LookbackClause.complement : LookbackClause → Option EventComplement
 /-! ## What a predicate seeds -/
 
 mutual
-  def Predicate.seedTy : Predicate → Option CardType
-    | .hasType t => some t
-    | .hasSubtype s => s.type
-    | .and ps => Predicate.seedTyAll ps
+  /-- Explicit card-type facts take precedence over subtype-derived fallback evidence. -/
+  def Predicate.writtenTypes : Predicate → List CardType
+    | .hasType t => [t]
+    | .and ps => Predicate.writtenTypesAll ps
+    | .or ps => Predicate.writtenTypesJoin ps
+    | .compareOver dom _ _ _ => dom.writtenTypes
+    | _ => []
+
+  def Predicate.writtenTypesAll : List Predicate → List CardType
+    | [] => []
+    | p :: ps => mergeTypes p.writtenTypes (Predicate.writtenTypesAll ps)
+
+  def Predicate.writtenTypesJoin : List Predicate → List CardType
+    | [] => []
+    | [p] => p.writtenTypes
+    | p :: ps => commonTypes p.writtenTypes (Predicate.writtenTypesJoin ps)
+end
+
+mutual
+  def Predicate.seedTy : Predicate → List CardType
+    | .hasType t => [t]
+    | .hasSubtype s => optCT s.type
+    | .and ps =>
+      let written := Predicate.writtenTypesAll ps
+      if written.isEmpty then Predicate.inferredTypesAll ps else written
     | .or ps =>
       if Predicate.joins ps then
         (Predicate.disjunctKinds ps).foldr
-          (fun k acc => Payload.joinSeed (Predicate.seedTyJoinOfKind k ps) acc) none
+          (fun k acc => Payload.joinSeed (Predicate.seedTyJoinOfKind k ps) acc) []
       else Predicate.seedTyJoin ps
     | .compareOver dom _ _ _ => dom.seedTy
-    | _ => none
+    | _ => []
 
-  /-- Idris `seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)`, one half per kind: each
-  half seeds as `seedTyJoin` over its own disjuncts (an unnamed disjunct belongs to every
-  half), and the halves fold by `joinSeed`, so "target player or planeswalker" reads as a
-  planeswalker while "any target" stays untyped. -/
-  def Predicate.seedTyJoinOfKind (k : Kind) : List Predicate → Option CardType
-    | [] => none
+  /-- Each joined kind retains the facts shared by its own alternatives. -/
+  def Predicate.seedTyJoinOfKind (k : Kind) : List Predicate → List CardType
+    | [] => []
     | p :: ps =>
       if p.inKind k then
-        match p.seedTy with
-        | none => none
-        | some t => if Predicate.allSeedTyOfKind k t ps then some t else none
+        p.seedTy.filter (fun t => Predicate.allSeedTyOfKind k t ps)
       else Predicate.seedTyJoinOfKind k ps
 
   def Predicate.allSeedTyOfKind (k : Kind) (t : CardType) : List Predicate → Bool
     | [] => true
     | p :: ps =>
-      if p.inKind k then
-        match p.seedTy with
-        | none => false
-        | some u => t == u && Predicate.allSeedTyOfKind k t ps
-      else Predicate.allSeedTyOfKind k t ps
+      (!p.inKind k || p.seedTy.contains t) && Predicate.allSeedTyOfKind k t ps
 
-  def Predicate.seedTyAll : List Predicate → Option CardType
-    | [] => none
-    | p :: ps =>
-      match p.seedTy with
-      | some t => some t
-      | none => Predicate.seedTyAll ps
+  def Predicate.inferredTypesAll : List Predicate → List CardType
+    | [] => []
+    | p :: ps => mergeTypes p.seedTy (Predicate.inferredTypesAll ps)
 
-  def Predicate.seedTyJoin : List Predicate → Option CardType
-    | [] => none
-    | p :: ps =>
-      match p.seedTy with
-      | none => none
-      | some t => if Predicate.allSeedTy t ps then some t else none
+  def Predicate.seedTyJoin : List Predicate → List CardType
+    | [] => []
+    | p :: ps => p.seedTy.filter (fun t => Predicate.allSeedTy t ps)
 
   def Predicate.allSeedTy (t : CardType) : List Predicate → Bool
     | [] => true
-    | p :: ps =>
-      match p.seedTy with
-      | none => false
-      | some u => t == u && Predicate.allSeedTy t ps
+    | p :: ps => p.seedTy.contains t && Predicate.allSeedTy t ps
 end
+
+def Predicate.seedTyAll (ps : List Predicate) : List CardType :=
+  let written := Predicate.writtenTypesAll ps
+  if written.isEmpty then Predicate.inferredTypesAll ps else written
 
 /-- The disjuncts of `ps` whose kind is `k` or unnamed. -/
 def Predicate.ofKind (k : Kind) : List Predicate → List Predicate
@@ -328,7 +335,7 @@ def Predicate.ofKind (k : Kind) : List Predicate → List Predicate
 /-- The head type a joined disjunction seeds, one half per kind, in the shape `kindOfAll`
 folds so that `joinHalfPayload` can walk both together. -/
 def joinedSeedTys (ps : List Predicate) : List Kind → HeadTy
-  | [] => .sole none
+  | [] => .sole []
   | [k] => .sole (Predicate.seedTyJoin (Predicate.ofKind k ps))
   | k :: ks => .join (.sole (Predicate.seedTyJoin (Predicate.ofKind k ps))) (joinedSeedTys ps ks)
 
@@ -340,7 +347,7 @@ mutual
   def Predicate.headTys : Predicate → List CardType
     | .and ps => Predicate.headTysAll ps
     | .or ps => Predicate.headTysJoin ps
-    | p => optCT p.seedTy
+    | p => p.seedTy
 
   def Predicate.headTysJoin : List Predicate → List CardType
     | [] => []
@@ -348,17 +355,21 @@ mutual
 
   def Predicate.headTysAll : List Predicate → List CardType
     | [] => []
-    | p :: ps =>
-      match p.headTys with
-      | [] => Predicate.headTysAll ps
-      | ts => ts
+    | p :: ps => mergeTypes p.headTys (Predicate.headTysAll ps)
 end
+
+def combineTypeAlts (left right : List (List CardType)) : List (List CardType) :=
+  left.flatMap fun l => right.map (mergeTypes l)
 
 mutual
   def Predicate.headTyAlts : Predicate → List (List CardType)
-    | .and ps => soleAlt (Predicate.headTysJoin ps)
+    | .and ps => Predicate.headTyAltsAll ps
     | .or ps => Predicate.headTyAltsJoin ps
-    | p => soleAlt (optCT p.seedTy)
+    | p => [p.seedTy]
+
+  def Predicate.headTyAltsAll : List Predicate → List (List CardType)
+    | [] => [[]]
+    | p :: ps => combineTypeAlts p.headTyAlts (Predicate.headTyAltsAll ps)
 
   def Predicate.headTyAltsJoin : List Predicate → List (List CardType)
     | [] => []
@@ -609,13 +620,11 @@ def noClash (clash : Predicate → Predicate → Bool) : List Predicate → Bool
 def anyNonPermanentTy : List Predicate → Bool
   | [] => false
   | p :: ps =>
-    match p.seedTy with
-    | some t => !t.permanent || anyNonPermanentTy ps
-    | none => anyNonPermanentTy ps
+    p.seedTy.any CardType.isInstantOrSorcery || anyNonPermanentTy ps
 
 def Predicate.negTypesOf : Predicate → List CardType
   | .not (.hasSubtype _) => []
-  | .not p => optCT p.seedTy
+  | .not p => p.seedTy
   | _ => []
 
 def negTypes (ps : List Predicate) : List CardType := ps.flatMap Predicate.negTypesOf
@@ -640,7 +649,7 @@ def anySeedEmptied (negs : List CardType) : List Predicate → Bool
 /-- An Equipment is attached only to a creature [CR#301.5] and a Fortification only to a land
 [CR#301.6]. -/
 def noAttachHeadClash (fs : List Predicate) : Bool :=
-  attachWordsOk (Predicate.attachWordsInAll fs) (soleAlt (Predicate.headTysJoin fs))
+  attachWordsOk (Predicate.attachWordsInAll fs) (Predicate.headTyAltsAll fs)
 
 def contradictionFree (ps : List Predicate) : Bool :=
   let fs := Predicate.flatten ps
@@ -1048,12 +1057,9 @@ def durationPossessorOk : Option NounPhrase → Bool
 /-! ## What a phrase introduces -/
 
 /-- Idris `sliceTy d grp`, over the group's own type so the block below stays structural. -/
-def sliceTyOf : Option Predicate → Option CardType → Option CardType
+def sliceTyOf : Option Predicate → List CardType → List CardType
   | none, gty => gty
-  | some p, gty =>
-    match p.seedTy with
-    | some t => some t
-    | none => gty
+  | some p, gty => mergeTypes gty p.seedTy
 
 mutual
   def NounPhrase.introduced (bs : Bindings) : NounPhrase → List Binding
@@ -1068,7 +1074,7 @@ mutual
     | .eitherOf l r => NounPhrase.introduced bs l ++ NounPhrase.introduced bs r
     | .librarySlice _ amt whose =>
       ⟨.the, outputPlur whose.plur amt.plur,
-        .object none (some .library) none none amt.exact⟩ :: NounPhrase.introduced bs whose
+        .object [] (some .library) none none amt.exact⟩ :: NounPhrase.introduced bs whose
     | .namesAgree _ g => NounPhrase.introduced bs g
     | .someOf q d g =>
       ⟨.part, q.plur, .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact⟩
@@ -1227,12 +1233,13 @@ mutual
 
   def NounPhrase.selfSubjIntroduced : NounPhrase → List Binding
     | .asType t .this _ =>
-      [⟨.self, .one, .object (some t) (some .battlefield) none none none⟩]
-    | .attachHost _ (.type t) =>
-      [⟨.the, .one, .object (some t) (some .battlefield) none none none⟩]
-    | .attachHost _ .permanent =>
-      [⟨.the, .one, .object none (some .battlefield) none none none⟩]
-    | .attachHost _ .player => [⟨.the, .one, .player false⟩]
+      [⟨.self, .one, .object [t] (some .battlefield) none none none⟩]
+    | .attachHost _ word =>
+      match word.base with
+      | .type _ | .permanent =>
+        [⟨.the, .one, .object word.attachHostTy (some .battlefield) none none none⟩]
+      | .player => [⟨.the, .one, .player false⟩]
+      | _ => []
     | _ => []
 
 
@@ -1256,16 +1263,16 @@ mutual
     | .oneEachOf _ pool => NounPhrase.zone bs pool
   termination_by structural x => x
 
-  def NounPhrase.ty (bs : Bindings) : NounPhrase → Option CardType
+  def NounPhrase.ty (bs : Bindings) : NounPhrase → List CardType
     | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
-    | .eitherOf _ _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => none
-    | .asType t _ _ => some t
+    | .eitherOf _ _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
+    | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
     | .described _ p => p.seedTy
     | .eachOf g => NounPhrase.ty bs g
     | .namesAgree _ g => NounPhrase.ty bs g
-    | .both l r => if NounPhrase.ty bs l == NounPhrase.ty bs r then NounPhrase.ty bs l else none
+    | .both l r => commonTypes (NounPhrase.ty bs l) (NounPhrase.ty bs r)
     | .someOf _ d g => sliceTyOf d (NounPhrase.ty bs g)
     | .theRest k _ => tyOfGroup k bs
     | .pro r pl w => tyOfReach r pl (view w bs)
@@ -1277,11 +1284,13 @@ end
 
 def nomIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.introduced bs n ++ bs
 
-def sliceTy (bs : Bindings) (d : Option Predicate) (g : NounPhrase) : Option CardType :=
+def sliceTy (bs : Bindings) (d : Option Predicate) (g : NounPhrase) : List CardType :=
   sliceTyOf d (NounPhrase.ty bs g)
 
 def NounPhrase.headTys (bs : Bindings) : NounPhrase → List (List CardType)
-  | .described _ p => p.headTyAlts
+  | .described _ p =>
+    let alts := p.headTyAlts
+    if alts.all List.isEmpty then [] else alts
   | .eachOf g => NounPhrase.headTys bs g
   | .namesAgree _ g => NounPhrase.headTys bs g
   | .resolvedPermanent n => NounPhrase.headTys bs n
@@ -1289,7 +1298,7 @@ def NounPhrase.headTys (bs : Bindings) : NounPhrase → List (List CardType)
   | .both l r => NounPhrase.headTys bs l ++ NounPhrase.headTys bs r
   | .eitherOf l r => NounPhrase.headTys bs l ++ NounPhrase.headTys bs r
   | .oneEachOf _ pool => NounPhrase.headTys bs pool
-  | n => soleAlt (optCT (NounPhrase.ty bs n))
+  | n => soleAlt (NounPhrase.ty bs n)
 
 def NounPhrase.tys (bs : Bindings) : NounPhrase → HeadTy
   | .described _ p => p.seedTys
@@ -1341,7 +1350,7 @@ def eventAgentOk (bs : Bindings) : Option NounPhrase → Bool
 
 def attackableKind : Kind → HeadTy → Bool
   | .player, _ => true
-  | .object, .sole t => deedAltOk (.core .attack) .patient (optCT t)
+  | .object, .sole t => deedAltOk (.core .attack) .patient t
   | .join a b, .join l r => attackableKind a l && attackableKind b r
   | .join a b, .sole t => attackableKind a (.sole t) && attackableKind b (.sole t)
   | _, _ => false
@@ -1361,7 +1370,7 @@ def combatRelOk : CombatRelation → Kind → Kind → Option Zone → HeadTy �
 
 def damageableKind : Kind → HeadTy → Bool
   | .player, _ => true
-  | .object, .sole t => damageableHeadTysOk (soleAlt (optCT t))
+  | .object, .sole t => damageableHeadTysOk (soleAlt t)
   | .join a b, .join l r => damageableKind a l && damageableKind b r
   | .join a b, .sole t => damageableKind a (.sole t) && damageableKind b (.sole t)
   | _, _ => false
@@ -1434,7 +1443,8 @@ def NounPhrase.discardOk (bs : Bindings) : NounPhrase → Bool
 def deedNounOk (bs : Bindings) (v : Deed) (r : Role) (n : NounPhrase) : Bool :=
   match NounPhrase.headTys bs n with
   | [] => n.det.isNone && deedBareOk v r
-  | ts => deedHeadTysOk v r ts
+  | ts => ts.all fun types =>
+      if types.isEmpty then n.det.isNone && deedBareOk v r else deedAltOk v r types
 
 /-- Who declares an attack: the active player [CR#508.1] or a creature they control
 [CR#508.1a]. The attack deed's agent role decides which kinds attack and keeps the object
@@ -1592,7 +1602,7 @@ mutual
     | c :: cs => Condition.introduced bs c ++ Condition.introducedAll bs cs
 end
 
-def Condition.remarkAt : Condition → Option ((Binding → Bool) × Option CardType)
+def Condition.remarkAt : Condition → Option ((Binding → Bool) × List CardType)
   | .matches n p =>
     match n.remarkTest with
     | none => none
@@ -1657,32 +1667,32 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
   | .both _ _ | .eitherOf _ _ => nomIntro bs n
   | .theRest k _ => groupSpent k bs
   | .pro r pl w => overWindow (setZoneReach r pl p z) w bs
-  | .this => ⟨.self, .one, .object none z (mkStamp p none z.isSome) none none⟩ :: bs
-  | .attachHost _ (.type t) =>
-    ⟨.the, .one,
-      .object (some t) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩ :: bs
-  | .attachHost _ .permanent =>
-    ⟨.the, .one,
-      .object none z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩ :: bs
-  | .attachHost _ .player => ⟨.the, .one, .player false⟩ :: bs
-  | .attachHost _ _ => bs
+  | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none⟩ :: bs
+  | .attachHost _ word =>
+    match word.base with
+    | .type _ | .permanent =>
+      ⟨.the, .one,
+        .object word.attachHostTy z (mkStamp p (some .battlefield) (z != some .battlefield))
+          none none⟩ :: bs
+    | .player => ⟨.the, .one, .player false⟩ :: bs
+    | _ => bs
   | .asType t .this _ =>
     ⟨.self, .one,
-      .object (some t) z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .asType t _ _ =>
     ⟨.the, .one,
-      .object (some t) z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .resolvedPermanent m =>
     ⟨.the, m.plur,
       .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩
       :: bs
   | .asMarker _ .this =>
-    ⟨.self, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .asMarker _ _ =>
-    ⟨.the, .one, .object none z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.the, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .theGrantor m =>
     ⟨.the, .one,
-      .object none z (mkStamp p m.grantorOrigin (z != some m.zone)) none none⟩ :: bs
+      .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none⟩ :: bs
   | .you | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
 termination_by structural n

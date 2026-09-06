@@ -14,6 +14,7 @@ import Semantics.Proofs.Piles
 import Semantics.Proofs.Static
 import Semantics.Proofs.Tables
 import Semantics.Proofs.Trigger
+import Semantics.Proofs.TypeEvidence
 import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
 

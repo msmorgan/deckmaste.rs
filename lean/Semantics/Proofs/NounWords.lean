@@ -5,11 +5,11 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.NounWords
 
 private def creatureCard : Binding :=
-  ⟨.target, .one, .object (some .creature) (some .exile) none none none⟩
+  ⟨.target, .one, .object [.creature] (some .exile) none none none⟩
 private def artifactCard : Binding :=
-  ⟨.target, .one, .object (some .artifact) (some .exile) none none none⟩
+  ⟨.target, .one, .object [.artifact] (some .exile) none none none⟩
 private def creaturePermanent : Binding :=
-  ⟨.target, .one, .object (some .creature) (some .battlefield) none none none⟩
+  ⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩
 private def sourceAbility : Binding := ⟨.target, .one, .ability none⟩
 private def copiedAbility : Binding := ⟨.a, .one, .ability (some .copy)⟩
 
@@ -55,9 +55,9 @@ theorem wordRefinementDoesNotBorrowTypeFromAnotherHalf :
       [⟨.target, .one, .join artifactCard.payload creaturePermanent.payload⟩] = 0 := by decide
 
 private def copiedArtifact : Payload :=
-  .object (some .artifact) (some .battlefield) none (some .copy) none
+  .object [.artifact] (some .battlefield) none (some .copy) none
 private def copiedCreature : Payload :=
-  .object (some .creature) (some .battlefield) none (some .copy) none
+  .object [.creature] (some .battlefield) none (some .copy) none
 
 theorem copiedAbilityRejectsCopiedObject :
     countReach (.word (.copied .ability)) .one
@@ -73,7 +73,7 @@ theorem unionRefinementAcceptsOneMatchingHalf :
 
 private def movedCopy (deed : Deed) (origin : Option Origin) : Binding :=
   ⟨.target, .one,
-    .object (some .creature) (some .exile) (some ⟨deed, true, true⟩) origin none⟩
+    .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none⟩
 
 theorem verbedRefinementsKeepCarrierTypeAndOrigin :
     countReach (.verbed (.action "Exile") (.copied (.ofType .card .creature)) .attributive)
@@ -98,7 +98,7 @@ theorem halfTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (pl 
   simp only [halfWordReaches, Bool.and_right_comm]
 
 theorem verbedTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (st : Stamp)
-    (remembered : Option CardType) (zone : Option Zone) (origin : Option Origin) :
+    (remembered : List CardType) (zone : Option Zone) (origin : Option Origin) :
     verbedWordOk (.copied (.ofType word ty)) st remembered zone origin =
       verbedWordOk (.ofType (.copied word) ty) st remembered zone origin := by
   simp only [verbedWordOk, Bool.and_right_comm]

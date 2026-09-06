@@ -338,6 +338,12 @@ _Avoid_: Reference for a collection
 **Predicate** (project term):
 A truth criterion evaluated against a candidate from a known domain.
 
+**Type Evidence** (project term):
+Known Card Type facts retained for reference resolution. Multiple facts can
+hold for one Object [CR#205.2b]; an alternative retains only shared facts.
+Remembered facts are separate from the current Object Class and Zone used to
+resolve a reference, and do not simulate changing characteristics.
+
 **Filter** (project term):
 The operation of retaining candidates that satisfy a Predicate.
 _Avoid_: Predicate as an interchangeable noun

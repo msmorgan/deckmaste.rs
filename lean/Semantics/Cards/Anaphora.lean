@@ -400,10 +400,10 @@ theorem bioplasmNoTypedRead :
       = 0 := by
   decide
 theorem bioplasmExiledCardHasNoType :
-    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterExile = none := by decide
+    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterExile = [] := by decide
 def bioplasmAfterTest : Bindings := Condition.intro bioplasmAfterExile bioplasmCardTest
 theorem bioplasmTestRemarksType :
-    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterTest = some .creature := by decide
+    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterTest = [.creature] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
@@ -616,8 +616,8 @@ theorem wholeSliceIsPluralAndUncounted :
     (NounPhrase.plur theArtifactsAmongTheTopFive, wholeSliceAtBase.exact) = (.many, none) := by
   decide
 theorem describedSliceReadsAsCreature :
-    NounPhrase.ty companyContext companyDescribedSlice = some .creature := by decide
-theorem bareSliceReadsUntyped : NounPhrase.ty companyContext companyBareSlice = none := by decide
+    NounPhrase.ty companyContext companyDescribedSlice = [.creature] := by decide
+theorem bareSliceReadsUntyped : NounPhrase.ty companyContext companyBareSlice = [] := by decide
 theorem describedSliceKeepsGroupZone :
     NounPhrase.zone companyContext companyDescribedSlice
       = NounPhrase.zone companyContext companyBareSlice := by
