@@ -23,12 +23,21 @@ and labels provide observability rather than missing meaning. The planned
 folds may introduce the small typed payloads they specify, but do not authorize
 the parked binding, query, result, or event mechanisms implicitly.
 
+**Prototype priority (user clarification, 2026-09-06):** the Lean project is a
+prototype. Existing checker behavior, refusal lists, and reference profiles
+are not compatibility contracts. The required outcome is a self-consistent,
+rules-correct model. Correct obsolete or erroneous checks and their witnesses
+when a fold exposes them; record the reason and retain meaningful positive and
+negative assurance. Do not defer an agreed fold merely to preserve an old test.
+This clarification supersedes compatibility-preservation wording elsewhere
+in this campaign where that wording conflicts with correctness.
+
 The other independently claimable tickets are:
 
 - [Attachment and face predicates](../done/lean-core-attachment-and-face-predicates.md).
-- [Characteristic edits and keyword arguments](../planned/lean-core-characteristics-and-keyword-arguments.md).
+- [Characteristic edits and keyword arguments](../done/lean-core-characteristics-and-keyword-arguments.md).
 - [Events and static specs](../planned/lean-core-events-and-static-specs.md).
-- [Action expansions](../planned/lean-core-actions.md).
+- [Action expansions](../done/lean-core-actions.md).
 
 All five touch shared inductives or checker traversals. Coordinate overlapping
 implementation work; absence of dependency edges is not a promise of disjoint files.

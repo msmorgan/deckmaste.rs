@@ -102,13 +102,13 @@ theorem badIfNotReadsMandatoryBody :
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Instruction.check []
-      (doUnless (.counterSpell it) (.mana [generic 3]) (agent := (controllerOf (target spell)))) =
+      (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]) (agent := (controllerOf (target spell)))) =
           [] := by
   decide
 
 /-- "Counter target spell unless its controller taps." -/
 theorem badUnlessTapSymbol :
-    Instruction.check [] (doUnless (.counterSpell it) .tapSymbol (agent := (controllerOf (target
+    Instruction.check [] (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol (agent := (controllerOf (target
         spell))))
       = [.payable] := by
   decide
@@ -219,7 +219,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  act (.mana [pip .blue]) (.counterSpell (target (.and [spell, .named .chosen])))
+  act (.mana [pip .blue]) (Primitives.Instruction.counterSpell (target (.and [spell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :

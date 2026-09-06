@@ -165,14 +165,13 @@ theorem badUnionAnaphorOnObject :
       = [.anaphor (.word .join) .one 0] := by
   decide
 
-/-- "Counter target activated ability. Counter that spell or ability." An ability on the
-stack is an object in the stack zone [CR#109.1,113.1c,405.1], so the one stack read reaches
-it. -/
-theorem okStackAnaphorOnAbility :
+/-- A countered ability has left the stack. A subsequent stack-zone reference cannot
+reach it [CR#701.6a]. -/
+theorem badStackAnaphorAfterCounteringAbility :
     Instruction.check []
       (.sequentially
-        [ .counterSpell (target (.abilityHead .anyActivated)), .counterSpell (that .stack) ])
-      = [] := by
+        [ Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated)), Primitives.Instruction.counterSpell (that .stack) ])
+      = [.anaphor (.word .stack) .one 0, .zoneFits, .zoneFits] := by
   decide
 
 def afterAnyTargetDamage : Bindings :=
@@ -891,9 +890,9 @@ theorem badCondUnwindowedRead :
             none ]) = [.anaphor .bare .one 2] := by
   decide
 
-theorem badOwnEmptyDelta :
+theorem okOwnPowerWithoutNewMention :
     Instruction.check [] (dealDamageOwnPower .this (target anyTarget))
-      = [.anaphor .bare .one 0] := by
+      = [] := by
   decide
 
 /-- "Target creature gets +1/+1" -/
@@ -925,7 +924,7 @@ theorem badSharedSubjectTwoInDelta :
 theorem badOwnTwoInDelta :
     Instruction.check []
       (dealDamageOwnPower (Primitives.NounPhrase.both (target creature) (target creature)) (target anyTarget))
-      = [.anaphor .bare .one 2] := by
+      = [.singular] := by
   decide
 
 theorem distributedDeedReadsBackPlural :

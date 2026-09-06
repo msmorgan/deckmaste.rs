@@ -1709,6 +1709,47 @@ def visibilityOk : ExposeVerb → VisibleThing → Bool
 
 def selfSubjIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.selfSubjIntroduced n ++ nomIntro bs n
 
+/-- Resolve a referential operand to its actual slot, never by comparing payload values. -/
+def NounPhrase.referenceAddress (bs : Bindings) : NounPhrase → Option (List Nat)
+  | .pro r pl w => (windowAddresses w bs).find? fun address =>
+      (bindingAt bs address).elim false (reaches r pl)
+  | .asType _ n _ | .asMarker _ n | .resolvedPermanent n | .namesAgree _ n =>
+      n.referenceAddress bs
+  | _ => none
+
+/-- Explicit resolved/type/marker views retain their meaning when captured. -/
+def NounPhrase.captureView (bs : Bindings) (subject : NounPhrase) (value : Binding) : Binding :=
+  match subject with
+  | .asType _ _ _ | .asMarker _ _ | .resolvedPermanent _ =>
+    let payload := match value.payload with
+      | .object _ _ prov origin size =>
+        .object (subject.ty bs) (subject.zone bs) prov origin size
+      | .ability origin _ => .ability origin (subject.zone bs)
+      | p => p
+    { value with payload }
+  | _ => value
+
+abbrev OperandSlot := Option (List Nat) × Determiner × Plurality × Payload
+
+/-- The public noun introductions stay in the ordinary context. The private frame points
+at those same slots, so moving a captured operand updates subsequent ordinary reads. -/
+def captureOperands (bs : Bindings) (subjects : List NounPhrase) : Bindings :=
+  let (context, slots) := subjects.foldl (fun (context, slots) subject =>
+    let next := nomIntro context subject
+    let width := next.length - context.length
+    let address := if subject.introducesOwnReferent && width > 0 then some [0]
+      else (subject.referenceAddress context).map (shiftAddress width)
+    let value := (address >>= bindingAt next).getD
+      ⟨.the, subject.plur, elemPayload (subject.kindOr .object) subject.isAbility
+        (subject.ty context) (subject.zone context) none⟩
+    let value := subject.captureView context value
+    let next := address.elim next (fun a => setBindingAt next a value)
+    let shifted := slots.map fun (a, d, p, v) => (a.map (shiftAddress width), d, p, v)
+    (next, shifted ++ [(address, value.det, value.plur, value.payload)]))
+    (bs, ([] : List OperandSlot))
+  ⟨.the, .one, .operandFrame slots⟩ :: context
+
+
 def subjCtx (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
   | some n => selfSubjIntro bs n
@@ -1765,10 +1806,21 @@ def Condition.remarkAt : Condition → Option ((Binding → Bool) × List CardTy
     | some q => some (q, p.seedTy)
   | _ => none
 
-def Condition.remark (bs : Bindings) (c : Condition) : Bindings :=
-  match c.remarkAt with
-  | none => bs
-  | some (q, t) => markFirst q t bs
+mutual
+  def Condition.remark (bs : Bindings) : Condition → Bindings
+    | .matches (.pro r pl w) p => overWindow (markFirst (reaches r pl) p.seedTy) w bs
+    | .and cs => Condition.remarkAll bs cs
+    | c =>
+      match c.remarkAt with
+      | none => bs
+      | some (q, t) => markFirst q t bs
+  termination_by structural c => c
+
+  def Condition.remarkAll (bs : Bindings) : List Condition → Bindings
+    | [] => bs
+    | c :: cs => Condition.remarkAll (Condition.remark bs c) cs
+  termination_by structural cs => cs
+end
 
 def Condition.intro (bs : Bindings) (c : Condition) : Bindings := Condition.introduced bs c ++ c.remark bs
 

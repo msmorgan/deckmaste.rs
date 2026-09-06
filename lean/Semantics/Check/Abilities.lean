@@ -784,6 +784,7 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
+  | .withOperands _ body => body.reflexEncloseUse
   | .skipPart _ _ _ => .notYetTaken
   | .insertPart _ _ _ _ (some _) => .notYetTaken
   | .establish (.controlGrant _ _) _ => .reflexive
@@ -814,23 +815,22 @@ def Instruction.thisWayOutcomeOk : Instruction → Bool
 
 mutual
   def Instruction.costActionOk : Instruction → Bool
+    | .withOperands subjects body => subjects.all NounPhrase.costNounOk && body.costActionOk
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
     | .insertPart _ _ _ _ none => true
     | .insertPart _ _ _ _ (some who) => who.costNounOk
     | .distribute _ _ among => among.costNounOk
-    | .fight a _ => a.costNounOk
     | .turnOver n => n.costNounOk
     | .setStatus _ n => n.costNounOk
-    | .loseCounters _ _ who => who.costNounOk
     | .combat n _ => n.costNounOk
     | .attachment _ what _ => what.costNounOk
-    | .clearDamage n | .regenerate n => n.costNounOk
+    | .clearDamage n => n.costNounOk
     | .doAndForbid e _ _ => e.costActionOk
     | .gainDesignation n _ _ _ => n.costNounOk
     | .unlock .thisDoor => true
     | .unlock (.doorOf _ room) => room.costNounOk
-    | .setGameDesignation _ | .conclude _ _ | .drawGame | .counterSpell _ | .changeLife _ _ | .draw
+    | .setGameDesignation _ | .conclude _ _ | .drawGame | .changeLife _ _ | .draw
         _ _
     | .createObject _ (.emblem _) _ => true
     | .establish (.letterDefinition _ _) none => true
@@ -922,8 +922,24 @@ def mayProfile (bodyP : InstrProfile) (didP : Option InstrProfile) (notd : Optio
   | some dp, none => dp.offer
   | some _, some _ => bodyP.offer
 
+/-- An alternative can re-read a stated magnitude without observing the untaken event. -/
+def statedNumbers (deeds : Bindings) : Bindings := deeds.filterMap fun b =>
+  match b.payload with
+  | .outcome sort => if sort.isAmount then some (outcomeB .namedNumber) else none
+  | _ => none
+
+/-- Branch-local declarations do not escape. Facts about the incoming bindings escape
+only when both continuations support them. -/
+def branchContext (base left right : Bindings) : Bindings :=
+  let l := left.drop (left.length - base.length)
+  let r := right.drop (right.length - base.length)
+  (unionBindings l r).getD []
+
 mutual
   def Instruction.profile (bs : Bindings) : Instruction → InstrProfile
+    | .withOperands subjects body =>
+      let p := Instruction.profile (captureOperands bs subjects) body
+      ⟨closeOperands p.pre, closeOperands p.announced, p.rider.map closeOperands, p.deed⟩
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
@@ -932,7 +948,6 @@ mutual
       match v with
       | .damage _ => sameIntro (nomIntro bs' among) [outcomeB .damageDealt]
       | .counters _ => sameIntro (nomIntro bs' among) []
-    | .fight a b => sameIntro (nomIntro (nomIntro bs a) b) []
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
@@ -941,7 +956,6 @@ mutual
       let afterCount := Amount.intro (optAgentIntro bs who) count
       if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
       else sameIntro afterCount []
-    | .loseCounters _ amt who => sameIntro (optAmtIntro (nomIntro bs who) amt) []
     | .combat n update =>
       let bs' := nomIntro bs n
       match update with
@@ -949,7 +963,7 @@ mutual
       | .blocking _ what => sameIntro (nomIntro bs' what) []
       | _ => sameIntro bs' []
     | .attachment _ what host => sameIntro (optAgentIntro (nomIntro bs what) host) []
-    | .clearDamage n | .regenerate n => sameIntro (nomIntro bs n) []
+    | .clearDamage n => sameIntro (nomIntro bs n) []
     | .doAndForbid e _ _ => Instruction.profile bs e
     | .gainDesignation n _ _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
@@ -961,7 +975,6 @@ mutual
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
        [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
-    | .counterSpell what => sameIntro (nomIntro bs what) []
     | .copy src what times _ agent =>
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
@@ -1023,8 +1036,15 @@ mutual
     | .withContinuation policy body did notd =>
       let bodyP := Instruction.profile (policy.context bs) body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
-    | .doOnlyIf e _ _ => sameIntro (Instruction.profile bs e).announced []
-    | .doIf _ _ _ => sameIntro bs []
+    | .doOnlyIf e c other =>
+      let primary := Instruction.profile bs e
+      let alt := (Instruction.profileOpt (statedNumbers primary.deed ++ c.intro primary.pre) other).map InstrProfile.intro
+      ⟨primary.pre, branchContext primary.pre primary.intro (alt.getD primary.pre), none, []⟩
+    | .doIf c e other =>
+      let input := c.intro bs
+      let primary := Instruction.profile input e
+      let alt := (Instruction.profileOpt (statedNumbers primary.deed ++ primary.pre) other).map InstrProfile.intro
+      ⟨bs, branchContext bs primary.intro (alt.getD bs), none, []⟩
     | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
@@ -1149,7 +1169,7 @@ def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | e => e.introducedDeeds bs ++ e.annIntro bs
 
 def Instruction.otherwiseCtx (bs : Bindings) (e : Instruction) : Bindings :=
-  outcomesOnly (e.introducedDeeds bs) ++ e.annIntro bs
+  statedNumbers (e.introducedDeeds bs) ++ e.preIntro bs
 
 def reflexCtx (bs : Bindings) (body : Instruction) : Bindings := settleTargets (body.intro bs)
 
@@ -1356,15 +1376,15 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
+  | .withOperands _ _ => []
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
-  | .fight _ _ | .setStatus _ _ | .turnOver _ | .combat _ _ => []
-  | .attachment _ _ _ | .clearDamage _ | .regenerate _ | .doAndForbid _ _ _ => []
+  | .setStatus _ _ | .turnOver _ | .combat _ _ => []
+  | .attachment _ _ _ | .clearDamage _ | .doAndForbid _ _ _ => []
   | .gainDesignation _ _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
   | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
   | .move _ _ riders => TokenRider.ridersSlots riders
-  | .counterSpell _ => []
   -- How many copies to make: a count [CR#107.1b].
   | .copy _ _ times _ _ => [(times, .clamped)]
   | .chooseNewTargets _ | .copyTargets _ _ => []
@@ -1393,7 +1413,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .removeCounters _ _ _ => []
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
-  | .loseCounters _ amount _ => optClamped amount
   | .enact _ _ _ | .pay _ _ _ => []
   | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   | .doForEach _ _ | .doForEachKind _ _ _ _ => []

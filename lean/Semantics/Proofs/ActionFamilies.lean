@@ -66,7 +66,7 @@ theorem exiledAbilityIsNotASpellOrCard :
     NounPhrase.check none exiledAbility (that .card) = [.anaphor (.word .card) .one 0] := by decide
 
 theorem exiledAbilityCannotBeCountered :
-    Instruction.check exiledAbility (.counterSpell (that .ability)) = [.stackActOn] := by decide
+    Instruction.check exiledAbility (Primitives.Instruction.counterSpell (that .ability)) = [.zoneFits, .zoneFits, .zoneFits] := by decide
 
 theorem absentDestinationHasNoArrivalZone :
     NounPhrase.zone removedAbility (that .ability) = none := by decide
@@ -132,5 +132,139 @@ theorem clearDamageDoesNotPublishDamageDealt :
 theorem movingThisAbilityRetainsAbilityIdentity :
     Instruction.intro [] (.move thisAbility (some exileZone) []) =
       [⟨.self, .one, .ability none (some .exile)⟩] := by rfl
+
+
+private def operand (i : Nat) : NounPhrase := .pro .bare .one (.operand i)
+
+/-- Equal-looking target phrases name two objects, rather than one shared payload. -/
+theorem distinctOperandsHaveDistinctAddresses :
+    let bs := captureOperands [] [target creature, target creature]
+    (operandAddress bs 0, operandAddress bs 1) = (some [2], some [1]) := by decide
+
+theorem capturesDoNotDuplicateOrdinaryPronounCandidates :
+    countReach .bare .one (captureOperands [] [target creature]) = 1 := by decide
+
+theorem captureUpdatesTheOriginalReference :
+    let bs := captureOperands [] [target creature, target creature]
+    let moved := moveIntro bs none (operand 0) (some .exile)
+    ((operand 0).zone moved, (operand 1).zone moved,
+      (closeOperands moved).map Binding.zone) =
+      (some .exile, some .battlefield, [some .battlefield, some .exile]) := by decide
+
+theorem laterMentionsDoNotShiftCapturedOperands :
+    let bs := captureOperands [] [target creature]
+    let more := selfSubjIntro bs (target land)
+    ((operand 0).ty more, (operand 0).zone more) = ([.creature], some .battlefield) := by decide
+
+/-- X already exists: a later target's X does not create a second numeric definition. -/
+theorem captureUsesActualNumericIntroductions :
+    let bs : Bindings := [letterB .x, ⟨.the, .one,
+      .object [.creature] (some .battlefield) none none none⟩]
+    let old : NounPhrase := .pro .bare .one (.below 1)
+    let second := target (.and [creature, .compare [.stat .power] .eq (.letter .x)])
+    let bound := captureOperands bs [old, second]
+    (operandAddress bound 0, operandAddress bound 1) = (some [3], some [1]) := by decide
+
+theorem nestedCaptureUpdatesTheOuterOperand :
+    let outer := captureOperands [] [target creature]
+    let inner := captureOperands outer [operand 0]
+    let moved := moveIntro inner none (operand 0) (some .exile)
+    (operand 0).zone (closeOperands moved) = some .exile := by decide
+
+theorem nestedCaptureUpdatesAnInlineOuterOperand :
+    let outer := captureOperands [] [.asMarker .ability .this]
+    let inner := captureOperands outer [operand 0]
+    let moved := moveIntro inner none (operand 0) none
+    (operand 0).zone (closeOperands moved) = none := by decide
+
+theorem fightAcceptsAnExistingReference :
+    Instruction.check (nomIntro [] (target creature))
+      (Primitives.Instruction.fight it (target creature)) = [] := by decide
+
+theorem fightAcceptsItsOwnSource :
+    Instruction.check [] (Primitives.Instruction.fight thisCreature thisCreature) = [] := by decide
+
+theorem regenerationApplicationChecks :
+    Instruction.check [] (Primitives.Instruction.regenerationApplication thisCreature) = [] := by decide
+
+theorem regenerationInstallationPublishesNoImmediateOutcome :
+    (Primitives.Instruction.regenerate thisCreature).introducedDeeds [] = [] := by decide
+
+theorem counterDoesNotLeaveAnAbilityOnTheStack :
+    NounPhrase.zone (Instruction.intro []
+      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (that .ability) = none := by decide
+
+theorem counterPreservesTheAbilityCategory :
+    NounPhrase.check none (Instruction.intro []
+      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (that .ability) = [] := by decide
+
+theorem counterClosesItsPrivateFrame :
+    (Instruction.intro [] (Primitives.Instruction.counterSpell (target spell))).any
+      Binding.isOperandFrame = false := by decide
+
+theorem losingCountersPublishesTheSharedRemovalOutcome :
+    countOutcomes .countersRemoved (Instruction.intro []
+      (Primitives.Instruction.loseCounters (some (.printed (.named "Poison")))
+        (some (.lit 1)) .you)) = 1 := by decide
+
+theorem ownPowerCanReadAnExistingReference :
+    Instruction.check (nomIntro [] (target creature)) (dealDamageOwnPower it .you) = [] := by decide
+
+
+/-- Forgetting a library mention cannot redirect a captured operand to its neighbour. -/
+theorem capturedOperandSurvivesOrdinaryShuffleForgetting :
+    let bound := captureOperands [] [a (.inZone yourLibrary), target creature]
+    let shuffled := afterShuffle bound
+    let moved := moveIntro shuffled none (operand 0) (some .exile)
+    ((operand 0).zone moved, (operand 1).zone moved,
+      (closeOperands moved).map Binding.zone) =
+      (some .exile, some .battlefield, [some .battlefield]) := by decide
+
+theorem postposedCounterConditionReadsTheUnmovedSpell :
+    Instruction.check [] (.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
+      (costWasPaid (.byKeyword "Kicker") none it) none) = [] := by decide
+
+
+theorem losingCountersAmountReadsItsPlayer :
+    Instruction.check [] (Primitives.Instruction.loseCounters
+      (some (.printed (.named "Poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
+
+theorem regenerationCanProtectANoncreaturePermanent :
+    Instruction.check [] (Primitives.Instruction.regenerate (target artifact)) = [] := by decide
+
+
+theorem alternativeDoesNotObserveThePrimaryBranchesMove :
+    Instruction.check [] (.doOnlyIf (move (target spell) exileZone)
+      (.matches it (.colorIs .red)) (some (Primitives.Instruction.counterSpell it))) = [] := by decide
+
+
+theorem aliasesRemainOneObjectAfterShuffle :
+    let bound := captureOperands [] [a (.inZone yourLibrary), it]
+    let moved := moveIntro (afterShuffle bound) none (operand 0) (some .graveyard)
+    ((operand 0).zone moved, (operand 1).zone moved) =
+      (some .graveyard, some .graveyard) := by decide
+
+theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
+    let outer := captureOperands [] [a (.inZone yourLibrary)]
+    let inner := captureOperands outer [operand 0]
+    let moved := moveIntro (afterShuffle inner) none (operand 0) (some .graveyard)
+    (operand 0).zone (closeOperands moved) = some .graveyard := by decide
+
+theorem conditionalForgettingKeepsTheOperandScope :
+    Instruction.check [] (.withOperands [a (.inZone yourLibrary)] (.sequentially [
+      .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
+      .move (operand 0) (some graveyard) []])) = [] := by decide
+
+theorem capturePreservesTheResolvedPermanentView :
+    Instruction.check [] (Primitives.Instruction.fight
+      (.resolvedPermanent (target (.and [spell, creature]))) (target creature)) = [] := by decide
+
+
+theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
+    let context := Instruction.otherwiseCtx [] (.dealDamage .this (.lit 3) .you)
+    Amount.check context .thatMuch = [] ∧
+      Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 
 end Semantics.Proofs.ActionFamilies

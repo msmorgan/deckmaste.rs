@@ -267,6 +267,8 @@ inductive Reach where
 /-- The stretch of the antecedent stack a pronoun resolves in. -/
 inductive Window where
   | whole
+  /-- A lexical operand captured by the nearest instruction binder. -/
+  | operand (index : Nat)
   | top (depth : Nat)
   | below (depth : Nat)
   | introduced (pattern : List Kind)

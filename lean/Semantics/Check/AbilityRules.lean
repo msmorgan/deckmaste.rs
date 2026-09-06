@@ -146,19 +146,13 @@ def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
 
 mutual
   def Instruction.check (bs : Bindings) : Instruction → List Refusal
+    | .withOperands subjects body =>
+      Instruction.checkOperands bs subjects ++ Instruction.check (captureOperands bs subjects) body
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
       NounPhrase.check (some .object) bs src ++ Amount.check bs' amt ++ NounPhrase.check none bs'' to ++
         refuse to.perMemberOk .perMember ++ refuse (to.damageRecipient bs'') .damageRecipient
-    | .fight a b =>
-      let bs' := nomIntro bs a
-      NounPhrase.check (some .object) bs a ++ zoneIsCheck (NounPhrase.zone bs a) .battlefield ++
-        refuse (deedNounOk bs (.core .attack) .agent a) (.deedNounOk (.core .attack)) ++
-        refuse a.plur.isOne .singular ++ NounPhrase.check (some .object) bs' b ++
-        zoneIsCheck (NounPhrase.zone bs' b) .battlefield ++
-        refuse (deedNounOk bs' (.core .attack) .agent b) (.deedNounOk (.core .attack)) ++
-        refuse b.plur.isOne .singular
     | .setStatus v n =>
       let k := n.kindOr .object
       NounPhrase.check none bs n ++ refuse (k == .object) .statusHolder ++
@@ -186,7 +180,7 @@ mutual
            let kh := host.kindOr .object
            NounPhrase.check none (nomIntro bs what) host ++
              refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player)))
-    | .clearDamage n | .regenerate n =>
+    | .clearDamage n =>
       NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .doAndForbid e deed what =>
       let bs' := e.riderIntro bs
@@ -232,7 +226,6 @@ mutual
          | none =>
            TokenRider.checkAll bs' riders ++ refuse what.movable .movable ++
              refuse riders.isEmpty .ridersFit)
-    | .counterSpell what => NounPhrase.check none bs what ++ refuse (what.counterable bs) .stackActOn
     | .copy src what times exc agent =>
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what
@@ -332,12 +325,6 @@ mutual
       let k := on.kindOr .object
       NounPhrase.check none bs on ++ refuse (counterHolderKind k) .counterHolderKind ++
         refuse on.perMemberOk .perMember
-    | .loseCounters kind amt who =>
-      NounPhrase.check (some .player) bs who ++ OptCounterKindSource.check bs kind ++
-        (match amt with
-         | none => []
-         | some a => Amount.check (nomIntro bs who) a) ++
-        refuse (optCounterSourceScope kind .player) .counterSourceScope
     | .enact v e subj =>
       OptNoun.check (some .player) bs subj ++ Instruction.check (agentCtx bs subj) e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk subj v) .enactAgentOk ++
@@ -419,6 +406,11 @@ mutual
     | .untilCond c => Condition.check bs c
     | _ => []
   termination_by structural rep => rep
+
+  def Instruction.checkOperands (bs : Bindings) : List NounPhrase → List Refusal
+    | [] => []
+    | n :: ns => NounPhrase.check none bs n ++ Instruction.checkOperands (nomIntro bs n) ns
+  termination_by structural ns => ns
 
   def Instruction.checkOpt (bs : Bindings) : Option Instruction → List Refusal
     | none => []

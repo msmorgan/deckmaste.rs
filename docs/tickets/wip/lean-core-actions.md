@@ -96,64 +96,104 @@ This is the Lean pass. The completed
 planned [runtime designation work](core-getdesignation-scopes-and-eviction.md)
 are related implementation history/work, not additional deliveries here.
 
-## Implementation progress
+## Result
 
-Implemented in `zonrmskl`: combat and attachment updates, turn/part insertion,
-and shared token/emblem creation. The refreshed partial tree passed the full
-`lean/scripts/build` with warnings fatal (74 jobs), including 11 new
-ActionFamilies proofs.
+Combat and attachment writes, turn/part insertion, and token/emblem creation
+share structural operations. Movement accepts an absent destination and keeps
+ability identity and location. `clearDamage` removes marked damage without
+requiring the permanent to remain a creature.
 
-Implemented in `ymmuznru`: optional-destination movement, ability-location
-correction, and `clearDamage`. The present-destination branch preserves its
-checks; the absent branch records no arrival zone and forbids arrival riders.
-Ability bindings retain their location and copy origin through movement,
-element selection and unions. An exiled ability remains an ability reference
-but cannot be countered/copied as a stack object. Moving `thisAbility` also
-preserves its ability identity. The clear-damage primitive checks an object on
-the battlefield, admits noncreature permanents with marked damage [CR#120.6],
-publishes its subject, and adds no damage outcome.
+Fight, Counter, regeneration, and losing counters are registered macros. Fight
+captures both subjects before its whole-event guard and simultaneous own-power
+damage. Regeneration distinguishes a single-use shield from its application;
+Clergy of the Holy Nimbus uses the repeated application. Counter distinguishes
+spell movement from ability exit. Losing counters keeps the player-before-amount
+scope and publishes the shared removed-counter result.
 
-The ticket expressly authorizes retiring the false blanket movement law:
-`badAbilityMovedToAZone` is re-spelled as `okAbilityMovedToAZone`, changing its
-former `[movable]` result to acceptance. No other existing refusal assertion
-changes. Thirty-five surviving theorem statements and two authoring rejection
-examples are re-spelled; three of those theorems retain definitional-equality
-checks against the new optional-destination shape. Twenty-one new theorems
-cover movement publication, reference restrictions, absent-destination rider
-checks, origin/location preservation, and marked-damage removal. The new
-Marked Damage glossary entry and the movement section of `lean/CONTRACTS.md`
-record these meanings; `cr-citations.lock` registers the verified damage rule.
+The user clarified that this is a prototype: existing checker behavior and pins
+are not compatibility contracts. The earlier proposed deferral was rejected.
+The implementation corrects obsolete checks and documents those corrections.
 
-The final `ymmuznru` tree passes `lean/scripts/build` with warnings fatal
-(74 jobs). A source audit found no lost existing assertions other than the
-explicitly retired false ability-movement law above. Citation validation has
-zero noncompliant strings and zero stale rules; ten changed citation sites
-were checked against their text. `cargo xtask gate --changed` reports no
-affected Rust crates. Refresh before verification was a no-op. The first full
-movement gate also passed; it was rerun after review added the `thisAbility`
-identity case. English coverage remains the unchanged 20,254 identities; no
-parser coverage or runtime execution claim is made.
+## Landing record
 
-### Outstanding contract decisions
+### PROVE
 
-- **Counter macro:** the mixed spell/ability target needs conditional movement.
-  Existing `doIf` hides its condition's mentions, as pinned by
-  `Description.badLeadingConditionAntecedent`; putting the target in that
-  condition loses its later reference. `counterSpell` remains until the scope
-  decision is made. The independent movement/ability-zone correction is done.
-- **Fight:** current source admissibility differs from own-power damage.
-  `Damage.okFightLand` accepts its land operand, while `badFightPermanent`
-  requires a deed-noun refusal. A naive damage expansion changes those results
-  and needs a scope for each fighter's own-power read.
-- **Regeneration:** the direct instruction and a replacement expansion differ
-  in introduced bindings and refusal multiplicity. The graveyard negative
-  requires one `zoneIs battlefield` refusal; a naive expansion adds `zoneFits`.
-  The independent clear-marked-damage primitive is done.
-- **Counter removal:** `loseCounters` reads its player before its amount;
-  `removeCounters` reads quantity before holder. A player mentioned in the
-  first operand can currently supply the amount's life-total read. The
-  removed-counter outcome is authorized, but losing that operand scope is not.
+Measured on `nuxvpwpu`, English lock covered count **20,254**. The implementation
+stack also includes `zonrmskl` (operation families) and `ymmuznru` (movement and
+marked damage).
 
-No existing scope law was changed to force a fold. The proposed scope split
-would park those four macro designs and land the implemented families; that
-proposal has not been adopted. This ticket remains incomplete.
+- Full Lean gate: **74 jobs passed**, warnings fatal, after the final refresh.
+  The focused capture/macro checks also pass (32 jobs), including the refreshed
+  Caustic Bronco witness.
+- Rust closure: `cargo xtask gate --changed` reports **no affected workspace
+  crates**. This change touches Lean, its documentation, and the citation lock.
+- All **815** existing `Spelled` card declarations remain. No parser identity
+  was added or removed; parser construction, lexical-ownership, roundtrip, tie,
+  and licensing-checker measurements were not rerun for this Lean-only change.
+- Named theorem inventory: **1,539 → 1,597**. **58 added**, **95 re-spelled or
+  corrected** (including four renamed witnesses), **0 restored**, **0 ignored**,
+  and **0 assertions removed**. All four retired names have replacements below.
+  Two authoring rejection examples also use the new movement shape.
+- Citation validation: **0 noncompliant, 0 stale**. The combined feature diff has
+  **18 changed citation sites**, read against the local rules text. No new
+  checker guard names a card or surface lexeme; action labels occur in trusted
+  macro expansions.
+
+### DISCLOSE
+
+The four renamed witnesses deliberately correct prior behavior:
+
+- `Zone.badAbilityMovedToAZone` → `okAbilityMovedToAZone`: a stack ability can
+  be exiled; blanket non-movability was false.
+- `Anaphora.okStackAnaphorOnAbility` → `badStackAnaphorAfterCounteringAbility`:
+  countering removes the ability from the stack, so the following stack read
+  must fail.
+- `Damage.badFightPermanent` → `okFightPermanentUnderCreatureGuard`: fight's
+  creature guard replaces the unrelated attacking-creature refusal.
+- `Anaphora.badOwnEmptyDelta` → `okOwnPowerWithoutNewMention`: an explicit
+  source can read its own power without inventing a pronoun in an empty window.
+
+Seven other existing negative witnesses remain negative with diagnostics from
+the shared operations: `Keyword.badCounterPermanent`,
+`Keyword.badCounterJoinedPlayer`, `Damage.badFightGroup`,
+`Damage.badFightGraveyard`, `Zone.badRegenerateInGraveyard`,
+`Zone.badRegenerateBareThis`, and `Anaphora.badOwnTwoInDelta`. Expanded bodies
+may report the same violated obligation at several constituent operations.
+
+Deviations and additions:
+
+- A local operand binder (`withOperands` / `Window.operand`) was necessary to
+  capture references once in their actual context. An empty-context pattern
+  cannot safely capture the first fighter across a later target that reuses X.
+  This does not implement the parked collection-member/aggregation mechanism.
+- The checker uses private frames and hidden slots to keep aliases together
+  when ordinary discourse forgets a reference. Nested frames, equal-looking
+  distinct targets, movement through aliases, conditional forgetting, and
+  explicit resolved-permanent views have regression witnesses. The shuffle
+  cases are synthetic checker stress tests, not additional card work.
+- Conditional alternatives keep the primary clause's pre-state and stated
+  numeric magnitude, not its executed movement or damage event. Branch-local
+  mentions stay local; common facts about earlier mentions are joined. Ertai's
+  Trickery and Caustic Bronco exercise the two sides of this distinction.
+- Marked Damage and Regeneration glossary entries and `lean/CONTRACTS.md`
+  document the meanings. The general programming notion of a lexical operand
+  is documented in the workbench contract rather than added to the game glossary.
+- Review found three capture bugs (alias splitting after filtering, loss of a
+  frame at a conditional join, and a discarded resolved-permanent view). All
+  three were fixed with direct regression witnesses before landing.
+
+### REPORT
+
+Core `Instruction`: **70 → 62**. The added operation-family payloads are
+`CombatParticipation` (**3** constructors), `CombatUpdate` (**2**), and
+`CreationSpec` (**2**). `Window` is **5 → 6**. Checker-private `Payload` is
+**10 → 12** for the lexical frame and hidden-reference wrapper. These helper
+counts are separate from the Instruction reduction. Cost symbols, draw, Room
+operations, exchange, and `turnOver` retain their existing shapes.
+
+The unchanged English coverage lock contains **20,254** identities. Parser
+selection census, construction count, homograph/form-overlap inventories, and
+coverage-command performance were not remeasured; no parser throughput or
+runtime execution claim is made. Lean compilation and checked card syntax are
+not a proof that an engine executes the expansions correctly. The expansions
+were reviewed directly against the cited rules.

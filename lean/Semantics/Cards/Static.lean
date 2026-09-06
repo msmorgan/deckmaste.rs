@@ -666,7 +666,7 @@ theorem okTheLadyOfOtariaLine : StaticSpec.check [] theLadyOfOtariaLine = [] := 
 def clergyOfTheHolyNimbus : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.verbedEvent
     none (.action "Destroy") (some thisCreature) none none) [] none
-    (Primitives.Instruction.regenerate it) .repeatedly none)
+    (Primitives.Instruction.regenerationApplication it) .repeatedly none)
 theorem okClergyOfTheHolyNimbus : Ability.check [] clergyOfTheHolyNimbus = [] := by decide
 /-- Rampant Frogantua -/
 def rampantFrogantuaPump : Ability :=

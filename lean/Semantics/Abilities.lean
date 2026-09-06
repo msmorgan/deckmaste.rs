@@ -359,15 +359,16 @@ mutual
     | emblem (abilities : List Ability)
 
   inductive Instruction where
+    /-- Resolve operands once, in order, and bind them for the body. An unresolved required
+    operand prevents the entire body; the bindings also scope delayed effects it creates. -/
+    | withOperands (subjects : List NounPhrase) (body : Instruction)
     | dealDamage (source : NounPhrase) (amount : Amount) (recipient : NounPhrase)
-    | fight (left right : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
     | turnOver (subject : NounPhrase)
     | combat (subject : NounPhrase) (update : CombatUpdate)
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
     /-- Remove all damage marked on the permanent [CR#120.6]. -/
     | clearDamage (subject : NounPhrase)
-    | regenerate (subject : NounPhrase)
     /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
     | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
@@ -387,7 +388,6 @@ mutual
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
         (agent : NounPhrase := .you)
     | move (subject : NounPhrase) (to : Option ZoneExpr) (riders : List TokenRider)
-    | counterSpell (spell : NounPhrase)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount) (exceptions : List CopyExcept)
         (agent : NounPhrase := .you)
     | chooseNewTargets (subject : NounPhrase)
@@ -417,8 +417,6 @@ mutual
     | moveCounters (amount : Amount) (kind : Option CounterKindSource) (source : NounPhrase)
         (destination : NounPhrase)
     | doubleCounters (on : NounPhrase)
-    | loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
-        (agent : NounPhrase := .you)
     /-- A named deed done: the deed's own facts row gates the agent, the patient and the zones
     the sentence may name, whichever of the three sources defines it. -/
     | enact (verb : Deed) (instruction : Instruction) (agent : Option NounPhrase := none)

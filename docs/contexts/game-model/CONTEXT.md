@@ -277,6 +277,12 @@ Damage retained on a Permanent until it is removed, including if the Permanent
 stops being a Creature. Regeneration and cleanup remove all damage marked on
 a Permanent ([CR#120.6]).
 
+**Regeneration**:
+The replacement of a Permanent's destruction by removing its marked Damage,
+having its Controller tap it, and removing it from combat when applicable.
+Creating a shield that may later perform this replacement is not itself
+Regeneration ([CR#701.19a..701.19c]).
+
 **Life Total**:
 The number each Player begins the game with ([CR#119.1]), adjusted whenever an
 Effect causes that Player to gain or lose life ([CR#119.3]). Setting a total to

@@ -472,7 +472,7 @@ def searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := Primitives.Noun
 /-- "<who> reveals their hand" -/
 def revealTheirHand (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal (.zone (handOf
     they)) (agent := agent)
-def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
+def regenerate (subject : NounPhrase) : Instruction := Primitives.Instruction.regenerate subject
 def loseLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .changeLife (.down amount) (agent := agent)
 def gainLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
@@ -539,11 +539,9 @@ def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :
 /-- "<source> deals damage equal to its power to <recipient>" -/
 def dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Instruction :=
-  .dealDamage source
-    (.statOf (.stat .power)
-      (.pro .bare .one
-        (.introduced ((selfSubjIntro [] source).map Binding.kind))))
-    recipient
+  let own := if source.introducesOwnReferent then
+      .pro .bare source.plur (.top 1) else source
+  .dealDamage source (.statOf (.stat .power) own) recipient
 
 /-- A token's characteristics from the parts a creature token names. -/
 def creatureTokenOf (power toughness : Amount) (colors : List Color) (subtypes : List Subtype) :
@@ -685,7 +683,7 @@ def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from
   .removeCounters (some quantity) kind from_
 /-- "<who> loses all [<kind>] counters" -/
 def loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .loseCounters kind none (agent := agent)
+  Primitives.Instruction.loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
   .removeCounters none kind from_

@@ -265,7 +265,39 @@ inductive Payload where
   | ability (orig : Option Origin) (zone : Option Zone := some .stack)
   | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
   | join (l r : Payload)
-  deriving Repr, BEq
+  /-- Checker-private lexical frame. Addresses are relative to the tail below the frame. -/
+  | operandFrame (slots : List (Option (List Nat) × Determiner × Plurality × Payload))
+  /-- A forgotten ordinary mention retained solely for an active lexical capture. -/
+  | hidden (value : Payload)
+  deriving Repr
+
+mutual
+  def Payload.same : Payload → Payload → Bool
+    | .object a b c d e, .object f g h i j => a == f && b == g && c == h && d == i && e == j
+    | .player a, .player b => a == b
+    | .quality a, .quality b => a == b
+    | .outcome a, .outcome b => a == b
+    | .gap, .gap | .turnRef, .turnRef => true
+    | .letter a, .letter b => a == b
+    | .ability a b, .ability c d => a == c && b == d
+    | .pile a b c, .pile d e f => a == d && b == e && c == f
+    | .join a b, .join c d => a.same c && b.same d
+    | .operandFrame a, .operandFrame b => Payload.sameSlots a b
+    | .hidden a, .hidden b => a.same b
+    | _, _ => false
+  termination_by structural a => a
+
+  def Payload.sameSlots :
+      List (Option (List Nat) × Determiner × Plurality × Payload) →
+      List (Option (List Nat) × Determiner × Plurality × Payload) → Bool
+    | [], [] => true
+    | (a, d, pl, p) :: rest, (b, e, ql, q) :: more =>
+      a == b && d == e && pl == ql && p.same q && Payload.sameSlots rest more
+    | _, _ => false
+  termination_by structural slots => slots
+end
+
+instance : BEq Payload := ⟨Payload.same⟩
 
 namespace Payload
 
@@ -275,12 +307,21 @@ def kind : Payload → Kind
   | .player _ => .player
   | .quality q => .quality q
   | .outcome _ => .outcome
-  | .gap => .gap
+  | .gap | .operandFrame _ | .hidden _ => .gap
   | .letter l => .letter l
   | .turnRef => .turnRef
   | .ability _ _ => .object
   | .pile .. => .pile
   | .join l r => .join l.kind r.kind
+
+
+def isHidden : Payload → Bool
+  | .hidden _ => true
+  | _ => false
+
+def visible : Payload → Payload
+  | .hidden p => p
+  | p => p
 
 end Payload
 
@@ -510,10 +551,7 @@ def theRestFits (k : Kind) : Plurality → Bindings → Bool
   | .one, bs => theOtherOk k bs
   | .many, bs => theRestOk k bs
 
-def groupSpent (k : Kind) : Bindings → Bindings
-  | [] => []
-  | ⟨.part, pl, p⟩ :: bs => ⟨.the, pl, p⟩ :: groupSpent k bs
-  | b :: bs => if objGroup k b then groupSpent k bs else b :: groupSpent k bs
+
 
 /-- `out` re-places bindings of `outer` without touching the table: every binding keeps its
 determiner, kind and plurality, and only plural ones, one object per agent, may have moved
@@ -575,27 +613,49 @@ def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α �
   | some x, some y => if f x y then some x else none
   | _, _ => none
 
-/-- The binding two arms of a choice agree on, if any: the union of their payloads. -/
-def unionPayload : Payload → Payload → Option (Kind × Payload)
-  | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
-    some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
-      (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
-  | .ability o1 z1, .ability o2 z2 =>
-    some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
-  | .player a, .player b => if a == b then some (.player, .player a) else none
-  | .object _ z1 _ o1 _, .ability o2 z2 =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-  | .ability o1 z1, .object _ z2 _ o2 _ =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-  | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
-  | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
-  | _, _ => none
+mutual
+  /-- The binding two arms of a choice agree on, if any: the union of their payloads. -/
+  def unionPayload : Payload → Payload → Option (Kind × Payload)
+    | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
+      some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
+        (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
+    | .ability o1 z1, .ability o2 z2 =>
+      some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
+    | .player a, .player b => if a == b then some (.player, .player a) else none
+    | .object _ z1 _ o1 _, .ability o2 z2 =>
+      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
+    | .ability o1 z1, .object _ z2 _ o2 _ =>
+      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
+    | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
+    | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
+    | .operandFrame a, .operandFrame b =>
+      (unionOperandSlots a b).map fun slots => (.gap, .operandFrame slots)
+    | _, _ => none
+  termination_by structural p => p
+
+  def unionOperandSlots :
+      List (Option (List Nat) × Determiner × Plurality × Payload) →
+      List (Option (List Nat) × Determiner × Plurality × Payload) →
+      Option (List (Option (List Nat) × Determiner × Plurality × Payload))
+    | [], [] => some []
+    | (a, d, pl, p) :: rest, (b, e, ql, q) :: more => do
+      if a != b || d != e || pl != ql then none else do
+        let value ← if p == q then some p else (unionPayload p q).map Prod.snd
+        let tail ← unionOperandSlots rest more
+        pure ((a, d, pl, value) :: tail)
+    | _, _ => none
+  termination_by structural slots => slots
+end
 
 def unionBinding (b c : Binding) : Option Binding :=
   if b == c then some b
-  else if b.det == c.det && b.plur == c.plur
-    then (unionPayload b.payload c.payload).map fun (_, pl) => ⟨b.det, b.plur, pl⟩
-    else none
+  else if b.det == c.det && b.plur == c.plur then do
+    let p := b.payload.visible
+    let q := c.payload.visible
+    let value ← if p == q then some p else (unionPayload p q).map Prod.snd
+    pure ⟨b.det, b.plur,
+      if b.payload.isHidden || c.payload.isHidden then .hidden value else value⟩
+  else none
 
 def unionBindings : Bindings → Bindings → Option Bindings
   | [], [] => some []
@@ -622,7 +682,6 @@ def Binding.isPublic (b : Binding) : Bool :=
   | .pile (some z) _ _ => z.isPublic
   | _ => true
 
-def publicOnly (bs : Bindings) : Bindings := bs.filter (·.isPublic)
 
 def pluralizeBinding (b : Binding) : Binding :=
   match b.det with
@@ -785,7 +844,6 @@ def survivesShuffle (b : Binding) : Bool :=
   | .object _ (some .library) none _ _ => false
   | _ => true
 
-def afterShuffle (bs : Bindings) : Bindings := bs.filter survivesShuffle
 
 def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : List CardType)
     (zn : Option Zone) (og : Option Origin) : Bool :=
@@ -840,21 +898,99 @@ def introductionWidth : List Kind → Bindings → Option Nat
     if b.kind == kind then (introductionWidth pattern rest).map (· + 1) else none
   | _ :: _, [] => none
 
-def view : Window → Bindings → Bindings
-  | .whole, bs => bs
-  | .top n, bs => bs.take n
-  | .below n, bs => bs.drop n
-  | .introduced pattern, bs => (introductionWidth pattern bs).elim [] (bs.take ·)
-  | .outsideIntroduced pattern, bs => (introductionWidth pattern bs).elim [] (bs.drop ·)
+def Binding.isOperandFrame (b : Binding) : Bool :=
+  match b.payload with
+  | .operandFrame _ => true
+  | _ => false
 
-def overWindow (f : Bindings → Bindings) : Window → Bindings → Bindings
-  | .whole, bs => f bs
-  | .top n, bs => f (bs.take n) ++ bs.drop n
-  | .below n, bs => bs.take n ++ f (bs.drop n)
-  | .introduced pattern, bs =>
-    (introductionWidth pattern bs).elim bs fun n => f (bs.take n) ++ bs.drop n
-  | .outsideIntroduced pattern, bs =>
-    (introductionWidth pattern bs).elim bs fun n => bs.take n ++ f (bs.drop n)
+/-- Ordinary bindings have one address component; an inline frame value has two. -/
+def bindingAt (bs : Bindings) : List Nat → Option Binding
+  | [i] => (bs[i]?).map fun b => { b with payload := b.payload.visible }
+  | [i, j] => do
+    let b ← bs[i]?
+    let .operandFrame slots := b.payload | none
+    let (_, det, pl, payload) ← slots[j]?
+    pure ⟨det, pl, payload⟩
+  | _ => none
+
+def setBindingAt (bs : Bindings) (address : List Nat) (value : Binding) : Bindings :=
+  match address with
+  | [i] =>
+    let value := if (bs[i]?).elim false (fun b => b.payload.isHidden) then
+        { value with payload := .hidden value.payload } else value
+    bs.set i value
+  | [i, j] =>
+    match bs[i]? with
+    | some b =>
+      match b.payload with
+      | .operandFrame slots =>
+        match slots[j]? with
+        | some (address, _, _, _) =>
+          let slots := slots.set j (address, value.det, value.plur, value.payload)
+          bs.set i { b with payload := .operandFrame slots }
+        | none => bs
+      | _ => bs
+    | none => bs
+  | _ => bs
+
+def shiftAddress (by_ : Nat) : List Nat → List Nat
+  | [] => []
+  | i :: rest => (i + by_) :: rest
+
+def operandAddress (bs : Bindings) (index : Nat) : Option (List Nat) := do
+  let frame ← bs.findIdx? Binding.isOperandFrame
+  let b ← bs[frame]?
+  let .operandFrame slots := b.payload | none
+  let (address, _, _, _) ← slots[index]?
+  pure (address.elim [frame, index] (shiftAddress (frame + 1)))
+
+def windowAddresses (w : Window) (bs : Bindings) : List (List Nat) :=
+  let visible := bs.zipIdx |>.filter (fun (b, _) => !b.isOperandFrame && !b.payload.isHidden)
+  let select := fun xs : List (Binding × Nat) => xs.map (fun (_, i) => [i])
+  match w with
+  | .operand i => (operandAddress bs i).toList
+  | .whole => select visible
+  | .top n => select (visible.take n)
+  | .below n => select (visible.drop n)
+  | .introduced pattern =>
+    (introductionWidth pattern (visible.map Prod.fst)).elim [] (fun n => select (visible.take n))
+  | .outsideIntroduced pattern =>
+    (introductionWidth pattern (visible.map Prod.fst)).elim [] (fun n => select (visible.drop n))
+
+def view (w : Window) (bs : Bindings) : Bindings :=
+  (windowAddresses w bs).filterMap (bindingAt bs)
+
+/-- All window updates preserve the identity of the selected slots, including captures. -/
+def overWindow (f : Bindings → Bindings) (w : Window) (bs : Bindings) : Bindings :=
+  let addresses := windowAddresses w bs
+  (addresses.zip (f (view w bs))).foldl (fun bs (address, b) => setBindingAt bs address b) bs
+
+/-- Leaving the last lexical scope also drops its retained private references. -/
+def closeOperands (bs : Bindings) : Bindings :=
+  let closed := removeFrame bs
+  if closed.any Binding.isOperandFrame then closed
+  else closed.filter (fun b => !b.payload.isHidden)
+where
+  removeFrame : Bindings → Bindings
+    | [] => []
+    | b :: bs => if b.isOperandFrame then bs else b :: removeFrame bs
+
+/-- Active captures keep physical slots stable even when ordinary discourse forgets
+an object. Every alias continues to read and update the same private slot. -/
+def filterContext (keep : Binding → Bool) (bs : Bindings) : Bindings :=
+  if bs.any Binding.isOperandFrame then
+    bs.map fun b =>
+      if b.isOperandFrame || b.payload.isHidden || keep b then b
+      else { b with payload := .hidden b.payload }
+  else bs.filter keep
+
+def publicOnly (bs : Bindings) : Bindings := filterContext Binding.isPublic bs
+
+def afterShuffle (bs : Bindings) : Bindings := filterContext survivesShuffle bs
+
+def groupSpent (k : Kind) (bs : Bindings) : Bindings :=
+  (filterContext (fun b => b.det == .part || !objGroup k b) bs).map fun b =>
+    if b.det == .part then { b with det := .the } else b
 
 def countTokenSpecs : Bindings → Nat
   | [] => 0

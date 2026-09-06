@@ -281,14 +281,14 @@ theorem badSetBoostCounter :
 
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Instruction.check [] (.loseCounters (some (.printed (.named "Poison"))) none (agent := (each
+    Instruction.check [] (Primitives.Instruction.loseCounters (some (.printed (.named "Poison"))) none (agent := (each
         .opponent)))
       = [] := by
   decide
 
 /-- "Each opponent loses all +1/+1 counters." -/
 theorem badLosesAllBoostCounters :
-    Instruction.check [] (.loseCounters (some p11) none (agent := (each .opponent)))
+    Instruction.check [] (Primitives.Instruction.loseCounters (some p11) none (agent := (each .opponent)))
       = [.counterSourceScope] := by
   decide
 

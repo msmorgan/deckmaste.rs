@@ -371,15 +371,15 @@ theorem badForeignSacrificeCost :
   decide
 
 /-- "Counter target spell." -/
-theorem okCounterSpell : Instruction.check [] (.counterSpell (target spell)) = [] := by decide
+theorem okCounterSpell : Instruction.check [] (Primitives.Instruction.counterSpell (target spell)) = [] := by decide
 
 /-- "Counter target creature." -/
 theorem badCounterPermanent :
-    Instruction.check [] (.counterSpell (target creature)) = [.stackActOn] := by decide
+    Instruction.check [] (Primitives.Instruction.counterSpell (target creature)) = [.zoneFits, .zoneFits, .zoneFits] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Instruction.check [] (.counterSpell (target anyTarget)) = [.stackActOn] := by decide
+    Instruction.check [] (Primitives.Instruction.counterSpell (target anyTarget)) = [.zoneFits, .zoneFits] := by decide
 
 /-- "Companion — Each permanent card in your starting deck has mana value 2 or less." -/
 theorem okCompanionCharacteristicRead :

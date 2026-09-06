@@ -14,12 +14,13 @@ namespace Semantics.Proofs.Damage
 
 /-- "Target creature fights target creature." -/
 theorem okFightCreatures :
-    Instruction.check [] (.fight (target creature) (target creature)) = [] := by decide
+    Instruction.check [] (Primitives.Instruction.fight (target creature) (target creature)) = [] := by decide
 
 /-- "Two target creatures fight target creature." -/
 theorem badFightGroup :
-    Instruction.check [] (.fight (.described (.target (exactly 2)) creature) (target creature))
-      = [.singular] := by
+    Instruction.check [] (Primitives.Instruction.fight (.described (.target (exactly 2)) creature) (target creature))
+      = [.anaphor .bare .one 0, .anaphor .bare .one 0, .anaphor .bare .one 0,
+         .anaphor .bare .one 0, .damageRecipient] := by
   decide
 
 /-- "This deals 2 damage to any target and 1 damage to any other target." -/
@@ -49,7 +50,7 @@ theorem okIt :
 /-- "Target creature fights target creature. Tap it." -/
 theorem badIt :
     Instruction.check []
-      (.sequentially [.fight (target creature) (target creature), .setStatus .tapped it])
+      (.sequentially [Primitives.Instruction.fight (target creature) (target creature), .setStatus .tapped it])
       = [.anaphor .bare .one 2] := by
   decide
 
@@ -84,7 +85,7 @@ theorem badThemAmbig :
 theorem badInnerAmbig :
     Instruction.check []
       (.sequentially
-        [ .fight (target (.and [creature, .hasPossessor .controller anOpponent]))
+        [ Primitives.Instruction.fight (target (.and [creature, .hasPossessor .controller anOpponent]))
             (target (.and [creature, .hasPossessor .controller anOpponent])),
           loseLife (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 2] := by
   decide
@@ -101,27 +102,27 @@ theorem badUntapLockGraveyard :
 
 /-- "Target creature you control fights target creature you don't control." -/
 theorem okFightControlledCreatures :
-    Instruction.check [] (.fight (target creatureYouControl) (target creatureYouDontControl))
+    Instruction.check [] (Primitives.Instruction.fight (target creatureYouControl) (target creatureYouDontControl))
       = [] := by
   decide
 
 /-- "Target creature card in your graveyard fights target creature." -/
 theorem badFightGraveyard :
     Instruction.check []
-      (.fight (target (.and [creature, .inZone (graveyardOf .you)])) (target creature))
-      = [.zoneIs .battlefield] := by
+      (Primitives.Instruction.fight (target (.and [creature, .inZone (graveyardOf .you)])) (target creature))
+      = [.zoneFits, .damageRecipient] := by
   decide
 
 /-- "Target land fights target creature you don't control.": a land an effect has made a
 creature fights, and one that is no longer a creature simply does not [CR#205.1b,701.14b]. -/
 theorem okFightLand :
-    Instruction.check [] (.fight (target land) (target creatureYouDontControl)) = [] := by
+    Instruction.check [] (Primitives.Instruction.fight (target land) (target creatureYouDontControl)) = [] := by
   decide
 
 /-- "Target permanent fights target creature." [CR#701.14a] -/
-theorem badFightPermanent :
-    Instruction.check [] (.fight (target permanent) (target creature))
-      = [.deedNounOk (.core .attack)] := by
+theorem okFightPermanentUnderCreatureGuard :
+    Instruction.check [] (Primitives.Instruction.fight (target permanent) (target creature))
+      = [] := by
   decide
 
 /-- "This deals 3 damage to target creature." -/
@@ -348,7 +349,7 @@ theorem badRestDisposedTwice :
 theorem badRestOverTwoAnnouncements :
     Instruction.check []
       (.sequentially
-        [ .fight (target creatureYouControl) (target creatureYouDontControl),
+        [ Primitives.Instruction.fight (target creatureYouControl) (target creatureYouDontControl),
           move (theRest .object) graveyard ]) = [.theRestFits .object] := by
   decide
 

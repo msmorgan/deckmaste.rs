@@ -1,5 +1,10 @@
 # Checker contracts
 
+The Lean model is a prototype. Its authority is rules correctness and internal
+consistency, not compatibility with previous checker behavior. Tests that encode
+obsolete shapes or incorrect laws must be corrected with an explanation and
+meaningful replacement coverage (user clarification, 2026-09-06).
+
 The checker receives the information that indexed syntax formerly carried in
 its types. This document records where those duties live. A passing check is
 an admission of the written semantic term, not a proof of lowering or execution.
@@ -217,7 +222,7 @@ be inferred from a failed pronoun:
 | Predicate sibling modifiers, condition siblings | Check in the same containing context; do not make conjunction sequential. |
 | Alternatives, modes and result-table rows | Branch from their enclosing context; successful branch-local mentions are not unconditionally exported. A mode's cost precedes its own body. |
 | `withContinuation` (`offer` / `doIfDone` macros) | The success arm sees the body output; the failure arm starts before the body. |
-| `doIf`, `doOnlyIf` | The condition/body order and `otherwiseCtx` are explicit; conditional execution exports no unconditional event outcome. |
+| `doIf`, `doOnlyIf` | Each branch checks before either branch's effects. Postposed conditions see the primary instruction's pre-state. Branch-local mentions and outcomes do not escape; facts about prior mentions are joined across branches. |
 | `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
 | `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
@@ -416,7 +421,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `IgnoredOutcomes` | `IgnoredOutcomes.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Ballot` | `Ballot.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `CostSubject` | `NounPhrase.costSubjectOk` in `StaticSpec.costShift` and `altCost`. |
-| `StackActOn` | `NounPhrase.counterable`/`copiable` at `counterSpell`, `chooseNewTargets`, and copying consumers. |
+| `StackActOn` | `NounPhrase.counterable`/`copiable` at `chooseNewTargets` and copying consumers. Counter expands to enacted moves, whose source-zone checks report `ZoneFits`. |
 | `Condition` | `Condition.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `MarkingOk` | `markingOk` in `StaticSpec.conditional`. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event. |
@@ -546,4 +551,51 @@ reference-state checking, not a runtime lifetime or state-based-action model.
 `Instruction.clearDamage` removes all marked damage from a permanent. Its
 subject must be an object on the battlefield, but need not currently be a
 creature [CR#120.6]. It publishes the ordinary subject reference and no damage
-outcome. The regeneration macro remains a separate pending scope decision.
+outcome. Regeneration composes this primitive with tapping and conditional
+removal from combat inside a destruction replacement.
+
+
+### Captured operands and expanded actions
+
+`Instruction.withOperands` resolves noun operands once, left to right, in their
+actual context. An unavailable required operand prevents the entire body. Each
+`Window.operand` reads the nearest lexical frame, including inside an effect
+established by the body. The frame is checker-private; it adds no ordinary
+pronoun candidate. Its addresses point to the original binding slots rather
+than payload-equal copies. Literal subjects without public mentions are inline
+values. Nested scopes resolve their arguments against the outer frame before
+opening their own frame; updates reach the same captured object. Forgetting an
+ordinary discourse mention keeps its slot private until the last capture closes;
+all aliases continue to share its identity across filtering and conditional joins.
+
+This is necessary for multi-operand macros. For example, a second target that
+uses an existing X introduces no new X. Computing its introduction pattern in
+an empty context can mistake the existing X for a new binding and shift a prior
+pronoun past its object. Captures use the actual introductions, while the older
+kind-pattern windows above remain appropriate only at their documented immediate
+boundaries. This operand scope is independent of the deferred collection-member
+binder and numeric aggregation design.
+
+Fight uses a single creature-and-battlefield guard for both captured subjects,
+then simultaneous damage at each subject's power. The whole-body operand scope
+also retains target resolution requirements [CR#701.14a..701.14c]. The checker
+no longer borrows attacking-creature admissibility for fight.
+
+Regeneration installation creates a next-time-this-turn destruction replacement.
+The Regenerate label belongs to its application: clear marked damage, have the
+controller tap the permanent, and remove it from combat if applicable. A static
+regeneration replacement uses that application repeatedly; it does not install
+a further shield [CR#701.19a..701.19c].
+
+Counter selects between an enacted exit for an ability and an enacted move to
+the graveyard for a spell. Both retain the stack-source obligation [CR#701.6a].
+Conditional publication conservatively joins branch facts, so it does not invent
+an arrival zone for an ability or leave a countered object on the stack. The
+pre-state remains available to postposed conditions such as Ertai's Trickery.
+An alternative may also re-read the primary clause's stated amount, as in
+Caustic Bronco's "otherwise ... that much"; this is a numeric reference, not
+evidence that the primary branch actually happened.
+
+Losing counters captures its player before checking the amount, then uses the
+shared removal instruction and removed-counter outcome. Cost symbols, draw,
+Room operations, and exchange remain unchanged in this pass.
