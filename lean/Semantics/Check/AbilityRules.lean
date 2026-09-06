@@ -697,9 +697,7 @@ mutual
     | .entryRider n rider =>
       NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .entryChoice n q dom _ =>
-      NounPhrase.check (some .object) bs n ++ sortedDomainCheck bs q dom ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .attachmentChoice n q dom =>
+    | .choice _ n q dom _ =>
       NounPhrase.check (some .object) bs n ++ sortedDomainCheck bs q dom ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .conjunction subject parts =>
       OptNoun.check (some .object) bs subject ++ refuse (!parts.isEmpty) .nonEmpty ++

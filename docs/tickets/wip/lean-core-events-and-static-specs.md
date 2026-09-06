@@ -53,3 +53,44 @@ Leave the current provenance reads and protection retention in place.
 [protection retention](../maybe/lean-core-protection-retention.md), and the
 [general as-event instruction construct](../maybe/lean-core-as-event-instructions.md)
 are separate design tickets. The latter does not block the occasion-enum fold.
+
+## Implementation progress
+
+The choice-occasion and damage-pattern folds are implemented. Entry and
+attachment choices share `StaticSpec.choice`, with a `ChoiceOccasion` and
+disclosure. Both named authoring forms remain macros. `GameEvent.damage`
+shares optional source/recipient fields; it requires at least one participant.
+Existing source-first and recipient-only wording keeps its checking order,
+mention order, and trigger versus interception profiles. No voice field.
+
+The syntax build passes. Twelve new event-pattern proofs have clean Lean LSP
+diagnostics. The focused choice, damage, and lookback proof suites and choice card bench
+pass. Existing card/proof sources differ only by the four retired constructor
+spellings becoming macro calls, with the three lookback-only proofs using
+the equivalent raw damage payload to keep their core-only imports.
+Off-battlefield selection expansion remains outstanding too. This ticket is
+not yet complete.
+
+The user has been asked about two preservation conflicts before implementation:
+`dies` requires known battlefield membership while the equivalent placement
+form permits an unspecified zone, and `partScope` reads its player in the
+incoming scope while ordinary `conditional` reads after the spec. No checking
+or scope contract has been changed to force those folds through.
+
+
+Recon also found that `offBattlefieldScope` has a constructor-specific
+protection check: `Static.badDoubleExtension` asserts exactly `[notExtended]`.
+Transparent noun expansion removes the tested boundary. Maskwood Nexus also
+uses a battlefield-only every-subtype check that cannot simply be applied to
+its off-battlefield domains. Explicit selections may publish more noun
+mentions than the wrapper. These need a contract decision before expansion;
+no legacy provenance flag has been added to conceal the difference.
+
+The partial change has been refreshed onto the completed characteristic and
+attachment folds. Conflicting macro additions, proof imports, and the chosen
+protection proof were combined; expected results are unchanged. The choice and
+damage folds remain saved in `moklsruy`, pending the remaining scope decision.
+
+The refreshed partial tree passes `lean/scripts/build` with warnings fatal
+(74 jobs). This verifies the implemented choice/damage folds against the
+combined bench; it does not complete the outstanding zone and scope folds.

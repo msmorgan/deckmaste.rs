@@ -225,7 +225,7 @@ def counterChosenName : Ability :=
 theorem okNameMatchAfterChooser :
     Card.check
       (enchantmentWith
-        [ .static (.entryChoice thisEnchantment (.quality .cardName) none .openly),
+        [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .cardName) none .openly),
           counterChosenName ]) = [] := by
   decide
 
@@ -233,14 +233,14 @@ theorem badNameMatchBeforeChooser :
     Card.check
       (enchantmentWith
         [ counterChosenName,
-          .static (.entryChoice thisEnchantment (.quality .cardName) none .openly) ])
+          .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .cardName) none .openly) ])
       = [.choiceRef .theChoice (.quality .cardName) 0] := by
   decide
 
 theorem badNameMatchWrongSort :
     Card.check
       (enchantmentWith
-        [ .static (.entryChoice thisEnchantment (.quality .color) none .openly),
+        [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly),
           counterChosenName ]) = [.choiceRef .theChoice (.quality .cardName) 0] := by
   decide
 
@@ -295,7 +295,7 @@ def tapForChosenColor : Ability := act .tapSymbol (.addMana (.lit 1) (.ofChosenC
 theorem okChosenColorAfterChooser :
     Card.check
       (landWith
-        [.static (.entryChoice thisLand (.quality .color) none .openly), tapForChosenColor])
+        [.static (Primitives.StaticSpec.entryChoice thisLand (.quality .color) none .openly), tapForChosenColor])
       = [] := by
   decide
 

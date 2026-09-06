@@ -1225,13 +1225,14 @@ mutual
   /-- Nouns mentioned in a historical event pattern. Observing history does not move the
   current bindings or introduce a new event outcome. The bound gap introduces nothing. -/
   def GameEvent.mentioned (bs : Bindings) : GameEvent → List Binding
-    | .dies n | .isDealtDamage _ n | .draws n | .losesGame n | .statusEvent n _
+    | .dies n | .damage _ none (some n) | .draws n | .losesGame n | .statusEvent n _
     | .flipsCoin n _ | .paysLife n | .lifeChanges n _ | .triggers n | .commitsCrime n =>
       NounPhrase.introduced bs n
+    | .damage _ none none => []
     | .leaves n src | .enters n src =>
       let ns := NounPhrase.introduced bs n
       OptEventSource.introduced (ns ++ bs) src ++ ns
-    | .combat _ n other | .dealsDamage _ n other =>
+    | .combat _ n other | .damage _ (some n) other =>
       let ns := NounPhrase.introduced bs n
       OptNoun.introduced (ns ++ bs) other ++ ns
     | .attacksWith who whom attackers =>

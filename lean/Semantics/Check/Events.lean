@@ -30,7 +30,7 @@ structure EventFacts where
 /-- Event properties used by magnitudes, replacements, counts, durations, and concurrency.
 Participant and payload obligations are checked directly on the event's fields. -/
 def GameEvent.facts : GameEvent → EventFacts
-  | .isDealtDamage _ _ | .dealsDamage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
+  | .damage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
     { hasMagnitude := true }
   | .beginningOf _ _ _ => { boundsDuration := false }
   | .casts _ _ _ | .activates _ _ => { underway := true }

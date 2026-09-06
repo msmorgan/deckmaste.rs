@@ -291,9 +291,8 @@ mutual
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
     | entryRider (subject : NounPhrase) (rider : TokenRider)
-    | entryChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
-        (disclosure : Disclosure)
-    | attachmentChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
+    | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
+        (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
 
   inductive Compulsion where

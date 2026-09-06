@@ -96,9 +96,10 @@ def HeaderPossessor.ok : HeaderPossessor → Bool
 mutual
 /-- The stack a trigger's body reads while the event is happening. -/
 def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
+  | .damage _ none none => bs
   | .dies n => selfSubjIntro bs n
   | .leaves n _ => selfSubjIntro bs n
-  | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
+  | .damage _ none (some to) => outcomeB .damageDealt :: selfSubjIntro bs to
   | .draws who => selfSubjIntro bs who
   | .losesGame who => selfSubjIntro bs who
   | .enters n _ => selfSubjIntro bs n
@@ -106,8 +107,8 @@ def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .combat _ n (some m) => selfSubjIntro (nomIntro bs n) m
   | .attacksWith who whom attackers => selfSubjIntro (optIntro (nomIntro bs who) whom) attackers
   | .attachment _ n host => selfSubjIntro (nomIntro bs n) host
-  | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
-  | .dealsDamage _ n (some m) => outcomeB .damageDealt :: selfSubjIntro (nomIntro bs n) m
+  | .damage _ (some n) none => outcomeB .damageDealt :: selfSubjIntro bs n
+  | .damage _ (some n) (some m) => outcomeB .damageDealt :: selfSubjIntro (nomIntro bs n) m
   | .beginningOf _ _ _ => bs
   | .casts who none _ => selfSubjIntro bs who
   | .casts who (some what) _ => selfSubjIntro (nomIntro bs who) what
@@ -141,9 +142,10 @@ termination_by structural ev => ev
 
 /-- The stack a trigger's body reads after the event has happened. -/
 def GameEvent.after (bs : Bindings) : GameEvent → Bindings
+  | .damage _ none none => bs
   | .dies n => moveIntro bs none n (some .graveyard)
   | .leaves n _ => moveIntro bs none n none
-  | .isDealtDamage _ to => outcomeB .damageDealt :: selfSubjIntro bs to
+  | .damage _ none (some to) => outcomeB .damageDealt :: selfSubjIntro bs to
   | .draws who => nomIntro bs who
   | .losesGame who => nomIntro bs who
   | .enters n _ => moveIntro bs none n (some .battlefield)
@@ -153,8 +155,8 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .combat _ n (some m) => nomIntro (nomIntro bs n) m
   | .attacksWith who whom attackers => nomIntro (optIntro (nomIntro bs who) whom) attackers
   | .attachment _ n host => nomIntro (nomIntro bs n) host
-  | .dealsDamage _ n none => outcomeB .damageDealt :: selfSubjIntro bs n
-  | .dealsDamage _ n (some m) => outcomeB .damageDealt :: nomIntro (nomIntro bs n) m
+  | .damage _ (some n) none => outcomeB .damageDealt :: selfSubjIntro bs n
+  | .damage _ (some n) (some m) => outcomeB .damageDealt :: nomIntro (nomIntro bs n) m
   | .casts who none _ => nomIntro bs who
   | .casts who (some what) _ => nomIntro (nomIntro bs who) what
   | .becomesTarget n by_ => NounPhrase.introduced (nomIntro bs n) by_ ++ selfSubjIntro bs n
@@ -294,8 +296,8 @@ Only `statBecomes` carries one: "whenever this creature's power becomes 3 or les
 game value that may be below zero, so it is `signed`. Every arm is written out so that a new
 event carrying an `Amount` cannot slip in unclassified. -/
 def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
-  | .dies _ | .leaves _ _ | .isDealtDamage _ _ | .draws _ | .losesGame _ | .enters _ _ => []
-  | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .dealsDamage _ _ _ => []
+  | .dies _ | .leaves _ _ | .draws _ | .losesGame _ | .enters _ _ => []
+  | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .damage _ _ _ => []
   | .beginningOf _ _ _ | .casts _ _ _ | .becomesTarget _ _ | .statusEvent _ _ => []
   | .gameBecomes _ | .stateHolds _ | .putInto _ _ _ => []
   | .counterEvent _ _ _ _ _ _ | .tokensCreated _ _ _ _ | .chapterMark _ | .activates _ _ => []

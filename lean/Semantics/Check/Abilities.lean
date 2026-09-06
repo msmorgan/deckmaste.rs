@@ -1132,8 +1132,7 @@ mutual
     | .visibility _ who what => what.intro (nomIntro bs who)
     | .additionalTriggers _ _ => bs
     | .entryRider n rider => rider.intro (nomIntro bs n)
-    | .entryChoice n _ _ _ => selfSubjIntro bs n
-    | .attachmentChoice n _ _ => selfSubjIntro bs n
+    | .choice _ n _ _ _ => selfSubjIntro bs n
     | .conjunction subject parts => StaticSpec.partsIntro (subjCtx bs subject) parts
   termination_by structural se => se
 
@@ -1213,8 +1212,7 @@ def Cost.introduced (bs : Bindings) (c : Cost) : List Binding :=
 
 mutual
   def StaticSpec.introducedChoices (bs : Bindings) : StaticSpec → List Binding
-    | .entryChoice _ q _ _ => [q.binding]
-    | .attachmentChoice _ q _ => [q.binding]
+    | .choice _ _ q _ _ => [q.binding]
     | .conjunction _ parts => StaticSpec.partsIntroducedChoices bs parts
     | .addedCost c _ => c.introduced bs
     | _ => []
@@ -1372,7 +1370,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .conditional _ _ _ | .partScope _ _ _ => []
   | .visibility _ _ _ | .additionalTriggers _ _ => []
   | .entryRider _ rider => rider.numberSlots
-  | .entryChoice _ _ _ _ | .attachmentChoice _ _ _ | .conjunction _ _ => []
+  | .choice _ _ _ _ _ | .conjunction _ _ => []
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)

@@ -186,3 +186,26 @@ def loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
 
 register_semantic_macros
 end Semantics.Macros.Primitives.Instruction
+
+namespace Semantics.Macros.Primitives.StaticSpec
+
+def entryChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
+    (disclosure : Disclosure) : Semantics.StaticSpec :=
+  .choice .entry subject sort domain disclosure
+
+def attachmentChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain) :
+    Semantics.StaticSpec := .choice .attachment subject sort domain .openly
+
+register_semantic_macros
+end Semantics.Macros.Primitives.StaticSpec
+
+namespace Semantics.Macros.Primitives.GameEvent
+
+def isDealtDamage (kind : DamageKind) (subject : NounPhrase) : Semantics.GameEvent :=
+  .damage kind none (some subject)
+
+def dealsDamage (kind : DamageKind) (source : NounPhrase) (patient : Option NounPhrase) :
+    Semantics.GameEvent := .damage kind (some source) patient
+
+register_semantic_macros
+end Semantics.Macros.Primitives.GameEvent

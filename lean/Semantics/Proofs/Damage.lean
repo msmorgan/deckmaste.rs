@@ -551,13 +551,13 @@ theorem badScaleToArtifact :
 /-- "Whenever this creature is dealt damage, it deals that much damage to any target." -/
 theorem okThatMuchAfterDamageEvent :
     Ability.check []
-      (whenever (.isDealtDamage .any thisCreature)
+      (whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
         (.dealDamage thisCreature .thatMuch (target anyTarget))) = [] := by
   decide
 
 theorem badPreventedThisWayAfterDamageEvent :
     Ability.check []
-      (whenever (.isDealtDamage .any thisCreature)
+      (whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
         (.dealDamage it preventedThisWay (target anyTarget)))
       = [.outcomeInScope .damagePrevented 0] := by
   decide
@@ -588,7 +588,7 @@ theorem okThatCreatureAfterTargetedDamage :
 
 theorem badThatCreatureIsDamagedSelf :
     Ability.check []
-      (whenever (.isDealtDamage .any thisCreature)
+      (whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
         (.dealDamage (that (.type .creature)) .thatMuch (target anyTarget)))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -604,7 +604,7 @@ theorem okLastChosenAfterChooser :
         { characteristics :=
           { name := "", types := [.enchantment],
             text :=
-              [ .static (.entryChoice thisEnchantment (.quality .color) none .openly),
+              [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly),
                 .static preventLastChosenColor ] } }) = [] := by
   decide
 
@@ -615,7 +615,7 @@ theorem badLastChosenBeforeChooser :
           { name := "", types := [.enchantment],
             text :=
               [ .static preventLastChosenColor,
-                .static (.entryChoice thisEnchantment (.quality .color) none .openly) ] } })
+                .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly) ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
 
@@ -626,7 +626,7 @@ theorem badLastChosenWrongSort :
           { name := "", types := [.enchantment],
             text :=
               [ .static
-                  (.entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
+                  (Primitives.StaticSpec.entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
                 .static preventLastChosenColor ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
@@ -751,14 +751,14 @@ theorem badDestroySource : Instruction.check [] (destroy (target source)) = [.zo
 /-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
 theorem okCombatDamageComplement :
     Predicate.check .object []
-      (.happenedTo (.mk (.dealsDamage .combatOnly thisCreature (some (.asMarker .permanent (.gap
+      (.happenedTo (.mk (Primitives.GameEvent.dealsDamage .combatOnly thisCreature (some (.asMarker .permanent (.gap
         .object)))) .thisTurn)) = [] := by
   decide
 
 /-- "creature that was dealt combat damage by a color this turn" -/
 theorem badCombatDamageComplement :
     Predicate.check .object []
-      (.happenedTo (.mk (.dealsDamage .combatOnly (a (quality .color)) (some (.asMarker .permanent
+      (.happenedTo (.mk (Primitives.GameEvent.dealsDamage .combatOnly (a (quality .color)) (some (.asMarker .permanent
         (.gap .object)))) .thisTurn))
       = [.kindMismatch .object (.quality .color)] := by
   decide

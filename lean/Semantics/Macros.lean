@@ -931,7 +931,7 @@ def beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor :
 /-- "that turn's": the extra turn just granted, as a header possessor. -/
 def thatTurns : HeaderPossessor := .byTurn thatTurn
 def dealsCombatDamage (source : NounPhrase) (patient : NounPhrase) : GameEvent :=
-  .dealsDamage .combatOnly source (some patient)
+  Primitives.GameEvent.dealsDamage .combatOnly source (some patient)
 def attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject none
 /-- "<subject> attacks <whom>" -/
 def attacksPlayer (subject whom : NounPhrase) : GameEvent :=
@@ -1033,23 +1033,23 @@ def triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : In
 def itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability) p)
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  .entryChoice subject (.quality sort) none .openly
+  Primitives.StaticSpec.entryChoice subject (.quality sort) none .openly
 /-- "As <subject> enters, choose a <quality> from <domain>." -/
 def entersChoosingFrom (subject : NounPhrase) (sort : QualitySort) (domain : ChoiceDomain) :
     StaticSpec :=
-  .entryChoice subject (.quality sort) (some domain) .openly
+  Primitives.StaticSpec.entryChoice subject (.quality sort) (some domain) .openly
 /-- "As <subject> enters, choose a player [from <domain>]." -/
 def entersChoosingPlayer (subject : NounPhrase) (domain : Option ChoiceDomain) : StaticSpec :=
-  .entryChoice subject .player domain .openly
+  Primitives.StaticSpec.entryChoice subject .player domain .openly
 /-- "As <subject> enters, secretly choose a player [from <domain>]." -/
 def entersChoosingPlayerSecretly (subject : NounPhrase) (domain : Option ChoiceDomain) :
     StaticSpec :=
-  .entryChoice subject .player domain .secretly
+  Primitives.StaticSpec.entryChoice subject .player domain .secretly
 /-- "<subject> enters tapped" -/
 def entersTapped (subject : NounPhrase) : StaticSpec := .entryRider subject (.entersAs .tapped)
 /-- "As <subject> becomes attached, choose a <quality>." -/
 def attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  .attachmentChoice subject (.quality sort) none
+  Primitives.StaticSpec.attachmentChoice subject (.quality sort) none
 /-- "<subject> enters with N <kind> counters on it" -/
 def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=

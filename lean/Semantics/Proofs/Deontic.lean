@@ -517,7 +517,7 @@ theorem distributedDeedRiderReadsBackPlural :
 /-- "... dealt damage, they lose half their life, rounded up." -/
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check []
-      (whenever (.isDealtDamage .any (.attachHost .enchanted .player))
+      (whenever (Primitives.GameEvent.isDealtDamage .any (.attachHost .enchanted .player))
         (loseLife (.half .up (lifeTotalOf they)) (agent := they))) = [] := by
   decide
 

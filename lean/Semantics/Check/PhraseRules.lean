@@ -568,8 +568,6 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
     | .leaves n from_ =>
       NounPhrase.checkIn gap (some .object) bs n ++ OptEventSource.checkIn gap bs from_ ++
         refuse (zoneFits (NounPhrase.zone bs n) (sourceZone from_)) .zoneFits
-    | .isDealtDamage _ to => NounPhrase.checkIn gap none bs to ++ refuse (to.damageRecipient bs)
-      .damageRecipient
     | .draws who => NounPhrase.checkIn gap (some .player) bs who
     | .losesGame who => NounPhrase.checkIn gap (some .player) bs who
     | .enters n from_ =>
@@ -602,7 +600,10 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
       NounPhrase.checkIn gap (some .object) bs n ++ NounPhrase.checkIn gap (some .object) (nomIntro
         bs n) host ++
         refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
-    | .dealsDamage kind n to =>
+    | .damage _ none none => refuse false .nonEmpty
+    | .damage _ none (some to) =>
+      NounPhrase.checkIn gap none bs to ++ refuse (to.damageRecipient bs) .damageRecipient
+    | .damage kind (some n) to =>
       NounPhrase.checkIn gap (some .object) bs n ++ DamagePatient.checkIn gap (nomIntro bs n) to ++
         refuse (zoneFits (NounPhrase.zone bs n) kind.sourceZone) .zoneFits
     | .beginningOf _ part whose =>

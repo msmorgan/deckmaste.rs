@@ -215,7 +215,7 @@ theorem okTokenCreationLookbackComplement :
 /-- "creature that was dealt damage by this creature this turn" -/
 theorem okDamageTakenComplement :
     Predicate.check .object []
-      (.happenedTo (.mk (.dealsDamage .any thisCreature (some (.asMarker .permanent (.gap
+      (.happenedTo (.mk (Primitives.GameEvent.dealsDamage .any thisCreature (some (.asMarker .permanent (.gap
         .object)))) .thisTurn)) = [] := by
   decide
 
@@ -754,13 +754,13 @@ theorem okPlayerDrawLookback :
 
 /-- "if you dealt damage to an opponent this turn" -/
 theorem badPlayerDamageDealer :
-    Condition.check [] (.happened .you (.mk (.dealsDamage .any (.gap .object) none) .thisTurn))
+    Condition.check [] (.happened .you (.mk (Primitives.GameEvent.dealsDamage .any (.gap .object) none) .thisTurn))
       = [.lookbackSubject] := by
   decide
 
 theorem joinedDealerDamageComplement :
     LookbackClause.check .object []
-      (.mk (.dealsDamage .any (.gap .object) (some (a (.or [creature, .anyPlayer])))) .thisTurn)
+      (.mk (Primitives.GameEvent.dealsDamage .any (.gap .object) (some (a (.or [creature, .anyPlayer])))) .thisTurn)
       = [] := by decide
 
 theorem lastChosenPlayerRead :

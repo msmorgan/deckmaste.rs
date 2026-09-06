@@ -48,20 +48,20 @@ theorem innerGapDoesNotSupplyOuterParticipant :
 theorem participantCanOccurMoreThanOnce :
     LookbackClause.check .object []
       (.mk
-        (.dealsDamage .any (.asType .creature (.gap .object) none)
+        (.damage .any (some (.asType .creature (.gap .object) none))
           (some (.asType .creature (.gap .object) none))) .thisTurn) = [] := by decide
 
 theorem historyDoesNotIntroduceDamageOutcome :
     Predicate.introduced []
       (.happenedTo
-        (.mk (.dealsDamage .any (.asType .creature (.gap .object) none) (some .you))
+        (.mk (.damage .any (some (.asType .creature (.gap .object) none)) (some .you))
           .thisTurn)) = [] := by decide
 
 theorem historyRetainsNamedParticipant :
     Predicate.introduced []
       (.happenedTo
         (.mk
-          (.dealsDamage .any (.asType .creature (.gap .object) none)
+          (.damage .any (some (.asType .creature (.gap .object) none))
             (some (.described (.a .unmarked) .opponent))) .thisTurn))
       = [⟨.a, .one, .player false⟩] := by rfl
 

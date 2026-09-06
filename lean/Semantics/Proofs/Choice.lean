@@ -634,22 +634,22 @@ theorem okCompleteColorChoiceWithColorDomain :
 
 theorem badEntersChoiceDomainSort :
     StaticSpec.check []
-      (.entryChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
+      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
       = [.kindAxisSort] := by decide
 
 theorem okEntersChoiceDomainSort :
     StaticSpec.check []
-      (.entryChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
+      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
       = [] := by decide
 
 theorem badAttachmentChoiceDomainSort :
     StaticSpec.check []
-      (.attachmentChoice thisCreature (.quality .color) (some (.players .opponent)))
+      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.players .opponent)))
       = [.kindAxisSort] := by decide
 
 theorem okAttachmentChoiceDomainSort :
     StaticSpec.check []
-      (.attachmentChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
+      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
       = [] := by decide
 
 theorem badLandSubtypeDomainForCreatureType :

@@ -555,3 +555,12 @@ end Semantics
 attribute [semantic_expression] Semantics.Window Semantics.Delta
 
 attribute [internal_expansion] Semantics.Window
+
+namespace Semantics
+
+/-- The event at which a static choice is made. -/
+inductive ChoiceOccasion where
+  | entry | attachment
+  deriving DecidableEq, Repr
+
+end Semantics

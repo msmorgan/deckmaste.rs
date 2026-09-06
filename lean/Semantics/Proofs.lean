@@ -1,5 +1,6 @@
 import Semantics.Proofs.CharacteristicEdits
 import Semantics.Proofs.KeywordArguments
+import Semantics.Proofs.EventPatterns
 import Semantics.Proofs.Attachments
 import Semantics.Proofs.ActionFamilies
 import Semantics.Proofs.Composition

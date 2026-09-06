@@ -240,7 +240,6 @@ mutual
   inductive GameEvent where
     | dies (subject : NounPhrase)
     | leaves (subject : NounPhrase) (from_ : Option EventSource)
-    | isDealtDamage (kind : DamageKind) (subject : NounPhrase)
     | draws (player : NounPhrase)
     | losesGame (player : NounPhrase)
     | enters (subject : NounPhrase) (from_ : Option EventSource)
@@ -250,7 +249,7 @@ mutual
     /-- "you attack with one or more creatures". -/
     | attacksWith (player : NounPhrase) (defender : Option NounPhrase) (attackers : NounPhrase)
     | attachment (move : AttachMove) (subject : NounPhrase) (host : NounPhrase)
-    | dealsDamage (kind : DamageKind) (source : NounPhrase) (patient : Option NounPhrase)
+    | damage (kind : DamageKind) (source : Option NounPhrase) (patient : Option NounPhrase)
     | beginningOf (quantifier : PartQuant) (part : TurnPart) (whose : HeaderPossessor)
     | casts (player : NounPhrase) (spell : Option NounPhrase) (from_ : Option EventSource)
     | becomesTarget (subject : NounPhrase) (by_ : NounPhrase)
