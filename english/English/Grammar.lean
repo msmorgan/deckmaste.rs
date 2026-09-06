@@ -80,6 +80,7 @@ structure Complement where
 inductive FrameItem (Lexeme : Type) where
   | argument (complement : Complement)
   | fixed (marker : Lexeme)
+  | marked (marker : Lexeme) (complement : Complement)
 
 inductive Coordinator where
   | and_ | or_ | andOr
@@ -298,6 +299,7 @@ inductive Syntax (Lexeme : Type) where
   | word (lexeme : Lexeme) (category : Category)
   | node (construction : Construction Lexeme) (children : List (Syntax Lexeme))
   | gap (category : Category)
+  | frameCoordination (coordinator : Coordinator) (left right : List (Syntax Lexeme))
   | sharedCoordination (coordinator : Coordinator) (category : Category)
       (left right : Syntax Lexeme)
   | relative (number : Number) (head body : Syntax Lexeme)
@@ -310,6 +312,7 @@ mutual
     | .node _ children => reminderFreeChildren children
     | .modify left right | .relative _ left right | .sharedCoordination _ _ left right =>
         left.reminderFree && right.reminderFree
+    | .frameCoordination _ left right => reminderFreeChildren left && reminderFreeChildren right
     | .ellipsis antecedent => antecedent.reminderFree
     | _ => true
   def reminderFreeChildren {Lexeme : Type} : List (Syntax Lexeme) → Bool
@@ -412,6 +415,19 @@ mutual
     | fixed {marker : Lexeme} {tail : List (Syntax Lexeme)} {frame : List (FrameItem Lexeme)}
         {gaps : List Category} : JudgeFrame lexicon tail frame gaps →
         JudgeFrame lexicon (.marker marker :: tail) (.fixed marker :: frame) gaps
+    | marked {marker : Lexeme} {head : Syntax Lexeme} {tail : List (Syntax Lexeme)}
+        {complement : Complement} {frame : List (FrameItem Lexeme)}
+        {headGaps tailGaps : List Category} :
+        Judges lexicon head complement.category headGaps → JudgeFrame lexicon tail frame tailGaps →
+        JudgeFrame lexicon (.marker marker :: head :: tail) (.marked marker complement :: frame)
+          (headGaps ++ tailGaps)
+    | coordinate {coordinator : Coordinator} {left right : List (Syntax Lexeme)}
+        {first : FrameItem Lexeme} {rest : List (FrameItem Lexeme)}
+        {leftGaps rightGaps : List Category} :
+        JudgeFrame lexicon left (first :: rest) leftGaps →
+        JudgeFrame lexicon right (first :: rest) rightGaps →
+        JudgeFrame lexicon [.frameCoordination coordinator left right] (first :: rest)
+          (leftGaps ++ rightGaps)
 
 end
 
@@ -545,6 +561,11 @@ mutual
         RealizeChildren lexicon children surfaces →
         Linearizes lexicon construction surfaces surface →
         Realizes lexicon (.node construction children) surface
+    | frameCoordination {coordinator : Coordinator} {left right : List (Syntax Lexeme)}
+        {as bs : List Surface} :
+        RealizeChildren lexicon left as → RealizeChildren lexicon right bs →
+        Realizes lexicon (.frameCoordination coordinator left right)
+          (as.flatten ++ coordinator.surface ++ bs.flatten)
     | gap {category : Category} : Realizes lexicon (.gap category) []
     | sharedCoordination {coordinator : Coordinator} {category : Category}
         {left right : Syntax Lexeme} {a b : Surface} :

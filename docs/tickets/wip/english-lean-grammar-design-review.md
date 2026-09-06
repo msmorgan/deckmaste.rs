@@ -97,3 +97,14 @@ jobs; 129 prior theorem declarations are retained, 38 added, none removed or
 ignored. All 32 new public assertions pass Lean LSP axiom/source audits.
 Declaration-backed preference, partial-frame coordination and ordinary grammar
 closure remain in scope here. This checkpoint does not complete the ticket.
+
+## Marked-role and partial-frame checkpoint
+
+Added declared marked Complements, coordination of nonempty portions of a Verb
+Frame, inhabited pair/shared-Object witnesses, and a local declaration-backed
+role preference. First-eligible PP occurrence checks include positive and
+negative right-periphery cases. Preference has cycle exclusion, finite
+survivor existence, enumeration independence and an inhabited selection check.
+All 167 preceding theorem declarations remain; 24 added, none removed or
+ignored. All 23 new public assertions passed Lean LSP axiom/source audits.
+The review report names the still-missing generalizations; this remains WIP.

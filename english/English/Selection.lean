@@ -91,7 +91,7 @@ theorem no_preference_cycle (policy : Policy A K) (a : A) : ¬ PreferenceChain p
   intro h
   exact preference_asymmetric (chain h) (chain h)
 
-private theorem admitted_maximum (admitted : A → Prop) (rank : A → Nat) (xs : List A)
+theorem admitted_maximum (admitted : A → Prop) (rank : A → Nat) (xs : List A)
     (inhabited : ∃ a, a ∈ xs ∧ admitted a) :
     ∃ a, a ∈ xs ∧ admitted a ∧ ∀ b, b ∈ xs → admitted b → rank b ≤ rank a := by
   classical

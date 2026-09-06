@@ -230,3 +230,43 @@ added (32 public assertions and six private proof helpers). None are removed,
 ignored, or weakened. Lean LSP diagnostics are clean; all 32 new public
 assertions pass axiom/source audits using only standard axioms. The review
 remains WIP. Production code, coverage and other WIP tickets are untouched.
+
+## Implemented closure: marked roles and partial frames
+
+A `FrameItem.marked` declaration associates a marker with its selected
+Complement. `JudgeFrame` checks that association directly. Its coordination
+rule repeats a nonempty portion of the same declared frame, allowing both
+Object/marked-Complement pairs and a repeated tail under a shared Object.
+`FrameInteractions` supplies grammatical, surface-checked inhabitants of both
+shapes, plus exclusion of a mismatched marker. This establishes the missing
+partial-frame carrier; alternate coordinator anchorings remain to be modeled.
+
+`RolePreference` defines a declaration-backed local comparison between a
+selected marked Complement and its competing Object Postmodifier. Both frame
+alternatives and the preposition's distribution must be declared. The first
+eligible occurrence is checked in source order along the Object's right
+periphery; non-final conjuncts are excluded from that search. Checked twins
+show an earlier eligible occurrence blocking a later claim, an ineligible
+occurrence being skipped, and a non-final Postmodifier surviving.
+
+Preference lifts through unchanged node and modifier contexts. Selection
+ranges over independently admitted same-surface readings, so neither a raw
+claim nor an inadmissible competitor can suppress a reading. The local rule
+strictly increases the count of declared marked frame slots; that count proves
+termination, but does not itself license a comparison. Checked laws establish
+absence of cycles, finite inhabited survivor existence, enumeration
+independence, and selection of the grammatical role in the concrete two-reading
+example. The same relation cannot choose between the homographic nouns.
+
+This comparison currently covers an Object followed by one marked role and
+its contextual embeddings. General role sequences, the identity-over-lexeme
+principle, and complete partial-frame scope/anchor correspondence remain
+review obligations; the generic Boolean `Policy` laws alone do not discharge
+them. No implementation choice here requires another user decision.
+
+Validation: 24 theorem declarations added (23 public and one private helper);
+all 167 preceding declarations retained. Lean LSP audits all 23 new public
+assertions with standard axioms only and no source warnings. The generic
+finite-maximum theorem is now public for reuse, with its statement and proof
+unchanged. The independently refreshed Semantics build also passed 58 jobs;
+English has no dependency on that result.
