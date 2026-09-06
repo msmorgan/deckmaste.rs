@@ -289,13 +289,28 @@ def Card.check : Card → List Refusal
     inner.check .front ++ refuse (prototypeFrameOk line) .prototypeFrame ++
       prototypeAltCheck line alternative
 
-/-- A card the checker admits: writing one runs the checker, as writing a card ran the Idris
-elaborator. -/
+/-- A card with semantic validity and retained evidence of macro-only authoring. The
+elaborator connects the authoring tree to the input term before macro reduction. -/
 structure Spelled where
+  private mk ::
   card : Card
+  authoring : Authoring.Form
+  onlyMacros : authoring.onlyMacros = true
   ok : card.check = []
 
-/-- `spelled <| card …`: the checker's proof is found by `decide` at the definition. -/
-def spelled (c : Card) (ok : c.check = [] := by decide) : Spelled := ⟨c, ok⟩
+open Lean Meta Elab Term in
+/-- `spelled <| card …` checks the authoring boundary and synthesizes both proofs. -/
+elab "spelled" " <| " card:term : term => do
+  let value ← elabTermEnsuringType card (mkConst ``Semantics.Card)
+  let form ← Authoring.inspect value
+  unless form.onlyMacros do
+    throwError "Card definitions must use semantic macros; raw constructors: {form.rawNames.eraseDups}"
+  let tree := toExpr form
+  let authored ← mkEq (mkApp (mkConst ``Authoring.Form.onlyMacros) tree) (mkConst ``Bool.true)
+  let onlyMacros ← mkDecideProof authored
+  let verdict := mkApp (mkConst ``Card.check) value
+  let valid ← mkEq verdict (mkApp (mkConst ``List.nil [Level.zero]) (mkConst ``Refusal))
+  let ok ← mkDecideProof valid
+  return mkAppN (mkConst ``Spelled.mk) #[value, tree, onlyMacros, ok]
 
 end Semantics

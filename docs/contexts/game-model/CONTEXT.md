@@ -291,6 +291,12 @@ are not copied.
 
 ## Engine semantic language
 
+**Semantic Macro** (project term):
+A named, trusted expansion into semantic expressions. Its name provides an
+attachment point for spellings; its expansion supplies the modeled meaning.
+Checking the expansion's admissibility does not establish its rules fidelity.
+_Avoid_: treating a deed label alone as its meaning
+
 **Entity** (project term):
 An addressable game-state thing. Deckmaste's current Entity domain contains
 exactly CR Objects and Players; the project term may expand if the game model

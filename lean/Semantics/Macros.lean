@@ -1,4 +1,5 @@
 import Semantics
+import Semantics.Macros.Primitives
 import Semantics.Check
 
 /-!
@@ -397,13 +398,13 @@ def exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKi
     (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
       (agent := agent)
-def sacrifice (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+def sacrifice (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Sacrifice") (.move subject graveyard []) (agent := some agent)
 /-- "<agent> sacrifices it": the permanent slot's occupant. -/
-def sacrificeIt (agent : NounPhrase := .you) : Instruction :=
+def sacrificeIt (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   sacrifice (.pro (.atSlot .permanent) .one .whole) (agent := agent)
 /-- "<agent> puts <subject> <destination>" -/
-def put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := .you) :
+def put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .enact (.core .put) (.move subject destination []) (agent := some agent)
 /-- "return <subject> to <zone>" -/
@@ -426,18 +427,23 @@ def transform (subject : NounPhrase) (agent : Option NounPhrase := none) : Instr
 def meldInto (subject : NounPhrase) (into : String) (agent : Option NounPhrase := none) :
     Instruction :=
   .enact (.action "Meld") (.move subject battlefield [.entersMelded into]) (agent := agent)
+/-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
+This retains the existing fragment; face-down characteristics and the turn-up special
+action are not represented here. -/
+def manifestPlacement (subject : NounPhrase) : Instruction :=
+  .enact (.action "Manifest") (.move subject battlefield []) (agent := none)
 def tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
-def discard (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+def discard (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Discard") (.move subject graveyard []) (agent := some agent)
-def shuffle (agent : NounPhrase := .you) : Instruction := .shuffle (agent := agent)
+def shuffle (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .shuffle (agent := agent)
 def untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
 /-- "Exile <subject> until <event>." -/
 def exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (exile subject) event
 /-- "<agent> mills <amount> cards" from <whose> library. -/
-def mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+def mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Mill") (.move (.librarySlice .top amount whose) graveyard []) (agent := some
       agent)
 def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
@@ -450,45 +456,45 @@ def putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
 def putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
   .move subject battlefield [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
-def searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := .you) :
+def searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .search (.oneZone yourLibrary) quantity p (agent := agent)
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" -/
 def searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate)
-    (agent : NounPhrase := .you) : Instruction :=
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .search (.someZones (some whose) [.graveyard, .hand, .library]) quantity p (agent := agent)
 /-- "search your library and/or graveyard for a <p>" -/
-def searchLibraryOrGraveyard (p : Predicate) (agent : NounPhrase := .you) : Instruction :=
+def searchLibraryOrGraveyard (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p (agent := agent)
 /-- "<who> searches their library for a <p>" -/
-def searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := .you) : Instruction :=
+def searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .search (.oneZone (libraryOf they)) (exactly 1) p (agent := agent)
 /-- "<who> reveals their hand" -/
-def revealTheirHand (agent : NounPhrase := .you) : Instruction := .expose .reveal (.zone (handOf
+def revealTheirHand (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal (.zone (handOf
     they)) (agent := agent)
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
-def loseLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def loseLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .changeLife (.down amount) (agent := agent)
-def gainLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def gainLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .changeLife (.up amount) (agent := agent)
 /-- "<player>'s life total becomes <amount>" -/
-def setLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def setLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .changeLife (.set amount) (agent := agent)
-def draw (amount : Amount) (agent : NounPhrase := .you) : Instruction := .draw amount (agent :=
+def draw (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .draw amount (agent :=
     agent)
 
-def lookAt (cards : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .lookAt
+def lookAt (cards : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .lookAt
     (.cards cards) (agent := agent)
 /-- "look at <player>'s hand" -/
-def lookAtHandOf (player : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .lookAt
+def lookAtHandOf (player : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .lookAt
     (.zone (handOf player)) (agent := agent)
-def revealCards (cards : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .reveal
+def revealCards (cards : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal
     (.cards cards) (agent := agent)
 /-- "the card found by a search" -/
 def foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
 def revealIt : Instruction := revealCards foundCard
-def shuffleInto (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+def shuffleInto (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Shuffle") (.move subject (.library .shuffled none none .bare) []) (agent := some
       agent)
 def doIf (condition : Condition) (instruction : Instruction) : Instruction :=
@@ -500,19 +506,19 @@ def choose (subject : NounPhrase) (disclosure : Disclosure := .openly)
 /-- "choose <subject> as you <event>" -/
 def chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
   .choose none subject .openly (some while_) (agent := none)
-def rollDice (count : Nat) (sides : Nat) (agent : NounPhrase := .you) : Instruction :=
+def rollDice (count : Nat) (sides : Nat) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .rollDice (.lit count) (.sides sides) (agent := agent)
 /-- One row of a results table: "<results> — <instruction>". -/
 def rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
-def flipCoins (count : Nat) (agent : NounPhrase := .you) : Instruction :=
+def flipCoins (count : Nat) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .flipCoins (.count (.lit count)) (agent := agent)
 /-- "<player> flips a coin" as an event -/
 def flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
 /-- "<decider> may <body>" -/
-def offer (body : Instruction) (agent : NounPhrase := .you) : Instruction := .offer body none none
+def offer (body : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .offer body none none
     (agent := agent)
 /-- "<decider> may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
-def offerWhen (body : Instruction) (trigger : Instruction) (agent : NounPhrase := .you) :
+def offerWhen (body : Instruction) (trigger : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .triggerReflexively (.offer body none none (agent := agent)) trigger
 /-- "the chosen number" -/
@@ -521,11 +527,11 @@ def chosenNumber : Amount := .chosenNumber .theChoice
 def chooseSpree (modes : List (Option Cost × Instruction)) : Instruction := .chooseModes (atLeast 1)
     modes
 /-- "<voters> vote for <ballot>" -/
-def vote (disclosure : Disclosure) (ballot : Ballot) (agent : NounPhrase := .you) : Instruction :=
+def vote (disclosure : Disclosure) (ballot : Ballot) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .vote none disclosure ballot (agent := agent)
 /-- "Starting with <first>, <voters> vote for <ballot>" -/
 def voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
-    (agent : NounPhrase := .you) : Instruction :=
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .vote (some first) disclosure ballot (agent := agent)
 /-- "Choose N — <modes>", no mode costing anything. -/
 def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
@@ -549,12 +555,12 @@ def creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List
     CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes
 /-- "create N <token>" -/
-def create (count : Amount) (token : CharacteristicBundle) (agent : NounPhrase := .you) :
+def create (count : Amount) (token : CharacteristicBundle) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .create count (.written token) [] (agent := agent)
 /-- "create N <token> tapped and attacking" -/
 def createTappedAttacking (count : Amount) (token : CharacteristicBundle)
-    (agent : NounPhrase := .you) : Instruction :=
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .create count (.written token) [.entersAs .tapped, .entersAttacking none] (agent := agent)
 
 /-- "for each color of mana spent to cast <n>" -/
@@ -665,7 +671,7 @@ def addPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount) (n
     Instruction :=
   .addPart part anchor count (some next) (agent := none)
 /-- "<player> gets an additional <part>" -/
-def getAdditionalPart (part : TurnPart) (count : Amount) (agent : NounPhrase := .you) :
+def getAdditionalPart (part : TurnPart) (count : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .addPart part none count none (agent := some agent)
 /-- "<subject> can't attack [this turn]" -/
@@ -699,7 +705,7 @@ def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from
     Instruction :=
   .removeCounters (some quantity) kind from_
 /-- "<who> loses all [<kind>] counters" -/
-def loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := .you) : Instruction :=
+def loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
@@ -718,7 +724,7 @@ def agentRef (agent : NounPhrase) : NounPhrase :=
   | ds => .pro (.word .player) (agentPlur agent) (.top ds.length)
 
 /-- "<player> may pay <cost>. If they don't, <instruction>." -/
-def doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := .you) : Instruction :=
+def doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .offer (.pay cost .once (agent := (agentRef agent))) none (some instruction) (agent := agent)
 
 /-- "it" or "them", by number. -/
@@ -756,7 +762,7 @@ def lookedCards (slice : NounPhrase) : NounPhrase :=
   .pro .bare slice.plur (.top (NounPhrase.introduced [] slice).length)
 /-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
 in any order and the rest on top in any order" -/
-def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
   .sequence
     [ .expose .lookAt (.cards slice) (agent := agent),
@@ -764,22 +770,22 @@ def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := .y
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
 def lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr)
-    (agent : NounPhrase := .you) : Instruction :=
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
   .sequence
     [ .expose .lookAt (.cards slice) (agent := agent),
       move (someOf anyNumber (lookedCards slice)) spill,
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- "<agent> scries N" [CR#701.22a] -/
-def scry (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def scry (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Scry") (lookAndSort (agentRef agent) amount (agent := (agentRef agent))) (agent
       := some agent)
 /-- "<agent> fateseals N" [CR#701.29a] -/
-def fateseal (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def fateseal (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Fateseal") (lookAndSort whose amount (agent := (agentRef agent))) (agent := some
       agent)
 /-- "<agent> surveils N" [CR#701.25a] -/
-def surveil (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+def surveil (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .enact (.action "Surveil") (lookAndSortInto (agentRef agent) amount graveyard (agent := (agentRef
       agent))) (agent := some agent)
 /-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
@@ -859,7 +865,7 @@ def replaceNextEvent (event : GameEvent) (replacement : Instruction)
     (duration : Option Duration) : Instruction :=
   .establish (.replacement event [] none replacement .nextTimeOnly none) duration
 /-- "<player> gains control of <subject> [duration]" -/
-def gainControl (subject : NounPhrase) (duration : Option Duration) (agent : NounPhrase := .you) :
+def gainControl (subject : NounPhrase) (duration : Option Duration) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
   .establish (.controlGrant agent subject) duration
 /-- "<subject> can't be <deed>ed" -/
@@ -1156,5 +1162,7 @@ def levelBand (range : LevelRange) (power toughness : Nat) (text : List Ability)
 /-- A prototype frame's inset set: its mana cost and power/toughness box [CR#718.1]. -/
 def prototypeAlt (cost : ManaCost) (power toughness : Nat) : PrototypeFrame :=
   { cost := some cost, power := stat power, toughness := stat toughness }
+
+register_semantic_macros
 
 end Semantics.Macros

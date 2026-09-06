@@ -451,3 +451,9 @@ deriving instance Repr, BEq for Characteristics, CharacteristicBundle, QualityPa
   ManaRider, CopyExcept, RollRow, Instruction, KeywordParam, AbilityLost, Ability
 
 end Semantics
+
+attribute [semantic_expression] Semantics.Instruction Semantics.StaticSpec Semantics.Cost Semantics.Ability Semantics.TokenSpec
+
+classify_semantic_syntax
+
+attribute [internal_expansion] Semantics.Instruction.enact

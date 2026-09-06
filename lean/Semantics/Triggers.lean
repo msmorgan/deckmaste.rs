@@ -129,3 +129,7 @@ structure JoinedHeader where
   deriving Repr, BEq
 
 end Semantics
+
+attribute [semantic_expression] Semantics.GameEvent Semantics.Duration Semantics.Timing Semantics.UsageLimit
+
+classify_semantic_syntax

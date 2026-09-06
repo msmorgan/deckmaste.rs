@@ -6,6 +6,41 @@ an admission of the written semantic term, not a proof of lowering or execution.
 The remaining representation boundaries are named below rather than hidden by
 the existence of a checking function.
 
+## Card authoring and trusted expansion
+
+`spelled <| card` is the checked authoring boundary. It retains an
+`Authoring.Form` tree before unfolding erases named macro calls, and constructs
+`Spelled` with both `onlyMacros` and the existing `ok : card.check = []` proof.
+The constructor is private. Record construction and record update cannot replace
+these checks. Unregistered helper definitions and nested macro arguments are
+inspected; opaque or variable semantic content without authoring evidence is
+refused, including expressions nested in printed-data records.
+
+Semantic expressions must use registered macro declarations. Printed-data
+records, enumerated leaf values, and numeric literals remain ordinary data;
+their semantic fields are inspected recursively. `Semantics.Macros.Primitives`
+provides named wrappers with definitionally identical constructor signatures.
+`Instruction.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
+they are expansion carriers owned by the trusted macro layer. Existing idiomatic
+macros are registered there too. Defaults retain their macro calls.
+
+The kernel proves that the retained authoring tree contains no raw semantic
+constructor and that the resulting card passes the checker. Correspondence
+between the input expression and that tree is the elaborator's responsibility;
+this is not a kernel proof about Lean source text. Registration establishes a
+trusted macro definition. The checker validates its expanded body and contextual
+use, but does not prove that the macro implements its label's rules meaning.
+Extending the macro library therefore requires reviewing the expansion itself.
+Raw expanded terms remain available to checker diagnostics and proof suites.
+
+The tree retains macro names, data constructors and literals as a future
+attachment point for spellings. The separate English project has no dependency
+on this mechanism. No rendering or execution equivalence is claimed.
+
+The anaphora bench's `manifestPlacement` is explicitly a placement-only fragment
+of manifest [CR#701.40a]. It retains that bench's prior semantic value; it does
+not model face-down characteristics or the turn-up special action.
+
 ## Scheduling fields
 
 For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`
@@ -37,7 +72,7 @@ be inferred from a failed pronoun:
 | `offer`, `doIfDone` | The success arm sees the body output; the failure arm starts before the body. |
 | `doIf`, `doOnlyIf` | The condition/body order and `otherwiseCtx` are explicit; conditional execution exports no unconditional event outcome. |
 | `doForEach`, `doForEachKind`, `repeatTimes` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
-| `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is a separate open contract. |
+| `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |
 | Event alternatives and joined headers | Check arms from the common input; `sharedCtx`/`joinedCtx` compute what the combined header can expose. |
@@ -243,7 +278,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `DamageRecipient` | `NounPhrase.damageRecipient` in damage instructions and `DamagePatient.check`. |
 | `StatusHolder` | `Instruction.setStatus` requires the object kind and battlefield zone. |
 | `NotAnAbility` | `NounPhrase.movable` excludes ability phrases at `Instruction.move`. |
-| `DiscardOk` | Discard is an enacted move; the deed facts and `enactPatientZoneOk` check its source. The macro trust/expansion boundary remains owned by `lean-enact-expansion-boundary`. |
+| `DiscardOk` | Discard is an enacted move; the deed facts and `enactPatientZoneOk` check its source. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
 | `Movable` | `NounPhrase.movable` at `Instruction.move` excludes nonmovable terms, including ability phrases. |
 | `DurationEnd` | `DurationEnd.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
@@ -273,7 +308,7 @@ by exact-refusal theorems; it is not an authorable term.
 |---|---|
 | `OptOk` | Optional consumers use their `Opt*.check` or `map`/`getD` branches; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kindOfAll`, and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
-| `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; expansion agreement is owned by `lean-enact-expansion-boundary`. |
+| `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; the macro definition is trusted to supply the corresponding expansion. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Binding` has no separate kind field that can disagree. |
 | `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -303,4 +338,4 @@ by exact-refusal theorems; it is not an authorable term.
 - Other erased implicit binders on functions and macros refer to these same
   datatype duties; erasing the binder does not remove the obligation at the
   resulting term's consumer. In particular, macros are not an independent
-  certificate for arbitrary enacted bodies (`lean-enact-expansion-boundary`).
+  certificate for arbitrary enacted bodies; the authoring boundary above establishes their trusted origin.

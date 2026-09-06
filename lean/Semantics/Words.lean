@@ -1,3 +1,5 @@
+import Semantics.Authoring
+
 /-!
 # Semantics.Words
 
@@ -535,3 +537,7 @@ inductive PartQuant where
   deriving DecidableEq, Repr
 
 end Semantics
+
+attribute [semantic_expression] Semantics.Window Semantics.Delta
+
+attribute [internal_expansion] Semantics.Window

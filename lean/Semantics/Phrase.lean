@@ -265,3 +265,11 @@ inductive DurationEnd where
   deriving Repr, BEq
 
 end Semantics
+
+attribute [semantic_expression] Semantics.NounPhrase Semantics.Predicate Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition
+
+classify_semantic_syntax
+
+attribute [internal_expansion] Semantics.NounPhrase.pro
+
+attribute [semantic_literal] Semantics.Amount.lit
