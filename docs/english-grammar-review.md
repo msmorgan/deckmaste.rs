@@ -64,10 +64,17 @@ preservation of non-scope distinctions and inclusion of the modeled scope
 alternatives. Retain all four nested-mobile readings above; the earlier
 abstract correlated-pair example is not a license to remove two of them.
 
-**Less certain:** replace whole-analysis claim summaries with local competing
-derivations and context-preserving lifting. This appears necessary for two
-independent competitions in one document, but the exact relation should be
-chosen against that interaction witness, not assumed from the present rank.
+Further investigation gives a concrete design: licensed modifier,
+postmodifier and auxiliary scope moves, lifted through unchanged grammatical
+contexts. Take equivalence over independently admitted same-surface trees,
+requiring admitted intermediates. A quotient then supplies the class key with
+`same_class_iff`, rather than assuming a key function. A Lean-LSP-checked
+prototype establishes that law and two independent modifier regions in one
+grammatical tree. Directed, declaration-backed local rewrites provide the
+corresponding preference seam. The first checked role fragment uses an
+immediate PP after a bare Object with both competing Verb Frames declared.
+General marked-role association and partial-frame coordination still need
+implementation; these are grammar work items, not user interface choices.
 
 ### 2. Canonical groups and document/phrase distinctions
 
@@ -84,10 +91,16 @@ and license coordination by grammatical distribution. Consolidate the
 singleton/empty-group overlap. Challenge three-element sequences and nested
 embeddings, with forbidden cross-category twins, before calling this closed.
 
-**Less certain:** exact placement of the common body boundary and which
-collections need a nonempty versus at-least-two constraint. These should be
-chosen together; adding independent special cases would reproduce the current
-wrapper and arity problems.
+The source supplies the factoring: initial adverbial clause + main clause
+belongs to ordinary clause grammar, followed by sentence punctuation and
+paragraph grouping. Flat textual collections remove arbitrary association
+trees. Modal groups belong within paragraph content: the style guide §10,
+“Modal choices,” permits both clause headers and complete-sentence headers,
+including colon-prefixed and initial-subordinate-clause hosts. Thus both plain
+and colon-prefixed paragraphs must consume the same content shape. Empty
+supplied text portions are textual inputs; their game legality is irrelevant.
+These schema replacements can be implemented without asking the user to
+choose a container type.
 
 ### 3. Context and feature propagation
 
@@ -103,11 +116,13 @@ explicit before selection. English should check the grammatical distribution of 
 gap dependencies without resolving game referents. Keep
 lexical distributions and feature propagation declarative.
 
-**Less certain:** the best context representation: indexed occurrences,
-separate binding witnesses, or an environment carried by judgments. Do not
-turn every combination into another Category. The decisive challenges are
-nested dependencies, an inaccessible antecedent, and coordination with
-independent bindings.
+For parsing/bracketing, distinguish the position and distribution of omitted
+material from reconstruction of its referent. The present recursive supplied
+antecedent tree needs a grammatical replacement that does not manufacture
+arbitrarily nested silent analyses. Choose that representation against actual
+ellipsis and extraction constructions. No game-reference environment or
+interaction with another workbench is required, and implementation choices
+are for investigation rather than a premature user decision.
 
 ### 4. Textual inputs; card/layout validation excluded
 
