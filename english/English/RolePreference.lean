@@ -17,7 +17,7 @@ def postmodifierTree (head marker : L) (form : InflectionalForm) (voice : Voice)
 A PP's own complement is not another occurrence on its enclosing noun's edge. -/
 def postmodifiers : Syntax L → List (Syntax L)
   | .node (.adjunct _ .prepositionPhrase .after) [head, mobile] => postmodifiers head ++ [mobile]
-  | .node (.coordinate _ _) [_, right] => postmodifiers right
+  | .node (.coordinate _ _ _) [_, right] => postmodifiers right
   | .node .barePlural [head] | .node (.determine _) [_, head] => postmodifiers head
   | .modify _ head => postmodifiers head
   | _ => []

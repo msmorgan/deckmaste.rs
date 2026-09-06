@@ -108,3 +108,12 @@ survivor existence, enumeration independence and an inhabited selection check.
 All 167 preceding theorem declarations remain; 24 added, none removed or
 ignored. All 23 new public assertions passed Lean LSP axiom/source audits.
 The review report names the still-missing generalizations; this remains WIP.
+
+## Mixed-agreement checkpoint
+
+Added mixed NP person/number coordination and clause-boundary agreement,
+including the position-dependent proximity rule for alternatives. Eight new
+positive/negative assertions pass Lean LSP axiom/source audits. All 191 prior
+declarations remain; English passes 19 jobs. Inverted-clause syntax itself is
+not claimed. Other feature/dependency closure and broader scope/preference
+obligations remain open.

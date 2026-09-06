@@ -91,6 +91,15 @@ def Coordinator.surface : Coordinator → Surface
   | .or_ => (["or"] : Surface)
   | .andOr => (["and/or"] : Surface)
 
+def Person.join : Person → Person → Person
+  | .first, _ | _, .first => .first
+  | .second, _ | _, .second => .second
+  | .third, .third => .third
+
+/-- Agreement of an additive coordination includes both conjuncts' person features. -/
+def Agreement.additive (left right : Agreement) : Agreement :=
+  ⟨left.person.join right.person, .plural⟩
+
 /-- Local productions. Recursive arguments live in Syntax, never in lexical frame schemas. -/
 inductive Construction (Lexeme : Type) where
   | document (rule : DocumentRule)
@@ -111,7 +120,7 @@ inductive Construction (Lexeme : Type) where
   | nonfinite (form : InflectionalForm) (voice : Voice := .active)
   | subordinate (marker : Lexeme) (finiteness : Finiteness)
   | adjunct (host dependent : Category) (placement : Placement := .after)
-  | coordinate (coordinator : Coordinator) (category : Category)
+  | coordinate (coordinator : Coordinator) (category : Category) (right : Category := category)
 
 /-- Lexical licensing and word forms remain independent assumptions. -/
 structure Lexicon (Lexeme : Type) where
@@ -289,6 +298,13 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       coordinable category = true →
       Production lexicon (.coordinate coordinator category) [category, category]
         (coordinationResult coordinator category)
+  | mixedAdditive {left right : Agreement} : left ≠ right →
+      Production lexicon (.coordinate .and_ (.nounPhrase left) (.nounPhrase right))
+        [.nounPhrase left, .nounPhrase right] (.nounPhrase (left.additive right))
+
+  | mixedAlternative {left right : Agreement} : left ≠ right →
+      Production lexicon (.coordinate .or_ (.nounPhrase left) (.nounPhrase right))
+        [.nounPhrase left, .nounPhrase right] (.nounPhrase right)
 
 /-- One recursive tree for phrases, clauses, missing positions and their antecedents. -/
 inductive Syntax (Lexeme : Type) where
@@ -323,6 +339,23 @@ end
 /-- The initial plural nominal coordination uses the general coordination production. -/
 def Syntax.coordinate {Lexeme : Type} (left right : Syntax Lexeme) : Syntax Lexeme :=
   .node (.coordinate .and_ (.nominal .plural)) [left, right]
+
+inductive SubjectPosition where
+  | beforeVerb | afterVerb
+  deriving DecidableEq
+
+/-- Agreement is read at the clause boundary; disjunction consults the nearer conjunct. -/
+def subjectAgreement {Lexeme : Type} (position : SubjectPosition) : Syntax Lexeme → Option Agreement
+  | .word _ (.nounPhrase agreement) | .gap (.nounPhrase agreement) => some agreement
+  | .node (.determine number) _ => some ⟨.third, number⟩
+  | .node .barePlural _ => some ⟨.third, .plural⟩
+  | .node (.coordinate .and_ (.nounPhrase left) (.nounPhrase right)) _ =>
+      some (left.additive right)
+  | .node (.coordinate .or_ (.nounPhrase left) (.nounPhrase right)) _ =>
+      some (match position with | .beforeVerb => right | .afterVerb => left)
+  | .node (.coordinate .andOr (.nounPhrase left) _) _ => some left
+  | .node (.adjunct _ _ _) [head, _] => subjectAgreement position head
+  | _ => none
 
 /-- Finite agreement is licensed by the overt head, including irregular auxiliaries. -/
 inductive FiniteLicense {Lexeme : Type} (lexicon : Lexicon Lexeme) :
@@ -372,12 +405,13 @@ mutual
         {children : List (Syntax Lexeme)} {gaps : List Category} :
         lexicon.verb head form voice frame → JudgeFrame lexicon children frame gaps →
         Judges lexicon (.node (.verb head form frame voice) children) (.verbPhrase form voice) gaps
-    | finite {agreement : Agreement} {form : InflectionalForm} {voice : Voice}
+    | finite {agreement subjectFeatures : Agreement} {form : InflectionalForm} {voice : Voice}
         {subject predicate : Syntax Lexeme}
         {subjectGaps predicateGaps : List Category} :
-        Judges lexicon subject (.nounPhrase agreement) subjectGaps →
+        Judges lexicon subject (.nounPhrase subjectFeatures) subjectGaps →
         Judges lexicon predicate (.verbPhrase form voice) predicateGaps →
         FiniteLicense lexicon predicate agreement →
+        subjectAgreement .beforeVerb subject = some agreement →
         Judges lexicon (.node (.finite agreement form voice) [subject, predicate]) (.clause .finite)
           (subjectGaps ++ predicateGaps)
     | reminder {body : Syntax Lexeme} :
@@ -538,8 +572,8 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Linearizes lexicon (.adjunct host dependent) [a, b] (a ++ b)
   | preposedAdjunct {host dependent : Category} {a b : Surface} :
       Linearizes lexicon (.adjunct host dependent .before) [a, b] (b ++ a)
-  | coordinate {coordinator : Coordinator} {category : Category} {a b : Surface} :
-      Linearizes lexicon (.coordinate coordinator category) [a, b] (a ++ coordinator.surface ++ b)
+  | coordinate {coordinator : Coordinator} {category right : Category} {a b : Surface} :
+      Linearizes lexicon (.coordinate coordinator category right) [a, b] (a ++ coordinator.surface ++ b)
 
 mutual
   /-- Realization does not choose a reading or certify grammatical licensing. -/

@@ -270,3 +270,30 @@ assertions with standard axioms only and no source warnings. The generic
 finite-maximum theorem is now public for reuse, with its statement and proof
 unchanged. The independently refreshed Semantics build also passed 58 jobs;
 English has no dependency on that result.
+
+## Implemented closure: mixed agreement
+
+Coordination now records both conjunct categories and admits mixed NP number
+and person for additive coordination. The result is plural, retaining first
+person when present and otherwise second person when present. Mixed
+alternative coordination retains both conjuncts' features in Syntax;
+`subjectAgreement` reads the nearer conjunct at the clause boundary. Finite
+clauses require that result in addition to the verb head's declared finite
+licence. Agreement is therefore not guessed from the verb's morphology.
+
+The ordinary additive/plural and alternative/proximity directions are
+supported by [Purdue OWL's agreement guide](https://owl.purdue.edu/owl/general_writing/grammar/subject_verb_agreement.html).
+The [Language Portal of Canada](https://our-languages.canada.ca/en/writing-tips-plus/verb-agreement-compound-subjects-with-or)
+explicitly distinguishes preverbal and postverbal compound subjects. The
+model checks both positions in the agreement projection; its current finite
+clause construction still realizes the Subject before the verb. It does not
+yet claim an inverted-clause grammar. Supported-corpus inspection also found
+mixed-person `you and that player` Subjects; the tracked Lean strings are
+synthetic grammatical challenges, not card transcriptions.
+
+Eight assertions cover grammatical mixed-number and mixed-person clauses,
+retained person, singular-result exclusion, mixed `or`, position-dependent
+proximity, and a wrong-proximity rejection whose verb independently allows
+both compared agreement values. All 191 previous theorem declarations remain;
+eight are added, none removed or ignored. All eight pass Lean LSP axiom/source
+audits, and `english/scripts/build` passes 19 jobs with warnings as errors.

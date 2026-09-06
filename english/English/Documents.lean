@@ -132,7 +132,7 @@ def creatures : Witness Lexeme lexicon (.nounPhrase ⟨.third, .plural⟩) :=
 def event : Witness Lexeme lexicon (.clause .finite) :=
   ⟨.node (.finite ⟨.third, .plural⟩ .plain) [creatures.tree, attack.tree],
    creatures.surface ++ attack.surface,
-   .finite creatures.derives attack.derives (.verb ⟨rfl, rfl, rfl⟩),
+   .finite creatures.derives attack.derives (.verb ⟨rfl, rfl, rfl⟩) rfl,
    .node (.cons creatures.realizes (.cons attack.realizes .nil)) .finite⟩
 
 def trigger : Witness Lexeme lexicon (.subordinateClause .finite) :=

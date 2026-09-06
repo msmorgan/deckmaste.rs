@@ -85,7 +85,7 @@ theorem relative_body_gap :
     Judges lexicon relativeBody (.clause .finite) [.nounPhrase plural] :=
   .finite .gap
     (.node (.adjunct .verbal) (.cons can_attack_derives (.cons during_derives .nil)))
-    (.adjunct (.auxiliary (Or.inr ⟨rfl, rfl⟩)))
+    (.adjunct (.auxiliary (Or.inr ⟨rfl, rfl⟩))) rfl
 
 theorem relative_derives : Derives lexicon relativeNominal (.nominal .plural) :=
   .relative (.noun (Or.inl rfl)) relative_body_gap
@@ -104,7 +104,7 @@ theorem noun_phrase_relations :
     Derives lexicon (.node (.verb .destroy .plain objectFrame) [creatures]) (.verbPhrase .plain) ∧
     Derives lexicon (.node (.preposition .with_ (.nounPhrase plural)) [creatures])
       .prepositionPhrase :=
-  ⟨.finite creatures_derives attack_derives (.verb (Or.inl ⟨rfl, .other rfl⟩)),
+  ⟨.finite creatures_derives attack_derives (.verb (Or.inl ⟨rfl, .other rfl⟩)) rfl,
    .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩ 
      (.argument (complement := ⟨.object, .nounPhrase plural⟩) creatures_derives .nil),
    .node (.preposition ⟨Or.inr rfl, rfl⟩) (.cons creatures_derives .nil)⟩

@@ -32,7 +32,8 @@ theorem modifier_scope_preserves {lexicon : Lexicon L} {m l r tree : Syntax L}
   · refine ⟨.modify modifier.1 (.node (.coordinate rfl) (.cons left.1 (.cons right.1 .nil))), ?_⟩
     have realized := Realizes.modify modifier.2
       (Realizes.node (.cons left.2 (.cons right.2 .nil))
-        (Linearizes.coordinate (coordinator := .and_) (category := .nominal .plural)))
+        (Linearizes.coordinate (coordinator := .and_) (category := .nominal .plural)
+          (right := .nominal .plural)))
     simpa [Syntax.coordinate, Coordinator.surface, List.append_assoc] using realized
   · refine ⟨.node (.coordinate rfl) (.cons (.modify modifier.1 left.1) (.cons right.1 .nil)), ?_⟩
     exact .node (.cons (.modify modifier.2 left.2) (.cons right.2 .nil)) .coordinate
