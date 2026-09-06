@@ -49,18 +49,18 @@ theorem badSliceOfCountedPossessor :
 /-- "Tap target creature an opponent controls. That player loses 1 life." -/
 theorem okThatPlayer :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-          losesLife (that .player) (.lit 1) ]) = [] := by
+          loseLife (.lit 1) (agent := (that .player)) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
 theorem badDisjunctAntecedent :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
                                            .and [land, .hasPossessor .controller .you]])),
-          losesLife (that .player) (.lit 1) ])
+          loseLife (.lit 1) (agent := (that .player)) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -144,15 +144,16 @@ theorem badMatchesTargetSubject :
 /-- "Tap target creature. You gain 1 life if it's an artifact." -/
 theorem okMatchesArtifact :
     Instruction.check []
-      (.sequentially [.setStatus .tapped (target creature),
-                      .onlyIf (gainsLife .you (.lit 1)) (.matches it artifact) none]) = [] := by
+      (.sequence [.setStatus .tapped (target creature),
+                      .doOnlyIf (gainLife (.lit 1) (agent := .you)) (.matches it artifact) none]) =
+                          [] := by
   decide
 
 /-- "Tap target creature. You gain 1 life if it's." -/
 theorem badMatchesNothing :
     Instruction.check []
-      (.sequentially [.setStatus .tapped (target creature),
-                      .onlyIf (gainsLife .you (.lit 1)) (.matches it (.and [])) none])
+      (.sequence [.setStatus .tapped (target creature),
+                      .doOnlyIf (gainLife (.lit 1) (agent := .you)) (.matches it (.and [])) none])
       = [.predSays] := by
   decide
 
@@ -194,19 +195,20 @@ theorem badColorlessWhite :
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Instruction.check []
-      (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl)]) = [] := by
+      (.sequence [.draw (.letter .x) (agent := .you), .define .x (countOf creatureYouControl)]) = []
+          := by
   decide
 
 theorem badDoubleXRider :
     Instruction.check []
-      (.sequentially [.draw .you (.letter .x), .define .x (countOf creatureYouControl),
+      (.sequence [.draw (.letter .x) (agent := .you), .define .x (countOf creatureYouControl),
                       .define .x (countOf creature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
     Instruction.check []
-      (.sequentially [.draw .you (.letter .y), .define .x (countOf creatureYouControl)])
+      (.sequence [.draw (.letter .y) (agent := .you), .define .x (countOf creatureYouControl)])
       = [.openLetter .x] := by
   decide
 
@@ -311,13 +313,14 @@ theorem badPartitiveOfCountedGroup :
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
     Instruction.check []
-      (.sequentially [destroy (target creature), losesLife (controllerOf it) (.statOf (.stat .power) it)])
+      (.sequence [destroy (target creature), loseLife (.statOf (.stat .power) it) (agent :=
+          (controllerOf it))])
       = [] := by
   decide
 
 theorem badOtherwiseReadsLeadingArm :
     Instruction.check []
-      (.if_ (exists_ creatureYouControl)
+      (.doIf (exists_ creatureYouControl)
         (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (some (.setStatus .tapped it)))
       = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
@@ -325,11 +328,11 @@ theorem badOtherwiseReadsLeadingArm :
 
 theorem badLeadingConditionAntecedent :
     Instruction.check []
-      (.sequentially
-        [ .if_ (.compareAmt (lifeTotalOf .you) .less
+      (.sequence
+        [ .doIf (.compareAmt (lifeTotalOf .you) .less
                      (lifeTotalOf anOpponent))
-            (gainsLife .you (.lit 6)) none,
-          losesLife (that .player) (.lit 1) ])
+            (gainLife (.lit 6) (agent := .you)) none,
+          loseLife (.lit 1) (agent := (that .player)) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -357,15 +360,16 @@ theorem badNestedConjunction :
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Instruction.check []
-      (.sequentially [ rollDice .you 2 6,
-                       if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
-                              (sacrifice .you thisCreature) ]) = [] := by
+      (.sequence [ rollDice 2 6 (agent := .you),
+                       doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
+                              (sacrifice thisCreature (agent := .you)) ]) = [] := by
   decide
 
 /-- "If you rolled 7, sacrifice this creature." -/
 theorem badTotalWithoutRoll :
     Instruction.check []
-      (if_ (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice .you thisCreature))
+      (doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice thisCreature (agent :=
+          .you)))
       = [.outcomeInScope .rollResult 0] := by
   decide
 
@@ -377,7 +381,8 @@ theorem okReadsLookedAtLibraryCard :
 
 theorem badReadsShuffledIntoLibraryCard :
     NounPhrase.check (some .object)
-      (Instruction.intro [] (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .you .this]))
+      (Instruction.intro [] (.sequence [lookAt (topSlice (.lit 1)), shuffleInto .this (agent :=
+          .you)]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
 
@@ -472,22 +477,24 @@ theorem badCardCopyOfACard :
 
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
-    Instruction.check [] (cantAttack (target creature) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidAttack (target creature) (some .thisTurn)) = [] := by decide
 
 /-- "Target land can't attack this turn." [CR#508.1a,205.1b,208.3a] -/
 theorem okCantAttackLand :
-    Instruction.check [] (cantAttack (target land) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidAttack (target land) (some .thisTurn)) = [] := by decide
 
 /-- "Target land can't attack." -/
-theorem okCantAttackLandNoSpan : Instruction.check [] (cantAttack (target land) none) = [] := by decide
+theorem okCantAttackLandNoSpan : Instruction.check [] (forbidAttack (target land) none) = [] := by
+    decide
 
 /-- "Target creature can't block this turn." -/
 theorem okCantBlockCreature :
-    Instruction.check [] (cantBlock (target creature) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidBlock (target creature) (some .thisTurn)) = [] := by decide
 
 /-- "Target creature or land can't block this turn." [CR#205.1b,208.3a] -/
 theorem okCantDisjunctSubject :
-    Instruction.check [] (cantBlock (target (.or [creature, land])) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidBlock (target (.or [creature, land])) (some .thisTurn)) = [] := by
+        decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/
 theorem okPartyOfFourRoles : NounPhrase.check (some .object) [] party = [] := by decide

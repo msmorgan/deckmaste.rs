@@ -33,29 +33,32 @@ theorem badChosenNumberRead :
 
 /-- "Choose target creature. You gain life equal to its power." -/
 theorem okSinglePower :
-    Instruction.check [] (.sequentially [choose (target creature), gainsLife .you (powerOf it)])
+    Instruction.check [] (.sequence [choose (target creature), gainLife (powerOf it) (agent :=
+        .you)])
       = [] := by
   decide
 
 /-- "Choose two target creatures. You gain life equal to their power." -/
 theorem badGroupPower :
     Instruction.check []
-      (.sequentially
-        [choose (.described (.target (exactly 2)) creature), gainsLife .you (powerOf them)])
+      (.sequence
+        [choose (.described (.target (exactly 2)) creature), gainLife (powerOf them) (agent :=
+            .you)])
       = [.singular] := by
   decide
 
 /-- "Choose target creature. Its owner loses 1 life." -/
 theorem okSingleOwner :
     Instruction.check []
-      (.sequentially [choose (target creature), losesLife (ownerOf it) (.lit 1)]) = [] := by
+      (.sequence [choose (target creature), loseLife (.lit 1) (agent := (ownerOf it))]) = [] := by
   decide
 
 /-- "Choose two target creatures. Their owners each lose 1 life." -/
 theorem okGroupOwners :
     Instruction.check []
-      (.sequentially
-        [choose (.described (.target (exactly 2)) creature), losesLife (ownerOf them) (.lit 1)])
+      (.sequence
+        [choose (.described (.target (exactly 2)) creature), loseLife (.lit 1) (agent := (ownerOf
+            them))])
       = [] := by
   decide
 
@@ -80,27 +83,27 @@ theorem badZeroGroup :
 /-- "Choose up to one — Destroy target artifact; or destroy target enchantment." -/
 theorem okModalTwoModes :
     Instruction.check []
-      (.modal (upTo 1)
+      (.chooseModes (upTo 1)
         [(none, destroy (target artifact)), (none, destroy (target enchantment))]) = [] := by
   decide
 
 /-- "Choose one — Destroy target artifact." -/
 theorem badModalOneMode :
-    Instruction.check [] (.modal (upTo 1) [(none, destroy (target artifact))])
+    Instruction.check [] (.chooseModes (upTo 1) [(none, destroy (target artifact))])
       = [.atLeastTwo] := by
   decide
 
 /-- "Choose two — Destroy target artifact; or destroy target enchantment." -/
 theorem okModalTwoOfTwo :
     Instruction.check []
-      (.modal (exactly 2)
+      (.chooseModes (exactly 2)
         [(none, destroy (target artifact)), (none, destroy (target enchantment))]) = [] := by
   decide
 
 /-- "Choose three — Destroy target artifact; or destroy target enchantment." -/
 theorem badModalOverreach :
     Instruction.check []
-      (.modal (exactly 3)
+      (.chooseModes (exactly 3)
         [(none, destroy (target artifact)), (none, destroy (target enchantment))])
       = [.modesFit] := by
   decide
@@ -109,7 +112,7 @@ theorem badModalOverreach :
 [CR#702.172a] -/
 theorem okSpreeBothCosted :
     Instruction.check []
-      (spree
+      (chooseSpree
         [ (some (.mana [generic 1]), destroy (target artifact)),
           (some (.mana [generic 1]), destroy (target enchantment)) ]) = [] := by
   decide
@@ -118,7 +121,7 @@ theorem okSpreeBothCosted :
 spree mode with no cost [CR#702.172a] -/
 theorem badSpreeMissingCost :
     Instruction.check []
-      (spree
+      (chooseSpree
         [ (none, destroy (target artifact)),
           (some (.mana [generic 1]), destroy (target enchantment)) ]) = [.modesCosted] := by
   decide
@@ -133,7 +136,7 @@ theorem badModalReadsAcrossModes :
 
 theorem badReadsAfterModal :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ chooseModes (exactly 1) [destroy (target artifact), destroy (target enchantment)],
           .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
@@ -141,13 +144,15 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Instruction.check []
-      (.may .you (.pay .you (payLife .you 1) .once) none (some (draw .you (.lit 1)))) = [] := by
+      (.offer (.pay (payLife .you 1) .once (agent := .you)) none (some (draw (.lit 1) (agent :=
+          .you))) (agent := .you)) = [] := by
   decide
 
 /-- "you pay" -/
 theorem badMismatchedPayer :
     Instruction.check []
-      (.may .you (.pay .you (payLife anOpponent 1) .once) none (some (draw .you (.lit 1))))
+      (.offer (.pay (payLife anOpponent 1) .once (agent := .you)) none (some (draw (.lit 1) (agent
+          := .you))) (agent := .you))
       = [.payAgrees] := by
   decide
 
@@ -179,27 +184,27 @@ def chosenBasicLandType : QualityPayload :=
 /-- "Target land becomes the basic land type of your choice until end of turn." -/
 theorem okChosenBasicTypeOnLand :
     Instruction.check []
-      (.continuously (.becomes (target land) .sets chosenBasicLandType) (some untilEndOfTurn))
+      (.establish (.qualityChange (target land) .sets chosenBasicLandType) (some untilEndOfTurn))
       = [] := by
   decide
 
 theorem badChosenBasicTypeOnCreature :
     Instruction.check []
-      (.continuously (.becomes (target creature) .sets chosenBasicLandType)
+      (.establish (.qualityChange (target creature) .sets chosenBasicLandType)
         (some untilEndOfTurn)) = [.becomesOk] := by
   decide
 
 /-- "Lands you control are Mountains." -/
 theorem okLandsAreMountains :
     StaticSpec.check []
-      (.becomes (allOf (.and [land, .hasPossessor .controller .you])) .sets
+      (.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .sets
         (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
   decide
 
 /-- "Creatures are Mountains." -/
 theorem badCreaturesAreMountains :
     StaticSpec.check []
-      (.becomes (allOf creature) .sets (.bundle { characteristics :=
+      (.qualityChange (allOf creature) .sets (.bundle { characteristics :=
                                                   { subtypes := [landType "Mountain"] } } none))
       = [.becomesOk] := by
   decide
@@ -219,15 +224,15 @@ theorem badNonCreatureTypeExclusion :
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Instruction.check []
-      (.continuously (.becomes (target land) .sets (.everyTypeOf .basicLand))
+      (.establish (.qualityChange (target land) .sets (.everyTypeOf .basicLand))
         (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Target creature loses the creature type of your choice until end of turn." -/
 theorem losesChosenCreatureType :
     Instruction.check []
-      (.continuously
-        (.becomes (target creature) .loses
+      (.establish
+        (.qualityChange (target creature) .loses
           (.chosenQuality (.ofYourChoice (.subtype .creature) none))) (some untilEndOfTurn))
       = [] := by
   decide
@@ -235,30 +240,31 @@ theorem losesChosenCreatureType :
 /-- "Target creature loses all colors until end of turn." -/
 theorem losesAllColors :
     Instruction.check []
-      (.continuously (.becomes (target creature) .loses (.colored .every)) (some untilEndOfTurn))
+      (.establish (.qualityChange (target creature) .loses (.colored .every)) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Target creature is white." -/
 theorem okAddsAColor :
-    StaticSpec.check [] (.becomes (target creature) .adds (.colored (.some [.white]))) = [] := by
+    StaticSpec.check [] (.qualityChange (target creature) .adds (.colored (.some [.white]))) = [] :=
+        by
   decide
 
 theorem badAddsNoColor :
-    StaticSpec.check [] (.becomes (target creature) .adds (.colored (.some [])))
+    StaticSpec.check [] (.qualityChange (target creature) .adds (.colored (.some [])))
       = [.becomesOk] := by
   decide
 
 /-- "Target creature loses colorless until end of turn." -/
 theorem badLosesNoColor :
-    StaticSpec.check [] (.becomes (target creature) .loses (.colored (.some [])))
+    StaticSpec.check [] (.qualityChange (target creature) .loses (.colored (.some [])))
       = [.becomesOk] := by
   decide
 
 /-- "Equipped permanent isn't a 2/2 creature." -/
 theorem badLosesPt :
     StaticSpec.check []
-      (.becomes (.attachHost .equipped .permanent) .loses
+      (.qualityChange (.attachHost .equipped .permanent) .loses
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           none)) = [.becomesOk] := by
@@ -266,7 +272,7 @@ theorem badLosesPt :
 
 theorem badStillOnAddition :
     StaticSpec.check []
-      (.becomes (target creature) .adds
+      (.qualityChange (target creature) .adds
         (.bundle { characteristics := { types := [.artifact] } } (some .creature)))
       = [.becomesOk] := by
   decide
@@ -279,7 +285,7 @@ theorem okChoiceRestStands :
 
 def afterChoiceRestDisposed : Bindings :=
   Instruction.intro []
-    (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)])
+    (.sequence [choose (counted (upTo 1) creature), destroy (theRest .object)])
 
 /-- "Choose up to one creature. Destroy the rest. Destroy the rest." -/
 theorem badChoiceRestDisposedTwice :
@@ -293,9 +299,9 @@ def upToOneTheyControl : NounPhrase :=
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 def distributedRestOfOwnChoice : Instruction :=
-  .sequentially
-    [ chooses (each .anyPlayer) upToOneTheyControl,
-      sacrifice (each .anyPlayer) (theRest .object) ]
+  .sequence
+    [ choose upToOneTheyControl (agent := some (each .anyPlayer)),
+      sacrifice (theRest .object) (agent := (each .anyPlayer)) ]
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." The
 per-agent rest closes only the partitives the same distributive chooser published [CR#700.8d],
@@ -304,7 +310,7 @@ theorem okDistributedRestOfOwnChoice : Instruction.check [] distributedRestOfOwn
   decide
 
 def afterDistributedChoice : Bindings :=
-  Instruction.intro [] (chooses (each .anyPlayer) upToOneTheyControl)
+  Instruction.intro [] (choose upToOneTheyControl (agent := some (each .anyPlayer)))
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 theorem okDistributedRestStands :
@@ -323,7 +329,8 @@ theorem badDistributedRestDisposedTwice :
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
 theorem okSharedGroupWithoutARest :
     Instruction.check []
-      (.sequentially [tap (allOf creature), chooses (each .anyPlayer) upToOneTheyControl])
+      (.sequence [tap (allOf creature), choose upToOneTheyControl (agent := some (each
+          .anyPlayer))])
       = [] := by
   decide
 
@@ -332,10 +339,10 @@ those permanents.": the plural deed re-places only the plural bindings the same 
 [CR#701.21a]. -/
 theorem okDistributedLoopParts :
     Instruction.check []
-      (.sequentially
-        [ .forEachOf (each .anyPlayer)
+      (.sequence
+        [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          sacrifice (those .player) (those .permanent) ]) = [] := by
+          sacrifice (those .permanent) (agent := (those .player)) ]) = [] := by
   decide
 
 /-- "Tap all creatures. Each player chooses up to one creature they control, then sacrifices
@@ -344,10 +351,10 @@ sacrifice a permanent they don't control ([CR#701.21a]; `okDistributedRestOfOwnC
 same deed with only the chooser's own partitives standing). -/
 theorem badDistributedRestOfSharedGroup :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ tap (allOf creature),
-          chooses (each .anyPlayer) upToOneTheyControl,
-          sacrifice (each .anyPlayer) (theRest .object) ]) = [.enactKeepsOuter] := by
+          choose upToOneTheyControl (agent := some (each .anyPlayer)),
+          sacrifice (theRest .object) (agent := (each .anyPlayer)) ]) = [.enactKeepsOuter] := by
   decide
 
 /-- "Choose up to one creature. Each player sacrifices the rest.": one chooser leaves one
@@ -355,8 +362,9 @@ shared leftover, not a partition per player, so the other players would sacrific
 they don't control [CR#701.21a]. -/
 theorem badDistributedRestOfSingularChoice :
     Instruction.check []
-      (.sequentially
-        [choose (counted (upTo 1) creature), sacrifice (each .anyPlayer) (theRest .object)])
+      (.sequence
+        [choose (counted (upTo 1) creature), sacrifice (theRest .object) (agent := (each
+            .anyPlayer))])
       = [.enactKeepsOuter] := by
   decide
 
@@ -378,23 +386,23 @@ theorem badMemberInComparisonBound :
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okGetsBattlefield :
     Instruction.check []
-      (gets (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
+      (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Destroy target creature. It gets +3/+3 until end of turn." Both halves of the boost read
 the destroyed creature. -/
 theorem badGetsGraveyard :
     Instruction.check []
-      (.sequentially
-        [destroy (target creature), gets it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
+      (.sequence
+        [destroy (target creature), get it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
       = [.zoneIs .battlefield, .zoneIs .battlefield] := by
   decide
 
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/
 theorem okNotChosenAfterOneChoice :
     Instruction.check []
-      (.sequentially
-        [ chooses .you (a creature),
+      (.sequence
+        [ choose (a creature) (agent := some .you),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
@@ -410,9 +418,9 @@ way.": "this way" names the manner, so both standing choices are excluded togeth
 [CR#700.8d]. -/
 theorem okNotChosenAfterTwoChoices :
     Instruction.check []
-      (.sequentially
-        [ chooses .you (a creature),
-          chooses .you (a creature),
+      (.sequence
+        [ choose (a creature) (agent := some .you),
+          choose (a creature) (agent := some .you),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
@@ -421,16 +429,18 @@ Destroy each creature not chosen this way.": Sculpted Sunburst's exclusion, whos
 choices have different choosers [CR#101.4]. -/
 theorem okNotChosenAcrossChoosers :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ choose (a creatureYouControl),
-          chooses (each .opponent) (a (.and [creature, .hasPossessor .controller they])),
+          choose (a (.and [creature, .hasPossessor .controller they])) (agent := some (each
+              .opponent)),
           destroy (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
 /-- "Each player chooses a creature they control." [CR#700.8d] -/
 theorem okAgentScopedChoice :
     Instruction.check []
-      (chooses (each .anyPlayer) (a (.and [creature, .hasPossessor .controller they]))) = [] := by
+      (choose (a (.and [creature, .hasPossessor .controller they])) (agent := some (each
+          .anyPlayer))) = [] := by
   decide
 
 /-- "Choose a creature they control.": the chooserless spelling has no antecedent for "they"
@@ -443,8 +453,9 @@ theorem badUnchooseredTheyControl :
 /-- "Starting with you, each player chooses a creature they control." [CR#101.4] -/
 theorem okChoiceStartingWithYou :
     Instruction.check []
-      (.choose (some .you) (some (each .anyPlayer))
-        (a (.and [creature, .hasPossessor .controller they])) .openly none) = [] := by
+      (.choose (some .you)
+        (a (.and [creature, .hasPossessor .controller they])) .openly none (agent := (some (each
+            .anyPlayer)))) = [] := by
   decide
 
 /-- "Starting with you, target player chooses a creature.": one player makes the choice, so
@@ -452,28 +463,30 @@ there is no order for "starting with" to fix [CR#101.4] (`okChoiceStartingWithYo
 same order over a distributive chooser). -/
 theorem badOrderedSingularChooser :
     Instruction.check []
-      (.choose (some .you) (some (target .anyPlayer)) (a creature) .openly none)
+      (.choose (some .you) (a creature) .openly none (agent := (some (target .anyPlayer))))
       = [.choiceOrder] := by
   decide
 
 /-- "Choose a creature. If you chose a creature this way, draw a card." -/
 theorem okChoseThisWayAfterChoice :
     Instruction.check []
-      (.sequentially
-        [chooses .you (a creature), if_ (.choseThisWay .you creature) (draw .you (.lit 1))])
+      (.sequence
+        [choose (a creature) (agent := some .you), doIf (.choseThisWay .you creature) (draw (.lit 1)
+            (agent := .you))])
       = [] := by
   decide
 
 /-- "If you chose a creature this way, draw a card.": nothing was chosen, so "this way" reads
 back no choice (`okChoseThisWayAfterChoice` is the same read with one standing). -/
 theorem badChoseThisWayWithoutAChoice :
-    Instruction.check [] (if_ (.choseThisWay .you creature) (draw .you (.lit 1)))
+    Instruction.check [] (doIf (.choseThisWay .you creature) (draw (.lit 1) (agent := .you)))
       = [.choiceInScope .object] := by
   decide
 
 /-- "Each player chooses a creature. Exile them." -/
 theorem okDistributedChoiceReadsAsGroup :
-    Instruction.check [] (.sequentially [chooses (each .anyPlayer) (a creature), exile them])
+    Instruction.check [] (.sequence [choose (a creature) (agent := some (each .anyPlayer)), exile
+        them])
       = [] := by
   decide
 
@@ -481,7 +494,8 @@ theorem okDistributedChoiceReadsAsGroup :
 chooser, so the singular read has no antecedent (`okDistributedChoiceReadsAsGroup` is the
 plural read). -/
 theorem badDistributedChoiceReadSingular :
-    Instruction.check [] (.sequentially [chooses (each .anyPlayer) (a creature), exile it])
+    Instruction.check [] (.sequence [choose (a creature) (agent := some (each .anyPlayer)), exile
+        it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -489,7 +503,7 @@ theorem badDistributedChoiceReadSingular :
 printed card on the bench. -/
 theorem lookAtTopThenBin :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 1)), may .you (move (that .card) graveyard)])
+      (.sequence [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard) (agent := .you)])
       = [] := by
   decide
 
@@ -497,8 +511,8 @@ theorem lookAtTopThenBin :
 card on the bench. -/
 theorem playAndCastFromGraveyardThisTurn :
     Instruction.check []
-      (.continuously
-        (.andAlso none
+      (.establish
+        (.conjunction none
           [ mayPlayDeed (.action "Play") .you (allOf land) none
               (.play (some (graveyardOf .you)) none none false .itsOwnCost),
             mayPlayDeed (.action "Cast") .you (allOf spell) none
@@ -515,28 +529,30 @@ theorem eachPlayerPlaysAdditionalLand :
 your hand." No printed card on the bench. -/
 theorem millThenPutFromAmongMilled :
     Instruction.check []
-      (.sequentially
-        [ mills .you (.lit 3) .you,
-          may .you
+      (.sequence
+        [ mill (.lit 3) .you (agent := .you),
+          offer
             (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .card .thisWay .many))
-              hand) ]) = [] := by
+              hand) (agent := .you) ]) = [] := by
   decide
 
 /-- "Each player may shuffle their hand and graveyard into their library." No printed card on
 the bench. -/
 theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Instruction.check []
-      (may (each .anyPlayer)
-        (shuffleInto they
-          (.both (allOf (.inZone (handOf they))) (allOf (.inZone (graveyardOf they))))))
+      (offer
+        (shuffleInto
+          (.both (allOf (.inZone (handOf they))) (allOf (.inZone (graveyardOf they)))) (agent :=
+              they)) (agent := (each .anyPlayer)))
       = [] := by
   decide
 
 /-- "Each player may discard their hand and draw seven cards." No printed card on the bench. -/
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Instruction.check []
-      (may (each .anyPlayer)
-        (.sequentially [discard they (allOf (.inZone (handOf they))), draw they (.lit 7)]))
+      (offer
+        (.sequence [discard (allOf (.inZone (handOf they))) (agent := they), draw (.lit 7) (agent :=
+            they)]) (agent := (each .anyPlayer)))
       = [] := by
   decide
 
@@ -572,15 +588,16 @@ chose the highest number loses that much life." (Menacing Ogre): not a vote [CR#
 gate is the plural choice. -/
 theorem okChoseExtremeAfterNumbers :
     Instruction.check []
-      (.sequentially
-        [ secretlyChooses (each .anyPlayer) (a (quality .number)),
-          .choicesRevealed .numbers,
-          losesLife (each (.and [.anyPlayer, .choseExtreme .max])) .thatMuch ]) = [] := by
+      (.sequence
+        [ choose (disclosure := .secretly) (a (quality .number)) (agent := some (each .anyPlayer)),
+          .revealChoices .numbers,
+          loseLife .thatMuch (agent := (each (.and [.anyPlayer, .choseExtreme .max]))) ]) = [] := by
   decide
 
 /-- The same read with no number chosen anywhere in the text. -/
 theorem badChoseExtremeWithoutChoice :
-    Instruction.check [] (losesLife (each (.and [.anyPlayer, .choseExtreme .max])) (.lit 1))
+    Instruction.check [] (loseLife (.lit 1) (agent := (each (.and [.anyPlayer, .choseExtreme
+        .max]))))
       = [.numberChoiceInScope] := by
   decide
 
@@ -604,33 +621,35 @@ theorem okColorRefinementWithColorDomain :
   decide
 
 theorem badCompleteColorChoiceWithPlayerDomain :
-    Instruction.check [] (.choose none (some .you)
-      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none)
+    Instruction.check [] (.choose none
+      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none
+          (agent := (some .you)))
       = [.kindAxisSort] := by decide
 
 theorem okCompleteColorChoiceWithColorDomain :
-    Instruction.check [] (.choose none (some .you)
-      (.described (.a .unmarked) (.qualityNoun .color (some (.colorOtherThan .red)))) .openly none)
+    Instruction.check [] (.choose none
+      (.described (.a .unmarked) (.qualityNoun .color (some (.colorOtherThan .red)))) .openly none
+          (agent := (some .you)))
       = [] := by decide
 
 theorem badEntersChoiceDomainSort :
     StaticSpec.check []
-      (.entersChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
+      (.entryChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
       = [.kindAxisSort] := by decide
 
 theorem okEntersChoiceDomainSort :
     StaticSpec.check []
-      (.entersChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
+      (.entryChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
       = [] := by decide
 
 theorem badAttachmentChoiceDomainSort :
     StaticSpec.check []
-      (.attachChoice thisCreature (.quality .color) (some (.players .opponent)))
+      (.attachmentChoice thisCreature (.quality .color) (some (.players .opponent)))
       = [.kindAxisSort] := by decide
 
 theorem okAttachmentChoiceDomainSort :
     StaticSpec.check []
-      (.attachChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
+      (.attachmentChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
       = [] := by decide
 
 theorem badLandSubtypeDomainForCreatureType :

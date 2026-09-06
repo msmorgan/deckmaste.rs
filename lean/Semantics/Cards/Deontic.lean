@@ -14,42 +14,44 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Cards
 
-def infiltrate : Instruction := cantBeBlocked (target creature) (some .thisTurn)
+def infiltrate : Instruction := forbidBeingBlocked (target creature) (some .thisTurn)
 theorem okInfiltrate : Instruction.check [] infiltrate = [] := by decide
-def changeOfHeart : Instruction := cantAttack (target creature) (some .thisTurn)
+def changeOfHeart : Instruction := forbidAttack (target creature) (some .thisTurn)
 theorem okChangeOfHeart : Instruction.check [] changeOfHeart = [] := by decide
 def blindblast : Instruction :=
-  .sequentially
-    [.dealDamage .this (.lit 1) (target creature), cantBlock (that (.type .creature)) (some .thisTurn)]
+  .sequence
+    [.dealDamage .this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
+        .thisTurn)]
 theorem okBlindblast : Instruction.check [] blindblast = [] := by decide
 def blindingFlare : Instruction :=
-  cantBlock (.described (.target anyNumber) creature) (some .thisTurn)
+  forbidBlock (.described (.target anyNumber) creature) (some .thisTurn)
 theorem okBlindingFlare : Instruction.check [] blindingFlare = [] := by decide
 def cowardKiller : Instruction :=
-  .sequentially
-    [ cantBlock (target creature) (some .thisTurn),
-      becomes (that (.type .creature)) { characteristics := { subtypes := [creatureType "Coward"] } }
+  .sequence
+    [ forbidBlock (target creature) (some .thisTurn),
+      become (that (.type .creature)) { characteristics := { subtypes := [creatureType "Coward"] } }
         (some untilEndOfTurn) ]
 theorem okCowardKiller : Instruction.check [] cowardKiller = [] := by decide
 
 /-- Auriok Siege Sled -/
 def auriokSiegeSledDenial : Ability :=
   activated (.mana [generic 1])
-    (.continuously (cantDoTo (.core .block) (target (.and [artifact, creature])) thisCreature)
+    (.establish (cantDoTo (.core .block) (target (.and [artifact, creature])) thisCreature)
       (some .thisTurn))
 theorem okAuriokSiegeSledDenial : Ability.check [] auriokSiegeSledDenial = [] := by decide
 
 /-- Blindblast -/
 def blindblastWhole : Instruction :=
-  .sequentially
-    [ .dealDamage .this (.lit 1) (target creature), cantBlock (that (.type .creature)) (some .thisTurn),
-      .draw .you (.lit 1) ]
+  .sequence
+    [ .dealDamage .this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
+        .thisTurn),
+      .draw (.lit 1) (agent := .you) ]
 theorem okBlindblastWhole : Instruction.check [] blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 1) (.eachOf (.described (.target (upTo 2)) creature)),
-      cantBlock (those (.type .creature)) (some .thisTurn) ]
+      forbidBlock (those (.type .creature)) (some .thisTurn) ]
 theorem okSparkmagesGambit : Instruction.check [] sparkmagesGambit = [] := by decide
 
 /-- Glacial Chasm -/
@@ -99,7 +101,7 @@ theorem okWinterMoon : Ability.check [] winterMoon = [] := by decide
 
 def leitmotifComposer : Ability :=
   activated (.mana [generic 2, pip .blue])
-    (.continuously
+    (.establish
       (deontic (allOf (.and [creature, .named (.printed "Leitmotif Composer")])) .forbid
         [.core .block] .patient .noPatient)
       (some .thisTurn))
@@ -111,14 +113,14 @@ theorem okBerserkersOfBloodRidge : Ability.check [] berserkersOfBloodRidge = [] 
 
 def trumpetingArmodon : Ability :=
   activated (.mana [generic 1, pip .green])
-    (.continuously
+    (.establish
       (deontic (target creature) .require [.core .block] .agent (.counterpart thisCreature))
       (some .thisTurn))
 theorem okTrumpetingArmodon : Ability.check [] trumpetingArmodon = [] := by decide
 
 def loathsomeCatoblepas : Ability :=
   activated (.mana [generic 2, pip .green])
-    (.continuously (deontic thisCreature .require [.core .block] .patient .noPatient)
+    (.establish (deontic thisCreature .require [.core .block] .patient .noPatient)
       (some .thisTurn))
 theorem okLoathsomeCatoblepas : Ability.check [] loathsomeCatoblepas = [] := by decide
 
@@ -153,7 +155,7 @@ def pacifism : Spelled := spelled <| .singleFaced
 
 /-- Everybody Lives! -/
 def everybodyLivesGateLine : Instruction :=
-  .continuously
+  .establish
     (deontic (.playerGroup .allPlayers) .forbid [.core .loseGame, .core .winGame] .agent .noPatient)
     (some .thisTurn)
 theorem okEverybodyLivesGateLine : Instruction.check [] everybodyLivesGateLine = [] := by decide
@@ -173,7 +175,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
 
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
-  .andAlso none
+  .conjunction none
     [ canBeTargetedAsThough (allOf creatureYourOpponentsControl)
         (allOf (.or [spell, .abilityHead .anyOnStack]))
         (.not (.hasKeyword (.the "Hexproof"))),
@@ -222,7 +224,7 @@ def undercoverButler : Spelled := spelled <| .singleFaced
         [ whenever
             (attacksPlayer thisCreature
               (the (.and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))
-            (.continuously (deontic it .forbid [.core .block] .patient .noPatient)
+            (.establish (deontic it .forbid [.core .block] .patient .noPatient)
               (some .thisTurn)) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -232,9 +234,9 @@ def aetherTunnel : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject "Enchant" creature,
-          .static (.andAlso none
-            [ .modify (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
-              .modify (itsOther (.attachHost .enchanted (.type .creature)) (.up (.lit 1)))
+          .static (.conjunction none
+            [ .modification (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
+              .modification (itsOther (.attachHost .enchanted (.type .creature)) (.up (.lit 1)))
                 .toughness (.up (.lit 0)),
               deontic it .forbid [.core .block] .patient .noPatient ]) ] } }
 
@@ -243,7 +245,7 @@ def excruciator : Spelled := spelled <| .singleFaced
     { name := "Excruciator", cost := some [generic 6, pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Avatar"],
       text :=
-        [ .static (.cantPrevent .any (.described (.dealtBy thisCreature) .everywhere)
+        [ .static (.preventionBan .any (.described (.dealtBy thisCreature) .everywhere)
             .noPreventionOnly) ],
       power := stat 7, toughness := stat 7 } }
 
@@ -252,7 +254,8 @@ def flaringPain : Spelled := spelled <| .singleFaced
     { name := "Flaring Pain", cost := some [generic 1, pip .red], types := [.instant],
       text :=
         [ .spell none
-            (.continuously (.cantPrevent .any (.described .unattributed .everywhere) .noPreventionOnly)
+            (.establish (.preventionBan .any (.described .unattributed .everywhere)
+                .noPreventionOnly)
               (some .thisTurn)),
           keywordCosting "Flashback" (.mana [pip .red]) ] } }
 
@@ -262,15 +265,15 @@ def gideonJura : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker], subtypes := [planeswalkerType "Gideon"],
       text :=
         [ activated (.loyaltySymbol (.up 2))
-            (throughout
+            (establishThroughout
               (deontic (allOf (.and [creature, .hasPossessor .controller (target .opponent)]))
                 .require [.core .attack] .agent (.defendingPlayer thisPlaneswalker))
               (.duringNextTurnOf (that .player))),
           activated (.loyaltySymbol (.down 2)) (destroy (target (.and [creature, tapped]))),
           activated (.loyaltySymbol .zero)
-            (.sequentially
-              [ .continuously
-                  (.becomes thisPlaneswalker .sets
+            (.sequence
+              [ .establish
+                  (.qualityChange thisPlaneswalker .sets
                     (.bundle
                       { characteristics :=
                         { types := [.creature],
@@ -286,15 +289,15 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
     { name := "Pinpoint Avalanche", cost := some [generic 3, pip .red, pip .red],
       types := [.instant],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ .dealDamage .this (.lit 4) (target creature),
-              .continuously (.cantPrevent .any .thatDamage .noPreventionOnly) none ]) ] } }
+              .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ]) ] } }
 
 def whippoorwillImmunity : Instruction :=
-  .sequentially
-    [ .continuously (objectCant (.action "Regenerate") (target creature)) (some .thisTurn),
-      .continuously
-        (.cantPrevent .any
+  .sequence
+    [ .establish (objectCant (.action "Regenerate") (target creature)) (some .thisTurn),
+      .establish
+        (.preventionBan .any
           (.described .unattributed (.toRecipient (that (.type .creature)))) .noRedirectEither)
         (some .thisTurn) ]
 theorem okWhippoorwillImmunity : Instruction.check [] whippoorwillImmunity = [] := by decide
@@ -303,11 +306,11 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Call In a Professional", cost := some [generic 2, pip .red], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .continuously (playerCant (.core .gainLife) (.playerGroup .allPlayers))
+        [ .spell none (.sequence
+            [ .establish (playerCant (.core .gainLife) (.playerGroup .allPlayers))
                 (some .thisTurn),
-              .continuously
-                (.cantPrevent .any (.described .unattributed .everywhere) .noPreventionOnly)
+              .establish
+                (.preventionBan .any (.described .unattributed .everywhere) .noPreventionOnly)
                 (some .thisTurn),
               .dealDamage .this (.lit 3) (target anyTarget) ]) ] } }
 
@@ -321,15 +324,15 @@ def councilOfTheAbsolute : Spelled := spelled <| .singleFaced
             (.nameOfCard (.not (.or [creature, land])))),
           .static (cantDoTo (.action "Cast") (.playerGroup .yourOpponents)
             (allOf (.and [spell, .named .chosen]))),
-          .static (.costs (allOf (.and [spell, .named .chosen, castBy .you]))
+          .static (.costShift (allOf (.and [spell, .named .chosen, castBy .you]))
             (.less (.lit 2) none)) ],
       power := stat 2, toughness := stat 4 } }
 
 /-- Failure // Comply -/
 def complyNameLock : Instruction :=
-  .sequentially
+  .sequence
     [ choose (a (quality .cardName)),
-      .continuously
+      .establish
         (cantDoTo (.action "Cast") (.playerGroup .yourOpponents)
           (allOf (.and [spell, .named .chosen])))
         (some untilYourNextTurn) ]
@@ -350,9 +353,9 @@ def gideonsIntervention : Spelled := spelled <| .singleFaced
 
 /-- Academic Probation -/
 def academicProbationNameMode : Instruction :=
-  .sequentially
+  .sequence
     [ choose (a (qualityFrom .cardName (.nameOfCard (.not land)))),
-      .continuously
+      .establish
         (cantDoTo (.action "Cast") (.playerGroup .yourOpponents)
           (allOf (.and [spell, .named .chosen])))
         (some untilYourNextTurn) ]
@@ -362,12 +365,13 @@ theorem okAcademicProbationNameMode : Instruction.check [] academicProbationName
 def fatigue : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fatigue", cost := some [generic 1, pip .blue], types := [.sorcery],
-      text := [.spell none (.skipsNext (target .anyPlayer) .drawStep (.lit 1))] } }
+      text := [.spell none (.skipPart .drawStep (.lit 1) (agent := (target .anyPlayer)))] } }
 
 def meditate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Meditate", cost := some [generic 2, pip .blue], types := [.instant],
-      text := [.spell none (.sequentially [.draw .you (.lit 4), .skipsNext .you .turn (.lit 1)])] } }
+      text := [.spell none (.sequence [.draw (.lit 4) (agent := .you), .skipPart .turn (.lit 1)
+          (agent := .you)])] } }
 
 /-- Blinding Angel {3}{W}{W} — Creature — Angel 2/4. "Flying. Whenever Blinding Angel deals
 combat damage to a player, that player skips their next combat phase." -/
@@ -379,31 +383,32 @@ def blindingAngel : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           whenever
             (dealsCombatDamage thisCreature (a .anyPlayer))
-            (.skipsNext (that .player) .combat (.lit 1)) ],
+            (.skipPart .combat (.lit 1) (agent := (that .player))) ],
       power := stat 2, toughness := stat 4 } }
 
 def eonHub : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Eon Hub", cost := some [generic 5], types := [.artifact],
-      text := [.static (.skips (.playerGroup .allPlayers) .upkeep)] } }
+      text := [.static (.partSkip (.playerGroup .allPlayers) .upkeep)] } }
 
 def stasis : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Stasis", cost := some [generic 1, pip .blue], types := [.enchantment],
       text :=
-        [ .static (.skips (.playerGroup .allPlayers) .untapStep),
+        [ .static (.partSkip (.playerGroup .allPlayers) .untapStep),
           at_ (.beginningOf .the .upkeep (.byPlayer .you))
-            (unless_ .you (sacrifice .you thisEnchantment) (.mana [pip .blue])) ] } }
+            (doUnless (sacrifice thisEnchantment (agent := .you)) (.mana [pip .blue]) (agent :=
+                .you)) ] } }
 
 def yawgmothsBargain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Yawgmoth's Bargain", cost := some [generic 4, pip .black, pip .black],
       types := [.enchantment],
       text :=
-        [ .static (.skips .you .drawStep),
-          activated (payLife .you 1) (.draw .you (.lit 1)) ] } }
+        [ .static (.partSkip .you .drawStep),
+          activated (payLife .you 1) (.draw (.lit 1) (agent := .you)) ] } }
 
-def sandsOfTimeSkip : StaticSpec := .skips (each .anyPlayer) .untapStep
+def sandsOfTimeSkip : StaticSpec := .partSkip (each .anyPlayer) .untapStep
 theorem okSandsOfTimeSkip : StaticSpec.check [] sandsOfTimeSkip = [] := by decide
 
 /-- Wormfang Manta {5}{U}{U} — Creature — Nightmare Fish Beast 6/1. "Flying. When Wormfang
@@ -416,11 +421,11 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"],
       text :=
         [ keyword "Flying",
-          when (.enters thisCreature none) (.skipsNext .you .turn (.lit 1)),
-          when (leavesBattlefield thisCreature) (.extraTurn .you (.lit 1)) ],
+          when (.enters thisCreature none) (.skipPart .turn (.lit 1) (agent := .you)),
+          when (leavesBattlefield thisCreature) (.addTurn (.lit 1) (agent := .you)) ],
       power := stat 6, toughness := stat 1 } }
 
-def eaterOfDaysSkip : Instruction := .skipsNext .you .turn (.lit 2)
+def eaterOfDaysSkip : Instruction := .skipPart .turn (.lit 2) (agent := .you)
 theorem okEaterOfDaysSkip : Instruction.check [] eaterOfDaysSkip = [] := by decide
 
 /-- Empty City Ruse -/
@@ -429,7 +434,8 @@ def emptyCityRuse : Spelled := spelled <| .singleFaced
     { name := "Empty City Ruse", cost := some [pip .white], types := [.sorcery],
       text :=
         [ .spell none
-            (throughout (.skips (target .opponent) .combat) (.duringNextTurnOf (that .player))) ] } }
+            (establishThroughout (.partSkip (target .opponent) .combat) (.duringNextTurnOf (that
+                .player))) ] } }
 
 /-- False Peace -/
 def falsePeace : Spelled := spelled <| .singleFaced
@@ -437,11 +443,12 @@ def falsePeace : Spelled := spelled <| .singleFaced
     { name := "False Peace", cost := some [pip .white], types := [.sorcery],
       text :=
         [ .spell none
-            (throughout (.skips (target .anyPlayer) .combat) (.duringNextTurnOf (that .player))) ] } }
+            (establishThroughout (.partSkip (target .anyPlayer) .combat) (.duringNextTurnOf (that
+                .player))) ] } }
 
 /-- Battlefront Krushok -/
 def battlefrontKrushokEvasion : Ability :=
-  .static (.deontic thisCreature .forbid [.core .block] .patient (some (.moreThan (.lit 1)))
+  .static (.deonticRule thisCreature .forbid [.core .block] .patient (some (.moreThan (.lit 1)))
     (.counterpart (allOf creature)) none .noRider)
 theorem okBattlefrontKrushokEvasion : Ability.check [] battlefrontKrushokEvasion = [] := by decide
 
@@ -451,8 +458,8 @@ def grandAbolisher : Spelled := spelled <| .singleFaced
     { name := "Grand Abolisher", cost := some [pip .white, pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
-        [ .static (.onlyDuring .turn (some .you)
-            (.andAlso none
+        [ .static (.partScope .turn (some .you)
+            (.conjunction none
               [ cantDoTo (.action "Cast") (.playerGroup .yourOpponents) (allOf spell),
                 cantDoTo (.action "Activate") (.playerGroup .yourOpponents)
                   (allOf (.and [ .abilityHead .anyActivated,
@@ -465,7 +472,7 @@ def festival : Spelled := spelled <| .singleFaced
     { name := "Festival", cost := some [pip .white], types := [.instant],
       text :=
         [ .spell (some (.duringPart .upkeep (some anOpponent)))
-            (cantAttack (allOf creature) (some .thisTurn)) ] } }
+            (forbidAttack (allOf creature) (some .thisTurn)) ] } }
 
 def demotion : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -473,7 +480,7 @@ def demotion : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject "Enchant" creature,
-          .static (.andAlso none
+          .static (.conjunction none
             [ deontic (.attachHost .enchanted (.type .creature)) .forbid [.core .block] .agent
                 .noPatient,
               objectCant (.action "Activate")
@@ -483,7 +490,7 @@ def terror : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Terror", cost := some [generic 1, pip .black], types := [.instant],
       text :=
-        [ .spell none (.cantBe
+        [ .spell none (.doAndForbid
             (destroy (target (.and [creature, .not artifact, .not (.colorIs .black)])))
             (.action "Regenerate") (itVerbed (.action "Destroy"))) ] } }
 
@@ -493,7 +500,7 @@ def snuffOut : Spelled := spelled <| .singleFaced
       text :=
         [ .static (onlyWhile (.altCost .this (some (payLife .you 4)))
             (exists_ (.and [land, .hasSubtype (landType "Swamp"), .hasPossessor .controller .you]))),
-          .spell none (.cantBe
+          .spell none (.doAndForbid
             (destroy (target (.and [creature, .not (.colorIs .black)])))
             (.action "Regenerate") (itVerbed (.action "Destroy"))) ] } }
 
@@ -501,19 +508,21 @@ def wrathOfGod : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wrath of God", cost := some [generic 2, pip .white, pip .white],
       types := [.sorcery],
-      text := [.spell none (.cantBe (destroy (allOf creature)) (.action "Regenerate") them)] } }
+      text := [.spell none (.doAndForbid (destroy (allOf creature)) (.action "Regenerate") them)] }
+          }
 
 def damnation : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Damnation", cost := some [generic 2, pip .black, pip .black], types := [.sorcery],
-      text := [.spell none (.cantBe (destroy (allOf creature)) (.action "Regenerate") them)] } }
+      text := [.spell none (.doAndForbid (destroy (allOf creature)) (.action "Regenerate") them)] }
+          }
 
 def glacialChasm : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Glacial Chasm", types := [.land],
       text :=
         [ cumulativeUpkeep (payLife .you 2),
-          when (.enters thisLand none) (sacrifice .you (a land)),
+          when (.enters thisLand none) (sacrifice (a land) (agent := .you)),
           .static (deontic (allOf creatureYouControl) .forbid [.core .attack] .agent .noPatient),
           .static (.damageRule .any .unattributed (.toRecipient .you) (.prevent .all none)
             .repeatedly) ] } }
@@ -529,7 +538,7 @@ def cullingMark : Spelled := spelled <| .singleFaced
     { name := "Culling Mark", cost := some [generic 2, pip .green], types := [.sorcery],
       text :=
         [ .spell none
-            (.continuously (deontic (target creature) .require [.core .block] .agent .noPatient)
+            (.establish (deontic (target creature) .require [.core .block] .agent .noPatient)
               (some .thisTurn)) ] } }
 
 /-- Blazing Archon -/
@@ -547,17 +556,19 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
                            .hasKeyword (.the "Hexproof") ]))
             (allOf (.and [.or [spell, .abilityHead .anyOnStack], .hasPossessor .controller .you]))
             (.not (.hasKeyword (.the "Hexproof")))),
-          activated (.compound [.mana [generic 3], .perform (sacrifice .you thisArtifact)])
-            (.sequentially
-              [ gains (allOf creatureYouControl) (keyword "Hexproof") (some untilEndOfTurn),
-                .continuously
+          activated (.compound [.mana [generic 3], .perform (sacrifice thisArtifact (agent :=
+              .you))])
+            (.sequence
+              [ gain (allOf creatureYouControl) (keyword "Hexproof") (some untilEndOfTurn),
+                .establish
                   (deontic (allOf creatureYouControl) .forbid [.core .block] .patient .noPatient)
                   (some .thisTurn) ]) ] } }
 
 /-- Canoptek Wraith -/
 def canoptekWraith : Ability :=
   flavorWord "Wraith Form"
-    (.static (.deontic thisCreature .forbid [.core .block] .patient none .noPatient none .noRider))
+    (.static (.deonticRule thisCreature .forbid [.core .block] .patient none .noPatient none
+        .noRider))
 theorem okCanoptekWraith : Ability.check [] canoptekWraith = [] := by decide
 
 /-- Gadrak, the Crown-Scourge -/
@@ -568,14 +579,14 @@ theorem okGadrakCantAttack : Ability.check [] gadrakCantAttack = [] := by decide
 
 /-- Berserker's Frenzy, the 1—14 striation -/
 def berserkersFrenzyLowRoll : Instruction :=
-  .sequentially
+  .sequence
     [ choose (counted anyNumber creature),
-      .continuously (deontic them .require [.core .block] .agent .noPatient) (some .thisTurn) ]
+      .establish (deontic them .require [.core .block] .agent .noPatient) (some .thisTurn) ]
 theorem okBerserkersFrenzyLowRoll : Instruction.check [] berserkersFrenzyLowRoll = [] := by decide
 
 /-- Damn -/
 def damnDestroyLine : Instruction :=
-  .cantBe (destroy (target creature)) (.action "Regenerate")
+  .doAndForbid (destroy (target creature)) (.action "Regenerate")
     (theVerbed (.action "Destroy") (.type .creature) .thisWay .one)
 theorem okDamnDestroyLine : Instruction.check [] damnDestroyLine = [] := by decide
 
@@ -586,16 +597,18 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "FirstStrike",
           when (.enters thisCreature none)
-            (.cantBe (destroy (target (.and [creature, .not artifact, .not (.colorIs .black)])))
+            (.doAndForbid (destroy (target (.and [creature, .not artifact, .not (.colorIs
+                .black)])))
               (.action "Regenerate") (that (.type .creature))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Concussive Bolt, both paragraphs -/
 def concussiveBolt : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 4) targetPlayerOrPlaneswalker,
-      .if_ (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 3))
-        (.continuously
+      .doIf (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit
+          3))
+        (.establish
           (deontic (allOf (.and [creature, .hasPossessor .controller splitOverPlaneswalker]))
             .forbid [.core .block] .agent .noPatient)
           (some .thisTurn))
@@ -686,9 +699,10 @@ def heatWave : Spelled := spelled <| .singleFaced
           .static (deontic (allOf (.and [creature, .colorIs .blue])) .forbid [.core .block] .agent
             (.counterpart (allOf creatureYouControl))),
           .static (deontic (allOf (.and [creature, .not (.colorIs .blue)]))
-            (.gatedBy (.perform (losesLife they
+            (.gatedBy (.perform (loseLife
               (times (.lit 1)
-                (countOf (.and [creature, blocking, .hasPossessor .controller they]))))))
+                (countOf (.and [creature, blocking, .hasPossessor .controller they]))) (agent :=
+                    they))))
             [.core .block] .agent (.counterpart (allOf creatureYouControl))) ] } }
 
 /-- Awesome Presence -/
@@ -713,16 +727,16 @@ def oppressiveRays : Spelled := spelled <| .singleFaced
         [ keywordSubject "Enchant" creature,
           .static (deontic (.attachHost .enchanted (.type .creature)) (.gatedBy (.mana [generic 3]))
             [.core .attack, .core .block] .agent .noPatient),
-          .static (.costs
+          .static (.costShift
             (allOf (.and [ .abilityHead .anyActivated,
                            .abilityOf (.attachHost .enchanted (.type .creature)) ]))
             (.more (.lit 3))) ] } }
 
 /-- Distortion Strike -/
 def distortionStrikeLine : Instruction :=
-  .sequentially
-    [ gets (target creature) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
-      .continuously (deontic (that (.type .creature)) .forbid [.core .block] .patient .noPatient)
+  .sequence
+    [ get (target creature) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
+      .establish (deontic (that (.type .creature)) .forbid [.core .block] .patient .noPatient)
         (some .thisTurn) ]
 theorem okDistortionStrikeLine : Instruction.check [] distortionStrikeLine = [] := by decide
 
@@ -734,13 +748,13 @@ def retroMutation : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flash",
           keywordSubject "Enchant" creature,
-          .static (.andAlso none
-            [ .becomes (.attachHost .enchanted (.type .creature)) .sets
+          .static (.conjunction none
+            [ .qualityChange (.attachHost .enchanted (.type .creature)) .sets
                 (.bundle { characteristics := { subtypes := [creatureType "Turtle"] } } none),
-              .modify it .power (.set (.lit 0)),
-              .modify (itsOther it (.set (.lit 0))) .toughness (.set (.lit 1)),
-              .deontic it .forbid [.core .attack] .agent none .noPatient none .noRider,
-              .losesAllAbilities it none ]) ] } }
+              .modification it .power (.set (.lit 0)),
+              .modification (itsOther it (.set (.lit 0))) .toughness (.set (.lit 1)),
+              .deonticRule it .forbid [.core .attack] .agent none .noPatient none .noRider,
+              .allAbilityLoss it none ]) ] } }
 
 /-- Hotshot Mechanic -/
 def hotshotMechanic : Spelled := spelled <| .singleFaced
@@ -748,14 +762,14 @@ def hotshotMechanic : Spelled := spelled <| .singleFaced
     { name := "Hotshot Mechanic", cost := some [pip .white], types := [.artifact, .creature],
       subtypes := [creatureType "Fox", creatureType "Pilot"],
       text :=
-        [ .static (.deontic thisCreature .permit [.ofAbility "Crew"] .agent none
+        [ .static (.deonticRule thisCreature .permit [.ofAbility "Crew"] .agent none
             (.counterpart (allOf (.hasSubtype (artifactType "Vehicle"))))
             (some (.greater .power (.lit 2))) .noRider) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Cloudspire Captain -/
 def cloudspireCaptainCrewLine : StaticSpec :=
-  .deontic thisCreature .permit [.ofAbility "Saddle", .ofAbility "Crew"] .agent none
+  .deonticRule thisCreature .permit [.ofAbility "Saddle", .ofAbility "Crew"] .agent none
     (.counterpartsAt
       [ ⟨.ofAbility "Saddle", allOf (.hasSubtype (creatureType "Mount"))⟩,
         ⟨.ofAbility "Crew", allOf (.hasSubtype (artifactType "Vehicle"))⟩ ])
@@ -770,7 +784,7 @@ def revokePrivileges : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject "Enchant" creature,
-          .static (.deontic (.attachHost .enchanted (.type .creature)) .forbid
+          .static (.deonticRule (.attachHost .enchanted (.type .creature)) .forbid
             [.core .attack, .core .block, .ofAbility "Crew"] .agent none
             (.counterpartsAt [⟨.ofAbility "Crew", allOf (.hasSubtype (artifactType "Vehicle"))⟩])
             none .noRider) ] } }
@@ -787,7 +801,8 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [creatureType "Rat"],
                   text :=
-                    [ .static (.deontic (.asMarker .token .this) .forbid [.core .block] .agent none
+                    [ .static (.deonticRule (.asMarker .token .this) .forbid [.core .block] .agent
+                        none
                         .noPatient none .noRider) ],
                   power := stat 1, toughness := stat 1 } }) ],
       power := stat 1, toughness := stat 1 } }
@@ -799,7 +814,7 @@ def arrest : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject "Enchant" creature,
-          .static (.andAlso none
+          .static (.conjunction none
             [ deontic (.attachHost .enchanted (.type .creature)) .forbid
                 [.core .attack, .core .block] .agent .noPatient,
               deontic (allOf (.and [.abilityHead .anyActivated, .abilityOf it])) .forbid
@@ -808,7 +823,7 @@ def arrest : Spelled := spelled <| .singleFaced
 /-- Conqueror's Flail -/
 def conquerorsFlailProhibition : StaticSpec :=
   onlyWhile
-    (.onlyDuring .turn (some .you)
+    (.partScope .turn (some .you)
       (cantDoTo (.action "Cast") (.playerGroup .yourOpponents) (allOf spell)))
     (.matches .this (.attachedTo (a creature)))
 theorem okConquerorsFlailProhibition : StaticSpec.check [] conquerorsFlailProhibition = [] := by

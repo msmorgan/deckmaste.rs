@@ -24,41 +24,42 @@ theorem okBarrageOfBoulders : Instruction.check [] barrageOfBoulders = [] := by 
 def rabidBite : Instruction :=
   .dealDamage (target creatureYouControl) (.statOf (.stat .power) it) (target creatureYouDontControl)
 theorem okRabidBite : Instruction.check [] rabidBite = [] := by decide
-def preyUpon : Instruction := .fights (target creatureYouControl) (target creatureYouDontControl)
+def preyUpon : Instruction := .fight (target creatureYouControl) (target creatureYouDontControl)
 theorem okPreyUpon : Instruction.check [] preyUpon = [] := by decide
 def arcTrail : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 2) (target anyTarget), .dealDamage .this (.lit 1) (target anyOtherTarget) ]
 theorem okArcTrail : Instruction.check [] arcTrail = [] := by decide
 def deadshot : Instruction :=
-  .sequentially
+  .sequence
     [ .setStatus .tapped (target creature),
       .dealDamage it (.statOf (.stat .power) it) (target (.and [creature, .other])) ]
 theorem okDeadshot : Instruction.check [] deadshot = [] := by decide
 def immersturmSkullcairn : Ability :=
   activatedOnlyDuring
     (.compound [.mana [generic 1, pip .black, pip .red, pip .red], .tapSymbol,
-      .perform (sacrifice .you thisLand)])
-    (.sequentially
-      [ .dealDamage it (.lit 3) (target .anyPlayer), discard (that .player) (a (.inZone hand)) ])
+      .perform (sacrifice thisLand (agent := .you))])
+    (.sequence
+      [ .dealDamage it (.lit 3) (target .anyPlayer), discard (a (.inZone hand)) (agent := (that
+          .player)) ])
     .asSorcery
 theorem okImmersturmSkullcairn : Ability.check [] immersturmSkullcairn = [] := by decide
 def pyriteSpellbomb : Ability :=
-  activated (.compound [.mana [pip .red], .perform (sacrifice .you thisArtifact)])
+  activated (.compound [.mana [pip .red], .perform (sacrifice thisArtifact (agent := .you))])
     (.dealDamage it (.lit 2) (target anyTarget))
 theorem okPyriteSpellbomb : Ability.check [] pyriteSpellbomb = [] := by decide
 def karplusanYeti : Instruction :=
-  .sequentially
-    [ dealsDamageOwnPower [] thisCreature (target creature),
+  .sequence
+    [ dealDamageOwnPower [] thisCreature (target creature),
       .dealDamage (that (.type .creature)) (.statOf (.stat .power) it) thisCreature ]
 theorem okKarplusanYeti : Instruction.check [] karplusanYeti = [] := by decide
 def suddenDemise : Instruction :=
-  .sequentially
+  .sequence
     [ choose (a (quality .color)),
       .dealDamage .this (.letter .x) (each (.and [creature, ofChosen .color])) ]
 theorem okSuddenDemise : Instruction.check [] suddenDemise = [] := by decide
 def caseOfTheGatewayExpress : Instruction :=
-  .sequentially
+  .sequence
     [ choose (target creatureYouDontControl),
       .dealDamage (each creatureYouControl) (.lit 1) (that (.type .creature)) ]
 theorem okCaseOfTheGatewayExpress : Instruction.check [] caseOfTheGatewayExpress = [] := by decide
@@ -66,43 +67,44 @@ def arrowsOfJustice : Instruction :=
   .dealDamage .this (.lit 4) (target (.and [creature, .or [attacking, blocking]]))
 theorem okArrowsOfJustice : Instruction.check [] arrowsOfJustice = [] := by decide
 def flamesOfTheRazeBoar : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 4) (target (.and [creature, .hasPossessor .controller anOpponent])),
-      .onlyIf
+      .doOnlyIf
         (.dealDamage .this (.lit 2)
           (each (.and [creature, .other, .hasPossessor .controller (that .player)])))
         (exists_ (.and [creature, .hasPossessor .controller .you, .compare [.stat .power] .atLeast (.lit 4)]))
         none ]
 theorem okFlamesOfTheRazeBoar : Instruction.check [] flamesOfTheRazeBoar = [] := by decide
 def yawgmothDemon : Instruction :=
-  .may .you (sacrifice .you (a artifact)) none
-    (some (.sequentially [.setStatus .tapped thisCreature, .dealDamage .this (.lit 2) .you]))
+  .offer (sacrifice (a artifact) (agent := .you)) none
+    (some (.sequence [.setStatus .tapped thisCreature, .dealDamage .this (.lit 2) .you])) (agent :=
+        .you)
 theorem okYawgmothDemon : Instruction.check [] yawgmothDemon = [] := by decide
 def arcBlade : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 2) (target anyTarget), exileWithCounters .this (.lit 3) (.named "Time") ]
 theorem okArcBlade : Instruction.check [] arcBlade = [] := by decide
 def abrade : Instruction :=
   chooseModes (exactly 1) [.dealDamage .this (.lit 3) (target creature), destroy (target artifact)]
 theorem okAbrade : Instruction.check [] abrade = [] := by decide
 def nibelheimAflame : Instruction :=
-  .sequentially
+  .sequence
     [ choose (target creatureYouControl),
       .dealDamage it (.statOf (.stat .power) it) (each (otherCreature it)) ]
 theorem okNibelheimAflame : Instruction.check [] nibelheimAflame = [] := by decide
-def brashTaunter : Instruction := .fights thisCreature (target (otherCreature thisCreature))
+def brashTaunter : Instruction := .fight thisCreature (target (otherCreature thisCreature))
 theorem okBrashTaunter : Instruction.check [] brashTaunter = [] := by decide
 def ulvenwaldTracker : Instruction :=
-  .fights (target creatureYouControl) (target (.and [creature, .other]))
+  .fight (target creatureYouControl) (target (.and [creature, .other]))
 theorem okUlvenwaldTracker : Instruction.check [] ulvenwaldTracker = [] := by decide
 
 def botBashingTime : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 6) (target creature),
-      ifWouldInstead (.dies (that (.type .creature))) (exile it) (some .thisTurn) ]
+      replaceEvent (.dies (that (.type .creature))) (exile it) (some .thisTurn) ]
 theorem okBotBashingTime : Instruction.check [] botBashingTime = [] := by decide
 def wordsOfWar : Instruction :=
-  nextTimeWouldInstead (.draws .you) (.dealDamage .this (.lit 2) (target anyTarget)) (some .thisTurn)
+  replaceNextEvent (.draws .you) (.dealDamage .this (.lit 2) (target anyTarget)) (some .thisTurn)
 theorem okWordsOfWar : Instruction.check [] wordsOfWar = [] := by decide
 
 /-- Thunderwave -/
@@ -110,13 +112,13 @@ def thunderwave : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Thunderwave", cost := some [generic 2, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ .spell none (.sequentially
-            [ rollDice .you 1 20,
-              .resultsTable
+        [ .spell none (.sequence
+            [ rollDice 1 20 (agent := .you),
+              .applyResultsTable
                 [ rollRow (fromTo 1 9) (.dealDamage .this (.lit 3) (each creature)),
                   rollRow (fromTo 10 19)
-                    (.sequentially
-                      [ may .you (chooses .you (a creature)),
+                    (.sequence
+                      [ offer (choose (a creature) (agent := some .you)) (agent := .you),
                         .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]),
                   rollRow (fromTo 20 20)
                     (.dealDamage .this (.lit 6)
@@ -132,7 +134,7 @@ theorem okIndestructibleAura : Instruction.check [] indestructibleAura = [] := b
 def shieldmatesBlessing : Instruction :=
   preventNext .any (.toRecipient (target anyTarget)) (.lit 3) (some .thisTurn)
 theorem okShieldmatesBlessing : Instruction.check [] shieldmatesBlessing = [] := by decide
-def moonlitWake : Ability := whenever (.dies (a creature)) (gainsLife .you (.lit 1))
+def moonlitWake : Ability := whenever (.dies (a creature)) (gainLife (.lit 1) (agent := .you))
 theorem okMoonlitWake : Ability.check [] moonlitWake = [] := by decide
 def eliteJavelineer : Ability :=
   whenever (blocks thisCreature none) (.dealDamage .this (.lit 1) (target (.and [creature, attacking])))
@@ -143,7 +145,8 @@ def glacialChasmShield : Ability :=
 theorem okGlacialChasmShield : Ability.check [] glacialChasmShield = [] := by decide
 def corneredCrook : Ability :=
   when (.enters thisCreature none)
-    (mayWhen .you (sacrifice .you (a artifact)) (.dealDamage .this (.lit 3) (target anyTarget)))
+    (offerWhen (sacrifice (a artifact) (agent := .you)) (.dealDamage .this (.lit 3) (target
+        anyTarget)) (agent := .you))
 theorem okCorneredCrook : Ability.check [] corneredCrook = [] := by decide
 
 def aladdinsRing : Spelled := spelled <| .singleFaced
@@ -154,15 +157,15 @@ def aladdinsRing : Spelled := spelled <| .singleFaced
             (.dealDamage thisArtifact (.lit 4) (target anyTarget)) ] } }
 
 def chandrasRevolution : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 4) (target creature), .setStatus .tapped (target land),
-      .doesntUntapNext (that (.type .land)) (.lit 1) ]
+      .skipUntap (that (.type .land)) (.lit 1) ]
 theorem okChandrasRevolution : Instruction.check [] chandrasRevolution = [] := by decide
 def arbalestElite : Ability :=
   activated (.compound [.mana [generic 2, pip .white], .tapSymbol])
-    (.sequentially
+    (.sequence
       [ .dealDamage thisCreature (.lit 3) (target (.and [creature, .or [attacking, blocking]])),
-        .doesntUntapNext thisCreature (.lit 1) ])
+        .skipUntap thisCreature (.lit 1) ])
 theorem okArbalestElite : Ability.check [] arbalestElite = [] := by decide
 def sizzlingBarrage : Instruction :=
   .dealDamage .this (.lit 4) (target (.and [creature, happenedTo .blockDeclaration .thisTurn]))
@@ -185,7 +188,7 @@ def chainReaction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chain Reaction", cost := some [generic 2, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ .dealDamage .this (.letter .x) (each creature), .define .x (countOf creature) ]) ] } }
 
 /-- Black Vise -/
@@ -195,7 +198,7 @@ def blackVise : Spelled := spelled <| .singleFaced
       text :=
         [ .static (entersChoosingPlayer thisArtifact (some (.players .opponent))),
           at_ (beginningOfPossessed .the .upkeep (the chosenPlayer))
-            (.sequentially
+            (.sequence
               [ .dealDamage thisArtifact (.letter .x) (that .player),
                 .define .x (.arith .minus (countOf (.inZone (handOf they))) (.lit 4)) ]) ] } }
 
@@ -203,21 +206,21 @@ def harshSustenance : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Harsh Sustenance", cost := some [generic 1, pip .white, pip .black], types := [.instant],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ .dealDamage .this (.letter .x) (target anyTarget),
-              gainsLife .you (.letter .x),
+              gainLife (.letter .x) (agent := .you),
               .define .x (countOf creatureYouControl) ]) ] } }
 
 /-- Purging Scythe -/
 def purgingScythe : Ability :=
   at_ (.beginningOf .the .upkeep (.byPlayer .you))
-    (.sequentially
+    (.sequence
       [ .dealDamage thisArtifact (.lit 2)
           (the (.and [creature, .superlative .min (.stat .toughness) creature])),
-        .if_
+        .doIf
           (.compareAmt (countOf (.and [creature, .superlative .min (.stat .toughness) creature]))
             .atLeast (.lit 2))
-          (chooses .you (someOf (exactly 1) them)) none ])
+          (choose (someOf (exactly 1) them) (agent := some .you)) none ])
 theorem okPurgingScythe : Ability.check [] purgingScythe = [] := by decide
 
 def lionHeart : Spelled := spelled <| .singleFaced
@@ -269,7 +272,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
               (.source (a (.and [.or [spell, .abilityHead .anyOnStack],
                                  .hasPossessor .controller (a .opponent)])))
               (.verbedEvent (some .you) (.action "Discard") (some .this) none))
-            (losesLife (that .player) (.lit 5)) ] } }
+            (loseLife (.lit 5) (agent := (that .player))) ] } }
 
 /-- Chandra Nalaar -/
 def chandraNalaarsX : Ability :=
@@ -302,9 +305,9 @@ def dazzlingReflection : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dazzling Reflection", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ gainsLife .you (.statOf (.stat .power) (target creature)),
-              .continuously
+        [ .spell none (.sequence
+            [ gainLife (.statOf (.stat .power) (target creature)) (agent := .you),
+              .establish
                 (.damageRule .any (.dealtBy (that (.type .creature))) .everywhere (.prevent .all none)
                   .nextTimeOnly)
                 (some .thisTurn) ]) ] } }
@@ -318,7 +321,7 @@ def thunderstaff : Spelled := spelled <| .singleFaced
               (.prevent (.some (.lit 1)) none) .repeatedly)
             (.matches thisArtifact untapped)),
           activated (.compound [.mana [generic 2], .tapSymbol])
-            (gets (allOf (.and [creature, attacking])) (.up (.lit 1)) (.up (.lit 0))
+            (get (allOf (.and [creature, attacking])) (.up (.lit 1)) (.up (.lit 0))
               (some untilEndOfTurn)) ] } }
 
 def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
@@ -327,9 +330,9 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker], subtypes := [planeswalkerType "Gideon"],
       text :=
         [ activated (.loyaltySymbol (.up 1))
-            (.sequentially
-              [ .continuously
-                  (.becomes thisPlaneswalker .sets
+            (.sequence
+              [ .establish
+                  (.qualityChange thisPlaneswalker .sets
                     (.bundle
                       { characteristics :=
                         { types := [.creature],
@@ -341,15 +344,16 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
           activated (.loyaltySymbol .zero)
             (create (.lit 1) (creatureToken 2 2 [.white] [creatureType "Knight", creatureType "Ally"])),
           activated (.loyaltySymbol (.down 4))
-            (.getsEmblem .you
-              [.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))]) ],
+            (.getEmblem
+              [.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))] (agent :=
+                  .you)) ],
       loyalty := stat 4 } }
 
 def turnTheTables : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Turn the Tables", cost := some [generic 3, pip .white, pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .combatOnly .unattributed (.toRecipient .you)
               (.redirect .all (target (.and [creature, attacking]))) .repeatedly)
             (some .thisTurn)) ] } }
@@ -381,7 +385,7 @@ def wardOfPiety : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject "Enchant" creature,
           activated (.mana [generic 1, pip .white])
-            (.continuously
+            (.establish
               (.damageRule .any .unattributed (.toRecipient (.attachHost .enchanted (.type .creature)))
                 (.redirect (.shield (.lit 1)) (target anyTarget)) .repeatedly)
               (some .thisTurn)) ] } }
@@ -392,7 +396,7 @@ def mirrorwoodTreefolk : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Treefolk"],
       text :=
         [ activated (.mana [generic 2, pip .red, pip .white])
-            (.continuously
+            (.establish
               (.damageRule .any .unattributed (.toRecipient thisCreature)
                 (.redirect .all (target anyTarget)) .nextTimeOnly)
               (some .thisTurn)) ],
@@ -402,12 +406,12 @@ def carom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Carom", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .continuously
+        [ .spell none (.sequence
+            [ .establish
                 (.damageRule .any .unattributed (.toRecipient (target creature))
                   (.redirect (.shield (.lit 1)) (target (.and [creature, .other]))) .repeatedly)
                 (some .thisTurn),
-              .draw .you (.lit 1) ]) ] } }
+              .draw (.lit 1) (agent := .you) ]) ] } }
 
 def daughterOfAutumn : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -415,7 +419,7 @@ def daughterOfAutumn : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature], subtypes := [creatureType "Avatar"],
       text :=
         [ activated (.mana [pip .white])
-            (.continuously
+            (.establish
               (.damageRule .any .unattributed (.toRecipient (target (.and [creature, .colorIs .white])))
                 (.redirect (.shield (.lit 1)) thisCreature) .repeatedly)
               (some .thisTurn)) ],
@@ -426,7 +430,7 @@ def aegisOfHonor : Spelled := spelled <| .singleFaced
     { name := "Aegis of Honor", cost := some [pip .white], types := [.enchantment],
       text :=
         [ activated (.mana [generic 1])
-            (.continuously
+            (.establish
               (.damageRule .any (.dealtBy (a instantOrSorcery)) (.toRecipient .you)
                 (.redirect .all (controllerOf it)) .nextTimeOnly)
               (some .thisTurn)) ] } }
@@ -436,14 +440,15 @@ def candlesGlow : Spelled := spelled <| .singleFaced
     { name := "Candles' Glow", cost := some [generic 1, pip .white], types := [.instant],
       subtypes := [spellType "Arcane"],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any .unattributed (.toRecipient (target anyTarget))
-              (.prevent (.shield (.lit 3)) (some (gainsLife .you preventedThisWay))) .repeatedly)
+              (.prevent (.shield (.lit 3)) (some (gainLife preventedThisWay (agent := .you))))
+                  .repeatedly)
             (some .thisTurn)) ] } }
 
 /-- Inkshield -/
 def inkshieldRider : Instruction :=
-  .continuously
+  .establish
     (.damageRule .any .unattributed (.toRecipient .you)
       (.prevent .all (some (create preventedThisWay (creatureToken 2 1 [.white, .black] []))))
       .repeatedly)
@@ -462,7 +467,7 @@ def circleOfProtectionRed : Spelled := spelled <| .singleFaced
     { name := "Circle of Protection: Red", cost := some [generic 1, pip .white], types := [.enchantment],
       text :=
         [ activated (.mana [generic 1])
-            (.continuously
+            (.establish
               (.damageRule .any (.dealtBy (aYourChoice (.and [source, .colorIs .red]))) (.toRecipient .you)
                 (.prevent .all none) .nextTimeOnly)
               (some .thisTurn)) ] } }
@@ -471,27 +476,27 @@ def healingGrace : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Healing Grace", cost := some [pip .white], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .continuously
+        [ .spell none (.sequence
+            [ .establish
                 (.damageRule .any (.dealtBy (aYourChoice source)) (.toRecipient (target anyTarget))
                   (.prevent (.shield (.lit 3)) none) .repeatedly)
                 (some .thisTurn),
-              gainsLife .you (.lit 3) ]) ] } }
+              gainLife (.lit 3) (agent := .you) ]) ] } }
 
 def reverseDamage : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Reverse Damage", cost := some [generic 1, pip .white, pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any (.dealtBy (aYourChoice source)) (.toRecipient .you)
-              (.prevent .all (some (gainsLife .you preventedThisWay))) .nextTimeOnly)
+              (.prevent .all (some (gainLife preventedThisWay (agent := .you)))) .nextTimeOnly)
             (some .thisTurn)) ] } }
 
 def deflectingPalm : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Deflecting Palm", cost := some [pip .red, pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any (.dealtBy (aYourChoice source)) (.toRecipient .you)
               (.prevent .all (some (.dealDamage .this .thatMuch (controllerOf it)))) .nextTimeOnly)
             (some .thisTurn)) ] } }
@@ -510,8 +515,8 @@ def darkSphere : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dark Sphere", cost := some [], types := [.artifact],
       text :=
-        [ activated (.compound [.tapSymbol, .perform (sacrifice .you thisArtifact)])
-            (.continuously
+        [ activated (.compound [.tapSymbol, .perform (sacrifice thisArtifact (agent := .you))])
+            (.establish
               (.damageRule .any (.dealtBy (aYourChoice source)) (.toRecipient .you)
                 (.prevent (.half .down) none) .nextTimeOnly)
               (some .thisTurn)) ] } }
@@ -520,12 +525,12 @@ def shadowbane : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shadowbane", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any (.dealtBy (aYourChoice source))
               (.toRecipient (youAnd (allOf creatureYouControl)))
               (.prevent .all
-                (some (.if_ (.preventedFromSource (.and [source, .colorIs .black]))
-                  (gainsLife .you preventedThisWay) none)))
+                (some (.doIf (.preventedFromSource (.and [source, .colorIs .black]))
+                  (gainLife preventedThisWay (agent := .you)) none)))
               .nextTimeOnly)
             (some .thisTurn)) ] } }
 
@@ -555,7 +560,7 @@ theorem okOnakkeJavelineerBolt : Ability.check [] onakkeJavelineerBolt = [] := b
 
 /-- Firesong and Sunspeaker -/
 def firesongJoinEcho : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 3) (target (.or [creature, .anyPlayer])),
       .dealDamage .this (.lit 1) thatJoin ]
 theorem okFiresongJoinEcho : Instruction.check [] firesongJoinEcho = [] := by decide
@@ -566,7 +571,7 @@ def forcefield : Spelled := spelled <| .singleFaced
     { name := "Forcefield", cost := some [generic 3], types := [.artifact],
       text :=
         [ activated (.mana [generic 1])
-            (.continuously
+            (.establish
               (.damageRule .combatOnly (.dealtBy (aYourChoice (.and [creature, unblocked])))
                 (.toRecipient .you) (.prevent (.allBut (.lit 1)) none) .nextTimeOnly)
               (some .thisTurn)) ] } }
@@ -584,7 +589,7 @@ def harmsWay : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Harm's Way", cost := some [pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any (.dealtBy (aYourChoice source))
               (.toRecipient (youAnd (allOf (.and [permanent, .hasPossessor .controller .you]))))
               (.redirect (.shield (.lit 2)) (target anyTarget)) .repeatedly)
@@ -594,7 +599,7 @@ def divineDeflection : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Divine Deflection", cost := some [.variable, pip .white], types := [.instant],
       text :=
-        [ .spell none (.continuously
+        [ .spell none (.establish
             (.damageRule .any .unattributed
               (.toRecipient (youAnd (allOf (.and [permanent, .hasPossessor .controller .you]))))
               (.prevent (.shield (.letter .x)) (some (.dealDamage .this .thatMuch (target anyTarget))))
@@ -603,7 +608,7 @@ def divineDeflection : Spelled := spelled <| .singleFaced
 
 def glarecasterShield : Ability :=
   activated (.mana [generic 5, pip .white])
-    (.continuously
+    (.establish
       (.damageRule .any .unattributed (.toRecipient (youAnd thisCreature))
         (.redirect .all (target anyTarget)) .nextTimeOnly)
       (some .thisTurn))
@@ -648,7 +653,7 @@ def lashknifeBarrier : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Lashknife Barrier", cost := some [generic 2, pip .white], types := [.enchantment],
       text :=
-        [ when (.enters thisEnchantment none) (.draw .you (.lit 1)),
+        [ when (.enters thisEnchantment none) (.draw (.lit 1) (agent := .you)),
           .static (.damageRule .any (.dealtBy (a source)) (.toRecipient (a creatureYouControl))
             (.scale (.shifted .down (.lit 1))) .repeatedly) ] } }
 
@@ -694,7 +699,8 @@ def grollub : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Grollub", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [creatureType "Beast"],
-      text := [whenever (.isDealtDamage .any thisCreature) (gainsLife (each .opponent) .thatMuch)],
+      text := [whenever (.isDealtDamage .any thisCreature) (gainLife .thatMuch (agent := (each
+          .opponent)))],
       power := stat 3, toughness := stat 3 } }
 
 def moggManiac : Spelled := spelled <| .singleFaced
@@ -738,7 +744,8 @@ def darienKingOfKjeldor : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Soldier"],
       text :=
         [ whenever (.isDealtDamage .any .you)
-            (may .you (create .thatMuch (creatureToken 1 1 [.white] [creatureType "Soldier"]))) ],
+            (offer (create .thatMuch (creatureToken 1 1 [.white] [creatureType "Soldier"])) (agent
+                := .you)) ],
       power := stat 3, toughness := stat 3 } }
 
 def screamingNemesis : Spelled := spelled <| .singleFaced
@@ -748,10 +755,10 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Haste",
           whenever (.isDealtDamage .any thisCreature)
-            (.sequentially
+            (.sequence
               [ .dealDamage it .thatMuch (target (.and [anyTarget, .otherThan .this])),
-                .if_ (.dealtThisWay .anyPlayer)
-                  (.continuously (playerCant (.core .gainLife) they) (some .restOfGame)) none ]) ],
+                .doIf (.dealtThisWay .anyPlayer)
+                  (.establish (playerCant (.core .gainLife) they) (some .restOfGame)) none ]) ],
       power := stat 3, toughness := stat 3 } }
 
 def sonicShrieker : Spelled := spelled <| .singleFaced
@@ -761,10 +768,11 @@ def sonicShrieker : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           when (.enters thisCreature none)
-            (.sequentially
+            (.sequence
               [ .dealDamage it (.lit 2) (target anyTarget),
-                gainsLife .you (.lit 2),
-                .if_ (.dealtThisWay .anyPlayer) (discard they (a (.inZone hand))) none ]) ],
+                gainLife (.lit 2) (agent := .you),
+                .doIf (.dealtThisWay .anyPlayer) (discard (a (.inZone hand)) (agent := they)) none
+                    ]) ],
       power := stat 4, toughness := stat 4 } }
 
 def grievousWoundLifeLock : Spelled := spelled <| .singleFaced
@@ -775,17 +783,17 @@ def grievousWoundLifeLock : Spelled := spelled <| .singleFaced
         [ keywordSubject "Enchant" .anyPlayer,
           .static (playerCant (.core .gainLife) (.attachHost .enchanted .player)),
           whenever (.isDealtDamage .any (.attachHost .enchanted .player))
-            (losesLife they (.half .up (lifeTotalOf they))) ] } }
+            (loseLife (.half .up (lifeTotalOf they)) (agent := they)) ] } }
 
 def cursedScroll : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Cursed Scroll", cost := some [generic 1], types := [.artifact],
       text :=
         [ activated (.compound [.mana [generic 3], .tapSymbol])
-            (.sequentially
+            (.sequence
               [ choose (a (quality .cardName)),
                 revealCards (aAtRandom (.inZone (handOf .you))),
-                .if_ (.matches (that .card) (.named .chosen))
+                .doIf (.matches (that .card) (.named .chosen))
                   (.dealDamage thisArtifact (.lit 2) (target anyTarget)) none ]) ] } }
 
 def magusOfTheScroll : Spelled := spelled <| .singleFaced
@@ -794,10 +802,10 @@ def magusOfTheScroll : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ activated (.compound [.mana [generic 3], .tapSymbol])
-            (.sequentially
+            (.sequence
               [ choose (a (quality .cardName)),
                 revealCards (aAtRandom (.inZone (handOf .you))),
-                .if_ (.matches (that .card) (.named .chosen))
+                .doIf (.matches (that .card) (.named .chosen))
                   (.dealDamage thisCreature (.lit 2) (target anyTarget)) none ]) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -814,7 +822,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
       power := stat 0, toughness := stat 1 } }
 
 def saheeliRaiPlusOne : Instruction :=
-  .sequentially [scry .you (.lit 1), .dealDamage .this (.lit 1) (each .opponent)]
+  .sequence [scry (.lit 1) (agent := .you), .dealDamage .this (.lit 1) (each .opponent)]
 theorem okSaheeliRaiPlusOne : Instruction.check [] saheeliRaiPlusOne = [] := by decide
 def sarkhansUnsealingLine : Ability :=
   whenever
@@ -827,10 +835,11 @@ def sarkhansUnsealingLine : Ability :=
 theorem okSarkhansUnsealingLine : Ability.check [] sarkhansUnsealingLine = [] := by decide
 /-- Savage Swipe, both sentences -/
 def savageSwipeLine : Instruction :=
-  .sequentially
-    [ .onlyIf (gets (target creatureYouControl) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))
+  .sequence
+    [ .doOnlyIf (get (target creatureYouControl) (.up (.lit 2)) (.up (.lit 2)) (some
+        untilEndOfTurn))
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none,
-      .fights it (target creatureYouDontControl) ]
+      .fight it (target creatureYouDontControl) ]
 theorem okSavageSwipeLine : Instruction.check [] savageSwipeLine = [] := by decide
 
 def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
@@ -842,7 +851,7 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
           keyword "Flying",
           keyword "Haste",
           activated (.mana [pip .red])
-            (.thisWay (gets thisCreature (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn))
+            (.triggerThisWay (get thisCreature (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn))
               (.statBecomes it .power (.lit 20))
               (.dealDamage it (.lit 20) (target anyTarget))) ],
       power := stat 6, toughness := stat 6 } }
@@ -851,9 +860,9 @@ def incinerate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Incinerate", cost := some [generic 1, pip .red], types := [.instant],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ .dealDamage .this (.lit 3) (target anyTarget),
-              .continuously
+              .establish
                 (objectCant (.action "Regenerate")
                   (a (.and [creature, .happenedTo (.mk .damageTaken .thisWay none)])))
                 (some .thisTurn) ]) ] } }
@@ -870,8 +879,8 @@ def ashZealot : Spelled := spelled <| .singleFaced
       power := stat 2, toughness := stat 2 } }
 
 def galvanicBlastLine : Instruction :=
-  .insteadOf (.dealDamage .this (.lit 2) (target anyTarget))
-    (.onlyIf (.dealDamage .this (.lit 4) thatJoin)
+  .replace (.dealDamage .this (.lit 2) (target anyTarget))
+    (.doOnlyIf (.dealDamage .this (.lit 4) thatJoin)
       (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 3)) none)
 theorem okGalvanicBlastLine : Instruction.check [] galvanicBlastLine = [] := by decide
 /-- Furious Reprisal -/
@@ -883,7 +892,8 @@ def bullseyeModalCost : Ability :=
   activated
     (.compound [.mana [generic 3], .tapSymbol,
       .perform (chooseModes (exactly 1)
-        [ sacrifice .you (a artifact), discard .you (a (.and [.not land, .inZone hand])) ])])
+        [ sacrifice (a artifact) (agent := .you), discard (a (.and [.not land, .inZone hand]))
+            (agent := .you) ])])
     (.dealDamage .this (.lit 2) (target anyTarget))
 theorem okBullseyeModalCost : Ability.check [] bullseyeModalCost = [] := by decide
 
@@ -896,7 +906,8 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
         [ keyword "Reach",
           when (.enters thisCreature none) (.dealDamage it (.lit 2) (target anyTarget)),
           abilityWord "channel"
-            (activated (.compound [.mana [generic 1, pip .red], .perform (discard .you .this)])
+            (activated (.compound [.mana [generic 1, pip .red], .perform (discard .this (agent :=
+                .you))])
               (.dealDamage it (.lit 2) (target anyTarget))) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -914,7 +925,7 @@ def sandStranglerDamage : Ability :=
   triggeredIf (.enters thisCreature none)
     (.or [ exists_ (.and [land, .hasSubtype (landType "Desert"), .hasPossessor .controller .you]),
            exists_ (.and [land, .hasSubtype (landType "Desert"), .inZone (graveyardOf .you)]) ])
-    (may .you (.dealDamage .this (.lit 3) (target creature)))
+    (offer (.dealDamage .this (.lit 3) (target creature)) (agent := .you))
 theorem okSandStranglerDamage : Ability.check [] sandStranglerDamage = [] := by decide
 
 def brazenDwarf : Spelled := spelled <| .singleFaced
@@ -928,55 +939,55 @@ def brazenDwarf : Spelled := spelled <| .singleFaced
 
 /-- Lavalanche -/
 def lavalanche : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.letter .x) targetPlayerOrPlaneswalker,
       .dealDamage .this (.letter .x) eachCreatureThatSplitControls ]
 theorem okLavalanche : Instruction.check [] lavalanche = [] := by decide
 /-- Flame Wave -/
 def flameWave : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 4) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 4) eachCreatureThatSplitControls ]
 theorem okFlameWave : Instruction.check [] flameWave = [] := by decide
 /-- Chandra Nalaar's ultimate -/
 def chandraNalaarUltimate : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 10) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 10) eachCreatureThatSplitControls ]
 theorem okChandraNalaarUltimate : Instruction.check [] chandraNalaarUltimate = [] := by decide
 /-- Chandra, Pyrogenius's ultimate -/
 def chandraPyrogeniusUltimate : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 6) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 6) eachCreatureThatSplitControls ]
 theorem okChandraPyrogeniusUltimate : Instruction.check [] chandraPyrogeniusUltimate = [] := by decide
 /-- Bonfire of the Damned -/
 def bonfireOfTheDamned : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.letter .x) targetPlayerOrPlaneswalker,
       .dealDamage .this (.letter .x) eachCreatureThatSplitControls ]
 theorem okBonfireOfTheDamned : Instruction.check [] bonfireOfTheDamned = [] := by decide
 /-- Chandra's Fury -/
 def chandrasFury : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 4) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 1) eachCreatureThatSplitControls ]
 theorem okChandrasFury : Instruction.check [] chandrasFury = [] := by decide
 /-- Angrath, Minotaur Pirate's plus -/
 def angrathMinotaurPirateBolt : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 1) targetOpponentOrPlaneswalker,
       .dealDamage .this (.lit 1) eachCreatureThatSplitControls ]
 theorem okAngrathMinotaurPirateBolt : Instruction.check [] angrathMinotaurPirateBolt = [] := by decide
 def whichOfYouBurnsBrightestBody : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.letter .x) targetOpponentOrPlaneswalker,
       .dealDamage .this (.letter .x) eachCreatureThatSplitControls ]
 theorem okWhichOfYouBurnsBrightestBody :
     Instruction.check [] whichOfYouBurnsBrightestBody = [] := by decide
 /-- Chandra, Pyromaster's plus -/
 def chandraPyromasterBolt : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 1) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 1)
         (.described (.target (upTo 1))
@@ -984,7 +995,7 @@ def chandraPyromasterBolt : Instruction :=
 theorem okChandraPyromasterBolt : Instruction.check [] chandraPyromasterBolt = [] := by decide
 /-- Ravager of the Fells -/
 def ravagerOfTheFellsBolt : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage thisCreature (.lit 2) targetOpponentOrPlaneswalker,
       .dealDamage thisCreature (.lit 2)
         (.described (.target (upTo 1))
@@ -992,7 +1003,7 @@ def ravagerOfTheFellsBolt : Instruction :=
 theorem okRavagerOfTheFellsBolt : Instruction.check [] ravagerOfTheFellsBolt = [] := by decide
 /-- Soul of Shandalar's battlefield activation -/
 def soulOfShandalarBolt : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage thisCreature (.lit 3) targetPlayerOrPlaneswalker,
       .dealDamage thisCreature (.lit 3)
         (.described (.target (upTo 1))
@@ -1000,7 +1011,7 @@ def soulOfShandalarBolt : Instruction :=
 theorem okSoulOfShandalarBolt : Instruction.check [] soulOfShandalarBolt = [] := by decide
 /-- Soul of Shandalar's graveyard activation -/
 def soulOfShandalarGraveyardBolt : Instruction :=
-  .simultaneously
+  .performSimultaneously
     [ .dealDamage .this (.lit 3) targetPlayerOrPlaneswalker,
       .dealDamage .this (.lit 3)
         (.described (.target (upTo 1))
@@ -1009,54 +1020,55 @@ theorem okSoulOfShandalarGraveyardBolt :
     Instruction.check [] soulOfShandalarGraveyardBolt = [] := by decide
 /-- Blightning -/
 def blightning : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 3) targetPlayerOrPlaneswalker,
-      discard splitOverPlaneswalker (counted (exactly 2) (.inZone hand)) ]
+      discard (counted (exactly 2) (.inZone hand)) (agent := splitOverPlaneswalker) ]
 theorem okBlightning : Instruction.check [] blightning = [] := by decide
 /-- Rakdos's Return -/
 def rakdossReturn : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.letter .x) targetOpponentOrPlaneswalker,
-      discard splitOverPlaneswalker (counted (.exactlyOf (.letter .x)) (.inZone hand)) ]
+      discard (counted (.exactlyOf (.letter .x)) (.inZone hand)) (agent := splitOverPlaneswalker) ]
 theorem okRakdossReturn : Instruction.check [] rakdossReturn = [] := by decide
 /-- Nicol Bolas, Planeswalker's ultimate -/
 def nicolBolasUltimate : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 7) targetPlayerOrPlaneswalker,
-      discard splitOverPlaneswalker (counted (exactly 7) (.inZone hand)),
-      sacrifice splitOverPlaneswalker (counted (exactly 7) permanent) ]
+      discard (counted (exactly 7) (.inZone hand)) (agent := splitOverPlaneswalker),
+      sacrifice (counted (exactly 7) permanent) (agent := splitOverPlaneswalker) ]
 theorem okNicolBolasUltimate : Instruction.check [] nicolBolasUltimate = [] := by decide
 /-- Pulse of the Forge -/
 def pulseOfTheForge : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 4) targetPlayerOrPlaneswalker,
-      .if_ (.compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf .you))
+      .doIf (.compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf .you))
         (move .this hand) none ]
 theorem okPulseOfTheForge : Instruction.check [] pulseOfTheForge = [] := by decide
 /-- Goblin Lyre's losing arm -/
 def goblinLyreLoseFlip : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage thisArtifact (countOf creatureYouControl) targetOpponentOrPlaneswalker,
       .dealDamage thisArtifact
         (countOf (.and [creature, .hasPossessor .controller splitOverPlaneswalker])) .you ]
 theorem okGoblinLyreLoseFlip : Instruction.check [] goblinLyreLoseFlip = [] := by decide
 /-- Quenchable Fire -/
 def quenchableFire : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 3) targetPlayerOrPlaneswalker,
-      delayed (.beginningOf .the .upkeep (.byPlayer .you))
-        (unless_ splitOverPlaneswalker (.dealDamage .this (.lit 3) thatJoin) (.mana [pip .blue])) ]
+      delay (.beginningOf .the .upkeep (.byPlayer .you))
+        (doUnless (.dealDamage .this (.lit 3) thatJoin) (.mana [pip .blue]) (agent :=
+            splitOverPlaneswalker)) ]
 theorem okQuenchableFire : Instruction.check [] quenchableFire = [] := by decide
 /-- Searing Blaze, both sentences -/
 def searingBlaze : Ability :=
   abilityWord "landfall"
     (.spell none
-      (.insteadOf
-        (.simultaneously
+      (.replace
+        (.performSimultaneously
           [ .dealDamage .this (.lit 1) targetPlayerOrPlaneswalker,
             .dealDamage .this (.lit 1)
               (target (.and [creature, .hasPossessor .controller splitOverPlaneswalker])) ])
-        (.simultaneously
+        (.performSimultaneously
           [ .dealDamage .this (.lit 3) thatJoin,
             .dealDamage .this (.lit 3) (that (.type .creature)) ])))
 theorem okSearingBlaze : Ability.check [] searingBlaze = [] := by decide
@@ -1068,8 +1080,8 @@ def heartOfBogardan : Spelled := spelled <| .singleFaced
       text :=
         [ cumulativeUpkeep (.mana [generic 2]),
           when heartOfBogardanHeader
-            (.sequentially
-              [ .simultaneously
+            (.sequence
+              [ .performSimultaneously
                   [ .dealDamage .this (.letter .x) targetPlayerOrPlaneswalker,
                     .dealDamage .this (.letter .x) eachCreatureThatSplitControls ],
                 .define .x
@@ -1094,7 +1106,7 @@ def explosiveSingularity : Spelled := spelled <| .singleFaced
         [ .static (.addedCost
             (.perform (tap (counted anyNumber (.and [creature, .hasPossessor .controller .you, untapped]))))
             true),
-          .static (.costs .this (.less (times (.lit 1) .groupSize) none)),
+          .static (.costShift .this (.less (times (.lit 1) .groupSize) none)),
           .spell none (.dealDamage .this (.lit 10) (target anyTarget)) ] } }
 
 /-- Tyrant of Valakut -/
@@ -1124,7 +1136,7 @@ def tribalFlames : Spelled := spelled <| .singleFaced
     { name := "Tribal Flames", cost := some [generic 1, pip .red], types := [.sorcery],
       text :=
         [ abilityWord "domain"
-            (.spell none (.sequentially
+            (.spell none (.sequence
               [ .dealDamage .this (.letter .x) (target anyTarget),
                 .define .x (.distinctCount (.subtype .land .basicOnly)
                   (allOf (.and [land, .hasPossessor .controller .you]))) ])) ] } }
@@ -1133,17 +1145,17 @@ def tribalFlames : Spelled := spelled <| .singleFaced
 def explosiveProdigyTrigger : Ability :=
   abilityWord "vivid"
     (when (.enters thisCreature none)
-      (.sequentially
+      (.sequence
         [ .dealDamage it (.letter .x) (target (.and [creature, .hasPossessor .controller anOpponent])),
           .define .x (.distinctCount .color (allOf (.and [permanent, .hasPossessor .controller .you]))) ]))
 theorem okExplosiveProdigyTrigger : Ability.check [] explosiveProdigyTrigger = [] := by decide
 /-- Niv-Mizzet, Guildpact -/
 def nivMizzetGuildpactTrigger : Ability :=
   whenever (dealsCombatDamage thisCreature (a .anyPlayer))
-    (.sequentially
+    (.sequence
       [ .dealDamage thisCreature (.letter .x) (target anyTarget),
-        .draw (target .anyPlayer) (.letter .x),
-        gainsLife .you (.letter .x),
+        .draw (.letter .x) (agent := (target .anyPlayer)),
+        gainLife (.letter .x) (agent := .you),
         .define .x (.distinctCount .colorPair
           (allOf (.and [permanent, .hasPossessor .controller .you, .colorCount .eq 2]))) ])
 theorem okNivMizzetGuildpactTrigger : Ability.check [] nivMizzetGuildpactTrigger = [] := by decide
@@ -1157,9 +1169,11 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           keyword "Vigilance",
           keyword "Haste",
-          whenever (.attacksWith (a .anyPlayer) none (counted (atLeast 3) creature)) (.draw .you (.lit 1)),
+          whenever (.attacksWith (a .anyPlayer) none (counted (atLeast 3) creature)) (.draw (.lit 1)
+              (agent := .you)),
           whenever (.attacksWith (a .anyPlayer) none (counted (atLeast 5) creature))
-            (.sequentially [.dealDamage .this (.lit 3) (each .opponent), gainsLife .you (.lit 3)]) ],
+            (.sequence [.dealDamage .this (.lit 3) (each .opponent), gainLife (.lit 3) (agent :=
+                .you)]) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Syr Konrad, the Grim -/
@@ -1173,7 +1187,8 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
             [ putIntoFrom (a creature) graveyard (.anywhereBut [battlefield]),
               leavesZone (a (.and [creature, .inZone (graveyardOf .you)])) (graveyardOf .you) ]
             (.dealDamage .this (.lit 1) (each .opponent)),
-          activated (.mana [generic 1, pip .black]) (mills (each .anyPlayer) (.lit 1) (each .anyPlayer)) ],
+          activated (.mana [generic 1, pip .black]) (mill (.lit 1) (each .anyPlayer) (agent := (each
+              .anyPlayer))) ],
       power := stat 5, toughness := stat 4 } }
 
 /-- Destructive Revelry -/
@@ -1181,7 +1196,7 @@ def destructiveRevelry : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Destructive Revelry", cost := some [pip .red, pip .green], types := [.instant],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ destroy (target (.or [artifact, enchantment])),
               .dealDamage .this (.lit 2) (controllerOf (that .permanent)) ]) ] } }
 
@@ -1197,7 +1212,7 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
 
 /-- Breeches, Brazen Plunderer's slice -/
 def eachOfThoseOpponentsTopCard : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 1) (each .opponent),
       exile (.librarySlice .top (.lit 1) (.eachOf (those .player))) ]
 theorem okEachOfThoseOpponentsTopCard : Instruction.check [] eachOfThoseOpponentsTopCard = [] := by
@@ -1224,12 +1239,14 @@ def oathOfKaya : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.enchantment],
       text :=
         [ when (.enters .this none)
-            (.sequentially [.dealDamage .this (.lit 3) (target anyTarget), gainsLife .you (.lit 3)]),
+            (.sequence [.dealDamage .this (.lit 3) (target anyTarget), gainLife (.lit 3) (agent :=
+                .you)]),
           whenever
             (.attacksWith anOpponent
               (some (a (.and [.hasType .planeswalker, .hasPossessor .controller .you])))
               (counted (atLeast 1) creature))
-            (.sequentially [.dealDamage .this (.lit 2) (that .player), gainsLife .you (.lit 2)]) ] } }
+            (.sequence [.dealDamage .this (.lit 2) (that .player), gainLife (.lit 2) (agent :=
+                .you)]) ] } }
 
 /-- Frostwielder -/
 def frostwielder : Spelled := spelled <| .singleFaced
@@ -1237,7 +1254,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
     { name := "Frostwielder", cost := some [generic 2, pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Shaman"],
       text :=
-        [ .static (.intercepts
+        [ .static (.replacement
             (.dies (a (.and [creature,
               .happenedTo (.mk .damageTaken .thisTurn (some (.involving thisCreature)))])))
             [] none (exile it) .repeatedly none),
@@ -1246,12 +1263,13 @@ def frostwielder : Spelled := spelled <| .singleFaced
 
 /-- Crackling Doom -/
 def cracklingDoom : Instruction :=
-  .sequentially
+  .sequence
     [ .dealDamage .this (.lit 2) (each .opponent),
-      sacrifice (each .opponent)
+      sacrifice
         (a (.and [creature,
                   .superlative .max (.stat .power)
-                    (.and [creature, .hasPossessor .controller (that .player)])])) ]
+                    (.and [creature, .hasPossessor .controller (that .player)])])) (agent := (each
+                        .opponent)) ]
 theorem okCracklingDoom : Instruction.check [] cracklingDoom = [] := by decide
 def theFallen : Ability :=
   at_ (.beginningOf .the .upkeep (.byPlayer .you))
@@ -1273,19 +1291,19 @@ def blindFury : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Blind Fury", cost := some [generic 2, pip .red, pip .red], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .continuously (.losesAbilities (allOf creature) [.written (keyword "Trample")])
+        [ .spell none (.sequence
+            [ .establish (.abilityLoss (allOf creature) [.written (keyword "Trample")])
                 (some untilEndOfTurn),
-              .continuously
+              .establish
                 (.damageRule .combatOnly (.dealtBy (a creature)) (.toRecipient (a creature))
                   (.scale (.multiplied .doubled)) .repeatedly)
                 (some .thisTurn) ]) ] } }
 
 /-- Chandra, Awakened Inferno's emblem -/
 def chandraAwakenedInfernoEmblem : Instruction :=
-  .getsEmblem .you
+  .getEmblem
     [ at_ (.beginningOf .the .upkeep (.byPlayer .you))
-        (.dealDamage (.asMarker .emblem .this) (.lit 1) .you) ]
+        (.dealDamage (.asMarker .emblem .this) (.lit 1) .you) ] (agent := .you)
 theorem okChandraAwakenedInfernoEmblem :
     Instruction.check [] chandraAwakenedInfernoEmblem = [] := by decide
 
@@ -1296,31 +1314,32 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ activated (.compound [.mana [pip .red], .tapSymbol])
-            (.sequentially
+            (.sequence
               [ chooseWhile
                   (target (.and [.opponent, .compare [.playerStat .lifeTotal] .greater (lifeTotalOf .you)]))
                   (.whileDoing (.activates .you thisAbility)),
                 .dealDamage thisCreature (.lit 2) (that .player) ]) ],
       power := stat 1, toughness := stat 2 } }
 
-def diabolicEdict : Instruction := sacrifice (target .anyPlayer) (aTheirChoice creature)
+def diabolicEdict : Instruction := sacrifice (aTheirChoice creature) (agent := (target .anyPlayer))
 theorem okDiabolicEdict : Instruction.check [] diabolicEdict = [] := by decide
-def innocentBlood : Instruction := sacrifice (each .anyPlayer) (aTheirChoice creature)
+def innocentBlood : Instruction := sacrifice (aTheirChoice creature) (agent := (each .anyPlayer))
 theorem okInnocentBlood : Instruction.check [] innocentBlood = [] := by decide
-def cryOfContrition : Instruction := discard (target .anyPlayer) (a (.inZone hand))
+def cryOfContrition : Instruction := discard (a (.inZone hand)) (agent := (target .anyPlayer))
 theorem okCryOfContrition : Instruction.check [] cryOfContrition = [] := by decide
-def cyclingCost : Instruction := discard .you .this
+def cyclingCost : Instruction := discard .this (agent := .you)
 theorem okCyclingCost : Instruction.check [] cyclingCost = [] := by decide
 def raiseTheAlarm : Instruction :=
   create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"])
 theorem okRaiseTheAlarm : Instruction.check [] raiseTheAlarm = [] := by decide
-def actOfTreason : Instruction := gainControl .you (target creature) (some untilEndOfTurn)
+def actOfTreason : Instruction := gainControl (target creature) (some untilEndOfTurn) (agent :=
+    .you)
 theorem okActOfTreason : Instruction.check [] actOfTreason = [] := by decide
 def wordsOfWorship : Instruction :=
-  nextTimeWouldInstead (.draws .you) (gainsLife .you (.lit 5)) (some .thisTurn)
+  replaceNextEvent (.draws .you) (gainLife (.lit 5) (agent := .you)) (some .thisTurn)
 theorem okWordsOfWorship : Instruction.check [] wordsOfWorship = [] := by decide
 def theLastRoninII : Instruction :=
-  .reflexively (mills .you (.lit 4) .you)
+  .triggerReflexively (mill (.lit 4) .you (agent := .you))
     (move (target (.and [creature, .inZone (graveyardOf .you)])) hand)
 theorem okTheLastRoninII : Instruction.check [] theLastRoninII = [] := by decide
 
@@ -1333,8 +1352,9 @@ def laquatussDisdain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Laquatus's Disdain", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .counterSpell (target (.and [spell, .castFrom graveyard])), .draw .you (.lit 1) ]) ] } }
+        [ .spell none (.sequence
+            [ .counterSpell (target (.and [spell, .castFrom graveyard])), .draw (.lit 1) (agent :=
+                .you) ]) ] } }
 
 /-- Stifle -/
 def stifle : Spelled := spelled <| .singleFaced

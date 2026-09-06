@@ -19,18 +19,18 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
     { name := "Tezzeret's Gatebreaker", cost := some [generic 4], types := [.artifact],
       text :=
         [ when (.enters thisArtifact none)
-            (.sequentially
+            (.sequence
               [ lookAt (topSlice (.lit 5)),
-                may .you
-                  (.sequentially
+                offer
+                  (.sequence
                     [ revealCards
                         (fromAmong (exactly 1) (.or [.colorIs .blue, artifact]) them),
-                      move (that .card) hand ]),
+                      move (that .card) hand ]) (agent := .you),
                 move (theRest .object) (onBottomIn .randomOrder) ]),
           activated
             (.compound [.mana [generic 5, pip .blue], .tapSymbol,
-                        .perform (sacrifice .you thisArtifact)])
-            (cantBeBlocked (allOf creatureYouControl) (some .thisTurn)) ] } }
+                        .perform (sacrifice thisArtifact (agent := .you))])
+            (forbidBeingBlocked (allOf creatureYouControl) (some .thisTurn)) ] } }
 
 /-- "two cards at random" from a hand. -/
 def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (.inZone hand)
@@ -48,11 +48,13 @@ def tyrantsChoice : Spelled := spelled <| .singleFaced
     { name := "Tyrant's Choice", cost := some [generic 1, pip .black], types := [.sorcery],
       text :=
         [ abilityWord "will of the council"
-            (.spell none (.sequentially
-              [ voteStartingWith .you (each .anyPlayer) .openly (.byLabel ["death", "torture"]),
-                if_ (.voteLead "death" false)
-                  (sacrifice (each .opponent) (aTheirChoice creature)),
-                if_ (.voteLead "torture" true) (losesLife (each .opponent) (.lit 4)) ])) ] } }
+            (.spell none (.sequence
+              [ voteStartingWith .you .openly (.byLabel ["death", "torture"]) (agent := (each
+                  .anyPlayer)),
+                doIf (.voteLead "death" false)
+                  (sacrifice (aTheirChoice creature) (agent := (each .opponent))),
+                doIf (.voteLead "torture" true) (loseLife (.lit 4) (agent := (each .opponent))) ]))
+                    ] } }
 
 /-- Council's Judgment -/
 def councilsJudgment : Spelled := spelled <| .singleFaced
@@ -61,10 +63,11 @@ def councilsJudgment : Spelled := spelled <| .singleFaced
       types := [.sorcery],
       text :=
         [ abilityWord "will of the council"
-            (.spell none (.sequentially
-              [ voteStartingWith .you (each .anyPlayer) .openly
+            (.spell none (.sequence
+              [ voteStartingWith .you .openly
                   (.byCandidate (a (.and [ permanent, .not land,
-                                           .not (.hasPossessor .controller .you) ]))),
+                                           .not (.hasPossessor .controller .you) ]))) (agent :=
+                                               (each .anyPlayer)),
                 exile (allOf (.and [permanent, .withMostVotes])) ])) ] } }
 
 /-- Orchard Elemental -/
@@ -75,12 +78,12 @@ def orchardElemental : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "council's dilemma"
             (when (.enters thisCreature none)
-              (.sequentially
-                [ voteStartingWith .you (each .anyPlayer) .openly
-                    (.byLabel ["sprout", "harvest"]),
+              (.sequence
+                [ voteStartingWith .you .openly
+                    (.byLabel ["sprout", "harvest"]) (agent := (each .anyPlayer)),
                   .putCounters (times (.lit 2) (.votesFor "sprout")) (.printed plusOnePlusOne)
                     thisCreature,
-                  gainsLife .you (times (.lit 3) (.votesFor "harvest")) ])) ],
+                  gainLife (times (.lit 3) (.votesFor "harvest")) (agent := .you) ])) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Plea for Power -/
@@ -89,10 +92,11 @@ def pleaForPower : Spelled := spelled <| .singleFaced
     { name := "Plea for Power", cost := some [generic 3, pip .blue], types := [.sorcery],
       text :=
         [ abilityWord "will of the council"
-            (.spell none (.sequentially
-              [ voteStartingWith .you (each .anyPlayer) .openly (.byLabel ["time", "knowledge"]),
-                if_ (.voteLead "time" false) (.extraTurn .you (.lit 1)),
-                if_ (.voteLead "knowledge" true) (.draw .you (.lit 3)) ])) ] } }
+            (.spell none (.sequence
+              [ voteStartingWith .you .openly (.byLabel ["time", "knowledge"]) (agent := (each
+                  .anyPlayer)),
+                doIf (.voteLead "time" false) (.addTurn (.lit 1) (agent := .you)),
+                doIf (.voteLead "knowledge" true) (.draw (.lit 3) (agent := .you)) ])) ] } }
 
 /-- Coercive Portal -/
 def coercivePortal : Spelled := spelled <| .singleFaced
@@ -101,14 +105,14 @@ def coercivePortal : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (at_ (.beginningOf .the .upkeep (.byPlayer .you))
-              (.sequentially
-                [ voteStartingWith .you (each .anyPlayer) .openly
-                    (.byLabel ["carnage", "homage"]),
-                  if_ (.voteLead "carnage" false)
-                    (.sequentially
-                      [ sacrifice .you thisArtifact,
+              (.sequence
+                [ voteStartingWith .you .openly
+                    (.byLabel ["carnage", "homage"]) (agent := (each .anyPlayer)),
+                  doIf (.voteLead "carnage" false)
+                    (.sequence
+                      [ sacrifice thisArtifact (agent := .you),
                         destroy (allOf (.and [permanent, .not land])) ]),
-                  if_ (.voteLead "homage" true) (.draw .you (.lit 1)) ])) ] } }
+                  doIf (.voteLead "homage" true) (.draw (.lit 1) (agent := .you)) ])) ] } }
 
 /-- Custodi Squire -/
 def custodiSquire : Spelled := spelled <| .singleFaced
@@ -119,11 +123,11 @@ def custodiSquire : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           abilityWord "will of the council"
             (when (.enters thisCreature none)
-              (.sequentially
-                [ voteStartingWith .you (each .anyPlayer) .openly
+              (.sequence
+                [ voteStartingWith .you .openly
                     (.byCandidate
                       (a (.and [ .or [artifact, creature, enchantment],
-                                 .inZone (graveyardOf .you) ]))),
+                                 .inZone (graveyardOf .you) ]))) (agent := (each .anyPlayer)),
                   returnTo (allOf (.and [.isCard, .withMostVotes])) hand [] ])) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -135,9 +139,9 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "council's dilemma"
             (when (.enters thisCreature none)
-              (.sequentially
-                [ voteStartingWith .you (each .anyPlayer) .openly
-                    (.byLabel ["strength", "numbers"]),
+              (.sequence
+                [ voteStartingWith .you .openly
+                    (.byLabel ["strength", "numbers"]) (agent := (each .anyPlayer)),
                   .putCounters (.votesFor "strength") (.printed plusOnePlusOne) thisCreature,
                   create (.votesFor "numbers")
                     (creatureToken 1 1 [.white] [creatureType "Soldier"]) ])) ],
@@ -146,9 +150,9 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
 /-- Truth or Consequences: the secret-council ability alone, as the Idris bench holds it. -/
 def truthOrConsequencesVote : Ability :=
   abilityWord "secret council"
-    (.spell none (.sequentially
-      [ vote (each .anyPlayer) .secretly (.byLabel ["truth", "consequences"]),
-        .draw .you (.votesFor "truth"),
+    (.spell none (.sequence
+      [ vote .secretly (.byLabel ["truth", "consequences"]) (agent := (each .anyPlayer)),
+        .draw (.votesFor "truth") (agent := .you),
         choose (aAtRandom .opponent),
         .dealDamage .this (times (.lit 3) (.votesFor "consequences")) (that .player) ]))
 theorem okTruthOrConsequencesVote : Ability.check [] truthOrConsequencesVote = [] := by decide
@@ -158,9 +162,9 @@ def deathOrGlory : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Death or Glory", cost := some [generic 4, pip .white], types := [.sorcery],
       text :=
-        [ .spell none (.sequentially
-            [ .separateIntoPiles .you
-                (allOf (.and [creature, .inZone (graveyardOf .you)])) 2 [],
+        [ .spell none (.sequence
+            [ .separateIntoPiles
+                (allOf (.and [creature, .inZone (graveyardOf .you)])) 2 [] (agent := .you),
               exile (pileOfChoice anOpponent),
               move (theOther .pile) battlefield ]) ] } }
 
@@ -169,10 +173,10 @@ def steamAugury : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Steam Augury", cost := some [generic 2, pip .blue, pip .red], types := [.instant],
       text :=
-        [ .spell none (.sequentially
+        [ .spell none (.sequence
             [ revealCards (topSlice (.lit 5)),
-              .separateIntoPiles .you them 2 [],
-              chooses anOpponent onePile,
+              .separateIntoPiles them 2 [] (agent := .you),
+              choose onePile (agent := some anOpponent),
               move (that .pile) hand,
               move (theOther .pile) graveyard ]) ] } }
 
@@ -181,10 +185,11 @@ def doOrDie : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Do or Die", cost := some [generic 1, pip .black], types := [.sorcery],
       text :=
-        [ .spell none (.sequentially
-            [ .separateIntoPiles .you
-                (allOf (.and [creature, .hasPossessor .controller (target .anyPlayer)])) 2 [],
-              .cantBe
+        [ .spell none (.sequence
+            [ .separateIntoPiles
+                (allOf (.and [creature, .hasPossessor .controller (target .anyPlayer)])) 2 [] (agent
+                    := .you),
+              .doAndForbid
                 (destroy (allOf (.and [creature, .inPile (pileOfChoice they)])))
                 (.action "Regenerate") (themVerbed (.action "Destroy")) ]) ] } }
 
@@ -195,13 +200,17 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Liliana"],
       text :=
-        [ activated (.loyaltySymbol (.up 1)) (discard (each .anyPlayer) (a (.inZone hand))),
-          activated (.loyaltySymbol (.down 2)) (sacrifice (target .anyPlayer) (a creature)),
+        [ activated (.loyaltySymbol (.up 1)) (discard (a (.inZone hand)) (agent := (each
+            .anyPlayer))),
+          activated (.loyaltySymbol (.down 2)) (sacrifice (a creature) (agent := (target
+              .anyPlayer))),
           activated (.loyaltySymbol (.down 6))
-            (.sequentially
-              [ .separateIntoPiles .you
-                  (allOf (.and [permanent, .hasPossessor .controller (target .anyPlayer)])) 2 [],
-                sacrifice they (allOf (.and [permanent, .inPile (pileOfChoice they)])) ]) ],
+            (.sequence
+              [ .separateIntoPiles
+                  (allOf (.and [permanent, .hasPossessor .controller (target .anyPlayer)])) 2 []
+                      (agent := .you),
+                sacrifice (allOf (.and [permanent, .inPile (pileOfChoice they)])) (agent := they) ])
+                    ],
       loyalty := stat 3 } }
 
 /-- Harness Infinity: the exchange instruction alone, as the Idris bench holds it. -/

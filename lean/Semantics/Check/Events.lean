@@ -10,13 +10,13 @@ namespace Semantics
 
 def counterEventName : CounterMove → CounterBatch → EventName
   | .put, _ => .counterPlacement
-  | .removed, .last => .lastCounterRemoval
+  | .removed, .emptying => .lastCounterRemoval
   | .removed, _ => .counterRemoval
 
 /-- Only a removal empties a named kind, so only it has a last counter. -/
 def counterBatchOk : CounterBatch → CounterMove → Option CounterKind → Bool
-  | .last, .removed, kind => kind.isSome
-  | .last, _, _ => false
+  | .emptying, .removed, kind => kind.isSome
+  | .emptying, _, _ => false
   | _, _, _ => true
 
 def FlipCall.eventName : FlipCall → EventName

@@ -25,14 +25,14 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
     { name := "Repeated Reverberation", cost := some [generic 2, pip .red, pip .red],
       types := [.instant],
       text :=
-        [ .spell none (.delayed
+        [ .spell none (.delay
             (.casts .you (a (.and [instant, spell])) none)
             [ .casts .you (a (.and [sorcery, spell])) none,
               .activates .you (a (.abilityHead .loyalty)) ]
             (some .thisTurn)
-            (.sequentially
-              [ .copy .fromStack .you (that .stack) (.lit 2) [],
-                may .you (.chooseNewTargets (those .copy)) ])) ] } }
+            (.sequence
+              [ .copy .fromStack (that .stack) (.lit 2) [] (agent := .you),
+                offer (.chooseNewTargets (those .copy)) (agent := .you) ])) ] } }
 
 /-- Frontline Heroism -/
 def frontlineHeroismCopy : Ability :=
@@ -41,21 +41,21 @@ def frontlineHeroismCopy : Ability :=
       (a (.and [ spell,
                  .targets (a (.and [creature, .hasPossessor .controller .you])) .soleTarget ]))
       none)
-    (.sequentially
+    (.sequence
       [ create (.lit 1)
           { characteristics :=
             { colors := [.red], types := [.creature], subtypes := [creatureType "Soldier"],
               text := [keyword "Haste"], power := stat 1, toughness := stat 1 } },
-        .copy .fromStack .you (that .spell) (.lit 1) [],
+        .copy .fromStack (that .spell) (.lit 1) [] (agent := .you),
         .copyTargets (that .copy) (that .token) ])
 theorem okFrontlineHeroismCopy : Ability.check [] frontlineHeroismCopy = [] := by decide
 
 /-- Flawless Forgery -/
 def flawlessForgeryLine : Instruction :=
-  .sequentially
+  .sequence
     [ exile (target (.and [instantOrSorcery, .inZone (graveyardOf (a .opponent))])),
-      .copy .fromCardZone .you (that .card) (.lit 1) [],
-      .continuously
+      .copy .fromCardZone (that .card) (.lit 1) [] (agent := .you),
+      .establish
         (mayPlayDeed (.action "Cast") .you (that .copy) none
           (.play none none none false .withoutPaying))
         none ]
@@ -66,19 +66,20 @@ def twincast : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Twincast", cost := some [pip .blue, pip .blue], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .copy .fromStack .you (target (.and [instantOrSorcery, spell])) (.lit 1) [],
-              may .you (.chooseNewTargets (that .copy)) ]) ] } }
+        [ .spell none (.sequence
+            [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent :=
+                .you),
+              offer (.chooseNewTargets (that .copy)) (agent := .you) ]) ] } }
 
 /-- Fork -/
 def fork : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fork", cost := some [pip .red, pip .red], types := [.instant],
       text :=
-        [ .spell none (.sequentially
-            [ .copy .fromStack .you (target (.and [instantOrSorcery, spell])) (.lit 1)
-                [.color .red],
-              may .you (.chooseNewTargets (that .copy)) ]) ] } }
+        [ .spell none (.sequence
+            [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1)
+                [.color .red] (agent := .you),
+              offer (.chooseNewTargets (that .copy)) (agent := .you) ]) ] } }
 
 /-- Meletis Charlatan -/
 def meletisCharlatan : Spelled := spelled <| .singleFaced
@@ -87,18 +88,18 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ activated (.compound [.mana [generic 2, pip .blue], .tapSymbol])
-            (.sequentially
-              [ .copy .fromStack
-                  (controllerOf (target (.and [instantOrSorcery, spell]))) it (.lit 1) [],
-                may (that .player) (.chooseNewTargets (that .copy)) ]) ],
+            (.sequence
+              [ .copy .fromStack it (.lit 1) [] (agent := (controllerOf (target (.and
+                  [instantOrSorcery, spell])))),
+                offer (.chooseNewTargets (that .copy)) (agent := (that .player)) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Echo Mage, level 4+ -/
 def echoMagesFourthLevel : Ability :=
   activated (.compound [.mana [pip .blue, pip .blue], .tapSymbol])
-    (.sequentially
-      [ .copy .fromStack .you (target (.and [instantOrSorcery, spell])) (.lit 2) [],
-        may .you (.chooseNewTargets (those .copy)) ])
+    (.sequence
+      [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [] (agent := .you),
+        offer (.chooseNewTargets (those .copy)) (agent := .you) ])
 theorem okEchoMagesFourthLevel : Ability.check [] echoMagesFourthLevel = [] := by decide
 
 /-- Strionic Resonator -/
@@ -107,20 +108,20 @@ def strionicResonator : Spelled := spelled <| .singleFaced
     { name := "Strionic Resonator", cost := some [generic 2], types := [.artifact],
       text :=
         [ activated (.compound [.mana [generic 2], .tapSymbol])
-            (.sequentially
-              [ .copy .fromStack .you
+            (.sequence
+              [ .copy .fromStack
                   (target (.and [.abilityHead .anyTriggered, .hasPossessor .controller .you]))
-                  (.lit 1) [],
-                may .you (.chooseNewTargets (that .abilityCopy)) ]) ] } }
+                  (.lit 1) [] (agent := .you),
+                offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ]) ] } }
 
 /-- Mister Fantastic -/
 def misterFantasticCopy : Ability :=
   activated (.compound [.mana [pip .red, pip .green, pip .white, pip .blue], .tapSymbol])
-    (.sequentially
-      [ .copy .fromStack .you
+    (.sequence
+      [ .copy .fromStack
           (target (.and [.abilityHead .anyTriggered, .hasPossessor .controller .you]))
-          (.lit 2) [],
-        may .you (.chooseNewTargets (those .abilityCopy)) ])
+          (.lit 2) [] (agent := .you),
+        offer (.chooseNewTargets (those .abilityCopy)) (agent := .you) ])
 theorem okMisterFantasticCopy : Ability.check [] misterFantasticCopy = [] := by decide
 
 /-- Rowan's Talent -/
@@ -129,9 +130,9 @@ def rowansTalentCopy : Ability :=
     (.activates .you
       (a (.and [ .abilityHead .loyalty,
                  .abilityOf (.attachHost .enchanted (.type .planeswalker)) ])))
-    (.sequentially
-      [ .copy .fromStack .you (that .ability) (.lit 1) [],
-        may .you (.chooseNewTargets (that .abilityCopy)) ])
+    (.sequence
+      [ .copy .fromStack (that .ability) (.lit 1) [] (agent := .you),
+        offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ])
 theorem okRowansTalentCopy : Ability.check [] rowansTalentCopy = [] := by decide
 
 /-- Rings of Brighthearth -/
@@ -141,11 +142,11 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (.activates .you (a (.abilityHead .anyActivated)))
             (itIsntAnAbility .isManaAbility)
-            (.may .you (.pay .you (.mana [generic 2]) .once)
-              (some (.sequentially
-                [ .copy .fromStack .you (that .ability) (.lit 1) [],
-                  may .you (.chooseNewTargets (that .abilityCopy)) ]))
-              none) ] } }
+            (.offer (.pay (.mana [generic 2]) .once (agent := .you))
+              (some (.sequence
+                [ .copy .fromStack (that .ability) (.lit 1) [] (agent := .you),
+                  offer (.chooseNewTargets (that .abilityCopy)) (agent := .you) ]))
+              none (agent := .you)) ] } }
 
 /-- Iron Man, Bleeding Edge -/
 def ironManBleedingEdge : Spelled := spelled <| .singleFaced
@@ -156,7 +157,8 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           triggeredOnlyOnce (.casts .you (a (.and [artifact, spell])) none) .actionOncePerTurn
-            (may .you (.copy .fromStack .you it (.lit 1) [.nonlegendary])) ],
+            (offer (.copy .fromStack it (.lit 1) [.nonlegendary] (agent := .you)) (agent := .you))
+                ],
       power := stat 3, toughness := stat 5 } }
 
 /-- Donal, Herald of Wings -/
@@ -172,10 +174,10 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
                          .hasKeyword (.the "Flying") ]))
               none)
             .actionOncePerTurn
-            (may .you
-              (.copy .fromStack .you it (.lit 1)
+            (offer
+              (.copy .fromStack it (.lit 1)
                 [ .chars { subtypes := [creatureType "Spirit"], power := stat 1,
-                           toughness := stat 1 } true ])) ],
+                           toughness := stat 1 } true ] (agent := .you)) (agent := .you)) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Tawnos, the Toymaker -/
@@ -191,7 +193,8 @@ def tawnosTheToymaker : Spelled := spelled <| .singleFaced
                                .hasSubtype (creatureType "Bird") ],
                          creature, spell ]))
               none)
-            (may .you (.copy .fromStack .you it (.lit 1) [.types [.artifact] []])) ],
+            (offer (.copy .fromStack it (.lit 1) [.types [.artifact] []] (agent := .you)) (agent :=
+                .you)) ],
       power := stat 3, toughness := stat 5 } }
 
 /-- Bonus Round -/
@@ -199,12 +202,12 @@ def bonusRound : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Bonus Round", cost := some [generic 1, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ .spell none (.delayed
+        [ .spell none (.delay
             (.casts (a .anyPlayer) (a (.and [instantOrSorcery, spell])) none)
             [] (some untilEndOfTurn)
-            (.sequentially
-              [ .copy .fromStack (that .player) it (.lit 1) [],
-                may (that .player) (.chooseNewTargets (that .copy)) ])) ] } }
+            (.sequence
+              [ .copy .fromStack it (.lit 1) [] (agent := (that .player)),
+                offer (.chooseNewTargets (that .copy)) (agent := (that .player)) ])) ] } }
 
 /-- Melek, Izzet Paragon -/
 def melekIzzetParagon : Spelled := spelled <| .singleFaced
@@ -219,20 +222,20 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
               (.play (some onTop) none none false .itsOwnCost)),
           whenever
             (.casts .you (a (.and [instantOrSorcery, spell])) (some yourLibrary))
-            (.sequentially
-              [ .copy .fromStack .you it (.lit 1) [],
-                may .you (.chooseNewTargets (that .copy)) ]) ],
+            (.sequence
+              [ .copy .fromStack it (.lit 1) [] (agent := .you),
+                offer (.chooseNewTargets (that .copy)) (agent := .you) ]) ],
       power := stat 2, toughness := stat 4 } }
 
 /-- Pyromancer's Goggles -/
 def pyromancersGogglesMana : Ability :=
   activated .tapSymbol
-    (.addMana .you (.lit 1) (.runs [[.of .red]])
+    (.addMana (.lit 1) (.runs [[.of .red]])
       [ .onSpent .triggersThen false
           (a (.and [.colorIs .red, instantOrSorcery, spell]))
-          (.sequentially
-            [ .copy .fromStack .you (that .spell) (.lit 1) [],
-              may .you (.chooseNewTargets (that .copy)) ]) ])
+          (.sequence
+            [ .copy .fromStack (that .spell) (.lit 1) [] (agent := .you),
+              offer (.chooseNewTargets (that .copy)) (agent := .you) ]) ] (agent := .you))
 theorem okPyromancersGogglesMana : Ability.check [] pyromancersGogglesMana = [] := by decide
 
 end Semantics.Cards

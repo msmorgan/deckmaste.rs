@@ -44,7 +44,7 @@ theorem okSpellAbilityOnInstant :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [.spell none (draw .you (.lit 1))] }) = [] := by
+          text := [.spell none (draw (.lit 1) (agent := .you))] }) = [] := by
   decide
 
 /-- "Draw a card." -/
@@ -52,7 +52,8 @@ theorem badSpellAbilityOnPermanent :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.creature],
-          text := [.spell none (draw .you (.lit 1))], power := stat 1, toughness := stat 1 })
+          text := [.spell none (draw (.lit 1) (agent := .you))], power := stat 1, toughness := stat
+              1 })
       = [.cardText] := by
   decide
 
@@ -70,7 +71,8 @@ theorem okCastWindowOnSpell :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [.spell (some (.duringPart .declareAttackers none)) (draw .you (.lit 1))] })
+          text := [.spell (some (.duringPart .declareAttackers none)) (draw (.lit 1) (agent :=
+              .you))] })
       = [] := by
   decide
 
@@ -83,9 +85,9 @@ theorem badCastWindowAsDeonticStatic :
         { name := some "", cost := some [pip .blue], types := [.instant],
           text :=
             [ .static
-                (.onlyDuring .declareAttackers none
+                (.partScope .declareAttackers none
                   (deontic .this .permit [.action "Cast"] .patient .noPatient)),
-              .spell none (draw .you (.lit 1)) ] }) = [.cardText] := by
+              .spell none (draw (.lit 1) (agent := .you)) ] }) = [.cardText] := by
   decide
 
 /-- "Flying" -/
@@ -101,7 +103,7 @@ theorem badTapSorcery :
     Card.check
       (one
         { name := some "Impossible Tap Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [act .tapSymbol (draw .you (.lit 1))] }) = [.cardText] := by
+          text := [act .tapSymbol (draw (.lit 1) (agent := .you))] }) = [.cardText] := by
   decide
 
 /-- a creature card printed with no power or toughness -/
@@ -146,16 +148,16 @@ theorem badCardDuplicateType :
 
 theorem turnedFaceDownHeader :
     Ability.check []
-      (whenever (.statusEvent (a permanent) .faceDown) (draw .you (.lit 1))) = [] := by
+      (whenever (.statusEvent (a permanent) .faceDown) (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Target creature doesn't untap during its controller's next untap step." -/
 theorem okDoesntUntapNextOnBattlefield :
-    Instruction.check [] (.doesntUntapNext (target creature) (.lit 1)) = [] := by decide
+    Instruction.check [] (.skipUntap (target creature) (.lit 1)) = [] := by decide
 
 theorem badUntapNextGraveyard :
     Instruction.check []
-      (.doesntUntapNext (target (.and [creature, .inZone (graveyardOf .you)])) (.lit 1))
+      (.skipUntap (target (.and [creature, .inZone (graveyardOf .you)])) (.lit 1))
       = [.zoneIs .battlefield] := by
   decide
 
@@ -189,7 +191,7 @@ theorem badStarlessDefinedPt :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.creature],
-          text := [.static (.definesPt thisCreature .bothEach (countOf creatureYouControl))],
+          text := [.static (.ptDefinition thisCreature .bothEach (countOf creatureYouControl))],
           power := stat 2, toughness := stat 2 }) = [.cardBox] := by
   decide
 
@@ -275,16 +277,18 @@ theorem badFortifiedCreatureNoun :
 
 /-- "Target creature gains indestructible." -/
 theorem okGainsIndestructible :
-    StaticSpec.check [] (.gains (target creature) (keyword "Indestructible")) = [] := by decide
+    StaticSpec.check [] (.abilityGrant (target creature) (keyword "Indestructible")) = [] := by
+        decide
 
 /-- "Target creature gains flash." -/
 theorem badBattlefieldFlash :
-    StaticSpec.check [] (.gains (target creature) (keyword "Flash")) = [.grantSubject] := by
+    StaticSpec.check [] (.abilityGrant (target creature) (keyword "Flash")) = [.grantSubject] := by
   decide
 
 /-- "Target spell gains indestructible." -/
 theorem badSpellIndestructible :
-    StaticSpec.check [] (.gains (target spell) (keyword "Indestructible")) = [.grantSubject] := by
+    StaticSpec.check [] (.abilityGrant (target spell) (keyword "Indestructible")) = [.grantSubject]
+        := by
   decide
 
 /-- a "Kindred Enchantment — Merfolk" card -/
@@ -330,11 +334,13 @@ theorem okPlaneswalkerAttacks :
   decide
 
 /-- "you pay {2}" -/
-theorem okPayMana : Instruction.check [] (.pay .you (.mana [generic 2]) .once) = [] := by decide
+theorem okPayMana : Instruction.check [] (.pay (.mana [generic 2]) .once (agent := .you)) = [] := by
+    decide
 
 /-- "you pay [+1]" -/
 theorem badPayLoyalty :
-    Instruction.check [] (.pay .you (.loyaltySymbol (.up 1)) .once) = [.payable] := by decide
+    Instruction.check [] (.pay (.loyaltySymbol (.up 1)) .once (agent := .you)) = [.payable] := by
+        decide
 
 /-- A legendary Jace planeswalker face with no text or loyalty yet. -/
 def jace : Characteristics :=
@@ -345,7 +351,7 @@ def jace : Characteristics :=
 theorem okLoyaltyOnPlaneswalker :
     Card.check
       (one
-        { jace with text := [act (.loyaltySymbol (.up 1)) (draw .you (.lit 1))],
+        { jace with text := [act (.loyaltySymbol (.up 1)) (draw (.lit 1) (agent := .you))],
                     loyalty := stat 3 }) = [] := by
   decide
 
@@ -354,37 +360,41 @@ theorem badLoyaltySorcery :
     Card.check
       (one
         { name := some "Impossible Loyalty Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [act (.loyaltySymbol (.up 1)) (draw .you (.lit 1))] }) = [.cardText] := by
+          text := [act (.loyaltySymbol (.up 1)) (draw (.lit 1) (agent := .you))] }) = [.cardText] :=
+              by
   decide
 
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Instruction.check []
-      (.create .you (.lit 1) (.copyOf (target creature) [.types [.artifact] []]) []) = [] := by
+      (.create (.lit 1) (.copyOf (target creature) [.types [.artifact] []]) [] (agent := .you)) = []
+          := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Instruction.check [] (.create .you (.lit 1) (.copyOf (target creature) [.types [] []]) [])
+    Instruction.check [] (.create (.lit 1) (.copyOf (target creature) [.types [] []]) [] (agent :=
+        .you))
       = [.lineNonEmpty] := by
   decide
 
 /-- "Copy target instant or sorcery spell." -/
 theorem okCopyStackSpell :
     Instruction.check []
-      (.copy .fromStack .you (target (.and [instantOrSorcery, spell])) (.lit 1) []) = [] := by
+      (.copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you)) = []
+          := by
   decide
 
 /-- "Copy target creature." -/
 theorem badCopyPermanent :
-    Instruction.check [] (.copy .fromStack .you (target creature) (.lit 1) [])
+    Instruction.check [] (.copy .fromStack (target creature) (.lit 1) [] (agent := .you))
       = [.copySourceOk] := by
   decide
 
 /-- "Create a token that's a copy of target creature. Untap that token." -/
 theorem okSetStatusOnBattlefield :
     Instruction.check []
-      (.sequentially
-        [ .create .you (.lit 1) (.copyOf (target creature) []) [],
+      (.sequence
+        [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -392,8 +402,8 @@ theorem okSetStatusOnBattlefield :
 anaphor; the unresolved "that token" has no zone either. -/
 theorem badStackCopyAsToken :
     Instruction.check []
-      (.sequentially
-        [ .copy .fromStack .you (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+      (.sequence
+        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
           .setStatus .untapped (that .token) ])
       = [.anaphor (.word .token) .one 0, .zoneIs .battlefield] := by
   decide
@@ -401,8 +411,8 @@ theorem badStackCopyAsToken :
 /-- "Create a token that's a copy of target creature. Untap that copy." -/
 theorem badTokenCopyAsCopyMention :
     Instruction.check []
-      (.sequentially
-        [ .create .you (.lit 1) (.copyOf (target creature) []) [],
+      (.sequence
+        [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0, .zoneIs .battlefield] := by
   decide
@@ -414,16 +424,16 @@ theorem okChapterOnSaga :
         { name := some "", cost := some [pip .white], types := [.enchantment],
           subtypes := [enchantmentType "Saga"],
           text :=
-            [ when (.chapterMark [1]) (draw .you (.lit 1)),
-              when (.chapterMark [2]) (draw .you (.lit 1)),
-              when (.chapterMark [3]) (draw .you (.lit 1)) ] }) = [] := by
+            [ when (.chapterMark [1]) (draw (.lit 1) (agent := .you)),
+              when (.chapterMark [2]) (draw (.lit 1) (agent := .you)),
+              when (.chapterMark [3]) (draw (.lit 1) (agent := .you)) ] }) = [] := by
   decide
 
 theorem badChapterOnNonSaga :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.enchantment],
-          text := [when (.chapterMark [1]) (draw .you (.lit 1))] })
+          text := [when (.chapterMark [1]) (draw (.lit 1) (agent := .you))] })
       = [.chapterFrame] := by
   decide
 
@@ -431,7 +441,8 @@ theorem badChapterOnNonSaga :
 theorem okAltCostSacrifice :
     StaticSpec.check []
       (.altCost .this
-        (some (.perform (sacrifice .you (a (.and [land, .hasSubtype (landType "Mountain")]))))))
+        (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")])) (agent :=
+            .you)))))
       = [] := by
   decide
 
@@ -453,8 +464,8 @@ theorem okEscalateWithModes :
             [ keywordCosting "Escalate" (.mana [generic 2]),
               .spell none
                 (chooseModes (.range (some 1) (some 2))
-                  [ gets (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-                    gets (target creature) (.down (.lit 1)) (.down (.lit 1))
+                  [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
+                    get (target creature) (.down (.lit 1)) (.down (.lit 1))
                       (some untilEndOfTurn) ]) ] }) = [] := by
   decide
 
@@ -481,7 +492,8 @@ theorem jointCrossAbilityChoice :
             { name := some "Joint choice witness", types := [.creature],
               subtypes := [creatureType "Shapeshifter"],
               text :=
-                [ .static (.gains thisCreature (keywordQuality "Protection" (ofChosen .color))),
+                [ .static (.abilityGrant thisCreature (keywordQuality "Protection" (ofChosen
+                    .color))),
                   .static (entersChoosing thisCreature .color) ],
               power := stat 1, toughness := stat 1 },
           choices := [.color] }) = [] := by
@@ -575,37 +587,40 @@ theorem badFlashbackOnPermanentCard :
 /-- "for each attacking creature you control. You gain that much life." -/
 theorem okThatMuchAfterQuantity :
     Instruction.check []
-      (.sequentially
-        [ losesLife (target .opponent)
-            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])),
-          gainsLife .you .thatMuch ]) = [] := by
+      (.sequence
+        [ loseLife
+            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent :=
+                (target .opponent)),
+          gainLife .thatMuch (agent := .you) ]) = [] := by
   decide
 
 /-- "Flip a coin. Draw that many cards." -/
 theorem badThatMuchAfterFlip :
-    Instruction.check [] (.sequentially [flipCoins .you 1, draw .you .thatMuch])
+    Instruction.check [] (.sequence [flipCoins 1 (agent := .you), draw .thatMuch (agent := .you)])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
     Instruction.check []
-      (.sequentially [flipCoins .you 1, if_ (.flipCalled .you .wins) (draw .you (.lit 1))])
+      (.sequence [flipCoins 1 (agent := .you), doIf (.flipCalled .you .wins) (draw (.lit 1) (agent
+          := .you))])
       = [] := by
   decide
 
 /-- "If you win the flip, draw a card." -/
 theorem badFlipArmWithoutFlip :
-    Instruction.check [] (if_ (.flipCalled .you .wins) (draw .you (.lit 1)))
+    Instruction.check [] (doIf (.flipCalled .you .wins) (draw (.lit 1) (agent := .you)))
       = [.coinFlipInScope] := by
   decide
 
 /-- "Roll a d6." -/
-theorem okSixSidedDie : Instruction.check [] (.rollDice .you (.lit 1) (.sides 6)) = [] := by decide
+theorem okSixSidedDie : Instruction.check [] (.rollDice (.lit 1) (.sides 6) (agent := .you)) = [] :=
+    by decide
 
 /-- "Roll a d0." -/
 theorem badNoughtSidedDie :
-    Instruction.check [] (.rollDice .you (.lit 1) (.sides 0)) = [.nonZeroQ] := by decide
+    Instruction.check [] (.rollDice (.lit 1) (.sides 0) (agent := .you)) = [.nonZeroQ] := by decide
 
 /-- a planeswalker card printing its starting loyalty -/
 theorem okPlaneswalkerLoyaltyBox : Card.check (one { jace with loyalty := stat 3 }) = [] := by
@@ -701,13 +716,15 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Instruction.check [] (.sequentially [flipCoins .you 1, .extraTurn .you (.coinsShowing .heads)])
+    Instruction.check [] (.sequence [flipCoins 1 (agent := .you), .addTurn (.coinsShowing .heads)
+        (agent := .you)])
       = [] := by
   decide
 
 /-- "Take an extra turn for each coin that comes up heads." -/
 theorem badCoinsShowingWithoutFlip :
-    Instruction.check [] (.extraTurn .you (.coinsShowing .heads)) = [.coinFlipInScope] := by
+    Instruction.check [] (.addTurn (.coinsShowing .heads) (agent := .you)) = [.coinFlipInScope] :=
+        by
   decide
 
 /-- "Transform target creature." -/
@@ -776,15 +793,15 @@ theorem playerItRead :
     NounPhrase.check (some .player) [⟨.a, .one, .player false⟩] they = [] := by decide
 
 theorem delayedDoorTraversal :
-    Instruction.namesThisDoor (delayed (.unlocksDoor .you .thisDoor) (draw .you (.lit 1)))
+    Instruction.namesThisDoor (delay (.unlocksDoor .you .thisDoor) (draw (.lit 1) (agent := .you)))
       = true := by
   decide
 
 theorem distributiveGroupSurvives :
     Instruction.check []
-      (.sequentially
-        [ .enact (some (each .opponent)) (.action "Shuffle") (.shuffle they),
-          .changeLife (those .player) (.down (.lit 1)) ]) = [] := by
+      (.sequence
+        [ .enact (.action "Shuffle") (.shuffle (agent := they)) (agent := (some (each .opponent))),
+          .changeLife (.down (.lit 1)) (agent := (those .player)) ]) = [] := by
   decide
 
 theorem secondChooserDevotionRead :
@@ -814,44 +831,45 @@ theorem modalCostReadbacks :
 /-- "It doesn't untap during its controller's next untap step." -/
 theorem okUntapNextSingleIt :
     Instruction.check []
-      (.sequentially [.setStatus .tapped (target creature), .doesntUntapNext it (.lit 1)])
+      (.sequence [.setStatus .tapped (target creature), .skipUntap it (.lit 1)])
       = [] := by
   decide
 
 theorem badUntapNextAmbiguousIt :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ .setStatus .tapped (target creature),
           .setStatus .tapped (target artifact),
-          .doesntUntapNext it (.lit 1) ]) = [.anaphor .bare .one 2] := by
+          .skipUntap it (.lit 1) ]) = [.anaphor .bare .one 2] := by
   decide
 
 /-- "I — Draw a card." -/
 theorem okChapterMark :
-    Ability.check [] (when (.chapterMark [1]) (draw .you (.lit 1))) = [] := by decide
+    Ability.check [] (when (.chapterMark [1]) (draw (.lit 1) (agent := .you))) = [] := by decide
 
 /-- "— Draw a card." -/
 theorem badEmptyChapterMark :
-    Ability.check [] (when (.chapterMark []) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark []) (draw (.lit 1) (agent := .you)))
       = [.chapterMarks] := by
   decide
 
 /-- "II, II — Draw a card." -/
 theorem badRepeatedChapterMark :
-    Ability.check [] (when (.chapterMark [2, 2]) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark [2, 2]) (draw (.lit 1) (agent := .you)))
       = [.chapterMarks] := by
   decide
 
 /-- "Roll a d20. 1—9 | Draw a card." -/
 theorem okResultsTableAfterRoll :
     Instruction.check []
-      (.sequentially [rollDice .you 1 20, .resultsTable [⟨fromTo 1 9, draw .you (.lit 1)⟩]])
+      (.sequence [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)
+          (agent := .you)⟩]])
       = [] := by
   decide
 
 /-- "1—9 | Draw a card." -/
 theorem badTableWithoutRoll :
-    Instruction.check [] (.resultsTable [⟨fromTo 1 9, draw .you (.lit 1)⟩])
+    Instruction.check [] (.applyResultsTable [⟨fromTo 1 9, draw (.lit 1) (agent := .you)⟩])
       = [.outcomeInScope .rollResult 0] := by
   decide
 
@@ -934,12 +952,12 @@ it. -/
 theorem stormCountsEarlierThisTurn :
     stormExpansion =
       when (.casts .you thisSpell none)
-        (.sequentially
-          [ .copy .fromStack .you thisSpell
+        (.sequence
+          [ .copy .fromStack thisSpell
               (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn
                 (a (.and [spell, .otherThan thisSpell])))
-              [],
-            may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ]) := by
+              [] (agent := .you),
+            offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ]) := by
   rfl
 
 end Semantics.Proofs.Faces

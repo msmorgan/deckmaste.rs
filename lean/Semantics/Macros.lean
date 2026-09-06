@@ -388,25 +388,28 @@ def minusOneMinusOne : CounterKind := .boost (.down 1) (.down 1)
 
 def move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .move subject destination []
-def destroy (subject : NounPhrase) : Instruction :=
-  .enact none (.action "Destroy") (.move subject graveyard [])
-def exile (subject : NounPhrase) : Instruction :=
-  .enact none (.action "Exile") (.move subject exileZone [])
+def destroy (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Destroy") (.move subject graveyard []) (agent := agent)
+def exile (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Exile") (.move subject exileZone []) (agent := agent)
 /-- "exile <subject> with N <kind> counters on it" -/
-def exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) : Instruction :=
-  .enact none (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
-def sacrifice (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .enact (some agent) (.action "Sacrifice") (.move subject graveyard [])
+def exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind)
+    (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
+      (agent := agent)
+def sacrifice (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Sacrifice") (.move subject graveyard []) (agent := some agent)
 /-- "<agent> sacrifices it": the permanent slot's occupant. -/
-def sacrificeIt (agent : NounPhrase) : Instruction :=
-  sacrifice agent (.pro (.atSlot .permanent) .one .whole)
+def sacrificeIt (agent : NounPhrase := .you) : Instruction :=
+  sacrifice (.pro (.atSlot .permanent) .one .whole) (agent := agent)
 /-- "<agent> puts <subject> <destination>" -/
-def puts (agent : NounPhrase) (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
-  .enact (some agent) (.core .put) (.move subject destination [])
-/-- "return <subject> to <zone>" -/
-def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+def put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := .you) :
     Instruction :=
-  .enact none (.core .return_) (.move subject destination riders)
+  .enact (.core .put) (.move subject destination []) (agent := some agent)
+/-- "return <subject> to <zone>" -/
+def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider)
+    (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.core .return_) (.move subject destination riders) (agent := agent)
 /-- "return <subject> to the battlefield" -/
 def returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
@@ -417,27 +420,26 @@ def returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Instruction :=
   .move subject battlefield [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
-def transform (subject : NounPhrase) : Instruction :=
-  .enact none (.action "Transform") (.turnOver subject)
+def transform (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Transform") (.turnOver subject) (agent := agent)
 /-- "meld <subject> into <name>" -/
-def meldInto (subject : NounPhrase) (into : String) : Instruction :=
-  .enact none (.action "Meld") (.move subject battlefield [.entersMelded into])
-def tap (subject : NounPhrase) : Instruction :=
-  .enact none (.action "Tap") (.setStatus .tapped subject)
-def discard (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .enact (some agent) (.action "Discard") (.move subject graveyard [])
-def shuffle : Instruction := .shuffle .you
-def untap (subject : NounPhrase) : Instruction :=
-  .enact none (.action "Untap") (.setStatus .untapped subject)
-/-- "<agent> exiles <subject>" -/
-def exiles (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .enact (some agent) (.action "Exile") (.move subject exileZone [])
+def meldInto (subject : NounPhrase) (into : String) (agent : Option NounPhrase := none) :
+    Instruction :=
+  .enact (.action "Meld") (.move subject battlefield [.entersMelded into]) (agent := agent)
+def tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
+def discard (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Discard") (.move subject graveyard []) (agent := some agent)
+def shuffle (agent : NounPhrase := .you) : Instruction := .shuffle (agent := agent)
+def untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
+  .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
 /-- "Exile <subject> until <event>." -/
 def exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
-  .heldUntil (exile subject) event
+  .holdUntil (exile subject) event
 /-- "<agent> mills <amount> cards" from <whose> library. -/
-def mills (agent : NounPhrase) (amount : Amount) (whose : NounPhrase) : Instruction :=
-  .enact (some agent) (.action "Mill") (.move (.librarySlice .top amount whose) graveyard [])
+def mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Mill") (.move (.librarySlice .top amount whose) graveyard []) (agent := some
+      agent)
 def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
 def putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
   .move subject battlefield [.entersAs .tapped]
@@ -448,81 +450,88 @@ def putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
 def putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
   .move subject battlefield [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
-def searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
-  .search .you (.oneZone yourLibrary) quantity p
+def searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := .you) :
+    Instruction :=
+  .search (.oneZone yourLibrary) quantity p (agent := agent)
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" -/
-def searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Instruction :=
-  .search .you (.someZones (some whose) [.graveyard, .hand, .library]) quantity p
+def searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate)
+    (agent : NounPhrase := .you) : Instruction :=
+  .search (.someZones (some whose) [.graveyard, .hand, .library]) quantity p (agent := agent)
 /-- "search your library and/or graveyard for a <p>" -/
-def searchLibraryOrGraveyard (p : Predicate) : Instruction :=
-  .search .you (.someZones (some .you) [.library, .graveyard]) (exactly 1) p
+def searchLibraryOrGraveyard (p : Predicate) (agent : NounPhrase := .you) : Instruction :=
+  .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p (agent := agent)
 /-- "<who> searches their library for a <p>" -/
-def playerSearchesTheirLibraryFor (who : NounPhrase) (p : Predicate) : Instruction :=
-  .search who (.oneZone (libraryOf they)) (exactly 1) p
+def searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := .you) : Instruction :=
+  .search (.oneZone (libraryOf they)) (exactly 1) p (agent := agent)
 /-- "<who> reveals their hand" -/
-def revealsTheirHand (who : NounPhrase) : Instruction := .expose .reveal who (.zone (handOf they))
+def revealTheirHand (agent : NounPhrase := .you) : Instruction := .expose .reveal (.zone (handOf
+    they)) (agent := agent)
 def regenerate (subject : NounPhrase) : Instruction := .regenerate subject
-def losesLife (player : NounPhrase) (amount : Amount) : Instruction :=
-  .changeLife player (.down amount)
-def gainsLife (player : NounPhrase) (amount : Amount) : Instruction :=
-  .changeLife player (.up amount)
+def loseLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .changeLife (.down amount) (agent := agent)
+def gainLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .changeLife (.up amount) (agent := agent)
 /-- "<player>'s life total becomes <amount>" -/
-def lifeBecomes (player : NounPhrase) (amount : Amount) : Instruction :=
-  .changeLife player (.set amount)
-def draw (player : NounPhrase) (amount : Amount) : Instruction := .draw player amount
+def setLife (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .changeLife (.set amount) (agent := agent)
+def draw (amount : Amount) (agent : NounPhrase := .you) : Instruction := .draw amount (agent :=
+    agent)
 
-def lookAt (cards : NounPhrase) : Instruction := .expose .lookAt .you (.cards cards)
+def lookAt (cards : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .lookAt
+    (.cards cards) (agent := agent)
 /-- "look at <player>'s hand" -/
-def lookAtHandOf (player : NounPhrase) : Instruction := .expose .lookAt .you (.zone (handOf player))
-def revealCards (cards : NounPhrase) : Instruction := .expose .reveal .you (.cards cards)
+def lookAtHandOf (player : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .lookAt
+    (.zone (handOf player)) (agent := agent)
+def revealCards (cards : NounPhrase) (agent : NounPhrase := .you) : Instruction := .expose .reveal
+    (.cards cards) (agent := agent)
 /-- "the card found by a search" -/
 def foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
-def revealsIt : Instruction := revealCards foundCard
-def shuffleInto (agent : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .enact (some agent) (.action "Shuffle") (.move subject (.library .shuffled none none .bare) [])
-def if_ (condition : Condition) (instruction : Instruction) : Instruction :=
-  .if_ condition instruction none
+def revealIt : Instruction := revealCards foundCard
+def shuffleInto (subject : NounPhrase) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Shuffle") (.move subject (.library .shuffled none none .bare) []) (agent := some
+      agent)
+def doIf (condition : Condition) (instruction : Instruction) : Instruction :=
+  .doIf condition instruction none
 /-- "choose <subject>" -/
-def choose (subject : NounPhrase) : Instruction := .choose none none subject .openly none
-/-- "<player> chooses <subject>" -/
-def chooses (player : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .choose none (some player) subject .openly none
-/-- "<player> secretly chooses <subject>" -/
-def secretlyChooses (player : NounPhrase) (subject : NounPhrase) : Instruction :=
-  .choose none (some player) subject .secretly none
+def choose (subject : NounPhrase) (disclosure : Disclosure := .openly)
+    (agent : Option NounPhrase := none) : Instruction :=
+  .choose none subject disclosure none (agent := agent)
 /-- "choose <subject> as you <event>" -/
 def chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
-  .choose none none subject .openly (some while_)
-def rollDice (player : NounPhrase) (count sides : Nat) : Instruction :=
-  .rollDice player (.lit count) (.sides sides)
+  .choose none subject .openly (some while_) (agent := none)
+def rollDice (count : Nat) (sides : Nat) (agent : NounPhrase := .you) : Instruction :=
+  .rollDice (.lit count) (.sides sides) (agent := agent)
 /-- One row of a results table: "<results> — <instruction>". -/
 def rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
-def flipCoins (player : NounPhrase) (count : Nat) : Instruction :=
-  .flipCoins player (.count (.lit count))
+def flipCoins (count : Nat) (agent : NounPhrase := .you) : Instruction :=
+  .flipCoins (.count (.lit count)) (agent := agent)
 /-- "<player> flips a coin" as an event -/
 def flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
 /-- "<decider> may <body>" -/
-def may (decider : NounPhrase) (body : Instruction) : Instruction := .may decider body none none
+def offer (body : Instruction) (agent : NounPhrase := .you) : Instruction := .offer body none none
+    (agent := agent)
 /-- "<decider> may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
-def mayWhen (decider : NounPhrase) (body trigger : Instruction) : Instruction :=
-  .reflexively (.may decider body none none) trigger
+def offerWhen (body : Instruction) (trigger : Instruction) (agent : NounPhrase := .you) :
+    Instruction :=
+  .triggerReflexively (.offer body none none (agent := agent)) trigger
 /-- "the chosen number" -/
 def chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
-def spree (modes : List (Option Cost × Instruction)) : Instruction := .modal (atLeast 1) modes
+def chooseSpree (modes : List (Option Cost × Instruction)) : Instruction := .chooseModes (atLeast 1)
+    modes
 /-- "<voters> vote for <ballot>" -/
-def vote (voters : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
-  .vote none voters disclosure ballot
+def vote (disclosure : Disclosure) (ballot : Ballot) (agent : NounPhrase := .you) : Instruction :=
+  .vote none disclosure ballot (agent := agent)
 /-- "Starting with <first>, <voters> vote for <ballot>" -/
-def voteStartingWith (first voters : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) :
-    Instruction :=
-  .vote (some first) voters disclosure ballot
+def voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
+    (agent : NounPhrase := .you) : Instruction :=
+  .vote (some first) disclosure ballot (agent := agent)
 /-- "Choose N — <modes>", no mode costing anything. -/
 def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
-  .modal quantity (modes.map (none, ·))
+  .chooseModes quantity (modes.map (none, ·))
 /-- "<source> deals damage equal to its power to <recipient>" -/
-def dealsDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounPhrase) :
+def dealDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounPhrase) :
     Instruction :=
   .dealDamage source
     (.statOf (.stat .power)
@@ -540,11 +549,13 @@ def creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List
     CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes
 /-- "create N <token>" -/
-def create (count : Amount) (token : CharacteristicBundle) : Instruction :=
-  .create .you count (.written token) []
+def create (count : Amount) (token : CharacteristicBundle) (agent : NounPhrase := .you) :
+    Instruction :=
+  .create count (.written token) [] (agent := agent)
 /-- "create N <token> tapped and attacking" -/
-def createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Instruction :=
-  .create .you count (.written token) [.entersAs .tapped, .entersAttacking none]
+def createTappedAttacking (count : Amount) (token : CharacteristicBundle)
+    (agent : NounPhrase := .you) : Instruction :=
+  .create count (.written token) [.entersAs .tapped, .entersAttacking none] (agent := agent)
 
 /-- "for each color of mana spent to cast <n>" -/
 def colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
@@ -622,62 +633,63 @@ def removedThisWay : Amount := .theOutcome .countersRemoved
 def shiftResult (amount : Amount) : Instruction := .shiftResult none amount
 /-- "<player> may play N additional lands" -/
 def mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .deontic player .permit [.action "Play"] .agent (some (.additional quantity))
+  .deonticRule player .permit [.action "Play"] .agent (some (.additional quantity))
     (.counterpart (allOf land))
     none .noRider
 /-- "<player> may <deed> <what> [as though …] [rider]" -/
 def mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough : Option AsThough)
     (rider : DeonticRider) : StaticSpec :=
-  .deontic player .permit [deed] .agent none (.counterpart what) asThough rider
+  .deonticRule player .permit [deed] .agent none (.counterpart what) asThough rider
 /-- A deontic clause with no bound, premise, or rider. -/
 def deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
     (patient : DeonticPatient) : StaticSpec :=
-  .deontic subject compulsion deeds role none patient none .noRider
+  .deonticRule subject compulsion deeds role none patient none .noRider
 /-- "When <event>, <instruction>" as a delayed trigger. -/
-def delayed (event : GameEvent) (instruction : Instruction) : Instruction :=
-  .delayed event [] none instruction
+def delay (event : GameEvent) (instruction : Instruction) : Instruction :=
+  .delay event [] none instruction
 /-- "When <event> <duration>, <instruction>": a delayed trigger with a window. -/
-def delayedWithin (event : GameEvent) (duration : Duration) (instruction : Instruction) :
+def delayWithin (event : GameEvent) (duration : Duration) (instruction : Instruction) :
     Instruction :=
-  .delayed event [] (some duration) instruction
+  .delay event [] (some duration) instruction
 /-- "<subject> phases out until <event>" -/
-def phasesOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
-  .heldUntil (.setStatus .phasedOut subject) event
+def phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
+  .holdUntil (.setStatus .phasedOut subject) event
 /-- "attach <what> to it": the object the sentence just named. -/
 def attachToIt (what : NounPhrase) : Instruction :=
   .attachTo what (.pro .bare .one (.below (NounPhrase.introduced [] what).length))
 /-- "there is an additional <part> [after <anchor>]" -/
-def additionalPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
-  .additionalPart none part anchor count none
+def addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
+  .addPart part anchor count none (agent := none)
 /-- "there is an additional <part> after this phase, followed by an additional <next>" -/
-def additionalPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
-    (next : TurnPart) : Instruction :=
-  .additionalPart none part anchor count (some next)
+def addPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount) (next : TurnPart) :
+    Instruction :=
+  .addPart part anchor count (some next) (agent := none)
 /-- "<player> gets an additional <part>" -/
-def getsAdditionalPart (player : NounPhrase) (part : TurnPart) (count : Amount) : Instruction :=
-  .additionalPart (some player) part none count none
+def getAdditionalPart (part : TurnPart) (count : Amount) (agent : NounPhrase := .you) :
+    Instruction :=
+  .addPart part none count none (agent := some agent)
 /-- "<subject> can't attack [this turn]" -/
-def cantAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .continuously (.deontic subject .forbid [.core .attack] .agent none .noPatient none .noRider)
+def forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider)
     duration
 /-- "<subject> can't block [this turn]" -/
-def cantBlock (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .continuously (.deontic subject .forbid [.core .block] .agent none .noPatient none .noRider)
+def forbidBlock (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .establish (.deonticRule subject .forbid [.core .block] .agent none .noPatient none .noRider)
     duration
 /-- "<subject> can't be blocked [this turn]" -/
-def cantBeBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .continuously (.deontic subject .forbid [.core .block] .patient none .noPatient none .noRider)
+def forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .establish (.deonticRule subject .forbid [.core .block] .patient none .noPatient none .noRider)
     duration
 /-- "<subject> blocks it this turn if able": the object the sentence just named. -/
-def mustBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .continuously
-    (.deontic subject .require [.core .block] .agent none
+def requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .establish
+    (.deonticRule subject .require [.core .block] .agent none
       (.counterpart (.pro .bare .one (.below (NounPhrase.introduced [] subject).length))) none
       .noRider)
     duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
-def dealsDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Instruction :=
+def dealDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Instruction :=
   .distribute (.damage source) amount among
 /-- "distribute N <kind> counters among <among>" -/
 def distributeCounters (amount : Amount) (kind : CounterKind) (among : NounPhrase) : Instruction :=
@@ -687,8 +699,8 @@ def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from
     Instruction :=
   .removeCounters (some quantity) kind from_
 /-- "<who> loses all [<kind>] counters" -/
-def losesAllCounters (who : NounPhrase) (kind : Option CounterKindSource) : Instruction :=
-  .losesCounters who kind none
+def loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := .you) : Instruction :=
+  .loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
   .removeCounters none kind from_
@@ -706,8 +718,8 @@ def agentRef (agent : NounPhrase) : NounPhrase :=
   | ds => .pro (.word .player) (agentPlur agent) (.top ds.length)
 
 /-- "<player> may pay <cost>. If they don't, <instruction>." -/
-def unless_ (player : NounPhrase) (instruction : Instruction) (cost : Cost) : Instruction :=
-  .may player (.pay (agentRef player) cost .once) none (some instruction)
+def doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := .you) : Instruction :=
+  .offer (.pay cost .once (agent := (agentRef agent))) none (some instruction) (agent := agent)
 
 /-- "it" or "them", by number. -/
 def itOrThem : Plurality → NounPhrase
@@ -728,8 +740,9 @@ def itsOther (subject : NounPhrase) (delta : Delta Amount) : NounPhrase :=
 /-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
 half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
-  .andAlso none
-    [.modify subject .power power, .modify (itsOther subject power) .toughness toughness]
+  .conjunction none
+    [.modification subject .power power, .modification (itsOther subject power) .toughness
+        toughness]
 /-- "<subject> has base power and toughness P/T" -/
 def getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
   getsPt subject (.set power) (.set toughness)
@@ -743,170 +756,170 @@ def lookedCards (slice : NounPhrase) : NounPhrase :=
   .pro .bare slice.plur (.top (NounPhrase.introduced [] slice).length)
 /-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
 in any order and the rest on top in any order" -/
-def lookAndSort (looker whose : NounPhrase) (amount : Amount) : Instruction :=
+def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
-  .sequentially
-    [ .expose .lookAt looker (.cards slice),
+  .sequence
+    [ .expose .lookAt (.cards slice) (agent := agent),
       move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
-def lookAndSortInto (looker whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
-    Instruction :=
+def lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr)
+    (agent : NounPhrase := .you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
-  .sequentially
-    [ .expose .lookAt looker (.cards slice),
+  .sequence
+    [ .expose .lookAt (.cards slice) (agent := agent),
       move (someOf anyNumber (lookedCards slice)) spill,
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- "<agent> scries N" [CR#701.22a] -/
-def scry (agent : NounPhrase) (amount : Amount) : Instruction :=
-  .enact (some agent) (.action "Scry") (lookAndSort (agentRef agent) (agentRef agent) amount)
+def scry (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Scry") (lookAndSort (agentRef agent) amount (agent := (agentRef agent))) (agent
+      := some agent)
 /-- "<agent> fateseals N" [CR#701.29a] -/
-def fateseal (agent whose : NounPhrase) (amount : Amount) : Instruction :=
-  .enact (some agent) (.action "Fateseal") (lookAndSort (agentRef agent) whose amount)
+def fateseal (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Fateseal") (lookAndSort whose amount (agent := (agentRef agent))) (agent := some
+      agent)
 /-- "<agent> surveils N" [CR#701.25a] -/
-def surveil (agent : NounPhrase) (amount : Amount) : Instruction :=
-  .enact (some agent) (.action "Surveil")
-    (lookAndSortInto (agentRef agent) (agentRef agent) amount graveyard)
+def surveil (amount : Amount) (agent : NounPhrase := .you) : Instruction :=
+  .enact (.action "Surveil") (lookAndSortInto (agentRef agent) amount graveyard (agent := (agentRef
+      agent))) (agent := some agent)
 /-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
 players, then give each another counter of each kind already there." -/
 def proliferate : Instruction :=
-  .enact none (.action "Proliferate")
-    (.sequentially
-      [ .choose none none
-          (counted anyNumber
+  .enact (.action "Proliferate") (.sequence
+      [ .choose none (counted anyNumber
             (.or [ .and [permanent, .hasCounters none],
-                   .compare [.anyCounter .player] .atLeast (.lit 1) ]))
-          .openly none,
-        .putCounters (.lit 1) .own (.eachOf (those .join)) ])
+                   .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none (agent :=
+                       none),
+        .putCounters (.lit 1) .own (.eachOf (those .join)) ]) (agent := none)
 /-- "amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't control an Army,
 create a 0/0 black <subtype> Army creature token. Choose an Army you control. Put N +1/+1
 counters on it. It's a <subtype> in addition to its other types." -/
 def amass (subtype : String) (count : Nat) : Instruction :=
-  .sequentially
-    [ .if_ (.not (exists_ armyYouControl))
+  .sequence
+    [ .doIf (.not (exists_ armyYouControl))
         (create (.lit 1)
           (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
         none,
       choose (a armyYouControl),
       .putCounters (.lit count) (.printed plusOnePlusOne) (that (.type .creature)),
-      .if_ (itIsntA (.hasSubtype (creatureType subtype)))
-        (.continuously
-          (.becomes it .adds
+      .doIf (itIsntA (.hasSubtype (creatureType subtype)))
+        (.establish
+          (.qualityChange it .adds
             (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
           none)
         none ]
 /-- "monstrosity N" with its reminder text [CR#701.37a]: "If this permanent isn't monstrous,
 put N +1/+1 counters on it and it becomes monstrous." -/
-def monstrosity (amount : Amount) : Instruction :=
-  .if_ (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
-    (.sequentially
+def makeMonstrous (amount : Amount) : Instruction :=
+  .doIf (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
+    (.sequence
       [ .putCounters amount (.printed plusOnePlusOne) thisPermanent,
-        .gainsDesignation thisPermanent "monstrous" (.byDeed (.action "Monstrosity")) none ])
+        .gainDesignation thisPermanent "monstrous" (.byDeed (.action "Monstrosity")) none ])
     none
-def gets (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
+def get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
-  .continuously (getsPt subject power toughness) duration
+  .establish (getsPt subject power toughness) duration
 
-def gains (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
-  .continuously (.gains subject ability) duration
+def gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
+  .establish (.abilityGrant subject ability) duration
 /-- "<subject> gains haste [until …]" -/
-def gainsHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  gains subject (.keyword "Haste" none none) duration
+def gainHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  gain subject (.keyword "Haste" none none) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
-def becomes (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
+def become (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=
-  .continuously (.becomes subject .adds (.bundle added none)) duration
+  .establish (.qualityChange subject .adds (.bundle added none)) duration
 /-- "<subject> becomes <colors> [until …]" -/
-def becomesColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration) :
+def becomeColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration) :
     Instruction :=
-  .continuously (.becomes subject .sets (.colored colors)) duration
+  .establish (.qualityChange subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/
-def sharedSubject (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
+def establishFor (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
     Instruction :=
-  .continuously (.andAlso (some subject) parts) duration
+  .establish (.conjunction (some subject) parts) duration
 /-- "If <event> would happen, <replacement> instead [duration]." -/
-def ifWouldInstead (event : GameEvent) (replacement : Instruction) (duration : Option Duration) :
+def replaceEvent (event : GameEvent) (replacement : Instruction) (duration : Option Duration) :
     Instruction :=
-  .continuously (.intercepts event [] none replacement .repeatedly none) duration
+  .establish (.replacement event [] none replacement .repeatedly none) duration
 /-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
 def preventAll (kind : DamageKind) (scope : DamageScope) (duration : Option Duration) :
     Instruction :=
-  .continuously (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
+  .establish (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
 /-- "Prevent the next N <kind> damage that would be dealt <scope> [duration]." -/
 def preventNext (kind : DamageKind) (scope : DamageScope) (amount : Amount)
     (duration : Option Duration) : Instruction :=
-  .continuously (.damageRule kind .unattributed scope (.prevent (.shield amount) none) .repeatedly)
+  .establish (.damageRule kind .unattributed scope (.prevent (.shield amount) none) .repeatedly)
     duration
 /-- "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]." -/
 def preventAllBy (kind : DamageKind) (source : NounPhrase) (scope : DamageScope)
     (duration : Option Duration) : Instruction :=
-  .continuously (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
+  .establish (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
 /-- "The next time <event> would happen, <replacement> instead [duration]." -/
-def nextTimeWouldInstead (event : GameEvent) (replacement : Instruction)
+def replaceNextEvent (event : GameEvent) (replacement : Instruction)
     (duration : Option Duration) : Instruction :=
-  .continuously (.intercepts event [] none replacement .nextTimeOnly none) duration
+  .establish (.replacement event [] none replacement .nextTimeOnly none) duration
 /-- "<player> gains control of <subject> [duration]" -/
-def gainControl (player : NounPhrase) (subject : NounPhrase) (duration : Option Duration) :
+def gainControl (subject : NounPhrase) (duration : Option Duration) (agent : NounPhrase := .you) :
     Instruction :=
-  .continuously (.gainsControl player subject) duration
+  .establish (.controlGrant agent subject) duration
 /-- "<subject> can't be <deed>ed" -/
 def objectCant (deed : Deed) (subject : NounPhrase) : StaticSpec :=
-  .deontic subject .forbid [deed] .patient none .noPatient none .noRider
+  .deonticRule subject .forbid [deed] .patient none .noPatient none .noRider
 /-- "<player> can't <deed>" -/
 def playerCant (deed : Deed) (player : NounPhrase) : StaticSpec :=
-  .deontic player .forbid [deed] .agent none .noPatient none .noRider
+  .deonticRule player .forbid [deed] .agent none .noPatient none .noRider
 /-- "<spec> as long as <condition>" -/
 def onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
-  .conditionally spec condition .asLongAs
+  .conditional spec condition .asLongAs
 /-- "<spec> unless <condition>" -/
 def onlyUnless (spec : StaticSpec) (condition : Condition) : StaticSpec :=
-  .conditionally spec (.not condition) .unless_
+  .conditional spec (.not condition) .unless_
 /-- "<spec> if <condition>" -/
 def onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticSpec :=
-  .conditionally spec condition .ifSo
+  .conditional spec condition .ifSo
 /-- "<who> can't <deed> <what>" -/
 def cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
-  .deontic who .forbid [deed] .agent none (.counterpart what) none .noRider
+  .deonticRule who .forbid [deed] .agent none (.counterpart what) none .noRider
 /-- "<n> can <deed> as though it didn't have <p>" -/
 def canDoAsThough (n : NounPhrase) (deed : Deed) (p : Predicate) : StaticSpec :=
-  .deontic n .permit [deed] .agent none .noPatient (some (.of p)) .noRider
+  .deonticRule n .permit [deed] .agent none .noPatient (some (.of p)) .noRider
 /-- "<what> can't be the target of <by>" -/
 def cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
-  .deontic what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider
+  .deonticRule what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider
 /-- "<what> can be the target of <by> as though it didn't have <p>" -/
 def canBeTargetedAsThough (what by_ : NounPhrase) (p : Predicate) : StaticSpec :=
-  .deontic what .permit [.core .target] .patient none (.targetedBy by_) (some (.of p)) .noRider
+  .deonticRule what .permit [.core .target] .patient none (.targetedBy by_) (some (.of p)) .noRider
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
-def throughout (spec : StaticSpec) (duration : Duration) : Instruction :=
-  .continuously spec (some duration)
+def establishThroughout (spec : StaticSpec) (duration : Duration) : Instruction :=
+  .establish spec (some duration)
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .onlyDuring .untapStep whose (objectCant (.action "Untap") subject)
+  .partScope .untapStep whose (objectCant (.action "Untap") subject)
 /-- "you may choose not to untap <subject> during [<whose>] untap step" -/
 def mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .onlyDuring .untapStep whose
-    (.deontic subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
+  .partScope .untapStep whose
+    (.deonticRule subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
 /-- "untap <subject> during [<whose>] untap step" -/
 def untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .onlyDuring .untapStep whose
-    (.deontic subject .require [.action "Untap"] .patient none .noPatient none .noRider)
+  .partScope .untapStep whose
+    (.deonticRule subject .require [.action "Untap"] .patient none .noPatient none .noRider)
 /-- "<subject> can block an additional creature each combat" -/
 def mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .deontic subject .permit [.core .block] .agent (some (.additional quantity))
+  .deonticRule subject .permit [.core .block] .agent (some (.additional quantity))
     (.counterpart (allOf creature)) none .noRider
 /-- "<who> may vote an additional time" -/
 def mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .deontic who .permit [.action "Vote"] .agent (some (.additional quantity)) .noPatient none
+  .deonticRule who .permit [.action "Vote"] .agent (some (.additional quantity)) .noPatient none
     .noRider
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 def maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
     (purpose : Option SpendPurpose) : StaticSpec :=
-  .deontic who .permit [.core .spend] .agent none .noPatient (some (.mana what as_ purpose))
+  .deonticRule who .permit [.core .spend] .agent none .noPatient (some (.mana what as_ purpose))
     .noRider
 /-- "<player> can't <deed> more than N <p>" -/
 def cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=
-  .deontic player .forbid [deed] .agent (some (.moreThan (.lit bound))) (.counterpart (allOf p))
+  .deonticRule player .forbid [deed] .agent (some (.moreThan (.lit bound))) (.counterpart (allOf p))
     none .noRider
 
 /-! ## Events -/
@@ -941,7 +954,7 @@ def bareCounterEvent (move : CounterMove) (batch : CounterBatch) (subject : Noun
   .counterEvent move none subject batch none false
 /-- "the last <kind> counter is removed from <subject> by <who>" -/
 def lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) : GameEvent :=
-  .counterEvent .removed (some kind) subject .last (some who) false
+  .counterEvent .removed (some kind) subject .emptying (some who) false
 /-- "one or more counters are put on <subject> by an effect" -/
 def manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
   .counterEvent .put none subject .many none true
@@ -964,7 +977,7 @@ def becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent 
   .combat .blockedBy subject by_
 /-- "the last <kind> counter is removed from <subject>" -/
 def lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
-  .counterEvent .removed (some kind) subject .last none false
+  .counterEvent .removed (some kind) subject .emptying none false
 /-- "<subject> regenerates": the verb as an event. -/
 def regenerates (subject : NounPhrase) : GameEvent :=
   .verbedEvent none (.action "Regenerate") (some subject) none
@@ -983,7 +996,7 @@ def companion (condition : DeckCondition) : Ability :=
   .keyword "Companion" (some (.deckCondition condition)) none
 /-- "Pay N life" as a cost. -/
 def payLife (player : NounPhrase) (amount : Nat) : Cost :=
-  .perform (.changeLife player (.down (.lit amount)))
+  .perform (.changeLife (.down (.lit amount)) (agent := player))
 /-- "<keyword> <cost>" -/
 def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label (some (.cost cost)) none
@@ -1016,35 +1029,35 @@ def triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : In
 def itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability) p)
 /-- "As <subject> enters, choose a <quality>." -/
 def entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  .entersChoice subject (.quality sort) none .openly
+  .entryChoice subject (.quality sort) none .openly
 /-- "As <subject> enters, choose a <quality> from <domain>." -/
 def entersChoosingFrom (subject : NounPhrase) (sort : QualitySort) (domain : ChoiceDomain) :
     StaticSpec :=
-  .entersChoice subject (.quality sort) (some domain) .openly
+  .entryChoice subject (.quality sort) (some domain) .openly
 /-- "As <subject> enters, choose a player [from <domain>]." -/
 def entersChoosingPlayer (subject : NounPhrase) (domain : Option ChoiceDomain) : StaticSpec :=
-  .entersChoice subject .player domain .openly
+  .entryChoice subject .player domain .openly
 /-- "As <subject> enters, secretly choose a player [from <domain>]." -/
 def entersChoosingPlayerSecretly (subject : NounPhrase) (domain : Option ChoiceDomain) :
     StaticSpec :=
-  .entersChoice subject .player domain .secretly
+  .entryChoice subject .player domain .secretly
 /-- "<subject> enters tapped" -/
-def entersTapped (subject : NounPhrase) : StaticSpec := .entersRider subject (.entersAs .tapped)
+def entersTapped (subject : NounPhrase) : StaticSpec := .entryRider subject (.entersAs .tapped)
 /-- "As <subject> becomes attached, choose a <quality>." -/
 def attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  .attachChoice subject (.quality sort) none
+  .attachmentChoice subject (.quality sort) none
 /-- "<subject> enters with N <kind> counters on it" -/
 def entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
-  .entersRider subject (.withCounters amount (.printed kind) .fresh)
+  .entryRider subject (.withCounters amount (.printed kind) .fresh)
 /-- "<subject> enters with an additional N <kind> counters on it" -/
 def entersWithAdditionalCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
-  .entersRider subject (.withCounters amount (.printed kind) .additional)
+  .entryRider subject (.withCounters amount (.printed kind) .additional)
 /-- "<subject> enters with N fewer <kind> counters on it" -/
 def entersWithFewerCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
-  .entersRider subject (.withCounters amount (.printed kind) .fewer)
+  .entryRider subject (.withCounters amount (.printed kind) .fewer)
 
 def triggered (event : GameEvent) (instruction : Instruction) : Ability :=
   .triggered event [] none [] none none none instruction
@@ -1084,19 +1097,17 @@ renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 def renownExpansion (count : Nat) : Ability :=
   triggeredIf (dealsCombatDamage thisCreature (a .anyPlayer))
     (.not (.matches thisCreature (.hasDesignation "renowned" none)))
-    (.sequentially
+    (.sequence
       [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
-        .gainsDesignation thisCreature "renowned" (.byKeyword "Renown") none ])
+        .gainDesignation thisCreature "renowned" (.byKeyword "Renown") none ])
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 def stormExpansion : Ability :=
   when (.casts .you thisSpell none)
-    (.sequentially
-      [ .copy .fromStack .you thisSpell
-          (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn
-            (a (.and [spell, .otherThan thisSpell])))
-          [],
-        may .you (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
+    (.sequence
+      [ .copy .fromStack thisSpell (eventCountInvolving .spellCast (a .anyPlayer) .earlierThisTurn
+            (a (.and [spell, .otherThan thisSpell]))) [] (agent := .you),
+        offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ])
 /-- "Storm" with its reminder text. -/
 def storm : Ability := .keyword "Storm" none (some stormExpansion)
 /-- "Renown N" with its reminder text. -/
@@ -1108,12 +1119,11 @@ it. If you don't, sacrifice it." [CR#702.24a] -/
 def cumulativeUpkeepExpansion (cost : Cost) : Ability :=
   triggeredIf (.beginningOf .the .upkeep (.byPlayer .you))
     (.matches thisPermanent (.inZone battlefield))
-    (.sequentially
+    (.sequence
       [ .putCounters (.lit 1) (.printed (.named "Age")) thisPermanent,
-        .may .you
-          (.pay .you (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent)))
-            .once)
-          none (some (sacrifice .you thisPermanent)) ])
+        .offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent))) .once
+            (agent := .you)) none (some (sacrifice thisPermanent (agent := .you))) (agent := .you)
+            ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 def cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword "CumulativeUpkeep" (some (.cost cost)) (some (cumulativeUpkeepExpansion cost))

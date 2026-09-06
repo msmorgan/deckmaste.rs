@@ -83,7 +83,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `CostShift` | `CostShift.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CountBound` | `CountBound.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DeedComplement` | `DeonticPatient.check` checks each counterpart; `deonticPatientOk` checks its deed membership, role and relation to the subject. |
-| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` and `deonticRiderOk` at `StaticSpec.deontic` enforce their actual relationships; child phrases use `DeonticPatient.check`. |
+| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` and `deonticRiderOk` at `StaticSpec.deonticRule` enforce their actual relationships; child phrases use `DeonticPatient.check`. |
 | `DamageScope` | `DamageScope.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageAgent` | `DamageAgent.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Unpreventable` | `Unpreventable.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -115,7 +115,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `KeywordParam` | `KeywordParam.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `AbilityLost` | `AbilityLost.checkAll` checks each carried keyword term or chosen-ability reference. |
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
-| `StaticParts` | The actual list supplies length; `andAlso` checks nonemptiness and `checkParts` checks noncoordination and threads `StaticSpec.intro`. |
+| `StaticParts` | The actual list supplies length; `conjunction` checks nonemptiness and `checkParts` checks noncoordination and threads `StaticSpec.intro`. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` checks nonemptiness and `Cost.checkSeq` threads `Cost.intro`. |
 | `AddedPayment` | `StaticSpec.addedCost` requires `Cost.offBattlefield`. |
 | `AbilitySeq` | `Ability.checkText` threads the choices and letters introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
@@ -161,10 +161,10 @@ by exact-refusal theorems; it is not an authorable term.
 | `FlipScope` | `FlipScope.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `IgnoredOutcomes` | `IgnoredOutcomes.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Ballot` | `Ballot.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `CostSubject` | `NounPhrase.costSubjectOk` in `StaticSpec.costs` and `altCost`. |
+| `CostSubject` | `NounPhrase.costSubjectOk` in `StaticSpec.costShift` and `altCost`. |
 | `StackActOn` | `NounPhrase.counterable`/`copiable` at `counterSpell`, `chooseNewTargets`, and copying consumers. |
 | `Condition` | `Condition.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `MarkingOk` | `markingOk` in `StaticSpec.conditionally`. |
+| `MarkingOk` | `markingOk` in `StaticSpec.conditional`. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event. |
 | `Exposed` | `Exposed.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `VisibleThing` | `VisibleThing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |

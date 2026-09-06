@@ -68,7 +68,7 @@ theorem okAltHeaderAgreeingReadback :
     Ability.check []
       (.triggered (blocks thisCreature (some (a creature)))
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
-        (gets (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
+        (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] := by
   decide
 
@@ -78,7 +78,7 @@ theorem badAltHeaderMixedReadback :
     Ability.check []
       (.triggered (blocks thisCreature none)
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
-        (gets (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
+        (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
           .anaphor .bare .one 0, .zoneIs .battlefield ] := by
   decide
@@ -107,7 +107,7 @@ theorem okRemoveCounterFromTarget :
 /-- "Destroy target creature. Remove a +1/+1 counter from it." -/
 theorem badRemoveCountersDead :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [destroy (target creature), .removeCounters (some (exactly 1)) (some p11) it])
       = [.counterMemory] := by
   decide
@@ -142,37 +142,41 @@ theorem badTokenDuplicateColor :
 /-- "Target opponent loses 2 life. You gain that much life." -/
 theorem okThatMuchAfterOutcome :
     Instruction.check []
-      (.sequentially [losesLife (target .opponent) (.lit 2), gainsLife .you .thatMuch]) = [] := by
+      (.sequence [loseLife (.lit 2) (agent := (target .opponent)), gainLife .thatMuch (agent :=
+          .you)]) = [] := by
   decide
 
 /-- "This deals 2 damage to target creature and you gain that much life." -/
 theorem badSimultaneousReadsOutcome :
     Instruction.check []
-      (.simultaneously [.dealDamage .this (.lit 2) (target creature), gainsLife .you .thatMuch])
+      (.performSimultaneously [.dealDamage .this (.lit 2) (target creature), gainLife .thatMuch
+          (agent := .you)])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "You may create a token and put a +1/+1 counter on it." -/
 theorem badSimultaneousReadsMayDeed :
     Instruction.check []
-      (.simultaneously
-        [ may .you (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"])),
+      (.performSimultaneously
+        [ offer (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"])) (agent :=
+            .you),
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "You may have this deal 2 damage and you gain that much life." -/
 theorem badSimultaneousReadsMayOutcome :
     Instruction.check []
-      (.simultaneously
-        [may .you (.dealDamage .this (.lit 2) (target creature)), gainsLife .you .thatMuch])
+      (.performSimultaneously
+        [offer (.dealDamage .this (.lit 2) (target creature)) (agent := .you), gainLife .thatMuch
+            (agent := .you)])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Create a Plant token and a Soldier token. Put a +1/+1 counter on it." -/
 theorem badBatchTwoCreatesThenIt :
     Instruction.check []
-      (.sequentially
-        [ .simultaneously
+      (.sequence
+        [ .performSimultaneously
             [ create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
               create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]) ],
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 2] := by
@@ -180,25 +184,28 @@ theorem badBatchTwoCreatesThenIt :
 
 theorem badBatchTwoOutcomesThenThatMuch :
     Instruction.check []
-      (.sequentially
-        [ .simultaneously
-            [.dealDamage .this (.lit 2) (target creature), losesLife (target .opponent) (.lit 3)],
-          gainsLife .you .thatMuch ]) = [.quantOutcomeInScope 2] := by
+      (.sequence
+        [ .performSimultaneously
+            [.dealDamage .this (.lit 2) (target creature), loseLife (.lit 3) (agent := (target
+                .opponent))],
+          gainLife .thatMuch (agent := .you) ]) = [.quantOutcomeInScope 2] := by
   decide
 
 /-- "Create a 1/1 green Plant creature token. Put a +1/+1 counter on it." -/
 theorem okCreatedThenCountered :
     Instruction.check []
-      (.sequentially
-        [ .create .you (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+      (.sequence
+        [ .create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent
+            := .you),
           .putCounters (.lit 1) p11 it ]) = [] := by
   decide
 
 theorem badDistributedCreationIt :
     Instruction.check []
-      (.sequentially
-        [ .create (each .anyPlayer) (.lit 1)
-            (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+      (.sequence
+        [ .create (.lit 1)
+            (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := (each
+                .anyPlayer)),
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -229,7 +236,7 @@ theorem badBarePluralDamageRecipient :
 /-- "Choose any number of target creatures. Put a +1/+1 counter on them." -/
 theorem badThemCounterRecipient :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [choose (.described (.target anyNumber) creature), .putCounters (.lit 1) p11 them])
       = [.perMember] := by
   decide
@@ -237,14 +244,16 @@ theorem badThemCounterRecipient :
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
     Instruction.check []
-      (.enact none (.action "Exile")
-        (.move (target creature) exileZone [.withCounters (.lit 1) p11 .fresh])) = [] := by
+      (.enact (.action "Exile")
+        (.move (target creature) exileZone [.withCounters (.lit 1) p11 .fresh]) (agent := none)) =
+            [] := by
   decide
 
 /-- "Exile target creature tapped." -/
 theorem badExileTapped :
     Instruction.check []
-      (.enact none (.action "Exile") (.move (target creature) exileZone [.entersAs .tapped]))
+      (.enact (.action "Exile") (.move (target creature) exileZone [.entersAs .tapped]) (agent :=
+          none))
       = [.ridersFit] := by
   decide
 
@@ -272,13 +281,14 @@ theorem badSetBoostCounter :
 
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Instruction.check [] (.losesCounters (each .opponent) (some (.printed (.named "Poison"))) none)
+    Instruction.check [] (.loseCounters (some (.printed (.named "Poison"))) none (agent := (each
+        .opponent)))
       = [] := by
   decide
 
 /-- "Each opponent loses all +1/+1 counters." -/
 theorem badLosesAllBoostCounters :
-    Instruction.check [] (.losesCounters (each .opponent) (some p11) none)
+    Instruction.check [] (.loseCounters (some p11) none (agent := (each .opponent)))
       = [.counterSourceScope] := by
   decide
 
@@ -294,14 +304,14 @@ theorem badCountersHeldByPlayer :
 /-- "When the last +1/+1 counter is removed from this creature, draw a card." -/
 theorem okLastBoostCounterRemoved :
     Ability.check []
-      (when (lastCounterRemoved plusOnePlusOne thisCreature) (draw .you (.lit 1)))
+      (when (lastCounterRemoved plusOnePlusOne thisCreature) (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
 /-- "When the last poison counter is removed from this creature, draw a card." -/
 theorem badLastPoisonCounterRemoved :
     Ability.check []
-      (when (lastCounterRemoved (.named "Poison") thisCreature) (draw .you (.lit 1)))
+      (when (lastCounterRemoved (.named "Poison") thisCreature) (draw (.lit 1) (agent := .you)))
       = [.counterKindNamed .object] := by
   decide
 
@@ -320,14 +330,14 @@ theorem badGetsChargeCounter :
 /-- "… that many plus one +1/+1 counters are put on it instead" -/
 theorem okManyCounterBatchSize :
     StaticSpec.check []
-      (.intercepts
+      (.replacement
         (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none) = [] := by
   decide
 
 theorem badSingularCounterBatchSize :
     StaticSpec.check []
-      (.intercepts
+      (.replacement
         (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .one none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none)
       = [.quantOutcomeInScope 0] := by
@@ -367,7 +377,7 @@ theorem badCumulativeUpkeepCounter :
 /-- "your choice of a +1/+1 counter or a first strike counter on it." -/
 theorem okCounterMenu :
     StaticSpec.check []
-      (.entersRider thisCreature
+      (.entryRider thisCreature
         (.withCounters (.lit 1) (.chosen [plusOnePlusOne, .keyword "FirstStrike"]) .fresh))
       = [] := by
   decide
@@ -375,7 +385,7 @@ theorem okCounterMenu :
 /-- "This creature enters with your choice of a counter on it." -/
 theorem badEmptyCounterMenu :
     StaticSpec.check []
-      (.entersRider thisCreature (.withCounters (.lit 1) (.chosen []) .fresh)) = [.nonEmpty] := by
+      (.entryRider thisCreature (.withCounters (.lit 1) (.chosen []) .fresh)) = [.nonEmpty] := by
   decide
 
 /-- "Put your choice of a +1/+1 counter or a first strike counter on target creature." -/
@@ -427,66 +437,66 @@ theorem badThoseKindsUnannounced :
 /-- "If ... +1/+1 counters ... that many plus one are put instead." -/
 theorem okInterceptsCounterEvent :
     StaticSpec.check []
-      (.intercepts
+      (.replacement
         (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none) = [] := by
   decide
 
 theorem badTriggeringReplaced :
     StaticSpec.check []
-      (.intercepts
+      (.replacement
         (.triggers
           (a (.and
             [ .abilityHead .anyTriggered,
               .abilityOf (a (.and [permanent, .hasPossessor .controller .you])) ])))
-        [] none (draw .you (.lit 1)) .repeatedly none) = [.interceptable] := by
+        [] none (draw (.lit 1) (agent := .you)) .repeatedly none) = [.interceptable] := by
   decide
 
 /-- "Target creature becomes an artifact in addition to its other types." -/
 theorem okBecomesArtifact :
     Instruction.check []
-      (becomes (target creature) { characteristics := { types := [.artifact] } } none) = [] := by
+      (become (target creature) { characteristics := { types := [.artifact] } } none) = [] := by
   decide
 
 /-- "Target land becomes a Zombie in addition to its other types." -/
 theorem badBecomesZombieLand :
     Instruction.check []
-      (becomes (target land) { characteristics := { subtypes := [creatureType "Zombie"] } } none)
+      (become (target land) { characteristics := { subtypes := [creatureType "Zombie"] } } none)
       = [.becomesOk] := by
   decide
 
 /-- "Target creature becomes in addition to its other types." -/
 theorem badBecomesNothing :
-    Instruction.check [] (becomes (target creature) { characteristics := {} } none)
+    Instruction.check [] (become (target creature) { characteristics := {} } none)
       = [.becomesOk] := by
   decide
 
 /-- "Target creature becomes a creature in addition to its other types." -/
 theorem badBecomesOwnType :
     Instruction.check []
-      (becomes (target creature) { characteristics := { types := [.creature] } } none)
+      (become (target creature) { characteristics := { types := [.creature] } } none)
       = [.becomesOk] := by
   decide
 
 /-- The Idris pin refutes the anaphor; the unresolved `it` has no zone either. -/
 theorem badOtherwiseReadsIfArm :
     Instruction.check []
-      (.onlyIf (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
+      (.doOnlyIf (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (exists_ creatureYouControl) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "Create a 1/1 black Zombie creature token. Create two of those tokens." -/
 theorem okAnaphoricTokenAfterToken :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
-          .create .you (.lit 2) .asThose [] ]) = [] := by
+          .create (.lit 2) .asThose [] (agent := .you) ]) = [] := by
   decide
 
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
     Instruction.check []
-      (.sequentially [destroy (target creature), .create .you (.lit 2) .asThose []])
+      (.sequence [destroy (target creature), .create (.lit 2) .asThose [] (agent := .you)])
       = [.tokenSpecInScope 0] := by
   decide
 
@@ -528,7 +538,7 @@ one of each of those kinds are put on that permanent instead." The replaced even
 agent. -/
 theorem okAgentlessCounterReplacement :
     StaticSpec.check []
-      (.intercepts (.counterEvent .put none teamPermanent .many none false) [] none
+      (.replacement (.counterEvent .put none teamPermanent .many none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) .those (that .permanent)) .repeatedly none)
       = [] := by
   decide
@@ -551,7 +561,7 @@ theorem okOtherThanExiledByThisAbility :
     Ability.check []
       (activated
         (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .inZone (handOf .you)])))])
-        (.sequentially
+        (.sequence
           [ .putCounters (.lit 4) (.printed (.named "Time"))
               (theVerbed (.action "Exile") .card .attributive .one),
             .removeCounters (some (exactly 1)) (some (.printed (.named "Time")))

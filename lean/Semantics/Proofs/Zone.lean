@@ -43,7 +43,7 @@ theorem badPermanentInstant :
 
 theorem badThatPermanentDeparted :
     Instruction.check []
-      (.sequentially [destroy (target permanent), .setStatus .tapped (that .permanent)])
+      (.sequence [destroy (target permanent), .setStatus .tapped (that .permanent)])
       = [.zoneIs .battlefield] := by
   decide
 
@@ -64,7 +64,7 @@ theorem badCardTokenTarget :
 /-- "Tap target creature. Untap that token." -/
 theorem badThatTokenOfCard :
     Instruction.check []
-      (.sequentially [.setStatus .tapped (target creature), .setStatus .untapped (that .token)])
+      (.sequence [.setStatus .tapped (target creature), .setStatus .untapped (that .token)])
       = [.anaphor (.word .token) .one 0, .zoneIs .battlefield] := by
   decide
 
@@ -74,8 +74,8 @@ only what it introduced itself, so the enclosing stack survives and the exiled c
 after the loop as a plural. -/
 theorem okLoopMovesItsOwn :
     Instruction.check []
-      (.sequentially
-        [ .forEachOf (each .opponent)
+      (.sequence
+        [ .doForEach (each .opponent)
             (exile (a (.and [creature, .hasPossessor .controller (that .player)]))),
           putOntoBattlefield them ]) = [] := by
   decide
@@ -87,7 +87,7 @@ mutated stack and the loop would republish the creature's stale battlefield zone
 `untap`'s battlefield gate ([CR#701.26b], `badUnloopedZoneMoveRead`). -/
 theorem badLoopedZoneMoveRead :
     Instruction.check []
-      (.sequentially [tap (target creature), .forEachOf (each .opponent) (exile it), untap it])
+      (.sequence [tap (target creature), .doForEach (each .opponent) (exile it), untap it])
       = [.keepsOuter] := by
   decide
 
@@ -95,14 +95,14 @@ theorem badLoopedZoneMoveRead :
 puts the creature in the exile zone, where it is a new object and no longer a permanent, so
 untapping it is refused [CR#400.7,701.26b]. -/
 theorem badUnloopedZoneMoveRead :
-    Instruction.check [] (.sequentially [tap (target creature), exile it, untap it])
+    Instruction.check [] (.sequence [tap (target creature), exile it, untap it])
       = [.zoneIs .battlefield] := by
   decide
 
 /-- "For each color among permanents on the battlefield, draw a card." -/
 theorem okKindLoopKeepsOuter :
     Instruction.check []
-      (.forEachKindOf .color (some (allOf permanent)) .color (draw .you (.lit 1)))
+      (.doForEachKind .color (some (allOf permanent)) .color (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
@@ -112,9 +112,9 @@ that moves an object bound outside the loop is refused at the same obligation
 [CR#400.7,701.26b]. -/
 theorem badKindLoopZoneMoveRead :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ tap (target creature),
-          .forEachKindOf .color (some (allOf permanent)) .color (exile it), untap it ])
+          .doForEachKind .color (some (allOf permanent)) .color (exile it), untap it ])
       = [.keepsOuter] := by
   decide
 
@@ -124,8 +124,9 @@ introduced, so the enclosing stack survives and the exiled cards read back after
 a plural. -/
 theorem okDistributedMovesItsOwn :
     Instruction.check []
-      (.sequentially
-        [ exiles (each .opponent) (a (.and [creature, .hasPossessor .controller (that .player)])),
+      (.sequence
+        [ exile (a (.and [creature, .hasPossessor .controller (that .player)])) (agent := some (each
+            .opponent)),
           putOntoBattlefield them ]) = [] := by
   decide
 
@@ -136,20 +137,20 @@ distribution obligation; the singular spelling of the same sentence is refused o
 later, at `untap`'s battlefield gate ([CR#400.7,701.26b], `badUnloopedZoneMoveRead`). -/
 theorem badDistributedZoneMoveRead :
     Instruction.check []
-      (.sequentially [tap (target creature), exiles (each .opponent) it, untap it])
+      (.sequence [tap (target creature), exile it (agent := some (each .opponent)), untap it])
       = [.enactKeepsOuter] := by
   decide
 
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Instruction.check []
-      (.delayed (.dies (target creature)) [] (some .thisTurn) (.move (that .card) battlefield []))
+      (.delay (.dies (target creature)) [] (some .thisTurn) (.move (that .card) battlefield []))
       = [] := by
   decide
 
 theorem badDiesInGraveyard :
     Instruction.check []
-      (.delayed (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) [] (some .thisTurn)
+      (.delay (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) [] (some .thisTurn)
         (.move (that .card) battlefield [])) = [.zoneIs .battlefield] := by
   decide
 
@@ -172,18 +173,18 @@ theorem badNegatedPlayerHead : Predicate.check .player [] (.not .anyPlayer) = [.
 /-- "Tap target creature an opponent controls. That player loses 1 life." -/
 theorem okPositiveAntecedent :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-          losesLife (that .player) (.lit 1) ]) = [] := by
+          loseLife (.lit 1) (agent := (that .player)) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent doesn't control. That player loses 1 life." -/
 theorem badNegatedAntecedent :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ .setStatus .tapped
             (target (.and [creature, .not (.hasPossessor .controller anOpponent)])),
-          losesLife (that .player) (.lit 1) ]) = [.anaphor (.word .player) .one 0] := by
+          loseLife (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Destroy target creature on the battlefield." -/
@@ -215,11 +216,12 @@ theorem badDestroyGraveyard :
   decide
 
 /-- "You discard a card." -/
-theorem okDiscardHand : Instruction.check [] (discard .you (a (.inZone hand))) = [] := by decide
+theorem okDiscardHand : Instruction.check [] (discard (a (.inZone hand)) (agent := .you)) = [] := by
+    decide
 
 /-- "You discard a creature." -/
 theorem badDiscardBattlefield :
-    Instruction.check [] (discard .you (a creature)) = [.zoneFits] := by decide
+    Instruction.check [] (discard (a creature) (agent := .you)) = [.zoneFits] := by decide
 
 /-- "Destroy target creature card in a graveyard." -/
 theorem badDestroyGraveyardCard :
@@ -228,20 +230,22 @@ theorem badDestroyGraveyardCard :
 
 /-- "Destroy a creature." -/
 theorem okKnownKeywordAction :
-    Instruction.check [] (.enact none (.action "Destroy") (.move (a creature) graveyard []))
+    Instruction.check [] (.enact (.action "Destroy") (.move (a creature) graveyard []) (agent :=
+        none))
       = [] := by
   decide
 
 /-- A keyword action the registry does not declare -/
 theorem badUnknownKeywordAction :
-    Instruction.check [] (.enact none (.action "Descry") (.move (a creature) graveyard []))
+    Instruction.check [] (.enact (.action "Descry") (.move (a creature) graveyard []) (agent :=
+        none))
       = [.knownAct (.action "Descry")] := by
   decide
 
 /-- "You exile a card from your hand." -/
 theorem okAgentedKnownAct :
     Instruction.check []
-      (.enact (some .you) (.action "Exile") (.move (a (.inZone hand)) exileZone []))
+      (.enact (.action "Exile") (.move (a (.inZone hand)) exileZone []) (agent := (some .you)))
       = [] := by
   decide
 
@@ -249,7 +253,7 @@ theorem okAgentedKnownAct :
 four lands", Burning of Xinye), so its facts row's agent role names a player. -/
 theorem okAgentedDestroy :
     Instruction.check []
-      (.enact (some .you) (.action "Destroy") (.move (target creature) graveyard []))
+      (.enact (.action "Destroy") (.move (target creature) graveyard []) (agent := (some .you)))
       = [] := by
   decide
 
@@ -258,7 +262,7 @@ theorem okAgentedDestroy :
 is refused; the printed sentence names the fighting creatures, `Instruction.fights`. -/
 theorem badAgentedAgentlessAct :
     Instruction.check []
-      (.enact (some .you) (.action "Fight") (.fights (target creature) (target creature)))
+      (.enact (.action "Fight") (.fight (target creature) (target creature)) (agent := (some .you)))
       = [.enactAgentOk] := by
   decide
 
@@ -299,11 +303,11 @@ theorem badAttackingInHand :
 
 /-- "Discard a card." -/
 theorem okDiscardACardFromHand :
-    Instruction.check [] (discard .you (a (.inZone hand))) = [] := by decide
+    Instruction.check [] (discard (a (.inZone hand)) (agent := .you)) = [] := by decide
 
 /-- "Discard this creature." -/
 theorem badDiscardThisCreature :
-    Instruction.check [] (discard .you thisCreature) = [.zoneFits] := by decide
+    Instruction.check [] (discard thisCreature (agent := .you)) = [.zoneFits] := by decide
 
 /-- "another creature" -/
 theorem okOtherAnchored :
@@ -322,12 +326,12 @@ theorem badDoubleOther :
 /-- "You discard a card." -/
 theorem okDiscardHandCard :
     Instruction.check [⟨.a, .one, .object none none none none none⟩]
-      (discard .you (a (.inZone hand))) = [] := by
+      (discard (a (.inZone hand)) (agent := .you)) = [] := by
   decide
 
 /-- "You discard it." -/
 theorem badDiscardIt :
-    Instruction.check [⟨.a, .one, .object none none none none none⟩] (discard .you it)
+    Instruction.check [⟨.a, .one, .object none none none none none⟩] (discard it (agent := .you))
       = [.zoneFits] := by
   decide
 
@@ -367,46 +371,49 @@ theorem badSpellOrPermanentSubject :
 /-- "Destroy target creature if it's on the battlefield." -/
 theorem okMatchesZoneFits :
     Instruction.check []
-      (.onlyIf (destroy (target creature)) (.matches it (.inZone battlefield)) none) = [] := by
+      (.doOnlyIf (destroy (target creature)) (.matches it (.inZone battlefield)) none) = [] := by
   decide
 
 /-- "Destroy target creature if it's in a graveyard." -/
 theorem badTrailingPostStateZone :
     Instruction.check []
-      (.onlyIf (destroy (target creature)) (.matches it (.inZone graveyard)) none)
+      (.doOnlyIf (destroy (target creature)) (.matches it (.inZone graveyard)) none)
         = [.zoneFits] := by
   decide
 
 /-- "Choose a card in your hand. You discard that card." -/
 theorem okChosenCardRemention :
-    Instruction.check [] (.sequentially [choose (a (.inZone hand)), discard .you (that .card)])
+    Instruction.check [] (.sequence [choose (a (.inZone hand)), discard (that .card) (agent :=
+        .you)])
       = [] := by
   decide
 
 /-- "Draw a card. Exile that card." -/
 theorem badDrawnCardRemention :
-    Instruction.check [] (.sequentially [draw .you (.lit 1), exile (that .card)])
+    Instruction.check [] (.sequence [draw (.lit 1) (agent := .you), exile (that .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide
 
 /-- "Draw a card and you gain 1 life." -/
 theorem okNonEmptyBatch :
-    Instruction.check [] (.simultaneously [draw .you (.lit 1), gainsLife .you (.lit 1)]) = [] := by
+    Instruction.check [] (.performSimultaneously [draw (.lit 1) (agent := .you), gainLife (.lit 1)
+        (agent := .you)]) = [] := by
   decide
 
 /-- an empty batch -/
-theorem badEmptySimultaneous : Instruction.check [] (.simultaneously []) = [.nonEmpty] := by decide
+theorem badEmptySimultaneous : Instruction.check [] (.performSimultaneously []) = [.nonEmpty] := by
+    decide
 
 /-- "Exile target creature and destroy that card." -/
 theorem badSimultaneousReadsRetag :
-    Instruction.check [] (.simultaneously [exile (target creature), destroy (that .card)])
+    Instruction.check [] (.performSimultaneously [exile (target creature), destroy (that .card)])
       = [.zoneFits] := by
   decide
 
 /-- "Deal 2 damage to target creature. Then tap it." -/
 theorem okTapAfterSimultaneousDamage :
     Instruction.check []
-      (.sequentially [.simultaneously [.dealDamage .this (.lit 2) (target creature)], tap it])
+      (.sequence [.performSimultaneously [.dealDamage .this (.lit 2) (target creature)], tap it])
       = [] := by
   decide
 
@@ -414,48 +421,49 @@ theorem okTapAfterSimultaneousDamage :
 exile zone [CR#701.13a] and only untapped permanents can be tapped [CR#701.26a];
 `okTapAfterSimultaneousDamage` spells the admitted read. -/
 theorem badTapAfterSimultaneousExile :
-    Instruction.check [] (.sequentially [.simultaneously [exile (target creature)], tap it])
+    Instruction.check [] (.sequence [.performSimultaneously [exile (target creature)], tap it])
       = [.zoneIs .battlefield] := by
   decide
 
 /-- The same sentence with the exile as its own clause. -/
 theorem badTapAfterSequentialExile :
-    Instruction.check [] (.sequentially [exile (target creature), tap it])
+    Instruction.check [] (.sequence [exile (target creature), tap it])
       = [.zoneIs .battlefield] := by
   decide
 
 /-- "Gain control of target creature." -/
 theorem okGainControlBattlefield :
-    Instruction.check [] (gainControl .you (target creature) none) = [] := by decide
+    Instruction.check [] (gainControl (target creature) none (agent := .you)) = [] := by decide
 
 /-- "Gain control of target creature card in a graveyard." -/
 theorem badGainControlGraveyard :
-    Instruction.check [] (gainControl .you (target (.and [creature, .inZone graveyard])) none)
+    Instruction.check [] (gainControl (target (.and [creature, .inZone graveyard])) none (agent :=
+        .you))
       = [.zoneIs .battlefield] := by
   decide
 
 /-- "Reveal the top four cards. Put them on the bottom in any order." -/
 theorem okPluralOrderRider :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [revealCards (topSlice (.lit 4)), .move (those .card) (onBottomIn .anyOrder) []]) = [] := by
   decide
 
 theorem badSingularOrderRider :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 1)), .move (that .card) (onBottomIn .anyOrder) []])
+      (.sequence [lookAt (topSlice (.lit 1)), .move (that .card) (onBottomIn .anyOrder) []])
       = [.arrangementOk] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/
 theorem okSliceCardRead :
-    Instruction.check [] (.sequentially [lookAt (topSlice (.lit 4)), .move (those .card) hand []])
+    Instruction.check [] (.sequence [lookAt (topSlice (.lit 4)), .move (those .card) hand []])
       = [] := by
   decide
 
 theorem badSliceTypeRead :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 4)), .move (those (.type .creature)) hand []])
+      (.sequence [lookAt (topSlice (.lit 4)), .move (those (.type .creature)) hand []])
       = [.anaphor (.word (.type .creature)) .many 0] := by
   decide
 
@@ -466,7 +474,7 @@ theorem okSearchZoneFreeDescription :
 /-- "If you would search your library for a creature card, instead search your library for a
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
-    Instruction.check [] (.insteadOf (searchLibraryFor (exactly 1) creature) revealsIt) = [] := by
+    Instruction.check [] (.replace (searchLibraryFor (exactly 1) creature) revealIt) = [] := by
   decide
 
 /-- "Search your library for a creature card in a graveyard." -/
@@ -478,7 +486,7 @@ theorem badSearchZonedDescription :
 /-- "Each player mills a card. Exile it." -/
 theorem badDistributedMillSingular :
     Instruction.check []
-      (.sequentially [mills (each .anyPlayer) (.lit 1) (each .anyPlayer), exile it])
+      (.sequence [mill (.lit 1) (each .anyPlayer) (agent := (each .anyPlayer)), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -498,13 +506,13 @@ theorem badPartitiveOfDescription :
 /-- "Look at the top four cards of your library. Exile one of them." -/
 theorem okPartitiveOfThem :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 4)), exile (someOf (exactly 1) them)]) = [] := by
+      (.sequence [lookAt (topSlice (.lit 4)), exile (someOf (exactly 1) them)]) = [] := by
   decide
 
 /-- "two of one of them" -/
 theorem badPartitiveOfPartitive :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [lookAt (topSlice (.lit 4)), exile (someOf (exactly 1) (someOf (exactly 1) them))])
       = [.partitiveBase] := by
   decide
@@ -512,7 +520,7 @@ theorem badPartitiveOfPartitive :
 /-- "each of the rest" -/
 theorem badEachOfTheRest :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) hand [],
           exile (.eachOf (theRest .object)) ]) = [.groupMention] := by
   decide
@@ -520,19 +528,19 @@ theorem badEachOfTheRest :
 /-- "If a creature you control would die this turn, exile it instead." -/
 theorem okWouldDieOnBattlefield :
     Instruction.check []
-      (ifWouldInstead (.dies (target creatureYouControl)) (exile it) (some .thisTurn)) = [] := by
+      (replaceEvent (.dies (target creatureYouControl)) (exile it) (some .thisTurn)) = [] := by
   decide
 
 theorem badWouldDieInGraveyard :
     Instruction.check []
-      (ifWouldInstead (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) (exile it)
+      (replaceEvent (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) (exile it)
         (some .thisTurn)) = [.zoneIs .battlefield] := by
   decide
 
 /-- "Reveal the top card of your library. Put that card into your hand." -/
 theorem okSingularCardRetag :
     Instruction.check []
-      (.sequentially [revealCards (topSlice (.lit 1)), .move (that .card) hand []]) = [] := by
+      (.sequence [revealCards (topSlice (.lit 1)), .move (that .card) hand []]) = [] := by
   decide
 
 /-- "Exile target creature until this creature leaves the battlefield. Put that card into
@@ -540,7 +548,7 @@ its owner's hand." The held clause announces the exiled object where it now is
 [CR#701.13a], so the card read resolves. -/
 theorem okHeldUntilExileRetag :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ exileUntil (target creature) (leavesBattlefield thisCreature),
           .move (that .card) hand [] ]) = [] := by
   decide
@@ -641,25 +649,26 @@ theorem badUntapCapGraveyardSet :
 theorem okMatchesBattlefieldZone :
     Ability.check []
       (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
-        (some (.matches thisCreature attacking)) (draw .you (.lit 1))) = [] := by
+        (some (.matches thisCreature attacking)) (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 theorem badExileCheckOnSortedSelf :
     Ability.check []
       (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
-        (some (.matches thisCreature (.inZone exileZone))) (draw .you (.lit 1))) = [.zoneFits] := by
+        (some (.matches thisCreature (.inZone exileZone))) (draw (.lit 1) (agent := .you))) =
+            [.zoneFits] := by
   decide
 
 /-- "Draw cards equal to the difference." under a comparison -/
 theorem okDifferenceAfterComparison :
     Instruction.check []
-      (.if_ (.compareAmt (countOf (.inZone (handOf .you))) .less (.lit 7))
-        (draw .you .theDifference) none) = [] := by
+      (.doIf (.compareAmt (countOf (.inZone (handOf .you))) .less (.lit 7))
+        (draw .theDifference (agent := .you)) none) = [] := by
   decide
 
 /-- "Draw cards equal to the difference." -/
 theorem badUnlicensedDifference :
-    Instruction.check [] (draw .you .theDifference) = [.gapInScope 0] := by decide
+    Instruction.check [] (draw .theDifference (agent := .you)) = [.gapInScope 0] := by decide
 
 /-- "When this creature enters, if you control fewer than seven creatures, draw cards equal
 to the difference." -/
@@ -667,24 +676,25 @@ theorem okDifferenceUnderComparisonTrigger :
     Ability.check []
       (.triggered (.enters thisCreature none) [] none [] none none
         (some (.compareAmt (countOf creatureYouControl) .less (.lit 7)))
-        (draw .you .theDifference)) = [] := by
+        (draw .theDifference (agent := .you))) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check []
       (.triggered (.enters thisCreature none) [] none [] none none
-        (some (exists_ creatureYouControl)) (draw .you .theDifference)) = [.gapInScope 0] := by
+        (some (exists_ creatureYouControl)) (draw .theDifference (agent := .you))) = [.gapInScope 0]
+            := by
   decide
 
 /-- "Goad target creature." -/
 theorem okGoadOnBattlefield :
-    Instruction.check [] (.gainsDesignation (target creature) "goaded" .instructed none) = [] := by
+    Instruction.check [] (.gainDesignation (target creature) "goaded" .instructed none) = [] := by
   decide
 
 /-- "goad target creature card in your graveyard" -/
 theorem badGoadInGraveyard :
     Instruction.check []
-      (.gainsDesignation (target (.and [creature, .inZone (graveyardOf .you)])) "goaded" .instructed
+      (.gainDesignation (target (.and [creature, .inZone (graveyardOf .you)])) "goaded" .instructed
         none) = [.designationHolder "goaded" .object] := by
   decide
 
@@ -702,16 +712,17 @@ theorem badCreatureAttackDefender :
 /-- "Look at the top four cards of your library. An opponent chooses one of them." -/
 theorem okAgentChoosesSomeOf :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ lookAt (topSlice (.lit 4)),
-          .choose none (some (a .opponent)) (someOf (exactly 1) them) .openly none ]) = [] := by
+          .choose none (someOf (exactly 1) them) .openly none (agent := (some (a .opponent))) ]) =
+              [] := by
   decide
 
 theorem badAgentChooseTheRest :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) hand [],
-          .choose none (some (a .opponent)) (theRest .object) .openly none ])
+          .choose none (theRest .object) .openly none (agent := (some (a .opponent))) ])
             = [.choiceClause] := by
   decide
 
@@ -750,7 +761,7 @@ theorem badLookAtHandRider :
 corresponds to none of its card types [CR#205.3d]. -/
 theorem badEveryCreatureTypeOnLand :
     StaticSpec.check []
-      (.becomes (allOf (.and [land, .hasPossessor .controller .you])) .adds
+      (.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .adds
         (.everyTypeOf .creature)) = [.becomesOk] := by
   decide
 
@@ -758,7 +769,7 @@ theorem badEveryCreatureTypeOnLand :
 corresponds to none of its card types [CR#205.3d]. -/
 theorem badEveryBasicLandTypeOnCreature :
     StaticSpec.check []
-      (.becomes (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+      (.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
         (.everyTypeOf .basicLand)) = [.becomesOk] := by
   decide
 
@@ -789,60 +800,67 @@ theorem badRegeneratedInGraveyard :
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem distributedDeedReadsBackPluralUnderAnnouncement :
     Instruction.check []
-      (.simultaneously [discard (each .opponent) (a (.inZone hand)), exile (those .card)])
+      (.performSimultaneously [discard (a (.inZone hand)) (agent := (each .opponent)), exile (those
+          .card)])
         = [] := by
   decide
 
 /-- "Discard a card. Simultaneously, exile that card." -/
 theorem okThatAfterSingularDiscard :
-    Instruction.check [] (.simultaneously [discard .you (a (.inZone hand)), exile (that .card)])
+    Instruction.check [] (.performSimultaneously [discard (a (.inZone hand)) (agent := .you), exile
+        (that .card)])
       = [] := by
   decide
 
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/
 theorem badDistributedAnnouncedDiscardSingular :
     Instruction.check []
-      (.simultaneously [discard (each .opponent) (a (.inZone hand)), exile (that .card)])
+      (.performSimultaneously [discard (a (.inZone hand)) (agent := (each .opponent)), exile (that
+          .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide
 
 /-- "Draw a card. You gain 1 life." -/
 theorem okNonEmptySequence :
-    Instruction.check [] (.sequentially [draw .you (.lit 1), gainsLife .you (.lit 1)]) = [] := by
+    Instruction.check [] (.sequence [draw (.lit 1) (agent := .you), gainLife (.lit 1) (agent :=
+        .you)]) = [] := by
   decide
 
 /-- an empty sentence list -/
-theorem badEmptySequence : Instruction.check [] (.sequentially []) = [.nonEmpty] := by decide
+theorem badEmptySequence : Instruction.check [] (.sequence []) = [.nonEmpty] := by decide
 
 /-- "Reveal your hand." -/
-theorem okRevealHand : Instruction.check [] (.expose .reveal .you (.zone hand)) = [] := by decide
+theorem okRevealHand : Instruction.check [] (.expose .reveal (.zone hand) (agent := .you)) = [] :=
+    by decide
 
 /-- "Reveal your graveyard." -/
 theorem badRevealGraveyard :
-    Instruction.check [] (.expose .reveal .you (.zone graveyard))
+    Instruction.check [] (.expose .reveal (.zone graveyard) (agent := .you))
       = [.exposableZone .graveyard] := by
   decide
 
 /-- "Sacrifice a creature." -/
 theorem okSacrificeBattlefieldNoun :
-    Instruction.check [] (sacrifice .you (a creature)) = [] := by decide
+    Instruction.check [] (sacrifice (a creature) (agent := .you)) = [] := by decide
 
 theorem badInterceptReplacementAntecedent :
     Instruction.check []
-      (.sequentially
-        [ nextTimeWouldInstead (.draws .you)
+      (.sequence
+        [ replaceNextEvent (.draws .you)
             (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Soldier"]))
             (some .thisTurn),
-          sacrifice .you it ]) = [.anaphor .bare .one 0, .zoneFits] := by
+          sacrifice it (agent := .you) ]) = [.anaphor .bare .one 0, .zoneFits] := by
   decide
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okFlatInstead :
-    Instruction.check [] (.insteadOf (draw .you (.lit 1)) (draw .you (.lit 2))) = [] := by decide
+    Instruction.check [] (.replace (draw (.lit 1) (agent := .you)) (draw (.lit 2) (agent := .you)))
+        = [] := by decide
 
 theorem badNestedInstead :
     Instruction.check []
-      (.insteadOf (.insteadOf (draw .you (.lit 1)) (draw .you (.lit 2))) (draw .you (.lit 3)))
+      (.replace (.replace (draw (.lit 1) (agent := .you)) (draw (.lit 2) (agent := .you))) (draw
+          (.lit 3) (agent := .you)))
       = [.notInstead] := by
   decide
 

@@ -14,13 +14,13 @@ namespace Semantics.Proofs.Trigger
 
 /-- "Whenever you cast a spell, draw a card." -/
 theorem okCastsSingularComplement :
-    Ability.check [] (whenever (.casts .you (a spell) none) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.casts .you (a spell) none) (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check [] (whenever (.casts .you (allOf spell) none) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.casts .you (allOf spell) none) (draw (.lit 1) (agent := .you)))
       = [.singular] := by
   decide
 
@@ -29,24 +29,24 @@ theorem okWhileDoingCast :
     Ability.check []
       (.triggered (attacks thisCreature) []
         (some (.whileDoing (.casts .you (a spell) none))) [] none none none
-        (draw .you (.lit 1))) = [] := by
+        (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Whenever this creature attacks while a creature is dying, draw a card." -/
 theorem badWhileDoingMoment :
     Ability.check []
       (.triggered (attacks thisCreature) [] (some (.whileDoing (.dies (a creature))))
-        [] none none none (draw .you (.lit 1))) = [.eventUnderway] := by
+        [] none none none (draw (.lit 1) (agent := .you))) = [.eventUnderway] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check [] (whenever (.dies (a creature)) (draw .you (.lit 1))) = [] := by
+    Ability.check [] (whenever (.dies (a creature)) (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Whenever target creature dies, draw a card." -/
 theorem badTargetedDeathHeader :
-    Ability.check [] (whenever (.dies (target creature)) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.dies (target creature)) (draw (.lit 1) (agent := .you)))
       = [.headerNontarget] := by
   decide
 
@@ -54,7 +54,7 @@ theorem badTargetedDeathHeader :
 theorem okThatCreatureAfterAttack :
     Ability.check []
       (whenever (attacks (a creature))
-        (gets (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
+        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [] := by
   decide
 
@@ -62,20 +62,20 @@ theorem okThatCreatureAfterAttack :
 theorem badThatCreatureIsSelf :
     Ability.check []
       (whenever (attacks thisCreature)
-        (gets (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
+        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "the last Intervention counter is removed from this enchantment by you" -/
 theorem okAnnouncingRemovalAgent :
     GameEvent.check []
-      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .last (some .you)
+      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .emptying (some .you)
         false) = [] := by
   decide
 
 theorem badAnnouncingRemovalAgent :
     GameEvent.check []
-      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .last
+      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .emptying
         (some (target .anyPlayer)) false) = [.eventAgent] := by
   decide
 
@@ -103,14 +103,15 @@ theorem badGraveyardAttacker :
 theorem okHeaderOwnTurnWindow :
     Ability.check []
       (.triggered (.enters (a creature) none) [] none []
-        (some (.duringPart .turn (some .you))) none none (draw .you (.lit 1))) = [] := by
+        (some (.duringPart .turn (some .you))) none none (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Whenever a creature enters during the turn, draw a card." -/
 theorem badHeaderBareTurnWindow :
     Ability.check []
       (.triggered (.enters (a creature) none) [] none []
-        (some (.duringPart .turn none)) none none (draw .you (.lit 1))) = [.windowOk] := by
+        (some (.duringPart .turn none)) none none (draw (.lit 1) (agent := .you))) = [.windowOk] :=
+            by
   decide
 
 /-- "If one or more tokens would be created under your control, …" -/
@@ -129,21 +130,22 @@ theorem badNonTokenCreationSubject :
 theorem okTriggerLimitOffChapter :
     Ability.check []
       (.triggered (.draws .you) [] none [] none (some .oncePerTurn) none
-        (draw .you (.lit 1))) = [] := by
+        (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "I — Draw a card. This ability triggers only once each turn." -/
 theorem badChapterLimit :
     Ability.check []
       (.triggered (.chapterMark [1]) [] none [] none (some .oncePerTurn) none
-        (draw .you (.lit 1))) = [.chapterDefaults] := by
+        (draw (.lit 1) (agent := .you))) = [.chapterDefaults] := by
   decide
 
 /-- "I — , if you control a creature, draw a card." -/
 theorem badChapterIntervening :
     Ability.check []
       (.triggered (.chapterMark [1]) [] none [] none none
-        (some (exists_ (.and [creature, .hasPossessor .controller .you]))) (draw .you (.lit 1)))
+        (some (exists_ (.and [creature, .hasPossessor .controller .you]))) (draw (.lit 1) (agent :=
+            .you)))
       = [.chapterDefaults] := by
   decide
 
@@ -190,7 +192,8 @@ theorem okManyCountersOnPlacement :
 
 /-- "when the last time counter is put on this enchantment" -/
 theorem badLastCounterOnPlacement :
-    GameEvent.check [] (.counterEvent .put (some (.named "Time")) thisEnchantment .last none false)
+    GameEvent.check [] (.counterEvent .put (some (.named "Time")) thisEnchantment .emptying none
+        false)
       = [.counterBatchOk] := by
   decide
 
@@ -230,14 +233,14 @@ theorem badPlayerTargetingEvent :
 /-- "If an ability ... triggers, it triggers an additional time." -/
 theorem okMultipliedTrigger :
     StaticSpec.check []
-      (.triggersAdditionally
+      (.additionalTriggers
         (.triggers (a (.and [.abilityHead .anyTriggered, .abilityOf (a creatureYouControl)])))
         (exactly 1)) = [] := by
   decide
 
 /-- "If a creature you control dies, that ability triggers an additional time." -/
 theorem badMultipliedNonTrigger :
-    StaticSpec.check [] (.triggersAdditionally (.dies (a creatureYouControl)) (exactly 1))
+    StaticSpec.check [] (.additionalTriggers (.dies (a creatureYouControl)) (exactly 1))
       = [.triggerCountOk] := by
   decide
 
@@ -260,7 +263,7 @@ theorem badExchangePluralParty :
 
 /-- "Whenever an opponent commits a crime, draw a card." -/
 theorem okCrimeBySinglePlayer :
-    Ability.check [] (whenever (.commitsCrime anOpponent) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.commitsCrime anOpponent) (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
@@ -269,15 +272,15 @@ an opponent controls, or a card in an opponent's graveyard [CR#700.13]; the whol
 no opponent, so such a crime has no opponent-owned object. One player at a time commits one
 (`okCrimeBySinglePlayer`). -/
 theorem badCrimeByAllPlayers :
-    Ability.check [] (whenever (.commitsCrime (allOf .anyPlayer)) (draw .you (.lit 1)))
+    Ability.check [] (whenever (.commitsCrime (allOf .anyPlayer)) (draw (.lit 1) (agent := .you)))
       = [.singular] := by
   decide
 
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
 def rollShiftBody : Instruction :=
-  .may .you (.removeCounters (some (exactly 1)) (some (.printed plusOnePlusOne)) thisCreature)
-    (some (shiftResult (.lit 1))) none
+  .offer (.removeCounters (some (exactly 1)) (some (.printed plusOnePlusOne)) thisCreature)
+    (some (shiftResult (.lit 1))) none (agent := .you)
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
 increase or decrease the result by 1." (Xenosquirrels) -/
@@ -295,7 +298,7 @@ theorem badShiftWithoutRoll :
 
 /-- "0 — Draw a card.": chapter symbols start at I, which represents 1 [CR#714.2a]. -/
 theorem badChapterZero :
-    Ability.check [] (when (.chapterMark [0]) (draw .you (.lit 1)))
+    Ability.check [] (when (.chapterMark [0]) (draw (.lit 1) (agent := .you)))
       = [.chapterMarks] := by
   decide
 

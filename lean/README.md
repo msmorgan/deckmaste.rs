@@ -26,6 +26,14 @@ distinction its expansion would not carry. Common phrasings live in `Macros`:
 for example, "permanent", "colorless", "historic", "spell", "attacking", and
 "regenerates" expand into shared predicates and events.
 
+Instructions and their macros use dictionary forms (`exile`, `mill`, `gainLife`);
+static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
+Event constructors retain their predication forms. An explicit instruction agent
+is a trailing named argument. `exile thisPermanent` omits the agent;
+`exile thisPermanent (agent := NounPhrase.you)` supplies one. Omission preserves
+`none` for optional agent slots; required player slots default to `.you`.
+`choose` also accepts `(disclosure := .secretly)`.
+
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a
 `ProjAxis`; arithmetic takes an `ArithOp`; `Predicate.or` joins alternatives
 with their own kinds. Designations are open labels whose declared scope and
@@ -95,7 +103,7 @@ proves the exact expected list. For example, `Proofs/Anaphora.lean` contains:
 
 ```lean
 theorem badChooseYou :
-    Instruction.check [] (.choose none none .you .openly none) = [.choiceClause] := by decide
+    Instruction.check [] (.choose none .you .openly none) = [.choiceClause] := by decide
 ```
 
 `okX` / `badX` names and card sentences are retained when a term is re-spelled.

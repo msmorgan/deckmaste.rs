@@ -47,15 +47,15 @@ theorem okPrintedNegativePower :
 /-- "You gain X life": you can't gain negative life, so a calculation below zero reads as
 zero [CR#107.1b]. -/
 theorem okGainsLifeClamped :
-    (gainsLife .you (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (gainLife (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "You lose X life" [CR#107.1b]. -/
 theorem okLosesLifeClamped :
-    (losesLife .you (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (loseLife (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "Draw X cards": a count of cards [CR#107.1b]. -/
 theorem okDrawClamped :
-    (draw .you (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (draw (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "This spell deals X damage to target creature": you can't deal negative damage
 [CR#107.1b]. -/
@@ -71,13 +71,13 @@ theorem okDefineClamped :
 
 /-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/
 theorem okDefinesLetterClamped :
-    (StaticSpec.definesLetter .x (.countOf (.described .all creature))).numberSlots
+    (StaticSpec.letterDefinition .x (.countOf (.described .all creature))).numberSlots
       = [(.countOf (.described .all creature), .clamped)] := by rfl
 
 /-- "This creature gets +2/+0": the sign is the constructor, and the magnitude beneath it is a
 number the game does not take below zero [CR#107.1b]. -/
 theorem okModifyUpClamped :
-    (StaticSpec.modify thisCreature .power (.up (.lit 2))).numberSlots
+    (StaticSpec.modification thisCreature .power (.up (.lit 2))).numberSlots
       = [(.lit 2, .clamped)] := by rfl
 
 /-! ## Signed slots: the negative stands -/
@@ -85,7 +85,7 @@ theorem okModifyUpClamped :
 /-- "Target creature's base power and toughness become 0/2": an effect that sets a power and
 toughness is the exception [CR#107.1b] names. -/
 theorem okDefinesPtSigned :
-    (StaticSpec.definesPt (target creature) .bothEach (.lit 0)).numberSlots
+    (StaticSpec.ptDefinition (target creature) .bothEach (.lit 0)).numberSlots
       = [(.lit 0, .signed)] := by rfl
 
 /-- "Whenever this creature's power becomes 3": the header watches a game value, which may be
@@ -97,13 +97,14 @@ theorem okStatBecomesSigned :
 /-- "This creature's power becomes -1": a set of a power, the exception [CR#107.1b] names,
 so the printed negative stands where the `up` half of the same `Delta` would clamp. -/
 theorem okModifySetSigned :
-    (StaticSpec.modify thisCreature .power (.set (.lit (-1)))).numberSlots
+    (StaticSpec.modification thisCreature .power (.set (.lit (-1)))).numberSlots
       = [(.lit (-1), .signed)] := by rfl
 
 /-- "Your life total becomes twice your life total": doubling a life total is written as a
 set, and a set of a life total is the other half of the [CR#107.1b] exception. -/
 theorem okLifeTotalBecomesSigned :
-    (Instruction.changeLife .you (.set (.arith .times (lifeTotalOf .you) (.lit 2)))).numberSlots
+    (Instruction.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2))) (agent :=
+        .you)).numberSlots
       = [(.arith .times (lifeTotalOf .you) (.lit 2), .signed)] := by rfl
 
 /-- "Exchange life totals" and the other numerical exchanges [CR#701.12g] set each side to the

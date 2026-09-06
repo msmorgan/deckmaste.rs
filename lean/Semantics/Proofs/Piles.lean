@@ -48,12 +48,12 @@ theorem badTransformedArrivalOffField :
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Instruction :=
-  [revealCards (topSlice (.lit 5)), .separateIntoPiles anOpponent them 2 []]
+  [revealCards (topSlice (.lit 5)), .separateIntoPiles them 2 [] (agent := anOpponent)]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
 theorem okPileWordAfterPartition :
-    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .pile) hand])))
+    Card.check (instantSaying (.sequence (revealAndSplit ++ [move (those .pile) hand])))
       = [] := by
   decide
 
@@ -61,20 +61,20 @@ theorem okPileWordAfterPartition :
 piles. Put those cards into your hand.": each object in a pile is still an individual object
 [CR#700.3b], so the card word still reads them. -/
 theorem okCardWordReadsPiles :
-    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .card) hand])))
+    Card.check (instantSaying (.sequence (revealAndSplit ++ [move (those .card) hand])))
       = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. Put those piles into your hand." -/
 theorem badPileWordWithoutAPartition :
     Card.check
-      (instantSaying (.sequentially [revealCards (topSlice (.lit 5)), move (those .pile) hand]))
+      (instantSaying (.sequence [revealCards (topSlice (.lit 5)), move (those .pile) hand]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
 /-- "... into two piles. Put one pile into your hand." -/
 theorem okOnePileAfterPartition :
-    Instruction.check [] (.sequentially (revealAndSplit ++ [move onePile hand])) = [] := by decide
+    Instruction.check [] (.sequence (revealAndSplit ++ [move onePile hand])) = [] := by decide
 
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
@@ -89,7 +89,7 @@ theorem badPilePartitiveWithoutAPartition :
 theorem okMembershipInAPile :
     Card.check
       (instantSaying
-        (.sequentially
+        (.sequence
           (revealAndSplit ++ [move (allOf (.and [.isCard, .inPile (pileOfChoice .you)])) hand])))
       = [] := by
   decide
@@ -99,7 +99,7 @@ no effect grouped them into piles [CR#700.3]. -/
 theorem badMembershipWithoutAPartition :
     Card.check
       (instantSaying
-        (.sequentially
+        (.sequence
           [ revealCards (topSlice (.lit 5)),
             move (allOf (.and [.isCard, .inPile (those .pile)])) hand ]))
       = [.anaphor (.word .pile) .many 0] := by
@@ -114,8 +114,8 @@ choice face down." Only permanents have status [CR#110.5d]; a pile is not one [C
 theorem okStatusOnPermanentAfterPartition :
     Card.check
       (instantSaying
-        (.sequentially
-          [ .separateIntoPiles anOpponent (allOf creature) 2 [],
+        (.sequence
+          [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
             .setStatus .faceDown (allOf (.and [creature, .inPile (pileOfChoice .you)])) ]))
       = [] := by
   decide
@@ -124,27 +124,28 @@ theorem okStatusOnPermanentAfterPartition :
 theorem badPileFaceAsAStatus :
     Card.check
       (instantSaying
-        (.sequentially
-          [ .separateIntoPiles anOpponent (allOf creature) 2 [],
+        (.sequence
+          [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
             .setStatus .faceDown (those .pile) ])) = [.statusHolder] := by
   decide
 
 theorem nestedStaticConditionals :
     StaticSpec.check []
-      (.conditionally
-        (.conditionally (.keepsUnspentMana .you (.unspent none)) (exists_ .anyPlayer) .ifSo)
+      (.conditional
+        (.conditional (.manaRetention .you (.unspent none)) (exists_ .anyPlayer) .ifSo)
         (exists_ .anyPlayer) .ifSo) = [] := by
   decide
 
 theorem nestedTurnPartWindows :
     StaticSpec.check []
-      (.onlyDuring .combat none
-        (.onlyDuring .mainPhase none (.keepsUnspentMana .you (.unspent none)))) = [] := by
+      (.partScope .combat none
+        (.partScope .mainPhase none (.manaRetention .you (.unspent none)))) = [] := by
   decide
 
 theorem voteStartingWithSpecifiedPlayer :
     Instruction.check []
-      (.vote (some anOpponent) (each .anyPlayer) .openly (.byLabel ["alpha", "beta"])) = [] := by
+      (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) (agent := (each .anyPlayer))) =
+          [] := by
   decide
 
 /-- "Starting with you, target player votes for alpha or beta.": one player votes, so there is
@@ -152,7 +153,7 @@ no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlay
 same order over every player). -/
 theorem badOrderedSingularVoter :
     Instruction.check []
-      (.vote (some .you) (target .anyPlayer) .openly (.byLabel ["alpha", "beta"]))
+      (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) (agent := (target .anyPlayer)))
       = [.choiceOrder] := by
   decide
 
@@ -160,10 +161,10 @@ theorem badOrderedSingularVoter :
 votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
     Instruction.check []
-      (.sequentially
-        [ vote (each .anyPlayer) .openly (.byLabel ["alpha", "beta"]),
-          draw .you (.votesFor "alpha"),
-          if_ (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
+      (.sequence
+        [ vote .openly (.byLabel ["alpha", "beta"]) (agent := (each .anyPlayer)),
+          draw (.votesFor "alpha") (agent := .you),
+          doIf (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
       = [] := by
   decide
 
@@ -171,13 +172,14 @@ theorem okVoteReadsAfterVote :
 so there are no votes to count [CR#701.38a] (`okVoteReadsAfterVote` is the same read after a
 vote). -/
 theorem badVotesForWithoutVote :
-    Instruction.check [] (draw .you (.votesFor "alpha")) = [.outcomeInScope .voteHeld 0] := by
+    Instruction.check [] (draw (.votesFor "alpha") (agent := .you)) = [.outcomeInScope .voteHeld 0]
+        := by
   decide
 
 /-- "If beta gets more votes, draw a card.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` is the same condition after a vote). -/
 theorem badVoteLeadWithoutVote :
-    Instruction.check [] (if_ (.voteLead "beta" true) (draw .you (.lit 1)))
+    Instruction.check [] (doIf (.voteLead "beta" true) (draw (.lit 1) (agent := .you)))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 
@@ -189,7 +191,8 @@ theorem badWithMostVotesWithoutVote :
   decide
 
 theorem oneWayResultShift :
-    Instruction.check [] (.sequentially [rollDice .you 1 6, .shiftResult (some .up) (.lit 1)])
+    Instruction.check [] (.sequence [rollDice 1 6 (agent := .you), .shiftResult (some .up) (.lit
+        1)])
       = [] := by
   decide
 
@@ -201,13 +204,13 @@ theorem removeOwnCounterKinds :
     Instruction.check [] (.removeCounters (some (exactly 1)) (some .own) .you) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
-    Instruction.check [] (.additionalPart (some .you) .upkeep (some .mainPhase) (.lit 1) none)
+    Instruction.check [] (.addPart .upkeep (some .mainPhase) (.lit 1) none (agent := (some .you)))
       = [] := by
   decide
 
 /-- "When you unlock this door, draw N cards." -/
 def unlockDraw (amount : Nat) : Ability :=
-  when (.unlocksDoor .you .thisDoor) (draw .you (.lit amount))
+  when (.unlocksDoor .you .thisDoor) (draw (.lit amount) (agent := .you))
 
 /-- "When you unlock this door, draw a card.": a door header belongs to a Room's shared line. -/
 theorem okDoorHeaderOnSharedLine :
@@ -220,7 +223,7 @@ theorem okDoorHeaderOnSharedLine :
   decide
 
 theorem badDelayedDoorDeixis :
-    Card.check (instantSaying (delayed (.unlocksDoor .you .thisDoor) (draw .you (.lit 1))))
+    Card.check (instantSaying (delay (.unlocksDoor .you .thisDoor) (draw (.lit 1) (agent := .you))))
       = [.doorFrame] := by
   decide
 

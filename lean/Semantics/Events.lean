@@ -32,7 +32,11 @@ inductive CounterMove where
   deriving DecidableEq, Repr
 
 inductive CounterBatch where
-  | one | many | last
+  | one | many
+  /-- Removal that leaves no counters of this kind. Emptiness is part of the trigger event,
+  evaluated at trigger time [CR#310.12b,702.62a], not an intervening if rechecked on resolution
+  [CR#603.4]. Suspend's separate "if it's exiled" is the intervening if [CR#702.62a]. -/
+  | emptying
   deriving DecidableEq, Repr
 
 inductive DiceBatch where

@@ -5,6 +5,7 @@ import Semantics.Proofs.Damage
 import Semantics.Proofs.Deontic
 import Semantics.Proofs.Description
 import Semantics.Proofs.Faces
+import Semantics.Proofs.InstructionForms
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.Mana
 import Semantics.Proofs.Numbers

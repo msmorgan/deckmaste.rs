@@ -245,8 +245,8 @@ def NounPhrase.opponentOnly : NounPhrase → Bool
 
 /-- The library a look opens: the possessor of the slice looked at. -/
 def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
-  | .sequentially (.expose .lookAt _ (.cards (.librarySlice _ _ whose)) :: _) => some whose
-  | .expose .lookAt _ (.cards (.librarySlice _ _ whose)) => some whose
+  | .sequence (.expose .lookAt (.cards (.librarySlice _ _ whose)) _ :: _) => some whose
+  | .expose .lookAt (.cards (.librarySlice _ _ whose)) _ => some whose
   | _ => none
 
 /-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
@@ -471,15 +471,15 @@ def ridersFitZone (rs : List TokenRider) (z : Zone) : Bool := ridersZoneFree rs 
 /-! ## Static and instruction attributes -/
 
 def StaticSpec.isCoord : StaticSpec → Bool
-  | .andAlso _ _ => true
+  | .conjunction _ _ => true
   | _ => false
 
 def StaticSpec.notExtended : StaticSpec → Bool
-  | .alsoOffBattlefield _ => false
+  | .offBattlefieldScope _ => false
   | _ => true
 
 def StaticSpec.notCarvedOut : StaticSpec → Bool
-  | .doesntRemove _ _ => false
+  | .retention _ _ => false
   | _ => true
 
 def DeonticRider.playRidden : DeonticRider → Bool
@@ -560,13 +560,13 @@ def Ability.grantedKeyword : Ability → Option KeywordLabel
   | _ => none
 
 def StaticSpec.keyword : StaticSpec → Option KeywordLabel
-  | .conditionally se _ _ => se.keyword
-  | .gains _ ab => ab.grantedKeyword
+  | .conditional se _ _ => se.keyword
+  | .abilityGrant _ ab => ab.grantedKeyword
   | _ => none
 termination_by structural se => se
 
 def Instruction.keyword : Instruction → Option KeywordLabel
-  | .continuously se _ => se.keyword
+  | .establish se _ => se.keyword
   | _ => none
 
 def Ability.lineKeyword : Ability → Option KeywordLabel
@@ -614,9 +614,9 @@ def Ability.introducedLetters : Ability → List Binding
 
 mutual
   def StaticSpec.clauseOk : StaticSpec → Bool
-    | .definesPt _ _ _ => false
+    | .ptDefinition _ _ _ => false
     | .altCost _ _ => false
-    | .andAlso _ parts => StaticSpec.partsClauseOk parts
+    | .conjunction _ parts => StaticSpec.partsClauseOk parts
     | _ => true
   termination_by structural se => se
 
@@ -654,9 +654,9 @@ mutual
   def Cost.paidByYou : Cost → Bool
     | .scaled c _ => c.paidByYou
     /- A life payment targets its payer; granting life may target anyone [CR#119.4]. -/
-    | .perform (.changeLife who (.down _)) => who.isYou
+    | .perform (.changeLife (.down _) who) => who.isYou
     | .perform (.changeLife _ _) => true
-    | .perform (.enact (some subj) _ _) => subj.isYou
+    | .perform (.enact _ _ (some subj)) => subj.isYou
     | .perform _ => true
     | .compound cs => Cost.allPaidByYou cs
     | .either l r => l.paidByYou && r.paidByYou
@@ -703,7 +703,7 @@ termination_by structural c => c
 def Instruction.heldUntilOk : Instruction → Bool
   | .setStatus .phasedOut _ => true
   | .move _ _ _ => true
-  | .enact none _ (.move _ _ _) => true
+  | .enact _ (.move _ _ _) none => true
   | _ => false
 
 inductive EncloseUse where
@@ -722,93 +722,97 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
-  | .controllerSacrifices _ => .reflexive
-  | .skipsNext _ _ _ => .notYetTaken
-  | .extraTurn _ _ => .notYetTaken
-  | .additionalPart (some _) _ _ _ _ => .notYetTaken
-  | .continuously (.gainsControl _ _) _ => .reflexive
+  | .haveControllerSacrifice _ => .reflexive
+  | .skipPart _ _ _ => .notYetTaken
+  | .addTurn _ _ => .notYetTaken
+  | .addPart _ _ _ _ (some _) => .notYetTaken
+  | .establish (.controlGrant _ _) _ => .reflexive
   | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .create _ _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
   | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
   | .rerollStored _ _ _ => .reflexive
-  | .resultsTable _ => .notOneAction
-  | .may _ body none _ => body.reflexEncloseUse
-  | .may _ _ _ _ => .notOneAction
-  | .ifDone body none _ => body.reflexEncloseUse
-  | .ifDone _ _ _ => .notOneAction
-  | .onlyIf e _ _ => e.reflexEncloseUse
-  | .if_ _ _ _ | .forEachOf _ _ | .forEachKindOf _ _ _ _ | .repeat_ _ => .notOneAction
-  | .repeated _ (.pay _ _ _) => .reflexive
-  | .repeated _ (.may _ (.pay _ _ _) none _) => .reflexive
-  | .repeated _ _ => .notOneAction
-  | .sequentially _ | .simultaneously _ | .modal _ _ | .insteadOf _ _ | .reflexively _ _
-  | .thisWay _ _ _ => .notOneAction
-  | .delayed _ _ _ _ => .notYetTaken
-  | .heldUntil _ _ => .notYetTaken
+  | .applyResultsTable _ => .notOneAction
+  | .offer body none _ _ => body.reflexEncloseUse
+  | .offer _ _ _ _ => .notOneAction
+  | .doIfDone body none _ => body.reflexEncloseUse
+  | .doIfDone _ _ _ => .notOneAction
+  | .doOnlyIf e _ _ => e.reflexEncloseUse
+  | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ | .repeat_ _ => .notOneAction
+  | .repeatTimes _ (.pay _ _ _) => .reflexive
+  | .repeatTimes _ (.offer (.pay _ _ _) none _ _) => .reflexive
+  | .repeatTimes _ _ => .notOneAction
+  | .sequence _ | .performSimultaneously _ | .chooseModes _ _ | .replace _ _ | .triggerReflexively _
+      _
+  | .triggerThisWay _ _ _ => .notOneAction
+  | .delay _ _ _ _ => .notYetTaken
+  | .holdUntil _ _ => .notYetTaken
   | _ => .agentless
 
 def Instruction.thisWayOutcomeOk : Instruction → Bool
-  | .delayed _ _ _ _ => false
-  | .may _ body _ _ => body.thisWayOutcomeOk
-  | .ifDone body _ _ => body.thisWayOutcomeOk
+  | .delay _ _ _ _ => false
+  | .offer body _ _ _ => body.thisWayOutcomeOk
+  | .doIfDone body _ _ => body.thisWayOutcomeOk
   | _ => true
 
 mutual
   def Instruction.costActionOk : Instruction → Bool
     | .dealDamage src _ _ => src.costNounOk
-    | .controllerSacrifices n => n.costNounOk
-    | .doesntUntapNext n _ => n.costNounOk
-    | .extraTurn who _ => who.costNounOk
-    | .additionalPart none _ _ _ _ => true
-    | .additionalPart (some who) _ _ _ _ => who.costNounOk
+    | .haveControllerSacrifice n => n.costNounOk
+    | .skipUntap n _ => n.costNounOk
+    | .addTurn _ who => who.costNounOk
+    | .addPart _ _ _ _ none => true
+    | .addPart _ _ _ _ (some who) => who.costNounOk
     | .distribute _ _ among => among.costNounOk
-    | .fights a _ => a.costNounOk
+    | .fight a _ => a.costNounOk
     | .turnOver n => n.costNounOk
     | .setStatus _ n => n.costNounOk
-    | .losesCounters who _ _ => who.costNounOk
+    | .loseCounters _ _ who => who.costNounOk
     | .removeFromCombat n => n.costNounOk
     | .attachTo what _ => what.costNounOk
     | .unattach what => what.costNounOk
-    | .becomesBlocking n _ => n.costNounOk
-    | .stopsBlocking n _ => n.costNounOk
-    | .becomesAttacking n _ => n.costNounOk
+    | .becomeBlocking n _ => n.costNounOk
+    | .stopBlocking n _ => n.costNounOk
+    | .becomeAttacking n _ => n.costNounOk
     | .regenerate n => n.costNounOk
-    | .cantBe e _ _ => e.costActionOk
-    | .gainsDesignation n _ _ _ => n.costNounOk
+    | .doAndForbid e _ _ => e.costActionOk
+    | .gainDesignation n _ _ _ => n.costNounOk
     | .unlock .thisDoor => true
     | .unlock (.doorOf _ room) => room.costNounOk
-    | .gameBecomes _ | .concludes _ _ | .gameDrawn | .counterSpell _ | .changeLife _ _ | .draw _ _
-    | .getsEmblem _ _ | .define _ _ => true
-    | .separateIntoPiles _ grp _ _ => grp.costNounOk
-    | .copy _ _ what _ _ => what.costNounOk
+    | .setGameDesignation _ | .conclude _ _ | .drawGame | .counterSpell _ | .changeLife _ _ | .draw
+        _ _
+    | .getEmblem _ _ | .define _ _ => true
+    | .separateIntoPiles grp _ _ _ => grp.costNounOk
+    | .copy _ what _ _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
     | .copyTargets cp _ => cp.costNounOk
-    | .choose _ _ n _ _ => n.costNounOk
+    | .choose _ n _ _ _ => n.costNounOk
     | .move what _ _ => what.costNounOk
     | .exchange what => what.costOk
-    | .addMana who _ _ _ => who.costNounOk
-    | .expose _ who _ => who.costNounOk
-    | .search who _ _ _ => who.costNounOk
+    | .addMana _ _ _ who => who.costNounOk
+    | .expose _ _ who => who.costNounOk
+    | .search _ _ _ who => who.costNounOk
     | .shuffle whose => whose.costNounOk
-    | .flipCoins who _ => who.costNounOk
-    | .rollDice who _ _ => who.costNounOk
-    | .rerollStored who _ _ => who.costNounOk
-    | .create agent _ _ _ => agent.costNounOk
+    | .flipCoins _ who => who.costNounOk
+    | .rollDice _ _ who => who.costNounOk
+    | .rerollStored _ _ who => who.costNounOk
+    | .create _ _ _ agent => agent.costNounOk
     | .putCounters _ _ on => on.costNounOk
     | .removeCounters _ _ from_ => from_.costNounOk
     | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
     | .doubleCounters on => on.costNounOk
-    | .enact _ _ e => e.costActionOk
-    | .may _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid && Instruction.costActionOkOpt ifNot
-    | .ifDone body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid && Instruction.costActionOkOpt ifNot
-    | .onlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
-    | .if_ _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
-    | .forEachOf _ body => body.costActionOk
-    | .forEachKindOf _ _ _ body => body.costActionOk
-    | .repeated _ (.sequentially es) => Instruction.costStepsOk es
-    | .repeated _ body => body.costActionOk
-    | .modal _ modes => Instruction.costModesOk modes
+    | .enact _ e _ => e.costActionOk
+    | .offer body ifDid ifNot _ => body.costActionOk && Instruction.costActionOkOpt ifDid &&
+        Instruction.costActionOkOpt ifNot
+    | .doIfDone body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
+        Instruction.costActionOkOpt ifNot
+    | .doOnlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
+    | .doIf _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
+    | .doForEach _ body => body.costActionOk
+    | .doForEachKind _ _ _ body => body.costActionOk
+    | .repeatTimes _ (.sequence es) => Instruction.costStepsOk es
+    | .repeatTimes _ body => body.costActionOk
+    | .chooseModes _ modes => Instruction.costModesOk modes
     | _ => false
   termination_by structural e => e
 
@@ -828,7 +832,7 @@ mutual
 end
 
 def Instruction.isInstead : Instruction → Bool
-  | .insteadOf _ _ => true
+  | .replace _ _ => true
   | _ => false
 
 def ifDoneArmed : Option Instruction → Option Instruction → Bool
@@ -873,7 +877,7 @@ mutual
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
-    | .controllerSacrifices n =>
+    | .haveControllerSacrifice n =>
       ⟨⟨.the, .one, .player false⟩ :: selfSubjIntro bs n,
        ⟨.the, .one, .player false⟩ ::
          moveIntro bs (some (deedLabel .sacrificing)) n (some .graveyard),
@@ -883,37 +887,37 @@ mutual
       match v with
       | .damage _ => sameIntro (nomIntro bs' among) [outcomeB .damageDealt]
       | .counters _ => sameIntro (nomIntro bs' among) []
-    | .fights a b => sameIntro (nomIntro (nomIntro bs a) b) []
+    | .fight a b => sameIntro (nomIntro (nomIntro bs a) b) []
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
-    | .doesntUntapNext n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
-    | .skipsNext w _ count => sameIntro (Amount.intro (nomIntro bs w) count) []
-    | .extraTurn w count =>
+    | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
+    | .skipPart _ count w => sameIntro (Amount.intro (nomIntro bs w) count) []
+    | .addTurn count w =>
       let afterCount := Amount.intro (nomIntro bs w) count
       ⟨afterCount, turnRefB :: afterCount, none, []⟩
-    | .additionalPart who _ _ count _ => sameIntro (Amount.intro (optAgentIntro bs who) count) []
-    | .losesCounters who _ amt => sameIntro (optAmtIntro (nomIntro bs who) amt) []
+    | .addPart _ _ count _ who => sameIntro (Amount.intro (optAgentIntro bs who) count) []
+    | .loseCounters _ amt who => sameIntro (optAmtIntro (nomIntro bs who) amt) []
     | .removeFromCombat n => sameIntro (nomIntro bs n) []
     | .attachTo what host => sameIntro (nomIntro (nomIntro bs what) host) []
     | .unattach what => sameIntro (nomIntro bs what) []
-    | .becomesBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
-    | .stopsBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
-    | .becomesAttacking n none => sameIntro (nomIntro bs n) []
-    | .becomesAttacking n (some whom) => sameIntro (nomIntro (nomIntro bs n) whom) []
+    | .becomeBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
+    | .stopBlocking n what => sameIntro (nomIntro (nomIntro bs n) what) []
+    | .becomeAttacking n none => sameIntro (nomIntro bs n) []
+    | .becomeAttacking n (some whom) => sameIntro (nomIntro (nomIntro bs n) whom) []
     | .regenerate n => sameIntro (nomIntro bs n) []
-    | .cantBe e _ _ => Instruction.profile bs e
-    | .gainsDesignation n _ _ _ => sameIntro (nomIntro bs n) []
+    | .doAndForbid e _ _ => Instruction.profile bs e
+    | .gainDesignation n _ _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
-    | .gameBecomes _ => sameIntro bs []
-    | .concludes _ who => sameIntro (nomIntro bs who) []
-    | .gameDrawn => sameIntro bs []
-    | .restartsGame => sameIntro bs []
-    | .separateIntoPiles who grp piles faces =>
+    | .setGameDesignation _ => sameIntro bs []
+    | .conclude _ who => sameIntro (nomIntro bs who) []
+    | .drawGame => sameIntro bs []
+    | .restartGame => sameIntro bs []
+    | .separateIntoPiles grp piles faces who =>
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
        [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
     | .counterSpell what => sameIntro (nomIntro bs what) []
-    | .copy src agent what times _ =>
+    | .copy src what times _ agent =>
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
@@ -921,87 +925,89 @@ mutual
           copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
-    | .choose _ by_ n _ _ => sameIntro (chooseIntro bs by_ n) []
-    | .choicesRevealed _ => sameIntro bs []
+    | .choose _ n _ _ by_ => sameIntro (chooseIntro bs by_ n) []
+    | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what to _ =>
       ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (some to.sort)), none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
-    | .changeLife who (.up a) => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
-    | .changeLife who (.down a) => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
-    | .changeLife who (.set a) => sameIntro (Amount.intro (nomIntro bs who) a) []
-    | .addMana who amt _ _ => sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
-    | .draw who amt => sameIntro (Amount.intro (nomIntro bs who) amt) []
-    | .expose _ who what => sameIntro (what.intro (nomIntro bs who)) []
-    | .search who sc q p =>
+    | .changeLife (.up a) who => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
+    | .changeLife (.down a) who => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
+    | .changeLife (.set a) who => sameIntro (Amount.intro (nomIntro bs who) a) []
+    | .addMana amt _ _ who => sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
+    | .draw amt who => sameIntro (Amount.intro (nomIntro bs who) amt) []
+    | .expose _ what who => sameIntro (what.intro (nomIntro bs who)) []
+    | .search sc q p who =>
       let bs' := nomIntro bs who
       sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none⟩]
     | .shuffle whose => ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
-    | .flipCoins who count => sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
-    | .rollDice who count _ => sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB .rollResult]
-    | .resultsTable _ => sameIntro bs []
+    | .flipCoins count who => sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
+    | .rollDice count _ who => sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
+        .rollResult]
+    | .applyResultsTable _ => sameIntro bs []
     | .ignoreOutcomes which => sameIntro (which.intro bs) []
     | .shiftResult _ amt => sameIntro (Amount.intro bs amt) []
     | .storeResults on => sameIntro (nomIntro bs on) []
-    | .rerollStored who _ whose => sameIntro (nomIntro (nomIntro bs who) whose) []
-    | .continuously se _ => sameIntro (StaticSpec.intro bs se) []
-    | .create agent count spec _ =>
+    | .rerollStored _ whose who => sameIntro (nomIntro (nomIntro bs who) whose) []
+    | .establish se _ => sameIntro (StaticSpec.intro bs se) []
+    | .create count spec _ agent =>
       let bs' := Amount.intro (nomIntro bs agent) count
       sameIntro (spec.introduced bs' ++ bs')
         [⟨.a, outputPlur agent.plur count.plur,
           .object (spec.headTy bs') (some .battlefield) none (some .token) none⟩]
-    | .getsEmblem who _ => sameIntro (nomIntro bs who) []
+    | .getEmblem _ who => sameIntro (nomIntro bs who) []
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
-    | .enact none v (.move what to _) =>
+    | .enact v (.move what to _) none =>
       ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (some to.sort)),
        some (stampIntro bs (some v) what), []⟩
-    | .enact none v (.setStatus _ n) => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
-    | .enact none _ e => Instruction.profile bs e
-    | .enact (some s) v e => doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
-    | .pay who c .once => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
-    | .pay who c _ => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB .repeatCount]⟩
-    | .may d body did notd =>
+    | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
+    | .enact _ e none => Instruction.profile bs e
+    | .enact v e (some s) => doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
+    | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
+    | .pay c _ who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
+        .repeatCount]⟩
+    | .offer body did notd d =>
       let bodyP := Instruction.profile (mayCtx bs d) body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
-    | .ifDone body did notd =>
+    | .doIfDone body did notd =>
       let bodyP := Instruction.profile bs body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
-    | .onlyIf e _ _ => sameIntro (Instruction.profile bs e).announced []
-    | .if_ _ _ _ => sameIntro bs []
+    | .doOnlyIf e _ _ => sameIntro (Instruction.profile bs e).announced []
+    | .doIf _ _ _ => sameIntro bs []
     | .define l amt => sameIntro (defineLetter l (Amount.intro bs amt)) []
-    | .forEachOf grp body =>
+    | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
       let bodyP := Instruction.profile bs' body
       ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
         pluralizeIntroduced (NounPhrase.introduced bs grp) ++ bs, none, []⟩
-    | .forEachKindOf _ dom q body =>
+    | .doForEachKind _ dom q body =>
       let bs' := kindValueIntro bs q dom
       let bodyP := Instruction.profile bs' body
       ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
         pluralizeIntroduced (dom.elim [] (NounPhrase.introduced bs)) ++ bs, none, []⟩
     | .repeat_ _ => sameIntro bs []
-    | .repeated n body =>
+    | .repeatTimes n body =>
       let bs' := Amount.intro bs n
       let bodyP := Instruction.profile bs' body
       ⟨bs', pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++ bs', none,
        [outcomeB .repeatCount]⟩
-    | .sequentially es => Instruction.seqProfile bs es
-    | .simultaneously es => Instruction.simProfile bs es
-    | .modal q _ => sameIntro (Quantity.introduced bs q ++ bs) []
-    | .delayed _ _ _ _ => sameIntro bs []
-    | .reflexively body _ => Instruction.profile bs body
-    | .thisWay body _ _ => Instruction.profile bs body
-    | .insteadOf replaced _ => sameIntro (Instruction.profile bs replaced).announced []
-    | .heldUntil e _ => sameIntro (Instruction.profile bs e).announced []
+    | .sequence es => Instruction.seqProfile bs es
+    | .performSimultaneously es => Instruction.simProfile bs es
+    | .chooseModes q _ => sameIntro (Quantity.introduced bs q ++ bs) []
+    | .delay _ _ _ _ => sameIntro bs []
+    | .triggerReflexively body _ => Instruction.profile bs body
+    | .triggerThisWay body _ _ => Instruction.profile bs body
+    | .replace replaced _ => sameIntro (Instruction.profile bs replaced).announced []
+    | .holdUntil e _ => sameIntro (Instruction.profile bs e).announced []
   termination_by structural e => e
 
   def Instruction.profileOpt (bs : Bindings) : Option Instruction → Option InstrProfile
@@ -1038,37 +1044,37 @@ mutual
   termination_by structural cs => cs
 
   def StaticSpec.intro (bs : Bindings) : StaticSpec → Bindings
-    | .definesLetter l amt => defineLetter l (Amount.intro bs amt)
-    | .modify n _ d => Delta.introduced (selfSubjIntro bs n) d ++ selfSubjIntro bs n
-    | .definesPt n _ amt =>
+    | .letterDefinition l amt => defineLetter l (Amount.intro bs amt)
+    | .modification n _ d => Delta.introduced (selfSubjIntro bs n) d ++ selfSubjIntro bs n
+    | .ptDefinition n _ amt =>
       outcomeB .namedNumber :: (Amount.introduced (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
-    | .switchesPt n => selfSubjIntro bs n
-    | .costs n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
+    | .ptSwitch n => selfSubjIntro bs n
+    | .costShift n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ => bs
-    | .gains n ab => ab.introducedLetters ++ selfSubjIntro bs n
-    | .gainsAbilitiesOf n _ src _ => nomIntro (nomIntro bs n) src
-    | .deontic n _ _ _ _ _ _ _ => selfSubjIntro bs n
-    | .skips who _ => nomIntro bs who
-    | .keepsUnspentMana who _ => nomIntro bs who
-    | .becomes n _ _ => selfSubjIntro bs n
-    | .becomesCopy n _ _ => selfSubjIntro bs n
-    | .losesAllAbilities n _ => selfSubjIntro bs n
-    | .losesAbilities n _ => selfSubjIntro bs n
-    | .gainsControl who what => stampIntro (nomIntro bs who) (some (.core .gainControl)) what
-    | .intercepts ev alts _ _ _ _ => interceptCtx bs alts ev
+    | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
+    | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
+    | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
+    | .partSkip who _ => nomIntro bs who
+    | .manaRetention who _ => nomIntro bs who
+    | .qualityChange n _ _ => selfSubjIntro bs n
+    | .copyChange n _ _ => selfSubjIntro bs n
+    | .allAbilityLoss n _ => selfSubjIntro bs n
+    | .abilityLoss n _ => selfSubjIntro bs n
+    | .controlGrant who what => stampIntro (nomIntro bs who) (some (.core .gainControl)) what
+    | .replacement ev alts _ _ _ _ => interceptCtx bs alts ev
     | .damageRule _ src scope op _ => op.intro (scope.intro (src.intro bs))
-    | .cantPrevent _ what _ => what.intro bs
-    | .onlyDuring _ _ se => StaticSpec.intro bs se
-    | .conditionally se c _ => c.intro (StaticSpec.intro bs se)
-    | .alsoOffBattlefield se => StaticSpec.intro bs se
-    | .doesntRemove se n => nomIntro (StaticSpec.intro bs se) n
+    | .preventionBan _ what _ => what.intro bs
+    | .partScope _ _ se => StaticSpec.intro bs se
+    | .conditional se c _ => c.intro (StaticSpec.intro bs se)
+    | .offBattlefieldScope se => StaticSpec.intro bs se
+    | .retention se n => nomIntro (StaticSpec.intro bs se) n
     | .visibility _ who what => what.intro (nomIntro bs who)
-    | .triggersAdditionally _ _ => bs
-    | .entersRider n rider => rider.intro (nomIntro bs n)
-    | .entersChoice n _ _ _ => selfSubjIntro bs n
-    | .attachChoice n _ _ => selfSubjIntro bs n
-    | .andAlso subject parts => StaticSpec.partsIntro (subjCtx bs subject) parts
+    | .additionalTriggers _ _ => bs
+    | .entryRider n rider => rider.intro (nomIntro bs n)
+    | .entryChoice n _ _ _ => selfSubjIntro bs n
+    | .attachmentChoice n _ _ => selfSubjIntro bs n
+    | .conjunction subject parts => StaticSpec.partsIntro (subjCtx bs subject) parts
   termination_by structural se => se
 
   def StaticSpec.partsIntro (bs : Bindings) : List StaticSpec → Bindings
@@ -1096,11 +1102,11 @@ def Instruction.annSeqs (bs : Bindings) : List Instruction → Bindings
   | e :: es => e.introducedDeeds bs ++ Instruction.annSeqs bs es
 
 def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
-  | .sequentially es => Instruction.annSeqs bs es
-  | .may d body _ _ => Instruction.replacedCtx (mayCtx bs d) body
-  | .ifDone body _ _ => Instruction.replacedCtx bs body
-  | .onlyIf e _ _ => Instruction.replacedCtx bs e
-  | .if_ _ _ _ => bs
+  | .sequence es => Instruction.annSeqs bs es
+  | .offer body _ _ d => Instruction.replacedCtx (mayCtx bs d) body
+  | .doIfDone body _ _ => Instruction.replacedCtx bs body
+  | .doOnlyIf e _ _ => Instruction.replacedCtx bs e
+  | .doIf _ _ _ => bs
   | e => e.introducedDeeds bs ++ e.annIntro bs
 
 def Instruction.otherwiseCtx (bs : Bindings) (e : Instruction) : Bindings :=
@@ -1112,9 +1118,9 @@ def thisWayCtx (bs : Bindings) (body : Instruction) (ev : GameEvent) : Bindings 
   settleTargets (GameEvent.after (body.intro bs) ev)
 
 def Instruction.namesThisDoor : Instruction → Bool
-  | .delayed ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor
-  | .heldUntil _ ev => ev.namesThisDoor
-  | .thisWay _ ev _ => ev.namesThisDoor
+  | .delay ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor
+  | .holdUntil _ ev => ev.namesThisDoor
+  | .triggerThisWay _ ev _ => ev.namesThisDoor
   | _ => false
 
 def Ability.namesThisDoor : Ability → Bool
@@ -1129,11 +1135,11 @@ def Ability.namesThisDoor : Ability → Bool
 
 mutual
   def Instruction.introducedChoices : Instruction → List Binding
-    | .choose _ _ (.described (.a _) p) _ _ => introducedChoiceAt (p.kindOr .object)
+    | .choose _ (.described (.a _) p) _ _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ _ => []
-    | .sequentially es => Instruction.introducedChoicesAll es
-    | .may _ body _ _ => body.introducedChoices
-    | .ifDone body _ _ => body.introducedChoices
+    | .sequence es => Instruction.introducedChoicesAll es
+    | .offer body _ _ _ => body.introducedChoices
+    | .doIfDone body _ _ => body.introducedChoices
     | _ => []
   termination_by structural e => e
 
@@ -1149,9 +1155,9 @@ def Cost.introduced (bs : Bindings) (c : Cost) : List Binding :=
 
 mutual
   def StaticSpec.introducedChoices (bs : Bindings) : StaticSpec → List Binding
-    | .entersChoice _ q _ _ => [q.binding]
-    | .attachChoice _ q _ => [q.binding]
-    | .andAlso _ parts => StaticSpec.partsIntroducedChoices bs parts
+    | .entryChoice _ q _ _ => [q.binding]
+    | .attachmentChoice _ q _ => [q.binding]
+    | .conjunction _ parts => StaticSpec.partsIntroducedChoices bs parts
     | .addedCost c _ => c.introduced bs
     | _ => []
   termination_by structural se => se
@@ -1287,80 +1293,80 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
 
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
-  | .modify _ _ delta => delta.numberSlots
+  | .modification _ _ delta => delta.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
-  | .definesPt _ _ amount => [(amount, .signed)]
-  | .switchesPt _ => []
-  | .costs _ shift => shift.numberSlots
+  | .ptDefinition _ _ amount => [(amount, .signed)]
+  | .ptSwitch _ => []
+  | .costShift _ shift => shift.numberSlots
   | .altCost _ _ | .addedCost _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
-  | .definesLetter _ amount => [(amount, .clamped)]
-  | .gains _ _ | .gainsAbilitiesOf _ _ _ _ => []
-  | .deontic _ _ _ _ bound _ asThough _ =>
+  | .letterDefinition _ amount => [(amount, .clamped)]
+  | .abilityGrant _ _ | .abilityGrantFrom _ _ _ _ => []
+  | .deonticRule _ _ _ _ bound _ asThough _ =>
     optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
-  | .keepsUnspentMana _ _ | .skips _ _ | .becomes _ _ _ => []
-  | .alsoOffBattlefield _ | .doesntRemove _ _ => []
-  | .becomesCopy _ _ _ | .losesAllAbilities _ _ | .losesAbilities _ _ | .gainsControl _ _ => []
-  | .intercepts _ _ _ _ _ _ => []
+  | .manaRetention _ _ | .partSkip _ _ | .qualityChange _ _ _ => []
+  | .offBattlefieldScope _ | .retention _ _ => []
+  | .copyChange _ _ _ | .allAbilityLoss _ _ | .abilityLoss _ _ | .controlGrant _ _ => []
+  | .replacement _ _ _ _ _ _ => []
   | .damageRule _ _ _ op _ => op.numberSlots
-  | .cantPrevent _ _ _ => []
-  | .conditionally _ _ _ | .onlyDuring _ _ _ => []
-  | .visibility _ _ _ | .triggersAdditionally _ _ => []
-  | .entersRider _ rider => rider.numberSlots
-  | .entersChoice _ _ _ _ | .attachChoice _ _ _ | .andAlso _ _ => []
+  | .preventionBan _ _ _ => []
+  | .conditional _ _ _ | .partScope _ _ _ => []
+  | .visibility _ _ _ | .additionalTriggers _ _ => []
+  | .entryRider _ rider => rider.numberSlots
+  | .entryChoice _ _ _ _ | .attachmentChoice _ _ _ | .conjunction _ _ => []
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
-  | .fights _ _ | .setStatus _ _ | .turnOver _ | .removeFromCombat _ => []
-  | .attachTo _ _ | .unattach _ | .becomesBlocking _ _ | .stopsBlocking _ _ => []
-  | .becomesAttacking _ _ | .regenerate _ | .cantBe _ _ _ => []
-  | .gainsDesignation _ _ _ _ | .unlock _ | .gameBecomes _ | .concludes _ _ => []
-  | .gameDrawn | .restartsGame | .separateIntoPiles _ _ _ _ => []
-  | .choose _ _ _ _ _ | .choicesRevealed _ | .vote _ _ _ _ => []
+  | .fight _ _ | .setStatus _ _ | .turnOver _ | .removeFromCombat _ => []
+  | .attachTo _ _ | .unattach _ | .becomeBlocking _ _ | .stopBlocking _ _ => []
+  | .becomeAttacking _ _ | .regenerate _ | .doAndForbid _ _ _ => []
+  | .gainDesignation _ _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
+  | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
+  | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
   | .move _ _ riders => TokenRider.ridersSlots riders
   | .counterSpell _ => []
   -- How many copies to make: a count [CR#107.1b].
-  | .copy _ _ _ times _ => [(times, .clamped)]
+  | .copy _ _ times _ _ => [(times, .clamped)]
   | .chooseNewTargets _ | .copyTargets _ _ => []
   -- Gaining and losing life are clamped; "your life total becomes …" is the set the rule
   -- excepts, and doubling a life total is written as that set [CR#107.1b].
-  | .changeLife _ delta => delta.numberSlots
+  | .changeLife delta _ => delta.numberSlots
   | .exchange exchanged => exchanged.numberSlots
-  | .addMana _ amount _ _ => [(amount, .clamped)]
-  | .draw _ amount => [(amount, .clamped)]
+  | .addMana amount _ _ _ => [(amount, .clamped)]
+  | .draw amount _ => [(amount, .clamped)]
   | .expose _ _ _ | .search _ _ _ _ | .shuffle _ => []
-  | .flipCoins _ count => count.numberSlots
-  | .rollDice _ count _ => [(count, .clamped)]
-  | .resultsTable _ => []
+  | .flipCoins count _ => count.numberSlots
+  | .rollDice count _ _ => [(count, .clamped)]
+  | .applyResultsTable _ => []
   | .ignoreOutcomes which => which.numberSlots
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
   | .shiftResult _ amount => [(amount, .clamped)]
-  | .storeResults _ | .rerollStored _ _ _ | .continuously _ _ => []
-  | .create _ count _ riders => (count, .clamped) :: TokenRider.ridersSlots riders
-  | .getsEmblem _ _ => []
+  | .storeResults _ | .rerollStored _ _ _ | .establish _ _ => []
+  | .create count _ riders _ => (count, .clamped) :: TokenRider.ridersSlots riders
+  | .getEmblem _ _ => []
   | .putCounters amount _ _ => [(amount, .clamped)]
   | .distribute _ amount _ => [(amount, .clamped)]
   | .removeCounters _ _ _ => []
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
-  | .losesCounters _ _ amount => optClamped amount
-  | .enact _ _ _ | .controllerSacrifices _ | .pay _ _ _ => []
-  | .may _ _ _ _ | .ifDone _ _ _ | .onlyIf _ _ _ | .if_ _ _ _ => []
+  | .loseCounters _ amount _ => optClamped amount
+  | .enact _ _ _ | .haveControllerSacrifice _ | .pay _ _ _ => []
+  | .offer _ _ _ _ | .doIfDone _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   -- The letter X, defined by the text [CR#107.1b,107.3]: a defined X is a count, not a
   -- game value, so a calculation below zero reads as zero.
   | .define _ amount => [(amount, .clamped)]
-  | .forEachOf _ _ | .forEachKindOf _ _ _ _ => []
+  | .doForEach _ _ | .doForEachKind _ _ _ _ => []
   | .repeat_ repetition => repetition.numberSlots
-  | .repeated times _ => [(times, .clamped)]
-  | .sequentially _ | .simultaneously _ | .modal _ _ => []
-  | .delayed _ _ _ _ | .insteadOf _ _ | .heldUntil _ _ => []
-  | .reflexively _ _ | .thisWay _ _ _ => []
-  | .doesntUntapNext _ steps => [(steps, .clamped)]
-  | .skipsNext _ _ count => [(count, .clamped)]
-  | .extraTurn _ count => [(count, .clamped)]
-  | .additionalPart _ _ _ count _ => [(count, .clamped)]
+  | .repeatTimes times _ => [(times, .clamped)]
+  | .sequence _ | .performSimultaneously _ | .chooseModes _ _ => []
+  | .delay _ _ _ _ | .replace _ _ | .holdUntil _ _ => []
+  | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
+  | .skipUntap _ steps => [(steps, .clamped)]
+  | .skipPart _ count _ => [(count, .clamped)]
+  | .addTurn count _ => [(count, .clamped)]
+  | .addPart _ _ count _ _ => [(count, .clamped)]
 
 end Semantics

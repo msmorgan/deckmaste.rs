@@ -167,7 +167,7 @@ def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .putInto n _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
-  | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
+  | .counterEvent _ _ n .emptying _ _ => selfSubjIntro bs n
   | .tokensCreated n _ _ _ => selfSubjIntro bs n
   | .chapterMark _ => bs
   | .activates who what => selfSubjIntro (nomIntro bs who) what
@@ -213,7 +213,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .putInto n to _ => moveIntro bs none n (some to.sort)
   | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
-  | .counterEvent _ _ n .last _ _ => selfSubjIntro bs n
+  | .counterEvent _ _ n .emptying _ _ => selfSubjIntro bs n
   | .tokensCreated n _ _ _ => nomIntro bs n
   | .chapterMark _ => bs
   | .activates who what => nomIntro (nomIntro bs who) what

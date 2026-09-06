@@ -18,7 +18,8 @@ def act (cost : Cost) (instruction : Instruction) : Ability :=
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okSacrificeAsCost :
-    Ability.check [] (act (.perform (sacrifice .you (a creature))) (draw .you (.lit 1))) = [] := by
+    Ability.check [] (act (.perform (sacrifice (a creature) (agent := .you))) (draw (.lit 1) (agent
+        := .you))) = [] := by
   decide
 
 /-- "Sacrifice a creature, Exile the sacrificed card: Draw a card." -/
@@ -26,61 +27,63 @@ theorem badCostReadsSiblingDeed :
     Ability.check []
       (act
         (.compound
-          [ .perform (sacrifice .you (a creature)),
+          [ .perform (sacrifice (a creature) (agent := .you)),
             .perform (exile (theVerbed (.action "Sacrifice") .card .attributive .one)) ])
-        (draw .you (.lit 1))) = [.costAction] := by
+        (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
 
 /-- "Target creature gains flying." -/
 theorem okGainsKeyword :
-    Instruction.check [] (gains (target creature) (keyword "Flying") none) = [] := by decide
+    Instruction.check [] (gain (target creature) (keyword "Flying") none) = [] := by decide
 
 /-- "Target creature gains a spell ability." -/
 theorem badGainsSpellAbility :
-    Instruction.check [] (gains (target creature) (.spell none (draw .you (.lit 1))) none)
+    Instruction.check [] (gain (target creature) (.spell none (draw (.lit 1) (agent := .you))) none)
       = [.grantable] := by
   decide
 
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
-    StaticSpec.check [] (.costs (allOf (.and [creature, spell])) (.less (.lit 1) none)) = [] := by
+    StaticSpec.check [] (.costShift (allOf (.and [creature, spell])) (.less (.lit 1) none)) = [] :=
+        by
   decide
 
 /-- "Creatures you control cost {1} less to cast." -/
 theorem badCostSubjectOnBattlefield :
-    StaticSpec.check [] (.costs (allOf creatureYouControl) (.less (.lit 1) none))
+    StaticSpec.check [] (.costShift (allOf creatureYouControl) (.less (.lit 1) none))
       = [.costSubject] := by
   decide
 
 /-- "Creatures you control have flying." -/
 theorem okBattlefieldFlying :
-    StaticSpec.check [] (.gains (allOf creatureYouControl) (keyword "Flying")) = [] := by decide
+    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword "Flying")) = [] := by
+        decide
 
 /-- "Creatures you control have convoke." -/
 theorem badBattlefieldConvoke :
-    StaticSpec.check [] (.gains (allOf creatureYouControl) (keyword "Convoke"))
+    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword "Convoke"))
       = [.grantSubject] := by
   decide
 
 /-- "Target creature gets +1/+1, gains flying, and gains trample." -/
 theorem okFlatCoordination :
     StaticSpec.check []
-      (.andAlso none
-        [ .modify (target creature) .power (.up (.lit 1)),
-          .modify it .toughness (.up (.lit 1)),
-          .gains it (keyword "Flying"),
-          .gains it (keyword "Trample") ]) = [] := by
+      (.conjunction none
+        [ .modification (target creature) .power (.up (.lit 1)),
+          .modification it .toughness (.up (.lit 1)),
+          .abilityGrant it (keyword "Flying"),
+          .abilityGrant it (keyword "Trample") ]) = [] := by
   decide
 
 /-- "Target creature gets +1/+1 and gains flying and gains trample." -/
 theorem badNestedCoordination :
     StaticSpec.check []
-      (.andAlso none
-        [ .andAlso none
-            [ .modify (target creature) .power (.up (.lit 1)),
-              .modify it .toughness (.up (.lit 1)),
-              .gains it (keyword "Flying") ],
-          .gains it (keyword "Trample") ]) = [.notCoord] := by
+      (.conjunction none
+        [ .conjunction none
+            [ .modification (target creature) .power (.up (.lit 1)),
+              .modification it .toughness (.up (.lit 1)),
+              .abilityGrant it (keyword "Flying") ],
+          .abilityGrant it (keyword "Trample") ]) = [.notCoord] := by
   decide
 
 /-- "Whenever a creature enters, destroy that creature." -/
@@ -94,10 +97,10 @@ theorem okThatCreatureAfterAntecedent :
 theorem badThatCreatureIsStaticSubject :
     Ability.check []
       (.static
-        (.andAlso none
-          [ .modify thisCreature .power (.up (.lit 1)),
-            .modify it .toughness (.up (.lit 1)),
-            .gains (that (.type .creature)) (keyword "Flying") ]))
+        (.conjunction none
+          [ .modification thisCreature .power (.up (.lit 1)),
+            .modification it .toughness (.up (.lit 1)),
+            .abilityGrant (that (.type .creature)) (keyword "Flying") ]))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -105,20 +108,20 @@ theorem badThatCreatureIsStaticSubject :
 theorem okCoordinatedPlural :
     Ability.check []
       (.static
-        (.andAlso none
-          [ .modify (allOf creatureYouControl) .power (.up (.lit 1)),
-            .modify them .toughness (.up (.lit 1)),
-            .gains them (keyword "Flying") ])) = [] := by
+        (.conjunction none
+          [ .modification (allOf creatureYouControl) .power (.up (.lit 1)),
+            .modification them .toughness (.up (.lit 1)),
+            .abilityGrant them (keyword "Flying") ])) = [] := by
   decide
 
 /-- "Enchanted creature gets +1/+1 and they have flying." -/
 theorem badCoordinatedHostPlural :
     Ability.check []
       (.static
-        (.andAlso none
-          [ .modify (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
-            .modify it .toughness (.up (.lit 1)),
-            .gains them (keyword "Flying") ])) = [.anaphor .bare .many 0] := by
+        (.conjunction none
+          [ .modification (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
+            .modification it .toughness (.up (.lit 1)),
+            .abilityGrant them (keyword "Flying") ])) = [.anaphor .bare .many 0] := by
   decide
 
 /-- "Create a 1/1 white Soldier creature token with flying." -/
@@ -138,20 +141,21 @@ theorem badTokenSpellAbility :
         { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
             power := some (.lit 1), toughness := some (.lit 1),
-            text := [.spell none (draw .you (.lit 1))] } }) = [.tokenAbilities] := by
+            text := [.spell none (draw (.lit 1) (agent := .you))] } }) = [.tokenAbilities] := by
   decide
 
 /-- "Creatures you control have '{T}: Draw a card.'" -/
 theorem okQuotedGrantOnPermanent :
-    StaticSpec.check [] (.gains (allOf creatureYouControl) (act .tapSymbol (draw .you (.lit 1))))
+    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (act .tapSymbol (draw (.lit 1)
+        (agent := .you))))
       = [] := by
   decide
 
 /-- "Instant and sorcery spells you cast have '{T}: Draw a card.'" -/
 theorem badQuotedGrantOnSpell :
     StaticSpec.check []
-      (.gains (allOf (.and [instantOrSorcery, spell, castBy .you]))
-        (act .tapSymbol (draw .you (.lit 1)))) = [.grantSubject] := by
+      (.abilityGrant (allOf (.and [instantOrSorcery, spell, castBy .you]))
+        (act .tapSymbol (draw (.lit 1) (agent := .you)))) = [.grantSubject] := by
   decide
 
 /-- "of the creature type of your choice" -/
@@ -169,7 +173,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "As this enchantment enters, choose a creature type." -/
 def choosesCreatureType : Ability :=
-  .static (.entersChoice thisEnchantment (.quality (.subtype .creature)) none .openly)
+  .static (.entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly)
 
 /-- "Creatures of the chosen type get +1/+1." -/
 def chosenTypeGets : Ability :=
@@ -194,7 +198,7 @@ theorem badTwoChoosersOneSortRead :
 theorem badChosenReadWrongSort :
     Card.check
       (enchantmentWith
-        [ .static (.entersChoice thisEnchantment (.quality .color) none .openly),
+        [ .static (.entryChoice thisEnchantment (.quality .color) none .openly),
           chosenTypeGets ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 
@@ -206,9 +210,9 @@ theorem badChosenProtectionBeforeChoice :
             power := stat 2, toughness := stat 2,
             text :=
               [ .static
-                  (.gains thisCreature
+                  (.abilityGrant thisCreature
                     (.keyword "Protection" (some (.quality (ofChosen .color))) none)),
-                .static (.entersChoice thisCreature (.quality .color) none .openly) ] } })
+                .static (.entryChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 
@@ -216,21 +220,23 @@ theorem badAscribedQualityBeforeChoice :
     Card.check
       (enchantmentWith
         [ .static
-            (.becomes (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+            (.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
               (.chosenQuality (ofChosen (.subtype .creature)))),
           choosesCreatureType ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 
 /-- "{T}: Draw a card. Activate only once each turn." -/
 theorem okActivatedTurnLimit :
-    Ability.check [] (.activated .tapSymbol (draw .you (.lit 1)) none (some .oncePerTurn) none none)
+    Ability.check [] (.activated .tapSymbol (draw (.lit 1) (agent := .you)) none (some .oncePerTurn)
+        none none)
       = [] := by
   decide
 
 /-- "{T}: Draw a card. Do this only once each turn." -/
 theorem badActionLimitOnActivated :
     Ability.check []
-      (.activated .tapSymbol (draw .you (.lit 1)) none (some .actionOncePerTurn) none none)
+      (.activated .tapSymbol (draw (.lit 1) (agent := .you)) none (some .actionOncePerTurn) none
+          none)
       = [.untriggeredLimit] := by
   decide
 
@@ -239,20 +245,20 @@ theorem badChapterWhile :
     Ability.check []
       (.triggered (.chapterMark [1]) []
         (some (.whileTrue (exists_ (.and [creature, .hasPossessor .controller .you])))) [] none
-        none none (draw .you (.lit 1))) = [.chapterDefaults] := by
+        none none (draw (.lit 1) (agent := .you))) = [.chapterDefaults] := by
   decide
 
 /-- "I — and whenever you draw a card, draw a card." -/
 theorem badChapterJoin :
     Ability.check []
       (.triggered (.chapterMark [1]) [] none [⟨.draws .you, [], none, none⟩]
-        none none none (draw .you (.lit 1))) = [.chapterDefaults] := by
+        none none none (draw (.lit 1) (agent := .you))) = [.chapterDefaults] := by
   decide
 
 /-- "As long as a card exiled with this creature has flying, this creature has flying." -/
 def flyingWhileExiledFlying : Ability :=
   .static
-    (.conditionally (.gains thisCreature (keyword "Flying"))
+    (.conditional (.abilityGrant thisCreature (keyword "Flying"))
       (exists_ (.and [.exiledWith thisCreature, .hasKeyword (.the "Flying")])) .asLongAs)
 
 /-- "The same is true for menace and trample." -/
@@ -314,7 +320,7 @@ theorem badUnknownKeywordClass : AbilityClass.known (.keyword "Flyign") = false 
 theorem okActivatedOpensItsOwnLetter :
     Ability.check []
       (activated .tapSymbol
-        (.sequentially
+        (.sequence
           [.dealDamage .this (.letter .x) (target anyTarget), .define .x (.lit 3)])) = [] := by
   decide
 
@@ -326,12 +332,12 @@ theorem badActivatedClosesCardLetter :
 
 theorem sharedSubjectSurvivesSecondSingular :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ exile (target artifact),
-          sharedSubject (target creature)
-            [ .modify (ownSubject (target creature)) .power (.up (.lit 1)),
-              .modify (ownSubject (target creature)) .toughness (.up (.lit 1)),
-              .gains (ownSubject (target creature)) (keyword "Flying") ]
+          establishFor (target creature)
+            [ .modification (ownSubject (target creature)) .power (.up (.lit 1)),
+              .modification (ownSubject (target creature)) .toughness (.up (.lit 1)),
+              .abilityGrant (ownSubject (target creature)) (keyword "Flying") ]
             (some untilEndOfTurn) ]) = [] := by
   decide
 
@@ -347,17 +353,20 @@ theorem badSharedSubjectEmptyDelta :
   decide
 
 /-- "Pay 2 life: Draw a card." -/
-theorem okOwnPayerCost : Ability.check [] (act (payLife .you 2) (draw .you (.lit 1))) = [] := by
+theorem okOwnPayerCost : Ability.check [] (act (payLife .you 2) (draw (.lit 1) (agent := .you))) =
+    [] := by
   decide
 
 /-- "An opponent pays 2 life: Draw a card." -/
 theorem badForeignPayerCost :
-    Ability.check [] (act (payLife anOpponent 2) (draw .you (.lit 1))) = [.costPaidByYou] := by
+    Ability.check [] (act (payLife anOpponent 2) (draw (.lit 1) (agent := .you))) = [.costPaidByYou]
+        := by
   decide
 
 /-- "An opponent sacrifices a creature: Draw a card." -/
 theorem badForeignSacrificeCost :
-    Ability.check [] (act (.perform (sacrifice anOpponent (a creature))) (draw .you (.lit 1)))
+    Ability.check [] (act (.perform (sacrifice (a creature) (agent := anOpponent))) (draw (.lit 1)
+        (agent := .you)))
       = [.costPaidByYou] := by
   decide
 
@@ -423,30 +432,30 @@ theorem badCompanionSharedCounterKind :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Instruction.check [] (scry (each .anyPlayer) (.lit 1)) = [] := by decide
+    Instruction.check [] (scry (.lit 1) (agent := (each .anyPlayer))) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :
-    Instruction.check [] (fateseal .you anOpponent (.lit 2)) = [] := by decide
+    Instruction.check [] (fateseal anOpponent (.lit 2) (agent := .you)) = [] := by decide
 
 /-- "Fateseal 2" over your own library: fateseal is defined only over an opponent's library
 [CR#701.29a]; looking at your own top cards and sorting them is scry [CR#701.22a], spelled
 `scry`. -/
 theorem badFatesealYourOwnLibrary :
-    Instruction.check [] (fateseal .you .you (.lit 2)) = [.opponentsLibrary] := by decide
+    Instruction.check [] (fateseal .you (.lit 2) (agent := .you)) = [.opponentsLibrary] := by decide
 
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :
     Instruction.check []
-      (.sequentially
+      (.sequence
         [ choose (a (qualityFrom .ability (.abilitiesAmong [.the "Flying", .the "Trample"]))),
-          gains thisCreature (.thatAbility .theChoice) (some untilEndOfTurn) ]) = [] := by
+          gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn) ]) = [] := by
   decide
 
 /-- "This creature gains that ability until end of turn", with no ability chosen anywhere in
 the text. -/
 theorem badThatAbilityWithoutChoice :
-    Instruction.check [] (gains thisCreature (.thatAbility .theChoice) (some untilEndOfTurn))
+    Instruction.check [] (gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn))
       = [.choiceRef .theChoice (.quality .ability) 0] := by
   decide
 
