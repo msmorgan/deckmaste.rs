@@ -1,33 +1,34 @@
 ---
 needs: [lean-grammatical-reference-scopes, lean-conjunction-type-evidence, lean-enact-expansion-boundary, lean-erased-index-obligations, lean-field-context-threading, lean-printed-stat-validation, lean-controller-sacrifices-composition, lean-noun-word-refinements, lean-zero-life-exemption-is-a-deontic, docs-lean-is-the-workbench]
 ---
-**Finish the construction and lowering crosswalk that makes Lean usable as
-the semantics_v2 specification.** The user designated `lean/` as the new target
-on 2026-09-05. The readiness review found checker omissions and unresolved
-representation boundaries; the prerequisites close those before this final
-specification audit. `docs/decisions/semantics-v2.md` already requires both a
-construction audit and transcription of the worked corpus. The historical
-`idris/src/Bridge.idr` T-rule inventory describes an earlier shape.
 
-Deliver a current Lean-owned crosswalk from every in-scope English AST
-construction to its Lean spelling and lowering rule, or an explicit lowering
-obligation routed to a named ticket. Inventory from the actual current English
-declarations, not only from the accepted card bench. Record the resolved macro
-trust boundary, grammatical reference scopes, type evidence, and field-context
-contracts with links to their Lean checks and pins. Identify the structural
-laws supporting those contracts, including pure type-conjunction invariance
-where applicable, reference scope, and macro profile/provenance preservation.
+**Retired: the user rejected this ticket's premise on 2026-09-06.**
 
-Reconcile the worked-corpus audit with current Lean spellings and name every
-uncovered in-scope item. A passing `Spelled` theorem establishes checker
-acceptance; do not present it as a proof of correct lowering or execution.
-Port the relevant Bridge examples into checked Lean/target pairs or another
-explicitly checked translation artifact; do not extend the retired Idris model.
+The requested exhaustive mapping from English AST constructions to Lean and
+its specification-readiness requirement were premature architectural
+requirements, not established defects. They are withdrawn.
 
-`docs-lean-is-the-workbench` owns the succession documentation and dated notes
-on historical ADRs. `semantics-v2-adr-touchups` separately owns its two proposed
-wording decisions; preserve that ticket's scope and approval boundary. This
-ticket owns the current crosswalk and readiness assessment, not a rewrite of
-historical decisions. Report remaining blockers honestly rather than declaring
-the specification complete while an in-scope construction has no settled
-meaning. Normal Vintage scope applies.
+The user's intended translation mechanism is meaningful English spellings
+owned by semantic macros, through `semantics_v2` RON. This ticket does not
+establish a separate direct mapping, a Lean bridge in Rust lowering, or new
+worked-corpus obligations. The previously approved macro-only authoring
+boundary remains valid.
+
+## Landing record
+
+PROVE: Retirement only. All speculative implementation and audit artifacts
+were removed before integration: `crates/deckmaste_lowering/tests/lean_bridge.rs`,
+`lean/CROSSWALK.md`, `lean/crosswalk/constructions.md`, and
+`lean/crosswalk/worked-cards.md`. No baseline code, card, or assertion changed.
+No coverage identity was lost. Structural and licensing behavior is unchanged.
+
+DISCLOSE: The discarded Rust file contained three newly introduced,
+unintegrated tests; no baseline tests were removed, re-spelled, restored, or
+ignored. No new tests remain. The cancellation withdraws the proposed mapping
+and transcription obligations, rather than reporting them as implemented.
+No English corpus, selection, or licensing metrics were remeasured.
+
+REPORT: Documentation-only retirement on change
+`xnwzqkytqpxsuyornmsxpvpypzlqvmwq`; unchanged coverage lock `covered` 20,254.
+Construction counts, overlap inventories, and performance were not remeasured.
+No push was performed.
