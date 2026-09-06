@@ -102,3 +102,30 @@ boundaries and grammatical dependencies remain English concerns; game meaning,
 reference resolution to game entities, face legality and card validation are
 not English obligations. Investigate grammatical representation choices against
 concrete interactions before presenting any residual decision to the user.
+
+
+## Production migration design (2026-09-05)
+
+The [production correspondence](../english-grammar-design.md#production-correspondence)
+now records machinery decisions and the thirteen implementation units. Keep
+the existing Earley engine, generated construction ASTs/builders/renderers/
+visitors, immutable provider environment and source-claim machinery. Compile
+lexeme-owned frame schemas into finite environment-owned rules instead of
+maintaining a codec for each realizable tail. The compiled-consumer ticket
+checks this engineering choice before its production activation.
+
+The reviewed candidate contract governs the migrated selection pipeline:
+feature/dependency admission, evidenced role/identity preference, then exact
+scope classes. It supersedes the old global structural-specificity arbitration
+when that migration lands; until then the old path is transitional and may not
+silently select newly wrong analyses. Keep the hoisted AST with derived sites
+and add correlated complete assignments and anchorings, tested against actual
+complete alternatives. No first-class alternative-subtree AST or Semantics
+consumer is scheduled.
+
+The [reconciliation table](../english-grammar-design.md#reconciled-inherited-prescriptions)
+resolves obsolete ticket mechanisms under the accepted top-down/NLP-only scope.
+It explicitly withdraws the proposed game-defined Target Verb Subject filter.
+A surviving marker/verb ambiguity remains a concrete integration gate; this
+design makes no claim that scope packing solves it. The completed review is
+not reopened for speculative formal artifacts.

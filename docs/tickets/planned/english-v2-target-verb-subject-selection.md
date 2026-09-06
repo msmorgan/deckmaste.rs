@@ -1,62 +1,40 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-targeting-marker]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-lexical-source]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Integrate the Target Verb without game-semantic Subject filtering
 
-# Target Verb with a selected Subject
+The retained ticket identity owns the withheld Target Verb and Infectious Curse
+re-coverage. Its former Spell/Ability Subject whitelist is withdrawn under the
+NLP-only scope: Subject is a grammatical relation, and game-reference
+resolution is not available to English. The Target Noun and the two projections
+of the single invariant Targeting Marker remain distinct lexical homographs.
 
-Split from `english-v2-targeting-marker` (2026-09-04, second STOP). The
-marker landing shipped the Targeting Marker with its two projections and the
-count noun; it withheld the Target Verb, so the acceptance sentence
-"a spell that targets" still fails and this ticket owns it.
+Declare the ordinary verb forms through the shared frame/morphology inventory
+and apply the same case, agreement, dependency and evidenced-selection rules
+as other verbs. Preserve the declared imperative restriction only if it has
+independent grammatical distribution evidence; do not substitute a guard naming
+the verb, its game meaning or a construction. The reviewed scope relation does
+not automatically pack a marker-versus-verb lexical-category rivalry.
 
-Why it was withheld: a transitive Target Verb row makes finite-clause
-coordination outrank the marker nominal — "Two target creatures or
-planeswalkers gain 2 life." selected as `Two` (Subject) + `target creatures`
-(finite predicate) + `or planeswalkers gain 2 life`. An imperative-head bar on
-the verb (a declared licence feature, ruled 2026-09-04) removes only the
-imperative reading; the finite reading survives on structural specificity.
+Acceptance probes: `a spell that targets`, `spells that target`, `it targets`,
+`can't target you`; and `Two target creatures or planeswalkers gain 2 life.`
+with its intended marker/NP bracketing retained. Recheck the marker-subject
+inventory from the original 5,805-identity audit against current supported
+input; that historical count is not an acceptance target. Infectious Curse
+must expose the object-gap relative in `Spells you cast`, the subject-gap
+relative `that target enchanted player`, and the shared cost-comparison frame.
+Its full identity is in the register.
 
-The fact to declare: the Target Verb is realized only "in rules text stating
-that a Spell or Ability targets" (`docs/contexts/oracle-english/CONTEXT.md`,
-Target Verb). That is Subject selection — a grammatical relation the frame
-declares, not a word to guard. Design it after
-`english-v2-grammatical-relations` gives frames a way to select the Subject
-class: the Target Verb's frame selects a Spell/Ability Subject (including the
-relativized Subject of "a spell that targets" and anaphoric "it targets"), so
-a bare numeral or a creature nominal never satisfies it. Keep the imperative
-licence feature only if the Subject selection does not already exclude the
-imperative reading.
+Known design risk: both marker and finite-verb readings may remain grammatical
+after the general replacements. If they survive, STOP with the two checked
+ASTs and the exact missing decision; seek a grammatical/ambiguity ruling rather
+than restoring the semantic whitelist, adding a dominance edge, treating a
+non-scope rivalry as scope, or declaring a wrong selection covered. This ticket
+cannot close merely on unchanged coverage while the Target Verb is withheld.
+It is a separate integration gate so that risk neither hides nor restarts the
+whole grammar review. Source evidence: style-guide §6 “Describing objects,
+players, and targets”; the glossary owns the three lexical distinctions.
 
-Fences: no narrowed form, dominance edge, exception entry, or guard naming
-`target`. Acceptance: "a spell that targets", "spells that target", "it
-targets", "can't target you" select; every marker-subject sentence in the
-5,805-identity target audit keeps its analysis; zero ties; standard
-constraints apply.
-
-## Re-coverage obligation (2026-09-04)
-
-`english-v2-adjunct-licence-removal` retired **Infectious Curse**
-(`5fbcf36b2e6006fefc9c94d13b8c7d165c436d22f6207f5e83dc03956232681c`) from the
-coverage lock. The sentence is:
-
-> Spells you cast that target enchanted player cost {1} less to cast.
-
-It had been covered only by a wrong analysis: `fixed_duration_phrase` accepted
-any noun phrase as a temporal endpoint, so `that target enchanted player` was
-absorbed as a duration adjunct on `cast`. Narrowing the endpoint to a declared
-temporal head removed that reading and left the unit with no parse.
-
-The analysis that must select when this ticket lands: `Spells you cast` is a
-noun phrase with an object-gap relative, and `that target enchanted player` is
-a **subject-gap relative clause on `Spells`** whose head is the Target Verb
-with `enchanted player` as its object — the Spell/Ability Subject selection
-this ticket owns. The whole nominal is then the subject of
-`cost {1} less to cast`.
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.

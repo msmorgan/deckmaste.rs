@@ -1,38 +1,35 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-closed-class-single-owner]
+needs: [english-v2-grammar-migration-design, english-v2-lexeme-owned-verb-frames]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Consolidate nominal features and adjective ownership
 
-Adjective lexeme tier (vocab-surface ruling 2026-09-02; homograph-feature
-ledger). Adjectives are content words with no legal home but a vocab:
-`AttributiveAdjective` / `PredicativeAdjective` are transitional. Mirror
-the noun and verb inventories: ONE adjective inventory with provenance as
-data — core-declared ordinary adjectives as the seed (additional, other,
-main, maximum, six-sided, …), declaration contributions where a game
-identity carries an adjective face (keyword-derived participles like
-`equipped`/`enchanted` already ride grammar contributions), grammatical
-distinctions (attributive/predicative, gradable, participial) as declared
-features consumed by constructions; morphology strictly regular with
-per-word attested overrides. The homograph licence moves with the members. The card-type modifier feature
-this ticket previously waited on is no longer a ticket — it is the `Card type as
-a derived feature on nominal modifiers (A8b)` entry in `../fog.md`, and nothing
-here depends on it landing first.
-Delete the adjective vocabs once every member has a home; the collision
-tripwire then covers adjectives without exemption classes. Hard blocker this ticket owns: three
-form literals (`additional`, `next`, `other`) collide with adjective vocab
-members today and become unconditional load errors once adjectives are
-lexemes — re-route them through the inventory first. Coverage must
-not drop; standard constraints apply.
+Replace transitional `AttributiveAdjective`/`PredicativeAdjective` inventories
+with one adjective inventory carrying declared distribution and morphology.
+Carry the existing ordinary adjective members, including `main`, `maximum`
+and `six-sided`. Preserve identity/provenance and homograph licensing; grammatical participles
+continue to come from verb declarations, not a duplicate adjective inventory.
+Reroute the colliding form literals `additional`, `next`, `other` before the
+new inventory reaches environment validation. Include `same` and `true` for
+`The same is true for creature spells you control ...`.
 
-2026-09-04: `english-v2-copular-complement-sum` widened every copular complement
-site to the whole `PredicativeComplement` sum, so
-`The same is true for creature spells you control…` now has a complement site to
-reach but still fails for want of `same` and `true` in the adjective inventory —
-this ticket owns them.
+Consolidate count/mass use, determiners/genitives, nominal modifier stages and
+Targeting Marker order on the existing NP/Nominal categories. `non-` belongs to
+productive modifier morphology and Polarity; delete per-polarity modifier
+families. Collapse card-type modifier partitions to a feature-driven modifier;
+the separately retained card-kind noun inventory is outside this deletion.
+Adjective/Adverb Phrase degree modification uses lexical distribution, not a
+fixed total adjective-order guess. Use `Features.Conforms` and
+`FeatureInteractions`; extend qualification/distribution witnesses as needed.
+
+Acceptance: count noun and mass noun positive uses, a noun licensed for both,
+unlicensed numeral+mass rejection, genitive agreement, Targeting before
+adjectives, adjective-only and participial licenses, non-prefixed type modifiers,
+and the same general postmodifier structure in ordinary and keyword-host NPs.
+The keyword host itself is migrated by the document ticket after extraction.
+Preserve source Onset/morphology ownership and reject the three old
+literal/inventory collisions. Style-guide evidence: §6 “Describing objects,
+players, and targets” and §7 “Types, subtypes, and supertypes as nouns and modifiers”.
+
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.

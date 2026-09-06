@@ -10,7 +10,8 @@ grammar design and production migration. Resume after the migration-close
 judgment; the [wayfinder](../../english-grammar-wayfinder.md) names that sequence.
 
 Re-measure the supported normalized corpus and refresh the historical tail
-register in `../fog.md`. The old first-failure buckets and coverage counts are
+register from [the migration obligations](../../english-grammar-migration-obligations.md)
+and record genuinely unshaped residual families in `../fog.md`. The old first-failure buckets and coverage counts are
 provenance, not current scope. Classify a failure against the migrated design:
 a general omission reopens a design/migration ticket; a local structural
 residue gets a coherent family ticket; purely lexical additions can be batched.

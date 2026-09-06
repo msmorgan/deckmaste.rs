@@ -1,101 +1,51 @@
 ---
-needs: [english-v2-grammar-migration-design, xtask-legacy-pins-to-provenance, english-v2-clause-level-duration, english-v2-copular-complement-sum, english-v2-form-template-defects, english-v2-granted-ability-coordination, english-v2-coordination-member-merge, english-v2-possessive-nominal-form-collapse]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-frame-compiler]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Replace lexical predicates, grammatical relations and agreement together
 
-# Verb frames become lexeme-owned data
+Activate the checked frame family from the compiler ticket. Replace the named
+`declaration_verb` tail codecs, core/plugin tail matching and their lexical
+predicate consumers together. Include `ObjectEqualityToVerb` versus
+`ObjectToEqualityVerb`, `EnterWithCountersVerb`, `OrderedVerb`, `LookAtVerb`,
+`ProVerbHead`, `HaveKeywordAbilityVerb` and `GetPowerToughnessVerb`; the final
+replacement inventory is the codec declarations present at claim, not an old
+count. No compatibility category aliases or per-verb checks.
 
-**R12 — Group R, capstone. DESIGN brief first: this ticket is not a direct
-claim.** It needs a design brief before implementation, like
-`english-v2-underspecified-adjunct-attachment`. It sits last because every
-earlier Group R landing removes tails from the inventory it generalizes, so the
-design should be written against the smaller set.
+Use the same NP category for Subject, Object and prepositional Complement.
+Remove `Subject`/`Object` constituent-category wrappers and relation-named
+pronoun vocabularies. Declare pronoun Case and Person/Number, propagate NP
+agreement, and derive Concord Class separately from Finiteness, tense,
+Inflectional Form and Voice. Constrain ambiguous lexical forms at their host;
+where its host determines a form, record that licensed form rather than the
+unrefined scanner set. If two tenses remain grammatically possible, retain
+the competing analyses for the normal selection/ambiguity check; do not guess. Update existing relative, document,
+coordination, AST-export and diagnostic consumers to the new shared types in
+this landing; later tickets add capabilities, not compilation adapters.
 
-Authority: `docs/contexts/oracle-english/CONTEXT.md` — "**Verb Frame**: An
-ordered lexical schema describing the complements and fixed markers a verb
-licenses" — and the rewrite ADR's "Amendment: Verb Frame and execution-context
-vocabulary (2026-09-04)": "A lexeme owns a `VerbFrameSet` containing `VerbFrame`
-schemas."
+Use one copular frame whose predicative Complement is AdjP/NP/PP; delete the
+game-partitioned copular complement members. Declare recipient/retained-Object
+passives as frame data. Bare temporal NP adjuncts require declared Temporal
+features and add no Object to a passive frame. Preserve grammatical pro-verb,
+auxiliary, negative and contracted forms through their lexical declarations.
+Style-guide evidence: §1 “Write rules instructions, not conversational prose”
+and §7 “Types, subtypes, and supertypes as nouns and modifiers”.
 
-Defect. The grammar owns a closed, hand-maintained list of complement sequences
-and a lexeme picks one from it. `crates/deckmaste_english_v2/src/constructions.rs`
-declares roughly thirty-three `codec …Verb { generate declaration_verb { tail =
-[...] } }` entries whose names record the corpus rather than the grammar —
-`ObjectEqualityToVerb` and `ObjectToEqualityVerb` are two codecs for two
-orderings of one frame; `EnterWithCountersVerb` is a mechanic promoted to a
-grammar primitive; `OrderedVerb` bakes `"in" ArbitraryDeterminer "order"` into a tail;
-`LookAtVerb`, `ProVerbHead`, `HaveKeywordAbilityVerb` and `GetPowerToughnessVerb`
-are named for single verbs. `core_verbs.ron` shows the same shape from the other
-side: `Deal` carries six hand-written `Predicate([...])` tails, and `Turn`'s only
-frame is `Predicate([Literal("face"), Literal("up")])` — no object role, no
-`face down`, beside a one-member `vocab FaceOrientation { FaceUp = "face up" }`.
+Formal correspondence: `JudgeFrameIn`, finite agreement and
+`AgreementInteractions`, with `FeatureInteractions` temporal exclusions. Extend
+witnesses for multiple declared roles, optional roles and retained Objects
+before relying on the extensions. Share the form/voice carriers with later
+subordination and extraction; do not manufacture a category per form.
 
-The declaration side is already open — a stub may write
-`frame_set: Custom(frames: [[Literal("with"), Lex("Preposition","For"), Amount,
-ObjectNounPhrase, PredicativeComplement]])` — but a declared frame only realizes
-if a codec's planned tail matches it atom for atom
-(`VerbFrameKey::matches_frame_set`,
-`crates/deckmaste_construction_core/src/emit/runtime.rs` and `semantic.rs`). So
-those ~33 tails **are** the realizable frame space: a declaration whose
-complement sequence no codec spells cannot parse, however it is written. That is
-`docs/memory/scratch/plan09-postmortem/overfit.md` F1 one layer up — F1's fix
-(core verbs moved out of `lexeme VerbLexeme` into `core_verbs.ron` data) landed;
-the tails stayed a grammar-owned list of what the corpus has printed.
+Acceptance: `you cast`, `a player casts`, `players/they cast`, mixed and/or
+Subjects, `was/were`, and wrong-case/wrong-agreement exclusions. Preserve reduced
+passive `dealt damage this way` versus finite preterite and make remaining
+preterite paradigms available without misclassifying either host. Cover both
+orders of a multi-Complement frame, `turn <NP> face up/down` through ordinary
+phrase structure and declared lexical forms, and transitive `exile/return ... with ... on
+...` from the old frame ticket. All eleven passive-temporal identities, the
+`Cast this spell next turn.` probe, copular consolidation and preterite residues
+in [the register](../../english-grammar-migration-obligations.md) belong here.
 
-Shape to design (open dimensions the brief must pin). One `declaration_verb`
-codec whose tail comes from the `VerbFrameSet` row, so a frame is data and the
-named codecs collapse to rows. Open: how the generated AST and rule family are
-named when the tail is not statically known; whether the frame atom vocabulary
-stays sealed (it should — the atoms are categories, not words) and what it
-contains; how `VerbFrameKey` degrades when there is one codec; whether
-`core_verbs.ron`'s `Predicate([...])` and the stub `Custom(frames: [...])`
-surface unify. Touches `deckmaste_construction_core`.
-
-Fences. A per-mechanic or per-verb codec added on the way. A `Literal` in a tail
-that spells a word a vocabulary member owns — the closed-class single-owner
-amendment applies to tails. Any census used to decide which tails exist. A
-`checked by` naming a verb.
-
-Glossary: Verb Frame, Verb Frame Set, Lexical Verb Phrase, Complement, Measure
-Complement, Verb Frame Key. Record any gap.
-
-Baseline, measured on change `oulzkkoqmvuv` (388 constructions, 17,052 / 32,641
-covered) — re-measure at claim. Standard constraints apply; `cargo test
---workspace` (touches `deckmaste_construction_core/src/emit/`).
-
-## Routed in, 2026-09-04 (from `english-v2-form-template-defects`, R5 item 4)
-
-R5's item 4 — "`codec EnterWithCountersVerb` confines a general frame to one
-verb" — is struck there and lands here, because the confinement is not in the
-codec. `EnterWithCountersVerb` names no verb; a verb reaches it by declaring
-`Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition",
-"On"), Role("FrameComplement")])`, which `core_verbs.ron` does for `Enter`. Two
-mechanism gaps stop the attested sentences:
-
-- **No role atom in a declaration tail.** The family is
-  `exile it with four time counters on it` / `Exile Arc Blade with three time
-  counters on it` / `Return target creature card … with a finality counter on
-  it` — *exile* and *return* here are keyword-action declarations, whose frames
-  are `CustomTailAtom` with exactly five variants (`Literal`, `Lex`, `Amount`,
-  `ObjectNounPhrase`, `PredicativeComplement`;
-  `crates/deckmaste_construction_core/src/macro_def.rs:416`). There is no
-  `Role`, so a declaration cannot name `FrameComplement` at all, and the two
-  frame-atom vocabularies (core-verb `VerbFrameAtom`, declaration
-  `CustomTailAtom`) have drifted apart. Unifying them is this ticket's "whether
-  `core_verbs.ron`'s `Predicate([...])` and the stub `Custom(frames: [...])`
-  surface unify" dimension.
-- **The attested tail is a different frame.** `EnterWithCountersVerb`'s tail has
-  no direct-object slot (*enter* is intransitive there). The written sentences
-  are `V ‹obj› with ‹obj› on ‹complement›`, so even with a role atom the frame
-  space would have to gain a tail no codec spells — the "~33 tails are the
-  realizable frame space" problem above, in one instance.
-
-Add both to the design's worked examples; the acceptance should show one of
-these sentences selecting.
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.

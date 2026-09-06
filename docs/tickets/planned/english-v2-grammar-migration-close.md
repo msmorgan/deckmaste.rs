@@ -1,19 +1,22 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-adjective-inventory, english-v2-attachment-class-declared, english-v2-cost-family-lowering, english-v2-frame-complement-pair-nesting, english-v2-grammatical-relations, english-v2-keyword-subject-modifiers, english-v2-lexeme-owned-verb-frames, english-v2-locative-coordination-arms, english-v2-locative-licence-set, english-v2-of-complement-filter-removal, english-v2-person-number-agreement, english-v2-relative-clause, english-v2-remaining-prepositions, english-v2-scope-device-cross-host-gates, english-v2-subordinate-clause, english-v2-target-verb-subject-selection, english-v2-type-line-construction, english-v2-type-line-declaration]
+needs: [english-v2-grammar-frame-compiler, english-v2-lexeme-owned-verb-frames, english-v2-adjective-inventory, english-v2-subordinate-clause, english-v2-remaining-prepositions, english-v2-scope-device-cross-host-gates, english-v2-relative-clause, english-v2-grammar-measure-phrases, english-v2-grammar-document, english-v2-grammar-context-ellipsis, english-v2-type-line-construction, english-v2-grammar-lexical-source, english-v2-target-verb-subject-selection]
 ---
 # Validate the migrated grammar and resume long-tail work
 
 Close the production migration under the [Lean design decision](../../decisions/english-lean-design-workbench.md).
-The migration-design ticket must replace this initial dependency inventory with
-the actual migration tasks before it closes. Do not treat these inherited
-eighteen tickets as an exhaustive grammar implementation plan.
+The thirteen direct dependencies are the migration implementation tasks in the
+[wayfinder](../../english-grammar-wayfinder.md). Check every row of the
+[obligation register](../../english-grammar-migration-obligations.md), including
+formerly covered wrong analyses and the separately gated Target Verb rivalry.
 
 Check the resulting Rust grammar against the reviewed formal model and its
 named structural witnesses. Run the production structural/coverage checks and
 the changed dependency closure as required by the landing contract. Preserve
-and account for every routed regression obligation. Identify any superseded
-constructions, adapters, or compatibility paths still present and finish their
-replacement within the agreed migration scope.
+and account for every routed regression obligation. Identify superseded
+constructions, adapters, tail codecs and structural-specificity arbitration still present and finish their replacement. Verify
+that scoped alternatives reconstruct the exact retained readings on the named
+finite witnesses, including correlated sites and frame anchorings. No task is
+complete just because coverage stayed constant while its feature was withheld.
 
 Assess representative remaining failures and record whether the existing
 long-tail loop is useful again. This is a revisable engineering judgment, not

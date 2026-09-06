@@ -1,44 +1,34 @@
 ---
-needs: [english-v2-grammar-migration-design]
+needs: [english-v2-grammar-migration-design, english-v2-remaining-prepositions]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Migrate extraction, relatives and clause Complements
 
-Relative clauses (A5): a relative-marker slot {that, who, zero} feeding ONE
-general relative body (subject-gap and object-gap as feature values). "who"
-has 143 corpus witnesses and no v2 path; delete hardcoded "that" from
-predicate constructions. Recorded shared gaps, not required: which/whose,
-pied-piping.
+Replace `SubjectGapRelativeClause`/`ObjectGapRelativeClause` and their
+auxiliary/perfect/negative/copular wrapper families with the common clause
+body and explicit relative form/discharge. Track ordered exposed Gaps by
+category and relation. That, who/which, zero, possessive-fronted, supplementary
+and pied-piped forms use the reviewed carrier; zero cannot discharge a Subject.
+Agreement of a possessive fronted phrase is independent of the modified noun.
 
-Acceptance: coupled replacement (each per-X family deleted with its general
-construction landing), zero net coverage loss, ratchet up, zero ties or
-STOP-and-report, no process artifacts in tracked source. Design only from v1
-(docs/memory/scratch/plan09-postmortem/taxonomy-v1-v2.md) — no v1 code, types,
-or feature vocabulary. Probe set: the audit §6 table filtered to this family.
-Standard constraints apply.
+Add declared finite that-Complements, wh-Complements and free-relative forms
+over the same clause grammar. Extend `Dependencies` for these forms using
+inhabited positive witnesses and wrong gap/form/boundary exclusions. Adjuncts
+and complex Subjects are extraction boundaries; ordinary coordination cannot
+pretend to share a Gap. Closed complete candidates must have no undischarged
+Gap. No raw-text fallback, copied antecedent tree or rule-resolution context.
 
-## Re-coverage obligation (2026-09-04)
+Acceptance carries Absorbing Man and Titania's auxiliary object-gap relative
+on `all damage`, Ashen-Skin Zubera's `that died this turn`, and Boldwyr
+Heavyweights' `who searched`, with full identities in the register. Add
+which/whose/pied-piping/supplementary positives and zero-subject, wrong-category,
+wrong-agreement and adjunct-extraction negatives corresponding to
+`DependencyInteractions`. Preserve all current relative tests by outcome.
+Infectious Curse's two relative structures are exercised here with a declared
+synthetic transitive head; its actual Target Verb and full re-coverage remain
+owned by `english-v2-target-verb-subject-selection`.
+Style-guide evidence: §5 “Names, self-reference, pronouns, and anaphora” and
+§6 “Describing objects, players, and targets”.
 
-`english-v2-adjunct-licence-removal` retired **Absorbing Man and Titania**
-(`72b69a69a8a4add9165cd6a8f5b062801ad06247f3c48e126189904cdbac155d`) from the
-coverage lock. The sentence is:
-
-> Double all damage that creature sources you control would deal.
-
-It had been covered only by a wrong analysis: `fixed_duration_phrase` accepted
-any noun phrase as a temporal endpoint, so `that creature sources you control`
-was absorbed as a duration adjunct. Narrowing the endpoint to a declared
-temporal head removed that reading and left the unit with no parse.
-
-The analysis that must select when this ticket lands: `that creature sources
-you control would deal` is an **object-gap relative clause on `all damage`**
-whose body carries an auxiliary — subject `creature sources you control`,
-auxiliary `would`, head verb `deal`, object gap. The general relative body
-this ticket introduces has to admit an auxiliary between the relative subject
-and the head verb.
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.

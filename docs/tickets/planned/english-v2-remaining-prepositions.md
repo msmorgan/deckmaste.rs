@@ -1,56 +1,41 @@
 ---
-needs: [english-v2-grammar-migration-design]
+needs: [english-v2-grammar-migration-design, english-v2-adjective-inventory, english-v2-subordinate-clause]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Migrate preposition distribution and complement licensing together
 
-# Type `without`, `by`, `than` and `as` as prepositions
+Replace the preposition class/nominal-license table as one change. A declared
+preposition row states grammatical attachment distribution and Complement
+selection; a head declares an independent set of license dimensions.
+Membership replaces the fused `LocativeTemporalLicense` powerset and the
+word-named `InComplement`/`OnComplement` values. Use interior/surface/temporal/
+relational distinctions, not renamed word identities. Adjunct and postmodifier
+capability default as in the rewrite's declared-attachment amendment; any
+narrowing needs linguistic evidence, never absence from the corpus.
 
-**R8 — Group R.** The unclosed remainder of the Plan 09 taxonomy audit's HIGH
-finding that `with / without / by / as / between` cannot form prepositional
-phrases. `english-v2-with-preposition` (done, 2026-09-04) closed the `with` half
-and is the worked example to follow.
+Delete `qualified_complement`/`QualifiedRelational` semantic filtering on `of`.
+Admit grammatical `card of a Goblin`; do not turn game usefulness into a
+requirement. Include general PP paths for `without`, `by`, `than`, `as`,
+`between` and existing rows, with distinct selected Complement forms. Retire
+fused per-preposition wrappers as their consumers migrate. Clause uses are
+supplied by subordination and comparative uses by the measure ticket; do not
+force every homographic use into NP-taking PP syntax.
 
-Defect. `vocab Preposition`
-(`crates/deckmaste_english_v2/src/constructions.rs:38`) has fifteen members and
-none of these four, so each appears as a bare form literal in a construction
-minted to spell it:
+Implement general declared-role preemption on arbitrary frame sequences,
+using the first eligible PP on the right periphery, opaque marked-role edges
+and transparent fixed markers. Extend `RolePreference`/`FrameScope.projectHost`
+and their contextual witnesses before relying on the larger domain. Keep
+later same-marker postmodifiers and PPs inside non-final conjuncts.
 
-- `without` — `verb(head) object "without" "paying" complement` (`:2024`),
-  `keyword_without_subject_modifier = "without" lex(ability)` (`:4811`)
-- `by` — `participial_by_complement = verb(head) "by" agent` (`:1741`),
-  `participial_except_by_complement = verb(head) "except" "by" agent` (`:1748`)
-- `than` — `:1992, 2014, 3663, 3671, 3682, 3911, 3987`
-- `as` — `:1486, 1490, 1495, 1499, 1504, 1516, 1608, 1880, 4304`
+Acceptance includes a head licensing interior+relational without surface,
+`on the beginning of your upkeep` excluded by the declared distribution,
+`in addition to its other types`, `Under your control, draw a card.`, and
+`without`/`by` with ordinary and nonfinite Complements. Retain `Search your
+library for a card.` as a selected frame role, not packed scope. Re-measure the
+thirteen with-attachment cases and Vicious Rivalry from the register; their
+complete alternatives are packed by the scope ticket. Widening may not silently
+ship a newly wrong selection or be narrowed again to hide a tie. Style-guide
+source map: §§6, 9, 11 and 12 in the whole-grammar design.
 
-Pinned shape. One member per word, each with a declared attachment class
-justified from English under R1's default (adjunct- and postmodifier-capable
-unless a stated fact narrows it), and each with its complement kind. Retire the
-fused constructions whose only reason to exist is the missing member, re-spelling
-their coverage through the general PP and its noun-side licence, exactly as the
-`with` landing did. `as` is the hardest: several of its sites are a subordinator
-(`as long as`, `as though`) rather than a preposition — split those explicitly
-and say which is which in the record; `english-v2-subordinate-clause` owns the
-subordinator half and must not be duplicated here. `than` is a comparative
-complementizer at some sites for the same reason.
-
-Land the four as separate changes if the grammar lane allows; one ticket because
-they are one family and one method.
-
-Fences. Declaring an attachment class by corpus count. Keeping a fused
-construction "for now" beside the PP. A `checked by` naming any of the four
-words. Adding complement arms only where a census shows them — every arm the
-preposition governs in Oracle English is declared, and the census goes in the
-record.
-
-Glossary: Preposition, Subordinator, Complementizer, Prepositional Phrase,
-Adjunct, Postmodifier. Record any gap.
-
-Baseline, measured on change `oulzkkoqmvuv` (388 constructions, 17,052 / 32,641
-covered) — re-measure at claim. Standard constraints apply.
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.

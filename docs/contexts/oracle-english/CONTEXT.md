@@ -76,6 +76,10 @@ A syntactic unit organized around a predication and its dependents.
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
+**Subordinator**:
+A grammatical marker that introduces a Subordinate Clause and marks its
+dependent status.
+
 **Adjective**:
 A lexical Category whose members characteristically modify Nominals or serve
 as predicative Complements.
@@ -248,6 +252,10 @@ context.
 The grammatical relationship in which one expression's features constrain the
 form of another. Agreement is not itself Finiteness or an Inflectional Form.
 
+**Case**:
+A grammatical distinction between forms of a nominal expression, such as
+nominative, accusative and genitive, associated with its syntactic distribution.
+
 **Person**:
 The grammatical feature distinguishing speaker, addressee, and other
 referents.
@@ -263,6 +271,10 @@ form, initially third-person singular versus other.
 **Finiteness**:
 The grammatical property distinguishing finite clauses and Verb Phrases from
 nonfinite ones. It is not an Inflectional Form.
+
+**Tense**:
+The grammatical marking of temporal location relative to a reference point.
+It is distinct from Finiteness and from the Word Form that realizes it.
 
 **Inflectional Form**:
 A morphological form of a Verb Lexeme, such as plain, third-person-singular

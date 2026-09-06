@@ -60,3 +60,62 @@ Retain the inherited frame-pair alternate-anchoring obligation. Both readings
 must survive; no leftmost boundary or specificity preference is authorized.
 The prototype's lexical-leaf and anchor-count invariants are necessary checks,
 not a replacement for the full production topology contract.
+
+## Landing record
+
+Migration design completed 2026-09-05 on change `zyvukoyk`; no production code,
+Lean definitions, declaration data or coverage lock changed. The source
+inspection at claim `luwqpxyt` covered the generic chart, scanner, environment,
+generated builders/AST/render/visit, materialization and selection. Lean LSP
+outlines checked the actual `Analysis.Reading`/`package_exact` and
+`Dependencies.Admitted` interfaces. The resulting correspondence and machinery
+decisions are in `docs/english-grammar-design.md`.
+
+PROVE: the obligation transfer retains all twenty full identity keys from the
+former fog/relative/Target records, all forty-one historical frontier rows,
+and the scope/overlap/frame-boundary witnesses. The ten merged unclaimed
+nodes were removed only after assigning their obligations and transferring
+incoming live edges. No protected WIP/done node had an incoming dependency
+on a retired node. Closure has exactly the thirteen resulting implementation
+tasks as direct dependencies. The graph has no duplicates, cycles or dangling
+needs. Changed-document links resolve. No production identity or analysis was
+added, removed or measured by this documentation ticket.
+
+DISCLOSE: eight inherited implementation tickets were repinned; five were
+added for the frame compiler, measures, documents, recoverability and lexical/
+source correspondence. Ten smaller tickets were merged, with the old-to-new
+routing recorded in `docs/english-grammar-migration-obligations.md`. The
+unclaimed `template-verb-conjugation` dependency and prose now point to the
+combined frame/agreement owner. WIP tickets belonging to other workspaces and
+done-ticket records were untouched. The refreshed tree includes another
+session's new claim; no work from that claim was edited.
+
+STOP/reconciliation: the old Target Verb ticket prescribed a game-defined
+Spell/Ability Subject whitelist. That prescription was not carried into the
+new plan: the user's explicit NLP-only/no-Semantics clarification supplies the
+authority to remove it. Its marker/verb ambiguity and Infectious Curse remain
+an explicit integration gate, not a solved case. The old specificity and
+meaning-bearing trigger-envelope prescriptions conflict with the reviewed
+candidate/document contracts; their scheduled replacement is recorded in the
+two decision documents under the accepted top-down migration authorization.
+No production rule was changed or narrowed to conceal those conflicts.
+The old Type Line no-consumer/no-schema-change STOP is resolved by a single
+schema/declaration/consumer ticket within the already-authorized compiler scope.
+
+Deviations and additions: the five missing implementation owners, the obligation
+register, three glossary entries (Case, Tense, Subordinator), and the tracked
+decision deltas make the authorized migration executable. No new grammar
+constructions or formal proof obligations were implemented here. Runtime frame
+preparation and complete scope-assignment size are explicitly uncertain costs
+with compiled/structural witnesses in their owners. The completed grammar
+review was not reopened; no global uniqueness or completeness gate was added.
+Assurance counts: zero tests restored, re-spelled, ignored, added or removed.
+The retired files are planning tickets, not tests or coverage evidence.
+
+REPORT: production coverage, selection, construction and performance figures
+were not measured; this ticket explicitly requires no production code or
+coverage ceremony. Historical counts retain their original provenance in the
+obligation register. After a changed `kata refresh`, the documentation audit
+and graph checks passed again; `cargo xtask cite check` checked 14,929 citations
+with zero stale references. The source changes are documentation only, so no
+Rust test closure or new Lean build was required.

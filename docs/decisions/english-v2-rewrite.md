@@ -1651,3 +1651,44 @@ grammar-side class spelling the same bytes is a symptom of a Game Model
 category in the grammar and is resolved by retiring the class, never by a
 ranking tier and never by a guard. Coverage may move both ways during the
 retirement; every identity that changes analysis is listed with old and new.
+
+
+## Amendment: reviewed grammar migration (2026-09-05)
+
+The accepted [independent NLP workbench decision](english-lean-design-workbench.md)
+and its [production correspondence](../english-grammar-design.md#production-correspondence)
+now govern grammar replacement. This is the concrete migration design
+requested after the formal review, not a separate v3 or a Semantics interface.
+
+The generated-code, Earley, lexical-ownership and byte-exactness contracts
+remain. The hand-enumerated verb-tail codec space is replaced by generated
+schema-checked frame members and finite environment-owned Earley rules. Schema
+identity is grammar data, not a new specificity tier or a per-verb Construction.
+
+For migrated selection, checked feature/dependency admission precedes evidenced
+local preference and verified scope packing. This supersedes the global
+structural-specificity/exception arbitration in “Parsing, selection, and
+failure” at the selection migration landing. The typed error for unrelated
+surviving alternatives remains. Qualification/distributive distributions and
+selected-role/identity principles remain; neither numeric measures nor equal
+text license a preference. Earlier slices retain the old selection path only
+until its scheduled replacement and must disclose its effects.
+
+The scope representation remains a hoisted generated AST with derived metadata.
+Complete correlated site assignments and frame-boundary anchorings extend the
+existing per-mobile site projections. Exact finite-witness expansion checks
+prevent those projections from inventing combinations of readings. No alternative
+subtree node is introduced. References above to Semantics reading these fields
+are superseded by the explicit no-interaction ruling: English diagnostics can
+inspect them; the Semantics project has no dependency on English.
+
+The Plan 08 meaning-bearing trigger-envelope prescription is superseded by the
+reviewed clause/document structure: initial adverbials and ordered conditions
+are clause grammar, and document collections preserve textual boundaries.
+Cost notation remains in scope. No game-defined Subject filter is authorized
+for the Target Verb; its original ticket's proposed mechanism is withdrawn,
+with its grammatical ambiguity and re-coverage witnesses retained. Type Line
+order schema, declarations and consumer migrate together at the single open
+Type inventory. The [wayfinder](../english-grammar-wayfinder.md) and
+[obligation register](../english-grammar-migration-obligations.md) replace the
+old Group R order and fog routing without weakening the landing contract.

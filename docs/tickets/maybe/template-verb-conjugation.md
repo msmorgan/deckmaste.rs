@@ -1,8 +1,8 @@
 ---
-needs: [english-v2-person-number-agreement]
+needs: [english-v2-lexeme-owned-verb-frames]
 ---
 Agreement comes from the [`Person`, `Number`, `Agreement`, and `Concord Class`
-model](../../contexts/oracle-english/CONTEXT.md) established by `english-v2-person-number-agreement`,
+model](../../contexts/oracle-english/CONTEXT.md) established by `english-v2-lexeme-owned-verb-frames`,
 which this ticket now follows. Reuse those features; do **not** create a second
 template-only agreement model. That settles dialogue point 2 below — the
 remaining open choice is the template spelling for a conjugable verb and how it

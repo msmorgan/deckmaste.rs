@@ -1,32 +1,32 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-np-postmodifiers]
+needs: [english-v2-grammar-migration-design, english-v2-lexeme-owned-verb-frames]
 ---
-> **Migration routing (2026-09-05).** This unclaimed ticket waits on
-> `english-v2-grammar-migration-design` under the
-> [Lean design decision](../../decisions/english-lean-design-workbench.md).
-> That design task must reconcile and repin this ticket before it becomes
-> executable. The prior body below preserves examples, regression and
-> re-coverage obligations, and proposed mechanisms; its old sequence,
-> implementation prescriptions, and coverage-ratchet acceptance do not
-> override the new design process or the current landing contract.
+# Replace subordinator-specific clauses with declared dependent-clause grammar
 
-One subordinate-clause construction with a subordinator lexical slot (A4) —
-v1 had 15 subordinators in one slot; v2 has 25 constructions (per
-subordinator x finiteness) — both counts unstamped, re-measure at claim.
-Finiteness is a feature, not a construction.
+Use one lexical subordinator inventory declaring the dependent form it selects,
+with shared finite, infinitival and gerund-participial clause categories.
+Preserve distinct constructions where the dependency or surface structure
+actually differs. Replace the per-subordinator × form families and update
+`PreposedClauseTail`, `SimplePostposedClauseTail` and `PostposedClauseTail`
+consumers from the landed focus-adverb work; no second tail family.
 
-Acceptance: coupled replacement (each per-X family deleted with its general
-construction landing), zero net coverage loss, ratchet up, zero ties or
-STOP-and-report, no process artifacts in tracked source. Design only from v1
-(docs/memory/scratch/plan09-postmortem/taxonomy-v1-v2.md) — no v1 code, types,
-or feature vocabulary. Probe set: the audit §6 table filtered to this family.
-Standard constraints apply.
+Initial and final adverbial attachment, conditionals, tense/voice/negation,
+resubjected sequencing and focus use the common clause/VP grammar. This owns
+`as long as`, `as though`, `until you <verb>`, `Otherwise,`, and the adverbial
+structure of `as an additional cost to cast this spell, ...`. Lexical PP uses
+of `as` and comparative `than` are assigned to prepositions/measures. Gerund
+clauses must also be usable as PP Complements (`instead of putting ...`,
+`by replacing ...`, `rather than paying ...`). Ellipsis is explicitly deferred
+to the context ticket, not represented by an optional unconstrained VP here.
 
-2026-09-05: `english-v2-tail-restrictive-focus-adverb` introduces the minimal
-general clause-tail seam ahead of this ticket. It factors the current `if`,
-`unless`, `as`, `as long as`, `for as long as`, `while`, `until`, and general
-Predicate Adjunct tail shapes from their preposed/postposed attachment hosts
-into one member construction each, gathered by `PreposedClauseTail` and
-`SimplePostposedClauseTail` / `PostposedClauseTail`. Build the remaining
-lexical-subordinator and Finiteness work on those categories; do not re-derive
-a second tail family.
+Extend the existing composition model on these clause forms with a positive
+finite/nonfinite/gerund interaction and a wrong-selected-form exclusion for
+each distribution. Rust acceptance exercises the same body under two distinct
+subordinators and in initial/final positions, negative/auxiliary combinations,
+and existing restrictive-focus attachments. Source evidence is style-guide
+§1 “Write rules instructions, not conversational prose” and §10 “Logic, choice, and coordination”.
+All old-family consumers and tests are re-spelled with the replacement.
+
+Standard constraints apply. Production correspondence and the applicable
+[obligations](../../english-grammar-migration-obligations.md) are part of this
+ticket; re-spell existing tests by their independently justified outcomes.
