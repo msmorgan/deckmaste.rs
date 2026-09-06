@@ -211,7 +211,7 @@ theorem badChosenProtectionBeforeChoice :
             text :=
               [ .static
                   (.abilityGrant thisCreature
-                    (.keyword "Protection" (some (.quality (ofChosen .color))) none)),
+                    (.keyword "Protection" [.quality (ofChosen .color)] none)),
                 .static (.entryChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
@@ -220,7 +220,7 @@ theorem badAscribedQualityBeforeChoice :
     Card.check
       (enchantmentWith
         [ .static
-            (.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+            (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
               (.chosenQuality (ofChosen (.subtype .creature)))),
           choosesCreatureType ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
@@ -308,7 +308,7 @@ theorem okParameterisedEcho :
 
 /-- "Echo" -/
 theorem badBareEcho :
-    Ability.check [] (.keyword "Echo" none none) = [.keywordParamFits "Echo"] := by decide
+    Ability.check [] (.keyword "Echo" [] none) = [.keywordParamFits "Echo"] := by decide
 
 /-- "each creature with flying" -/
 theorem okKnownKeywordClass : AbilityClass.known (.keyword "Flying") = true := by decide

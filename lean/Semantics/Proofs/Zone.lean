@@ -761,7 +761,7 @@ theorem badLookAtHandRider :
 corresponds to none of its card types [CR#205.3d]. -/
 theorem badEveryCreatureTypeOnLand :
     StaticSpec.check []
-      (.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .adds
+      (Primitives.StaticSpec.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .adds
         (.everyTypeOf .creature)) = [.becomesOk] := by
   decide
 
@@ -769,7 +769,7 @@ theorem badEveryCreatureTypeOnLand :
 corresponds to none of its card types [CR#205.3d]. -/
 theorem badEveryBasicLandTypeOnCreature :
     StaticSpec.check []
-      (.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+      (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
         (.everyTypeOf .basicLand)) = [.becomesOk] := by
   decide
 

@@ -166,11 +166,11 @@ theorem okWardCost : Ability.check [] (keywordCosting "Ward" (.mana [generic 2])
 
 /-- "Ward" -/
 theorem badBareWardLine :
-    Ability.check [] (.keyword "Ward" none none) = [.keywordParamFits "Ward"] := by decide
+    Ability.check [] (.keyword "Ward" [] none) = [.keywordParamFits "Ward"] := by decide
 
 /-- "Ward red" -/
 theorem badWardQuality :
-    Ability.check [] (.keyword "Ward" (some (.quality (.colorIs .red))) none)
+    Ability.check [] (.keyword "Ward" [.quality (.colorIs .red)] none)
       = [.keywordParamFits "Ward"] := by
   decide
 
@@ -182,7 +182,7 @@ theorem badParamOnNullaryKeyword :
 
 /-- "Flyign" -/
 theorem badUnknownKeywordLabel :
-    Ability.check [] (.keyword "Flyign" none none) = [.keywordParamFits "Flyign"] := by decide
+    Ability.check [] (.keyword "Flyign" [] none) = [.keywordParamFits "Flyign"] := by decide
 
 /-- "Add {R}." -/
 theorem okSingleProduction :
@@ -310,7 +310,7 @@ theorem okCostedCumulativeUpkeep :
 
 /-- "Cumulative upkeep" -/
 theorem badBareCumulativeUpkeep :
-    Ability.check [] (.keyword "CumulativeUpkeep" none none)
+    Ability.check [] (.keyword "CumulativeUpkeep" [] none)
       = [.keywordParamFits "CumulativeUpkeep"] := by
   decide
 

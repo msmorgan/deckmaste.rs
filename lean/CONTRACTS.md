@@ -486,3 +486,42 @@ by exact-refusal theorems; it is not an authorable term.
   datatype duties; erasing the binder does not remove the obligation at the
   resulting term's consumer. In particular, macros are not an independent
   certificate for arbitrary enacted bodies; the authoring boundary above establishes their trusted origin.
+
+
+### Characteristic edits and keyword argument schemas
+
+`StaticSpec.characteristicChange` and `CopyExcept.edits` carry the same typed
+`CharacteristicEdit` list. `TypeLineChanges` uses optional axes: `none` leaves
+an axis unchanged, while `some []` explicitly clears it under `sets`. Add and
+remove operations require values. Type and subtype writes in one ordinary
+edit block share host evidence, independent of their order. Ordinary edit
+validity still reports the aggregate `becomesOk` refusal; copy edits retain
+their separate nonempty-line and canonicality checks and validate operations
+without requiring the source to be on the battlefield.
+
+Numeric edits thread a scope local to their block. Other edit payloads read
+the incoming scope; nested written abilities remain closed. The subject of
+an ordinary change is not published before its edits. Ability-removal
+selectors retain the subject's battlefield check: specified written abilities
+read the incoming scope, while an all-except predicate reads the subject's
+self context. Separate copy exceptions each read the incoming scope.
+`CopyExcept.ability`, `thisAbility`, and `entersWithCounters` retain the copy
+context; sharing edits does not turn copy exceptions into later static effects.
+
+`QualityPayload` is an authoring input in `Macros.CharacteristicInputs`, not a
+checked syntax field. It expands to edits. Ordinary additions add their type
+line but set written colors and numeric characteristics. Named additions and
+power/toughness removal remain refused. `copyCharacteristics` expands the old
+packed input into one edit block and separate ability exceptions. The former
+minimum-two-fields packing rule has no semantic counterpart in an edit list.
+
+`Ability.keyword` takes an ordered `List KeywordParam`. Generated
+`KeywordFacts.argumentSchemas` enumerate admissible orders and each quality
+argument's domain. The generator reads declaration columns and existing
+variant metadata; the checker does not branch on keyword names. In particular,
+qualified cost forms retain their object-quality constraint and declared
+cost-only alternative. Quality arguments can read the incoming context;
+subject arguments, numbers, costs, and deck conditions retain their closed
+contexts. Argument lists do not publish bindings between elements. The registry
+codec still limits declaration combinations; changing that codec is outside
+this fold.

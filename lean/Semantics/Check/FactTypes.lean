@@ -133,29 +133,19 @@ structure CounterFacts where
   holder : Kind
   deriving Repr, BEq
 
-inductive CompoundHead where
-  | quality | number
-  deriving DecidableEq, Repr
-
-def CompoundHead.optional : CompoundHead → Bool
-  | .quality => true
-  | .number => false
-
-/-- `quality` covers "partner with [name]" [CR#702.124j], whose slot is a card name. -/
+/-- The role of one ordered keyword argument. -/
 inductive KeywordParamShape where
-  | noParam | cost | quality | subject | number | ability
-  | compound (head : CompoundHead)
-  | deckCondition
+  | cost | quality | subject | number | ability | deckCondition
   deriving DecidableEq, Repr
 
-def KeywordParamShape.fits : KeywordParamShape → KeywordParamShape → Bool
-  | .compound h, .cost => h.optional
-  | want, got => want == got
+/-- Registry-supplied checking data for one argument position. Quality domains may be
+restricted to objects; an absent restriction retains the predicate's inferred domain. -/
+structure KeywordParamSpec where
+  shape : KeywordParamShape
+  qualityDomain : Option Kind := none
+  deriving DecidableEq, Repr
 
-/-- A written parameter fits a keyword when any of the row's admitted shapes takes it, so a
-keyword's CR-defined variants live on one row. -/
-def paramShapesFit (wants : List KeywordParamShape) (got : KeywordParamShape) : Bool :=
-  wants.any (·.fits got)
+abbrev KeywordSchema := List KeywordParamSpec
 
 inductive StackRegime where
   | atCasting | atResolution
@@ -163,8 +153,8 @@ inductive StackRegime where
 
 structure KeywordFacts where
   word : KeywordLabel
-  /-- Every parameter shape the CR admits for this keyword [CR#702]. -/
-  paramShapes : List KeywordParamShape := []
+  /-- Ordered argument schemas admitted by the keyword declaration and its variants. -/
+  argumentSchemas : List KeywordSchema := []
   counterEligible : Bool := false
   regime : Option StackRegime := none
   /-- True where the ability is the spell's own, so no permanent holds it [CR#113.6]. -/

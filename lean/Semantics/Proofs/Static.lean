@@ -141,7 +141,7 @@ theorem okEnduringStoryByStoried :
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/
 theorem okStillALand :
     StaticSpec.check []
-      (.qualityChange (allOf land) .sets
+      (Primitives.StaticSpec.qualityChange (allOf land) .sets
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           (some .land))) = [] := by
@@ -150,14 +150,14 @@ theorem okStillALand :
 /-- "Target creature becomes a Coward until end of turn. It's still a land." -/
 theorem badStillOnSubtypeSet :
     StaticSpec.check []
-      (.qualityChange (target creature) .sets
+      (Primitives.StaticSpec.qualityChange (target creature) .sets
         (.bundle { characteristics := { subtypes := [creatureType "Coward"] } } (some .land)))
       = [.becomesOk] := by
   decide
 
 theorem badStillAnInstant :
     StaticSpec.check []
-      (.qualityChange (target creature) .sets
+      (Primitives.StaticSpec.qualityChange (target creature) .sets
         (.bundle { characteristics := { types := [.artifact] } } (some .instant)))
       = [.becomesOk] := by
   decide
@@ -174,7 +174,7 @@ theorem badEmptyCoordination : StaticSpec.check [] (.conjunction none []) = [.no
 /-- "Creatures you control are every creature type." -/
 theorem okSingleExtension :
     StaticSpec.check []
-      (.offBattlefieldScope (.qualityChange (allOf creatureYouControl) .adds (.everyTypeOf
+      (.offBattlefieldScope (Primitives.StaticSpec.qualityChange (allOf creatureYouControl) .adds (.everyTypeOf
           .creature)))
       = [] := by
   decide
@@ -183,7 +183,7 @@ theorem badDoubleExtension :
     StaticSpec.check []
       (.offBattlefieldScope
         (.offBattlefieldScope
-          (.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+          (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
             (.bundle { characteristics := { types := [.artifact] } } none)))) = [.notExtended] := by
   decide
 

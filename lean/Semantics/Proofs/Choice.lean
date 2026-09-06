@@ -184,27 +184,27 @@ def chosenBasicLandType : QualityPayload :=
 /-- "Target land becomes the basic land type of your choice until end of turn." -/
 theorem okChosenBasicTypeOnLand :
     Instruction.check []
-      (.establish (.qualityChange (target land) .sets chosenBasicLandType) (some untilEndOfTurn))
+      (.establish (Primitives.StaticSpec.qualityChange (target land) .sets chosenBasicLandType) (some untilEndOfTurn))
       = [] := by
   decide
 
 theorem badChosenBasicTypeOnCreature :
     Instruction.check []
-      (.establish (.qualityChange (target creature) .sets chosenBasicLandType)
+      (.establish (Primitives.StaticSpec.qualityChange (target creature) .sets chosenBasicLandType)
         (some untilEndOfTurn)) = [.becomesOk] := by
   decide
 
 /-- "Lands you control are Mountains." -/
 theorem okLandsAreMountains :
     StaticSpec.check []
-      (.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .sets
+      (Primitives.StaticSpec.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .sets
         (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
   decide
 
 /-- "Creatures are Mountains." -/
 theorem badCreaturesAreMountains :
     StaticSpec.check []
-      (.qualityChange (allOf creature) .sets (.bundle { characteristics :=
+      (Primitives.StaticSpec.qualityChange (allOf creature) .sets (.bundle { characteristics :=
                                                   { subtypes := [landType "Mountain"] } } none))
       = [.becomesOk] := by
   decide
@@ -224,7 +224,7 @@ theorem badNonCreatureTypeExclusion :
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Instruction.check []
-      (.establish (.qualityChange (target land) .sets (.everyTypeOf .basicLand))
+      (.establish (Primitives.StaticSpec.qualityChange (target land) .sets (.everyTypeOf .basicLand))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -232,7 +232,7 @@ theorem setsEveryBasicLandType :
 theorem losesChosenCreatureType :
     Instruction.check []
       (.establish
-        (.qualityChange (target creature) .loses
+        (Primitives.StaticSpec.qualityChange (target creature) .loses
           (.chosenQuality (.ofYourChoice (.subtype .creature) none))) (some untilEndOfTurn))
       = [] := by
   decide
@@ -240,31 +240,31 @@ theorem losesChosenCreatureType :
 /-- "Target creature loses all colors until end of turn." -/
 theorem losesAllColors :
     Instruction.check []
-      (.establish (.qualityChange (target creature) .loses (.colored .every)) (some untilEndOfTurn))
+      (.establish (Primitives.StaticSpec.qualityChange (target creature) .loses (.colored .every)) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Target creature is white." -/
 theorem okAddsAColor :
-    StaticSpec.check [] (.qualityChange (target creature) .adds (.colored (.some [.white]))) = [] :=
+    StaticSpec.check [] (Primitives.StaticSpec.qualityChange (target creature) .adds (.colored (.some [.white]))) = [] :=
         by
   decide
 
 theorem badAddsNoColor :
-    StaticSpec.check [] (.qualityChange (target creature) .adds (.colored (.some [])))
+    StaticSpec.check [] (Primitives.StaticSpec.qualityChange (target creature) .adds (.colored (.some [])))
       = [.becomesOk] := by
   decide
 
 /-- "Target creature loses colorless until end of turn." -/
 theorem badLosesNoColor :
-    StaticSpec.check [] (.qualityChange (target creature) .loses (.colored (.some [])))
+    StaticSpec.check [] (Primitives.StaticSpec.qualityChange (target creature) .loses (.colored (.some [])))
       = [.becomesOk] := by
   decide
 
 /-- "Equipped permanent isn't a 2/2 creature." -/
 theorem badLosesPt :
     StaticSpec.check []
-      (.qualityChange (.attachHost .equipped .permanent) .loses
+      (Primitives.StaticSpec.qualityChange (.attachHost .equipped .permanent) .loses
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           none)) = [.becomesOk] := by
@@ -272,7 +272,7 @@ theorem badLosesPt :
 
 theorem badStillOnAddition :
     StaticSpec.check []
-      (.qualityChange (target creature) .adds
+      (Primitives.StaticSpec.qualityChange (target creature) .adds
         (.bundle { characteristics := { types := [.artifact] } } (some .creature)))
       = [.becomesOk] := by
   decide

@@ -530,11 +530,42 @@ mutual
       Predicate.check .object bs q ++ refuse q.qualityReadOk .qualityRead ++ TokenQuality.checkAll bs qs
   termination_by structural qs => qs
 
-  def QualityPayload.check (bs : Bindings) : QualityPayload → List Refusal
-    | .bundle t _ => CharacteristicBundle.check bs t
-    | .chosenQuality q => Predicate.check .object bs q
-    | _ => []
-  termination_by structural q => q
+  /-- Numeric edits thread a local scope; other payloads retain the block's incoming scope. -/
+  def CharacteristicEdit.checkAll (bs numeric : Bindings) (subject : Option NounPhrase) :
+      List CharacteristicEdit → List Refusal
+    | [] => []
+    | .manaCost cost :: rest =>
+      (cost.map ManaCost.check).getD [] ++ CharacteristicEdit.checkAll bs numeric subject rest
+    | .stat _ _ amount :: rest =>
+      Amount.check numeric amount ++
+        CharacteristicEdit.checkAll bs (Amount.intro numeric amount) subject rest
+    | .chosenQuality _ q :: rest =>
+      Predicate.check .object bs q ++ CharacteristicEdit.checkAll bs numeric subject rest
+    | .addedAbilities abilities :: rest =>
+      Ability.checkAll [] abilities ++ CharacteristicEdit.checkAll bs numeric subject rest
+    | .removedAbilities selection :: rest =>
+      AbilitySelection.check bs subject selection ++ CharacteristicEdit.checkAll bs numeric subject rest
+    | _ :: rest => CharacteristicEdit.checkAll bs numeric subject rest
+  termination_by structural edits => edits
+
+  def AbilitySelection.check (bs : Bindings) (subject : Option NounPhrase) :
+      AbilitySelection → List Refusal
+    | .specified abilities =>
+      (match subject with
+       | none => []
+       | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield) ++
+        refuse (!abilities.isEmpty) .nonEmpty ++ AbilityLost.checkAll bs abilities
+    | .family class_ =>
+      refuse class_.known .knownKeywordTerm ++
+        (match subject with
+         | none => []
+         | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield)
+    | .allExcept except =>
+      OptPredicate.check .object (subjCtx bs subject) except ++
+        (match subject with
+         | none => []
+         | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield)
+  termination_by structural selection => selection
 
   def TokenSpec.check (bs : Bindings) : TokenSpec → List Refusal
     | .written t =>
@@ -551,14 +582,16 @@ mutual
   termination_by structural s => s
 
   def CopyExcept.check (bs : Bindings) : CopyExcept → List Refusal
-    | .types types subtypes => refuse (hasAnyTypeCharacteristic [] types subtypes) .lineNonEmpty
-    | .name _ | .thisAbility | .nonlegendary | .color _ => []
-    | .chars t _ =>
-      Characteristics.checkWritten bs t ++ refuse t.copyBundleSays .copyBundle ++
-        refuse t.canonical .tokenCanonical ++ refuse t.abilitiesOk .tokenAbilities ++
-        refuse t.additionUnnamed .additionUnnamed
+    | .edits edits =>
+      CharacteristicEdit.checkAll bs bs none edits ++
+        refuse (!edits.isEmpty && edits.all (fun edit =>
+          match edit with
+          | .typeLine _ c => c.hasWrites
+          | _ => true)) .lineNonEmpty ++
+        refuse (edits.all CharacteristicEdit.canonical) .tokenCanonical ++
+        refuse (edits.all CharacteristicEdit.copyFits) .becomesOk
+    | .thisAbility => []
     | .ability ab => Ability.check [] ab ++ refuse ab.grantable .grantable
-    | .pt pow tou => Amount.check bs pow ++ Amount.check (Amount.intro bs pow) tou
     | .entersWithCounters amt kind _ => Amount.check bs amt ++ kind.check
   termination_by structural e => e
 
@@ -627,8 +660,9 @@ mutual
     | .manaRetention who what => NounPhrase.check (some .player) bs who ++ what.check (nomIntro bs
         who)
     | .partSkip who _ => NounPhrase.check (some .player) bs who
-    | .qualityChange n op q =>
-      NounPhrase.check (some .object) bs n ++ QualityPayload.check bs q ++ refuse (becomesOk bs op n q) .becomesOk
+    | .characteristicChange n edits =>
+      NounPhrase.check (some .object) bs n ++ CharacteristicEdit.checkAll bs bs (some n) edits ++
+        refuse (CharacteristicEdit.fitsAll bs n edits) .becomesOk
     | .offBattlefieldScope se => StaticSpec.check bs se ++ refuse se.notExtended .notExtended
     | .retention se n =>
       StaticSpec.check bs se ++ NounPhrase.check (some .object) (StaticSpec.intro bs se) n ++
@@ -637,12 +671,6 @@ mutual
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
         CopyExcept.checkAll (nomIntro bs' src) exc ++ refuse src.perMemberOk .perMember
-    | .allAbilityLoss n except =>
-      NounPhrase.check (some .object) bs n ++ OptPredicate.check .object (selfSubjIntro bs n) except ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .abilityLoss n abl =>
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
-        refuse (!abl.isEmpty) .nonEmpty ++ AbilityLost.checkAll bs abl
     | .controlGrant who what =>
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what ++
@@ -694,23 +722,31 @@ mutual
     | .term t :: rest => refuse t.known .knownKeywordTerm ++ AbilityLost.checkAll bs rest
   termination_by structural abl => abl
 
-  def KeywordParam.check (bs : Bindings) : KeywordParam → List Refusal
+  def KeywordParam.check (bs : Bindings) (qualityDomain : Option Kind) :
+      KeywordParam → List Refusal
     | .cost c => Cost.check [] c
     | .quality p =>
-      let k := p.kindOr .object
-      Predicate.check k bs p ++ refuse k.qualityParam (.phrasal k)
+      match qualityDomain with
+      | some k => Predicate.check k bs p
+      | none =>
+        let k := p.kindOr .object
+        Predicate.check k bs p ++ refuse k.qualityParam (.phrasal k)
     | .subject p => Predicate.check (p.kindOr .object) [] p
     | .number amt => Amount.check [] amt
-    | .qualityCost p cost => Predicate.check .object bs p ++ Cost.check [] cost
-    | .numberCost amt cost => Amount.check [] amt ++ Cost.check [] cost
     | .deckCondition dc => dc.check
   termination_by structural p => p
 
+  def KeywordParam.checkAll (bs : Bindings) (schema : KeywordSchema) :
+      List KeywordParam → List Refusal
+    | [] => []
+    | p :: ps =>
+      KeywordParam.check bs (schema.head? >>= (·.qualityDomain)) p ++
+        KeywordParam.checkAll bs schema.tail ps
+  termination_by structural params => params
+
   def Ability.check (bs : Bindings) : Ability → List Refusal
     | .keyword k param body =>
-      (match param with
-       | none => []
-       | some p => KeywordParam.check bs p) ++
+      KeywordParam.checkAll bs ((keywordSchemaFor k param).getD []) param ++
         (match body with
          | none => []
          | some b => Ability.check [] b) ++

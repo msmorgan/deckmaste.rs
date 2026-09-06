@@ -1,3 +1,5 @@
+import Semantics.Proofs.CharacteristicEdits
+import Semantics.Proofs.KeywordArguments
 import Semantics.Proofs.Attachments
 import Semantics.Proofs.Composition
 import Semantics.Proofs.Lookback

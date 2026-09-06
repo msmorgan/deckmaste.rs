@@ -801,7 +801,7 @@ def amass (subtype : String) (count : Nat) : Instruction :=
       .putCounters (.lit count) (.printed plusOnePlusOne) (that (.type .creature)),
       .doIf (itIsntA (.hasSubtype (creatureType subtype)))
         (.establish
-          (.qualityChange it .adds
+          (Primitives.StaticSpec.qualityChange it .adds
             (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
           none)
         none ]
@@ -821,15 +821,15 @@ def gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration)
   .establish (.abilityGrant subject ability) duration
 /-- "<subject> gains haste [until …]" -/
 def gainHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  gain subject (.keyword "Haste" none none) duration
+  gain subject (.keyword "Haste" [] none) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
 def become (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=
-  .establish (.qualityChange subject .adds (.bundle added none)) duration
+  .establish (Primitives.StaticSpec.qualityChange subject .adds (.bundle added none)) duration
 /-- "<subject> becomes <colors> [until …]" -/
 def becomeColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration) :
     Instruction :=
-  .establish (.qualityChange subject .sets (.colored colors)) duration
+  .establish (Primitives.StaticSpec.qualityChange subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/
 def establishFor (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
     Instruction :=
@@ -979,9 +979,18 @@ def lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :
 def regenerates (subject : NounPhrase) : GameEvent :=
   .verbedEvent none (.action "Regenerate") (some subject) none none
 
+/-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
+def copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=
+  let typeOp := if typesAdded then QualityOp.adds else .sets
+  let types := if c.supertypes.isEmpty && c.types.isEmpty && c.subtypes.isEmpty then []
+    else [.typeLine typeOp c.typeChanges]
+  let values := ({ c with text := [] } : Characteristics).valueEdits .sets
+  let edits := types ++ values
+  (if edits.isEmpty then [] else [.edits edits]) ++ c.text.map CopyExcept.ability
+
 /-! ## Abilities -/
 
-def keyword (label : KeywordLabel) : Ability := .keyword label none none
+def keyword (label : KeywordLabel) : Ability := .keyword label [] none
 /-- An ability word in italics before an ability: "Will of the council — …" [CR#207.2c]. -/
 def abilityWord (word : AbilityWordLabel) (ability : Ability) : Ability :=
   .italicHead (.abilityWord word) ability
@@ -990,28 +999,28 @@ def flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability :=
   .italicHead (.flavorWord word) ability
 /-- "Companion — <condition>" -/
 def companion (condition : DeckCondition) : Ability :=
-  .keyword "Companion" (some (.deckCondition condition)) none
+  .keyword "Companion" [.deckCondition condition] none
 /-- "Pay N life" as a cost. -/
 def payLife (player : NounPhrase) (amount : Nat) : Cost :=
   .perform (.changeLife (.down (.lit amount)) (agent := player))
 /-- "<keyword> <cost>" -/
 def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
-  .keyword label (some (.cost cost)) none
+  .keyword label [.cost cost] none
 /-- "<keyword> <quality>", e.g. "protection from red" -/
 def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
-  .keyword label (some (.quality quality)) none
+  .keyword label [.quality quality] none
 /-- "<keyword> <subject>", e.g. "enchant creature" -/
 def keywordSubject (label : KeywordLabel) (subject : Predicate) : Ability :=
-  .keyword label (some (.subject subject)) none
+  .keyword label [.subject subject] none
 /-- "<keyword> N", e.g. "bushido 2" -/
 def keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
-  .keyword label (some (.number amount)) none
+  .keyword label [.number amount] none
 /-- "<keyword> <quality> <cost>", e.g. "plainscycling {2}" [CR#702.29e] -/
 def keywordQualityCosting (label : KeywordLabel) (quality : Predicate) (cost : Cost) : Ability :=
-  .keyword label (some (.qualityCost quality cost)) none
+  .keyword label [.quality quality, .cost cost] none
 /-- "<keyword> N—<cost>", e.g. "suspend 4—{1}{U}" -/
 def keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) : Ability :=
-  .keyword label (some (.numberCost amount cost)) none
+  .keyword label [.number amount, .cost cost] none
 /-- "Level up [cost]" [CR#702.87a] -/
 def levelUp (cost : Cost) : Ability := keywordCosting "LevelUp" cost
 /-- "When <event>, if <condition>, <instruction>" -/
@@ -1106,10 +1115,10 @@ def stormExpansion : Ability :=
         .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [] (agent := .you),
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ])
 /-- "Storm" with its reminder text. -/
-def storm : Ability := .keyword "Storm" none (some stormExpansion)
+def storm : Ability := .keyword "Storm" [] (some stormExpansion)
 /-- "Renown N" with its reminder text. -/
 def renown (count : Nat) : Ability :=
-  .keyword "Renown" (some (.number (.lit count))) (some (renownExpansion count))
+  .keyword "Renown" [.number (.lit count)] (some (renownExpansion count))
 /-- Cumulative upkeep's reminder text: "At the beginning of your upkeep, if this permanent is
 on the battlefield, put an age counter on it. Then you may pay [cost] for each age counter on
 it. If you don't, sacrifice it." [CR#702.24a] -/
@@ -1123,7 +1132,7 @@ def cumulativeUpkeepExpansion (cost : Cost) : Ability :=
             ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 def cumulativeUpkeep (cost : Cost) : Ability :=
-  .keyword "CumulativeUpkeep" (some (.cost cost)) (some (cumulativeUpkeepExpansion cost))
+  .keyword "CumulativeUpkeep" [.cost cost] (some (cumulativeUpkeepExpansion cost))
 def activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
 /-- "[cost]: <instruction>. Activate only <timing>." -/

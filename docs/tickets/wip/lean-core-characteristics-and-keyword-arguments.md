@@ -65,3 +65,85 @@ The older [copy grammar tail](idris-copy-grammar-tail.md) concerns frozen Idris
 and Rust emission work; it is not this ticket's implementation target or a
 dependency. Any registry changes here serve the Lean checker and receive the
 standard checks for their affected consumers. Standard constraints apply.
+
+
+## Landing record
+
+### PROVE
+
+Measured on change `ptrmvywl`, with the unchanged English coverage lock at
+20,254 covered identities. The final `lean/scripts/build` passes the complete
+syntax, checker, card bench, and proof gate with warnings fatal. Source audit
+retains all 2,377 existing card-module declarations and 1,612 existing
+proof-module declarations. Every existing theorem's asserted result is
+unchanged; no card identity or proof is removed.
+
+Assurance: restored 0, re-spelled 36 (33 Lean theorem statements, two authoring
+rejection examples, and one Rust declaration-generation test), newly ignored
+0, added 33 (21 characteristic-edit theorems, 11 keyword-argument theorems,
+and one Rust registry-mutation test), removed 0. Separately, two card
+definitions and one raw authoring helper change spelling. Existing authoring
+rejections retain their exact messages. The Rust suite retains its one
+pre-existing ignored live-corpus census test, whose stated blocker is that
+it runs on demand.
+
+`cargo xtask gate --changed` derives `cargo test -p xtask`. That closure passes:
+478 unit tests, 13 command tests, and two other integration tests; zero
+failures, one pre-existing ignore. `cargo xtask facts check` confirms both
+Lean and frozen Idris generated facts are current. The checker reads generated
+schema properties rather than keyword names. No parser source, declaration,
+coverage lock, or word-naming licensing guard changes. Parser roundtrip,
+lexical ownership, traversal identity, tie/internal-failure counts and
+licensing inventories were not remeasured by this Lean/facts-generator gate.
+
+### DISCLOSE
+
+Core constructor counts: `StaticSpec` 30 to 28, `CopyExcept` 9 to 4,
+`KeywordParam` 7 to 5. Separately, the four-constructor core `QualityPayload`
+is retired; shared helpers add nine `CharacteristicEdit` alternatives,
+three `AbilitySelection` alternatives, four `CharacteristicStat` alternatives,
+and the `TypeLineChanges` record. A four-alternative `QualityPayload` remains
+only as registered authoring input; no checked core field stores it. These
+are family folds, not a claim that the total count across all helper enums
+fell. Keyword facts now carry ordered schema lists with quality-domain data.
+
+The new proofs exercise set-empty versus absence, adding versus setting,
+compound type/subtype writes, supertype removal, all three removal selectors,
+copy-specific additions, block-local numeric scope, invalid edit operations,
+invalid mana symbols, argument order, and argument scope boundaries.
+
+Deviations and additions:
+
+- The old copy bundle's minimum-two-fields rule and blanket prohibition on
+  a name inside that bundle are packing restrictions, retired with `chars`.
+  A single edit and an ability-only copy input are now valid. There were no
+  negative pins for those packing restrictions; all existing copy pins remain.
+- A bundled chosen quality now uses the same host evidence and refusal as a
+  standalone chosen-quality edit. Existing subject types can host it alongside
+  types written in its edit block. A malformed bundled quality formerly added
+  `qualityRead` before `becomesOk`; the shared form reports `becomesOk` with
+  its normal predicate errors. No named pin asserts the former extra error.
+- Written abilities in a loss input expand to specified ability removal,
+  rather than being silently added. Mana-cost edits validate their symbols;
+  copy edits reject invalid operations and empty add/remove values.
+- Registry codecs still restrict the supported declaration combinations.
+  This change makes the Lean representation ordered without expanding those
+  codecs or modifying frozen Idris output.
+- The first full gate exposed a misplaced proof-suite import, corrected without
+  changing an assertion. A final copy-helper check also removed an empty edit
+  block from ability-only inputs; the full gate was rerun after that change.
+
+The game-model glossary now defines Characteristic Edit, Copy Exception, and
+Ability Selection; `lean/CONTRACTS.md` records scope and schema contracts.
+Runtime copy consequences, including characteristic-defining abilities, remain
+consumer semantics: the Lean checker retains the enclosing copy context but
+is not an evaluator. No unresolved STOP or glossary gap remains in this ticket.
+
+### REPORT
+
+English coverage remains 20,254 on `ptrmvywl`. The selection census,
+construction count, licensing total, homograph/overlap inventories, and parser
+performance were not remeasured because their sources did not change. No
+coverage gain or performance claim is made. Citation validation reports zero
+noncompliant strings and zero stale citations; both new citation sites were
+read against their rule texts. A Kata refresh before final review was a no-op.

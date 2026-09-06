@@ -65,6 +65,18 @@ inductive QualityOp where
   | adds | sets | loses
   deriving DecidableEq, Repr
 
+/-- Only present axes are written. A present empty list explicitly clears that axis. -/
+structure TypeLineChanges where
+  supertypes : Option (List Supertype) := none
+  types : Option (List CardType) := none
+  subtypes : Option (List Subtype) := none
+  retained : Option CardType := none
+  deriving Repr, BEq
+
+inductive CharacteristicStat where
+  | power | toughness | loyalty | defense
+  deriving DecidableEq, Repr
+
 inductive CostShift where
   | less (amount : Amount) (floor : Option Amount)
   | more (amount : Amount)
@@ -210,11 +222,22 @@ mutual
     characteristics : Characteristics
     qualities : List TokenQuality := []
 
-  inductive QualityPayload where
-    | bundle (characteristics : CharacteristicBundle) (retained : Option CardType)
-    | everyTypeOf (space : SubtypeSpace)
-    | chosenQuality (quality : Predicate)
-    | colored (colors : ColorSpec)
+  /-- Typed characteristic writes; the enclosing static or copy form retains its context. -/
+  inductive CharacteristicEdit where
+    | typeLine (op : QualityOp) (changes : TypeLineChanges)
+    | name (op : QualityOp) (name : String)
+    | manaCost (cost : Option ManaCost)
+    | colors (op : QualityOp) (colors : ColorSpec)
+    | stat (op : QualityOp) (axis : CharacteristicStat) (amount : Amount)
+    | everyTypeOf (op : QualityOp) (space : SubtypeSpace)
+    | chosenQuality (op : QualityOp) (quality : Predicate)
+    | addedAbilities (abilities : List Ability)
+    | removedAbilities (selection : AbilitySelection)
+
+  inductive AbilitySelection where
+    | specified (abilities : List AbilityLost)
+    | family (class_ : AbilityClass)
+    | allExcept (except : Option Predicate)
 
   inductive TokenSpec where
     /-- The creating spell or ability defines the token's characteristic values [CR#111.3] and
@@ -239,12 +262,10 @@ mutual
         (rider : DeonticRider)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)
     | partSkip (player : NounPhrase) (part : TurnPart)
-    | qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload)
+    | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
     | offBattlefieldScope (spec : StaticSpec)
     | retention (spec : StaticSpec) (subject : NounPhrase)
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
-    | allAbilityLoss (subject : NounPhrase) (except : Option Predicate)
-    | abilityLoss (subject : NounPhrase) (abilities : List AbilityLost)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     | replacement (event : GameEvent) (alternatives : List GameEvent) (timing : Option Timing)
         (replacement : Instruction) (use : ReplUse) (limit : Option UsageLimit)
@@ -310,15 +331,9 @@ mutual
     | onSpent (mode : SpentMode) (only : Bool) (spell : NounPhrase) (says : Instruction)
 
   inductive CopyExcept where
-    | types (types : List CardType) (subtypes : List Subtype)
-    | name (name : String)
-    /-- [CR#707.9d] "In addition" retains only type characteristics. -/
-    | chars (characteristics : Characteristics) (typesAdded : Bool)
+    | edits (edits : List CharacteristicEdit)
     | ability (ability : Ability)
     | thisAbility
-    | pt (power toughness : Amount)
-    | nonlegendary
-    | color (color : Color)
     | entersWithCounters (amount : Amount) (kind : CounterKind) (mark : EntryCounterMark)
 
   structure RollRow where
@@ -423,8 +438,6 @@ mutual
     | quality (predicate : Predicate)
     | subject (predicate : Predicate)
     | number (amount : Amount)
-    | qualityCost (predicate : Predicate) (cost : Cost)
-    | numberCost (amount : Amount) (cost : Cost)
     | deckCondition (condition : DeckCondition)
 
   inductive AbilityLost where
@@ -432,7 +445,7 @@ mutual
     | term (keyword : KeywordTerm)
 
   inductive Ability where
-    | keyword (keyword : KeywordLabel) (param : Option KeywordParam) (body : Option Ability)
+    | keyword (keyword : KeywordLabel) (params : List KeywordParam) (body : Option Ability)
     | activated (cost : Cost) (instruction : Instruction) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
     | triggered (event : GameEvent) (alternatives : List GameEvent)
@@ -450,7 +463,7 @@ mutual
     | thatAbility (ref : ChoiceRef)
 end
 
-deriving instance Repr, BEq for Characteristics, CharacteristicBundle, QualityPayload,
+deriving instance Repr, BEq for Characteristics, CharacteristicBundle, CharacteristicEdit, AbilitySelection,
   TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
   ManaRider, CopyExcept, RollRow, Repetition, Instruction, KeywordParam, AbilityLost, Ability
 

@@ -78,6 +78,21 @@ types, rules text, abilities, or power, toughness, loyalty, and defense. State
 such as tappedness, targets, ownership, control, and attachments is not a
 Characteristic.
 
+**Characteristic Edit**:
+A change that sets, adds, or removes a Characteristic or a value within it.
+Leaving a Characteristic unchanged differs from explicitly setting an empty
+value, such as making an Object colorless ([CR#109.3,105.4]).
+
+**Copy Exception**:
+A qualification of a copy effect that changes what is copied or adds an
+ability or entering-the-battlefield consequence to the copy. Its characteristic
+changes participate in determining copiable values, including whether a
+characteristic-defining ability is copied ([CR#707.9d]).
+
+**Ability Selection**:
+The abilities an effect identifies individually, by an ability family, or as
+all abilities except a stated selection.
+
 **Color**:
 One of white, blue, black, red, and green ([CR#105.1]). An Object is the Color
 or Colors of the mana symbols in its mana cost unless a color indicator or a

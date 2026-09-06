@@ -14,31 +14,29 @@ def distinctKeywordWords : List KeywordFacts → Bool
 
 def keywordFactsFor (k : KeywordLabel) : Option KeywordFacts := keywordFacts.find? (·.word == k)
 def knownKeyword (k : KeywordLabel) : Bool := (keywordFactsFor k).isSome
-def keywordParamShapes (k : KeywordLabel) : List KeywordParamShape :=
-  (keywordFactsFor k).elim [] (·.paramShapes)
+def keywordSchemas (k : KeywordLabel) : List KeywordSchema :=
+  (keywordFactsFor k).elim [] (·.argumentSchemas)
 
-def KeywordParamShape.costs : KeywordParamShape → Bool
-  | .cost => true
-  | .compound _ => true
-  | _ => false
+def KeywordSchema.shapes (schema : KeywordSchema) : List KeywordParamShape := schema.map (·.shape)
 
-def keywordCosts (k : KeywordLabel) : Bool := (keywordParamShapes k).any (·.costs)
+def keywordCosts (k : KeywordLabel) : Bool :=
+  (keywordSchemas k).any (fun schema => schema.any (·.shape == .cost))
 def keywordBodied (k : KeywordLabel) : Bool := (keywordFactsFor k).elim false (·.bodied)
 def keywordParamless (k : KeywordLabel) : Bool :=
-  (keywordFactsFor k).elim false (·.paramShapes.elem .noParam)
+  (keywordSchemas k).any List.isEmpty
 
 def KeywordFamily.ok (c : KeywordFamily) : Bool :=
   match keywordFactsFor c.word with
   | none => false
   | some f =>
     match c.sort with
-    | none => f.paramShapes.any (· != .noParam)
-    | some _ => f.paramShapes.elem .quality
+    | none => f.argumentSchemas.any (fun schema => !schema.isEmpty)
+    | some _ => f.argumentSchemas.any (fun schema => schema.shapes == [.quality])
 
 def KeywordTerm.known : KeywordTerm → Bool
   | .the k => knownKeyword k
   | .anyIn c => c.ok
-  | .theWith k _ => (keywordParamShapes k).elem .number
+  | .theWith k _ => (keywordSchemas k).any (fun schema => schema.shapes == [.number])
 
 def KeywordTerm.bare : KeywordTerm → Bool
   | .the k => keywordParamless k

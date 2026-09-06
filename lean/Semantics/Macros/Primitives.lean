@@ -1,4 +1,4 @@
-import Semantics
+import Semantics.Macros.CharacteristicInputs
 
 /-! Named macros for exposed primitives and fixed wording. Generated wrappers preserve
 constructor signatures; the worded forms below expand into shared operations. The authoring
@@ -56,3 +56,33 @@ def isTransformed : Semantics.Predicate := .currentFace .back
 
 register_semantic_macros
 end Semantics.Macros.Primitives.Predicate
+
+namespace Semantics.Macros.Primitives.StaticSpec
+
+def qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
+    Semantics.StaticSpec := .characteristicChange subject (payload.edits op)
+
+def abilityLoss (subject : NounPhrase) (abilities : List AbilityLost) : Semantics.StaticSpec :=
+  .characteristicChange subject [.removedAbilities (.specified abilities)]
+
+def allAbilityLoss (subject : NounPhrase) (except : Option Semantics.Predicate) :
+    Semantics.StaticSpec := .characteristicChange subject [.removedAbilities (.allExcept except)]
+
+register_semantic_macros
+end Semantics.Macros.Primitives.StaticSpec
+
+namespace Semantics.Macros.Primitives.CopyExcept
+
+def types (types : List CardType) (subtypes : List Subtype) : Semantics.CopyExcept :=
+  .edits [.typeLine .adds (({ types := types, subtypes := subtypes } :
+    Characteristics).typeChanges)]
+
+def name (name : String) : Semantics.CopyExcept := .edits [.name .sets name]
+def pt (power toughness : Amount) : Semantics.CopyExcept :=
+  .edits [.stat .sets .power power, .stat .sets .toughness toughness]
+def nonlegendary : Semantics.CopyExcept :=
+  .edits [.typeLine .loses { supertypes := some [.legendary] }]
+def color (color : Color) : Semantics.CopyExcept := .edits [.colors .sets (.some [color])]
+
+register_semantic_macros
+end Semantics.Macros.Primitives.CopyExcept

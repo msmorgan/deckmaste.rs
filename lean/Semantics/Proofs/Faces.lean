@@ -227,7 +227,7 @@ theorem okProtectionFromAColor :
 
 /-- "Protection from player" -/
 theorem badProtectionFromPlayerRestriction :
-    Ability.check [] (.keyword "Protection" (some (.subject .anyPlayer)) none)
+    Ability.check [] (.keyword "Protection" [.subject .anyPlayer] none)
       = [.keywordParamFits "Protection"] := by
   decide
 
@@ -367,12 +367,12 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Instruction.check []
-      (.create (.lit 1) (.copyOf (target creature) [.types [.artifact] []]) [] (agent := .you)) = []
+      (.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) [] (agent := .you)) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Instruction.check [] (.create (.lit 1) (.copyOf (target creature) [.types [] []]) [] (agent :=
+    Instruction.check [] (.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [] (agent :=
         .you))
       = [.lineNonEmpty] := by
   decide
@@ -517,19 +517,19 @@ theorem badCumulativeUpkeepOnSpell :
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
 theorem okRenownWithRenownExpansion :
-    Ability.check [] (.keyword "Renown" (some (.number (.lit 1))) (some (renownExpansion 1)))
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some (renownExpansion 1)))
       = [] := by
   decide
 
 /-- "Flying (When this creature deals combat damage to a player, …)" -/
 theorem badBodyOnBodilessKeyword :
-    Ability.check [] (.keyword "Flying" none (some (renownExpansion 1)))
+    Ability.check [] (.keyword "Flying" [] (some (renownExpansion 1)))
       = [.keywordBodyFits "Flying"] := by
   decide
 
 /-- "Renown 1 (When you cast this spell, copy it …)" -/
 theorem badRenownWithStormExpansion :
-    Ability.check [] (.keyword "Renown" (some (.number (.lit 1))) (some stormExpansion))
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some stormExpansion))
       = [.keywordBodyFits "Renown"] := by
   decide
 
@@ -549,7 +549,7 @@ theorem okCostedUnearth :
 
 /-- "Unearth" -/
 theorem badBareUnearth :
-    Ability.check [] (.keyword "Unearth" none none) = [.keywordParamFits "Unearth"] := by decide
+    Ability.check [] (.keyword "Unearth" [] none) = [.keywordParamFits "Unearth"] := by decide
 
 /-- "Retrace {1}" -/
 theorem badCostedRetrace :

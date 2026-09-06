@@ -183,9 +183,9 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
             Primitives.UsageLimit.actionOncePerTurn
             (offer
               (Primitives.Instruction.copy .fromStack it (.lit 1)
-                [ Primitives.CopyExcept.chars {
+                (copyCharacteristics {
                            subtypes := [creatureType "Spirit"], power := stat 1,
-                           toughness := stat 1 } true ] (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) ],
+                           toughness := stat 1 } true) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Tawnos, the Toymaker -/

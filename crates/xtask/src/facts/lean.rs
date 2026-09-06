@@ -60,18 +60,54 @@ fn string_list(values: &[String]) -> String {
     )
 }
 
-fn shape(shape: Shape) -> &'static str {
+fn argument_schema(params: &[&str]) -> anyhow::Result<String> {
+    let slots = params
+        .iter()
+        .map(|param| {
+            let (shape, domain) = match *param {
+                "Cost" => (".cost", "none"),
+                "Quality" => (
+                    ".quality",
+                    if params == ["Quality", "Cost"] { "some .object" } else { "none" },
+                ),
+                "Subject" => (".subject", "none"),
+                "Amount" => (".number", "none"),
+                "Ability" => (".ability", "none"),
+                "Condition" => (".deckCondition", "none"),
+                other => anyhow::bail!("unsupported keyword argument type {other}"),
+            };
+            Ok(format!("⟨{shape}, {domain}⟩"))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(format!("[{}]", slots.join(", ")))
+}
+
+// The existing variant overlay is also consumed by the frozen Idris generator.
+// Lean emits each variant as an ordinary ordered schema.
+fn variant_params(shape: Shape) -> &'static [&'static str] {
     match shape {
-        Shape::Nothing => ".noParam",
-        Shape::Cost => ".cost",
-        Shape::Quality => ".quality",
-        Shape::Subject => ".subject",
-        Shape::Number => ".number",
-        Shape::Ability => ".ability",
-        Shape::CompoundQuality => ".compound .quality",
-        Shape::CompoundNumber => ".compound .number",
-        Shape::DeckCondition => ".deckCondition",
+        Shape::Nothing => &[],
+        Shape::Cost => &["Cost"],
+        Shape::Quality => &["Quality"],
+        Shape::Subject => &["Subject"],
+        Shape::Number => &["Amount"],
+        Shape::Ability => &["Ability"],
+        Shape::CompoundQuality => &["Quality", "Cost"],
+        Shape::CompoundNumber => &["Amount", "Cost"],
+        Shape::DeckCondition => &["Condition"],
     }
+}
+
+fn add_schema(schemas: &mut Vec<String>, params: &[&str]) -> anyhow::Result<()> {
+    let schema = argument_schema(params)?;
+    if !schemas.contains(&schema) {
+        schemas.push(schema);
+    }
+    // The quality-qualified cost variant also admits its unqualified cost.
+    if params == ["Quality", "Cost"] {
+        add_schema(schemas, &["Cost"])?;
+    }
+    Ok(())
 }
 
 fn core_deed(deed: CoreDeed) -> &'static str {
@@ -189,35 +225,28 @@ fn keyword_rows(
                 "{}: keyword overlay has no registry declaration",
                 row.label
             );
-            let base = declared
-                .map(|declared| {
-                    let params = declared
-                        .params()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(macro_def::ParameterType::as_str)
-                        .collect::<Vec<_>>();
-                    Shape::from_params(&params)
-                        .with_context(|| format!("{}: unsupported parameter signature", row.label))
-                })
-                .transpose()?;
-            let mut shapes: Vec<Shape> = base.into_iter().collect();
+            let mut schemas = Vec::new();
+            if let Some(declared) = declared {
+                let params = declared
+                    .params()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(macro_def::ParameterType::as_str)
+                    .collect::<Vec<_>>();
+                add_schema(&mut schemas, &params)
+                    .with_context(|| format!("{}: invalid argument schema", row.label))?;
+            }
             for extra in row.extra {
-                if !shapes.contains(extra) {
-                    shapes.push(*extra);
-                }
+                add_schema(&mut schemas, variant_params(*extra))?;
             }
             anyhow::ensure!(
-                !shapes.is_empty(),
-                "{}: no admitted parameter shape",
+                !schemas.is_empty(),
+                "{}: no admitted argument schema",
                 row.label
             );
             let mut fields = vec![
                 format!("word := {}", quoted(row.label)),
-                format!(
-                    "paramShapes := [{}]",
-                    shapes.into_iter().map(shape).collect::<Vec<_>>().join(", ")
-                ),
+                format!("argumentSchemas := [{}]", schemas.join(", ")),
             ];
             for (set, field) in [
                 (row.counter_eligible, "counterEligible"),
@@ -622,13 +651,66 @@ mod tests {
             .lines()
             .find(|line| line.contains("word := \"Ward\""))
             .unwrap();
-        assert!(row.contains("paramShapes := [.number]"), "{row}");
+        assert!(
+            row.contains("argumentSchemas := [[⟨.number, none⟩]]"),
+            "{row}"
+        );
         let idris = super::super::render(temp.path()).unwrap();
         let row = idris
             .lines()
             .find(|line| line.contains("word := \"Ward\""))
             .unwrap();
         assert!(row.contains("paramShapes := [NumberParam]"), "{row}");
+    }
+
+    #[test]
+    fn declared_argument_lists_reach_lean_and_keep_registry_limits() {
+        let temp = fixture();
+        let path = temp
+            .path()
+            .join("plugins/builtin_v2/macros/stubs/keyword_abilities/Ward.ron");
+        let source = fs::read_to_string(&path).unwrap();
+        fs::write(
+            &path,
+            source.replace("params: [Cost]", "params: [Amount, Cost]"),
+        )
+        .unwrap();
+        let generated = render(temp.path()).unwrap();
+        let row = generated
+            .lines()
+            .find(|line| line.contains("word := \"Ward\""))
+            .unwrap();
+        assert!(
+            row.contains("argumentSchemas := [[⟨.number, none⟩, ⟨.cost, none⟩]]"),
+            "{row}"
+        );
+        fs::write(
+            &path,
+            source.replace("params: [Cost]", "params: [Quality, Cost]"),
+        )
+        .unwrap();
+        let reordered = render(temp.path()).unwrap();
+        let row = reordered
+            .lines()
+            .find(|line| line.contains("word := \"Ward\""))
+            .unwrap();
+        assert!(
+            row.contains(
+                "argumentSchemas := [[⟨.quality, some .object⟩, ⟨.cost, none⟩], [⟨.cost, none⟩]]"
+            ),
+            "{row}"
+        );
+
+        fs::write(
+            &path,
+            source.replace("params: [Cost]", "params: [Cost, Amount]"),
+        )
+        .unwrap();
+        let error = render(temp.path()).unwrap_err().to_string();
+        assert!(
+            error.contains("has no consuming or deferred codec class"),
+            "{error}"
+        );
     }
 
     #[test]

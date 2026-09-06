@@ -409,14 +409,7 @@ def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
   hasAnyTypeCharacteristic c.supertypes c.types c.subtypes
 def Characteristics.canonical (c : Characteristics) : Bool :=
   colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes
-def Characteristics.additionUnnamed (c : Characteristics) : Bool := c.name.isNone
-def Characteristics.lossWritesTypes (c : Characteristics) : Bool :=
-  c.pt.isNone && c.colors.isEmpty && c.text.isEmpty && c.name.isNone && c.lineNonEmpty
 def Characteristics.headTy (c : Characteristics) : List CardType := normalizeTypes c.types
-def Characteristics.copyBundleSays (c : Characteristics) : Bool :=
-  let said := (if ptWritten c.pt then 1 else 0) + (if !c.colors.isEmpty then 1 else 0) +
-    (if c.lineNonEmpty then 1 else 0)
-  said ≥ 2
 
 def Ability.grantable : Ability → Bool
   | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ | .static _ => true
@@ -429,27 +422,71 @@ def Characteristics.abilitiesOk (c : Characteristics) : Bool := c.text.all Abili
 /-- Every quality an effect adds is hosted by a type the set writes. -/
 def CharacteristicBundle.qualsFit (b : CharacteristicBundle) : Bool :=
   b.qualities.all (TokenQuality.hosted b.characteristics.types)
-def CharacteristicBundle.lossWritesTypes (b : CharacteristicBundle) : Bool :=
-  b.characteristics.lossWritesTypes && b.qualities.isEmpty
 
-def bundleOk (op : QualityOp) (ty : List CardType) (z : Option Zone)
-    (b : CharacteristicBundle) (ret : Option CardType) : Bool :=
-  let t := b.characteristics
-  match op with
-  | .adds =>
-    (addsSomething ty t.types t.subtypes || !t.supertypes.isEmpty) &&
-      addedFits ty t.types t.subtypes && t.canonical && t.abilitiesOk && b.qualsFit &&
-      t.additionUnnamed && ret.isNone
-  | .sets =>
-    zoneIsB z .battlefield && t.lineNonEmpty && addedFits ty t.types t.subtypes &&
-      t.abilitiesOk && t.canonical && b.qualsFit && retentionOk t.types ret
-  | .loses => zoneIsB z .battlefield && b.lossWritesTypes && t.canonical && ret.isNone
+def TypeLineChanges.hasWrites (c : TypeLineChanges) : Bool :=
+  c.supertypes.isSome || c.types.isSome || c.subtypes.isSome
 
-def becomesOk (bs : Bindings) (op : QualityOp) (n : NounPhrase) : QualityPayload → Bool
-  | .bundle t ret => bundleOk op (NounPhrase.ty bs n) (NounPhrase.zone bs n) t ret
-  | .everyTypeOf space => zoneIsB (NounPhrase.zone bs n) .battlefield && spaceHosted space (NounPhrase.ty bs n)
-  | .chosenQuality q => q.qualityReadOk && hostedRead bs q n
-  | .colored cs => cs.ok && colorOpOk op cs
+def TypeLineChanges.hasValues (c : TypeLineChanges) : Bool :=
+  hasAnyTypeCharacteristic (c.supertypes.getD []) (c.types.getD []) (c.subtypes.getD [])
+
+def TypeLineChanges.canonical (c : TypeLineChanges) : Bool :=
+  supersDistinct (c.supertypes.getD []) && typesDistinct (c.types.getD [])
+
+/-- All type writes in one block participate in hosting its subtype writes. -/
+def CharacteristicEdit.writtenTypes : List CharacteristicEdit → List CardType
+  | [] => []
+  | .typeLine op c :: rest =>
+    (if op == .loses then [] else c.types.getD []) ++ CharacteristicEdit.writtenTypes rest
+  | _ :: rest => CharacteristicEdit.writtenTypes rest
+
+def TypeLineChanges.fits (op : QualityOp) (ty written : List CardType) (z : Option Zone)
+    (c : TypeLineChanges) : Bool :=
+  let ts := c.types.getD []
+  let subs := c.subtypes.getD []
+  c.hasWrites && c.canonical &&
+    match op with
+    | .adds =>
+      (addsSomething ty ts subs || !(c.supertypes.getD []).isEmpty) &&
+        addedFits ty written subs && c.retained.isNone
+    | .sets =>
+      zoneIsB z .battlefield && addedFits ty written subs && retentionOk ts c.retained
+    | .loses => zoneIsB z .battlefield && c.retained.isNone && c.hasValues
+
+def CharacteristicEdit.fits (bs : Bindings) (subject : NounPhrase)
+    (written : List CardType) : CharacteristicEdit → Bool
+  | .typeLine op c => c.fits op (NounPhrase.ty bs subject) written (NounPhrase.zone bs subject)
+  | .name op _ => op == .sets
+  | .manaCost _ => true
+  | .colors op cs => cs.ok && colorOpOk op cs
+  | .stat op _ _ => op == .sets
+  | .everyTypeOf _ space =>
+    zoneIsB (NounPhrase.zone bs subject) .battlefield &&
+      spaceHosted space (written ++ NounPhrase.ty bs subject)
+  | .chosenQuality _ q =>
+    q.qualityReadOk && q.qualityReadHost.elim true (fun host =>
+      tyIs host (written ++ NounPhrase.ty bs subject))
+  | .addedAbilities abilities => abilities.all Ability.grantable
+  | .removedAbilities _ => true
+
+def CharacteristicEdit.fitsAll (bs : Bindings) (subject : NounPhrase)
+    (edits : List CharacteristicEdit) : Bool :=
+  !edits.isEmpty && edits.all (CharacteristicEdit.fits bs subject (CharacteristicEdit.writtenTypes edits))
+
+def CharacteristicEdit.canonical : CharacteristicEdit → Bool
+  | .typeLine _ c => c.canonical
+  | .colors _ (.some cs) => colorsDistinct cs
+  | _ => true
+
+/-- Copy exceptions validate the edit without borrowing a later effect's subject or zone. -/
+def CharacteristicEdit.copyFits : CharacteristicEdit → Bool
+  | .typeLine op c =>
+    (op == .sets || !c.hasWrites || c.hasValues) &&
+      (if op == .sets then retentionOk (c.types.getD []) c.retained else c.retained.isNone)
+  | .name op _ | .stat op _ _ => op == .sets
+  | .colors op cs => cs.ok && colorOpOk op cs
+  | .chosenQuality _ q => q.qualityReadOk
+  | .addedAbilities abilities => abilities.all Ability.grantable
+  | _ => true
 
 def TokenSpec.headTy (bs : Bindings) : TokenSpec → List CardType
   | .written t => t.characteristics.headTy
@@ -537,18 +574,18 @@ def Cost.isCompound : Cost → Bool
   | .compound _ => true
   | _ => false
 
-def KeywordParam.shape : Option KeywordParam → KeywordParamShape
-  | none => .noParam
-  | some (.cost _) => .cost
-  | some (.quality _) => .quality
-  | some (.subject _) => .subject
-  | some (.number _) => .number
-  | some (.qualityCost _ _) => .compound .quality
-  | some (.numberCost _ _) => .compound .number
-  | some (.deckCondition _) => .deckCondition
+def KeywordParam.shape : KeywordParam → KeywordParamShape
+  | .cost _ => .cost
+  | .quality _ => .quality
+  | .subject _ => .subject
+  | .number _ => .number
+  | .deckCondition _ => .deckCondition
 
-def keywordParamFits (k : KeywordLabel) (p : Option KeywordParam) : Bool :=
-  knownKeyword k && paramShapesFit (keywordParamShapes k) (KeywordParam.shape p)
+def keywordSchemaFor (k : KeywordLabel) (params : List KeywordParam) : Option KeywordSchema :=
+  (keywordSchemas k).find? (fun schema => schema.shapes == params.map KeywordParam.shape)
+
+def keywordParamFits (k : KeywordLabel) (params : List KeywordParam) : Bool :=
+  (keywordSchemaFor k params).isSome
 
 def Ability.notWordHeaded : Ability → Bool
   | .italicHead _ _ => false
@@ -560,7 +597,7 @@ def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
   | some _ => false
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
-  | .keyword k none _ => if keywordParamless k then some k else none
+  | .keyword k [] _ => if keywordParamless k then some k else none
   | _ => none
 
 def StaticSpec.keyword : StaticSpec → Option KeywordLabel
@@ -613,7 +650,7 @@ def grantSubjectOk (bs : Bindings) (ab : Ability) (n : NounPhrase) : Bool :=
   grantSubjectFits (NounPhrase.zone bs n) n.regime ab
 
 def Ability.introducedLetters : Ability → List Binding
-  | .keyword _ (some (.number (.letter l))) _ => [letterB l]
+  | .keyword _ [.number (.letter l)] _ => [letterB l]
   | _ => []
 
 mutual
@@ -687,9 +724,11 @@ end
 
 /-- A keyword whose parameter cost the controller pays ("cumulative upkeep {2}", "ward {2}")
 takes a cost payable by you; a deed done by another player is not a payment of it. -/
-def keywordCostPaidByYou (k : KeywordLabel) : Option KeywordParam → Bool
-  | some (.cost c) => !(keywordFactsFor k).elim false (·.paidCost) || c.paidByYou
-  | _ => true
+def keywordCostPaidByYou (k : KeywordLabel) (params : List KeywordParam) : Bool :=
+  !(keywordFactsFor k).elim false (·.paidCost) || params.all (fun param =>
+    match param with
+    | .cost c => c.paidByYou
+    | _ => true)
 
 
 def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYou
@@ -1065,10 +1104,8 @@ mutual
     | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
     | .partSkip who _ => nomIntro bs who
     | .manaRetention who _ => nomIntro bs who
-    | .qualityChange n _ _ => selfSubjIntro bs n
+    | .characteristicChange n _ => selfSubjIntro bs n
     | .copyChange n _ _ => selfSubjIntro bs n
-    | .allAbilityLoss n _ => selfSubjIntro bs n
-    | .abilityLoss n _ => selfSubjIntro bs n
     | .controlGrant who what => stampIntro (nomIntro bs who) (some (.core .gainControl)) what
     | .replacement ev alts _ _ _ _ => interceptCtx bs alts ev
     | .damageRule _ src scope op _ => op.intro (scope.intro (src.intro bs))
@@ -1311,9 +1348,9 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .abilityGrant _ _ | .abilityGrantFrom _ _ _ _ => []
   | .deonticRule _ _ _ _ bound _ asThough _ =>
     optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
-  | .manaRetention _ _ | .partSkip _ _ | .qualityChange _ _ _ => []
+  | .manaRetention _ _ | .partSkip _ _ | .characteristicChange _ _ => []
   | .offBattlefieldScope _ | .retention _ _ => []
-  | .copyChange _ _ _ | .allAbilityLoss _ _ | .abilityLoss _ _ | .controlGrant _ _ => []
+  | .copyChange _ _ _ | .controlGrant _ _ => []
   | .replacement _ _ _ _ _ _ => []
   | .damageRule _ _ _ op _ => op.numberSlots
   | .preventionBan _ _ _ => []

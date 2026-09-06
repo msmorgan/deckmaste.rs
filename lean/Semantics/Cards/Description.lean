@@ -189,9 +189,9 @@ theorem okWarTaxScaledPayment : Instruction.check [letterB .x] warTaxScaledPayme
 def croakingCounterpartCopy : Instruction :=
   Primitives.Instruction.create (.lit 1)
     (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Frog"))]))
-      [ Primitives.CopyExcept.chars {
+      (copyCharacteristics {
                  colors := [.green], subtypes := [creatureType "Frog"], power := stat 1,
-                 toughness := stat 1 } false ])
+                 toughness := stat 1 } false))
     [] (agent := Primitives.NounPhrase.you)
 theorem okCroakingCounterpartCopy : Instruction.check [] croakingCounterpartCopy = [] := by decide
 
