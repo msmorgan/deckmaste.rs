@@ -31,7 +31,7 @@ Companion work:
 - [Relation queries and result collections](lean-core-relations-and-results.md).
 - [Characteristic edits and keyword arguments](lean-core-characteristics-and-keyword-arguments.md).
 - [Events and static specs](lean-core-events-and-static-specs.md).
-- [Action and cost expansions](lean-core-actions-and-costs.md).
+- [Action expansions](lean-core-actions-and-costs.md).
 
 ## Change
 

@@ -1,9 +1,9 @@
 ---
 needs: [lean-core-bindings-and-composition, lean-core-relations-and-results, lean-core-characteristics-and-keyword-arguments, lean-core-events-and-static-specs]
 ---
-# Expand action and cost macros over shared operations
+# Expand action macros over shared operations
 
-Retire the agreed action and payment special cases after their shared
+Retire the agreed action special cases after their shared
 structures exist. Apply the
 [campaign contract](lean-core-bindings-and-composition.md#campaign-contract).
 These decisions, including the exceptions below, were agreed on 2026-09-06.
@@ -52,31 +52,21 @@ binding, query, edit, and event vocabulary.
   the reference needed by "that turn". Preserve the placement constraints;
   the syntax ticket does not design the execution queue.
 
-## Costs and counter removal
-
-Expand loyalty-symbol costs into putting/removing loyalty counters, including
-zero and X [CR#107.7]. Expand tap/untap symbols into their ordinary payment
-actions. Retire the three `Cost` symbol constructors and any redundant
-symbol-specific payload combinations.
-
-The macros declare semantic properties that survive expansion and propagate
-to the enclosing ability. A loyalty-symbol cost classifies that ability as a
-loyalty ability; ordinary loyalty-counter removal does not. Tap/untap-symbol
-origin likewise carries the applicable creature continuous-control restriction.
-Do not infer those properties from a macro name, or from generic counter/tap
-actions alone. The declaration/property propagation must be implemented;
-retaining a name in `Authoring.Form.call` alone is insufficient. Body and cost
-context supply source, counter kind, amount, direction, X, and payment
-obligations; do not duplicate them as symbol-specific guards.
+## Counter removal
 
 Fold `loseCounters` into a macro over `removeCounters`, which already admits
 players as well as objects. Preserve argument/reference scope and expose the
 same removed-counter result independently of the printed verb. "All" and
 an exact amount use the shared quantity vocabulary. Suncleanser witnesses
-the two surface forms; Heart of Kiran distinguishes an ordinary loyalty-counter
-payment from a loyalty-symbol cost.
+the two surface forms.
 
 ## Explicit limits on reduction
+
+**Retain the existing cost-symbol constructors and payloads for now.** The
+user deferred their expansion on 2026-09-06 to avoid introducing unnecessary
+machinery. The design is parked in
+[cost-symbol expansion](../maybe/lean-core-cost-symbol-expansion.md), which
+does not block this ticket. Property propagation is not a delivery here.
 
 **Retain `Instruction.draw`, its Core Deed, and its event.** The draw macro
 expands to that primitive. Library-to-hand movement does not constitute a
