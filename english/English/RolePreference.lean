@@ -51,7 +51,7 @@ theorem role_step_derives {lexicon : Lexicon L} {better worse : Syntax L}
       (.argument (complement := ⟨.object, .nounPhrase agreement⟩) objD
         (.marked valueD .nil)),
       .verb base (.argument (complement := ⟨.object, .nounPhrase agreement⟩)
-        (.node (.adjunct .nounPhrase)
+        (.node (context := []) (.adjunct .nounPhrase)
           (.cons objD (.cons (.node (.preposition prep) (.cons valueD .nil)) .nil))) .nil)⟩
 theorem immediate_same_surface {lexicon : Lexicon L}
     {head marker : L} {form : InflectionalForm} {voice : Voice}
@@ -103,7 +103,7 @@ mutual
     | .node _ children => roleChildren children
     | .modify a b | .relative _ a b | .sharedCoordination _ _ a b => roleCount a + roleCount b
     | .frameCoordination _ a b => roleChildren a + roleChildren b
-    | .ellipsis a => roleCount a
+    | .ellipsis _ _ => 0
     | _ => 0
   def roleChildren : List (Syntax L) → Nat
     | [] => 0

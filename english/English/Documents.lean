@@ -15,7 +15,7 @@ def unary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
     (linearization : DocumentLinearizes rule [child.surface] surface) :
     Witness Lexeme lexicon output :=
   ⟨.node (.document rule) [child.tree], surface,
-   .node (.document production) (.cons child.derives .nil),
+   .closedNode (.document production) (.cons child.derives .nil),
    .node (.cons child.realizes .nil) (.document linearization)⟩
 
 def binary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
@@ -25,7 +25,7 @@ def binary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
     (linearization : DocumentLinearizes rule [first.surface, second.surface] surface) :
     Witness Lexeme lexicon output :=
   ⟨.node (.document rule) [first.tree, second.tree], surface,
-   .node (.document production) (.cons first.derives (.cons second.derives .nil)),
+   .closedNode (.document production) (.cons first.derives (.cons second.derives .nil)),
    .node (.cons first.realizes (.cons second.realizes .nil)) (.document linearization)⟩
 
 def ternary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
@@ -37,7 +37,7 @@ def ternary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
       DocumentLinearizes rule [first.surface, second.surface, third.surface] surface) :
     Witness Lexeme lexicon output :=
   ⟨.node (.document rule) [first.tree, second.tree, third.tree], surface,
-   .node (.document production)
+   .closedNode (.document production)
      (.cons first.derives (.cons second.derives (.cons third.derives .nil))),
    .node (.cons first.realizes (.cons second.realizes (.cons third.realizes .nil)))
      (.document linearization)⟩
@@ -203,9 +203,11 @@ def quotedInstruction : Witness Lexeme lexicon (.clause .finite) :=
 def nestedQuote := unary (unary (unary (unary (unary quotedInstruction
   .sentence .sentence) (.body rfl) .body) .ordinary .ordinary) (.document rfl) .document) .quote .quote
 
-def reminder : Witness Lexeme lexicon (.document .ability) :=
+def reminderProse : Witness Lexeme lexicon (.document .parenthetical) :=
   ⟨.node (.document .reminder) [body.tree], [.opening "("] ++ body.surface ++ [.closing ")"],
    .reminder body.derives (by rfl), .node (.cons body.realizes .nil) (.document .reminder)⟩
+
+def reminder := unary (unary reminderProse (.body rfl) .body) .ordinary .ordinary
 
 def mode := unary body .mode .mode
 def modes := binary instruction (binary mode mode (.modeList (n := 1)) .modeList) .modes .modes
@@ -306,7 +308,7 @@ theorem empty_sentence_rejected (surface : Surface) :
 
 theorem nested_reminder_rejected (content : Syntax Lexeme)
     (nested : content.reminderFree = false) :
-    ¬ Derives lexicon (.node (.document .reminder) [content]) (.document .ability) := by
+    ¬ Derives lexicon (.node (.document .reminder) [content]) (.document .parenthetical) := by
   intro derivation
   cases derivation with
   | node production _ =>

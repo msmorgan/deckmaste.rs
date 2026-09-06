@@ -117,3 +117,22 @@ positive/negative assertions pass Lean LSP axiom/source audits. All 191 prior
 declarations remain; English passes 19 jobs. Inverted-clause syntax itself is
 not claimed. Other feature/dependency closure and broader scope/preference
 obligations remain open.
+
+## Contextual ellipsis checkpoint
+
+Ellipsis is now an omitted VP form/voice, not a recursively supplied antecedent
+syntax tree. Paragraph judgments accumulate earlier overt VP projections;
+quotation resets that context. Inline parentheticals inherit preceding context
+without exporting their internal antecedents. The initial draft isolated
+reminders too; the supported Renegade Doppelganger wording disproved that
+assumption, and the draft was corrected before commitment.
+
+Fourteen interaction assertions cover source order, form matching, quotation,
+and an inhabited inline reminder. Two shared context helpers are also proved.
+The earlier ellipsis and reminder assertions are re-spelled against the new
+shape with their intended outcomes retained. English builds all 20 jobs with
+warnings as errors. Sequential LSP verification and independent import-based
+axiom checks report standard axioms only; concurrent same-file verification
+had returned inconsistent `sorryAx` reports and is not used as evidence.
+This remains a bounded grammatical recoverability context, not reference
+resolution or a full theory of discourse ellipsis.

@@ -180,7 +180,7 @@ def coordinationResult (coordinator : Coordinator) (category : Category) : Categ
 
 /-- Sentence and modal groups share ordinary and colon-prefixed paragraph hosts. -/
 def paragraphItem : Category → Bool
-  | .document .sentence | .document .modal => true
+  | .document .sentence | .document .modal | .document .parenthetical => true
   | _ => false
 
 /-- Section boundaries remain visible within the flat sequence of a text box. -/
@@ -319,7 +319,7 @@ inductive Syntax (Lexeme : Type) where
   | sharedCoordination (coordinator : Coordinator) (category : Category)
       (left right : Syntax Lexeme)
   | relative (number : Number) (head body : Syntax Lexeme)
-  | ellipsis (antecedent : Syntax Lexeme)
+  | ellipsis (form : InflectionalForm) (voice : Voice := .active)
 
 mutual
   /-- Structural reminder nesting check; lexical spellings are assumed to respect atom ownership. -/
@@ -329,7 +329,6 @@ mutual
     | .modify left right | .relative _ left right | .sharedCoordination _ _ left right =>
         left.reminderFree && right.reminderFree
     | .frameCoordination _ left right => reminderFreeChildren left && reminderFreeChildren right
-    | .ellipsis antecedent => antecedent.reminderFree
     | _ => true
   def reminderFreeChildren {Lexeme : Type} : List (Syntax Lexeme) → Bool
     | [] => true
@@ -370,7 +369,7 @@ inductive FiniteLicense {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       FiniteLicense lexicon
         (.node (.auxiliary head form selected polarity voice selectedVoice) [child])
         agreement
-  | adjunct {host dependent : Category} {placement : Placement} 
+  | adjunct {host dependent : Category} {placement : Placement}
       {head child : Syntax Lexeme} {agreement : Agreement} :
       FiniteLicense lexicon head agreement →
       FiniteLicense lexicon (.node (.adjunct host dependent placement) [head, child]) agreement
@@ -378,92 +377,177 @@ inductive FiniteLicense {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       {agreement : Agreement} : FiniteLicense lexicon left agreement →
       FiniteLicense lexicon right agreement →
       FiniteLicense lexicon (.node (.coordinate coordinator category) [left, right]) agreement
-  | ellipsis {antecedent : Syntax Lexeme} {agreement : Agreement} :
-      FiniteLicense lexicon antecedent agreement →
-      FiniteLicense lexicon (.ellipsis antecedent) agreement
+
+mutual
+  /-- Earlier overt VP projections supply grammatical recoverability, never game referents. -/
+  def Syntax.antecedents {Lexeme : Type} : Syntax Lexeme → List Category
+    | .node (.document .quote) _ | .node (.document .reminder) _ => []
+    | .node (.verb _ form _ voice) children =>
+        .verbPhrase form voice :: childAntecedents children
+    | .node (.auxiliary _ form _ _ voice _) children =>
+        .verbPhrase form voice :: childAntecedents children
+    | .node _ children => childAntecedents children
+    | .modify a b | .relative _ a b | .sharedCoordination _ _ a b =>
+        a.antecedents ++ b.antecedents
+    | .frameCoordination _ a b => childAntecedents a ++ childAntecedents b
+    | _ => []
+  def childAntecedents {Lexeme : Type} : List (Syntax Lexeme) → List Category
+    | [] => []
+    | first :: rest => first.antecedents ++ childAntecedents rest
+end
+
+/-- Quoted documents start their own context; parentheticals can refer to preceding prose. -/
+def Construction.childContext {Lexeme : Type} (construction : Construction Lexeme)
+    (context : List Category) : List Category :=
+  match construction with
+  | .document .quote => []
+  | _ => context
+
+@[simp] theorem Construction.childContext_empty {Lexeme : Type}
+    (construction : Construction Lexeme) : construction.childContext [] = [] := by
+  cases construction <;> try rfl
+  rename_i rule
+  cases rule <;> rfl
 
 mutual
   /-- Gaps are ordered resources. Ordinary composition concatenates, never deletes them. -/
-  inductive Judges {Lexeme : Type} (lexicon : Lexicon Lexeme) :
-      Syntax Lexeme → Category → List Category → Prop where
-    | noun {lexeme : Lexeme} {number : Number} : lexicon.noun lexeme number →
-        Judges lexicon (.noun lexeme number) (.nominal number) []
-    | adjective {lexeme : Lexeme} : lexicon.adjective lexeme →
-        Judges lexicon (.adjective lexeme) .adjectivePhrase []
-    | modify {modifier head : Syntax Lexeme} {number : Number} {gaps : List Category} :
-        Judges lexicon modifier .adjectivePhrase [] → Judges lexicon head (.nominal number) gaps →
-        Judges lexicon (.modify modifier head) (.nominal number) gaps
-    | word {lexeme : Lexeme} {category : Category} : WordCategory category →
-        lexicon.word lexeme category → Judges lexicon (.word lexeme category) category []
-    | node {construction : Construction Lexeme} {children : List (Syntax Lexeme)}
+  inductive JudgesIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :
+      List Category → Syntax Lexeme → Category → List Category → Prop where
+    | noun {context : List Category} {lexeme : Lexeme}
+        {number : Number} : lexicon.noun lexeme number →
+        JudgesIn lexicon context (.noun lexeme number) (.nominal number) []
+    | adjective {context : List Category} {lexeme : Lexeme} : lexicon.adjective lexeme →
+        JudgesIn lexicon context (.adjective lexeme) .adjectivePhrase []
+    | modify {context : List Category} {modifier head : Syntax Lexeme} {number : Number}
+        {gaps : List Category} :
+        JudgesIn lexicon context modifier .adjectivePhrase [] →
+        JudgesIn lexicon context head (.nominal number) gaps →
+        JudgesIn lexicon context (.modify modifier head) (.nominal number) gaps
+    | word {context : List Category} {lexeme : Lexeme}
+        {category : Category} : WordCategory category →
+        lexicon.word lexeme category → JudgesIn lexicon context (.word lexeme category) category []
+    | node {context : List Category} {construction : Construction Lexeme}
+        {children : List (Syntax Lexeme)}
         {categories gaps : List Category} {category : Category} :
         Production lexicon construction categories category →
-        JudgeChildren lexicon children categories gaps →
-        Judges lexicon (.node construction children) category gaps
-    | verb {head : Lexeme} {form : InflectionalForm}
+        JudgeChildrenIn lexicon (construction.childContext context) children categories gaps →
+        JudgesIn lexicon context (.node construction children) category gaps
+    | verb {context : List Category} {head : Lexeme} {form : InflectionalForm}
         {frame : List (FrameItem Lexeme)} {voice : Voice}
         {children : List (Syntax Lexeme)} {gaps : List Category} :
-        lexicon.verb head form voice frame → JudgeFrame lexicon children frame gaps →
-        Judges lexicon (.node (.verb head form frame voice) children) (.verbPhrase form voice) gaps
-    | finite {agreement subjectFeatures : Agreement} {form : InflectionalForm} {voice : Voice}
+        lexicon.verb head form voice frame → JudgeFrameIn lexicon context children frame gaps →
+        JudgesIn lexicon context (.node (.verb head form frame voice) children) (.verbPhrase form voice) gaps
+    | finite {context : List Category} {agreement subjectFeatures : Agreement}
+        {form : InflectionalForm} {voice : Voice}
         {subject predicate : Syntax Lexeme}
         {subjectGaps predicateGaps : List Category} :
-        Judges lexicon subject (.nounPhrase subjectFeatures) subjectGaps →
-        Judges lexicon predicate (.verbPhrase form voice) predicateGaps →
+        JudgesIn lexicon context subject (.nounPhrase subjectFeatures) subjectGaps →
+        JudgesIn lexicon context predicate (.verbPhrase form voice) predicateGaps →
         FiniteLicense lexicon predicate agreement →
         subjectAgreement .beforeVerb subject = some agreement →
-        Judges lexicon (.node (.finite agreement form voice) [subject, predicate]) (.clause .finite)
+        JudgesIn lexicon context (.node (.finite agreement form voice) [subject, predicate]) (.clause .finite)
           (subjectGaps ++ predicateGaps)
-    | reminder {body : Syntax Lexeme} :
-        Judges lexicon body (.document .body) [] → body.reminderFree = true →
-        Judges lexicon (.node (.document .reminder) [body]) (.document .ability) []
-    | gap {category : Category} : Judges lexicon (.gap category) category [category]
-    | sharedCoordination {coordinator : Coordinator} {category gap : Category}
+    | reminder {context : List Category} {body : Syntax Lexeme} :
+        JudgesIn lexicon context body (.document .body) [] → body.reminderFree = true →
+        JudgesIn lexicon context (.node (.document .reminder) [body]) (.document .parenthetical) []
+    | gap {context : List Category}
+        {category : Category} : JudgesIn lexicon context (.gap category) category [category]
+    | sharedCoordination {context : List Category} {coordinator : Coordinator}
+        {category gap : Category}
         {left right : Syntax Lexeme} :
         coordinable category = true →
-        Judges lexicon left category [gap] → Judges lexicon right category [gap] →
-        Judges lexicon (.sharedCoordination coordinator category left right)
+        JudgesIn lexicon context left category [gap] →
+        JudgesIn lexicon context right category [gap] →
+        JudgesIn lexicon context (.sharedCoordination coordinator category left right)
           (coordinationResult coordinator category) [gap]
-    | relative {number : Number} {head body : Syntax Lexeme} :
-        Judges lexicon head (.nominal number) [] →
-        Judges lexicon body (.clause .finite) [.nounPhrase ⟨.third, number⟩] →
-        Judges lexicon (.relative number head body) (.nominal number) []
-    | ellipsis {antecedent : Syntax Lexeme} {form : InflectionalForm} {voice : Voice} :
-        Judges lexicon antecedent (.verbPhrase form voice) [] →
-        Judges lexicon (.ellipsis antecedent) (.verbPhrase form voice) []
-  inductive JudgeChildren {Lexeme : Type} (lexicon : Lexicon Lexeme) :
-      List (Syntax Lexeme) → List Category → List Category → Prop where
-    | nil : JudgeChildren lexicon [] [] []
-    | cons {head : Syntax Lexeme} {tail : List (Syntax Lexeme)} {category : Category}
+    | relative {context : List Category} {number : Number} {head body : Syntax Lexeme} :
+        JudgesIn lexicon context head (.nominal number) [] →
+        JudgesIn lexicon context body (.clause .finite) [.nounPhrase ⟨.third, number⟩] →
+        JudgesIn lexicon context (.relative number head body) (.nominal number) []
+    | ellipsis {context : List Category} {form : InflectionalForm} {voice : Voice} :
+        Category.verbPhrase form voice ∈ context →
+        JudgesIn lexicon context (.ellipsis form voice) (.verbPhrase form voice) []
+    | paragraph {context : List Category} {children : List (Syntax Lexeme)}
+        {categories : List Category} :
+        DocumentProduction .body categories (.document .body) →
+        JudgeParagraph lexicon context children categories →
+        JudgesIn lexicon context (.node (.document .body) children) (.document .body) []
+  inductive JudgeChildrenIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :
+      List Category → List (Syntax Lexeme) → List Category → List Category → Prop where
+    | nil {context : List Category} : JudgeChildrenIn lexicon context [] [] []
+    | cons {context : List Category} {head : Syntax Lexeme} {tail : List (Syntax Lexeme)}
+        {category : Category}
         {categories headGaps tailGaps : List Category} :
-        Judges lexicon head category headGaps → JudgeChildren lexicon tail categories tailGaps →
-        JudgeChildren lexicon (head :: tail) (category :: categories) (headGaps ++ tailGaps)
+        JudgesIn lexicon context head category headGaps →
+        JudgeChildrenIn lexicon context tail categories tailGaps →
+        JudgeChildrenIn lexicon context (head :: tail) (category :: categories) (headGaps ++ tailGaps)
   /-- Fixed markers are matched to their declared frame positions, without spelling guards. -/
-  inductive JudgeFrame {Lexeme : Type} (lexicon : Lexicon Lexeme) :
-      List (Syntax Lexeme) → List (FrameItem Lexeme) → List Category → Prop where
-    | nil : JudgeFrame lexicon [] [] []
-    | argument {head : Syntax Lexeme} {tail : List (Syntax Lexeme)} {complement : Complement}
+  inductive JudgeFrameIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :
+      List Category → List (Syntax Lexeme) → List (FrameItem Lexeme) → List Category → Prop where
+    | nil {context : List Category} : JudgeFrameIn lexicon context [] [] []
+    | argument {context : List Category} {head : Syntax Lexeme} {tail : List (Syntax Lexeme)}
+        {complement : Complement}
         {frame : List (FrameItem Lexeme)} {headGaps tailGaps : List Category} :
-        Judges lexicon head complement.category headGaps → JudgeFrame lexicon tail frame tailGaps →
-        JudgeFrame lexicon (head :: tail) (.argument complement :: frame) (headGaps ++ tailGaps)
-    | fixed {marker : Lexeme} {tail : List (Syntax Lexeme)} {frame : List (FrameItem Lexeme)}
-        {gaps : List Category} : JudgeFrame lexicon tail frame gaps →
-        JudgeFrame lexicon (.marker marker :: tail) (.fixed marker :: frame) gaps
-    | marked {marker : Lexeme} {head : Syntax Lexeme} {tail : List (Syntax Lexeme)}
+        JudgesIn lexicon context head complement.category headGaps →
+        JudgeFrameIn lexicon context tail frame tailGaps →
+        JudgeFrameIn lexicon context (head :: tail) (.argument complement :: frame) (headGaps ++ tailGaps)
+    | fixed {context : List Category} {marker : Lexeme} {tail : List (Syntax Lexeme)}
+        {frame : List (FrameItem Lexeme)}
+        {gaps : List Category} : JudgeFrameIn lexicon context tail frame gaps →
+        JudgeFrameIn lexicon context (.marker marker :: tail) (.fixed marker :: frame) gaps
+    | marked {context : List Category} {marker : Lexeme} {head : Syntax Lexeme}
+        {tail : List (Syntax Lexeme)}
         {complement : Complement} {frame : List (FrameItem Lexeme)}
         {headGaps tailGaps : List Category} :
-        Judges lexicon head complement.category headGaps → JudgeFrame lexicon tail frame tailGaps →
-        JudgeFrame lexicon (.marker marker :: head :: tail) (.marked marker complement :: frame)
+        JudgesIn lexicon context head complement.category headGaps →
+        JudgeFrameIn lexicon context tail frame tailGaps →
+        JudgeFrameIn lexicon context (.marker marker :: head :: tail) (.marked marker complement :: frame)
           (headGaps ++ tailGaps)
-    | coordinate {coordinator : Coordinator} {left right : List (Syntax Lexeme)}
+    | coordinate {context : List Category} {coordinator : Coordinator}
+        {left right : List (Syntax Lexeme)}
         {first : FrameItem Lexeme} {rest : List (FrameItem Lexeme)}
         {leftGaps rightGaps : List Category} :
-        JudgeFrame lexicon left (first :: rest) leftGaps →
-        JudgeFrame lexicon right (first :: rest) rightGaps →
-        JudgeFrame lexicon [.frameCoordination coordinator left right] (first :: rest)
+        JudgeFrameIn lexicon context left (first :: rest) leftGaps →
+        JudgeFrameIn lexicon context right (first :: rest) rightGaps →
+        JudgeFrameIn lexicon context [.frameCoordination coordinator left right] (first :: rest)
           (leftGaps ++ rightGaps)
-
+  /-- Only earlier, already grammatical items extend a paragraph's recoverability context. -/
+  inductive JudgeParagraph {Lexeme : Type} (lexicon : Lexicon Lexeme) :
+      List Category → List (Syntax Lexeme) → List Category → Prop where
+    | nil {context : List Category} : JudgeParagraph lexicon context [] []
+    | cons {context : List Category} {first : Syntax Lexeme} {rest : List (Syntax Lexeme)}
+        {category : Category} {categories : List Category} :
+        JudgesIn lexicon context first category [] →
+        JudgeParagraph lexicon (first.antecedents ++ context) rest categories →
+        JudgeParagraph lexicon context (first :: rest) (category :: categories)
 end
+
+abbrev Judges {L : Type} (lexicon : Lexicon L) := JudgesIn lexicon []
+abbrev JudgeChildren {L : Type} (lexicon : Lexicon L) := JudgeChildrenIn lexicon []
+abbrev JudgeFrame {L : Type} (lexicon : Lexicon L) := JudgeFrameIn lexicon []
+
+namespace Judges
+export JudgesIn (noun adjective modify word node verb finite reminder gap sharedCoordination
+  relative ellipsis paragraph)
+end Judges
+namespace JudgeChildren
+export JudgeChildrenIn (nil cons)
+end JudgeChildren
+namespace JudgeFrame
+export JudgeFrameIn (nil argument fixed marked coordinate)
+end JudgeFrame
+
+theorem JudgesIn.closedNode {L : Type} {lexicon : Lexicon L} {construction : Construction L}
+    {children : List (Syntax L)} {categories gaps : List Category} {category : Category}
+    (production : Production lexicon construction categories category)
+    (childProof : JudgeChildrenIn lexicon [] children categories gaps) :
+    JudgesIn lexicon [] (.node construction children) category gaps :=
+  .node production (by simpa only [Construction.childContext_empty] using childProof)
+
+/-- Supplied grammatical context is explicit when checking an elliptical fragment. -/
+abbrev DerivesIn {L : Type} (lexicon : Lexicon L) (context : List Category)
+    (tree : Syntax L) (category : Category) := JudgesIn lexicon context tree category []
+
 
 /-- Closed grammatical derivation; independent of realization and selection. -/
 abbrev Derives {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
@@ -609,7 +693,8 @@ mutual
     | relative {number : Number} {head body : Syntax Lexeme} {a b : Surface} :
         Realizes lexicon head a → Realizes lexicon body b →
         Realizes lexicon (.relative number head body) (a ++ (["that"] : Surface) ++ b)
-    | ellipsis {antecedent : Syntax Lexeme} : Realizes lexicon (.ellipsis antecedent) []
+    | ellipsis {form : InflectionalForm} {voice : Voice} :
+        Realizes lexicon (.ellipsis form voice) []
   inductive RealizeChildren {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       List (Syntax Lexeme) → List Surface → Prop where
     | nil : RealizeChildren lexicon [] []

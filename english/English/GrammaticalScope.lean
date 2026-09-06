@@ -82,7 +82,7 @@ mutual
     | .node construction children => constructionLexemes construction ++ childLeaves children
     | .frameCoordination _ a b => childLeaves a ++ childLeaves b
     | .gap _ => []
-    | .ellipsis antecedent => lexicalLeaves antecedent
+    | .ellipsis _ _ => []
   def childLeaves : List (Syntax L) → List L
     | [] => []
     | head :: rest => lexicalLeaves head ++ childLeaves rest
@@ -131,7 +131,6 @@ mutual
         .sharedCoordination c cat (hostStructure a) (hostStructure b)
     | .relative n a b => .relative n (hostStructure a) (hostStructure b)
     | .frameCoordination c a b => .frameCoordination c (hostChildren a) (hostChildren b)
-    | .ellipsis antecedent => .ellipsis (hostStructure antecedent)
     | tree => tree
   def hostChildren : List (Syntax L) → List (Syntax L)
     | [] => []

@@ -10,5 +10,6 @@ import English.DocumentCollections
 import English.ScopeInteractions
 import English.FrameInteractions
 import English.AgreementInteractions
+import English.EllipsisInteractions
 
 /-! Oracle English grammar design workbench, independent of the Semantics model. -/

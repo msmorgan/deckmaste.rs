@@ -8,7 +8,7 @@ inductive LabelKind where
 
 inductive DocumentCategory where
   | sentence | body | ability | document | cost | quotedText
-  | section | modal | costComponent | symbol | label (kind : LabelKind := .abilityWord) | notation | mode | modes
+  | section | modal | parenthetical | costComponent | symbol | label (kind : LabelKind := .abilityWord) | notation | mode | modes
   | supertype | type | subtype | supertypes | types | subtypes | typeLine
   deriving DecidableEq
 

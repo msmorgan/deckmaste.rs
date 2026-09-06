@@ -64,6 +64,11 @@ specialized marks rather than ordinary word-and-phrase grammar alone.
 The highest ordinary syntactic unit of Oracle text, terminated by sentence
 punctuation and containing one or more Clauses.
 
+**Parenthetical**:
+Supplementary material set off from the surrounding expression, commonly by
+parentheses. It can refer to preceding linguistic material without becoming a
+selected Complement of its host.
+
 **Clause**:
 A syntactic unit organized around a predication and its dependents.
 
