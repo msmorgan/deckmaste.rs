@@ -48,6 +48,20 @@ def Atom.nestedQuote : Atom → Atom
 def Surface.quote (surface : Surface) : Surface :=
   [.opening "\""] ++ surface.map Atom.nestedQuote ++ [.closing "\""]
 
+/-- Separators belong between items, including when a collection has one or zero items. -/
+def Surface.join (separator : Surface) : List Surface → Surface
+  | [] => []
+  | [item] => item
+  | item :: next :: rest => item ++ separator ++ Surface.join separator (next :: rest)
+
+def Surface.capitalize : Surface → Surface
+  | [] => []
+  | first :: rest => first.capitalize :: rest
+
+def Surface.followingLine : Surface → Surface
+  | [] => []
+  | first :: rest => .lineBreak :: first :: rest
+
 /-- Exact text spelling of an annotated surface; no whitespace normalization is assumed. -/
 inductive Spells : Surface → String → Prop where
   | empty : Spells [] ""

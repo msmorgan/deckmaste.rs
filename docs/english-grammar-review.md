@@ -181,3 +181,52 @@ project has its own root, manifest, toolchain file and build artifacts; neither
 manifest contains dependencies. An import probe in each project confirms the
 other project's root module is unavailable. Lean LSP checks the English root
 at its new path. All 129 existing English theorem declarations moved unchanged.
+
+## Implemented closure: textual collections and grammatical scope
+
+The current model replaces the document findings above as follows. Ordered
+textual collections consume their items directly: paragraphs contain sentence
+or modal items; documents contain paragraph or section items; costs contain
+atomic cost components; keyword lines contain keyword phrases; modes and type
+groups contain their respective atomic items. The binary joins and overlapping
+singleton-supertype rules are retired. Documents and supertype groups permit
+zero items; the other collections require at least one. Section boundaries
+remain explicit. Empty trailing section text adds no dangling newline.
+
+An initial adverbial is now ordinary clause structure. Its sentence can be
+followed by additional sentences or serve as a dash-ended modal header.
+Complete-sentence modal headers have their own punctuation rule. Both ordinary
+and colon-prefixed paragraphs consume the same paragraph content. Keyword
+phrases remain available as verb complements, independently of keyword-line
+punctuation. Coordination explicitly excludes document categories. This
+factoring follows style guide §1, “Write rules instructions, not conversational
+prose,” §3, “Punctuation and glyphs,” §10, “Logic, choice, and coordination,”
+and §15, “Frame-dependent text.” No game-layout validator was introduced.
+
+`DocumentCollections` checks three-item lists, a trigger with two subsequent
+sentences, modal groups under both paragraph hosts, a complete-sentence modal
+header, empty document and level-band text, and collection/category exclusions.
+All earlier exact-text assertions survive against the replacement shapes.
+
+`GrammaticalScope` now defines local modifier, postmodifier and auxiliary
+scope moves over actual Syntax, lifted through unchanged node and modifier
+contexts. Equivalence is over independently admitted same-surface trees; every
+intermediate has its own admissibility evidence. Its quotient supplies the
+packing key. `same_class_iff` and `package_exact` connect class equality and
+package membership to that grammatical relation. Scope moves preserve lexical
+identity order and the host tree after removing mobile attachments.
+
+`ScopeInteractions` checks two independent modifier regions, all four actual
+nested-mobile readings, quotation embedding, homograph separation, and two
+inhabited host-association alternatives that remain separate. These checks
+replace arbitrary-key assumptions for this named scope fragment. They do not
+claim the move inventory covers every intended construction. Declared-role
+preference, partial-frame coordination, and remaining ordinary grammar
+features/dependencies are still review work.
+
+Validation at this checkpoint: `english/scripts/build` passes 16 jobs with
+warnings as errors. All 129 prior theorem declarations remain present; 38 are
+added (32 public assertions and six private proof helpers). None are removed,
+ignored, or weakened. Lean LSP diagnostics are clean; all 32 new public
+assertions pass axiom/source audits using only standard axioms. The review
+remains WIP. Production code, coverage and other WIP tickets are untouched.

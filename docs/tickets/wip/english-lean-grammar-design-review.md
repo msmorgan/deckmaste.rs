@@ -84,3 +84,16 @@ the expected unknown-module result. LSP diagnostics are clean at the new
 English root. All 129 English theorem declarations were moved unchanged;
 no Semantics source or assertion changed. The two manifests have no package
 dependencies. Historical done-ticket paths remain as landing provenance.
+
+## Consolidation checkpoint
+
+Implemented flat document, paragraph, cost, keyword-line, modal and type
+collections; ordinary initial-adverbial clauses; shared modal paragraph hosts;
+empty textual sections; and explicit document-coordination exclusion. Added
+scope equivalence over actual grammatical trees, its quotient packing key,
+lexical/host invariants, and inhabited interaction checks including quotation.
+The review report records the exact laws and limits. English passes 16 build
+jobs; 129 prior theorem declarations are retained, 38 added, none removed or
+ignored. All 32 new public assertions pass Lean LSP axiom/source audits.
+Declaration-backed preference, partial-frame coordination and ordinary grammar
+closure remain in scope here. This checkpoint does not complete the ticket.

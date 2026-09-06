@@ -30,7 +30,7 @@ def shared : Syntax Lexeme :=
 def surface : Surface := (["white", "creatures", "and", "artifacts"] : Surface)
 
 theorem narrow_derives : Derives lexicon narrow (.nominal .plural) := by
-  apply Judges.node Production.coordinate
+  apply Judges.node (Production.coordinate rfl)
   apply JudgeChildren.cons (headGaps := []) (tailGaps := [])
   · apply Judges.modify
     · exact Judges.adjective rfl
@@ -40,7 +40,7 @@ theorem narrow_derives : Derives lexicon narrow (.nominal .plural) := by
 theorem shared_derives : Derives lexicon shared (.nominal .plural) := by
   apply Judges.modify
   · exact Judges.adjective rfl
-  · exact .node .coordinate (.cons (.noun (Or.inl rfl)) (.cons (.noun (Or.inr rfl)) .nil))
+  · exact .node (.coordinate rfl) (.cons (.noun (Or.inl rfl)) (.cons (.noun (Or.inr rfl)) .nil))
 
 private theorem white_realizes : Realizes lexicon (.adjective .white) (["white"] : Surface) :=
   .adjective ⟨rfl, rfl⟩

@@ -24,7 +24,7 @@ theorem pairNP_valid {a b : Syntax Lexeme} {as bs : Surface}
     (ha : Admissible lexicon a (.nounPhrase plural) as)
     (hb : Admissible lexicon b (.nounPhrase plural) bs) :
     Admissible lexicon (pairNP a b) (.nounPhrase plural) (as ++ (["and"] : Surface) ++ bs) :=
-  ⟨.node .coordinate (.cons ha.1 (.cons hb.1 .nil)),
+  ⟨.node (.coordinate rfl) (.cons ha.1 (.cons hb.1 .nil)),
    .node (.cons ha.2 (.cons hb.2 .nil)) .coordinate⟩
 theorem npAdj_valid {a b : Syntax Lexeme} {as bs : Surface}
     (ha : Admissible lexicon a (.nounPhrase plural) as)
@@ -63,7 +63,7 @@ theorem nested_valid {inner : Syntax Lexeme}
       (hb : Admissible lexicon b (.verbPhrase .plain) bs) :
       Admissible lexicon (CrossHost.pair a b) (.verbPhrase .plain)
         (as ++ (["and"] : Surface) ++ bs) :=
-    ⟨.node .coordinate (.cons ha.1 (.cons hb.1 .nil)),
+    ⟨.node (.coordinate rfl) (.cons ha.1 (.cons hb.1 .nil)),
      .node (.cons ha.2 (.cons hb.2 .nil)) .coordinate⟩
   have adjunctValid {a b : Syntax Lexeme} {as bs : Surface}
       (ha : Admissible lexicon a (.verbPhrase .plain) as)
@@ -136,9 +136,9 @@ theorem quoted_admitted {tree : Syntax Lexeme}
     ⟨.node .imperative [tree], nestedSurface,
       .node .imperative (.cons h.1 .nil), .node (.cons h.2 .nil) .imperative⟩
   let sentence := Documents.unary instruction .sentence .sentence
-  let body := Documents.unary sentence .body .body
+  let body := Documents.unary sentence (.body rfl) .body
   let ability := Documents.unary body .ordinary .ordinary
-  let document := Documents.unary ability .document .document
+  let document := Documents.unary ability (.document rfl) .document
   let quoted := Documents.unary document .quote .quote
   exact ⟨quoted.derives, quoted.realizes⟩
 

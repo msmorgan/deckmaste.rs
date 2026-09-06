@@ -388,3 +388,21 @@ interaction or dependency with the separate `lean/` Semantics project.
 Grammatical dependencies and textual boundaries are in scope; game-reference
 resolution, card validation and frame legality are not. Surface relations are
 used to compare grammatical analyses, not to create a card-validation service.
+
+## Review consolidation implemented
+
+The [review's implemented-closure section](english-grammar-review.md#implemented-closure-textual-collections-and-grammatical-scope)
+supersedes the earlier binary document-group and arbitrary scope-key sketches.
+Textual collections are flat and consume distinct item categories. Initial
+adverbials compose into ordinary clauses and multi-sentence paragraphs; modal
+groups share ordinary and colon-prefixed paragraph hosts. Document categories
+are excluded from linguistic coordination. Empty text portions are admitted
+without making game-layout claims.
+
+Scope classes are now quotients of licensed contextual moves among admitted
+same-surface Syntax trees. They preserve lexical identities and host topology,
+retain all four checked nested-mobile readings, and lift through quotation.
+This closes the class-key design for the implemented scope fragment; extending
+the move inventory and implementing declaration-backed preference and
+partial-frame coordination remain review obligations. Ordinary feature and
+dependency closure also remains open.

@@ -29,12 +29,12 @@ theorem modifier_scope_preserves {lexicon : Lexicon L} {m l r tree : Syntax L}
     (scope : ModifierScope m l r tree) :
     Admissible lexicon tree (.nominal .plural) (ms ++ ls ++ (["and"] : Surface) ++ rs) := by
   rcases scope with rfl | rfl
-  · refine ⟨.modify modifier.1 (.node .coordinate (.cons left.1 (.cons right.1 .nil))), ?_⟩
+  · refine ⟨.modify modifier.1 (.node (.coordinate rfl) (.cons left.1 (.cons right.1 .nil))), ?_⟩
     have realized := Realizes.modify modifier.2
       (Realizes.node (.cons left.2 (.cons right.2 .nil))
         (Linearizes.coordinate (coordinator := .and_) (category := .nominal .plural)))
     simpa [Syntax.coordinate, Coordinator.surface, List.append_assoc] using realized
-  · refine ⟨.node .coordinate (.cons (.modify modifier.1 left.1) (.cons right.1 .nil)), ?_⟩
+  · refine ⟨.node (.coordinate rfl) (.cons (.modify modifier.1 left.1) (.cons right.1 .nil)), ?_⟩
     exact .node (.cons (.modify modifier.2 left.2) (.cons right.2 .nil)) .coordinate
 
 /-- Exact packaging is unique for this class, without choosing a reading within it. -/
@@ -117,7 +117,7 @@ private theorem pair_admitted {a b : Syntax Lexeme} {as bs : Surface}
     (ha : Admissible lexicon a (.verbPhrase .plain) as)
     (hb : Admissible lexicon b (.verbPhrase .plain) bs) :
     Admissible lexicon (pair a b) (.verbPhrase .plain) (as ++ (["and"] : Surface) ++ bs) :=
-  ⟨.node .coordinate (.cons ha.1 (.cons hb.1 .nil)),
+  ⟨.node (.coordinate rfl) (.cons ha.1 (.cons hb.1 .nil)),
     .node (.cons ha.2 (.cons hb.2 .nil)) .coordinate⟩
 
 private theorem auxiliary_admitted {a : Syntax Lexeme} {as : Surface}
@@ -181,7 +181,7 @@ theorem qualification_sites_excluded (form : InflectionalForm) (voice : Voice)
     (placement : Placement) :
     ¬ AdjunctLicense (.verbPhrase form voice) .adjectivePhrase placement ∧
     ¬ AdjunctLicense (.verbPhrase form voice) .measurePhrase placement ∧
-    ¬ AdjunctLicense (.verbPhrase form voice) (.document .keyword) placement ∧
+    ¬ AdjunctLicense (.verbPhrase form voice) (.keywordPhrase) placement ∧
     ¬ AdjunctLicense (.verbPhrase form voice) (.document .quotedText) placement := by
   refine ⟨?_, ?_, ?_, ?_⟩ <;> intro h <;> cases h
 

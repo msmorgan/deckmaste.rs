@@ -47,7 +47,7 @@ inductive Lexeme where
   | label | legendary | creature | elf | dieRange | whenever | flying
   deriving DecidableEq
 
-def keywordFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .document .keyword⟩]
+def keywordFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .keywordPhrase⟩]
 
 def quotedFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .document .quotedText⟩]
 
@@ -114,13 +114,14 @@ def instruction : Witness Lexeme lexicon (.clause .finite) :=
    .node (.cons attack.realizes .nil) .imperative⟩
 
 def sentence := unary instruction .sentence .sentence
-def body := unary sentence .body .body
+def body := unary sentence (.body rfl) .body
 def ordinary := unary body .ordinary .ordinary
-def document := unary ordinary .document .document
-def repeatedDocument := binary document document .append .append
-def cost := unary mana .costSymbol .costSymbol
+def document := unary ordinary (.document rfl) .document
+def repeatedDocument := binary ordinary ordinary (.document rfl) .document
+def symbolCost := unary mana .costSymbol .costSymbol
+def cost := unary symbolCost (.costs (n := 0)) .costs
 def actionCost := unary attack .costAction .costAction
-def costs := binary cost actionCost .costJoin .costJoin
+def costs := binary symbolCost actionCost (.costs (n := 1)) .costs
 def activated := binary costs body .activated .activated
 
 def creatures : Witness Lexeme lexicon (.nounPhrase ⟨.third, .plural⟩) :=
@@ -139,23 +140,30 @@ def trigger : Witness Lexeme lexicon (.subordinateClause .finite) :=
    .node (.subordinate ⟨rfl, rfl⟩) (.cons event.derives .nil),
    .node (.cons event.realizes .nil) (.subordinate (m := ["whenever"]) ⟨rfl, rfl⟩)⟩
 
-def triggered := binary trigger instruction .triggered .triggered
+def initialClause : Witness Lexeme lexicon (.clause .finite) :=
+  ⟨.node (.initialAdverbial (.subordinateClause .finite)) [trigger.tree, instruction.tree],
+   trigger.surface ++ [.closing ","] ++ instruction.surface,
+   .node (.initialAdverbial .subordinate) (.cons trigger.derives (.cons instruction.derives .nil)),
+   .node (.cons trigger.realizes (.cons instruction.realizes .nil)) .initialAdverbial⟩
 
-def ward : Witness Lexeme lexicon (.document .keyword) :=
+def triggered := unary (unary (unary initialClause .sentence .sentence)
+  (.body rfl) .body) .ordinary .ordinary
+
+def ward : Witness Lexeme lexicon (.keywordPhrase) :=
   ⟨.node (.keyword .ward (some (.document .cost)) .free) [cost.tree],
    ("ward" : Atom) :: cost.surface,
    .node (.keywordParameter (Or.inl ⟨rfl, rfl, rfl⟩)) (.cons cost.derives .nil),
    .node (.cons cost.realizes .nil)
      (.keywordParameter (keywordSurface := ["ward"]) (Or.inl ⟨rfl, rfl⟩))⟩
 
-def flying : Witness Lexeme lexicon (.document .keyword) :=
+def flying : Witness Lexeme lexicon (.keywordPhrase) :=
   ⟨.node (.keyword .flying none .free) [], ["flying"],
    .node (.keywordBare (Or.inr (Or.inr ⟨rfl, rfl, rfl⟩))) .nil,
    .node .nil (.keywordBare (Or.inr ⟨rfl, rfl⟩))⟩
 
-def bareKeyword := unary flying .keywordLine .keywordLine
+def bareKeyword := unary flying (.keywordLine (n := 0)) .keywordLine
 
-def landwalk : Witness Lexeme lexicon (.document .keyword) :=
+def landwalk : Witness Lexeme lexicon (.keywordPhrase) :=
   ⟨.node (.keyword .walk (some (.nominal .singular)) .boundSuffix) [.noun .land .singular],
    ["land", .closing "walk"],
    .node (.keywordParameter (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))) 
@@ -164,18 +172,18 @@ def landwalk : Witness Lexeme lexicon (.document .keyword) :=
    .node (.cons (.noun (surface := ["land"]) (Or.inl ⟨rfl, rfl, rfl⟩)) .nil)
      (.keywordBound (suffix := "walk") ⟨rfl, rfl⟩)⟩
 
-def gain (keyword : Witness Lexeme lexicon (.document .keyword)) :
+def gain (keyword : Witness Lexeme lexicon (.keywordPhrase)) :
     Witness Lexeme lexicon (.verbPhrase .plain) :=
   ⟨.node (.verb .gain .plain keywordFrame) [keyword.tree], 
    (["gain"] : Surface) ++ [keyword.surface].flatten,
    .verb ⟨rfl, rfl, Or.inr ⟨rfl, Or.inl rfl⟩⟩
-     (.argument (complement := ⟨.object, .document .keyword⟩) keyword.derives .nil),
+     (.argument (complement := ⟨.object, .keywordPhrase⟩) keyword.derives .nil),
    .node (.cons keyword.realizes .nil) (.verb (lexicon := lexicon) (head := .gain) (form := .plain)
       (v := ["gain"]) ⟨rfl, Or.inr ⟨rfl, rfl⟩⟩)⟩
 
-def keywordLine := unary ward .keywordLine .keywordLine
-def boundLine := unary landwalk .keywordLine .keywordLine
-def keywordList := unary (binary ward landwalk .keywordJoin .keywordJoin) .keywordLine .keywordLine
+def keywordLine := unary ward (.keywordLine (n := 0)) .keywordLine
+def boundLine := unary landwalk (.keywordLine (n := 0)) .keywordLine
+def keywordList := binary ward landwalk (.keywordLine (n := 1)) .keywordLine
 def quoted := unary document .quote .quote
 
 def gainQuoted : Witness Lexeme lexicon (.verbPhrase .plain) :=
@@ -193,14 +201,14 @@ def quotedInstruction : Witness Lexeme lexicon (.clause .finite) :=
    .node (.cons gainQuoted.realizes .nil) .imperative⟩
 
 def nestedQuote := unary (unary (unary (unary (unary quotedInstruction
-  .sentence .sentence) .body .body) .ordinary .ordinary) .document .document) .quote .quote
+  .sentence .sentence) (.body rfl) .body) .ordinary .ordinary) (.document rfl) .document) .quote .quote
 
 def reminder : Witness Lexeme lexicon (.document .ability) :=
   ⟨.node (.document .reminder) [body.tree], [.opening "("] ++ body.surface ++ [.closing ")"],
    .reminder body.derives (by rfl), .node (.cons body.realizes .nil) (.document .reminder)⟩
 
 def mode := unary body .mode .mode
-def modes := binary instruction (binary mode mode .modeJoin .modeJoin) .modes .modes
+def modes := binary instruction (binary mode mode (.modeList (n := 1)) .modeList) .modes .modes
 def weightedMode := binary mana body .weightedMode .weightedMode
 def labelled := binary label ordinary .label .label
 def chapter := binary roman body .chapter .chapter
@@ -212,8 +220,8 @@ def dieRow := binary dieRange body .dieRow .dieRow
 def dieDashRow := binary level body .dieDashRow .dieDashRow
 def station := binary threshold keywordLine .station .station
 
-def typeLine := ternary (unary legendary .supertype .supertype)
-  (unary creature .type .type) (unary elf .subtype .subtype) .subtypedLine .subtypedLine
+def typeLine := ternary (unary legendary (.supertypes (n := 1)) .supertypes)
+  (unary creature (.types (n := 0)) .types) (unary elf (.subtypes (n := 0)) .subtypes) .subtypedLine .subtypedLine
 
 /-- Faces contain independent typed text boxes; spelling never inserts a combined name. -/
 structure Faces where

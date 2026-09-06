@@ -96,7 +96,7 @@ def destroyObjects : Syntax Lexeme := .node (.verb .destroy .plain objectFrame) 
 
 theorem coordinated_complement : Derives lexicon destroyObjects (.verbPhrase .plain) :=
   .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩
-    (.argument (.node .coordinate (.cons creatures_derives (.cons artifacts_derives .nil))) .nil)
+    (.argument (.node (.coordinate rfl) (.cons creatures_derives (.cons artifacts_derives .nil))) .nil)
 
 /-- The identical NP tree fills Subject, Object and a preposition's Complement. -/
 theorem noun_phrase_relations :
@@ -240,7 +240,7 @@ theorem wrong_fixed_marker :
 theorem shared_relative_gap :
     Judges lexicon (.sharedCoordination .and_ (.clause .finite) relativeBody relativeBody)
       (.clause .finite) [.nounPhrase plural] :=
-  .sharedCoordination relative_body_gap relative_body_gap
+  .sharedCoordination rfl relative_body_gap relative_body_gap
 
 theorem arithmetic : Admissible lexicon
     (.node (.measure .plus) [.word .one .measurePhrase, .word .two .measurePhrase])

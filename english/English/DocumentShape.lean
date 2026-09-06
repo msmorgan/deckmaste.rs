@@ -7,20 +7,19 @@ inductive LabelKind where
   deriving DecidableEq
 
 inductive DocumentCategory where
-  | sentence | body | ability | document | cost | keyword | quotedText
-  | symbol | label (kind : LabelKind := .abilityWord) | notation | mode | modes
+  | sentence | body | ability | document | cost | quotedText
+  | section | modal | costComponent | symbol | label (kind : LabelKind := .abilityWord) | notation | mode | modes
   | supertype | type | subtype | supertypes | types | subtypes | typeLine
   deriving DecidableEq
 
 /-- Structural families, independent of any particular frame or keyword identity. -/
 inductive DocumentRule where
-  | sentence | body | bodyJoin | ordinary | document | append
-  | costAction | costSymbol | costJoin | activated | triggered
-  | keywordLine | keywordJoin | quote | reminder | mode | modeJoin | modes | weightedMode
+  | sentence | body | ordinary | document
+  | costAction | costSymbol | costs | activated
+  | keywordLine | quote | reminder | mode | modeList | modes | sentenceModes | weightedMode
   | label (kind : LabelKind := .abilityWord) | chapter | classLevel | levelBand
   | solve | solved | dieRow | dieDashRow | station
-  | supertype | type | subtype | noSupertypes | supertypes | types | subtypes
-  | typeLine | subtypedLine
+  | supertypes | types | subtypes | typeLine | subtypedLine
   deriving DecidableEq
 
 inductive KeywordPlacement where

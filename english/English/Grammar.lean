@@ -60,7 +60,7 @@ inductive Category where
   | determinativePhrase (number : Number)
   | adjectivePhrase | adverbPhrase | prepositionPhrase
   | cardinalNumeral (number : Number)
-  | measurePhrase
+  | measurePhrase | keywordPhrase
   | verbPhrase (form : InflectionalForm) (voice : Voice := .active)
   | clause (finiteness : Finiteness)
   | subordinateClause (finiteness : Finiteness)
@@ -105,6 +105,7 @@ inductive Construction (Lexeme : Type) where
   | auxiliary (head : Lexeme) (form selected : InflectionalForm) (polarity : Polarity)
       (voice selectedVoice : Voice := .active)
   | finite (agreement : Agreement) (form : InflectionalForm) (voice : Voice := .active)
+  | initialAdverbial (dependent : Category)
   | imperative
   | nonfinite (form : InflectionalForm) (voice : Voice := .active)
   | subordinate (marker : Lexeme) (finiteness : Finiteness)
@@ -167,76 +168,76 @@ def coordinationResult (coordinator : Coordinator) (category : Category) : Categ
   | .and_, .nounPhrase agreement => .nounPhrase { agreement with number := .plural }
   | _, _ => category
 
-/-- Document categories compose over the same clause and phrase categories. -/
+/-- Sentence and modal groups share ordinary and colon-prefixed paragraph hosts. -/
+def paragraphItem : Category → Bool
+  | .document .sentence | .document .modal => true
+  | _ => false
+
+/-- Section boundaries remain visible within the flat sequence of a text box. -/
+def documentItem : Category → Bool
+  | .document .ability | .document .section => true
+  | _ => false
+
+/-- Only linguistic constituents coordinate; textual containers have separate list rules. -/
+def coordinable : Category → Bool
+  | .document _ => false
+  | _ => true
+
+inductive InitialAdverbial : Category → Prop where
+  | subordinate : InitialAdverbial (.subordinateClause .finite)
+  | preposition : InitialAdverbial .prepositionPhrase
+
+/-- Collections consume items directly, never another collection of the same kind. -/
 inductive DocumentProduction : DocumentRule → List Category → Category → Prop where
-  | sentence : DocumentProduction .sentence
-      [.clause .finite] (.document .sentence)
-  | body : DocumentProduction .body
-      [.document .sentence] (.document .body)
-  | bodyJoin : DocumentProduction .bodyJoin
-      [.document .body, .document .sentence] (.document .body)
-  | ordinary : DocumentProduction .ordinary
-      [.document .body] (.document .ability)
-  | document : DocumentProduction .document
-      [.document .ability] (.document .document)
-  | append : DocumentProduction .append
-      [.document .document, .document .document] (.document .document)
+  | sentence : DocumentProduction .sentence [.clause .finite] (.document .sentence)
+  | body {first : Category} {rest : List Category} :
+      (first :: rest).all paragraphItem = true →
+      DocumentProduction .body (first :: rest) (.document .body)
+  | ordinary : DocumentProduction .ordinary [.document .body] (.document .ability)
+  | document {items : List Category} : items.all documentItem = true →
+      DocumentProduction .document items (.document .document)
   | costAction : DocumentProduction .costAction
-      [.verbPhrase .plain] (.document .cost)
+      [.verbPhrase .plain] (.document .costComponent)
   | costSymbol : DocumentProduction .costSymbol
-      [.document .symbol] (.document .cost)
-  | costJoin : DocumentProduction .costJoin
-      [.document .cost, .document .cost] (.document .cost)
+      [.document .symbol] (.document .costComponent)
+  | costs {n : Nat} : DocumentProduction .costs
+      (List.replicate (n + 1) (.document .costComponent)) (.document .cost)
   | activated : DocumentProduction .activated
       [.document .cost, .document .body] (.document .ability)
-  | triggered : DocumentProduction .triggered
-      [.subordinateClause .finite, .clause .finite] (.document .ability)
-  | keywordLine : DocumentProduction .keywordLine
-      [.document .keyword] (.document .ability)
-  | keywordJoin : DocumentProduction .keywordJoin
-      [.document .keyword, .document .keyword] (.document .keyword)
-  | quote : DocumentProduction .quote
-      [.document .document] (.document .quotedText)
-  | mode : DocumentProduction .mode
-      [.document .body] (.document .mode)
-  | modeJoin : DocumentProduction .modeJoin
-      [.document .mode, .document .mode] (.document .modes)
+  | keywordLine {n : Nat} : DocumentProduction .keywordLine
+      (List.replicate (n + 1) .keywordPhrase) (.document .ability)
+  | quote : DocumentProduction .quote [.document .document] (.document .quotedText)
+  | mode : DocumentProduction .mode [.document .body] (.document .mode)
+  | modeList {n : Nat} : DocumentProduction .modeList
+      (List.replicate (n + 1) (.document .mode)) (.document .modes)
   | modes : DocumentProduction .modes
-      [.clause .finite, .document .modes] (.document .ability)
+      [.clause .finite, .document .modes] (.document .modal)
+  | sentenceModes {n : Nat} : DocumentProduction .sentenceModes
+      (List.replicate (n + 1) (.document .sentence) ++ [.document .modes]) (.document .modal)
   | weightedMode : DocumentProduction .weightedMode
       [.document .symbol, .document .body] (.document .mode)
   | label {kind : LabelKind} : DocumentProduction (.label kind)
       [.document (.label kind), .document .ability] (.document .ability)
   | chapter : DocumentProduction .chapter
-      [.document .notation, .document .body] (.document .document)
+      [.document .notation, .document .body] (.document .section)
   | classLevel : DocumentProduction .classLevel
-      [.document .cost, .document .notation, .document .document] (.document .document)
+      [.document .cost, .document .notation, .document .document] (.document .section)
   | levelBand : DocumentProduction .levelBand
-      [.document .notation, .document .notation, .document .document] (.document .document)
-  | solve : DocumentProduction .solve
-      [.document .body] (.document .document)
-  | solved : DocumentProduction .solved
-      [.document .ability] (.document .document)
+      [.document .notation, .document .notation, .document .document] (.document .section)
+  | solve : DocumentProduction .solve [.document .body] (.document .section)
+  | solved : DocumentProduction .solved [.document .ability] (.document .section)
   | dieRow : DocumentProduction .dieRow
-      [.document .notation, .document .body] (.document .document)
+      [.document .notation, .document .body] (.document .section)
   | dieDashRow : DocumentProduction .dieDashRow
-      [.document .notation, .document .body] (.document .document)
+      [.document .notation, .document .body] (.document .section)
   | station : DocumentProduction .station
-      [.document .notation, .document .ability] (.document .document)
-  | supertype : DocumentProduction .supertype
-      [.document .supertype] (.document .supertypes)
-  | type : DocumentProduction .type
-      [.document .type] (.document .types)
-  | subtype : DocumentProduction .subtype
-      [.document .subtype] (.document .subtypes)
-  | noSupertypes : DocumentProduction .noSupertypes
-      [] (.document .supertypes)
-  | supertypes : DocumentProduction .supertypes
-      [.document .supertypes, .document .supertype] (.document .supertypes)
-  | types : DocumentProduction .types
-      [.document .types, .document .type] (.document .types)
-  | subtypes : DocumentProduction .subtypes
-      [.document .subtypes, .document .subtype] (.document .subtypes)
+      [.document .notation, .document .ability] (.document .section)
+  | supertypes {n : Nat} : DocumentProduction .supertypes
+      (List.replicate n (.document .supertype)) (.document .supertypes)
+  | types {n : Nat} : DocumentProduction .types
+      (List.replicate (n + 1) (.document .type)) (.document .types)
+  | subtypes {n : Nat} : DocumentProduction .subtypes
+      (List.replicate (n + 1) (.document .subtype)) (.document .subtypes)
   | typeLine : DocumentProduction .typeLine
       [.document .supertypes, .document .types] (.document .typeLine)
   | subtypedLine : DocumentProduction .subtypedLine
@@ -249,10 +250,10 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       DocumentProduction rule children category →
       Production lexicon (.document rule) children category
   | keywordBare {head : Lexeme} : lexicon.keyword head none .free →
-      Production lexicon (.keyword head none .free) [] (.document .keyword)
+      Production lexicon (.keyword head none .free) [] .keywordPhrase
   | keywordParameter {head : Lexeme} {parameter : Category} {placement : KeywordPlacement} :
       lexicon.keyword head (some parameter) placement →
-      Production lexicon (.keyword head (some parameter) placement) [parameter] (.document .keyword)
+      Production lexicon (.keyword head (some parameter) placement) [parameter] .keywordPhrase
   | determine {number : Number} : Production lexicon (.determine number)
       [.determinativePhrase number, .nominal number] (.nounPhrase ⟨.third, number⟩)
   | barePlural : Production lexicon .barePlural [.nominal .plural]
@@ -270,6 +271,9 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       lexicon.auxiliary head form selected voice selectedVoice →
       Production lexicon (.auxiliary head form selected polarity voice selectedVoice)
         [.verbPhrase selected selectedVoice] (.verbPhrase form voice)
+  | initialAdverbial {dependent : Category} : InitialAdverbial dependent →
+      Production lexicon (.initialAdverbial dependent)
+        [dependent, .clause .finite] (.clause .finite)
   | imperative : Production lexicon .imperative [.verbPhrase .plain] (.clause .finite)
   | nonfinite {form : InflectionalForm} {voice : Voice} :
       (form = .plain ∨ form = .gerundParticiple ∨ form = .pastParticiple) →
@@ -281,6 +285,7 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       AdjunctLicense host dependent placement →
       Production lexicon (.adjunct host dependent placement) [host, dependent] host
   | coordinate {coordinator : Coordinator} {category : Category} :
+      coordinable category = true →
       Production lexicon (.coordinate coordinator category) [category, category]
         (coordinationResult coordinator category)
 
@@ -378,6 +383,7 @@ mutual
     | gap {category : Category} : Judges lexicon (.gap category) category [category]
     | sharedCoordination {coordinator : Coordinator} {category gap : Category}
         {left right : Syntax Lexeme} :
+        coordinable category = true →
         Judges lexicon left category [gap] → Judges lexicon right category [gap] →
         Judges lexicon (.sharedCoordination coordinator category left right)
           (coordinationResult coordinator category) [gap]
@@ -417,41 +423,41 @@ abbrev Derives {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
 inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Prop where
   | sentence {first : Atom} {tail : Surface} : DocumentLinearizes .sentence
       [first :: tail] (Surface.finishSentence (first.capitalize :: tail))
-  | body {a : Surface} : DocumentLinearizes .body [a] a
-  | bodyJoin {a b : Surface} : DocumentLinearizes .bodyJoin [a, b] (a ++ b)
+  | body {items : List Surface} : DocumentLinearizes .body items items.flatten
   | ordinary {a : Surface} : DocumentLinearizes .ordinary [a] a
-  | document {a : Surface} : DocumentLinearizes .document [a] a
-  | append {a b : Surface} : DocumentLinearizes .append [a, b] (a ++ [.lineBreak] ++ b)
+  | document {items : List Surface} :
+      DocumentLinearizes .document items (Surface.join [.lineBreak] items)
   | costAction {first : Atom} {tail : Surface} :
       DocumentLinearizes .costAction [first :: tail] (first.capitalize :: tail)
   | costSymbol {a : Surface} : DocumentLinearizes .costSymbol [a] a
-  | costJoin {a b : Surface} :
-      DocumentLinearizes .costJoin [a, b] (a ++ ([.closing ","] : Surface) ++ b)
+  | costs {items : List Surface} :
+      DocumentLinearizes .costs items (Surface.join [.closing ","] items)
   | activated {a b : Surface} :
       DocumentLinearizes .activated [a, b] (a ++ ([.closing ":"] : Surface) ++ b)
-  | triggered {first : Atom} {tail b : Surface} : DocumentLinearizes .triggered [first :: tail, b]
-      (Surface.finishSentence (first.capitalize :: (tail ++ ([.closing ","] : Surface) ++ b)))
-  | keywordLine {first : Atom} {tail : Surface} :
-      DocumentLinearizes .keywordLine [first :: tail] (first.capitalize :: tail)
-  | keywordJoin {a b : Surface} :
-      DocumentLinearizes .keywordJoin [a, b] (a ++ ([.closing ","] : Surface) ++ b)
+  | keywordLine {items : List Surface} :
+      DocumentLinearizes .keywordLine items
+        ((Surface.join [.closing ","] items).capitalize)
   | quote {a : Surface} : DocumentLinearizes .quote [a] a.quote
   | reminder {a : Surface} :
       DocumentLinearizes .reminder [a]
         (([.opening "("] : Surface) ++ a ++ ([.closing ")"] : Surface))
   | mode {a : Surface} : DocumentLinearizes .mode [a] ((["•"] : Surface) ++ a)
-  | modeJoin {a b : Surface} : DocumentLinearizes .modeJoin [a, b] (a ++ [.lineBreak] ++ b)
+  | modeList {items : List Surface} :
+      DocumentLinearizes .modeList items (Surface.join [.lineBreak] items)
   | modes {first : Atom} {tail b : Surface} : DocumentLinearizes .modes [first :: tail, b]
       (first.capitalize :: (tail ++ (["—", .lineBreak] : Surface) ++ b))
+  | sentenceModes {headers : List Surface} {modes : Surface} :
+      DocumentLinearizes .sentenceModes (headers ++ [modes])
+        (headers.flatten ++ [.lineBreak] ++ modes)
   | weightedMode {a b : Surface} :
       DocumentLinearizes .weightedMode [a, b] ((["•"] : Surface) ++ a ++ (["—"] : Surface) ++ b)
   | label {kind : LabelKind} {a b : Surface} :
       DocumentLinearizes (.label kind) [a, b] (a ++ (["—"] : Surface) ++ b)
   | chapter {a b : Surface} : DocumentLinearizes .chapter [a, b] (a ++ (["—"] : Surface) ++ b)
   | classLevel {a b c : Surface} : DocumentLinearizes .classLevel [a, b, c]
-      (a ++ ([.closing ":", "Level"] : Surface) ++ b ++ [.lineBreak] ++ c)
+      (a ++ ([.closing ":", "Level"] : Surface) ++ b ++ Surface.followingLine c)
   | levelBand {a b c : Surface} : DocumentLinearizes .levelBand [a, b, c]
-      ((["LEVEL"] : Surface) ++ a ++ [.lineBreak] ++ b ++ [.lineBreak] ++ c)
+      ((["LEVEL"] : Surface) ++ a ++ [.lineBreak] ++ b ++ Surface.followingLine c)
   | solve {a : Surface} : DocumentLinearizes .solve [a] ((["To", "solve", "—"] : Surface) ++ a)
   | solved {a : Surface} : DocumentLinearizes .solved [a] ((["Solved", "—"] : Surface) ++ a)
   | dieRow {a b : Surface} : DocumentLinearizes .dieRow [a, b] (a ++ (["|"] : Surface) ++ b)
@@ -459,13 +465,9 @@ inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Pro
       DocumentLinearizes .dieDashRow [a, b] (a ++ (["—"] : Surface) ++ b)
   | station {a b : Surface} :
       DocumentLinearizes .station [a, b] (a ++ ([.closing "+", "|"] : Surface) ++ b)
-  | supertype {a : Surface} : DocumentLinearizes .supertype [a] a
-  | type {a : Surface} : DocumentLinearizes .type [a] a
-  | subtype {a : Surface} : DocumentLinearizes .subtype [a] a
-  | noSupertypes : DocumentLinearizes .noSupertypes [] []
-  | supertypes {a b : Surface} : DocumentLinearizes .supertypes [a, b] (a ++ b)
-  | types {a b : Surface} : DocumentLinearizes .types [a, b] (a ++ b)
-  | subtypes {a b : Surface} : DocumentLinearizes .subtypes [a, b] (a ++ b)
+  | supertypes {items : List Surface} : DocumentLinearizes .supertypes items items.flatten
+  | types {items : List Surface} : DocumentLinearizes .types items items.flatten
+  | subtypes {items : List Surface} : DocumentLinearizes .subtypes items items.flatten
   | typeLine {a b : Surface} : DocumentLinearizes .typeLine [a, b] (a ++ b)
   | subtypedLine {a b c : Surface} :
       DocumentLinearizes .subtypedLine [a, b, c] (a ++ b ++ (["—"] : Surface) ++ c)
@@ -508,6 +510,8 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
         (v ++ (["not"] : Surface) ++ a)
   | finite {agreement : Agreement} {form : InflectionalForm} {voice : Voice} {a b : Surface} :
       Linearizes lexicon (.finite agreement form voice) [a, b] (a ++ b)
+  | initialAdverbial {dependent : Category} {a b : Surface} :
+      Linearizes lexicon (.initialAdverbial dependent) [a, b] (a ++ [.closing ","] ++ b)
   | imperative {a : Surface} : Linearizes lexicon .imperative [a] a
   | nonfinite {form : InflectionalForm} {voice : Voice} {a : Surface} :
       Linearizes lexicon (.nonfinite form voice) [a] a
