@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Consolidate nominal features and adjective ownership
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Replace transitional `AttributiveAdjective`/`PredicativeAdjective` inventories
 with one adjective inventory carrying declared distribution and morphology.

@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-remaining-prepositions]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Migrate extraction, relatives and clause Complements
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Replace `SubjectGapRelativeClause`/`ObjectGapRelativeClause` and their
 auxiliary/perfect/negative/copular wrapper families with the common clause

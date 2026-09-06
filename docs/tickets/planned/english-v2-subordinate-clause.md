@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-lexeme-owned-verb-frames]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Replace subordinator-specific clauses with declared dependent-clause grammar
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Use one lexical subordinator inventory declaring the dependent form it selects,
 with shared finite, infinitival and gerund-participial clause categories.

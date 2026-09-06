@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-lexical-source]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Integrate the Target Verb without game-semantic Subject filtering
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 The retained ticket identity owns the withheld Target Verb and Infectious Curse
 re-coverage. Its former Spell/Ability Subject whitelist is withdrawn under the

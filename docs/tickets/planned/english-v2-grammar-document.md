@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-relative-clause, english-v2-grammar-measure-phrases]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Migrate documents, keyword hosts and printed templates
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Replace game-semantic envelopes/cost categories with flat typed document,
 paragraph, sentence, modal, keyword and cost collections as in

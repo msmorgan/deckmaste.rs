@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-scope-device-cross-host-gates]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Consolidate measures, comparisons and distribution
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Use shared Measure Phrase, cardinal determinative and comparative Complement
 constructions instead of game-specific quantity/cost predicates. Supply

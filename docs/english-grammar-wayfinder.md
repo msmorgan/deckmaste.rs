@@ -12,37 +12,52 @@ required.
 
 The ticket `needs:` graph is the scheduling authority. This map explains the
 work; it is not a second status board. The earlier model, composition, document,
-selection and review tickets are complete and remain historical evidence.
+selection and review tickets remain historical evidence.
 
-| Implementation ticket | Replacement unit | Prerequisite within migration |
+The 2026-09-06 delivery decision is to establish breadth across the planned
+grammar before finishing individual family inventories.
+`english-v2-grammar-family-breadth` supplies the first consumed shared shape,
+positive/exclusion witnesses and cross-family compositions for every family.
+It depends on the reviewed design and frame compiler, rather than completion
+of the active verb-frame ticket. The active claim retains all of its remaining
+acceptance; other agents' WIP claims are unchanged.
+
+The family completion tickets then consume these interfaces independently.
+Their existing consolidation, removal, source and correspondence requirements
+remain in force. `english-lean-proof-gaps` remains the next formal-model task
+and a required migration-close dependency; it is not a blanket prerequisite
+for trying every production family.
+
+| Implementation ticket | Replacement unit | Shared interface consumed |
 |---|---|---|
-| `english-v2-grammar-frame-compiler` | Runtime declared frame rules and generated checked sequence, exercised in a compiled consumer | Migration design |
-| `english-v2-type-line-construction` | Open Type order metadata, builtin declarations and Type Line consumer together | Migration design |
-| `english-v2-lexeme-owned-verb-frames` | Lexical predicates, relation/category separation, agreement, copular and passive frames | Frame compiler |
-| `english-v2-adjective-inventory` | Nominal features, adjective ownership, productive polarity/type modifiers | Frames/clauses |
-| `english-v2-subordinate-clause` | Shared dependent-clause bodies and declared form selection | Frames/clauses |
-| `english-v2-remaining-prepositions` | PP distribution, independent license sets and generalized selected-role preemption | Nominals and subordination |
-| `english-v2-relative-clause` | Extraction, relative forms and finite/wh clause Complements | Prepositions |
-| `english-v2-scope-device-cross-host-gates` | Coordination ownership, evidenced selection and exact correlated scope alternatives | Extraction |
-| `english-v2-grammar-measure-phrases` | Measures, arithmetic, comparison, degree and distribution | Scope/selection |
-| `english-v2-grammar-document` | Textual collections, costs, keyword hosts, reminders and notation/templates | Extraction and measures |
-| `english-v2-grammar-context-ellipsis` | Paragraph/intra-sentence recoverability, gapping and shared dependents | Documents |
-| `english-v2-grammar-lexical-source` | Remaining lexical populations and source-recipe enforcement | Recoverability and Type Line |
-| `english-v2-target-verb-subject-selection` | Withheld Target Verb, marker rivalry and Infectious Curse | Completed general grammar and source correspondence |
+| `english-v2-grammar-frame-compiler` | Runtime declared frame rules and generated checked sequence | Reviewed migration design |
+| `english-v2-type-line-construction` | Open Type order metadata, declarations and Type Line consumer | Declared order and flat collection |
+| `english-v2-lexeme-owned-verb-frames` | Lexical predicates, grammatical relations, agreement, copular and passive frames | Declared complete/gapped frames |
+| `english-v2-adjective-inventory` | Nominal features, adjective ownership, productive polarity/type modifiers | Shared NP/Nominal and adjective distribution |
+| `english-v2-subordinate-clause` | Shared dependent-clause bodies and selected forms | Clause/VP form and voice |
+| `english-v2-remaining-prepositions` | PP distribution, independent licenses and selected-role preemption | Nominal and dependent-clause complements |
+| `english-v2-relative-clause` | Extraction, relative forms and finite/wh clause Complements | Category/relation Gaps and clause boundaries |
+| `english-v2-scope-device-cross-host-gates` | Coordination, evidenced selection and correlated scope alternatives | Stable hosts, boundaries and complete alternatives |
+| `english-v2-grammar-measure-phrases` | Measures, arithmetic, comparison, degree and distribution | Nominal features and declared frame Complements |
+| `english-v2-grammar-document` | Textual collections, costs, keyword hosts, reminders and templates | Shared body, nominal hosts and textual boundaries |
+| `english-v2-grammar-context-ellipsis` | Recoverability, gapping and shared dependents | Body context hooks and VP form/voice summaries |
+| `english-v2-grammar-lexical-source` | Lexical populations and source-recipe enforcement | Declaration recipes and actual consumers |
+| `english-v2-target-verb-subject-selection` | Target Verb, marker rivalry and Infectious Curse | Shared frames, relatives and explicit rivalry decision |
 
-`english-v2-grammar-migration-close` depends directly on exactly these thirteen
-implementation tickets. It validates the agreed design and decides whether to
-resume `english-v2-stage-5-grammar-buildout-14-10` from representative residuals.
-It does not require a coverage percentage, an exhaustive failure classification
-or a global uniqueness theorem. A demonstrated general omission gets a named
-migration task and an added closure dependency.
+`english-v2-grammar-migration-close` depends on the breadth milestone, proof-gap
+corrections and every full implementation ticket. It validates the agreed
+design and decides whether to resume `english-v2-stage-5-grammar-buildout-14-10`
+from representative residuals. Breadth alone does not establish long-tail
+readiness. A demonstrated general omission gets a named migration task and an
+added closure dependency.
 
-The compiler fixture is the first engineering check of data-defined frame
-rules. Its production consumer immediately removes the hand-enumerated tail
-codecs. Category recursion is migrated with consumers, not bridged by temporary
-old-category aliases. Independent graph branches may still touch the same
-`constructions!` source; claimants coordinate through the normal workspace
-lifecycle rather than assuming graph independence means file independence.
+Establish and exercise shared interfaces before completing every lexical form
+or rare surface in their owners. The first implementations must be real
+production consumers under the existing parser and generated-builder contract.
+Cross-family examples expose interface defects early; corpus subsets identify
+missing shared structure and verify repairs. Independent graph branches may
+still touch the same `constructions!` source, so claimants coordinate edits
+through the normal workspace lifecycle.
 
 ## Obligations and retired tickets
 
@@ -55,8 +70,9 @@ replacement units; five new tickets cover previously missing owners.
 
 The cost-family merge has two responsibilities: document cost collections in
 `english-v2-grammar-document`, ordinary cost comparisons in
-`english-v2-grammar-measure-phrases` (a prerequisite). Keyword-subject modifiers
-land with document hosts after the shared nominal/relative grammar. Type-line
+`english-v2-grammar-measure-phrases`. Their shared interfaces are established
+in the breadth milestone and checked together at closure. Keyword-subject
+modifiers consume the shared nominal/relative interface in document hosts. Type-line
 schema, declaration and consumer now land together, resolving the prior STOP.
 Historical semantic/legacy macro tickets are not prerequisites for NLP forms.
 

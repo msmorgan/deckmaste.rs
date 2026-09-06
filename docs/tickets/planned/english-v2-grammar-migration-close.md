@@ -1,10 +1,11 @@
 ---
-needs: [english-v2-grammar-frame-compiler, english-v2-lexeme-owned-verb-frames, english-v2-adjective-inventory, english-v2-subordinate-clause, english-v2-remaining-prepositions, english-v2-scope-device-cross-host-gates, english-v2-relative-clause, english-v2-grammar-measure-phrases, english-v2-grammar-document, english-v2-grammar-context-ellipsis, english-v2-type-line-construction, english-v2-grammar-lexical-source, english-v2-target-verb-subject-selection]
+needs: [english-v2-grammar-family-breadth, english-lean-proof-gaps, english-v2-grammar-frame-compiler, english-v2-lexeme-owned-verb-frames, english-v2-adjective-inventory, english-v2-subordinate-clause, english-v2-remaining-prepositions, english-v2-scope-device-cross-host-gates, english-v2-relative-clause, english-v2-grammar-measure-phrases, english-v2-grammar-document, english-v2-grammar-context-ellipsis, english-v2-type-line-construction, english-v2-grammar-lexical-source, english-v2-target-verb-subject-selection]
 ---
 # Validate the migrated grammar and resume long-tail work
 
 Close the production migration under the [Lean design decision](../../decisions/english-lean-design-workbench.md).
-The thirteen direct dependencies are the migration implementation tasks in the
+Its direct dependencies retain the full migration implementation and proof
+obligations in the
 [wayfinder](../../english-grammar-wayfinder.md). Check every row of the
 [obligation register](../../english-grammar-migration-obligations.md), including
 formerly covered wrong analyses and the separately gated Target Verb rivalry.

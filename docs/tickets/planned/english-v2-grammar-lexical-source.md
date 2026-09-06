@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-context-ellipsis, english-v2-type-line-construction]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Enforce lexical and source correspondence across the migrated grammar
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Audit the migrated declaration/lexical/source boundary using the source map
 in the grammar design. Enforce one owner for word-bearing forms, declared

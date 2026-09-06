@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Declare and consume type-line order at the open Type inventory
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Implement the Type Line construction, its consumed order declaration and their
 tests together. Add linearization order to normalized open Type metadata and

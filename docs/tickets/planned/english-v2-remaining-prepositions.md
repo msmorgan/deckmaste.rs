@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-adjective-inventory, english-v2-subordinate-clause]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Migrate preposition distribution and complement licensing together
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Replace the preposition class/nominal-license table as one change. A declared
 preposition row states grammatical attachment distribution and Complement

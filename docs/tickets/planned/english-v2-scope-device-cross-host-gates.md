@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-relative-clause]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Migrate coordination, grammatical selection and complete scope alternatives
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Implement [admission, selection and retained alternatives](../../english-grammar-design.md#admission-selection-and-retained-alternatives).
 Retire structural-specificity arbitration and the exception path after all

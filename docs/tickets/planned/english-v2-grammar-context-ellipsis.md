@@ -1,7 +1,11 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-document]
+needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
 ---
 # Implement grammatical recoverability, gapping and shared dependents
+
+The first shared interface is supplied by `english-v2-grammar-family-breadth`.
+Complete the acceptance below against those interfaces; other families need
+not finish their inventories before this work begins.
 
 Thread grammatical recoverability through the migrated paragraph/body
 constructors. Earlier overt VP form/voice summaries are available to later
