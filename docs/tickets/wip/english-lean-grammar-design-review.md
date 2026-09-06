@@ -61,7 +61,7 @@ All 117 pre-review theorem declarations remain. The model's named laws and
 inhabited/exclusion challenges are listed in the review. The final candidate
 contract checks lexical features and extraction before selection and packing.
 English and Semantics have independent Lake configurations and no dependency
-on each other. Final gate evidence is recorded below after refresh.
+on each other. The final gate evidence below follows a no-op refresh.
 
 **DISCLOSE.** Source theorem declarations: 297, including 180 additions.
 Four baseline assertions were re-spelled: `elliptic_antecedent`,
@@ -89,3 +89,14 @@ coverage, selection census and performance telemetry are not measured or
 claimed by this workbench ticket. Remaining fragment elaborations and source
 contract obligations are explicit in the design and pinned as migration-design
 inputs; they are not hidden under corpus completeness or a tail-loop claim.
+
+
+Final gates on `rmkonlyw`: English 29 jobs (0.252 seconds), Semantics 58 jobs
+(0.147 seconds), both warm-cache runs with warnings as errors. Root English
+LSP diagnostics are clean. The compiled-environment audit checked 1,555
+English theorem declarations, including generated/private ones: zero
+unexpected axioms. Source scan: zero proof placeholders/custom axioms and
+all Lean lines at most 100 characters. Cross-import probes reject
+`Semantics.Words` from English and `English.Grammar` from Semantics with
+unknown-module errors. Ticket graph validation reports no duplicates, cycles
+or dangling dependencies. The no-op refresh preserves these results.

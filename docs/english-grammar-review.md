@@ -94,14 +94,16 @@ The project split moved the original modules; Semantics source was not changed.
 The complete English warning-as-error gate passes 29 jobs. LSP diagnostics and sequential selected axiom audits are clean. The source
 scan flags only the inspected local `Candidate` notation in `Analysis`; it
 abbreviates the complete checked reading type and introduces no axiom. A separate import-based
-audit scans every compiled English theorem, including generated/private
-ones, for unexpected axiom dependencies. Concurrent same-file LSP verification
+audit checked 1,555 compiled English theorem declarations, including
+generated/private ones, and found zero unexpected axiom dependencies. Concurrent same-file LSP verification
 initially returned inconsistent `sorryAx` reports; sequential checks and the
 compiled audit show only `propext`, `Classical.choice`, and `Quot.sound`.
 That concurrent output is not used as proof evidence.
 
-Both independent Lake projects are checked at landing, with cross-project
-imports required to fail. Production Rust and corpus coverage are unchanged;
+Both independent Lake projects pass: English 29 jobs in 0.252 seconds and
+Semantics 58 jobs in 0.147 seconds, on warm caches. Both cross-project import
+probes fail with the expected unknown-module errors. The ticket graph has no
+duplicates, cycles or dangling dependencies. Production Rust and corpus coverage are unchanged;
 this ticket follows the workbench validation exception in the accepted
 decision. The remaining migration obligations are explicit in the design and
 wayfinder. There is no residual user decision requiring a grilling round.
