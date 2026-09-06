@@ -320,19 +320,19 @@ theorem badUnknownKeywordClass : AbilityClass.known (.keyword "Flyign") = false 
 theorem okActivatedOpensItsOwnLetter :
     Ability.check []
       (activated .tapSymbol
-        (.sequence
-          [.dealDamage .this (.letter .x) (target anyTarget), .define .x (.lit 3)])) = [] := by
+        (.sequentially
+          [.dealDamage .this (.letter .x) (target anyTarget), Primitives.Instruction.define .x (.lit 3)])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/
 theorem badActivatedClosesCardLetter :
-    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (.define .x (.lit 3)))
+    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (Primitives.Instruction.define .x (.lit 3)))
       = [.openLetter .x] := by
   decide
 
 theorem sharedSubjectSurvivesSecondSingular :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ exile (target artifact),
           establishFor (target creature)
             [ .modification (ownSubject (target creature)) .power (.up (.lit 1)),
@@ -447,7 +447,7 @@ theorem badFatesealYourOwnLibrary :
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (a (qualityFrom .ability (.abilitiesAmong [.the "Flying", .the "Trample"]))),
           gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn) ]) = [] := by
   decide

@@ -107,7 +107,7 @@ theorem okRemoveCounterFromTarget :
 /-- "Destroy target creature. Remove a +1/+1 counter from it." -/
 theorem badRemoveCountersDead :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [destroy (target creature), .removeCounters (some (exactly 1)) (some p11) it])
       = [.counterMemory] := by
   decide
@@ -142,14 +142,14 @@ theorem badTokenDuplicateColor :
 /-- "Target opponent loses 2 life. You gain that much life." -/
 theorem okThatMuchAfterOutcome :
     Instruction.check []
-      (.sequence [loseLife (.lit 2) (agent := (target .opponent)), gainLife .thatMuch (agent :=
+      (.sequentially [loseLife (.lit 2) (agent := (target .opponent)), gainLife .thatMuch (agent :=
           .you)]) = [] := by
   decide
 
 /-- "This deals 2 damage to target creature and you gain that much life." -/
 theorem badSimultaneousReadsOutcome :
     Instruction.check []
-      (.performSimultaneously [.dealDamage .this (.lit 2) (target creature), gainLife .thatMuch
+      (.simultaneously [.dealDamage .this (.lit 2) (target creature), gainLife .thatMuch
           (agent := .you)])
       = [.quantOutcomeInScope 0] := by
   decide
@@ -157,7 +157,7 @@ theorem badSimultaneousReadsOutcome :
 /-- "You may create a token and put a +1/+1 counter on it." -/
 theorem badSimultaneousReadsMayDeed :
     Instruction.check []
-      (.performSimultaneously
+      (.simultaneously
         [ offer (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"])) (agent :=
             .you),
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 0] := by
@@ -166,7 +166,7 @@ theorem badSimultaneousReadsMayDeed :
 /-- "You may have this deal 2 damage and you gain that much life." -/
 theorem badSimultaneousReadsMayOutcome :
     Instruction.check []
-      (.performSimultaneously
+      (.simultaneously
         [offer (.dealDamage .this (.lit 2) (target creature)) (agent := .you), gainLife .thatMuch
             (agent := .you)])
       = [.quantOutcomeInScope 0] := by
@@ -175,8 +175,8 @@ theorem badSimultaneousReadsMayOutcome :
 /-- "Create a Plant token and a Soldier token. Put a +1/+1 counter on it." -/
 theorem badBatchTwoCreatesThenIt :
     Instruction.check []
-      (.sequence
-        [ .performSimultaneously
+      (.sequentially
+        [ .simultaneously
             [ create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
               create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]) ],
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 2] := by
@@ -184,8 +184,8 @@ theorem badBatchTwoCreatesThenIt :
 
 theorem badBatchTwoOutcomesThenThatMuch :
     Instruction.check []
-      (.sequence
-        [ .performSimultaneously
+      (.sequentially
+        [ .simultaneously
             [.dealDamage .this (.lit 2) (target creature), loseLife (.lit 3) (agent := (target
                 .opponent))],
           gainLife .thatMuch (agent := .you) ]) = [.quantOutcomeInScope 2] := by
@@ -194,7 +194,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
 /-- "Create a 1/1 green Plant creature token. Put a +1/+1 counter on it." -/
 theorem okCreatedThenCountered :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent
             := .you),
           .putCounters (.lit 1) p11 it ]) = [] := by
@@ -202,7 +202,7 @@ theorem okCreatedThenCountered :
 
 theorem badDistributedCreationIt :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .create (.lit 1)
             (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := (each
                 .anyPlayer)),
@@ -236,7 +236,7 @@ theorem badBarePluralDamageRecipient :
 /-- "Choose any number of target creatures. Put a +1/+1 counter on them." -/
 theorem badThemCounterRecipient :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (.described (.target anyNumber) creature), .putCounters (.lit 1) p11 them])
       = [.perMember] := by
   decide
@@ -488,7 +488,7 @@ theorem badOtherwiseReadsIfArm :
 /-- "Create a 1/1 black Zombie creature token. Create two of those tokens." -/
 theorem okAnaphoricTokenAfterToken :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
           .create (.lit 2) .asThose [] (agent := .you) ]) = [] := by
   decide
@@ -496,7 +496,7 @@ theorem okAnaphoricTokenAfterToken :
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
     Instruction.check []
-      (.sequence [destroy (target creature), .create (.lit 2) .asThose [] (agent := .you)])
+      (.sequentially [destroy (target creature), .create (.lit 2) .asThose [] (agent := .you)])
       = [.tokenSpecInScope 0] := by
   decide
 
@@ -561,7 +561,7 @@ theorem okOtherThanExiledByThisAbility :
     Ability.check []
       (activated
         (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .inZone (handOf .you)])))])
-        (.sequence
+        (.sequentially
           [ .putCounters (.lit 4) (.printed (.named "Time"))
               (theVerbed (.action "Exile") .card .attributive .one),
             .removeCounters (some (exactly 1)) (some (.printed (.named "Time")))

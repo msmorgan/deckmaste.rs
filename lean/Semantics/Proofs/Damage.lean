@@ -25,7 +25,7 @@ theorem badFightGroup :
 /-- "This deals 2 damage to any target and 1 damage to any other target." -/
 theorem okAnyOtherTarget :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 2) (target anyTarget),
           .dealDamage .this (.lit 1) (target anyOtherTarget) ]) = [] := by
   decide
@@ -41,7 +41,7 @@ theorem badOther :
 hyphen before the slash would open a comment.) -/
 theorem okIt :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .setStatus .tapped (target creature),
           get it (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn) ]) = [] := by
   decide
@@ -49,7 +49,7 @@ theorem okIt :
 /-- "Target creature fights target creature. Tap it." -/
 theorem badIt :
     Instruction.check []
-      (.sequence [.fight (target creature) (target creature), .setStatus .tapped it])
+      (.sequentially [.fight (target creature) (target creature), .setStatus .tapped it])
       = [.anaphor .bare .one 2] := by
   decide
 
@@ -61,21 +61,21 @@ theorem okTapBattlefield :
 unresolved `it` has no zone either, so the status law cascades. -/
 theorem badTheyIt :
     Instruction.check []
-      (.sequence [.dealDamage .this (.lit 3) (each creature), .setStatus .tapped it])
+      (.sequentially [.dealDamage .this (.lit 3) (each creature), .setStatus .tapped it])
       = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "Choose two target creatures. Tap them." -/
 theorem okThem :
     Instruction.check []
-      (.sequence [choose (.described (.target (exactly 2)) creature), .setStatus .tapped them])
+      (.sequentially [choose (.described (.target (exactly 2)) creature), .setStatus .tapped them])
       = [] := by
   decide
 
 /-- "Choose two target creatures. Choose two target creatures. Tap them." -/
 theorem badThemAmbig :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (.described (.target (exactly 2)) creature),
           choose (.described (.target (exactly 2)) creature),
           .setStatus .tapped them ]) = [.anaphor .bare .many 2] := by
@@ -83,7 +83,7 @@ theorem badThemAmbig :
 
 theorem badInnerAmbig :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .fight (target (.and [creature, .hasPossessor .controller anOpponent]))
             (target (.and [creature, .hasPossessor .controller anOpponent])),
           loseLife (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 2] := by
@@ -131,7 +131,7 @@ theorem okDamageCreature :
 /-- "Destroy target creature. This deals 3 damage to it." -/
 theorem badDamageGraveyardCard :
     Instruction.check []
-      (.sequence [destroy (target creature), .dealDamage .this (.lit 3) it])
+      (.sequentially [destroy (target creature), .dealDamage .this (.lit 3) it])
       = [.damageRecipient] := by
   decide
 
@@ -149,7 +149,7 @@ theorem badDamageArtifact :
 /-- "... loses 1 life for each attacking creature. You gain that much life." -/
 theorem okThatMuchBound :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent :=
                 (target .opponent)),
@@ -164,7 +164,7 @@ theorem badThatMuchUnbound :
 
 theorem badThatMuchAmbig :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (target anyTarget),
           loseLife (.lit 2) (agent := .you),
           gainLife .thatMuch (agent := .you) ]) = [.quantOutcomeInScope 2] := by
@@ -173,13 +173,13 @@ theorem badThatMuchAmbig :
 /-- "This deals 3 damage to target creature. Destroy it." -/
 theorem okDestroyDamagedCreature :
     Instruction.check []
-      (.sequence [.dealDamage .this (.lit 3) (target creature), destroy it]) = [] := by
+      (.sequentially [.dealDamage .this (.lit 3) (target creature), destroy it]) = [] := by
   decide
 
 /-- "This deals 3 damage to any target. Destroy it." -/
 theorem badDestroyAnyTargetRemention :
     Instruction.check []
-      (.sequence [.dealDamage .this (.lit 3) (target anyTarget), destroy it])
+      (.sequentially [.dealDamage .this (.lit 3) (target anyTarget), destroy it])
       = [.zoneFits] := by
   decide
 
@@ -232,7 +232,7 @@ theorem badAttackingOrBlockingInGraveyard :
 /-- "This deals 2 damage to target creature. Tap it." -/
 theorem okTapDamagedCreature :
     Instruction.check []
-      (.sequence [.dealDamage .this (.lit 2) (target creature), .setStatus .tapped it])
+      (.sequentially [.dealDamage .this (.lit 2) (target creature), .setStatus .tapped it])
       = [] := by
   decide
 
@@ -240,14 +240,14 @@ theorem okTapDamagedCreature :
 the unresolved `it` has no zone either. -/
 theorem badConditionAntecedent :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doOnlyIf (gainLife (.lit 2) (agent := .you)) (exists_ creatureYouControl) none,
           .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "You may sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMayBody :
-    Instruction.check [] (.offer (sacrifice (a creature) (agent := .you)) none (some (exile it))
+    Instruction.check [] (Primitives.Instruction.offer (sacrifice (a creature) (agent := .you)) none (some (exile it))
         (agent := .you))
       = [.anaphor .bare .one 0] := by
   decide
@@ -289,7 +289,7 @@ theorem badDoubleComplement :
 /-- "each other creature other than this creature" -/
 theorem badOtherAndComplement :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .setStatus .tapped (target creature),
           .dealDamage .this (.lit 1) (each (.and [creature, .other, .otherThan thisCreature])) ])
       = [.otherAnchored] := by
@@ -319,7 +319,7 @@ theorem badDivideAmongDescription :
 /-- "Put one of them into your hand and the rest into your graveyard." -/
 theorem okRestAfterPart :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ lookAt (topSlice (.lit 4)),
           move (someOf (exactly 1) them) hand,
           move (theRest .object) graveyard ]) = [] := by
@@ -332,13 +332,13 @@ theorem badRestWithoutGroup :
 /-- "Look at the top four cards of your library. Put the rest on the bottom." -/
 theorem badRestWithoutPart :
     Instruction.check []
-      (.sequence [lookAt (topSlice (.lit 4)), move (theRest .object) onBottom])
+      (.sequentially [lookAt (topSlice (.lit 4)), move (theRest .object) onBottom])
       = [.theRestFits .object] := by
   decide
 
 theorem badRestDisposedTwice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ lookAt (topSlice (.lit 4)),
           move (someOf (exactly 1) them) hand,
           move (theRest .object) onBottom,
@@ -347,7 +347,7 @@ theorem badRestDisposedTwice :
 
 theorem badRestOverTwoAnnouncements :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .fight (target creatureYouControl) (target creatureYouDontControl),
           move (theRest .object) graveyard ]) = [.theRestFits .object] := by
   decide
@@ -444,7 +444,7 @@ theorem okPreventedThisWayInAClause :
 
 theorem badPreventedThisWayAfterDamage :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (target creature),
           .changeLife (.up preventedThisWay) (agent := .you) ]) = [.outcomeInScope .damagePrevented
               0] := by
@@ -459,7 +459,7 @@ theorem badPreventedThisWayUnannounced :
 /-- "… They gain 2 life for each card less than two they drew this way." -/
 theorem okShortOfCeilingAnnounced :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ offer (draw (.upTo (.lit 2)) (agent := they)) (agent := (each .anyPlayer)),
           gainLife (times (.lit 2) shortOfCeiling) (agent := they) ]) = [] := by
   decide
@@ -522,7 +522,7 @@ theorem badRedirectToGroup :
 /-- "Target opponent loses 1 life. You gain that much life." -/
 theorem okThatMuchAfterLifeLoss :
     Instruction.check []
-      (.sequence [loseLife (.lit 1) (agent := (target .opponent)), gainLife .thatMuch (agent :=
+      (.sequentially [loseLife (.lit 1) (agent := (target .opponent)), gainLife .thatMuch (agent :=
           .you)]) = [] := by
   decide
 
@@ -570,7 +570,7 @@ theorem badThatMuchAfterDeath :
 /-- "… That creature deals damage equal to its power to this creature." -/
 theorem okThatCreatureAfterDamage :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ dealDamageOwnPower thisCreature (target creature),
           .dealDamage (that (.type .creature)) (powerOf it) thisCreature ]) = [] := by
   decide
@@ -580,7 +580,7 @@ loses 1 life." -/
 theorem okThatCreatureAfterTargetedDamage :
     Ability.check []
       (when (.dies thisCreature)
-        (.sequence
+        (.sequentially
           [ .dealDamage thisCreature (.lit 1) (target creature),
             loseLife (.lit 1) (agent := (controllerOf (that (.type .creature)))) ])) = [] := by
   decide
@@ -659,7 +659,7 @@ theorem badAggregateWrongSort :
 /-- "1-20 | Draw a card." -/
 theorem okLiteralRollRow :
     Instruction.check []
-      (.sequence [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)
+      (.sequentially [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)
           (agent := .you)⟩]])
       = [] := by
   decide
@@ -667,7 +667,7 @@ theorem okLiteralRollRow :
 /-- "up to X | Draw a card." -/
 theorem badAmountRollRow :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [rollDice 1 20 (agent := .you), .applyResultsTable [⟨.upToOf (.letter .x), draw (.lit 1)
             (agent := .you)⟩]])
       = [.quantLiteral] := by
@@ -675,10 +675,10 @@ theorem badAmountRollRow :
 
 theorem badCreatureHalfRead :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (target (.or [.hasType .planeswalker, .anyPlayer])),
           discard
-            (a (.inZone hand)) (agent := (.eitherOf (.pro (.unionHalf .player) .one .whole)
+            (a (.inZone hand)) (agent := (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
               (controllerOf (that (.type .creature))))) ]) = [.anaphor (.word (.type .creature))
                   .one 0] := by
   decide

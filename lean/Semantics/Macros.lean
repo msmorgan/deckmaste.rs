@@ -56,11 +56,11 @@ def they : NounPhrase := .pro (.word .player) .one .whole
 /-- "that player or that permanent's controller": the player half of a "target player or
 planeswalker" split, or the controller of the permanent half. -/
 def splitOverPlaneswalker : NounPhrase :=
-  .eitherOf (.pro (.unionHalf .player) .one .whole)
+  Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
     (.possessorOf .controller (.pro (.unionHalf (.type .planeswalker)) .one .whole))
 /-- The same over "any target": the player, or the permanent's controller. -/
 def splitOverPermanent : NounPhrase :=
-  .eitherOf (.pro (.unionHalf .player) .one .whole)
+  Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
     (.possessorOf .controller (.pro (.unionHalf .permanent) .one .whole))
 
 /-- "the <verb>ed <word>", e.g. "the tapped creatures". -/
@@ -319,9 +319,9 @@ def onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
 /-- "the pile of <player>'s choice" -/
 def pileOfChoice (player : NounPhrase) : NounPhrase := .pileOf (.counted (exactly 1)) (some player)
 /-- "you and <subject>" -/
-def youAnd (subject : NounPhrase) : NounPhrase := .both .you subject
+def youAnd (subject : NounPhrase) : NounPhrase := Primitives.NounPhrase.both .you subject
 /-- "you or <subject>" -/
-def youOr (subject : NounPhrase) : NounPhrase := .eitherOf .you subject
+def youOr (subject : NounPhrase) : NounPhrase := Primitives.NounPhrase.eitherOf .you subject
 def controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
 def ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
@@ -515,12 +515,12 @@ def flipCoins (count : Nat) (agent : NounPhrase := Primitives.NounPhrase.you) : 
 /-- "<player> flips a coin" as an event -/
 def flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
 /-- "<decider> may <body>" -/
-def offer (body : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .offer body none none
+def offer (body : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := Primitives.Instruction.offer body none none
     (agent := agent)
 /-- "<decider> may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
 def offerWhen (body : Instruction) (trigger : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
-  .triggerReflexively (.offer body none none (agent := agent)) trigger
+  .triggerReflexively (Primitives.Instruction.offer body none none (agent := agent)) trigger
 /-- "the chosen number" -/
 def chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
@@ -704,7 +704,7 @@ def agentRef (agent : NounPhrase) : NounPhrase :=
 
 /-- "<player> may pay <cost>. If they don't, <instruction>." -/
 def doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .offer (.pay cost .once (agent := (agentRef agent))) none (some instruction) (agent := agent)
+  Primitives.Instruction.offer (.pay cost .once (agent := (agentRef agent))) none (some instruction) (agent := agent)
 
 /-- "it" or "them", by number. -/
 def itOrThem : Plurality → NounPhrase
@@ -755,7 +755,7 @@ def lookedCards (slice : NounPhrase) : NounPhrase :=
 in any order and the rest on top in any order" -/
 def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
-  .sequence
+  .sequentially
     [ .expose .lookAt (.cards slice) (agent := agent),
       move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
       move (theRest .object) (onTopIn .anyOrder) ]
@@ -763,7 +763,7 @@ def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Pr
 def lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr)
     (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
-  .sequence
+  .sequentially
     [ .expose .lookAt (.cards slice) (agent := agent),
       move (someOf anyNumber (lookedCards slice)) spill,
       move (theRest .object) (onTopIn .anyOrder) ]
@@ -782,7 +782,7 @@ def surveil (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) 
 /-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
 players, then give each another counter of each kind already there." -/
 def proliferate : Instruction :=
-  .enact (.action "Proliferate") (.sequence
+  .enact (.action "Proliferate") (.sequentially
       [ .choose none (counted anyNumber
             (.or [ .and [permanent, .hasCounters none],
                    .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none (agent :=
@@ -792,7 +792,7 @@ def proliferate : Instruction :=
 create a 0/0 black <subtype> Army creature token. Choose an Army you control. Put N +1/+1
 counters on it. It's a <subtype> in addition to its other types." -/
 def amass (subtype : String) (count : Nat) : Instruction :=
-  .sequence
+  .sequentially
     [ .doIf (.not (exists_ armyYouControl))
         (create (.lit 1)
           (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
@@ -809,7 +809,7 @@ def amass (subtype : String) (count : Nat) : Instruction :=
 put N +1/+1 counters on it and it becomes monstrous." -/
 def makeMonstrous (amount : Amount) : Instruction :=
   .doIf (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
-    (.sequence
+    (.sequentially
       [ .putCounters amount (.printed plusOnePlusOne) thisPermanent,
         .gainDesignation thisPermanent "monstrous" (.byDeed (.action "Monstrosity")) none ])
     none
@@ -1094,14 +1094,14 @@ renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 def renownExpansion (count : Nat) : Ability :=
   triggeredIf (dealsCombatDamage thisCreature (a .anyPlayer))
     (.not (.matches thisCreature (.hasDesignation "renowned" none)))
-    (.sequence
+    (.sequentially
       [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
         .gainDesignation thisCreature "renowned" (.byKeyword "Renown") none ])
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 def stormExpansion : Ability :=
   when (.casts .you (some thisSpell) none)
-    (.sequence
+    (.sequentially
       [ .copy .fromStack thisSpell (eventCount (.casts (relative .player) (some (a (.and [spell,
         .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [] (agent := .you),
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ])
@@ -1116,9 +1116,9 @@ it. If you don't, sacrifice it." [CR#702.24a] -/
 def cumulativeUpkeepExpansion (cost : Cost) : Ability :=
   triggeredIf (.beginningOf .the .upkeep (.byPlayer .you))
     (.matches thisPermanent (.inZone battlefield))
-    (.sequence
+    (.sequentially
       [ .putCounters (.lit 1) (.printed (.named "Age")) thisPermanent,
-        .offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent))) .once
+        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent))) .once
             (agent := .you)) none (some (sacrifice thisPermanent (agent := .you))) (agent := .you)
             ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/

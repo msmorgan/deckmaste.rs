@@ -25,10 +25,10 @@ the parked binding, query, result, or event mechanisms implicitly.
 
 The other independently claimable tickets are:
 
-- [Attachment and face predicates](lean-core-attachment-and-face-predicates.md).
-- [Characteristic edits and keyword arguments](lean-core-characteristics-and-keyword-arguments.md).
-- [Events and static specs](lean-core-events-and-static-specs.md).
-- [Action expansions](lean-core-actions.md).
+- [Attachment and face predicates](../planned/lean-core-attachment-and-face-predicates.md).
+- [Characteristic edits and keyword arguments](../planned/lean-core-characteristics-and-keyword-arguments.md).
+- [Events and static specs](../planned/lean-core-events-and-static-specs.md).
+- [Action expansions](../planned/lean-core-actions.md).
 
 All five touch shared inductives or checker traversals. Coordinate overlapping
 implementation work; absence of dependency edges is not a promise of disjoint files.
@@ -90,3 +90,64 @@ change to an old refusal or published binding. Run `lean/scripts/build`.
 Standard constraints apply. The parked Idris
 [segment-indexed telescope](../maybe/workbench-segment-indexed-telescope.md)
 is not reopened.
+
+## Landing record
+
+Implemented in `oxytytnq` (2026-09-06); the unchanged English coverage lock
+contains 20,254 covered identities. All figures below describe that tree.
+
+**PROVE.** `lean/scripts/build` passed all 69 build jobs with warnings fatal,
+including the full printed-card bench and all exact-refusal pin suites. All
+2,377 existing card-module declarations and 1,524 existing pin-module
+declarations remain. A source comparison against the claim base found only
+the specified constructor/macro spelling substitutions in those files: no
+assertion, expected refusal list, card sentence, or proof body was removed or
+weakened. Soul's Might, Phyrexian Rebirth, duplicate/trailing definitions,
+mandatory continuations, retained repetition policies, reference scopes,
+number regimes, and macro authoring all pass their existing witnesses.
+
+The new [Composition pins](../../../lean/Semantics/Proofs/Composition.lean)
+check three-member conjunctions and alternatives, branch isolation, outer
+references, empty/singleton cardinality refusals, third-member cost and damage
+restrictions, cost-symbol properties, both continuation scopes, definition
+cost admissibility, fixed repetition, and empty instruction composition.
+Changed recursive traversals explicitly require structural recursion.
+`cargo xtask gate --changed` reports no affected Rust crates. Rust parser
+roundtrip, lexical ownership, traversal, tie, and licensing gates are outside
+this Lean-only change; their code, declarations, and coverage lock are unchanged.
+No new word-naming guard was introduced. Citation checks reported zero
+noncompliant strings and zero stale citations; the two changed citation sites
+were audited against their rule text.
+
+**DISCLOSE.** Outer constructor counts: `Instruction` 73 → 70;
+`NounPhrase` 23 → 23; `Cost` 9 → 9. Helper vocabulary: `Repetition` 5 → 6,
+plus `ContinuationPolicy` with two alternatives. Replacements:
+
+- `define` expands to `establish (letterDefinition …) none`.
+- `offer` and `doIfDone` expand to `withContinuation` with optional and required
+  policies respectively. The optional policy carries the deciding player.
+- `repeatTimes` expands to `repeat_ (fixed amount body)`.
+- Binary noun `both`/`eitherOf` and cost `either` are macros over lists;
+  instruction composition is named `sequentially`/`simultaneously`.
+
+One deliberate admissibility change: the previously distinct durationless
+`establish (letterDefinition …) none` spelling now inherits `define`'s cost
+admissibility and clamped number slot. Other established specs and
+duration-bearing definitions remain inadmissible as costs. Empty or singleton
+noun/cost alternatives, newly expressible by lists, receive `atLeastTwo`.
+All previous binary-form refusals and published bindings are retained.
+
+Assurance counts: restored 0; re-spelled 204 existing theorems and four pin
+helpers, plus 338 card-module definitions; ignored 0; added 26 theorems;
+removed 0. No silent coverage losses or newly covered parser identities.
+
+**Deviations and additions.** Fixed-arity named macros retain their existing
+public spelling under `Macros.Primitives`, now as expansions instead of raw
+constructor wrappers. The new Composition suite supplies the ticket's added
+list and scope evidence. No parked mechanism, Rust code, or frozen Idris code
+was changed. No STOP or glossary gap arose.
+
+**REPORT.** Parser selection census, licensing totals, construction counts,
+homograph/vocabulary inventories, and coverage performance were not remeasured:
+this change has no Rust reverse dependencies and claims no parser coverage or
+performance improvement. The unchanged lock count above is provenance only.

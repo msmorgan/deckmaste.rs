@@ -126,11 +126,6 @@ def ProducedMana.check (bs : Bindings) : ProducedMana → List Refusal
   | .amongWritten cs => refuse (colorCountOk cs.length) .colorCountOk
   | .lastNoted n => NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular
 
-def Repetition.check (bs : Bindings) : Repetition → List Refusal
-  | .moreTimes n => Amount.check bs n
-  | .untilCond c => Condition.check bs c
-  | _ => []
-
 def ManaHeld.check (bs : Bindings) : ManaHeld → List Refusal
   | .thisMana =>
     let n := countOutcomes .manaAdded bs
@@ -346,14 +341,17 @@ mutual
     | .pay c _ who =>
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
         refuse c.payable .payable ++ refuse (payAgreesOk who c) .payAgrees
-    | .offer body ifDid ifNot offer =>
-      let bs' := mayCtx bs offer
-      NounPhrase.check (some .player) bs offer ++ Instruction.check bs' body ++
-        Instruction.checkOpt (body.intro bs') ifDid ++ Instruction.checkOpt bs' ifNot
-    | .doIfDone body ifDid ifNot =>
-      Instruction.check bs body ++ Instruction.checkOpt (body.intro bs) ifDid ++
-        Instruction.checkOpt bs ifNot ++ refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure ++
-        refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed
+    | .withContinuation policy body ifDid ifNot =>
+      let bs' := policy.context bs
+      (match policy with
+       | .optional agent => NounPhrase.check (some .player) bs agent
+       | .required => []) ++
+        Instruction.check bs' body ++ Instruction.checkOpt (body.intro bs') ifDid ++
+        Instruction.checkOpt bs' ifNot ++
+        (match policy with
+         | .optional _ => []
+         | .required => refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure ++
+             refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed)
     | .doOnlyIf e c otherwise =>
       let bs' := e.preIntro bs
       Instruction.check bs e ++ Condition.check bs' c ++
@@ -361,7 +359,6 @@ mutual
     | .doIf c e otherwise =>
       Condition.check bs c ++ Instruction.check (c.intro bs) e ++
         Instruction.checkOpt (e.otherwiseCtx (c.intro bs)) otherwise
-    | .define l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
@@ -373,11 +370,8 @@ mutual
         refuse (kindDomainOk ax dom) .kindDomainOk ++ Instruction.check bs' body ++
         refuse (keepsOuter bs' body) .keepsOuter
     | .repeat_ rep => rep.check bs
-    | .repeatTimes n body =>
-      let bs' := Amount.intro bs n
-      Amount.check bs n ++ Instruction.check bs' body ++ refuse (keepsOuter bs' body) .keepsOuter
-    | .sequence es => refuse (!es.isEmpty) .nonEmpty ++ Instruction.checkSeq bs es
-    | .performSimultaneously es => refuse (!es.isEmpty) .nonEmpty ++ Instruction.checkSim bs es
+    | .sequentially es => refuse (!es.isEmpty) .nonEmpty ++ Instruction.checkSeq bs es
+    | .simultaneously es => refuse (!es.isEmpty) .nonEmpty ++ Instruction.checkSim bs es
     | .chooseModes q modes =>
       Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
         refuse (atLeastTwo modes.length) .atLeastTwo ++
@@ -411,6 +405,15 @@ mutual
         refuse part.proper .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
         refuse (followedBy.elim true TurnPart.proper) .windowOk
   termination_by structural e => e
+
+  def Repetition.check (bs : Bindings) : Repetition → List Refusal
+    | .fixed n body =>
+      let bs' := Amount.intro bs n
+      Amount.check bs n ++ Instruction.check bs' body ++ refuse (keepsOuter bs' body) .keepsOuter
+    | .moreTimes n => Amount.check bs n
+    | .untilCond c => Condition.check bs c
+    | _ => []
+  termination_by structural rep => rep
 
   def Instruction.checkOpt (bs : Bindings) : Option Instruction → List Refusal
     | none => []
@@ -449,10 +452,15 @@ mutual
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
     | .perform e => Instruction.check bs e ++ refuse e.costActionOk .costAction
     | .compound cs => refuse (!cs.isEmpty) .nonEmpty ++ Cost.checkSeq bs cs
-    | .either l r =>
-      Cost.check bs l ++ Cost.check bs r ++ refuse (!l.isCompound) .notCompound ++
-        refuse (!r.isCompound) .notCompound
+    | .or cs =>
+      refuse (atLeastTwo cs.length) .atLeastTwo ++ Cost.checkAlternatives bs cs ++
+        cs.flatMap (fun c => refuse (!c.isCompound) .notCompound)
   termination_by structural c => c
+
+  def Cost.checkAlternatives (bs : Bindings) : List Cost → List Refusal
+    | [] => []
+    | c :: cs => Cost.check bs c ++ Cost.checkAlternatives bs cs
+  termination_by structural cs => cs
 
   def Cost.checkSeq (bs : Bindings) : List Cost → List Refusal
     | [] => []

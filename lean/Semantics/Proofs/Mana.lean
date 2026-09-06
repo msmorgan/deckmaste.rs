@@ -90,12 +90,12 @@ theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSy
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Instruction.check []
-      (.doIfDone (exile (a creatureYouControl)) (some (move it battlefield)) none) = [] := by
+      (Primitives.Instruction.doIfDone (exile (a creatureYouControl)) (some (move it battlefield)) none) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMandatoryBody :
-    Instruction.check [] (.doIfDone (sacrifice (a creature) (agent := .you)) none (some (exile it)))
+    Instruction.check [] (Primitives.Instruction.doIfDone (sacrifice (a creature) (agent := .you)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -358,7 +358,7 @@ theorem okChosenColorPerColor :
 /-- "For each color among permanents you control, add one mana of that color" -/
 theorem badRepeatedCarriesNoColor :
     Instruction.check []
-      (.repeatTimes (.distinctCount .color permanentsYouControl)
+      (Primitives.Instruction.repeatTimes (.distinctCount .color permanentsYouControl)
         (.addMana (.lit 1) (.ofChosenColor none) [] (agent := .you)))
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide

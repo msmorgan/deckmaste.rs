@@ -66,7 +66,7 @@ theorem okDealDamageClamped :
 /-- "X is the number of creatures you control": the letter X, defined by the text, is a count
 [CR#107.1b,107.3c]. -/
 theorem okDefineClamped :
-    (Instruction.define .x (.countOf (.described .all creature))).numberSlots
+    (Primitives.Instruction.define .x (.countOf (.described .all creature))).numberSlots
       = [(.countOf (.described .all creature), .clamped)] := by rfl
 
 /-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/

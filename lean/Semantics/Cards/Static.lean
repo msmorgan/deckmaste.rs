@@ -63,12 +63,12 @@ def lichsMasteryGate : Ability := Primitives.Ability.static (playerCant (.core .
 theorem okLichsMasteryGate : Ability.check [] lichsMasteryGate = [] := by decide
 def theGoldenThrone : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
-    (Primitives.Instruction.sequence [exile thisArtifact, setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .repeatedly none)
+    (Primitives.Instruction.sequentially [exile thisArtifact, setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .repeatedly none)
 theorem okTheGoldenThrone : Ability.check [] theGoldenThrone = [] := by decide
 def stunningReversal : Ability :=
   Primitives.Ability.spell none (Primitives.Instruction.establish
     (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
-      (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 7) (agent := Primitives.NounPhrase.you), setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .nextTimeOnly
+      (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 7) (agent := Primitives.NounPhrase.you), setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .nextTimeOnly
           none)
     (some Primitives.Duration.thisTurn))
 theorem okStunningReversal : Ability.check [] stunningReversal = [] := by decide
@@ -240,7 +240,7 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
     { name := "Shadow of Doubt", cost := some [hybridPip .blue .black, hybridPip .blue .black],
       types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (playerCant (.action "Search") (Primitives.NounPhrase.playerGroup .allPlayers))
                 (some Primitives.Duration.thisTurn),
               Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
@@ -499,7 +499,7 @@ def energybending : Spelled := spelled <| .singleFaced
     { name := "Energybending", cost := some [generic 2], types := [.instant],
       subtypes := [spellType "Lesson"],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .adds
                   (Primitives.QualityPayload.everyTypeOf .basicLand))
@@ -925,7 +925,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
 
 /-- Gray Merchant of Asphodel -/
 def grayMerchantDrain : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [loseLife (Primitives.Amount.letter .x) (agent := (each Primitives.Predicate.opponent)), Primitives.Instruction.define .x (Primitives.Amount.devotion Primitives.NounPhrase.you (Primitives.ColorTerm.lit .black)
         none)]
 theorem okGrayMerchantDrain : Instruction.check [] grayMerchantDrain = [] := by decide

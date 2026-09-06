@@ -105,7 +105,7 @@ theorem okGoadTargetCreature : Ability.check [] goadTargetCreature = [] := by de
 /-- Krenko, Mob Boss -/
 def krenko : Ability :=
   activated Primitives.Cost.tapSymbol
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.create (Primitives.Amount.letter .x) (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Goblin"])) [] (agent
           := Primitives.NounPhrase.you),
         Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Goblin"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) ])
@@ -113,7 +113,7 @@ theorem okKrenko : Ability.check [] krenko = [] := by decide
 /-- Dokai, Weaver of Life -/
 def dokai : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 4, pip .green, pip .green], Primitives.Cost.tapSymbol])
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ create (.lit 1) (creatureTokenOf (Primitives.Amount.letter .x) (Primitives.Amount.letter .x) [.green] [creatureType "Elemental"]),
         Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) ])
 theorem okDokai : Ability.check [] dokai = [] := by decide
@@ -454,7 +454,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
     { name := "Candles of Leng", cost := some [generic 2], types := [.artifact],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 4], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 1)),
                 Primitives.Instruction.doIf (Primitives.Condition.matches it (Primitives.Predicate.named (Primitives.NameSource.sameAs (a (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))))))
                   (move it graveyard) (some (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))) ]) ] } }
@@ -771,7 +771,7 @@ theorem okSkybladesBoonReturn : Ability.check [] skybladesBoonReturn = [] := by 
 def bamboozlingBeebleIgnore : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1], Primitives.Cost.tapSymbol])
     (replaceNextEvent (Primitives.GameEvent.rollsDice (target Primitives.Predicate.anyPlayer) .many none Primitives.RollWatch.anyResult)
-      (Primitives.Instruction.sequence
+      (Primitives.Instruction.sequentially
         [ Primitives.Instruction.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice (agent := they),
           Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.chosen (some Primitives.NounPhrase.you) (.lit 1)) ])
       (some Primitives.Duration.thisTurn))
@@ -779,7 +779,7 @@ theorem okBamboozlingBeebleIgnore : Ability.check [] bamboozlingBeebleIgnore = [
 /-- General Tazri's pump -/
 def generalTazriPump : Ability :=
   activated (Primitives.Cost.mana [pip .white, pip .blue, pip .black, pip .red, pip .green])
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ get (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Ally"), Primitives.Predicate.hasPossessor .controller
           Primitives.NounPhrase.you]))
           (Primitives.Delta.up (Primitives.Amount.letter .x)) (Primitives.Delta.up (Primitives.Amount.letter .x)) (some untilEndOfTurn),
@@ -1072,7 +1072,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.enters (Primitives.NounPhrase.eitherOf thisCreature
               (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Sphinx"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan thisCreature])))
               none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 4)),
                 Primitives.Instruction.separateIntoPiles them 2 [] (agent := anOpponent),
                 move onePile hand,
@@ -1082,25 +1082,25 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
 def opt : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Opt", cost := some [pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
           Primitives.NounPhrase.you)])] } }
 
 def serumVisions : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Serum Visions", cost := some [pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), scry (.lit 2) (agent :=
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), scry (.lit 2) (agent :=
           Primitives.NounPhrase.you)])] } }
 
 def consider : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Consider", cost := some [pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence [surveil (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [surveil (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
           Primitives.NounPhrase.you)])] } }
 
 def wordsOfWisdom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Words of Wisdom", cost := some [generic 1, pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
           (each otherPlayer))])] } }
 
 def deathWard : Spelled := spelled <| .singleFaced

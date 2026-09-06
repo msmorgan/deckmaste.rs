@@ -20,7 +20,7 @@ def AsThough.sort : AsThough → PremiseSort
   | .greater _ _ => .value
 
 def twoPartiesOk : NounPhrase → Bool
-  | .both l r => l.plur == .one && r.plur == .one
+  | .and [l, r] => l.plur == .one && r.plur == .one
   | .described d _ => (d.quant >>= Quantity.exact) == some 2
   | _ => false
 
@@ -245,7 +245,7 @@ def NounPhrase.opponentOnly : NounPhrase → Bool
 
 /-- The library a look opens: the possessor of the slice looked at. -/
 def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
-  | .sequence (.expose .lookAt (.cards (.librarySlice _ _ whose)) _ :: _) => some whose
+  | .sequentially (.expose .lookAt (.cards (.librarySlice _ _ whose)) _ :: _) => some whose
   | .expose .lookAt (.cards (.librarySlice _ _ whose)) _ => some whose
   | _ => none
 
@@ -295,6 +295,10 @@ def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Bi
   pluralizeIntroduced (out.take (out.length - (agentIntro bs s).length))
 
 def mayCtx (bs : Bindings) (d : NounPhrase) : Bindings := agentIntro bs d
+
+def ContinuationPolicy.context (bs : Bindings) : ContinuationPolicy → Bindings
+  | .optional agent => mayCtx bs agent
+  | .required => bs
 
 /-! ## Deck conditions -/
 
@@ -633,9 +637,14 @@ mutual
     | .tapSymbol => 1
     | .untapSymbol => 1
     | .compound cs => Cost.selfTapCount cs
-    | .either l r => max l.selfTapUses r.selfTapUses
+    | .or cs => Cost.selfTapMax cs
     | _ => 0
   termination_by structural c => c
+
+  def Cost.selfTapMax : List Cost → Nat
+    | [] => 0
+    | c :: cs => max c.selfTapUses (Cost.selfTapMax cs)
+  termination_by structural cs => cs
 
   def Cost.selfTapCount : List Cost → Nat
     | [] => 0
@@ -643,12 +652,19 @@ mutual
   termination_by structural cs => cs
 end
 
-def Cost.tapOnce : Cost → Bool
-  | .scaled c _ => c.tapOnce
-  | .compound cs => Cost.selfTapCount cs ≤ 1
-  | .either l r => l.tapOnce && r.tapOnce
-  | _ => true
-termination_by structural c => c
+mutual
+  def Cost.tapOnce : Cost → Bool
+    | .scaled c _ => c.tapOnce
+    | .compound cs => Cost.selfTapCount cs ≤ 1
+    | .or cs => Cost.allTapOnce cs
+    | _ => true
+  termination_by structural c => c
+
+  def Cost.allTapOnce : List Cost → Bool
+    | [] => true
+    | c :: cs => c.tapOnce && Cost.allTapOnce cs
+  termination_by structural cs => cs
+end
 
 mutual
   def Cost.paidByYou : Cost → Bool
@@ -659,7 +675,7 @@ mutual
     | .perform (.enact _ _ (some subj)) => subj.isYou
     | .perform _ => true
     | .compound cs => Cost.allPaidByYou cs
-    | .either l r => l.paidByYou && r.paidByYou
+    | .or cs => Cost.allPaidByYou cs
     | _ => true
   termination_by structural c => c
 
@@ -683,7 +699,7 @@ mutual
     | .scaled c _ => c.offBattlefield
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
     | .compound cs => Cost.allOffBattlefield cs
-    | .either l r => l.offBattlefield && r.offBattlefield
+    | .or cs => Cost.allOffBattlefield cs
     | _ => true
   termination_by structural c => c
 
@@ -693,12 +709,19 @@ mutual
   termination_by structural cs => cs
 end
 
-def Cost.payable : Cost → Bool
-  | .scaled c _ => c.payable
-  | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
-  | .either l r => l.payable && r.payable
-  | _ => true
-termination_by structural c => c
+mutual
+  def Cost.payable : Cost → Bool
+    | .scaled c _ => c.payable
+    | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
+    | .or cs => Cost.allPayable cs
+    | _ => true
+  termination_by structural c => c
+
+  def Cost.allPayable : List Cost → Bool
+    | [] => true
+    | c :: cs => c.payable && Cost.allPayable cs
+  termination_by structural cs => cs
+end
 
 def Instruction.heldUntilOk : Instruction → Bool
   | .setStatus .phasedOut _ => true
@@ -732,16 +755,14 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
   | .rerollStored _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
-  | .offer body none _ _ => body.reflexEncloseUse
-  | .offer _ _ _ _ => .notOneAction
-  | .doIfDone body none _ => body.reflexEncloseUse
-  | .doIfDone _ _ _ => .notOneAction
+  | .withContinuation _ body none _ => body.reflexEncloseUse
+  | .withContinuation _ _ _ _ => .notOneAction
   | .doOnlyIf e _ _ => e.reflexEncloseUse
-  | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ | .repeat_ _ => .notOneAction
-  | .repeatTimes _ (.pay _ _ _) => .reflexive
-  | .repeatTimes _ (.offer (.pay _ _ _) none _ _) => .reflexive
-  | .repeatTimes _ _ => .notOneAction
-  | .sequence _ | .performSimultaneously _ | .chooseModes _ _ | .replace _ _ | .triggerReflexively _
+  | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ => .notOneAction
+  | .repeat_ (.fixed _ (.pay _ _ _)) => .reflexive
+  | .repeat_ (.fixed _ (.withContinuation (.optional _) (.pay _ _ _) none _)) => .reflexive
+  | .repeat_ _ => .notOneAction
+  | .sequentially _ | .simultaneously _ | .chooseModes _ _ | .replace _ _ | .triggerReflexively _
       _
   | .triggerThisWay _ _ _ => .notOneAction
   | .delay _ _ _ _ => .notYetTaken
@@ -750,8 +771,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
 
 def Instruction.thisWayOutcomeOk : Instruction → Bool
   | .delay _ _ _ _ => false
-  | .offer body _ _ _ => body.thisWayOutcomeOk
-  | .doIfDone body _ _ => body.thisWayOutcomeOk
+  | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | _ => true
 
 mutual
@@ -779,7 +799,8 @@ mutual
     | .unlock (.doorOf _ room) => room.costNounOk
     | .setGameDesignation _ | .conclude _ _ | .drawGame | .counterSpell _ | .changeLife _ _ | .draw
         _ _
-    | .getEmblem _ _ | .define _ _ => true
+    | .getEmblem _ _ => true
+    | .establish (.letterDefinition _ _) none => true
     | .separateIntoPiles grp _ _ _ => grp.costNounOk
     | .copy _ what _ _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
@@ -800,16 +821,14 @@ mutual
     | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
     | .doubleCounters on => on.costNounOk
     | .enact _ e _ => e.costActionOk
-    | .offer body ifDid ifNot _ => body.costActionOk && Instruction.costActionOkOpt ifDid &&
-        Instruction.costActionOkOpt ifNot
-    | .doIfDone body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
+    | .withContinuation _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
         Instruction.costActionOkOpt ifNot
     | .doOnlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
     | .doIf _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
     | .doForEach _ body => body.costActionOk
     | .doForEachKind _ _ _ body => body.costActionOk
-    | .repeatTimes _ (.sequence es) => Instruction.costStepsOk es
-    | .repeatTimes _ body => body.costActionOk
+    | .repeat_ (.fixed _ (.sequentially es)) => Instruction.costStepsOk es
+    | .repeat_ (.fixed _ body) => body.costActionOk
     | .chooseModes _ modes => Instruction.costModesOk modes
     | _ => false
   termination_by structural e => e
@@ -967,15 +986,11 @@ mutual
     | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     | .pay c _ who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
-    | .offer body did notd d =>
-      let bodyP := Instruction.profile (mayCtx bs d) body
-      mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
-    | .doIfDone body did notd =>
-      let bodyP := Instruction.profile bs body
+    | .withContinuation policy body did notd =>
+      let bodyP := Instruction.profile (policy.context bs) body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
     | .doOnlyIf e _ _ => sameIntro (Instruction.profile bs e).announced []
     | .doIf _ _ _ => sameIntro bs []
-    | .define l amt => sameIntro (defineLetter l (Amount.intro bs amt)) []
     | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
@@ -987,14 +1002,14 @@ mutual
       let bodyP := Instruction.profile bs' body
       ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
         pluralizeIntroduced (dom.elim [] (NounPhrase.introduced bs)) ++ bs, none, []⟩
-    | .repeat_ _ => sameIntro bs []
-    | .repeatTimes n body =>
+    | .repeat_ (.fixed n body) =>
       let bs' := Amount.intro bs n
       let bodyP := Instruction.profile bs' body
       ⟨bs', pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++ bs', none,
        [outcomeB .repeatCount]⟩
-    | .sequence es => Instruction.seqProfile bs es
-    | .performSimultaneously es => Instruction.simProfile bs es
+    | .repeat_ _ => sameIntro bs []
+    | .sequentially es => Instruction.seqProfile bs es
+    | .simultaneously es => Instruction.simProfile bs es
     | .chooseModes q _ => sameIntro (Quantity.introduced bs q ++ bs) []
     | .delay _ _ _ _ => sameIntro bs []
     | .triggerReflexively body _ => Instruction.profile bs body
@@ -1095,9 +1110,8 @@ def Instruction.annSeqs (bs : Bindings) : List Instruction → Bindings
   | e :: es => e.introducedDeeds bs ++ Instruction.annSeqs bs es
 
 def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
-  | .sequence es => Instruction.annSeqs bs es
-  | .offer body _ _ d => Instruction.replacedCtx (mayCtx bs d) body
-  | .doIfDone body _ _ => Instruction.replacedCtx bs body
+  | .sequentially es => Instruction.annSeqs bs es
+  | .withContinuation policy body _ _ => Instruction.replacedCtx (policy.context bs) body
   | .doOnlyIf e _ _ => Instruction.replacedCtx bs e
   | .doIf _ _ _ => bs
   | e => e.introducedDeeds bs ++ e.annIntro bs
@@ -1130,9 +1144,8 @@ mutual
   def Instruction.introducedChoices : Instruction → List Binding
     | .choose _ (.described (.a _) p) _ _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ _ => []
-    | .sequence es => Instruction.introducedChoicesAll es
-    | .offer body _ _ _ => body.introducedChoices
-    | .doIfDone body _ _ => body.introducedChoices
+    | .sequentially es => Instruction.introducedChoicesAll es
+    | .withContinuation _ body _ _ => body.introducedChoices
     | _ => []
   termination_by structural e => e
 
@@ -1253,7 +1266,7 @@ def DamageOp.numberSlots : DamageOp → List (Amount × NumberRegime)
 /-- "two more times": a count of repetitions [CR#107.1b]. -/
 def Repetition.numberSlots : Repetition → List (Amount × NumberRegime)
   | .again | .anyNumber | .untilCond _ | .againExcludingChosen => []
-  | .moreTimes times => [(times, .clamped)]
+  | .moreTimes times | .fixed times _ => [(times, .clamped)]
 
 /-- How many coins are flipped: a count [CR#107.1b]. -/
 def FlipScope.numberSlots : FlipScope → List (Amount × NumberRegime)
@@ -1282,7 +1295,7 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
   | .mana _ => []
   | .scaled _ amount => [(amount, .clamped)]
   | .tapSymbol | .untapSymbol | .loyaltySymbol _ => []
-  | .perform _ | .compound _ | .either _ _ | .itsManaCost => []
+  | .perform _ | .compound _ | .or _ | .itsManaCost => []
 
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
@@ -1337,7 +1350,9 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .ignoreOutcomes which => which.numberSlots
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
   | .shiftResult _ amount => [(amount, .clamped)]
-  | .storeResults _ | .rerollStored _ _ _ | .establish _ _ => []
+  | .storeResults _ | .rerollStored _ _ _ => []
+  | .establish (.letterDefinition _ amount) none => [(amount, .clamped)]
+  | .establish _ _ => []
   | .create count _ riders _ => (count, .clamped) :: TokenRider.ridersSlots riders
   | .getEmblem _ _ => []
   | .putCounters amount _ _ => [(amount, .clamped)]
@@ -1347,14 +1362,10 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .doubleCounters _ => []
   | .loseCounters _ amount _ => optClamped amount
   | .enact _ _ _ | .pay _ _ _ => []
-  | .offer _ _ _ _ | .doIfDone _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
-  -- The letter X, defined by the text [CR#107.1b,107.3]: a defined X is a count, not a
-  -- game value, so a calculation below zero reads as zero.
-  | .define _ amount => [(amount, .clamped)]
+  | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   | .doForEach _ _ | .doForEachKind _ _ _ _ => []
   | .repeat_ repetition => repetition.numberSlots
-  | .repeatTimes times _ => [(times, .clamped)]
-  | .sequence _ | .performSimultaneously _ | .chooseModes _ _ => []
+  | .sequentially _ | .simultaneously _ | .chooseModes _ _ => []
   | .delay _ _ _ _ | .replace _ _ | .holdUntil _ _ => []
   | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
   | .skipUntap _ steps => [(steps, .clamped)]

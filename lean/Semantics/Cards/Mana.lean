@@ -30,7 +30,7 @@ def pyromancy : Ability :=
       (target anyTarget))
 theorem okPyromancy : Ability.check [] pyromancy = [] := by decide
 def luckyOffering : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ destroy (target (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)])),
       gainLife (.lit 3) (agent := Primitives.NounPhrase.you) ]
 theorem okLuckyOffering : Instruction.check [] luckyOffering = [] := by decide
@@ -81,7 +81,7 @@ def acceleratedMutation : Spelled := spelled <| .singleFaced
     { name := "Accelerated Mutation", cost := some [generic 3, pip .green, pip .green],
       types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ get (target creature) (Primitives.Delta.up (Primitives.Amount.letter .x)) (Primitives.Delta.up (Primitives.Amount.letter .x)) (some untilEndOfTurn),
               Primitives.Instruction.define .x (aggregate .max (.stat .manaValue)
                 (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) ]) ] } }
@@ -211,13 +211,13 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker], subtypes := [planeswalkerType "Saheeli"],
       text :=
         [ activated (Primitives.Cost.loyaltySymbol (.up 1))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ scry (.lit 1) (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.offer
                   (Primitives.Instruction.setStatus .tapped (a (Primitives.Predicate.and [artifact, untapped, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
                   (some (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))) none (agent := Primitives.NounPhrase.you) ]),
           activated (Primitives.Cost.loyaltySymbol (.down 2))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ create (.lit 2)
                   { characteristics :=
                     { types := [.artifact, .creature], subtypes := [creatureType "Thopter"],
@@ -351,7 +351,7 @@ def blackManaBattery : Spelled := spelled <| .singleFaced
           activated
             (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
               Primitives.Cost.perform (Primitives.Instruction.removeCounters (some anyNumber) (some (Primitives.CounterKindSource.printed (.named "Charge"))) thisArtifact)])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black]]) [] (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.addMana removedThisWay (Primitives.ProducedMana.runs [[.of .black]]) [] (agent := Primitives.NounPhrase.you) ]) ] } }
 
@@ -376,7 +376,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Blast of Genius", cost := some [generic 4, pip .blue, pip .red], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ choose (target anyTarget),
               Primitives.Instruction.draw (.lit 3) (agent := Primitives.NounPhrase.you),
               discard (a (Primitives.Predicate.inZone hand)) (agent := Primitives.NounPhrase.you),
@@ -388,7 +388,7 @@ def riddleOfLightning : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Riddle of Lightning", cost := some [generic 3, pip .red, pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ choose (target anyTarget),
               scry (.lit 3) (agent := Primitives.NounPhrase.you),
               revealCards (topSlice (.lit 1)),
@@ -447,7 +447,7 @@ def theFlux : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4)
               (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)]))),
           when (Primitives.GameEvent.chapterMark [2, 3, 4, 5])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ exile (topSlice (.lit 1)),
                 Primitives.Instruction.establish
                   (mayPlayDeed (.action "Play") Primitives.NounPhrase.you (that .card) none
@@ -582,7 +582,7 @@ def repeal : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Repeal", cost := some [.variable, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ move (target (Primitives.Predicate.and [Primitives.Predicate.not land, permanent, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x)]))
                 hand,
               Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
@@ -688,7 +688,7 @@ def adNauseam : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ad Nauseam", cost := some [generic 3, pip .black, pip .black], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 1)),
               move (that .card) hand,
               loseLife (Primitives.Amount.statOf (.stat .manaValue) it) (agent := Primitives.NounPhrase.you),
@@ -701,7 +701,7 @@ theorem okNahiriLoyaltyRead : Predicate.check .object [] nahiriLoyaltyRead = [] 
 
 /-- Caustic Bronco -/
 def causticBroncoLoss : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ revealCards (topSlice (.lit 1)),
       move (that .card) hand,
       Primitives.Instruction.doOnlyIf (loseLife (Primitives.Amount.statOf (.stat .manaValue) it) (agent := Primitives.NounPhrase.you))
@@ -735,7 +735,7 @@ def nykthosShrineToNyx : Spelled := spelled <| .singleFaced
       text :=
         [ activated Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]]) [] (agent := Primitives.NounPhrase.you)),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ choose (a (quality .color)),
                 Primitives.Instruction.addMana (Primitives.Amount.devotion Primitives.NounPhrase.you thatColor none) (Primitives.ProducedMana.ofChosenColor none) [] (agent := Primitives.NounPhrase.you) ])
                     ] } }
@@ -795,7 +795,7 @@ theorem okBirthingPodSearch : Ability.check [] birthingPodSearch = [] := by deci
 def hibernationsEndTrigger : Ability :=
   whenever (Primitives.GameEvent.paysCost (some Primitives.NounPhrase.you) .paid thisEnchantment "CumulativeUpkeep")
     (offer
-      (Primitives.Instruction.sequence
+      (Primitives.Instruction.sequentially
         [ searchLibraryFor (exactly 1)
             (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "Age") thisEnchantment)]),
           putOntoBattlefield (that .card),
@@ -889,7 +889,7 @@ def collectedCompany : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Collected Company", cost := some [generic 3, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ lookAt (topSlice (.lit 6)),
               move (fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them)
                 battlefield,
@@ -917,7 +917,7 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
                 revealIt,
                 move foundCard hand,
@@ -969,7 +969,7 @@ def shelteredValley : Spelled := spelled <| .singleFaced
     { name := "Sheltered Valley", types := [.land],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.enters Primitives.NounPhrase.this none) [] none
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ sacrifice
                   (each (Primitives.Predicate.and [permanent, Primitives.Predicate.otherThan thisLand, Primitives.Predicate.named (Primitives.NameSource.printed "Sheltered Valley"),
                                Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) (agent := Primitives.NounPhrase.you),
@@ -1014,7 +1014,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
                         Primitives.Predicate.compare [.stat .manaValue, .stat .power, .stat
                           .toughness] .eq chosenNumber])))
               none)
-            (Primitives.Instruction.sequence [loseLife (.lit 2) (agent := (that .player)), Primitives.Instruction.draw (.lit 1) (agent :=
+            (Primitives.Instruction.sequentially [loseLife (.lit 2) (agent := (that .player)), Primitives.Instruction.draw (.lit 1) (agent :=
                 Primitives.NounPhrase.you)]) ],
       power := stat 3, toughness := stat 4 } }
 
@@ -1078,7 +1078,7 @@ theorem okThranTurbineMana : Instruction.check [] thranTurbineMana = [] := by de
 /-- Su-Chi Cave Guard -/
 def suChiCaveGuardDies : Ability :=
   when (Primitives.GameEvent.dies thisCreature)
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.addMana (.lit 1)
           (Primitives.ProducedMana.runs [[.colorless, .colorless, .colorless, .colorless,
                    .colorless, .colorless, .colorless, .colorless]]) [] (agent := Primitives.NounPhrase.you),

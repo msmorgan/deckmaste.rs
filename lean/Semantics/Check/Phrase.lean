@@ -89,18 +89,26 @@ def Predicate.inKind (p : Predicate) (k : Kind) : Bool :=
   | some k' => k == k'
   | none => true
 
-def NounPhrase.kind? : NounPhrase → Option Kind
-  | .gap k => some k
-  | .you | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
-  | .described _ p => p.kind?
-  | .eachOf g => g.kind?
-  | .both l r => some (joinKinds (l.kind?.getD .object) (r.kind?.getD .object))
-  | .eitherOf l r => some (joinKinds (l.kind?.getD .object) (r.kind?.getD .object))
-  | .theRest k _ => some k
-  | .pileOf _ _ => some .pile
-  | .pro r _ _ => some r.kind
-  | .attachHost _ h => some h.kind
-  | _ => some .object
+mutual
+  def NounPhrase.kind? : NounPhrase → Option Kind
+    | .gap k => some k
+    | .you | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
+    | .described _ p => p.kind?
+    | .eachOf g => g.kind?
+    | .and ns | .or ns => some (NounPhrase.kindOfAll ns)
+    | .theRest k _ => some k
+    | .pileOf _ _ => some .pile
+    | .pro r _ _ => some r.kind
+    | .attachHost _ h => some h.kind
+    | _ => some .object
+  termination_by structural n => n
+
+  def NounPhrase.kindOfAll : List NounPhrase → Kind
+    | [] => .object
+    | [n] => n.kind?.getD .object
+    | n :: ns => joinKinds (n.kind?.getD .object) (NounPhrase.kindOfAll ns)
+  termination_by structural ns => ns
+end
 
 def NounPhrase.kindOr (d : Kind) (n : NounPhrase) : Kind := n.kind?.getD d
 
@@ -879,15 +887,23 @@ def NounPhrase.det : NounPhrase → Option Determiner
   | .oneEachOf _ _ => some .bare
   | _ => none
 
-def NounPhrase.anchorPhrase : NounPhrase → Bool
-  | .eitherOf l r => l.anchorPhrase && r.anchorPhrase
-  | .both _ _ => false
-  | n => n.det.elim true (· == .target)
+mutual
+  def NounPhrase.anchorPhrase : NounPhrase → Bool
+    | .or ns => NounPhrase.allAnchorPhrase ns
+    | .and _ => false
+    | n => n.det.elim true (· == .target)
+  termination_by structural n => n
+
+  def NounPhrase.allAnchorPhrase : List NounPhrase → Bool
+    | [] => true
+    | n :: ns => n.anchorPhrase && NounPhrase.allAnchorPhrase ns
+  termination_by structural ns => ns
+end
 
 def NounPhrase.groupMention : NounPhrase → Bool
   | .librarySlice _ _ _ => true
   | .pro _ pl .whole => !pl.isOne
-  | .both _ _ => true
+  | .and _ => true
   | .oneEachOf _ _ => true
   | n => n.det == some .target
 
@@ -912,27 +928,42 @@ def NounPhrase.isYou : NounPhrase → Bool
   | .you => true
   | _ => false
 
-def NounPhrase.targeted : NounPhrase → Bool
-  | .asType _ n _ => n.targeted
-  | .resolvedPermanent n => n.targeted
-  | .asMarker _ n => n.targeted
-  | .eachOf g => g.targeted
-  | .someOf _ _ g => g.targeted
-  | .both l r => l.targeted || r.targeted
-  | .eitherOf l r => l.targeted || r.targeted
-  | n => n.det == some .target
+mutual
+  def NounPhrase.targeted : NounPhrase → Bool
+    | .asType _ n _ => n.targeted
+    | .resolvedPermanent n => n.targeted
+    | .asMarker _ n => n.targeted
+    | .eachOf g => g.targeted
+    | .someOf _ _ g => g.targeted
+    | .and ns | .or ns => NounPhrase.anyTargeted ns
+    | n => n.det == some .target
+  termination_by structural n => n
 
-def NounPhrase.costNounOk : NounPhrase → Bool
-  | .asType _ n _ => n.costNounOk
-  | .resolvedPermanent n => n.costNounOk
-  | .asMarker _ n => n.costNounOk
-  | .eachOf g => g.costNounOk
-  | .namesAgree _ g => g.costNounOk
-  | .someOf _ _ g => g.costNounOk
-  | .eitherOf l r => l.costNounOk && r.costNounOk
-  | .both _ _ => false
-  | .pro (.verbed _ _ _) _ _ => false
-  | _ => true
+  def NounPhrase.anyTargeted : List NounPhrase → Bool
+    | [] => false
+    | n :: ns => n.targeted || NounPhrase.anyTargeted ns
+  termination_by structural ns => ns
+end
+
+mutual
+  def NounPhrase.costNounOk : NounPhrase → Bool
+    | .asType _ n _ => n.costNounOk
+    | .resolvedPermanent n => n.costNounOk
+    | .asMarker _ n => n.costNounOk
+    | .eachOf g => g.costNounOk
+    | .namesAgree _ g => g.costNounOk
+    | .someOf _ _ g => g.costNounOk
+    | .or ns => NounPhrase.allCostNounOk ns
+    | .and _ => false
+    | .pro (.verbed _ _ _) _ _ => false
+    | _ => true
+  termination_by structural n => n
+
+  def NounPhrase.allCostNounOk : List NounPhrase → Bool
+    | [] => true
+    | n :: ns => n.costNounOk && NounPhrase.allCostNounOk ns
+  termination_by structural ns => ns
+end
 
 def NounPhrase.selfDefinedOk : NounPhrase → Bool
   | .this => true
@@ -978,25 +1009,34 @@ def NounPhrase.remarkTest : NounPhrase → Option (Binding → Bool)
 
 /-! ## Number -/
 
-def NounPhrase.plur : NounPhrase → Plurality
-  | .gap _ => .one
-  | .this | .theGrantor _ | .combatPlayer _ | .you | .attachHost _ _ | .designated _ _ => .one
-  | .asType _ n _ => n.plur
-  | .resolvedPermanent n => n.plur
-  | .asMarker _ n => n.plur
-  | .playerGroup _ => .many
-  | .described d _ => d.plur
-  | .eachOf _ => .many
-  | .namesAgree _ g => g.plur
-  | .both _ _ => .many
-  | .eitherOf l r => if l.plur == r.plur then l.plur else .many
-  | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
-  | .someOf q _ _ => q.plur
-  | .theRest _ pl => pl
-  | .pileOf q _ => q.plur
-  | .pro _ pl _ => pl
-  | .possessorOf _ n => n.plur
-  | .oneEachOf _ _ => .many
+mutual
+  def NounPhrase.plur : NounPhrase → Plurality
+    | .gap _ => .one
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .attachHost _ _ | .designated _ _ => .one
+    | .asType _ n _ => n.plur
+    | .resolvedPermanent n => n.plur
+    | .asMarker _ n => n.plur
+    | .playerGroup _ => .many
+    | .described d _ => d.plur
+    | .eachOf _ => .many
+    | .namesAgree _ g => g.plur
+    | .and _ => .many
+    | .or ns => NounPhrase.commonPlurality ns
+    | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
+    | .someOf q _ _ => q.plur
+    | .theRest _ pl => pl
+    | .pileOf q _ => q.plur
+    | .pro _ pl _ => pl
+    | .possessorOf _ n => n.plur
+    | .oneEachOf _ _ => .many
+  termination_by structural n => n
+
+  def NounPhrase.commonPlurality : List NounPhrase → Plurality
+    | [] => .many
+    | [n] => n.plur
+    | n :: ns => if n.plur == NounPhrase.commonPlurality ns then n.plur else .many
+  termination_by structural ns => ns
+end
 
 def NounPhrase.soleHolderOk : NounPhrase → Bool
   | .playerGroup _ => true
@@ -1055,8 +1095,8 @@ mutual
     | .asMarker _ n => NounPhrase.introduced bs n
     | .described d p => DetPhrase.introduced bs d (p.kindOr .object) p (Predicate.introduced bs p)
     | .eachOf g => NounPhrase.introduced bs g
-    | .both l r => NounPhrase.introduced (NounPhrase.introduced bs l ++ bs) r ++ NounPhrase.introduced bs l
-    | .eitherOf l r => NounPhrase.introduced bs l ++ NounPhrase.introduced bs r
+    | .and ns => NounPhrase.introducedSeq bs ns
+    | .or ns => NounPhrase.introducedAlternatives bs ns
     | .librarySlice _ amt whose =>
       ⟨.the, outputPlur whose.plur amt.plur,
         .object [] (some .library) none none amt.exact⟩ :: NounPhrase.introduced bs whose
@@ -1077,6 +1117,18 @@ mutual
       ⟨.bare, .many, .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none⟩
         :: (Predicate.introducedAll bs roles ++ NounPhrase.introduced bs pool)
   termination_by structural x => x
+
+  def NounPhrase.introducedSeq (bs : Bindings) : List NounPhrase → List Binding
+    | [] => []
+    | n :: ns =>
+      let intro := NounPhrase.introduced bs n
+      NounPhrase.introducedSeq (intro ++ bs) ns ++ intro
+  termination_by structural ns => ns
+
+  def NounPhrase.introducedAlternatives (bs : Bindings) : List NounPhrase → List Binding
+    | [] => []
+    | n :: ns => NounPhrase.introduced bs n ++ NounPhrase.introducedAlternatives bs ns
+  termination_by structural ns => ns
 
   def OptPredicate.introduced (bs : Bindings) : Option Predicate → List Binding
     | none => []
@@ -1304,9 +1356,22 @@ mutual
     | _ => []
 
 
+  def NounPhrase.commonZone (bs : Bindings) : List NounPhrase → Option Zone
+    | [] => none
+    | [n] => NounPhrase.zone bs n
+    | n :: ns =>
+      if NounPhrase.zone bs n == NounPhrase.commonZone bs ns then NounPhrase.zone bs n else none
+  termination_by structural ns => ns
+
+  def NounPhrase.commonTy (bs : Bindings) : List NounPhrase → List CardType
+    | [] => []
+    | [n] => NounPhrase.ty bs n
+    | n :: ns => commonTypes (NounPhrase.ty bs n) (NounPhrase.commonTy bs ns)
+  termination_by structural ns => ns
+
   def NounPhrase.zone (bs : Bindings) : NounPhrase → Option Zone
     | .gap _ => none
-    | .this | .combatPlayer _ | .you | .playerGroup _ | .eitherOf _ _
+    | .this | .combatPlayer _ | .you | .playerGroup _ | .or _
     | .possessorOf _ _ | .designated _ _ => none
     | .asType _ _ _ => some .battlefield
     | .resolvedPermanent _ => some .battlefield
@@ -1315,7 +1380,7 @@ mutual
     | .described _ p => p.phraseZone (p.kindOr .object)
     | .eachOf g => NounPhrase.zone bs g
     | .namesAgree _ g => NounPhrase.zone bs g
-    | .both l r => if NounPhrase.zone bs l == NounPhrase.zone bs r then NounPhrase.zone bs l else none
+    | .and ns => NounPhrase.commonZone bs ns
     | .librarySlice _ _ _ => some .library
     | .someOf _ _ g => NounPhrase.zone bs g
     | .theRest k _ => zoneOfGroup k bs
@@ -1328,14 +1393,14 @@ mutual
   def NounPhrase.ty (bs : Bindings) : NounPhrase → List CardType
     | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
-    | .eitherOf _ _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
+    | .or _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
     | .described _ p => p.seedTy
     | .eachOf g => NounPhrase.ty bs g
     | .namesAgree _ g => NounPhrase.ty bs g
-    | .both l r => commonTypes (NounPhrase.ty bs l) (NounPhrase.ty bs r)
+    | .and ns => NounPhrase.commonTy bs ns
     | .someOf _ d g => sliceTyOf d (NounPhrase.ty bs g)
     | .theRest k _ => tyOfGroup k bs
     | .pro r pl w => tyOfReach r pl (view w bs)
@@ -1363,31 +1428,47 @@ def nomIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.introduce
 def sliceTy (bs : Bindings) (d : Option Predicate) (g : NounPhrase) : List CardType :=
   sliceTyOf d (NounPhrase.ty bs g)
 
-def NounPhrase.headTys (bs : Bindings) : NounPhrase → List (List CardType)
-  | .described _ p =>
-    let alts := p.headTyAlts
-    if alts.all List.isEmpty then [] else alts
-  | .eachOf g => NounPhrase.headTys bs g
-  | .namesAgree _ g => NounPhrase.headTys bs g
-  | .resolvedPermanent n => NounPhrase.headTys bs n
-  | .asMarker _ n => NounPhrase.headTys bs n
-  | .both l r => NounPhrase.headTys bs l ++ NounPhrase.headTys bs r
-  | .eitherOf l r => NounPhrase.headTys bs l ++ NounPhrase.headTys bs r
-  | .oneEachOf _ pool => NounPhrase.headTys bs pool
-  | n => soleAlt (NounPhrase.ty bs n)
+mutual
+  def NounPhrase.headTys (bs : Bindings) : NounPhrase → List (List CardType)
+    | .described _ p =>
+      let alts := p.headTyAlts
+      if alts.all List.isEmpty then [] else alts
+    | .eachOf g => NounPhrase.headTys bs g
+    | .namesAgree _ g => NounPhrase.headTys bs g
+    | .resolvedPermanent n => NounPhrase.headTys bs n
+    | .asMarker _ n => NounPhrase.headTys bs n
+    | .and ns | .or ns => NounPhrase.headTysAll bs ns
+    | .oneEachOf _ pool => NounPhrase.headTys bs pool
+    | n => soleAlt (NounPhrase.ty bs n)
+  termination_by structural n => n
 
-def NounPhrase.tys (bs : Bindings) : NounPhrase → HeadTy
-  | .described _ p => p.seedTys
-  | .eachOf g => NounPhrase.tys bs g
-  | .namesAgree _ g => NounPhrase.tys bs g
-  | .someOf _ d g => .sole (sliceTyOf d (NounPhrase.ty bs g))
-  | n@(.both l r) =>
-    if l.kindOr .object == r.kindOr .object then .sole (NounPhrase.ty bs n)
-    else .join (NounPhrase.tys bs l) (NounPhrase.tys (nomIntro bs l) r)
-  | n@(.eitherOf l r) =>
-    if l.kindOr .object == r.kindOr .object then .sole (NounPhrase.ty bs n)
-    else .join (NounPhrase.tys bs l) (NounPhrase.tys bs r)
-  | n => .sole (NounPhrase.ty bs n)
+  def NounPhrase.headTysAll (bs : Bindings) : List NounPhrase → List (List CardType)
+    | [] => []
+    | n :: ns => NounPhrase.headTys bs n ++ NounPhrase.headTysAll bs ns
+  termination_by structural ns => ns
+end
+
+mutual
+  def NounPhrase.tys (bs : Bindings) : NounPhrase → HeadTy
+    | .described _ p => p.seedTys
+    | .eachOf g => NounPhrase.tys bs g
+    | .namesAgree _ g => NounPhrase.tys bs g
+    | .someOf _ d g => .sole (sliceTyOf d (NounPhrase.ty bs g))
+    | .and ns => NounPhrase.coordinatedTys true bs ns
+    | .or ns => NounPhrase.coordinatedTys false bs ns
+    | n => .sole (NounPhrase.ty bs n)
+  termination_by structural n => n
+
+  def NounPhrase.coordinatedTys (sequential : Bool) (bs : Bindings) : List NounPhrase → HeadTy
+    | [] => .sole []
+    | [n] => NounPhrase.tys bs n
+    | n :: ns =>
+      if n.kindOr .object == NounPhrase.kindOfAll ns then
+        .sole (if sequential then NounPhrase.commonTy bs (n :: ns) else [])
+      else .join (NounPhrase.tys bs n)
+        (NounPhrase.coordinatedTys sequential (if sequential then nomIntro bs n else bs) ns)
+  termination_by structural ns => ns
+end
 
 def NounPhrase.prov (bs : Bindings) : NounPhrase → Option Stamp
   | .theRest k _ => provOfGroup k bs
@@ -1741,7 +1822,7 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     setZoneHead p z (nomIntro bs n)
   | .eachOf g => moveIntro bs p g z
   | .namesAgree _ g => moveIntro bs p g z
-  | .both _ _ | .eitherOf _ _ => nomIntro bs n
+  | .and _ | .or _ => nomIntro bs n
   | .theRest k _ => groupSpent k bs
   | .pro r pl w => overWindow (setZoneReach r pl p z) w bs
   | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none⟩ :: bs

@@ -85,7 +85,7 @@ theorem outerArtifactDoesNotStealThePatient :
       instruction = [] := by decide
 
 theorem thatPlayerCanTakeTheFollowingAction :
-    Instruction.check [] (.sequence [instruction, draw (.lit 1) (agent := that .player)]) = [] := by decide
+    Instruction.check [] (.sequentially [instruction, draw (.lit 1) (agent := that .player)]) = [] := by decide
 
 private def nestedSubject : NounPhrase := target (.and [creature,
   .hasPossessor .controller (controllerOf (target artifact))])
@@ -115,8 +115,8 @@ theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
       [controllerBinding, nestedCreature, controllerBinding, nestedArtifact] := by rfl
 
 theorem coordinatedReferencesHaveNoSingleIntroducedReferent :
-    (NounPhrase.eitherOf (target creature) (target artifact)).introducesOwnReferent = false ∧
-    (NounPhrase.both (target creature) (target artifact)).introducesOwnReferent = false := by decide
+    (Primitives.NounPhrase.eitherOf (target creature) (target artifact)).introducesOwnReferent = false ∧
+    (Primitives.NounPhrase.both (target creature) (target artifact)).introducesOwnReferent = false := by decide
 
 theorem typedDescriptionRetainsItsOwnReferent :
     (NounPhrase.resolvedPermanent (.asType .creature nestedSubject none)).introducesOwnReferent =

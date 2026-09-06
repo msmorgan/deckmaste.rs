@@ -26,7 +26,7 @@ theorem okRawNonattacking : Predicate.check .object [] rawNonattacking = [] := b
 
 /-- Harmony of Nature -/
 def harmonyOfNature : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ tap (counted anyNumber (Primitives.Predicate.and [untapped, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
       Primitives.Instruction.doForEach (theVerbed (.action "Tap") (.type .creature) .thisWay .many)
         (gainLife (.lit 4) (agent := Primitives.NounPhrase.you)) ]
@@ -61,10 +61,10 @@ theorem okPillarOfLight : Instruction.check [] pillarOfLight = [] := by decide
 
 /-- Unholy Annex -/
 def unholyAnnex : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.doIf (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Demon"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-        (Primitives.Instruction.sequence [loseLife (.lit 2) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 2) (agent :=
+        (Primitives.Instruction.sequentially [loseLife (.lit 2) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 2) (agent :=
             Primitives.NounPhrase.you)])
         (some (loseLife (.lit 2) (agent := Primitives.NounPhrase.you))) ]
 theorem okUnholyAnnex : Instruction.check [] unholyAnnex = [] := by decide
@@ -132,7 +132,7 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Timely Reinforcements", cost := some [generic 2, pip .white], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.doIf (Primitives.Condition.compareAmt (lifeTotalOf Primitives.NounPhrase.you) .less (lifeTotalOf anOpponent))
                 (gainLife (.lit 6) (agent := Primitives.NounPhrase.you)) none,
               Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf creatureYouControl) .less
@@ -141,7 +141,7 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
 
 /-- Survival Cache -/
 def survivalCache : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ gainLife (.lit 2) (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.doIf (Primitives.Condition.compareAmt (lifeTotalOf Primitives.NounPhrase.you) .greater (lifeTotalOf anOpponent))
         (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) none ]
@@ -152,7 +152,7 @@ def nightmarishEnd : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Nightmarish End", cost := some [generic 2, pip .black], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ get (target creature) (Primitives.Delta.down (Primitives.Amount.letter .x)) (Primitives.Delta.down (Primitives.Amount.letter .x))
                 (some untilEndOfTurn),
               Primitives.Instruction.define .x (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) ]) ] } }
@@ -234,7 +234,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
     { name := "Phyrexian Rebirth", cost := some [generic 4, pip .white, pip .white],
       types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ destroy (allOf creature),
               Primitives.Instruction.create (.lit 1)
                 (Primitives.TokenSpec.written
@@ -277,7 +277,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                                "Approach of the Second Sun") ]))) none) Primitives.NounPhrase.you
                                .thisGame ])
             (Primitives.Instruction.conclude .winGame (agent := Primitives.NounPhrase.you))
-            (some (Primitives.Instruction.sequence
+            (some (Primitives.Instruction.sequentially
               [ move Primitives.NounPhrase.this (nthFromTop (.nth 7)), gainLife (.lit 7) (agent := Primitives.NounPhrase.you) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
@@ -296,7 +296,7 @@ theorem okBalanceOfPower : Instruction.check [] balanceOfPower = [] := by decide
 
 /-- Spark Fiend -/
 def sparkFiendUpkeepRoll : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ rollDice 2 6 (agent := Primitives.NounPhrase.you),
       doIf (Primitives.Condition.compareAmt (Primitives.Amount.theOutcome .rollResult) .eq (.lit 7)) (sacrifice thisCreature (agent :=
           Primitives.NounPhrase.you)) ]
@@ -309,7 +309,7 @@ theorem okDevotionCondition : Condition.check [] devotionCondition = [] := by de
 /-- Multiple Choice -/
 def multipleChoiceFirstArm : Instruction :=
   Primitives.Instruction.doIf (Primitives.Condition.compareAmt (Primitives.Amount.letter .x) .eq (.lit 1))
-    (Primitives.Instruction.sequence [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) none
+    (Primitives.Instruction.sequentially [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) none
 theorem okMultipleChoiceFirstArm : Instruction.check [] multipleChoiceFirstArm = [] := by decide
 
 /-- Multiple Choice, fourth arm -/
@@ -353,7 +353,7 @@ def lucidDreams : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Lucid Dreams", cost := some [generic 3, pip .blue, pip .blue], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.draw (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
               Primitives.Instruction.define .x (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)))) ]) ] } }
 
@@ -389,7 +389,7 @@ theorem deepglowSkateRecipientRefused : deepglowSkateRecipient.perMemberOk = fal
 
 /-- Weftwalking -/
 def weftwalkingShuffle : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ shuffleInto (Primitives.NounPhrase.both (allOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))))
         (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.draw (.lit 7) (agent := Primitives.NounPhrase.you) ]
@@ -497,10 +497,10 @@ theorem okLifeTotalBecomesOne : Instruction.check [] lifeTotalBecomesOne = [] :=
 
 /-- Berserker's Frenzy's roll -/
 def berserkersFrenzyRoll : Instruction :=
-  Primitives.Instruction.sequence [rollDice 2 20 (agent := Primitives.NounPhrase.you), Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest)]
+  Primitives.Instruction.sequentially [rollDice 2 20 (agent := Primitives.NounPhrase.you), Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest)]
 theorem okBerserkersFrenzyRoll : Instruction.check [] berserkersFrenzyRoll = [] := by decide
 def ironMastiffIgnore : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.rollDice
         (countOf (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.inCombat .attackedBy (some (Primitives.NounPhrase.combatPlayer .attacking))]))
         (.sides 20) (agent := Primitives.NounPhrase.you),
@@ -529,7 +529,7 @@ def archpriestOfIonaPower : Ability := Primitives.Ability.static (Primitives.Sta
 theorem okArchpriestOfIonaPower : Ability.check [] archpriestOfIonaPower = [] := by decide
 def archpriestOfIonaFullParty : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .combat (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) fullParty
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn),
         gain it (keyword "Flying") (some untilEndOfTurn) ])
 theorem okArchpriestOfIonaFullParty : Ability.check [] archpriestOfIonaFullParty = [] := by decide

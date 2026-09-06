@@ -34,7 +34,7 @@ theorem badChooseYou :
 
 theorem badConditionalArmAntecedent :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doOnlyIf (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
             (exists_ creatureYouControl) none,
           .putCounters (.lit 1) (.printed plusOnePlusOne) it ]) = [.anaphor .bare .one 0] := by
@@ -42,8 +42,8 @@ theorem badConditionalArmAntecedent :
 
 theorem badBothArmsAntecedent :
     Instruction.check []
-      (.sequence
-        [ .offer (gainLife (.lit 1) (agent := .you))
+      (.sequentially
+        [ Primitives.Instruction.offer (gainLife (.lit 1) (agent := .you))
             (some (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])))
             (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))) (agent :=
                 .you),
@@ -61,7 +61,7 @@ theorem badMoveToBareLibrary :
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ lookAt (topSlice (.lit 4)),
           .choose none (someOf (exactly 1) them) .openly none (agent := (some .you)) ]) = [] := by
   decide
@@ -69,7 +69,7 @@ theorem okAgentChoiceOfSome :
 /-- "Look at the top four cards of your library. Choose one of them." -/
 theorem badChooseSomeOf :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ lookAt (topSlice (.lit 4)),
           .choose none (someOf (exactly 1) them) .openly none (agent := none) ]) = [.choiceClause]
               := by
@@ -147,7 +147,7 @@ theorem badChooseDefinite :
 /-- "This deals 1 damage to that permanent or player." -/
 theorem okUnionAnaphorAfterJoin :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (target (.or [creature, .anyPlayer])),
           .dealDamage .this (.lit 1) (that .join) ]) = [] := by
   decide
@@ -161,7 +161,7 @@ theorem badUnionAnaphorNoAntecedent :
 /-- "Destroy target creature. This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorOnObject :
     Instruction.check []
-      (.sequence [destroy (target creature), .dealDamage .this (.lit 3) (that .join)])
+      (.sequentially [destroy (target creature), .dealDamage .this (.lit 3) (that .join)])
       = [.anaphor (.word .join) .one 0] := by
   decide
 
@@ -170,7 +170,7 @@ stack is an object in the stack zone [CR#109.1,113.1c,405.1], so the one stack r
 it. -/
 theorem okStackAnaphorOnAbility :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .counterSpell (target (.abilityHead .anyActivated)), .counterSpell (that .stack) ])
       = [] := by
   decide
@@ -379,7 +379,7 @@ theorem badSingletonForEach :
 card." (Vaevictis Asmadi, the Dire's opening loop): the group survives it, pluralised. -/
 theorem okLoopGroupSurvives :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
           draw (.lit 1) (agent := (those .player)) ]) = [] := by
@@ -390,7 +390,7 @@ card." The element the loop binds is body-local, so only the group reads back, a
 plural. -/
 theorem badLoopElementRead :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
           draw (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 0] := by
@@ -446,7 +446,7 @@ A copy of a spell is itself a spell [CR#707.10,112.1a], so the plural spell read
 copies. -/
 theorem okPluralSpellReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [] (agent := .you),
           offer (.chooseNewTargets (those .spell)) (agent := .you) ]) = [] := by
   decide
@@ -454,7 +454,7 @@ theorem okPluralSpellReadAfterCopy :
 /-- "Copy target instant or sorcery spell. You may choose new targets for the copy." -/
 theorem okCopyReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
           offer (.chooseNewTargets (that .copy)) (agent := .you) ]) = [] := by
   decide
@@ -464,7 +464,7 @@ Refused: the copy is itself a spell [CR#707.10], so the singular spell read reac
 original and the copy alike. `that .copy` spells the copy (`okCopyReadAfterCopy`). -/
 theorem badSingularSpellReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
           offer (.chooseNewTargets (that .spell)) (agent := .you) ]) = [.anaphor (.word .spell) .one
               2] := by
@@ -475,7 +475,7 @@ copy of an ability is itself an ability [CR#707.10], so the plural ability read 
 copies. -/
 theorem okPluralAbilityReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 2) [] (agent := .you),
           offer (.chooseNewTargets (those .ability)) (agent := .you) ]) = [] := by
   decide
@@ -485,7 +485,7 @@ the copy is itself an ability [CR#707.10], so the singular ability read reaches 
 and the copy alike. `that (.copied .ability)` spells the copy (`okAbilityCopyReadAfterCopy`). -/
 theorem badSingularAbilityReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [] (agent := .you),
           offer (.chooseNewTargets (that .ability)) (agent := .you) ]) = [.anaphor (.word .ability)
               .one 2] := by
@@ -494,7 +494,7 @@ theorem badSingularAbilityReadAfterCopy :
 /-- "Copy target activated ability. You may choose new targets for the copy." -/
 theorem okAbilityCopyReadAfterCopy :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [] (agent := .you),
           offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ]) = [] := by
   decide
@@ -517,7 +517,7 @@ theorem youAndBindsNothing : NounPhrase.introduced [] (youAnd thisCreature) = []
 /-- "If a player is dealt damage this way, you draw a card." -/
 theorem okDealtThisWayAfterDamage :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (target anyTarget),
           .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1) (agent := .you)) none ]) = [] := by
   decide
@@ -525,7 +525,7 @@ theorem okDealtThisWayAfterDamage :
 /-- "You draw a card. If a player is dealt damage this way, you draw a card." -/
 theorem badDealtThisWayNoDamage :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ draw (.lit 1) (agent := .you), .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1) (agent :=
             .you)) none ])
       = [.damageDealtInScope] := by
@@ -536,7 +536,7 @@ card." Refused: what the description seeds is on the stack, and nothing on the s
 damage. `.dealtThisWay .anyPlayer` spells the recipient read (`okDealtThisWayAfterDamage`). -/
 theorem badDealtThisWayAbility :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 2) (target anyTarget),
           .doIf (.dealtThisWay .isManaAbility) (draw (.lit 1) (agent := .you)) none ])
       = [.zoneIs .stack] := by
@@ -585,7 +585,7 @@ theorem youRolledADieThisTurn :
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
-    Instruction.check [] (.sequence [rollDice 2 20 (agent := .you), .ignoreOutcomes (.extreme
+    Instruction.check [] (.sequentially [rollDice 2 20 (agent := .you), .ignoreOutcomes (.extreme
         .lowest)])
       = [] := by
   decide
@@ -667,13 +667,13 @@ theorem badRestWithoutAPartition :
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterCountedChoice :
     Instruction.check []
-      (.sequence [choose (counted (upTo 1) creature), destroy (theRest .object)]) = [] := by
+      (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)]) = [] := by
   decide
 
 /-- "Choose any number of target creatures. Destroy the rest." -/
 theorem badRestAfterTargetChoice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (.described (.target anyNumber) creature), destroy (theRest .object)])
       = [.theRestFits .object] := by
   decide
@@ -685,7 +685,7 @@ theorem okReadsLookedAtCard : NounPhrase.check (some .object) afterALook (that .
   decide
 
 def afterShuffledLook : Bindings :=
-  Instruction.intro [] (.sequence [lookAt (topSlice (.lit 1)), shuffle])
+  Instruction.intro [] (.sequentially [lookAt (topSlice (.lit 1)), shuffle])
 
 theorem badReadsShuffledLibraryCard :
     NounPhrase.check (some .object) afterShuffledLook (that .card)
@@ -772,7 +772,7 @@ theorem lastChosenPlayerRead :
 /-- "... a chosen player. ... the chosen player." -/
 theorem okDefiniteChosenPlayerRead :
     Instruction.check [ChoiceSort.binding .player]
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (a chosenPlayer),
           .dealDamage .this (.lit 3) (the chosenPlayer) ])
       = [] := by
@@ -782,7 +782,7 @@ theorem okDefiniteChosenPlayerRead :
 [CR#607.2d]. -/
 theorem badIndefiniteChosenPlayerRead :
     Instruction.check [ChoiceSort.binding .player]
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 3) (a chosenPlayer), .dealDamage .this (.lit 3) they ])
       = [.anaphor (.word .player) .one 2] := by
   decide
@@ -832,7 +832,7 @@ theorem letterValIntroducesAtEmptyPrefix : Amount.check [] (.letter .x) = [] := 
 
 theorem ownSurvivesSecondSingular :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ exile (target artifact),
           dealDamageOwnPower (target creature)
             (target anyTarget) ]) = [] := by
@@ -841,13 +841,13 @@ theorem ownSurvivesSecondSingular :
 /-- "Exile target creature. Draw cards equal to its power." -/
 theorem okItReadsTheOnlyBareSingular :
     Instruction.check []
-      (.sequence [exile (target creature), draw (.statOf (.stat .power) it) (agent := .you)]) = []
+      (.sequentially [exile (target creature), draw (.statOf (.stat .power) it) (agent := .you)]) = []
           := by
   decide
 
 theorem badItAcrossOwnSlot :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ exile (target artifact),
           .dealDamage (target creature) (.statOf (.stat .power) it) (target anyTarget) ])
       = [.anaphor .bare .one 2] := by
@@ -856,7 +856,7 @@ theorem badItAcrossOwnSlot :
 /-- "Draw cards equal to its power." -/
 theorem badSingularReadOfBarePlural :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
           draw (.statOf (.stat .power) it) (agent := .you) ]) = [.anaphor .bare .one 0] := by
   decide
@@ -866,7 +866,7 @@ creature until end of turn." The "it" reads the condition's own subject, which i
 condition publishes. -/
 theorem okCondSubjectRead :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ destroy (target creature),
           .doIf (.not (.matches thisEnchantment creature))
             (become
@@ -882,7 +882,7 @@ readable, so the pronoun is ambiguous. A condition's nouns do not join the read 
 "if … it …" reads the clause subject. -/
 theorem badCondUnwindowedRead :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ destroy (target creature),
           .doIf (.not (.matches thisEnchantment creature))
             (become it
@@ -910,27 +910,27 @@ theorem okOwnReadsOneInDelta :
 
 theorem badSharedSubjectTwoInDelta :
     Instruction.check []
-      (establishFor (.both (target creature) (target artifact))
+      (establishFor (Primitives.NounPhrase.both (target creature) (target artifact))
         [ .modification
             (.pro .bare .one
-              (.top (NounPhrase.introduced [] (.both (target creature) (target artifact))).length))
+              (.top (NounPhrase.introduced [] (Primitives.NounPhrase.both (target creature) (target artifact))).length))
             .power (.up (.lit 1)),
           .modification
             (.pro .bare .one
-              (.top (NounPhrase.introduced [] (.both (target creature) (target artifact))).length))
+              (.top (NounPhrase.introduced [] (Primitives.NounPhrase.both (target creature) (target artifact))).length))
             .toughness (.up (.lit 1)) ]
         none) = [.anaphor .bare .one 2, .anaphor .bare .one 2] := by
   decide
 
 theorem badOwnTwoInDelta :
     Instruction.check []
-      (dealDamageOwnPower (.both (target creature) (target creature)) (target anyTarget))
+      (dealDamageOwnPower (Primitives.NounPhrase.both (target creature) (target creature)) (target anyTarget))
       = [.anaphor .bare .one 2] := by
   decide
 
 theorem distributedDeedReadsBackPlural :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ discard (a (.inZone hand)) (agent := (each .opponent)),
           exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
   decide
@@ -938,7 +938,7 @@ theorem distributedDeedReadsBackPlural :
 /-- "Discard a card. Exile the discarded card." -/
 theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ discard (a (.inZone hand)) (agent := .you),
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [] := by
@@ -947,7 +947,7 @@ theorem okTheVerbedAfterSingularDiscard :
 /-- "Each opponent discards a card. Exile that card." -/
 theorem badDistributedDiscardSingular :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ discard (a (.inZone hand)) (agent := (each .opponent)),
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
@@ -971,7 +971,7 @@ theorem badNoHolderOnObject :
 
 /-- "Roll five d6. Store those results on this creature." -/
 theorem okStoreResultsAfterRoll :
-    Instruction.check [] (.sequence [rollDice 5 6 (agent := .you), .storeResults thisCreature]) = []
+    Instruction.check [] (.sequentially [rollDice 5 6 (agent := .you), .storeResults thisCreature]) = []
         := by
   decide
 

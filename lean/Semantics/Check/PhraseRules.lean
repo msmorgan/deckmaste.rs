@@ -250,12 +250,12 @@ mutual
     | .eachOf g =>
       NounPhrase.checkIn gap ctx bs g ++ refuse (g.plur == .many) .plural ++
         refuse g.groupMention .groupMention
-    | .both l r =>
-      ctxCheck ctx (some (joinKinds (l.kindOr .object) (r.kindOr .object))) ++
-        NounPhrase.checkIn gap none bs l ++ NounPhrase.checkIn gap none (nomIntro bs l) r
-    | .eitherOf l r =>
-      ctxCheck ctx (some (joinKinds (l.kindOr .object) (r.kindOr .object))) ++
-        NounPhrase.checkIn gap none bs l ++ NounPhrase.checkIn gap none bs r
+    | .and ns =>
+      ctxCheck ctx (some (NounPhrase.kindOfAll ns)) ++
+        refuse (atLeastTwo ns.length) .atLeastTwo ++ NounPhrase.checkCoordIn true gap bs ns
+    | .or ns =>
+      ctxCheck ctx (some (NounPhrase.kindOfAll ns)) ++
+        refuse (atLeastTwo ns.length) .atLeastTwo ++ NounPhrase.checkCoordIn false gap bs ns
     | .librarySlice _ amt whose =>
       ctxCheck ctx (some .object) ++ Amount.checkIn gap bs amt ++ NounPhrase.checkIn gap (some
         .player) bs whose ++
@@ -289,6 +289,13 @@ mutual
         NounPhrase.checkIn gap (some .object) bs pool ++ refuse (pool.plur == .many) .plural ++
         refuse (rolesOk roles) .rolesOk
   termination_by structural n => n
+
+  def NounPhrase.checkCoordIn (sequential : Bool) (gap : Option Kind) (bs : Bindings) :
+      List NounPhrase → CheckResult
+    | [] => (⟨[], false⟩ : CheckResult)
+    | n :: ns => NounPhrase.checkIn gap none bs n ++
+        NounPhrase.checkCoordIn sequential gap (if sequential then nomIntro bs n else bs) ns
+  termination_by structural ns => ns
 
   def OptNoun.checkIn (gap : Option Kind) (ctx : Option Kind) (bs : Bindings) : Option NounPhrase →
     CheckResult

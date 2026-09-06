@@ -88,7 +88,7 @@ def somberwaldAlpha : Ability :=
 theorem okSomberwaldAlpha : Ability.check [] somberwaldAlpha = [] := by decide
 def vertigoSpawn : Ability :=
   whenever (blocks thisCreature (some (a creature)))
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.setStatus .tapped (that (.type .creature)),
         Primitives.Instruction.skipUntap (that (.type .creature)) (.lit 1) ])
 theorem okVertigoSpawn : Ability.check [] vertigoSpawn = [] := by decide
@@ -336,7 +336,7 @@ def agateBladeAssassin : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Lizard", creatureType "Assassin"],
       text :=
         [ whenever (attacks thisCreature)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [loseLife (.lit 1) (agent := (Primitives.NounPhrase.combatPlayer .defending)), gainLife (.lit 1) (agent :=
                   Primitives.NounPhrase.you)]) ],
       power := stat 1, toughness := stat 3 } }
@@ -407,7 +407,7 @@ def avenShrine : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (some (a spell))
           none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ gainLife (Primitives.Amount.letter .x) (agent := they),
                 Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.inZone graveyard, Primitives.Predicate.named (Primitives.NameSource.sameAs (that .spell))])) ]) ] } }
 
@@ -454,7 +454,7 @@ def kamiOfTerribleSecrets : Spelled := spelled <| .singleFaced
         [ triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Condition.and [ exists_ (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
                     exists_ (Primitives.Predicate.and [enchantment, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ])
-            (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), gainLife (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
+            (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), gainLife (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
       power := stat 3, toughness := stat 4 } }
 
 def dreadSlaver : Spelled := spelled <| .singleFaced
@@ -466,7 +466,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, happenedTo
               (Primitives.GameEvent.dealsDamage .any thisCreature (some
               (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn])))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ putOntoBattlefieldUnderYourControl it,
                 become (that (.type .creature))
                   { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } }
@@ -491,7 +491,7 @@ theorem okNetheresePuzzleWardIllumination :
 /-- Farideh, Devil's Chosen -/
 def faridehResultRead : Ability :=
   whenever (Primitives.GameEvent.rollsDice Primitives.NounPhrase.you .many none Primitives.RollWatch.anyResult)
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ gain thisCreature (keyword "Flying") (some untilEndOfTurn),
         gain thisCreature (keyword "Menace") (some untilEndOfTurn),
         doIf (Primitives.Condition.anyResultIs .atLeast (.lit 10)) (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ])
@@ -505,7 +505,7 @@ def jawsOfDefeat : Ability :=
 theorem okJawsOfDefeat : Ability.check [] jawsOfDefeat = [] := by decide
 /-- Defiling Daemogoth -/
 def defilingDaemogothDrain : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [loseLife (Primitives.Amount.letter .x) (agent := (each Primitives.Predicate.opponent)),
       Primitives.Instruction.define .x (eventSum (Primitives.GameEvent.lifeChanges (relative
       .player) .up) Primitives.NounPhrase.you .thisTurn)]
@@ -573,7 +573,7 @@ def schemingAspirant : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
           "Proliferate") none none none)
-            (Primitives.Instruction.sequence [loseLife (.lit 2) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 2) (agent :=
+            (Primitives.Instruction.sequentially [loseLife (.lit 2) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 2) (agent :=
                 Primitives.NounPhrase.you)]) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -679,7 +679,7 @@ def loamingShaman : Spelled := spelled <| .singleFaced
 /-- Debris Beetle -/
 def debrisBeetleTrigger : Ability :=
   when (Primitives.GameEvent.enters thisVehicle none)
-    (Primitives.Instruction.sequence [loseLife (.lit 3) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 3) (agent := Primitives.NounPhrase.you)])
+    (Primitives.Instruction.sequentially [loseLife (.lit 3) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 3) (agent := Primitives.NounPhrase.you)])
 theorem okDebrisBeetleTrigger : Ability.check [] debrisBeetleTrigger = [] := by decide
 /-- Roads Go Ever, Ever On's chapters II and III -/
 def roadsGoEverEverOnChapters : Ability :=
@@ -692,7 +692,7 @@ theorem okWurmwallSweeperTrigger : Ability.check [] wurmwallSweeperTrigger = [] 
 /-- Case of the Crimson Pulse -/
 def caseOfTheCrimsonPulseTrigger : Ability :=
   when (Primitives.GameEvent.enters thisCase none)
-    (Primitives.Instruction.sequence [discard (a (Primitives.Predicate.inZone hand)) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
+    (Primitives.Instruction.sequentially [discard (a (Primitives.Predicate.inZone hand)) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
 theorem okCaseOfTheCrimsonPulseTrigger : Ability.check [] caseOfTheCrimsonPulseTrigger = [] := by
   decide
 
@@ -708,9 +708,9 @@ def ferociousPup : Spelled := spelled <| .singleFaced
 
 /-- Agency Outfitter's search -/
 def agencyOutfitterSearch : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ offer
-        (Primitives.Instruction.sequence
+        (Primitives.Instruction.sequentially
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
             putOntoBattlefield foundCard ]) (agent := Primitives.NounPhrase.you),
@@ -735,7 +735,7 @@ def bioplasm : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Ooze"],
       text :=
         [ whenever (attacks thisCreature)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ exile (topSlice (.lit 1)),
                 Primitives.Instruction.doIf bioplasmCardTest
                   (get thisCreature
@@ -757,7 +757,7 @@ def hallowedMoonlight : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Hallowed Moonlight", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ replaceEvent (Primitives.GameEvent.enters (a (Primitives.Predicate.and [creature, Primitives.Predicate.not Primitives.Predicate.wasCast])) none) (exile it)
                 (some untilEndOfTurn),
               Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
@@ -919,7 +919,7 @@ def bloodReckoning : Spelled := spelled <| .singleFaced
 def jeskaiAscendancyPump : Ability :=
   whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a (Primitives.Predicate.and
     [spell, Primitives.Predicate.not creature]))) none)
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ get (bare creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn),
         untap (those (.type .creature)) ])
 theorem okJeskaiAscendancyPump : Ability.check [] jeskaiAscendancyPump = [] := by decide
@@ -939,7 +939,7 @@ def squelch : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Squelch", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [Primitives.Instruction.counterSpell (target (Primitives.Predicate.abilityHead .anyActivated)), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ]
                 } }
 

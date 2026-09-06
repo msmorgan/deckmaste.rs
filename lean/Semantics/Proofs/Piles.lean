@@ -53,7 +53,7 @@ def revealAndSplit : List Instruction :=
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
 theorem okPileWordAfterPartition :
-    Card.check (instantSaying (.sequence (revealAndSplit ++ [move (those .pile) hand])))
+    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .pile) hand])))
       = [] := by
   decide
 
@@ -61,20 +61,20 @@ theorem okPileWordAfterPartition :
 piles. Put those cards into your hand.": each object in a pile is still an individual object
 [CR#700.3b], so the card word still reads them. -/
 theorem okCardWordReadsPiles :
-    Card.check (instantSaying (.sequence (revealAndSplit ++ [move (those .card) hand])))
+    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .card) hand])))
       = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. Put those piles into your hand." -/
 theorem badPileWordWithoutAPartition :
     Card.check
-      (instantSaying (.sequence [revealCards (topSlice (.lit 5)), move (those .pile) hand]))
+      (instantSaying (.sequentially [revealCards (topSlice (.lit 5)), move (those .pile) hand]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
 /-- "... into two piles. Put one pile into your hand." -/
 theorem okOnePileAfterPartition :
-    Instruction.check [] (.sequence (revealAndSplit ++ [move onePile hand])) = [] := by decide
+    Instruction.check [] (.sequentially (revealAndSplit ++ [move onePile hand])) = [] := by decide
 
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
@@ -89,7 +89,7 @@ theorem badPilePartitiveWithoutAPartition :
 theorem okMembershipInAPile :
     Card.check
       (instantSaying
-        (.sequence
+        (.sequentially
           (revealAndSplit ++ [move (allOf (.and [.isCard, .inPile (pileOfChoice .you)])) hand])))
       = [] := by
   decide
@@ -99,7 +99,7 @@ no effect grouped them into piles [CR#700.3]. -/
 theorem badMembershipWithoutAPartition :
     Card.check
       (instantSaying
-        (.sequence
+        (.sequentially
           [ revealCards (topSlice (.lit 5)),
             move (allOf (.and [.isCard, .inPile (those .pile)])) hand ]))
       = [.anaphor (.word .pile) .many 0] := by
@@ -114,7 +114,7 @@ choice face down." Only permanents have status [CR#110.5d]; a pile is not one [C
 theorem okStatusOnPermanentAfterPartition :
     Card.check
       (instantSaying
-        (.sequence
+        (.sequentially
           [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
             .setStatus .faceDown (allOf (.and [creature, .inPile (pileOfChoice .you)])) ]))
       = [] := by
@@ -124,7 +124,7 @@ theorem okStatusOnPermanentAfterPartition :
 theorem badPileFaceAsAStatus :
     Card.check
       (instantSaying
-        (.sequence
+        (.sequentially
           [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
             .setStatus .faceDown (those .pile) ])) = [.statusHolder] := by
   decide
@@ -161,7 +161,7 @@ theorem badOrderedSingularVoter :
 votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ vote .openly (.byLabel ["alpha", "beta"]) (agent := (each .anyPlayer)),
           draw (.votesFor "alpha") (agent := .you),
           doIf (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
@@ -191,7 +191,7 @@ theorem badWithMostVotesWithoutVote :
   decide
 
 theorem oneWayResultShift :
-    Instruction.check [] (.sequence [rollDice 1 6 (agent := .you), .shiftResult (some .up) (.lit
+    Instruction.check [] (.sequentially [rollDice 1 6 (agent := .you), .shiftResult (some .up) (.lit
         1)])
       = [] := by
   decide

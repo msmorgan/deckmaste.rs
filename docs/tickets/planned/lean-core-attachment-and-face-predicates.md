@@ -4,7 +4,7 @@ needs: []
 # Fold attachment predicates and read current face state
 
 Implement two local predicate folds. Apply the
-[campaign contract](lean-core-bindings-and-composition.md#campaign-contract).
+[campaign contract](../done/lean-core-bindings-and-composition.md#campaign-contract).
 Scope narrowed by the user on 2026-09-06; no general relation-query or numeric
 binding mechanism is required.
 

@@ -19,7 +19,7 @@ theorem okInfiltrate : Instruction.check [] infiltrate = [] := by decide
 def changeOfHeart : Instruction := forbidAttack (target creature) (some Primitives.Duration.thisTurn)
 theorem okChangeOfHeart : Instruction.check [] changeOfHeart = [] := by decide
 def blindblast : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
         Primitives.Duration.thisTurn)]
 theorem okBlindblast : Instruction.check [] blindblast = [] := by decide
@@ -27,7 +27,7 @@ def blindingFlare : Instruction :=
   forbidBlock (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature) (some Primitives.Duration.thisTurn)
 theorem okBlindingFlare : Instruction.check [] blindingFlare = [] := by decide
 def cowardKiller : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ forbidBlock (target creature) (some Primitives.Duration.thisTurn),
       become (that (.type .creature)) { characteristics := { subtypes := [creatureType "Coward"] } }
         (some untilEndOfTurn) ]
@@ -42,14 +42,14 @@ theorem okAuriokSiegeSledDenial : Ability.check [] auriokSiegeSledDenial = [] :=
 
 /-- Blindblast -/
 def blindblastWhole : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
         Primitives.Duration.thisTurn),
       Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]
 theorem okBlindblastWhole : Instruction.check [] blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) creature)),
       forbidBlock (those (.type .creature)) (some Primitives.Duration.thisTurn) ]
 theorem okSparkmagesGambit : Instruction.check [] sparkmagesGambit = [] := by decide
@@ -271,7 +271,7 @@ def gideonJura : Spelled := spelled <| .singleFaced
               (Primitives.Duration.duringNextTurnOf (that .player))),
           activated (Primitives.Cost.loyaltySymbol (.down 2)) (destroy (target (Primitives.Predicate.and [creature, tapped]))),
           activated (Primitives.Cost.loyaltySymbol .zero)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.establish
                   (Primitives.StaticSpec.qualityChange thisPlaneswalker .sets
                     (Primitives.QualityPayload.bundle
@@ -289,12 +289,12 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
     { name := "Pinpoint Avalanche", cost := some [generic 3, pip .red, pip .red],
       types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target creature),
               Primitives.Instruction.establish (Primitives.StaticSpec.preventionBan .any Primitives.Unpreventable.thatDamage .noPreventionOnly) none ]) ] } }
 
 def whippoorwillImmunity : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.establish (objectCant (.action "Regenerate") (target creature)) (some Primitives.Duration.thisTurn),
       Primitives.Instruction.establish
         (Primitives.StaticSpec.preventionBan .any
@@ -306,7 +306,7 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Call In a Professional", cost := some [generic 2, pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (playerCant (.core .gainLife) (Primitives.NounPhrase.playerGroup .allPlayers))
                 (some Primitives.Duration.thisTurn),
               Primitives.Instruction.establish
@@ -330,7 +330,7 @@ def councilOfTheAbsolute : Spelled := spelled <| .singleFaced
 
 /-- Failure // Comply -/
 def complyNameLock : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (a (quality .cardName)),
       Primitives.Instruction.establish
         (cantDoTo (.action "Cast") (Primitives.NounPhrase.playerGroup .yourOpponents)
@@ -353,7 +353,7 @@ def gideonsIntervention : Spelled := spelled <| .singleFaced
 
 /-- Academic Probation -/
 def academicProbationNameMode : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (a (qualityFrom .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not land)))),
       Primitives.Instruction.establish
         (cantDoTo (.action "Cast") (Primitives.NounPhrase.playerGroup .yourOpponents)
@@ -370,7 +370,7 @@ def fatigue : Spelled := spelled <| .singleFaced
 def meditate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Meditate", cost := some [generic 2, pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence [Primitives.Instruction.draw (.lit 4) (agent := Primitives.NounPhrase.you), Primitives.Instruction.skipPart .turn (.lit 1)
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 4) (agent := Primitives.NounPhrase.you), Primitives.Instruction.skipPart .turn (.lit 1)
           (agent := Primitives.NounPhrase.you)])] } }
 
 /-- Blinding Angel {3}{W}{W} — Creature — Angel 2/4. "Flying. Whenever Blinding Angel deals
@@ -558,7 +558,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
             (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof")))),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisArtifact (agent :=
               Primitives.NounPhrase.you))])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ gain (allOf creatureYouControl) (keyword "Hexproof") (some untilEndOfTurn),
                 Primitives.Instruction.establish
                   (deontic (allOf creatureYouControl) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
@@ -579,7 +579,7 @@ theorem okGadrakCantAttack : Ability.check [] gadrakCantAttack = [] := by decide
 
 /-- Berserker's Frenzy, the 1—14 striation -/
 def berserkersFrenzyLowRoll : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (counted anyNumber creature),
       Primitives.Instruction.establish (deontic them Primitives.Compulsion.require [.core .block] .agent Primitives.DeonticPatient.noPatient) (some Primitives.Duration.thisTurn) ]
 theorem okBerserkersFrenzyLowRoll : Instruction.check [] berserkersFrenzyLowRoll = [] := by decide
@@ -604,7 +604,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
 
 /-- Concussive Bolt, both paragraphs -/
 def concussiveBolt : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) targetPlayerOrPlaneswalker,
       Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .atLeast (.lit
           3))
@@ -734,7 +734,7 @@ def oppressiveRays : Spelled := spelled <| .singleFaced
 
 /-- Distortion Strike -/
 def distortionStrikeLine : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
       Primitives.Instruction.establish (deontic (that (.type .creature)) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
         (some Primitives.Duration.thisTurn) ]

@@ -67,8 +67,8 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequence
-        [.enact (.action "Destroy") (.sequence [.move (target creature) (.zone .hand .bare) []])])] } }
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [.enact (.action "Destroy") (.sequentially [.move (target creature) (.zone .hand .bare) []])])] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in

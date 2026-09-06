@@ -28,7 +28,8 @@ for example, "permanent", "colorless", "historic", "spell", "attacking", and
 
 Instructions and their macros use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
-Event constructors retain their predication forms. An explicit instruction agent
+Event constructors retain their predication forms. Instruction composition uses `sequentially` and `simultaneously`; fixed repetition
+lives in `Repetition.fixed`. An explicit instruction agent
 is a trailing named argument. `exile thisPermanent` omits the agent;
 `exile thisPermanent (agent := NounPhrase.you)` supplies one. Omission preserves
 `none` for optional agent slots; required player slots default to `.you`.

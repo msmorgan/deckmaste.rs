@@ -19,13 +19,13 @@ namespace Semantics.Cards
 def jump : Instruction := gain (target creature) (keyword "Flying") (some untilEndOfTurn)
 theorem okJump : Instruction.check [] jump = [] := by decide
 def gabrielAngelfire : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (a (qualityFrom .ability
         (Primitives.ChoiceDomain.abilitiesAmong [.the "Flying", .the "FirstStrike", .the "Trample", .theWith "Rampage" 3]))),
       gain thisCreature (Primitives.Ability.thatAbility .theChoice) (some (Primitives.Duration.until_ (Primitives.DurationEnd.startOf .upkeep (some Primitives.NounPhrase.you)))) ]
 theorem okGabrielAngelfire : Instruction.check [] gabrielAngelfire = [] := by decide
 def builtToSmash : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ get (target (Primitives.Predicate.and [creature, attacking])) (Primitives.Delta.up (.lit 3)) (Primitives.Delta.up (.lit 3)) (some untilEndOfTurn),
       Primitives.Instruction.doIf (itsA (Primitives.Predicate.and [artifact, creature]))
         (gain it (keyword "Trample") (some untilEndOfTurn)) none ]
@@ -61,7 +61,7 @@ def yotianSoldier : Spelled := spelled <| .singleFaced
 
 /-- Pym Particles -/
 def pymParticlesGrant : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ gain (target creature) (keyword "Vigilance") (some untilEndOfTurn),
       Primitives.Instruction.establish (deontic (that (.type .creature)) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
         (some Primitives.Duration.thisTurn) ]
@@ -142,7 +142,7 @@ def exquisiteArchangel : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ exile thisCreature,
                 setLife (Primitives.Amount.statOf (.playerStat .startingLifeTotal) Primitives.NounPhrase.you) (agent := Primitives.NounPhrase.you) ])
             .repeatedly none) ],
@@ -600,7 +600,7 @@ def crimsonWisps : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Crimson Wisps", cost := some [pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.conjunction none
                   [ Primitives.StaticSpec.qualityChange (target creature) .sets (Primitives.QualityPayload.colored (.some [.red])),
@@ -936,7 +936,7 @@ def bloodfireEnforcers : Spelled := spelled <| .singleFaced
       power := stat 5, toughness := stat 2 } }
 
 def stormOfSouls : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ move (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) battlefield,
       become them
         { characteristics :=
@@ -952,7 +952,7 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ when (Primitives.GameEvent.enters (a creatureYouControl) none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ gainLife (.lit 1) (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.doIf (Primitives.Condition.not (Primitives.Condition.matches thisEnchantment creature))
                   (become (itCondSubject (Primitives.Condition.not (Primitives.Condition.matches thisEnchantment creature)))
@@ -964,13 +964,13 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
 
 /-- Hate Mirage's middle two sentences -/
 def hateMirageTokens : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.doForEach (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) creatureYouDontControl)
         (Primitives.Instruction.create (.lit 1) (Primitives.TokenSpec.copyOf it []) [] (agent := Primitives.NounPhrase.you)),
       gain (those .token) (keyword "Haste") none ]
 theorem okHateMirageTokens : Instruction.check [] hateMirageTokens = [] := by decide
 def descentOfTheDragons : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature),
       Primitives.Instruction.doForEach (theVerbed (.action "Destroy") (.type .creature) .thisWay .many)
         (Primitives.Instruction.create (.lit 1)
@@ -1049,7 +1049,7 @@ theorem okDragonlordOjutaiHexproof : Ability.check [] dragonlordOjutaiHexproof =
 /-- Monoxa, Midway Manager -/
 def monoxaRollTrigger : Ability :=
   whenever (youRollResultIn (atLeast 3))
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ gain thisCreature (keyword "FirstStrike") (some untilEndOfTurn),
         doIf (Primitives.Condition.compareAmt (Primitives.Amount.theOutcome .rollResult) .atLeast (.lit 4))
           (gain it (keyword "Menace") (some untilEndOfTurn)),
@@ -1058,7 +1058,7 @@ def monoxaRollTrigger : Ability :=
 theorem okMonoxaRollTrigger : Ability.check [] monoxaRollTrigger = [] := by decide
 /-- Celebr-8000 -/
 def celebr8000Doubles : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ rollDice 2 6 (agent := Primitives.NounPhrase.you),
       doIf Primitives.Condition.rolledDoubles (gain thisCreature (keyword "DoubleStrike") (some untilEndOfTurn)) ]
 theorem okCelebr8000Doubles : Instruction.check [] celebr8000Doubles = [] := by decide
@@ -1178,7 +1178,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
 /-- Soul of Emancipation -/
 def soulOfEmancipation : Ability :=
   when (Primitives.GameEvent.enters thisCreature none)
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 3)) (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
         Primitives.Instruction.doForEach (those .permanent)
           (Primitives.Instruction.create (.lit 1)
@@ -1230,7 +1230,7 @@ def towerWinder : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Reach", keyword "Deathtouch",
           when (Primitives.GameEvent.enters thisCreature none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
                 revealIt, move foundCard hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
@@ -1244,7 +1244,7 @@ def aimHigh : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aim High", cost := some [generic 1, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ untap (target creature),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.conjunction none
@@ -1255,7 +1255,7 @@ def aimHigh : Spelled := spelled <| .singleFaced
 
 /-- Harried Dronesmith -/
 def harriedDronesmithToken : Instruction :=
-  Primitives.Instruction.sequence [create (.lit 1) thopterToken, gainHaste itAsToken (some untilEndOfTurn)]
+  Primitives.Instruction.sequentially [create (.lit 1) thopterToken, gainHaste itAsToken (some untilEndOfTurn)]
 theorem okHarriedDronesmithToken : Instruction.check [] harriedDronesmithToken = [] := by decide
 
 /-- Archfiend's Vessel -/
@@ -1348,7 +1348,7 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
               4])))
             (Primitives.Condition.matches it untapped)),
           whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) .less (.lit 3))
                   (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you)) none ]) ],
@@ -1393,7 +1393,7 @@ def debrisBeetle : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Trample",
           when (Primitives.GameEvent.enters thisVehicle none)
-            (Primitives.Instruction.sequence [loseLife (.lit 3) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 3) (agent :=
+            (Primitives.Instruction.sequentially [loseLife (.lit 3) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 3) (agent :=
                 Primitives.NounPhrase.you)]),
           keywordNumber "Crew" (.lit 2) ],
       power := stat 6, toughness := stat 6 } }
@@ -1414,12 +1414,12 @@ def marketGnome : Spelled := spelled <| .singleFaced
     { name := "Market Gnome", cost := some [pip .white], types := [.artifact, .creature],
       subtypes := [creatureType "Gnome"],
       text :=
-        [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequence [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1)
+        [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequentially [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1)
             (agent := Primitives.NounPhrase.you)]),
           triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "Exile") (some
             thisCreature) none none)
             (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead (.keyword "Craft")))))
-            (Primitives.Instruction.sequence [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
+            (Primitives.Instruction.sequentially [gainLife (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
       power := stat 0, toughness := stat 3 } }
 
 /-- Escaped Shapeshifter -/
@@ -1442,7 +1442,7 @@ def ancestralBlade : Spelled := spelled <| .singleFaced
       subtypes := [artifactType "Equipment"],
       text :=
         [ when (Primitives.GameEvent.enters thisEquipment none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
                 Primitives.Instruction.attachTo thisEquipment itAsToken ]),
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
@@ -1617,7 +1617,7 @@ def sphinxOfUthuun : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 5)),
                 Primitives.Instruction.separateIntoPiles them 2 [] (agent := anOpponent),
                 move onePile hand,
@@ -1725,7 +1725,7 @@ def tovolarNightfall : Instruction := Primitives.Instruction.setGameDesignation 
 theorem okTovolarNightfall : Instruction.check [] tovolarNightfall = [] := by decide
 /-- Spin into Myth -/
 def spinIntoMyth : Instruction :=
-  Primitives.Instruction.sequence [move (target creature) onTop, fateseal anOpponent (.lit 2) (agent := Primitives.NounPhrase.you)]
+  Primitives.Instruction.sequentially [move (target creature) onTop, fateseal anOpponent (.lit 2) (agent := Primitives.NounPhrase.you)]
 theorem okSpinIntoMyth : Instruction.check [] spinIntoMyth = [] := by decide
 /-- Pure // Simple -/
 def pureHalf : Instruction := destroy (target (Primitives.Predicate.and [permanent, multicolored]))

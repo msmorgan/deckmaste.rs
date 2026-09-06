@@ -33,7 +33,7 @@ theorem badChosenNumberRead :
 
 /-- "Choose target creature. You gain life equal to its power." -/
 theorem okSinglePower :
-    Instruction.check [] (.sequence [choose (target creature), gainLife (powerOf it) (agent :=
+    Instruction.check [] (.sequentially [choose (target creature), gainLife (powerOf it) (agent :=
         .you)])
       = [] := by
   decide
@@ -41,7 +41,7 @@ theorem okSinglePower :
 /-- "Choose two target creatures. You gain life equal to their power." -/
 theorem badGroupPower :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (.described (.target (exactly 2)) creature), gainLife (powerOf them) (agent :=
             .you)])
       = [.singular] := by
@@ -50,13 +50,13 @@ theorem badGroupPower :
 /-- "Choose target creature. Its owner loses 1 life." -/
 theorem okSingleOwner :
     Instruction.check []
-      (.sequence [choose (target creature), loseLife (.lit 1) (agent := (ownerOf it))]) = [] := by
+      (.sequentially [choose (target creature), loseLife (.lit 1) (agent := (ownerOf it))]) = [] := by
   decide
 
 /-- "Choose two target creatures. Their owners each lose 1 life." -/
 theorem okGroupOwners :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (.described (.target (exactly 2)) creature), loseLife (.lit 1) (agent := (ownerOf
             them))])
       = [] := by
@@ -136,7 +136,7 @@ theorem badModalReadsAcrossModes :
 
 theorem badReadsAfterModal :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ chooseModes (exactly 1) [destroy (target artifact), destroy (target enchantment)],
           .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
@@ -144,14 +144,14 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Instruction.check []
-      (.offer (.pay (payLife .you 1) .once (agent := .you)) none (some (draw (.lit 1) (agent :=
+      (Primitives.Instruction.offer (.pay (payLife .you 1) .once (agent := .you)) none (some (draw (.lit 1) (agent :=
           .you))) (agent := .you)) = [] := by
   decide
 
 /-- "you pay" -/
 theorem badMismatchedPayer :
     Instruction.check []
-      (.offer (.pay (payLife anOpponent 1) .once (agent := .you)) none (some (draw (.lit 1) (agent
+      (Primitives.Instruction.offer (.pay (payLife anOpponent 1) .once (agent := .you)) none (some (draw (.lit 1) (agent
           := .you))) (agent := .you))
       = [.payAgrees] := by
   decide
@@ -285,7 +285,7 @@ theorem okChoiceRestStands :
 
 def afterChoiceRestDisposed : Bindings :=
   Instruction.intro []
-    (.sequence [choose (counted (upTo 1) creature), destroy (theRest .object)])
+    (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)])
 
 /-- "Choose up to one creature. Destroy the rest. Destroy the rest." -/
 theorem badChoiceRestDisposedTwice :
@@ -299,7 +299,7 @@ def upToOneTheyControl : NounPhrase :=
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 def distributedRestOfOwnChoice : Instruction :=
-  .sequence
+  .sequentially
     [ choose upToOneTheyControl (agent := some (each .anyPlayer)),
       sacrifice (theRest .object) (agent := (each .anyPlayer)) ]
 
@@ -329,7 +329,7 @@ theorem badDistributedRestDisposedTwice :
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
 theorem okSharedGroupWithoutARest :
     Instruction.check []
-      (.sequence [tap (allOf creature), choose upToOneTheyControl (agent := some (each
+      (.sequentially [tap (allOf creature), choose upToOneTheyControl (agent := some (each
           .anyPlayer))])
       = [] := by
   decide
@@ -339,7 +339,7 @@ those permanents.": the plural deed re-places only the plural bindings the same 
 [CR#701.21a]. -/
 theorem okDistributedLoopParts :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
           sacrifice (those .permanent) (agent := (those .player)) ]) = [] := by
@@ -351,7 +351,7 @@ sacrifice a permanent they don't control ([CR#701.21a]; `okDistributedRestOfOwnC
 same deed with only the chooser's own partitives standing). -/
 theorem badDistributedRestOfSharedGroup :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ tap (allOf creature),
           choose upToOneTheyControl (agent := some (each .anyPlayer)),
           sacrifice (theRest .object) (agent := (each .anyPlayer)) ]) = [.enactKeepsOuter] := by
@@ -362,7 +362,7 @@ shared leftover, not a partition per player, so the other players would sacrific
 they don't control [CR#701.21a]. -/
 theorem badDistributedRestOfSingularChoice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (counted (upTo 1) creature), sacrifice (theRest .object) (agent := (each
             .anyPlayer))])
       = [.enactKeepsOuter] := by
@@ -393,7 +393,7 @@ theorem okGetsBattlefield :
 the destroyed creature. -/
 theorem badGetsGraveyard :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [destroy (target creature), get it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
       = [.zoneIs .battlefield, .zoneIs .battlefield] := by
   decide
@@ -401,7 +401,7 @@ theorem badGetsGraveyard :
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/
 theorem okNotChosenAfterOneChoice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (a creature) (agent := some .you),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
   decide
@@ -418,7 +418,7 @@ way.": "this way" names the manner, so both standing choices are excluded togeth
 [CR#700.8d]. -/
 theorem okNotChosenAfterTwoChoices :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (a creature) (agent := some .you),
           choose (a creature) (agent := some .you),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
@@ -429,7 +429,7 @@ Destroy each creature not chosen this way.": Sculpted Sunburst's exclusion, whos
 choices have different choosers [CR#101.4]. -/
 theorem okNotChosenAcrossChoosers :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (a creatureYouControl),
           choose (a (.and [creature, .hasPossessor .controller they])) (agent := some (each
               .opponent)),
@@ -470,7 +470,7 @@ theorem badOrderedSingularChooser :
 /-- "Choose a creature. If you chose a creature this way, draw a card." -/
 theorem okChoseThisWayAfterChoice :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [choose (a creature) (agent := some .you), doIf (.choseThisWay .you creature) (draw (.lit 1)
             (agent := .you))])
       = [] := by
@@ -485,7 +485,7 @@ theorem badChoseThisWayWithoutAChoice :
 
 /-- "Each player chooses a creature. Exile them." -/
 theorem okDistributedChoiceReadsAsGroup :
-    Instruction.check [] (.sequence [choose (a creature) (agent := some (each .anyPlayer)), exile
+    Instruction.check [] (.sequentially [choose (a creature) (agent := some (each .anyPlayer)), exile
         them])
       = [] := by
   decide
@@ -494,7 +494,7 @@ theorem okDistributedChoiceReadsAsGroup :
 chooser, so the singular read has no antecedent (`okDistributedChoiceReadsAsGroup` is the
 plural read). -/
 theorem badDistributedChoiceReadSingular :
-    Instruction.check [] (.sequence [choose (a creature) (agent := some (each .anyPlayer)), exile
+    Instruction.check [] (.sequentially [choose (a creature) (agent := some (each .anyPlayer)), exile
         it])
       = [.anaphor .bare .one 0] := by
   decide
@@ -503,7 +503,7 @@ theorem badDistributedChoiceReadSingular :
 printed card on the bench. -/
 theorem lookAtTopThenBin :
     Instruction.check []
-      (.sequence [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard) (agent := .you)])
+      (.sequentially [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard) (agent := .you)])
       = [] := by
   decide
 
@@ -529,7 +529,7 @@ theorem eachPlayerPlaysAdditionalLand :
 your hand." No printed card on the bench. -/
 theorem millThenPutFromAmongMilled :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ mill (.lit 3) .you (agent := .you),
           offer
             (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .card .thisWay .many))
@@ -542,7 +542,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Instruction.check []
       (offer
         (shuffleInto
-          (.both (allOf (.inZone (handOf they))) (allOf (.inZone (graveyardOf they)))) (agent :=
+          (Primitives.NounPhrase.both (allOf (.inZone (handOf they))) (allOf (.inZone (graveyardOf they)))) (agent :=
               they)) (agent := (each .anyPlayer)))
       = [] := by
   decide
@@ -551,7 +551,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Instruction.check []
       (offer
-        (.sequence [discard (allOf (.inZone (handOf they))) (agent := they), draw (.lit 7) (agent :=
+        (.sequentially [discard (allOf (.inZone (handOf they))) (agent := they), draw (.lit 7) (agent :=
             they)]) (agent := (each .anyPlayer)))
       = [] := by
   decide
@@ -588,7 +588,7 @@ chose the highest number loses that much life." (Menacing Ogre): not a vote [CR#
 gate is the plural choice. -/
 theorem okChoseExtremeAfterNumbers :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ choose (disclosure := .secretly) (a (quality .number)) (agent := some (each .anyPlayer)),
           .revealChoices .numbers,
           loseLife .thatMuch (agent := (each (.and [.anyPlayer, .choseExtreme .max]))) ]) = [] := by

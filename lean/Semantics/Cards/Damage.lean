@@ -27,11 +27,11 @@ theorem okRabidBite : Instruction.check [] rabidBite = [] := by decide
 def preyUpon : Instruction := Primitives.Instruction.fight (target creatureYouControl) (target creatureYouDontControl)
 theorem okPreyUpon : Instruction.check [] preyUpon = [] := by decide
 def arcTrail : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget), Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target anyOtherTarget) ]
 theorem okArcTrail : Instruction.check [] arcTrail = [] := by decide
 def deadshot : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.setStatus .tapped (target creature),
       Primitives.Instruction.dealDamage it (Primitives.Amount.statOf (.stat .power) it) (target (Primitives.Predicate.and [creature, Primitives.Predicate.other])) ]
 theorem okDeadshot : Instruction.check [] deadshot = [] := by decide
@@ -39,7 +39,7 @@ def immersturmSkullcairn : Ability :=
   activatedOnlyDuring
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 1, pip .black, pip .red, pip .red], Primitives.Cost.tapSymbol,
       Primitives.Cost.perform (sacrifice thisLand (agent := Primitives.NounPhrase.you))])
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage it (.lit 3) (target Primitives.Predicate.anyPlayer), discard (a (Primitives.Predicate.inZone hand)) (agent := (that
           .player)) ])
     Primitives.Timing.asSorcery
@@ -49,17 +49,17 @@ def pyriteSpellbomb : Ability :=
     (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget))
 theorem okPyriteSpellbomb : Ability.check [] pyriteSpellbomb = [] := by decide
 def karplusanYeti : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ dealDamageOwnPower thisCreature (target creature),
       Primitives.Instruction.dealDamage (that (.type .creature)) (Primitives.Amount.statOf (.stat .power) it) thisCreature ]
 theorem okKarplusanYeti : Instruction.check [] karplusanYeti = [] := by decide
 def suddenDemise : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (a (quality .color)),
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) (each (Primitives.Predicate.and [creature, ofChosen .color])) ]
 theorem okSuddenDemise : Instruction.check [] suddenDemise = [] := by decide
 def caseOfTheGatewayExpress : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (target creatureYouDontControl),
       Primitives.Instruction.dealDamage (each creatureYouControl) (.lit 1) (that (.type .creature)) ]
 theorem okCaseOfTheGatewayExpress : Instruction.check [] caseOfTheGatewayExpress = [] := by decide
@@ -67,7 +67,7 @@ def arrowsOfJustice : Instruction :=
   Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target (Primitives.Predicate.and [creature, Primitives.Predicate.or [attacking, blocking]]))
 theorem okArrowsOfJustice : Instruction.check [] arrowsOfJustice = [] := by decide
 def flamesOfTheRazeBoar : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])),
       Primitives.Instruction.doOnlyIf
         (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2)
@@ -77,18 +77,18 @@ def flamesOfTheRazeBoar : Instruction :=
 theorem okFlamesOfTheRazeBoar : Instruction.check [] flamesOfTheRazeBoar = [] := by decide
 def yawgmothDemon : Instruction :=
   Primitives.Instruction.offer (sacrifice (a artifact) (agent := Primitives.NounPhrase.you)) none
-    (some (Primitives.Instruction.sequence [Primitives.Instruction.setStatus .tapped thisCreature, Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) Primitives.NounPhrase.you])) (agent :=
+    (some (Primitives.Instruction.sequentially [Primitives.Instruction.setStatus .tapped thisCreature, Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) Primitives.NounPhrase.you])) (agent :=
         Primitives.NounPhrase.you)
 theorem okYawgmothDemon : Instruction.check [] yawgmothDemon = [] := by decide
 def arcBlade : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget), exileWithCounters Primitives.NounPhrase.this (.lit 3) (.named "Time") ]
 theorem okArcBlade : Instruction.check [] arcBlade = [] := by decide
 def abrade : Instruction :=
   chooseModes (exactly 1) [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target creature), destroy (target artifact)]
 theorem okAbrade : Instruction.check [] abrade = [] := by decide
 def nibelheimAflame : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ choose (target creatureYouControl),
       Primitives.Instruction.dealDamage it (Primitives.Amount.statOf (.stat .power) it) (each (otherCreature it)) ]
 theorem okNibelheimAflame : Instruction.check [] nibelheimAflame = [] := by decide
@@ -99,7 +99,7 @@ def ulvenwaldTracker : Instruction :=
 theorem okUlvenwaldTracker : Instruction.check [] ulvenwaldTracker = [] := by decide
 
 def botBashingTime : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 6) (target creature),
       replaceEvent (Primitives.GameEvent.dies (that (.type .creature))) (exile it) (some Primitives.Duration.thisTurn) ]
 theorem okBotBashingTime : Instruction.check [] botBashingTime = [] := by decide
@@ -112,12 +112,12 @@ def thunderwave : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Thunderwave", cost := some [generic 2, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ rollDice 1 20 (agent := Primitives.NounPhrase.you),
               Primitives.Instruction.applyResultsTable
                 [ rollRow (fromTo 1 9) (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each creature)),
                   rollRow (fromTo 10 19)
-                    (Primitives.Instruction.sequence
+                    (Primitives.Instruction.sequentially
                       [ offer (choose (a creature) (agent := some Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you),
                         Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each (Primitives.Predicate.and [creature, Primitives.Predicate.notChosen])) ]),
                   rollRow (fromTo 20 20)
@@ -157,13 +157,13 @@ def aladdinsRing : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.dealDamage thisArtifact (.lit 4) (target anyTarget)) ] } }
 
 def chandrasRevolution : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target creature), Primitives.Instruction.setStatus .tapped (target land),
       Primitives.Instruction.skipUntap (that (.type .land)) (.lit 1) ]
 theorem okChandrasRevolution : Instruction.check [] chandrasRevolution = [] := by decide
 def arbalestElite : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .white], Primitives.Cost.tapSymbol])
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage thisCreature (.lit 3) (target (Primitives.Predicate.and [creature, Primitives.Predicate.or [attacking, blocking]])),
         Primitives.Instruction.skipUntap thisCreature (.lit 1) ])
 theorem okArbalestElite : Ability.check [] arbalestElite = [] := by decide
@@ -190,7 +190,7 @@ def chainReaction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chain Reaction", cost := some [generic 2, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) (each creature), Primitives.Instruction.define .x (countOf creature) ]) ] } }
 
 /-- Black Vise -/
@@ -200,7 +200,7 @@ def blackVise : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (entersChoosingPlayer thisArtifact (some (Primitives.ChoiceDomain.players Primitives.Predicate.opponent))),
           at_ (beginningOfPossessed .the .upkeep (the chosenPlayer))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage thisArtifact (Primitives.Amount.letter .x) (that .player),
                 Primitives.Instruction.define .x (Primitives.Amount.arith .minus (countOf (Primitives.Predicate.inZone (handOf they))) (.lit 4)) ]) ] } }
 
@@ -208,7 +208,7 @@ def harshSustenance : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Harsh Sustenance", cost := some [generic 1, pip .white, pip .black], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) (target anyTarget),
               gainLife (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
               Primitives.Instruction.define .x (countOf creatureYouControl) ]) ] } }
@@ -216,7 +216,7 @@ def harshSustenance : Spelled := spelled <| .singleFaced
 /-- Purging Scythe -/
 def purgingScythe : Ability :=
   at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage thisArtifact (.lit 2)
           (the (Primitives.Predicate.and [creature, Primitives.Predicate.superlative .min (.stat .toughness) creature])),
         Primitives.Instruction.doIf
@@ -308,7 +308,7 @@ def dazzlingReflection : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dazzling Reflection", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ gainLife (Primitives.Amount.statOf (.stat .power) (target creature)) (agent := Primitives.NounPhrase.you),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (that (.type .creature))) Primitives.DamageScope.everywhere (Primitives.DamageOp.prevent Primitives.PreventCut.all none)
@@ -333,7 +333,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker], subtypes := [planeswalkerType "Gideon"],
       text :=
         [ activated (Primitives.Cost.loyaltySymbol (.up 1))
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.establish
                   (Primitives.StaticSpec.qualityChange thisPlaneswalker .sets
                     (Primitives.QualityPayload.bundle
@@ -409,7 +409,7 @@ def carom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Carom", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (target creature))
                   (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (.lit 1)) (target (Primitives.Predicate.and [creature, Primitives.Predicate.other]))) .repeatedly)
@@ -479,7 +479,7 @@ def healingGrace : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Healing Grace", cost := some [pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source)) (Primitives.DamageScope.toRecipient (target anyTarget))
                   (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (.lit 3)) none) .repeatedly)
@@ -563,7 +563,7 @@ theorem okOnakkeJavelineerBolt : Ability.check [] onakkeJavelineerBolt = [] := b
 
 /-- Firesong and Sunspeaker -/
 def firesongJoinEcho : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target (Primitives.Predicate.or [creature, Primitives.Predicate.anyPlayer])),
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) thatJoin ]
 theorem okFiresongJoinEcho : Instruction.check [] firesongJoinEcho = [] := by decide
@@ -758,7 +758,7 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Haste",
           whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it Primitives.Amount.thatMuch (target (Primitives.Predicate.and [anyTarget, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
                 Primitives.Instruction.doIf (Primitives.Condition.dealtThisWay Primitives.Predicate.anyPlayer)
                   (Primitives.Instruction.establish (playerCant (.core .gainLife) they) (some Primitives.Duration.restOfGame)) none ]) ],
@@ -771,7 +771,7 @@ def sonicShrieker : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none)
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget),
                 gainLife (.lit 2) (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.doIf (Primitives.Condition.dealtThisWay Primitives.Predicate.anyPlayer) (discard (a (Primitives.Predicate.inZone hand)) (agent := they)) none
@@ -793,7 +793,7 @@ def cursedScroll : Spelled := spelled <| .singleFaced
     { name := "Cursed Scroll", cost := some [generic 1], types := [.artifact],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ choose (a (quality .cardName)),
                 revealCards (aAtRandom (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))),
                 Primitives.Instruction.doIf (Primitives.Condition.matches (that .card) (Primitives.Predicate.named Primitives.NameSource.chosen))
@@ -805,7 +805,7 @@ def magusOfTheScroll : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ choose (a (quality .cardName)),
                 revealCards (aAtRandom (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))),
                 Primitives.Instruction.doIf (Primitives.Condition.matches (that .card) (Primitives.Predicate.named Primitives.NameSource.chosen))
@@ -825,7 +825,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
       power := stat 0, toughness := stat 1 } }
 
 def saheeliRaiPlusOne : Instruction :=
-  Primitives.Instruction.sequence [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (each Primitives.Predicate.opponent)]
+  Primitives.Instruction.sequentially [scry (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (each Primitives.Predicate.opponent)]
 theorem okSaheeliRaiPlusOne : Instruction.check [] saheeliRaiPlusOne = [] := by decide
 def sarkhansUnsealingLine : Ability :=
   whenever
@@ -838,7 +838,7 @@ def sarkhansUnsealingLine : Ability :=
 theorem okSarkhansUnsealingLine : Ability.check [] sarkhansUnsealingLine = [] := by decide
 /-- Savage Swipe, both sentences -/
 def savageSwipeLine : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.doOnlyIf (get (target creatureYouControl) (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)) (some
         untilEndOfTurn))
         (Primitives.Condition.compareAmt (Primitives.Amount.statOf (.stat .power) it) .eq (.lit 2)) none,
@@ -863,7 +863,7 @@ def incinerate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Incinerate", cost := some [generic 1, pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget),
               Primitives.Instruction.establish
                 (objectCant (.action "Regenerate")
@@ -945,55 +945,55 @@ def brazenDwarf : Spelled := spelled <| .singleFaced
 
 /-- Lavalanche -/
 def lavalanche : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) eachCreatureThatSplitControls ]
 theorem okLavalanche : Instruction.check [] lavalanche = [] := by decide
 /-- Flame Wave -/
 def flameWave : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) eachCreatureThatSplitControls ]
 theorem okFlameWave : Instruction.check [] flameWave = [] := by decide
 /-- Chandra Nalaar's ultimate -/
 def chandraNalaarUltimate : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 10) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 10) eachCreatureThatSplitControls ]
 theorem okChandraNalaarUltimate : Instruction.check [] chandraNalaarUltimate = [] := by decide
 /-- Chandra, Pyrogenius's ultimate -/
 def chandraPyrogeniusUltimate : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 6) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 6) eachCreatureThatSplitControls ]
 theorem okChandraPyrogeniusUltimate : Instruction.check [] chandraPyrogeniusUltimate = [] := by decide
 /-- Bonfire of the Damned -/
 def bonfireOfTheDamned : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) eachCreatureThatSplitControls ]
 theorem okBonfireOfTheDamned : Instruction.check [] bonfireOfTheDamned = [] := by decide
 /-- Chandra's Fury -/
 def chandrasFury : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) eachCreatureThatSplitControls ]
 theorem okChandrasFury : Instruction.check [] chandrasFury = [] := by decide
 /-- Angrath, Minotaur Pirate's plus -/
 def angrathMinotaurPirateBolt : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) targetOpponentOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) eachCreatureThatSplitControls ]
 theorem okAngrathMinotaurPirateBolt : Instruction.check [] angrathMinotaurPirateBolt = [] := by decide
 def whichOfYouBurnsBrightestBody : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetOpponentOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) eachCreatureThatSplitControls ]
 theorem okWhichOfYouBurnsBrightestBody :
     Instruction.check [] whichOfYouBurnsBrightestBody = [] := by decide
 /-- Chandra, Pyromaster's plus -/
 def chandraPyromasterBolt : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1)
         (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
@@ -1001,7 +1001,7 @@ def chandraPyromasterBolt : Instruction :=
 theorem okChandraPyromasterBolt : Instruction.check [] chandraPyromasterBolt = [] := by decide
 /-- Ravager of the Fells -/
 def ravagerOfTheFellsBolt : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage thisCreature (.lit 2) targetOpponentOrPlaneswalker,
       Primitives.Instruction.dealDamage thisCreature (.lit 2)
         (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
@@ -1009,7 +1009,7 @@ def ravagerOfTheFellsBolt : Instruction :=
 theorem okRavagerOfTheFellsBolt : Instruction.check [] ravagerOfTheFellsBolt = [] := by decide
 /-- Soul of Shandalar's battlefield activation -/
 def soulOfShandalarBolt : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage thisCreature (.lit 3) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage thisCreature (.lit 3)
         (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
@@ -1017,7 +1017,7 @@ def soulOfShandalarBolt : Instruction :=
 theorem okSoulOfShandalarBolt : Instruction.check [] soulOfShandalarBolt = [] := by decide
 /-- Soul of Shandalar's graveyard activation -/
 def soulOfShandalarGraveyardBolt : Instruction :=
-  Primitives.Instruction.performSimultaneously
+  Primitives.Instruction.simultaneously
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) targetPlayerOrPlaneswalker,
       Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3)
         (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
@@ -1026,40 +1026,40 @@ theorem okSoulOfShandalarGraveyardBolt :
     Instruction.check [] soulOfShandalarGraveyardBolt = [] := by decide
 /-- Blightning -/
 def blightning : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) targetPlayerOrPlaneswalker,
       discard (counted (exactly 2) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker) ]
 theorem okBlightning : Instruction.check [] blightning = [] := by decide
 /-- Rakdos's Return -/
 def rakdossReturn : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetOpponentOrPlaneswalker,
       discard (counted (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x)) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker) ]
 theorem okRakdossReturn : Instruction.check [] rakdossReturn = [] := by decide
 /-- Nicol Bolas, Planeswalker's ultimate -/
 def nicolBolasUltimate : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 7) targetPlayerOrPlaneswalker,
       discard (counted (exactly 7) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker),
       sacrifice (counted (exactly 7) permanent) (agent := splitOverPlaneswalker) ]
 theorem okNicolBolasUltimate : Instruction.check [] nicolBolasUltimate = [] := by decide
 /-- Pulse of the Forge -/
 def pulseOfTheForge : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) targetPlayerOrPlaneswalker,
       Primitives.Instruction.doIf (Primitives.Condition.compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf Primitives.NounPhrase.you))
         (move Primitives.NounPhrase.this hand) none ]
 theorem okPulseOfTheForge : Instruction.check [] pulseOfTheForge = [] := by decide
 /-- Goblin Lyre's losing arm -/
 def goblinLyreLoseFlip : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage thisArtifact (countOf creatureYouControl) targetOpponentOrPlaneswalker,
       Primitives.Instruction.dealDamage thisArtifact
         (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller splitOverPlaneswalker])) Primitives.NounPhrase.you ]
 theorem okGoblinLyreLoseFlip : Instruction.check [] goblinLyreLoseFlip = [] := by decide
 /-- Quenchable Fire -/
 def quenchableFire : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) targetPlayerOrPlaneswalker,
       delay (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
         (doUnless (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) thatJoin) (Primitives.Cost.mana [pip .blue]) (agent :=
@@ -1070,11 +1070,11 @@ def searingBlaze : Ability :=
   abilityWord "landfall"
     (Primitives.Ability.spell none
       (Primitives.Instruction.replace
-        (Primitives.Instruction.performSimultaneously
+        (Primitives.Instruction.simultaneously
           [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) targetPlayerOrPlaneswalker,
             Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1)
               (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller splitOverPlaneswalker])) ])
-        (Primitives.Instruction.performSimultaneously
+        (Primitives.Instruction.simultaneously
           [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) thatJoin,
             Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (that (.type .creature)) ])))
 theorem okSearingBlaze : Ability.check [] searingBlaze = [] := by decide
@@ -1086,8 +1086,8 @@ def heartOfBogardan : Spelled := spelled <| .singleFaced
       text :=
         [ cumulativeUpkeep (Primitives.Cost.mana [generic 2]),
           when heartOfBogardanHeader
-            (Primitives.Instruction.sequence
-              [ Primitives.Instruction.performSimultaneously
+            (Primitives.Instruction.sequentially
+              [ Primitives.Instruction.simultaneously
                   [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetPlayerOrPlaneswalker,
                     Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) eachCreatureThatSplitControls ],
                 Primitives.Instruction.define .x
@@ -1142,7 +1142,7 @@ def tribalFlames : Spelled := spelled <| .singleFaced
     { name := "Tribal Flames", cost := some [generic 1, pip .red], types := [.sorcery],
       text :=
         [ abilityWord "domain"
-            (Primitives.Ability.spell none (Primitives.Instruction.sequence
+            (Primitives.Ability.spell none (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) (target anyTarget),
                 Primitives.Instruction.define .x (Primitives.Amount.distinctCount (.subtype .land .basicOnly)
                   (allOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) ])) ] } }
@@ -1151,14 +1151,14 @@ def tribalFlames : Spelled := spelled <| .singleFaced
 def explosiveProdigyTrigger : Ability :=
   abilityWord "vivid"
     (when (Primitives.GameEvent.enters thisCreature none)
-      (Primitives.Instruction.sequence
+      (Primitives.Instruction.sequentially
         [ Primitives.Instruction.dealDamage it (Primitives.Amount.letter .x) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])),
           Primitives.Instruction.define .x (Primitives.Amount.distinctCount .color (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) ]))
 theorem okExplosiveProdigyTrigger : Ability.check [] explosiveProdigyTrigger = [] := by decide
 /-- Niv-Mizzet, Guildpact -/
 def nivMizzetGuildpactTrigger : Ability :=
   whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-    (Primitives.Instruction.sequence
+    (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage thisCreature (Primitives.Amount.letter .x) (target anyTarget),
         Primitives.Instruction.draw (Primitives.Amount.letter .x) (agent := (target Primitives.Predicate.anyPlayer)),
         gainLife (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
@@ -1178,7 +1178,7 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
           whenever (Primitives.GameEvent.attacksWith (a Primitives.Predicate.anyPlayer) none (counted (atLeast 3) creature)) (Primitives.Instruction.draw (.lit 1)
               (agent := Primitives.NounPhrase.you)),
           whenever (Primitives.GameEvent.attacksWith (a Primitives.Predicate.anyPlayer) none (counted (atLeast 5) creature))
-            (Primitives.Instruction.sequence [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each Primitives.Predicate.opponent), gainLife (.lit 3) (agent :=
+            (Primitives.Instruction.sequentially [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each Primitives.Predicate.opponent), gainLife (.lit 3) (agent :=
                 Primitives.NounPhrase.you)]) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1202,7 +1202,7 @@ def destructiveRevelry : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Destructive Revelry", cost := some [pip .red, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ destroy (target (Primitives.Predicate.or [artifact, enchantment])),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (controllerOf (that .permanent)) ]) ] } }
 
@@ -1218,7 +1218,7 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
 
 /-- Breeches, Brazen Plunderer's slice -/
 def eachOfThoseOpponentsTopCard : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (each Primitives.Predicate.opponent),
       exile (Primitives.NounPhrase.librarySlice .top (.lit 1) (Primitives.NounPhrase.eachOf (those .player))) ]
 theorem okEachOfThoseOpponentsTopCard : Instruction.check [] eachOfThoseOpponentsTopCard = [] := by
@@ -1245,13 +1245,13 @@ def oathOfKaya : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.enchantment],
       text :=
         [ when (Primitives.GameEvent.enters Primitives.NounPhrase.this none)
-            (Primitives.Instruction.sequence [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget), gainLife (.lit 3) (agent :=
+            (Primitives.Instruction.sequentially [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget), gainLife (.lit 3) (agent :=
                 Primitives.NounPhrase.you)]),
           whenever
             (Primitives.GameEvent.attacksWith anOpponent
               (some (a (Primitives.Predicate.and [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
               (counted (atLeast 1) creature))
-            (Primitives.Instruction.sequence [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (that .player), gainLife (.lit 2) (agent :=
+            (Primitives.Instruction.sequentially [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (that .player), gainLife (.lit 2) (agent :=
                 Primitives.NounPhrase.you)]) ] } }
 
 /-- Frostwielder -/
@@ -1271,7 +1271,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
 
 /-- Crackling Doom -/
 def cracklingDoom : Instruction :=
-  Primitives.Instruction.sequence
+  Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (each Primitives.Predicate.opponent),
       sacrifice
         (a (Primitives.Predicate.and [creature,
@@ -1300,7 +1300,7 @@ def blindFury : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Blind Fury", cost := some [generic 2, pip .red, pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (Primitives.StaticSpec.abilityLoss (allOf creature) [Primitives.AbilityLost.written (keyword "Trample")])
                 (some untilEndOfTurn),
               Primitives.Instruction.establish
@@ -1323,7 +1323,7 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .red], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.sequence
+            (Primitives.Instruction.sequentially
               [ chooseWhile
                   (target (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
                   (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you thisAbility)),
@@ -1361,7 +1361,7 @@ def laquatussDisdain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Laquatus's Disdain", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequence
+        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard])), Primitives.Instruction.draw (.lit 1) (agent :=
                 Primitives.NounPhrase.you) ]) ] } }
 

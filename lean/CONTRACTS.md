@@ -155,6 +155,33 @@ arithmetic traverses its operands in order and puts the latest mention first.
 `Proofs/Turn` pins exact output bindings, forward-reference refusal, reads
 through unrelated outer bindings, and mentions created inside the amount.
 
+## Definitions and composition
+
+`StaticSpec.letterDefinition` is the one numeric definition form. The `define`
+macro establishes it without a duration. Both static and instruction positions
+check the amount in the incoming scope, close an already-open letter, and reject
+an unused or duplicate definition. An earlier target or affected-object mention
+remains available to a trailing definition; nothing is hoisted. A durationless
+numeric definition is admissible inside a cost, retaining the former instruction
+form's behavior. Other established specs and duration-bearing definitions retain
+their cost refusal. The formerly separate `establish (letterDefinition …) none`
+spelling now has this same cost admissibility and clamped number slot.
+
+`withContinuation` carries an optional policy with its deciding player, or a
+required policy. Its positive branch is conditioned on the decision or start of
+payment [CR#118.12], not a test of the resulting events. The policy retains the
+existing mandatory-enclosure and armed-continuation checks. `repeat_ (.fixed …)`
+carries its count and body; the other repetition policies remain unchanged.
+
+Noun conjunctions and alternatives are lists, as are cost alternatives. They
+require at least two members; the binary `both`, `eitherOf`, and `either` macros
+supply two-member lists. Noun conjunctions thread introductions in textual order;
+alternatives check their members independently. Predicate and condition lists
+retain their existing cardinality and scope laws. `sequentially` threads instruction
+outputs, while `simultaneously` threads announcements without publishing sibling
+outcomes. Both require a nonempty list. These are syntax and checker guarantees;
+they do not prove Rust execution equivalence.
+
 ## Enclosed traversals
 
 These are explicit boundaries in the surrounding checker, not exceptions to
@@ -166,9 +193,9 @@ be inferred from a failed pronoun:
 | Simultaneous instructions | Thread announcements; sibling events do not read each other's outcomes. |
 | Predicate sibling modifiers, condition siblings | Check in the same containing context; do not make conjunction sequential. |
 | Alternatives, modes and result-table rows | Branch from their enclosing context; successful branch-local mentions are not unconditionally exported. A mode's cost precedes its own body. |
-| `offer`, `doIfDone` | The success arm sees the body output; the failure arm starts before the body. |
+| `withContinuation` (`offer` / `doIfDone` macros) | The success arm sees the body output; the failure arm starts before the body. |
 | `doIf`, `doOnlyIf` | The condition/body order and `otherwiseCtx` are explicit; conditional execution exports no unconditional event outcome. |
-| `doForEach`, `doForEachKind`, `repeatTimes` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
+| `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
 | `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |

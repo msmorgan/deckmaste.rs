@@ -5,7 +5,7 @@ needs: []
 
 Implement the concrete event and static-spec folds below, preserving their
 existing scopes. Apply the
-[campaign contract](lean-core-bindings-and-composition.md#campaign-contract).
+[campaign contract](../done/lean-core-bindings-and-composition.md#campaign-contract).
 Scope narrowed by the user on 2026-09-06; no new provenance, relation-query,
 or general as-event instruction mechanism is a prerequisite.
 

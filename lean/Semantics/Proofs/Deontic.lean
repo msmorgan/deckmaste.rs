@@ -194,7 +194,7 @@ theorem badPayAsCost :
 /-- "Discard a card, then sacrifice a creature:" -/
 theorem badSequentialCost :
     Ability.check []
-      (act (.perform (.sequence [discard (a (.inZone hand)) (agent := .you), sacrifice (a creature)
+      (act (.perform (.sequentially [discard (a (.inZone hand)) (agent := .you), sacrifice (a creature)
           (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -203,7 +203,7 @@ theorem badSequentialCost :
 theorem badSimultaneousCost :
     Ability.check []
       (act
-        (.perform (.performSimultaneously [discard (a (.inZone hand)) (agent := .you), sacrifice (a
+        (.perform (.simultaneously [discard (a (.inZone hand)) (agent := .you), sacrifice (a
             creature) (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -416,7 +416,7 @@ theorem okCoordinatedLandHostBlocks :
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAfterDealing :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 4) (target creature),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ]) = [] := by
   decide
@@ -424,7 +424,7 @@ theorem okTheDamageAfterDealing :
 /-- "You gain 3 life. The damage can't be prevented." -/
 theorem badTheDamageAfterLifeGain :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .changeLife (.up (.lit 3)) (agent := .you),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ])
       = [.damageDealtInScope] := by

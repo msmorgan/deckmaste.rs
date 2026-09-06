@@ -393,7 +393,7 @@ theorem badCopyPermanent :
 /-- "Create a token that's a copy of target creature. Untap that token." -/
 theorem okSetStatusOnBattlefield :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .token) ]) = [] := by
   decide
@@ -402,7 +402,7 @@ theorem okSetStatusOnBattlefield :
 anaphor; the unresolved "that token" has no zone either. -/
 theorem badStackCopyAsToken :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
           .setStatus .untapped (that .token) ])
       = [.anaphor (.word .token) .one 0, .zoneIs .battlefield] := by
@@ -411,7 +411,7 @@ theorem badStackCopyAsToken :
 /-- "Create a token that's a copy of target creature. Untap that copy." -/
 theorem badTokenCopyAsCopyMention :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .create (.lit 1) (.copyOf (target creature) []) [] (agent := .you),
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0, .zoneIs .battlefield] := by
@@ -587,7 +587,7 @@ theorem badFlashbackOnPermanentCard :
 /-- "for each attacking creature you control. You gain that much life." -/
 theorem okThatMuchAfterQuantity :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent :=
                 (target .opponent)),
@@ -596,14 +596,14 @@ theorem okThatMuchAfterQuantity :
 
 /-- "Flip a coin. Draw that many cards." -/
 theorem badThatMuchAfterFlip :
-    Instruction.check [] (.sequence [flipCoins 1 (agent := .you), draw .thatMuch (agent := .you)])
+    Instruction.check [] (.sequentially [flipCoins 1 (agent := .you), draw .thatMuch (agent := .you)])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
     Instruction.check []
-      (.sequence [flipCoins 1 (agent := .you), doIf (.flipCalled .you .wins) (draw (.lit 1) (agent
+      (.sequentially [flipCoins 1 (agent := .you), doIf (.flipCalled .you .wins) (draw (.lit 1) (agent
           := .you))])
       = [] := by
   decide
@@ -716,7 +716,7 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Instruction.check [] (.sequence [flipCoins 1 (agent := .you), .addTurn (.coinsShowing .heads)
+    Instruction.check [] (.sequentially [flipCoins 1 (agent := .you), .addTurn (.coinsShowing .heads)
         (agent := .you)])
       = [] := by
   decide
@@ -799,7 +799,7 @@ theorem delayedDoorTraversal :
 
 theorem distributiveGroupSurvives :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .enact (.action "Shuffle") (.shuffle (agent := they)) (agent := (some (each .opponent))),
           .changeLife (.down (.lit 1)) (agent := (those .player)) ]) = [] := by
   decide
@@ -831,13 +831,13 @@ theorem modalCostReadbacks :
 /-- "It doesn't untap during its controller's next untap step." -/
 theorem okUntapNextSingleIt :
     Instruction.check []
-      (.sequence [.setStatus .tapped (target creature), .skipUntap it (.lit 1)])
+      (.sequentially [.setStatus .tapped (target creature), .skipUntap it (.lit 1)])
       = [] := by
   decide
 
 theorem badUntapNextAmbiguousIt :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .setStatus .tapped (target creature),
           .setStatus .tapped (target artifact),
           .skipUntap it (.lit 1) ]) = [.anaphor .bare .one 2] := by
@@ -862,7 +862,7 @@ theorem badRepeatedChapterMark :
 /-- "Roll a d20. 1—9 | Draw a card." -/
 theorem okResultsTableAfterRoll :
     Instruction.check []
-      (.sequence [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)
+      (.sequentially [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)
           (agent := .you)⟩]])
       = [] := by
   decide
@@ -952,7 +952,7 @@ it. -/
 theorem stormCountsEarlierThisTurn :
     stormExpansion =
       when (.casts .you (some thisSpell) none)
-        (.sequence
+        (.sequentially
           [ .copy .fromStack thisSpell
               (eventCount (.casts (.gap .player) (some (a (.and [spell, .otherThan thisSpell])))
                 none) (a .anyPlayer) .earlierThisTurn)

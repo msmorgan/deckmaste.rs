@@ -27,7 +27,7 @@ theorem okSacrificeBattlefield : Instruction.check [] (sacrifice (a creature) (a
 /-- "Destroy target creature. At the beginning of the end step, sacrifice it." -/
 theorem badStale :
     Instruction.check []
-      (.sequence [destroy (target creature), delay atTheEndStep (sacrifice it (agent := .you))])
+      (.sequentially [destroy (target creature), delay atTheEndStep (sacrifice it (agent := .you))])
       = [.zoneFits] := by
   decide
 
@@ -35,7 +35,7 @@ theorem badStale :
 listed too. -/
 theorem badDelayedOther :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .dealDamage .this (.lit 2) (target anyTarget),
           delay atTheEndStep (.dealDamage .this (.lit 1) (target anyOtherTarget)) ])
       = [.anyTargeted (.join .object (.join .object (.join .object .player))), .otherAnchored] := by
@@ -43,7 +43,7 @@ theorem badDelayedOther :
 
 theorem badStaleCarrier :
     Instruction.check []
-      (.sequence [exile (target creatureYouControl), move (that (.type .creature)) battlefield])
+      (.sequentially [exile (target creatureYouControl), move (that (.type .creature)) battlefield])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -73,13 +73,13 @@ theorem badTwoCostMentions :
 /-- "Tap target creature you control. Sacrifice it." -/
 theorem okSacrificeOnBattlefield :
     Instruction.check []
-      (.sequence [.setStatus .tapped (target creatureYouControl), sacrifice it (agent := .you)])
+      (.sequentially [.setStatus .tapped (target creatureYouControl), sacrifice it (agent := .you)])
       = [] := by
   decide
 
 /-- "Exile target creature. Sacrifice it." -/
 theorem badSacrificeExiled :
-    Instruction.check [] (.sequence [exile (target creature), sacrifice it (agent := .you)])
+    Instruction.check [] (.sequentially [exile (target creature), sacrifice it (agent := .you)])
       = [.zoneFits] := by
   decide
 
@@ -125,7 +125,7 @@ theorem badVerbedAmbig :
 theorem badBareCardRead :
     Ability.check []
       (act (.perform (sacrifice (a creature) (agent := .you)))
-        (.sequence
+        (.sequentially
           [exile (target creature), delay atTheEndStep (move (that .card) battlefield)]))
       = [.anaphor (.word .card) .one 2] := by
   decide
@@ -204,7 +204,7 @@ theorem badReflexiveOnLifeGain :
 /-- "Draw a card, then sacrifice a creature. When you do, draw a card." -/
 theorem badReflexiveOnSequence :
     Instruction.check []
-      (.triggerReflexively (.sequence [draw (.lit 1) (agent := .you), sacrifice (a creature) (agent
+      (.triggerReflexively (.sequentially [draw (.lit 1) (agent := .you), sacrifice (a creature) (agent
           := .you)])
         (draw (.lit 1) (agent := .you))) = [.reflexEnclosure] := by
   decide
@@ -233,7 +233,7 @@ theorem badThisWayOnDelayed :
 
 theorem badReflexiveOnBranchedMay :
     Instruction.check []
-      (.triggerReflexively (.offer (sacrifice (a creature) (agent := .you)) (some (draw (.lit 1)
+      (.triggerReflexively (Primitives.Instruction.offer (sacrifice (a creature) (agent := .you)) (some (draw (.lit 1)
           (agent := .you))) none (agent := .you))
         (draw (.lit 1) (agent := .you))) = [.reflexEnclosure] := by
   decide
@@ -241,7 +241,7 @@ theorem badReflexiveOnBranchedMay :
 /-- The Idris pin refutes the anaphor; the unresolved "that creature" has no zone either. -/
 theorem badAfterReflexiveReadsTrigger :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .triggerReflexively (mill (.lit 4) .you (agent := .you))
             (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])),
           .setStatus .tapped (that (.type .creature)) ])
@@ -325,7 +325,7 @@ theorem badEmptyEmblem :
 /-- "… At the beginning of that turn's end step, you lose the game." -/
 theorem okDeicticTurnAfterExtraTurn :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .addTurn (.lit 1) (agent := .you),
           delay (.beginningOf .the .endStep (.byTurn thatTurn)) (.conclude .loseGame (agent :=
               .you)) ])
@@ -335,7 +335,7 @@ theorem okDeicticTurnAfterExtraTurn :
 /-- "Draw a card. At the beginning of that turn's end step, you lose the game." -/
 theorem badDeicticTurnWithoutIntroducer :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ draw (.lit 1) (agent := .you),
           delay (.beginningOf .the .endStep (.byTurn thatTurn)) (.conclude .loseGame (agent :=
               .you)) ])
@@ -431,28 +431,28 @@ theorem badCouldBlockGraveyardRelatum :
 
 /-- "Sacrifice a creature. If you do, draw a card." -/
 theorem okIfDoneWithArm :
-    Instruction.check [] (.doIfDone (sacrifice (a creature) (agent := .you)) (some (draw (.lit 1)
+    Instruction.check [] (Primitives.Instruction.doIfDone (sacrifice (a creature) (agent := .you)) (some (draw (.lit 1)
         (agent := .you))) none)
       = [] := by
   decide
 
 /-- "Sacrifice a creature." -/
 theorem badIfDoneWithNeitherArm :
-    Instruction.check [] (.doIfDone (sacrifice (a creature) (agent := .you)) none none) =
+    Instruction.check [] (Primitives.Instruction.doIfDone (sacrifice (a creature) (agent := .you)) none none) =
         [.ifDoneArmed] := by
   decide
 
 /-- "This creature deals 3 damage to any target. If you do, draw a card." -/
 theorem badIfDoneOverAgentlessBody :
     Instruction.check []
-      (.doIfDone (.dealDamage thisCreature (.lit 3) (target anyTarget)) (some (draw (.lit 1) (agent
+      (Primitives.Instruction.doIfDone (.dealDamage thisCreature (.lit 3) (target anyTarget)) (some (draw (.lit 1) (agent
           := .you)))
         none) = [.reflexEnclosure] := by
   decide
 
 /-- "Take an extra turn after this one. If you do, draw a card." -/
 theorem badIfDoneOverScheduledBody :
-    Instruction.check [] (.doIfDone (.addTurn (.lit 1) (agent := .you)) (some (draw (.lit 1) (agent
+    Instruction.check [] (Primitives.Instruction.doIfDone (.addTurn (.lit 1) (agent := .you)) (some (draw (.lit 1) (agent
         := .you))) none)
       = [.reflexEnclosure] := by
   decide
@@ -504,7 +504,7 @@ theorem badExtraTurnForwardSubject :
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okExtraTurnAmountIntroducesPlayer :
-    Instruction.check [] (.sequence
+    Instruction.check [] (.sequentially
       [.addTurn (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent := they)]) =
           [] := by decide
 
@@ -527,7 +527,7 @@ theorem badSkipNextForwardSubject :
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okSkipNextAmountIntroducesPlayer :
-    Instruction.check [] (.sequence
+    Instruction.check [] (.sequentially
       [.skipPart .drawStep (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent
           := they)])
       = [] := by
@@ -555,7 +555,7 @@ theorem badAdditionalPartForwardSubject :
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
-    Instruction.check [] (.sequence
+    Instruction.check [] (.sequentially
       [.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := (some .you)), .draw
           (.lit 1) (agent := they)])
       = [] := by
@@ -580,7 +580,7 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
       (.skipUntap (target creature) (plus (.letter .x) (.letter .x)))) = 1 := by decide
 
 theorem okUntapAmountIntroducesPlayer :
-    Instruction.check [] (.sequence
+    Instruction.check [] (.sequentially
       [.skipUntap (target creature) (lifeTotalOf (target .opponent)), .draw (.lit 1) (agent :=
           they)])
       = [] := by decide

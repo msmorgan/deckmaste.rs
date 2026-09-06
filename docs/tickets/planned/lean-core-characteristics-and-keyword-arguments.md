@@ -5,7 +5,7 @@ needs: []
 
 Replace specialized characteristic-edit and keyword-parameter combinations
 with shared typed payloads. Apply the
-[campaign contract](lean-core-bindings-and-composition.md#campaign-contract).
+[campaign contract](../done/lean-core-bindings-and-composition.md#campaign-contract).
 These decisions were agreed on 2026-09-06; this ticket can begin independently
 of the binding work.
 

@@ -144,12 +144,11 @@ inductive SpentMode where
   | affectsIt | triggersThen
   deriving DecidableEq, Repr
 
-inductive Repetition where
-  | again
-  | moreTimes (times : Amount)
-  | anyNumber
-  | untilCond (condition : Condition)
-  | againExcludingChosen
+/-- Optional payment is decided by its player; required payment tests whether it started
+[CR#118.12]. -/
+inductive ContinuationPolicy where
+  | optional (agent : NounPhrase)
+  | required
   deriving Repr, BEq
 
 inductive DeckTrait where
@@ -180,6 +179,14 @@ inductive DeckCondition where
   deriving Repr, BEq
 
 mutual
+  inductive Repetition where
+    | again
+    | moreTimes (times : Amount)
+    | anyNumber
+    | untilCond (condition : Condition)
+    | againExcludingChosen
+    | fixed (times : Amount) (body : Instruction)
+
   /-- An object's characteristics: name, mana cost, color and color indicator, card type,
   subtype, supertype, rules text and abilities, power, toughness, loyalty, and defense
   [CR#109.3]. Every field defaults to absent. -/
@@ -294,7 +301,7 @@ mutual
     /-- An instruction performed as a cost ("Sacrifice a creature:"). -/
     | perform (instruction : Instruction)
     | compound (costs : List Cost)
-    | either (left right : Cost)
+    | or (costs : List Cost)
     | itsManaCost
 
   inductive ManaRider where
@@ -387,19 +394,17 @@ mutual
     the sentence may name, whichever of the three sources defines it. -/
     | enact (verb : Deed) (instruction : Instruction) (agent : Option NounPhrase := none)
     | pay (cost : Cost) (times : PayTimes) (agent : NounPhrase := .you)
-    | offer (body : Instruction) (ifDid : Option Instruction) (ifNot : Option Instruction)
-        (agent : NounPhrase := .you)
-    | doIfDone (body : Instruction) (ifDid : Option Instruction) (ifNot : Option Instruction)
+    /-- Branch on the decision or start of payment, independently of resulting events. -/
+    | withContinuation (policy : ContinuationPolicy) (body : Instruction)
+        (ifDid : Option Instruction) (ifNot : Option Instruction)
     | doOnlyIf (instruction : Instruction) (condition : Condition) (otherwise : Option Instruction)
     | doIf (condition : Condition) (instruction : Instruction) (otherwise : Option Instruction)
-    | define (letter : Letter) (amount : Amount)
     | doForEach (group : NounPhrase) (body : Instruction)
     | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)
         (body : Instruction)
     | repeat_ (repetition : Repetition)
-    | repeatTimes (times : Amount) (body : Instruction)
-    | sequence (steps : List Instruction)
-    | performSimultaneously (steps : List Instruction)
+    | sequentially (steps : List Instruction)
+    | simultaneously (steps : List Instruction)
     | chooseModes (quantity : Quantity) (modes : List (Option Cost × Instruction))
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Instruction)
@@ -447,7 +452,7 @@ end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, QualityPayload,
   TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
-  ManaRider, CopyExcept, RollRow, Instruction, KeywordParam, AbilityLost, Ability
+  ManaRider, CopyExcept, RollRow, Repetition, Instruction, KeywordParam, AbilityLost, Ability
 
 end Semantics
 

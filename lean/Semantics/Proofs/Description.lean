@@ -49,7 +49,7 @@ theorem badSliceOfCountedPossessor :
 /-- "Tap target creature an opponent controls. That player loses 1 life." -/
 theorem okThatPlayer :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
           loseLife (.lit 1) (agent := (that .player)) ]) = [] := by
   decide
@@ -57,7 +57,7 @@ theorem okThatPlayer :
 /-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
 theorem badDisjunctAntecedent :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
                                            .and [land, .hasPossessor .controller .you]])),
           loseLife (.lit 1) (agent := (that .player)) ])
@@ -144,7 +144,7 @@ theorem badMatchesTargetSubject :
 /-- "Tap target creature. You gain 1 life if it's an artifact." -/
 theorem okMatchesArtifact :
     Instruction.check []
-      (.sequence [.setStatus .tapped (target creature),
+      (.sequentially [.setStatus .tapped (target creature),
                       .doOnlyIf (gainLife (.lit 1) (agent := .you)) (.matches it artifact) none]) =
                           [] := by
   decide
@@ -152,7 +152,7 @@ theorem okMatchesArtifact :
 /-- "Tap target creature. You gain 1 life if it's." -/
 theorem badMatchesNothing :
     Instruction.check []
-      (.sequence [.setStatus .tapped (target creature),
+      (.sequentially [.setStatus .tapped (target creature),
                       .doOnlyIf (gainLife (.lit 1) (agent := .you)) (.matches it (.and [])) none])
       = [.predSays] := by
   decide
@@ -195,20 +195,20 @@ theorem badColorlessWhite :
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Instruction.check []
-      (.sequence [.draw (.letter .x) (agent := .you), .define .x (countOf creatureYouControl)]) = []
+      (.sequentially [.draw (.letter .x) (agent := .you), Primitives.Instruction.define .x (countOf creatureYouControl)]) = []
           := by
   decide
 
 theorem badDoubleXRider :
     Instruction.check []
-      (.sequence [.draw (.letter .x) (agent := .you), .define .x (countOf creatureYouControl),
-                      .define .x (countOf creature)]) = [.openLetter .x] := by
+      (.sequentially [.draw (.letter .x) (agent := .you), Primitives.Instruction.define .x (countOf creatureYouControl),
+                      Primitives.Instruction.define .x (countOf creature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
     Instruction.check []
-      (.sequence [.draw (.letter .y) (agent := .you), .define .x (countOf creatureYouControl)])
+      (.sequentially [.draw (.letter .y) (agent := .you), Primitives.Instruction.define .x (countOf creatureYouControl)])
       = [.openLetter .x] := by
   decide
 
@@ -313,7 +313,7 @@ theorem badPartitiveOfCountedGroup :
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
     Instruction.check []
-      (.sequence [destroy (target creature), loseLife (.statOf (.stat .power) it) (agent :=
+      (.sequentially [destroy (target creature), loseLife (.statOf (.stat .power) it) (agent :=
           (controllerOf it))])
       = [] := by
   decide
@@ -328,7 +328,7 @@ theorem badOtherwiseReadsLeadingArm :
 
 theorem badLeadingConditionAntecedent :
     Instruction.check []
-      (.sequence
+      (.sequentially
         [ .doIf (.compareAmt (lifeTotalOf .you) .less
                      (lifeTotalOf anOpponent))
             (gainLife (.lit 6) (agent := .you)) none,
@@ -360,7 +360,7 @@ theorem badNestedConjunction :
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Instruction.check []
-      (.sequence [ rollDice 2 6 (agent := .you),
+      (.sequentially [ rollDice 2 6 (agent := .you),
                        doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
                               (sacrifice thisCreature (agent := .you)) ]) = [] := by
   decide
@@ -381,7 +381,7 @@ theorem okReadsLookedAtLibraryCard :
 
 theorem badReadsShuffledIntoLibraryCard :
     NounPhrase.check (some .object)
-      (Instruction.intro [] (.sequence [lookAt (topSlice (.lit 1)), shuffleInto .this (agent :=
+      (Instruction.intro [] (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .this (agent :=
           .you)]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
