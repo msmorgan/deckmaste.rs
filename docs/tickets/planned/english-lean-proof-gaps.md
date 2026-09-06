@@ -20,12 +20,19 @@ Required:
    has no `Tense` and no limitation names its absence. Either add the
    judgment with an inhabitant and an exclusion, or record in the design
    document the decision that Oracle English needs none and why.
-2. **Flat-versus-nested fence.** `FrameScope.flat_nested_differ` compares a
-   three-child `.coordinate` node, but every coordinate production is
-   binary, so flat n-ary coordination is unrepresented and the design's
-   "cardinality fence" claim rests on an underivable tree. Represent flat
-   coordination (or record that Oracle English coordination is binary and
-   retire the claim), and re-state the fence over derivable trees.
+2. **Flat coordination is missing, not optional.** Every coordinate
+   production is binary, so an Oxford-comma list ("A, B, and C") has no
+   derivation at all: no witness realizes a comma list, and the only
+   three-way surface in the project is the repeated-coordinator form. The
+   serial comma marks one flat n-ary Coordination on the surface, which is
+   also how the Oracle English glossary already defines Coordination ("two
+   or more coordinate units"); a nested-binary bracketing of such a list is a
+   wrong analysis, and the repeated-coordinator form is the only place
+   nesting is a real ambiguity. Add the n-ary production with its comma and
+   coordinator realization, witness a three-item list with an exclusion of
+   the nested bracketing for that surface, and re-state
+   `FrameScope.flat_nested_differ` over derivable trees; today it compares a
+   three-child node no production can build.
 3. **Genitive countability.** `DeterminerUse.genitive` leaves `use`
    unconstrained, so `genitive_preserves_countability` and its negation
    share a proof. Give the constructor a premise (the possessor's nominal
