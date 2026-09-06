@@ -648,7 +648,7 @@ def aggressiveInstinct : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aggressive Instinct", cost := some [generic 1, pip .green], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (dealDamageOwnPower [] (target creatureYouControl)
+        [ Primitives.Ability.spell none (dealDamageOwnPower (target creatureYouControl)
             (target creatureYouDontControl)) ] } }
 
 /-- Arcum Dagsson -/

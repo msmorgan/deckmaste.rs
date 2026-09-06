@@ -869,7 +869,7 @@ theorem ownSurvivesSecondSingular :
     Instruction.check []
       (.sequence
         [ exile (target artifact),
-          dealDamageOwnPower (Instruction.intro [] (exile (target artifact))) (target creature)
+          dealDamageOwnPower (target creature)
             (target anyTarget) ]) = [] := by
   decide
 
@@ -905,7 +905,7 @@ theorem okCondSubjectRead :
         [ destroy (target creature),
           .doIf (.not (.matches thisEnchantment creature))
             (become
-              (itCondSubject (Instruction.intro [] (destroy (target creature)))
+              (itCondSubject
                 (.not (.matches thisEnchantment creature)))
               { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
               (some untilEndOfTurn))
@@ -927,7 +927,7 @@ theorem badCondUnwindowedRead :
   decide
 
 theorem badOwnEmptyDelta :
-    Instruction.check [] (dealDamageOwnPower [] .this (target anyTarget))
+    Instruction.check [] (dealDamageOwnPower .this (target anyTarget))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -959,7 +959,7 @@ theorem badSharedSubjectTwoInDelta :
 
 theorem badOwnTwoInDelta :
     Instruction.check []
-      (dealDamageOwnPower [] (.both (target creature) (target creature)) (target anyTarget))
+      (dealDamageOwnPower (.both (target creature) (target creature)) (target anyTarget))
       = [.anaphor .bare .one 2] := by
   decide
 

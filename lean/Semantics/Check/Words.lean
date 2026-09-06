@@ -824,15 +824,36 @@ def tyOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : List CardType :=
 def faceOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option PileFace :=
   firstReach r pl bs >>= (·.face)
 
+/-- Validate an expansion's introduction pattern against the current prefix. A letter
+mention is optional: it introduces a binding only if the enclosing context lacked it.
+Other mentions must match in order; they never search past an unrelated binding. -/
+def introductionWidth : List Kind → Bindings → Option Nat
+  | [], _ => some 0
+  | .letter l :: pattern, bs =>
+    match bs with
+    | b :: rest =>
+      if b.kind == .letter l then (introductionWidth pattern rest).map (· + 1)
+      else introductionWidth pattern bs
+    | [] => introductionWidth pattern []
+  | kind :: pattern, b :: rest =>
+    if b.kind == kind then (introductionWidth pattern rest).map (· + 1) else none
+  | _ :: _, [] => none
+
 def view : Window → Bindings → Bindings
   | .whole, bs => bs
   | .top n, bs => bs.take n
   | .below n, bs => bs.drop n
+  | .introduced pattern, bs => (introductionWidth pattern bs).elim [] (bs.take ·)
+  | .outsideIntroduced pattern, bs => (introductionWidth pattern bs).elim [] (bs.drop ·)
 
 def overWindow (f : Bindings → Bindings) : Window → Bindings → Bindings
   | .whole, bs => f bs
   | .top n, bs => f (bs.take n) ++ bs.drop n
   | .below n, bs => bs.take n ++ f (bs.drop n)
+  | .introduced pattern, bs =>
+    (introductionWidth pattern bs).elim bs fun n => f (bs.take n) ++ bs.drop n
+  | .outsideIntroduced pattern, bs =>
+    (introductionWidth pattern bs).elim bs fun n => bs.take n ++ f (bs.drop n)
 
 def countTokenSpecs : Bindings → Nat
   | [] => 0

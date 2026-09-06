@@ -269,6 +269,8 @@ inductive Window where
   | whole
   | top (depth : Nat)
   | below (depth : Nat)
+  | introduced (pattern : List Kind)
+  | outsideIntroduced (pattern : List Kind)
   deriving DecidableEq, Repr
 
 inductive EntryCounterMark where

@@ -571,7 +571,7 @@ theorem badThatMuchAfterDeath :
 theorem okThatCreatureAfterDamage :
     Instruction.check []
       (.sequence
-        [ dealDamageOwnPower [] thisCreature (target creature),
+        [ dealDamageOwnPower thisCreature (target creature),
           .dealDamage (that (.type .creature)) (powerOf it) thisCreature ]) = [] := by
   decide
 

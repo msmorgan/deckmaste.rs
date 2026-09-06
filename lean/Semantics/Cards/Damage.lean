@@ -50,7 +50,7 @@ def pyriteSpellbomb : Ability :=
 theorem okPyriteSpellbomb : Ability.check [] pyriteSpellbomb = [] := by decide
 def karplusanYeti : Instruction :=
   Primitives.Instruction.sequence
-    [ dealDamageOwnPower [] thisCreature (target creature),
+    [ dealDamageOwnPower thisCreature (target creature),
       Primitives.Instruction.dealDamage (that (.type .creature)) (Primitives.Amount.statOf (.stat .power) it) thisCreature ]
 theorem okKarplusanYeti : Instruction.check [] karplusanYeti = [] := by decide
 def suddenDemise : Instruction :=

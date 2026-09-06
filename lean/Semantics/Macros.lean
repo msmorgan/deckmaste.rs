@@ -34,14 +34,14 @@ def itVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .one .whole
 /-- "it": the object the previous instruction introduced, read through a window over exactly
 what that instruction announced. -/
 def itPrior (prev : Instruction) : NounPhrase :=
-  .pro .bare .one (.top (Instruction.intro [] prev).length)
+  .pro .bare .one (.introduced ((Instruction.intro [] prev).map Binding.kind))
 /-- "them", stamped by the verb that produced them: "the destroyed creatures". -/
 def themVerbed (verb : Deed) : NounPhrase := .pro (.stamped verb) .many .whole
 /-- "that turn" -/
 def thatTurn : NounPhrase := .pro .thatTurn .one .whole
 /-- "it", read as the subject of the condition just stated. -/
-def itCondSubject (bs : Bindings) (condition : Condition) : NounPhrase :=
-  .pro .bare .one (.top (Condition.introduced bs condition).length)
+def itCondSubject (condition : Condition) : NounPhrase :=
+  .pro .bare .one (.introduced ((Condition.introduced [] condition).map Binding.kind))
 
 /-- "that <word>", e.g. `that .player`. -/
 def that (w : NounWord) : NounPhrase := .pro (.word w) .one .whole
@@ -537,12 +537,12 @@ def voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ba
 def chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
   .chooseModes quantity (modes.map (none, ·))
 /-- "<source> deals damage equal to its power to <recipient>" -/
-def dealDamageOwnPower (bs : Bindings) (source : NounPhrase) (recipient : NounPhrase) :
+def dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Instruction :=
   .dealDamage source
     (.statOf (.stat .power)
       (.pro .bare .one
-        (.top (NounPhrase.selfSubjIntroduced source ++ NounPhrase.introduced bs source).length)))
+        (.introduced ((selfSubjIntro [] source).map Binding.kind))))
     recipient
 
 /-- A token's characteristics from the parts a creature token names. -/
@@ -662,7 +662,7 @@ def phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (.setStatus .phasedOut subject) event
 /-- "attach <what> to it": the object the sentence just named. -/
 def attachToIt (what : NounPhrase) : Instruction :=
-  .attachTo what (.pro .bare .one (.below (NounPhrase.introduced [] what).length))
+  .attachTo what (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] what).map Binding.kind)))
 /-- "there is an additional <part> [after <anchor>]" -/
 def addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
   .addPart part anchor count none (agent := none)
@@ -690,7 +690,7 @@ def forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Ins
 def requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .establish
     (.deonticRule subject .require [.core .block] .agent none
-      (.counterpart (.pro .bare .one (.below (NounPhrase.introduced [] subject).length))) none
+      (.counterpart (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] subject).map Binding.kind)))) none
       .noRider)
     duration
 
@@ -721,7 +721,7 @@ player it just bound, windowed over the agent's own bindings. -/
 def agentRef (agent : NounPhrase) : NounPhrase :=
   match NounPhrase.agentIntroduced [] agent with
   | [] => agent
-  | ds => .pro (.word .player) (agentPlur agent) (.top ds.length)
+  | ds => .pro (.word .player) (agentPlur agent) (.introduced (ds.map Binding.kind))
 
 /-- "<player> may pay <cost>. If they don't, <instruction>." -/
 def doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
@@ -733,16 +733,16 @@ def itOrThem : Plurality → NounPhrase
   | .many => them
 /-- The window over exactly what a phrase introduced; a phrase that introduced nothing (a
 pronoun) is read again through the whole stack. -/
-def sameWindow : Nat → Window
-  | 0 => .whole
-  | n + 1 => .top (n + 1)
+def sameWindow : Bindings → Window
+  | [] => .whole
+  | bs => .introduced (bs.map Binding.kind)
 /-- "it" (or "them"): the subject of a stat change, read back through a window holding only
 what that subject and the change's amount announced. -/
 def itsOther (subject : NounPhrase) (delta : Delta Amount) : NounPhrase :=
   .pro .bare subject.plur
     (sameWindow
       (Delta.introduced (selfSubjIntro [] subject) delta ++
-        NounPhrase.selfSubjIntroduced subject ++ NounPhrase.introduced [] subject).length)
+        NounPhrase.selfSubjIntroduced subject ++ NounPhrase.introduced [] subject))
 /-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
 half reads its subject back as "it". -/
 def getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
@@ -756,10 +756,10 @@ def getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
 /-- The shared subject of a clause, read back as a pronoun that sees only what the subject
 itself announced. -/
 def ownSubject (subject : NounPhrase) : NounPhrase :=
-  .pro .bare subject.plur (.top (selfSubjIntro [] subject).length)
+  .pro .bare subject.plur (.introduced ((selfSubjIntro [] subject).map Binding.kind))
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 def lookedCards (slice : NounPhrase) : NounPhrase :=
-  .pro .bare slice.plur (.top (NounPhrase.introduced [] slice).length)
+  .pro .bare slice.plur (.introduced ((NounPhrase.introduced [] slice).map Binding.kind))
 /-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
 in any order and the rest on top in any order" -/
 def lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=

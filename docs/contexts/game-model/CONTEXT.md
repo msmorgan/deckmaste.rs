@@ -329,6 +329,12 @@ _Avoid_: Object Kind, substrate
 A singular semantic expression that denotes one Object or Player in context.
 Amounts and collections are not References.
 
+**Reference Scope** (project term):
+The mentions available to a Reference under its containing grammatical
+construction. An ordinary pronoun requires a unique compatible antecedent in
+that scope; an explicit shared-subject reference belongs to its owning clause.
+_Avoid_: author-chosen numeric stack depth
+
 **Referent Sort** (project term):
 The domain classification required of an Entity denoted by a Reference or
 contained in a Selection. It is two axes, not one: the Entity domain — Player,

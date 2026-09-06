@@ -912,7 +912,7 @@ def NounPhrase.groupMention : NounPhrase → Bool
 /-- A positional own-read partitions the group it has just named, a one-card group included
 [CR#701.22a]. -/
 def NounPhrase.partitiveBase : NounPhrase → Bool
-  | .pro _ _ (.top _) => true
+  | .pro _ _ (.top _) | .pro _ _ (.introduced _) => true
   | n => n.det == some .all || n.groupMention
 
 def NounPhrase.countableGroup (n : NounPhrase) : Bool := n.det == some .bare || n.groupMention

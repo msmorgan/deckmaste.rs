@@ -41,6 +41,54 @@ The anaphora bench's `manifestPlacement` is explicitly a placement-only fragment
 of manifest [CR#701.40a]. It retains that bench's prior semantic value; it does
 not model face-down characteristics or the turn-up special action.
 
+## Grammatical references and internal windows
+
+Ordinary `it`, `them`, and worded pronouns resolve in the whole containing
+context and require exactly one compatible antecedent. The authoring boundary
+excludes raw `NounPhrase.pro` and `Window` construction, including both numeric
+windows and introduction patterns. Named scope macros carry the phrase,
+instruction or condition whose mentions they re-read; their expanded windows
+are internal checker data, not positional reads in the authorable grammar.
+
+`Window.introduced` and `outsideIntroduced` validate an ordered introduction
+pattern against the actual context with `introductionWidth`. Every non-letter
+binding must match its expected kind at the current position. Matching does
+not search past an unrelated binding. Letter entries are conditional because
+`introducedLetters` creates a binding only when that letter was absent from the
+input context. A missing letter therefore contributes zero width instead of
+letting an empty-context count consume an outer object or player. A mismatch
+produces an empty read window and cannot mutate outer bindings.
+
+The patterns describe binding kinds, not referent identities or rules meanings.
+Their ownership comes from the trusted scope macro's expansion. Numeric
+`top`/`below` windows remain available for internal diagnostics and the fixed
+single-subject comparison and chooser slots. They have no card-authoring constructor.
+
+The empty-context calculations now produce conditional introduction patterns,
+never an assumed fixed depth. The audit covers every affected helper:
+
+| Scope macro | Owning phrase and boundary |
+| --- | --- |
+| `itPrior` | The preceding instruction's output, through `Instruction.intro`; existing outer mentions are not part of the empty-input pattern. |
+| `itCondSubject` | The condition's published mentions. The author no longer supplies a `Bindings` argument. |
+| `dealDamageOwnPower` | The source's self-subject introduction before the amount is read. The author no longer supplies a `Bindings` argument. |
+| `agentRef` | The agent's own introduction, including singularization of distributive agents. An agent introducing nothing is re-read directly. |
+| `itsOther` / `sameWindow` | The first stat modification's subject and amount introductions, in the same order as `StaticSpec.intro`. An originally empty introduction uses the whole context. |
+| `ownSubject` | The shared subject's introduction; an empty owned introduction remains empty and cannot capture an outer antecedent. |
+| `lookedCards` | The library slice's introduction, including its possessor's mentions. |
+| `attachToIt` / `requireBlockIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |
+| `aTheirChoice` | The immediately preceding chooser mention. The macro requires that grammatical caller position; the fixed one-binding window is independent of the outer context. |
+| `comparesOwnStat` | The one subject binding that `Predicate.check` places immediately before the measure. Its fixed internal depth is independent of outer context and letters. |
+
+`Proofs/ReferenceScopes.lean` pins the former X-reuse counterexample, scope twins
+with and without outer bindings, preservation of selected type/carrier facts,
+outer ambiguity, and authoring rejection of raw numeric and patterned reads.
+Two general theorems establish the own-stat read and its creature type for every
+outer context, with either a fresh or an already-bound X. Another proves exact
+prefix isolation for arbitrary non-letter introductions; the comparison and
+chooser scopes are also proved for arbitrary outer contexts. These are reference-checking laws,
+not positional lowering or runtime object-identity proofs.
+
 ## Scheduling fields
 
 For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`

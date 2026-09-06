@@ -1,3 +1,4 @@
+import Semantics.Proofs.ReferenceScopes
 import Semantics.Proofs.Authoring
 import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Choice

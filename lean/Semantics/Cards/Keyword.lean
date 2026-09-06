@@ -950,7 +950,7 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequence
               [ gainLife (.lit 1) (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.doIf (Primitives.Condition.not (Primitives.Condition.matches thisEnchantment creature))
-                  (become (itCondSubject [] (Primitives.Condition.not (Primitives.Condition.matches thisEnchantment creature)))
+                  (become (itCondSubject (Primitives.Condition.not (Primitives.Condition.matches thisEnchantment creature)))
                     { characteristics :=
                       { types := [.creature], subtypes := [creatureType "Angel"],
                         text := [keyword "Flying"], power := stat 3, toughness := stat 3 } }
