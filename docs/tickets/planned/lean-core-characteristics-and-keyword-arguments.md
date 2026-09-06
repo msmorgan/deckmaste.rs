@@ -34,9 +34,10 @@ changes state the same operation; do not keep a second parallel edit family.
 ## Keyword arguments
 
 Replace `KeywordParam.qualityCost` and `numberCost` with ordered typed
-arguments. A declaration schema specifies the admissible combinations and
-their order. Preserve the role and scope difference between quality arguments,
-subject arguments, amounts, costs, and deck conditions. The checker reads
+arguments. Registry columns specify the admissible combinations and their
+order, and generate the checker's schema data. Preserve the role and scope
+difference between quality arguments, subject arguments, amounts, costs, and
+deck conditions. The checker reads
 declared schema properties; it must not branch on keyword names.
 
 Matching field shapes do not make `Predicate.qualityNoun` and `ofYourChoice`

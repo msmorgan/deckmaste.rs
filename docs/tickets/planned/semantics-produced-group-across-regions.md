@@ -1,6 +1,17 @@
 ---
 needs: []
 ---
+## Deferred status — 2026-09-06
+
+Parked as a successor-lowering obligation. The original gap concerns v1
+execution regions; the Lean surface model does not establish how a produced
+per-player group crosses those regions. This is unresolved, not answered by
+v2 grammar or ordinary linked-ability memory. Preserve the Deadly Brew witness
+and its required behavior below, and revisit when the lowering representation
+is concrete rather than extending v1 syntax in this pass.
+
+## Original v1 gap
+
 **"…this way" cannot name a group an ENCLOSED region produced.** Found by
 `core-regions-witness-fixtures`; it is the blocker on Deadly Brew. Standard
 constraints apply.

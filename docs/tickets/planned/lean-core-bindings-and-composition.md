@@ -1,81 +1,75 @@
 ---
 needs: []
 ---
-# Unify Lean binding reads and instruction composition
+# Fold definitions, continuations, repetition, and coordination
 
-Replace the special binding and control forms in `lean/Semantics` with shared
-structures that preserve their scopes. Decisions agreed with the user on
-2026-09-06, following the constructor inventory and design interview.
+Implement the concrete binding/composition folds below. The user narrowed the
+constructor campaign on 2026-09-06: larger mechanisms are design work in
+`maybe`, not prerequisites for these folds.
 
 ## Campaign contract
 
-This and the four tickets below implement the agreed constructor reductions
-in the Lean semantics workbench. The authority remains
-[the workbench boundary](../../../lean/README.md),
+The five planned tickets target Lean syntax, computed attributes, macros, and
+witnesses. The authority remains [the workbench boundary](../../../lean/README.md),
 [trusted macro expansion](../../../lean/CONTRACTS.md), and
 [the constructor/macro decision](../../decisions/semantics-v2.md#6-the-constructormacro-boundary).
-This is syntax, computed attributes, macros, and their witnesses; Rust execution
-and the frozen Idris model are outside this campaign.
+Rust execution and frozen Idris are outside these implementation tickets.
 
-A family must share semantic operations or laws. Moving cases into a helper
-inductive, or renaming a primitive, is not by itself a reduction. Missing
-reusable primitives are allowed, including temporary constructor growth.
-Record outer-constructor counts and total helper vocabulary separately; there
-is no target count. Current checker limitations are evidence to examine, not
-automatic requirements of the replacement. Preserve distinctions that the
-rules and reference scopes need. Wording belongs in macros, and labels provide
-observability rather than supplying a missing body.
+A family must share semantic operations or laws; moving cases to a helper
+inductive or renaming a primitive is not by itself a reduction. Record outer
+constructor counts and helper vocabulary separately, without a target count.
+Preserve rules distinctions and reference scopes; wording belongs in macros
+and labels provide observability rather than missing meaning. The planned
+folds may introduce the small typed payloads they specify, but do not authorize
+the parked binding, query, result, or event mechanisms implicitly.
 
-Companion work:
+The other independently claimable tickets are:
 
-- [Relation queries and result collections](lean-core-relations-and-results.md).
+- [Attachment and face predicates](lean-core-attachment-and-face-predicates.md).
 - [Characteristic edits and keyword arguments](lean-core-characteristics-and-keyword-arguments.md).
 - [Events and static specs](lean-core-events-and-static-specs.md).
-- [Action expansions](lean-core-actions-and-costs.md).
+- [Action expansions](lean-core-actions.md).
+
+All five touch shared inductives or checker traversals. Coordinate overlapping
+implementation work; absence of dependency edges is not a promise of disjoint files.
 
 ## Change
 
-- Add an explicit collection-member binder usable by numeric folds. The
-  query ticket uses it for counting and projected aggregates; authoring
-  macros hide the binder without conflating selection and measurement.
-- Fold `Amount.thatMuch`, `theOutcome`, `groupSize`, and `theDifference`
-  through typed binding reads and projections. They are not all outcomes:
-  a group can belong to a proposed event, and a difference comes from a
-  comparison. Preserve each read's category, cardinality, scope, and ambiguity
-  rules. Two eligible numeric outcomes must still make bare "that much"
-  ambiguous; an explicitly selected outcome category can disambiguate it.
-  Audit which numeric reads are admitted on comparison sides rather than
-  copying constructor-specific exclusions blindly.
-- Share set exclusion between `Predicate.other`, `notChosen`, and
-  `otherThan`. Their sources remain distinct: applicable targets, all eligible
-  standing choices, and explicit anchors. Standing choices can include
-  several players and are not a unique-antecedent read. Preserve nested
-  explicit mentions and closure of standing-choice scopes; move restrictions
-  justified solely by wording to macros.
-- Unify `Instruction.define` and `StaticSpec.letterDefinition` as a scoped
-  numeric definition. Preserve trailing "where X is ...": earlier uses of X
-  are licensed, and the right-hand side can read an earlier target or objects
-  affected this way. This is neither a forward-only `let` nor a blind rewrite
-  to `establish`. Preserve number regimes, cost admissibility, and rejection
-  of duplicate definitions across the new enclosing scope.
+- Unify `Instruction.define` and `StaticSpec.letterDefinition` as one numeric
+  definition form, preserving each enclosing context's scope and cost
+  admissibility. Earlier uses of X remain licensed, and a trailing definition
+  can read an earlier target or objects affected this way. Preserve number
+  regimes and duplicate-definition refusals. This is not permission to hoist
+  a definition, introduce a general binder framework, or blindly alias the
+  instruction to `establish` without handling its cost-admissibility difference.
 - Fold `offer` and `doIfDone` into one action with continuations and an
   optional/required policy, retaining a deciding player where applicable.
   The positive branch tests the decision or start of payment, not whether
-  resulting events happened [CR#118.12]. The positive branch receives the
-  body's introductions; the negative branch retains the incoming scope.
-  The full `Compulsion` enum, including prohibition and toll, is not this policy.
-- Give every expanded repetition an explicit process body and iteration
-  policy. Fold `repeatTimes` into that structure. Macros resolve "repeat this
-  process"; fixed counts, after-iteration decisions, and stopping conditions
-  remain distinct. Carry prior selections explicitly instead of preserving
-  `againExcludingChosen` as a bespoke policy. Preserve outer bindings,
-  per-iteration choices, result publication, and payment admissibility.
+  resulting events happened [CR#118.12]. It receives the body's introductions;
+  the negative branch retains the incoming scope. Preserve those distinctions
+  even though the existing forms have matching fields. The full `Compulsion`
+  enum, including prohibition and toll, is not this policy.
+- Fold `Instruction.repeatTimes` into the repetition family with a fixed-count
+  alternative carrying the amount and body. Preserve the other repetition
+  modes and their existing scopes, outer bindings, result publication, and
+  cost checks. Do not replace `againExcludingChosen` or redesign carried
+  selections in this pass.
 - Use lists for semantic conjunction and alternatives in predicates,
   conditions, noun phrases, and costs. Preserve cardinality obligations and
-  the difference between conjunction, alternatives, sequential composition,
+  the distinction between conjunction, alternatives, sequential composition,
   and simultaneous composition. Fixed-arity wording is macro syntax. Use
-  the agreed pair `sequentially`/`simultaneously` for instruction composition;
-  retain `establish`.
+  `sequentially`/`simultaneously` for the instruction pair; retain `establish`.
+
+## Deferred and dropped work
+
+[Member binding, aggregation, and numeric reads](../maybe/lean-core-numeric-bindings-and-aggregation.md)
+are separately assessable design questions. [Carried repetition selections](../maybe/lean-core-repetition-selections.md)
+are also parked. Neither is needed to complete the four folds above.
+
+Drop the proposed sharing of `other`, `notChosen`, and `otherThan` from this
+campaign for insufficient demonstrated benefit. Keep their existing sources,
+scopes, and publication behavior. Distinct sources do not prove that no shared
+operation is possible; no such redesign is commissioned here.
 
 ## Blast radius
 
@@ -88,14 +82,11 @@ regression, not a re-spelling.
 
 ## Completion evidence
 
-Re-spell the affected cards and named pins through the replacement forms.
-Exercise ambiguous numeric reads, comparison gaps that do not escape negation
-or alternatives, multiple standing choices, both continuation scopes, and
-repetition with fresh versus carried choices. Soul's Might and Phyrexian
-Rebirth witness definitions that depend on earlier introductions; Ad Nauseam,
-Another Round, and Forgotten Lore distinguish repetition policies.
-
-For each retired constructor, record its replacement and any deliberate
+Re-spell the affected cards and named pins. Soul's Might and Phyrexian Rebirth
+exercise definitions using earlier introductions; check both continuation
+scopes, fixed-count repetition, retained repeat policies, and coordination
+cardinality. Record each retired constructor's replacement and any deliberate
 change to an old refusal or published binding. Run `lean/scripts/build`.
-Standard constraints apply. This does not reopen the parked Idris
-[segment-indexed telescope](../maybe/workbench-segment-indexed-telescope.md).
+Standard constraints apply. The parked Idris
+[segment-indexed telescope](../maybe/workbench-segment-indexed-telescope.md)
+is not reopened.

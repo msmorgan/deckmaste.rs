@@ -6,7 +6,7 @@ needs: []
 Parked by the user on 2026-09-06: leave `Cost.tapSymbol`, `untapSymbol`,
 `loyaltySymbol`, and their payloads as they are for the time being. Reducing
 constructor count does not justify overcomplicating the model. This work was
-removed from `lean-core-actions-and-costs` and is not a prerequisite for the
+removed from `lean-core-actions` and is not a prerequisite for the
 planned action folds.
 
 The intended direction remains that a loyalty cost is a macro over putting

@@ -1,6 +1,17 @@
 ---
 needs: []
 ---
+## Deferred status — 2026-09-06
+
+Parked as a v1 witness/lowering obligation, not a request to add new v1
+syntax. Lean already has `Cost.either`, so the v2 workbench can represent a
+cost alternative; that alone does not establish Perforating Artist's payment
+behavior, payer scope, or lowering. Revisit against the successor lowering
+path, preserving the witness and acceptance below. The original v1 diagnosis
+is retained for context; it is not a claim that Lean lacks cost alternatives.
+
+## Original v1 gap
+
 **"Unless that player sacrifices … OR discards a card" has no spelling: a
 semantic `Cost` is a conjunction.** Found by
 `core-regions-witness-fixtures`; it is the blocker on Perforating Artist.

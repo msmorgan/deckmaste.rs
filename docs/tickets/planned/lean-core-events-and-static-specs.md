@@ -1,63 +1,55 @@
 ---
-needs: [lean-core-bindings-and-composition]
+needs: []
 ---
-# Share event descriptions and remove specialized static wrappers
+# Fold event patterns and static applicability forms
 
-Unify the event and applicability families while retaining the scopes their
-consumers observe. Apply the
+Implement the concrete event and static-spec folds below, preserving their
+existing scopes. Apply the
 [campaign contract](lean-core-bindings-and-composition.md#campaign-contract).
-These decisions were agreed on 2026-09-06.
+Scope narrowed by the user on 2026-09-06; no new provenance, relation-query,
+or general as-event instruction mechanism is a prerequisite.
 
-## Events and action provenance
+## Event patterns
 
 - Replace `GameEvent.dies`, `leaves`, `enters`, and `putInto` with macros over
   a zone-transition pattern. Preserve origin/destination constraints and
   whether the subject is observed before or after the transition. Optional
-  endpoints must not permit meaningless combinations silently.
-- Share the damage-event pattern underlying `isDealtDamage` and
-  `dealsDamage`. Active/passive wording and textual argument order belong to
-  macros, not a semantic voice field. Preserve damage roles and binding order
-  as exposed by those macros.
-- Share action descriptors for `castBy`, `castFrom`, `wasCast`, and the
-  corresponding activation reads. Keep explicit distinctions between a
-  currently proposed action, the action associated with the current object
-  incarnation, and a historical occurrence. Share actor, origin, and rank
-  constraints without reducing everything to `happenedTo`. Cost modifiers
-  can inspect a proposed cast; a permanent can retain permitted cast
-  provenance across its arrival; a copied decision is not a new action.
-  Preserve uniqueness from ranked reads and rank the intended actor's action
-  stream before restricting it to the described subject.
+  endpoints must not silently admit meaningless combinations.
+- Share the damage-event pattern underlying `isDealtDamage` and `dealsDamage`.
+  Active/passive wording and textual argument order belong to macros, not a
+  semantic voice field. Preserve damage roles and the binding order exposed
+  by those macros.
 
 ## Static specs
 
-- Fold `entryChoice` and `attachmentChoice` into macros over an instruction
-  performed as an event occurs. Preserve the original event and publication
-  of the declared choice across ability lines. An ordinary replacement whose
-  body only chooses would lose those obligations. Put disclosure on the
-  choice itself. Sanctuary Blade and Psychic Paper distinguish the attachment
-  occasion and subsequent use of the choice.
+- Fold `entryChoice` and `attachmentChoice` into a single choice spec with
+  an entry/attachment occasion enum, subject, choice sort/domain, and
+  disclosure where applicable. Preserve the original event and the current
+  publication of declared choices across ability lines. Keep the two
+  authoring forms as macros. This is an occasion-enum fold, not a general
+  construct for performing arbitrary instructions as events occur.
 - Express turn-position applicability through ordinary conditions, eliminating
-  the separate `partScope` wrapper in favor of shared conditional
-  applicability. Preserve whose turn/part is being described.
-- Expand `offBattlefieldScope` into explicit affected selections. Preserve
-  the distinction between control on the battlefield and ownership in the
-  relevant other zones; do not mechanically reuse "you control" for every
-  domain. Arcane Adaptation and Encroaching Mycosynth are witnesses.
-- Remove `retention` as an arbitrary `StaticSpec` wrapper. It qualifies the
-  attachment consequences of one protection instance and the appropriate
-  excluded attachments. It must not weaken that instance's damage, targeting,
-  or blocking consequences, or any other instance of protection. Preserve
-  the already-attached selection at the relevant time; Benevolent Blessing
-  and Black Ward exercise the distinction.
+  `partScope` in favor of shared conditional applicability. Preserve whose
+  turn/part is described.
+- Expand `offBattlefieldScope` into explicit affected selections using the
+  existing noun/predicate vocabulary. Preserve control on the battlefield
+  versus ownership in the relevant other zones. Arcane Adaptation and
+  Encroaching Mycosynth are witnesses; a general relation-query family is
+  unnecessary for these explicit selections.
 
-Keep `establish`. Scoped numeric definitions are owned by the prerequisite;
-ability-removal edits are owned by the characteristic ticket. These are
-different obligations, not four cases of a generic `scoped` wrapper.
+Keep `establish`. Numeric definition folding belongs to the composition ticket;
+ability-removal edits belong to the characteristic ticket. Those are ownership
+boundaries, not prerequisites for this ticket's changes.
 
-## Completion evidence
+## Completion evidence and deferred work
 
-Re-spell affected event, provenance, protection, and as-event-choice witnesses.
-Check transition observation points, both damage phrasings, proposed versus
-associated versus historical actions, linked choice publication, explicit
-owner/controller domains, and protection-instance isolation. Run
-`lean/scripts/build`. Standard constraints apply.
+Re-spell affected event and static witnesses. Check transition observation
+points, both damage phrasings, entry/attachment occasion and linked choice
+publication (including Sanctuary Blade and Psychic Paper), and explicit
+owner/controller domains. Run `lean/scripts/build`. Standard constraints apply.
+
+Leave the current provenance reads and protection retention in place.
+[Action provenance](../maybe/lean-core-action-provenance.md),
+[protection retention](../maybe/lean-core-protection-retention.md), and the
+[general as-event instruction construct](../maybe/lean-core-as-event-instructions.md)
+are separate design tickets. The latter does not block the occasion-enum fold.
