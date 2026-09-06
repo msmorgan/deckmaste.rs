@@ -41,3 +41,17 @@ without warnings. The pinned Lean release was verified as downloadable.
 No test assertions or English declarations changed. Hosted runner execution
 and required-check activation have not been performed; this ticket remains
 in progress.
+
+### Revalidation after the project split
+
+On `pmxqmzxlpnvnkrpuovklllylrluypkzk`, lock `covered` 20,254, refresh brought
+in the separate semantics project and the completed macro/reference tickets.
+`actionlint .github/workflows/ci.yml` passed, and `lean/scripts/build` passed
+all 66 jobs with warnings as errors. The Lean job still gates the intended
+semantics project; no English project is pulled into it.
+
+The proposed local Actions alternative is unavailable on this host: `act`
+is not installed, and `docker version` reports no Docker socket/daemon.
+No container or hosted workflow was launched. Publishing the canary and
+activating required checks remain pending; the local build does not establish
+hosted runner success. No push or GitHub settings change was performed.
