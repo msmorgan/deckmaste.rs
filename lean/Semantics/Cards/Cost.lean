@@ -658,14 +658,14 @@ def drudgeSkeletons : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Drudge Skeletons", cost := some [generic 1, pip .black], types := [.creature],
       subtypes := [creatureType "Skeleton"],
-      text := [activated (Primitives.Cost.mana [pip .black]) (Primitives.Instruction.regenerate thisCreature)],
+      text := [activated (Primitives.Cost.mana [pip .black]) (regenerate thisCreature)],
       power := stat 1, toughness := stat 1 } }
 
 def asphodelWanderer : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Asphodel Wanderer", cost := some [pip .black], types := [.creature],
       subtypes := [creatureType "Skeleton", creatureType "Soldier"],
-      text := [activated (Primitives.Cost.mana [generic 2, pip .black]) (Primitives.Instruction.regenerate thisCreature)],
+      text := [activated (Primitives.Cost.mana [generic 2, pip .black]) (regenerate thisCreature)],
       power := stat 1, toughness := stat 1 } }
 
 def hurrJackalAbility : Ability :=
@@ -1106,7 +1106,7 @@ def wordsOfWisdom : Spelled := spelled <| .singleFaced
 def deathWard : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Death Ward", cost := some [pip .white], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.regenerate (target creature))] } }
+      text := [Primitives.Ability.spell none (regenerate (target creature))] } }
 
 def bareTextLetter : Amount := Primitives.Amount.letter .x
 theorem textAloneOnceMintedItsOwnLetter : Amount.introduced [] bareTextLetter = [letterB .x] := rfl

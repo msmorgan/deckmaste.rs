@@ -133,51 +133,9 @@ end Semantics.Macros.Primitives.Instruction
 
 namespace Semantics.Macros.Primitives.Instruction
 
-/-- Fight captures each selected creature once and guards the whole simultaneous event
-[CR#701.14a..701.14c]. -/
-def fight (left right : NounPhrase) : Semantics.Instruction :=
-  let a : NounPhrase := .pro .bare .one (.operand 0)
-  let b : NounPhrase := .pro .bare .one (.operand 1)
-  let creature : Semantics.Predicate := .and [.hasType .creature, .inZone (.zone .battlefield .bare)]
-  .withOperands [left, right] <|
-    .doIf (.and [.matches a creature, .matches b creature])
-      (.enact (.action "Fight") (.simultaneously [
-        .dealDamage a (.statOf (.stat .power) a) b,
-        .dealDamage b (.statOf (.stat .power) b) a])) none
-
-/-- The replacement's application, rather than installation of a new shield
-[CR#701.19b,701.19c]. -/
-def regenerationApplication (subject : NounPhrase) : Semantics.Instruction :=
-  let patient : NounPhrase := .pro .bare subject.plur (.operand 0)
-  .withOperands [subject] <|
-    .enact (.action "Regenerate") <|
-      .sequentially [
-        .clearDamage patient,
-        .enact (.action "Tap") (.setStatus .tapped patient)
-          (some (.possessorOf .controller patient)),
-        .doIf (.or [.matches patient (.inCombat .attackerOf none),
-                    .matches patient (.inCombat .blockerOf none)])
-          (.combat patient (.participation .outsideCombat)) none]
-
-/-- A resolving regeneration instruction installs a single-use shield for this turn;
-only its eventual application carries the Regenerate label [CR#701.19a,701.19c]. -/
-def regenerate (subject : NounPhrase) : Semantics.Instruction :=
-  let patient : NounPhrase := .pro .bare subject.plur (.operand 0)
-  .withOperands [subject] <|
-    .establish (.replacement
-      (.verbedEvent none (.action "Destroy") (some patient) none none)
-      [] none (regenerationApplication patient) .nextTimeOnly none) (some .thisTurn)
-
 /-- Counter is one labeled stack-to-graveyard move. -/
 def counterSpell (subject : NounPhrase) : Semantics.Instruction :=
   .enact (.action "Counter") (.move subject (.zone .graveyard .bare) [])
-
-/-- Losing counters is removal from the named player. Capturing that player first keeps
-amount references in the order the sentence introduces them. -/
-def loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
-    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
-  .withOperands [agent] <| .removeCounters (amount.map Semantics.Quantity.exactlyOf) kind
-    (.pro (.word .player) agent.plur (.operand 0))
 
 register_semantic_macros
 end Semantics.Macros.Primitives.Instruction

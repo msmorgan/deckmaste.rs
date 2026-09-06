@@ -179,16 +179,16 @@ theorem nestedCaptureUpdatesAnInlineOuterOperand :
 
 theorem fightAcceptsAnExistingReference :
     Instruction.check (nomIntro [] (target creature))
-      (Primitives.Instruction.fight it (target creature)) = [] := by decide
+      (fight it (target creature)) = [] := by decide
 
 theorem fightAcceptsItsOwnSource :
-    Instruction.check [] (Primitives.Instruction.fight thisCreature thisCreature) = [] := by decide
+    Instruction.check [] (fight thisCreature thisCreature) = [] := by decide
 
 theorem regenerationApplicationChecks :
-    Instruction.check [] (Primitives.Instruction.regenerationApplication thisCreature) = [] := by decide
+    Instruction.check [] (regenerationApplication thisCreature) = [] := by decide
 
 theorem regenerationInstallationPublishesNoImmediateOutcome :
-    (Primitives.Instruction.regenerate thisCreature).introducedDeeds [] = [] := by decide
+    (regenerate thisCreature).introducedDeeds [] = [] := by decide
 
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
     NounPhrase.zone (Instruction.intro []
@@ -206,7 +206,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (Instruction.intro []
-      (Primitives.Instruction.loseCounters (some (.printed (.named "Poison")))
+      (loseCounters (some (.printed (.named "Poison")))
         (some (.lit 1)) .you)) = 1 := by decide
 
 theorem ownPowerCanReadAnExistingReference :
@@ -228,11 +228,11 @@ theorem postposedCounterConditionReadsTheUnmovedSpell :
 
 
 theorem losingCountersAmountReadsItsPlayer :
-    Instruction.check [] (Primitives.Instruction.loseCounters
+    Instruction.check [] (loseCounters
       (some (.printed (.named "Poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
 
 theorem regenerationCanProtectANoncreaturePermanent :
-    Instruction.check [] (Primitives.Instruction.regenerate (target artifact)) = [] := by decide
+    Instruction.check [] (regenerate (target artifact)) = [] := by decide
 
 
 theorem alternativeDoesNotObserveThePrimaryBranchesMove :
@@ -258,7 +258,7 @@ theorem conditionalForgettingKeepsTheOperandScope :
       .move (operand 0) graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :
-    Instruction.check [] (Primitives.Instruction.fight
+    Instruction.check [] (fight
       (.resolvedPermanent (target (.and [spell, creature]))) (target creature)) = [] := by decide
 
 

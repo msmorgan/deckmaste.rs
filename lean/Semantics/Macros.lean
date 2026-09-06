@@ -472,7 +472,46 @@ def searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := Primitives.Noun
 /-- "<who> reveals their hand" -/
 def revealTheirHand (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal (.zone (handOf
     they)) (agent := agent)
-def regenerate (subject : NounPhrase) : Instruction := Primitives.Instruction.regenerate subject
+/-- Fight captures each selected creature once and guards the whole simultaneous event
+[CR#701.14a..701.14c]. -/
+def fight (left right : NounPhrase) : Instruction :=
+  let a : NounPhrase := .pro .bare .one (.operand 0)
+  let b : NounPhrase := .pro .bare .one (.operand 1)
+  .withOperands [left, right] <|
+    .doIf (.and [.matches a (.and [creature, permanent]), .matches b (.and [creature, permanent])])
+      (.enact (.action "Fight") (.simultaneously [
+        .dealDamage a (.statOf (.stat .power) a) b,
+        .dealDamage b (.statOf (.stat .power) b) a])) none
+
+/-- The replacement's application, rather than installation of a new shield
+[CR#701.19b,701.19c]. -/
+def regenerationApplication (subject : NounPhrase) : Instruction :=
+  let patient : NounPhrase := .pro .bare subject.plur (.operand 0)
+  .withOperands [subject] <|
+    .enact (.action "Regenerate") <|
+      .sequentially [
+        .clearDamage patient,
+        .enact (.action "Tap") (.setStatus .tapped patient)
+          (some (.possessorOf .controller patient)),
+        .doIf (.or [.matches patient (.inCombat .attackerOf none),
+                    .matches patient (.inCombat .blockerOf none)])
+          (.combat patient (.participation .outsideCombat)) none]
+
+/-- A resolving regeneration instruction installs a single-use shield for this turn;
+only its eventual application carries the Regenerate label [CR#701.19a,701.19c]. -/
+def regenerate (subject : NounPhrase) : Instruction :=
+  let patient : NounPhrase := .pro .bare subject.plur (.operand 0)
+  .withOperands [subject] <|
+    .establish (.replacement
+      (.verbedEvent none (.action "Destroy") (some patient) none none)
+      [] none (regenerationApplication patient) .nextTimeOnly none) (some .thisTurn)
+
+/-- Losing counters is removal from the named player. Capturing that player first keeps
+amount references in the order the sentence introduces them. -/
+def loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
+  .withOperands [agent] <| .removeCounters (amount.map Quantity.exactlyOf) kind
+    (.pro (.word .player) agent.plur (.operand 0))
 def loseLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .changeLife (.down amount) (agent := agent)
 def gainLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
@@ -683,7 +722,7 @@ def removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from
   .removeCounters (some quantity) kind from_
 /-- "<who> loses all [<kind>] counters" -/
 def loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  Primitives.Instruction.loseCounters kind none (agent := agent)
+  loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 def removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
   .removeCounters none kind from_

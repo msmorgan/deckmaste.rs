@@ -693,7 +693,7 @@ def matopiGolem : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Golem"],
       text :=
         [ activated (Primitives.Cost.mana [generic 1])
-            (Primitives.Instruction.triggerThisWay (Primitives.Instruction.regenerate thisCreature) (regenerates thisCreature)
+            (Primitives.Instruction.triggerThisWay (regenerate thisCreature) (regenerates thisCreature)
               (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed minusOneMinusOne) it)) ],
       power := stat 3, toughness := stat 3 } }
 

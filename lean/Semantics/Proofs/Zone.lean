@@ -261,7 +261,7 @@ theorem okAgentedDestroy :
 is refused; the printed sentence names the fighting creatures, `Instruction.fights`. -/
 theorem badAgentedAgentlessAct :
     Instruction.check []
-      (.enact (.action "Fight") (Primitives.Instruction.fight (target creature) (target creature)) (agent := (some .you)))
+      (.enact (.action "Fight") (fight (target creature) (target creature)) (agent := (some .you)))
       = [.enactAgentOk] := by
   decide
 
@@ -774,18 +774,18 @@ theorem badEveryBasicLandTypeOnCreature :
 
 /-- "Regenerate target creature." -/
 theorem okRegenerateCreature :
-    Instruction.check [] (Primitives.Instruction.regenerate (target creature))
+    Instruction.check [] (regenerate (target creature))
       = [] := by decide
 
 /-- "Regenerate target creature card in your graveyard." -/
 theorem badRegenerateInGraveyard :
-    Instruction.check [] (Primitives.Instruction.regenerate (a (.and [creature, .inZone graveyard])))
+    Instruction.check [] (regenerate (a (.and [creature, .inZone graveyard])))
       = [.zoneFits, .zoneIs .battlefield, .zoneIs .battlefield, .zoneFits,
          .zoneFits, .zoneIs .battlefield] := by
   decide
 
 theorem badRegenerateBareThis :
-    Instruction.check [] (Primitives.Instruction.regenerate .this) = [.zoneIs .battlefield, .zoneIs .battlefield, .zoneIs .battlefield] := by decide
+    Instruction.check [] (regenerate .this) = [.zoneIs .battlefield, .zoneIs .battlefield, .zoneIs .battlefield] := by decide
 
 /-- "Creatures can't be regenerated." -/
 theorem okRegenerationBanOnBattlefield :

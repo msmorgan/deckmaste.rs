@@ -24,7 +24,7 @@ theorem okBarrageOfBoulders : Instruction.check [] barrageOfBoulders = [] := by 
 def rabidBite : Instruction :=
   Primitives.Instruction.dealDamage (target creatureYouControl) (Primitives.Amount.statOf (.stat .power) it) (target creatureYouDontControl)
 theorem okRabidBite : Instruction.check [] rabidBite = [] := by decide
-def preyUpon : Instruction := Primitives.Instruction.fight (target creatureYouControl) (target creatureYouDontControl)
+def preyUpon : Instruction := fight (target creatureYouControl) (target creatureYouDontControl)
 theorem okPreyUpon : Instruction.check [] preyUpon = [] := by decide
 def arcTrail : Instruction :=
   Primitives.Instruction.sequentially
@@ -92,10 +92,10 @@ def nibelheimAflame : Instruction :=
     [ choose (target creatureYouControl),
       Primitives.Instruction.dealDamage it (Primitives.Amount.statOf (.stat .power) it) (each (otherCreature it)) ]
 theorem okNibelheimAflame : Instruction.check [] nibelheimAflame = [] := by decide
-def brashTaunter : Instruction := Primitives.Instruction.fight thisCreature (target (otherCreature thisCreature))
+def brashTaunter : Instruction := fight thisCreature (target (otherCreature thisCreature))
 theorem okBrashTaunter : Instruction.check [] brashTaunter = [] := by decide
 def ulvenwaldTracker : Instruction :=
-  Primitives.Instruction.fight (target creatureYouControl) (target (Primitives.Predicate.and [creature, Primitives.Predicate.other]))
+  fight (target creatureYouControl) (target (Primitives.Predicate.and [creature, Primitives.Predicate.other]))
 theorem okUlvenwaldTracker : Instruction.check [] ulvenwaldTracker = [] := by decide
 
 def botBashingTime : Instruction :=
@@ -842,7 +842,7 @@ def savageSwipeLine : Instruction :=
     [ Primitives.Instruction.doOnlyIf (get (target creatureYouControl) (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)) (some
         untilEndOfTurn))
         (Primitives.Condition.compareAmt (Primitives.Amount.statOf (.stat .power) it) .eq (.lit 2)) none,
-      Primitives.Instruction.fight it (target creatureYouDontControl) ]
+      fight it (target creatureYouDontControl) ]
 theorem okSavageSwipeLine : Instruction.check [] savageSwipeLine = [] := by decide
 
 def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
