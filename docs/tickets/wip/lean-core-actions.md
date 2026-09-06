@@ -98,43 +98,62 @@ are related implementation history/work, not additional deliveries here.
 
 ## Implementation progress
 
-`zonrmskl` implements combat/attachment updates, turn/part insertion, and
-shared token/emblem creation. `lake build Semantics` and the targeted Turn,
-Faces, Zone, card Turn/Faces/Counters, and new ActionFamilies pin builds pass.
-This is an intermediate checkpoint, not completion evidence for this ticket.
+Implemented in `zonrmskl`: combat and attachment updates, turn/part insertion,
+and shared token/emblem creation. The refreshed partial tree passed the full
+`lean/scripts/build` with warnings fatal (74 jobs), including 11 new
+ActionFamilies proofs.
 
-The Counter macro's mixed spell/ability case is awaiting a user decision:
-existing `doIf` intentionally hides its condition's mentions, as pinned by
-`badLeadingConditionAntecedent`, so placing the target in such a conditional
-would silently lose its later reference. The implementation has not changed
-that scope law or retired `counterSpell`. Fight, regeneration, movement/ability
-zone corrections, and counter-removal expansion also remain to do.
+Implemented in `ymmuznru`: optional-destination movement, ability-location
+correction, and `clearDamage`. The present-destination branch preserves its
+checks; the absent branch records no arrival zone and forbids arrival riders.
+Ability bindings retain their location and copy origin through movement,
+element selection and unions. An exiled ability remains an ability reference
+but cannot be countered/copied as a stack object. Moving `thisAbility` also
+preserves its ability identity. The clear-damage primitive checks an object on
+the battlefield, admits noncreature permanents with marked damage [CR#120.6],
+publishes its subject, and adds no damage outcome.
 
+The ticket expressly authorizes retiring the false blanket movement law:
+`badAbilityMovedToAZone` is re-spelled as `okAbilityMovedToAZone`, changing its
+former `[movable]` result to acceptance. No other existing refusal assertion
+changes. Thirty-five surviving theorem statements and two authoring rejection
+examples are re-spelled; three of those theorems retain definitional-equality
+checks against the new optional-destination shape. Twenty-one new theorems
+cover movement publication, reference restrictions, absent-destination rider
+checks, origin/location preservation, and marked-damage removal. The new
+Marked Damage glossary entry and the movement section of `lean/CONTRACTS.md`
+record these meanings; `cr-citations.lock` registers the verified damage rule.
 
-Read-only expansion recon identified additional preservation conflicts:
+The final `ymmuznru` tree passes `lean/scripts/build` with warnings fatal
+(74 jobs). A source audit found no lost existing assertions other than the
+explicitly retired false ability-movement law above. Citation validation has
+zero noncompliant strings and zero stale rules; ten changed citation sites
+were checked against their text. `cargo xtask gate --changed` reports no
+affected Rust crates. Refresh before verification was a no-op. The first full
+movement gate also passed; it was rerun after review added the `thisAbility`
+identity case. English coverage remains the unchanged 20,254 identities; no
+parser coverage or runtime execution claim is made.
 
-- Fight's current source admissibility differs from own-power damage:
+### Outstanding contract decisions
+
+- **Counter macro:** the mixed spell/ability target needs conditional movement.
+  Existing `doIf` hides its condition's mentions, as pinned by
+  `Description.badLeadingConditionAntecedent`; putting the target in that
+  condition loses its later reference. `counterSpell` remains until the scope
+  decision is made. The independent movement/ability-zone correction is done.
+- **Fight:** current source admissibility differs from own-power damage.
   `Damage.okFightLand` accepts its land operand, while `badFightPermanent`
-  requires a deed-noun refusal. The proposed damage expansion changes those
-  exact results and needs a scope for each fighter's own-power read.
-- A regeneration replacement can publish its event patient, but the direct
-  instruction and replacement do not have identical introduced bindings or
-  refusal multiplicity. The graveyard negative must keep its single
-  `zoneIs battlefield` refusal; a naive expansion adds `zoneFits`.
-- `loseCounters` reads its player before its amount, whereas `removeCounters`
-  reads quantity before holder. A player mentioned by the first operand can
-  supply the amount's life-total read today; a direct macro loses that scope.
-  The newly published removal outcome is authorized, but operand-order loss
-  is not.
+  requires a deed-noun refusal. A naive damage expansion changes those results
+  and needs a scope for each fighter's own-power read.
+- **Regeneration:** the direct instruction and a replacement expansion differ
+  in introduced bindings and refusal multiplicity. The graveyard negative
+  requires one `zoneIs battlefield` refusal; a naive expansion adds `zoneFits`.
+  The independent clear-marked-damage primitive is done.
+- **Counter removal:** `loseCounters` reads its player before its amount;
+  `removeCounters` reads quantity before holder. A player mentioned in the
+  first operand can currently supply the amount's life-total read. The
+  removed-counter outcome is authorized, but losing that operand scope is not.
 
-These findings do not change the recorded checks. The independently implemented
-families have been refreshed onto the completed attachment and characteristic
-folds; macro additions and both copy-type proofs retain both changes.
-
-The refreshed partial tree passes `lean/scripts/build` with warnings fatal
-(74 jobs), including the 11 new ActionFamilies proofs. This is evidence for
-the implemented families, not completion of the outstanding macro folds.
-
-Proposed scope decision, not yet adopted: retain the implemented families and
-move fight, regeneration, countering/movement, and counter-removal expansion
-to a separate design ticket that resolves the listed checking/scope contracts.
+No existing scope law was changed to force a fold. The proposed scope split
+would park those four macro designs and land the implemented families; that
+proposal has not been adopted. This ticket remains incomplete.

@@ -52,11 +52,11 @@ theorem badBothArmsAntecedent :
 
 /-- "Put target creature onto the battlefield." -/
 theorem okMoveToBattlefield :
-    Instruction.check [] (.move (target creature) battlefield []) = [] := by decide
+    Instruction.check [] (.move (target creature) (some battlefield) []) = [] := by decide
 
 /-- "Put target creature into your library." -/
 theorem badMoveToBareLibrary :
-    Instruction.check [] (.move (target creature) library []) = [.destOk] := by decide
+    Instruction.check [] (.move (target creature) (some library) []) = [.destOk] := by decide
 
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
@@ -77,11 +77,11 @@ theorem badChooseSomeOf :
 
 /-- "Exile target creature." -/
 theorem okMoveToExile :
-    Instruction.check [] (.move (target creature) exileZone []) = [] := by decide
+    Instruction.check [] (.move (target creature) (some exileZone) []) = [] := by decide
 
 /-- "Put target creature onto the stack." -/
 theorem badMoveToStack :
-    Instruction.check [] (.move (target creature) stack []) = [.destOk] := by decide
+    Instruction.check [] (.move (target creature) (some stack) []) = [.destOk] := by decide
 
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :

@@ -388,29 +388,29 @@ def minusOneMinusOne : CounterKind := .boost (.down 1) (.down 1)
 /-! ## Instructions -/
 
 def move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
-  .move subject destination []
+  .move subject (some destination) []
 def destroy (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Destroy") (.move subject graveyard []) (agent := agent)
+  .enact (.action "Destroy") (.move subject (some graveyard) []) (agent := agent)
 def exile (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject exileZone []) (agent := agent)
+  .enact (.action "Exile") (.move subject (some exileZone) []) (agent := agent)
 /-- "exile <subject> with N <kind> counters on it" -/
 def exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind)
     (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
+  .enact (.action "Exile") (.move subject (some exileZone) [.withCounters amount (.printed kind) .fresh])
       (agent := agent)
 def sacrifice (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Sacrifice") (.move subject graveyard []) (agent := some agent)
+  .enact (.action "Sacrifice") (.move subject (some graveyard) []) (agent := some agent)
 /-- "<agent> sacrifices it": the permanent slot's occupant. -/
 def sacrificeIt (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   sacrifice (.pro (.atSlot .permanent) .one .whole) (agent := agent)
 /-- "<agent> puts <subject> <destination>" -/
 def put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
-  .enact (.core .put) (.move subject destination []) (agent := some agent)
+  .enact (.core .put) (.move subject (some destination) []) (agent := some agent)
 /-- "return <subject> to <zone>" -/
 def returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider)
     (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.core .return_) (.move subject destination riders) (agent := agent)
+  .enact (.core .return_) (.move subject (some destination) riders) (agent := agent)
 /-- "return <subject> to the battlefield" -/
 def returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
@@ -419,23 +419,23 @@ def returnToBattlefieldTransformed (subject controller : NounPhrase) : Instructi
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 def returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Instruction :=
-  .move subject battlefield [.under who, .withCounters amount (.printed kind) .fresh]
+  .move subject (some battlefield) [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
 def transform (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Transform") (.turnOver subject) (agent := agent)
 /-- "meld <subject> into <name>" -/
 def meldInto (subject : NounPhrase) (into : String) (agent : Option NounPhrase := none) :
     Instruction :=
-  .enact (.action "Meld") (.move subject battlefield [.entersMelded into]) (agent := agent)
+  .enact (.action "Meld") (.move subject (some battlefield) [.entersMelded into]) (agent := agent)
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
 This retains the existing fragment; face-down characteristics and the turn-up special
 action are not represented here. -/
 def manifestPlacement (subject : NounPhrase) : Instruction :=
-  .enact (.action "Manifest") (.move subject battlefield []) (agent := none)
+  .enact (.action "Manifest") (.move subject (some battlefield) []) (agent := none)
 def tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
 def discard (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Discard") (.move subject graveyard []) (agent := some agent)
+  .enact (.action "Discard") (.move subject (some graveyard) []) (agent := some agent)
 def shuffle (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .shuffle (agent := agent)
 def untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
@@ -444,17 +444,17 @@ def exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (exile subject) event
 /-- "<agent> mills <amount> cards" from <whose> library. -/
 def mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Mill") (.move (.librarySlice .top amount whose) graveyard []) (agent := some
+  .enact (.action "Mill") (.move (.librarySlice .top amount whose) (some graveyard) []) (agent := some
       agent)
-def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
+def putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject (some battlefield) []
 def putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.entersAs .tapped]
+  .move subject (some battlefield) [.entersAs .tapped]
 /-- "put <subject> onto the battlefield under your control" -/
 def putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.under .you]
+  .move subject (some battlefield) [.under .you]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 def putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.entersAs .tapped, .entersAttacking none]
+  .move subject (some battlefield) [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
 def searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
@@ -495,7 +495,7 @@ def foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
 def revealIt : Instruction := revealCards foundCard
 def shuffleInto (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Shuffle") (.move subject (.library .shuffled none none .bare) []) (agent := some
+  .enact (.action "Shuffle") (.move subject (some (.library .shuffled none none .bare)) []) (agent := some
       agent)
 def doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none

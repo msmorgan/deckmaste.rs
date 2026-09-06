@@ -272,6 +272,11 @@ Harm an Object deals to a battle, creature, planeswalker, or Player
 ([CR#120.1]). The Object that deals it is the Source of that Damage, and Damage
 cannot be dealt to any other Object ([CR#120.1a]).
 
+**Marked Damage**:
+Damage retained on a Permanent until it is removed, including if the Permanent
+stops being a Creature. Regeneration and cleanup remove all damage marked on
+a Permanent ([CR#120.6]).
+
 **Life Total**:
 The number each Player begins the game with ([CR#119.1]), adjusted whenever an
 Effect causes that Player to gain or lose life ([CR#119.3]). Setting a total to

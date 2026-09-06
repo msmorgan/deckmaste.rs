@@ -424,9 +424,9 @@ by exact-refusal theorems; it is not an authorable term.
 | `VisibleThing` | `VisibleThing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageRecipient` | `NounPhrase.damageRecipient` in damage instructions and `DamagePatient.check`. |
 | `StatusHolder` | `Instruction.setStatus` requires the object kind and battlefield zone. |
-| `NotAnAbility` | `NounPhrase.movable` excludes ability phrases at `Instruction.move`. |
+| `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
 | `DiscardOk` | Discard is an enacted move; the deed facts and `enactPatientZoneOk` check its source. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
-| `Movable` | `NounPhrase.movable` at `Instruction.move` excludes nonmovable terms, including ability phrases. |
+| `Movable` | `NounPhrase.movable` at `Instruction.move` admits objects (including abilities) and piles, and excludes players and quality values. |
 | `DurationEnd` | `DurationEnd.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
 ### Triggers
@@ -525,3 +525,25 @@ subject arguments, numbers, costs, and deck conditions retain their closed
 contexts. Argument lists do not publish bindings between elements. The registry
 codec still limits declaration combinations; changing that codec is outside
 this fold.
+
+
+### Movement without an arrival zone
+
+`Instruction.move` carries an optional destination. `some destination` keeps
+the existing destination, arrangement, type, and rider checks; `none` records
+an exit without asserting an arrival zone and requires no riders. Both forms
+check the subject and preserve its reference publication. Destinationless
+movement does not itself mean countering: that label and a spell's graveyard
+destination belong to the Counter expansion [CR#701.6a].
+
+An ability binding stores its zone, initially the stack. Movement updates that
+zone while retaining its ability identity and copy origin. An exited ability
+can still be referenced as an ability, but a stack reference and counter/copy
+checks require actual stack evidence. Element bindings and unions retain
+location evidence rather than restoring a hardcoded stack location. This is
+reference-state checking, not a runtime lifetime or state-based-action model.
+
+`Instruction.clearDamage` removes all marked damage from a permanent. Its
+subject must be an object on the battlefield, but need not currently be a
+creature [CR#120.6]. It publishes the ordinary subject reference and no damage
+outcome. The regeneration macro remains a separate pending scope decision.

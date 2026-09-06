@@ -825,7 +825,7 @@ mutual
     | .loseCounters _ _ who => who.costNounOk
     | .combat n _ => n.costNounOk
     | .attachment _ what _ => what.costNounOk
-    | .regenerate n => n.costNounOk
+    | .clearDamage n | .regenerate n => n.costNounOk
     | .doAndForbid e _ _ => e.costActionOk
     | .gainDesignation n _ _ _ => n.costNounOk
     | .unlock .thisDoor => true
@@ -903,13 +903,13 @@ def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : Deed) (e 
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .move what to _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
-     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what (some to.sort)) ++ nomIntro bs s),
+     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what (to.map ZoneExpr.sort)) ++ nomIntro bs s),
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .setStatus _ n =>
     ⟨nomIntro bs s, distributedDelta bs s (stampIntro bs' (some v) n) ++ nomIntro bs s, none, []⟩
   | .many, _ => ⟨nomIntro bs s, nomIntro bs s, none, ep.deed⟩
   | .one, .move what to _ =>
-    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what (some to.sort)),
+    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what (to.map ZoneExpr.sort)),
      some (stampIntro bs' (some v) what), []⟩
   | .one, .setStatus _ n => ⟨nomIntro bs' n, stampIntro bs' (some v) n, none, []⟩
   | .one, _ => ep
@@ -949,7 +949,7 @@ mutual
       | .blocking _ what => sameIntro (nomIntro bs' what) []
       | _ => sameIntro bs' []
     | .attachment _ what host => sameIntro (optAgentIntro (nomIntro bs what) host) []
-    | .regenerate n => sameIntro (nomIntro bs n) []
+    | .clearDamage n | .regenerate n => sameIntro (nomIntro bs n) []
     | .doAndForbid e _ _ => Instruction.profile bs e
     | .gainDesignation n _ _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
@@ -974,7 +974,7 @@ mutual
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what to _ =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (some to.sort)), none, []⟩
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (to.map ZoneExpr.sort)), none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
@@ -1012,7 +1012,7 @@ mutual
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
     | .enact v (.move what to _) none =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (some to.sort)),
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (to.map ZoneExpr.sort)),
        some (stampIntro bs (some v) what), []⟩
     | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
     | .enact _ e none => Instruction.profile bs e
@@ -1359,7 +1359,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .fight _ _ | .setStatus _ _ | .turnOver _ | .combat _ _ => []
-  | .attachment _ _ _ | .regenerate _ | .doAndForbid _ _ _ => []
+  | .attachment _ _ _ | .clearDamage _ | .regenerate _ | .doAndForbid _ _ _ => []
   | .gainDesignation _ _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
   | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []

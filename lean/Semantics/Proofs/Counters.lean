@@ -245,14 +245,14 @@ theorem badThemCounterRecipient :
 theorem okExileWithCounterRider :
     Instruction.check []
       (.enact (.action "Exile")
-        (.move (target creature) exileZone [.withCounters (.lit 1) p11 .fresh]) (agent := none)) =
+        (.move (target creature) (some exileZone) [.withCounters (.lit 1) p11 .fresh]) (agent := none)) =
             [] := by
   decide
 
 /-- "Exile target creature tapped." -/
 theorem badExileTapped :
     Instruction.check []
-      (.enact (.action "Exile") (.move (target creature) exileZone [.entersAs .tapped]) (agent :=
+      (.enact (.action "Exile") (.move (target creature) (some exileZone) [.entersAs .tapped]) (agent :=
           none))
       = [.ridersFit] := by
   decide

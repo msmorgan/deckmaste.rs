@@ -20,7 +20,7 @@ private def afterSacrifice : Bindings := Instruction.intro [] instruction
 /-- The target occurs only in the relational subject. The body is a scoped re-read. -/
 theorem expansionIntroducesTheTargetOnce :
     instruction = .enact (.action "Sacrifice")
-      (.move (.pro .bare .one (.introduced [.player, .object])) graveyard [])
+      (.move (.pro .bare .one (.introduced [.player, .object])) (some graveyard) [])
       (agent := some (controllerOf subject)) := by rfl
 
 /-- Full profile, including the general deed machinery's explicit rider context. -/

@@ -160,7 +160,7 @@ def joinHalfPayload : Kind → HeadTy → Payload
   | _, _ => .gap
 
 def elemPayload : Kind → Bool → List CardType → Option Zone → Option Stamp → Payload
-  | .object, true, _, _, _ => .ability none
+  | .object, true, _, zn, _ => .ability none zn
   | .object, false, ty, zn, pv => .object ty zn pv none (some 1)
   | .player, _, _, _, _ => .player false
   | .quality q, _, _, _, _ => .quality q
@@ -231,8 +231,8 @@ def ZoneExpr.shuffles : ZoneExpr → Bool
   | .zone _ _ => false
   | .library place _ _ _ => place.shuffles
 
-def afterMoveTo (to : ZoneExpr) (out : Bindings) : Bindings :=
-  if to.shuffles then afterShuffle out else out
+def afterMoveTo (to : Option ZoneExpr) (out : Bindings) : Bindings :=
+  if to.any ZoneExpr.shuffles then afterShuffle out else out
 
 def sourceZone : Option EventSource → Option Zone
   | some (.zones [z]) => some z.sort
@@ -1572,10 +1572,11 @@ def copySourceOk (bs : Bindings) : CopySort → NounPhrase → Bool
   | .fromStack, n => n.copiable bs
   | .fromCardZone, n => isCardZone (NounPhrase.zone bs n)
 
-/-- Idris `Movable`: an object that is not an ability [CR#113.1c,608.2n], or a pile. -/
+/-- Objects and piles can move. Abilities can be exiled with other stack objects
+[CR#724.1b,724.2b]. -/
 def NounPhrase.movable (n : NounPhrase) : Bool :=
   match n.kindOr .object with
-  | .object => !n.isAbility
+  | .object => true
   | .pile => true
   | _ => false
 
@@ -1801,6 +1802,7 @@ def setZone (p : Option Deed) (z : Option Zone) (b : Binding) : Binding :=
   | .object ty oldZn _ og sz =>
     { b with payload := .object ty z (mkStamp p oldZn (oldZn != z)) og sz }
   | .pile _ sz fc => { b with payload := .pile z sz fc }
+  | .ability og _ => { b with payload := .ability og z }
   | _ => b
 
 def setZoneHead (p : Option Deed) (z : Option Zone) : Bindings → Bindings
@@ -1842,6 +1844,8 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     ⟨.the, m.plur,
       .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩
       :: bs
+  | .asMarker .ability .this => ⟨.self, .one, .ability none z⟩ :: bs
+  | .asMarker .ability _ => ⟨.the, .one, .ability none z⟩ :: bs
   | .asMarker _ .this =>
     ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
   | .asMarker _ _ =>

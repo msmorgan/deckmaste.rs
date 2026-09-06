@@ -365,6 +365,8 @@ mutual
     | turnOver (subject : NounPhrase)
     | combat (subject : NounPhrase) (update : CombatUpdate)
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
+    /-- Remove all damage marked on the permanent [CR#120.6]. -/
+    | clearDamage (subject : NounPhrase)
     | regenerate (subject : NounPhrase)
     /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
     | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
@@ -384,7 +386,7 @@ mutual
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
         (agent : NounPhrase := .you)
-    | move (subject : NounPhrase) (to : ZoneExpr) (riders : List TokenRider)
+    | move (subject : NounPhrase) (to : Option ZoneExpr) (riders : List TokenRider)
     | counterSpell (spell : NounPhrase)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount) (exceptions : List CopyExcept)
         (agent : NounPhrase := .you)

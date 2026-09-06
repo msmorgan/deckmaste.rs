@@ -260,9 +260,9 @@ inductive Payload where
   | gap
   | letter (l : Letter)
   | turnRef
-  /-- An ability on the stack: an object with no printed characteristics and no zone of its
-  own [CR#109.1,113.1c,405.1]. -/
-  | ability (orig : Option Origin)
+  /-- An ability object and its remembered location. Stack origin is the default;
+  movement can remove it [CR#113.1c,724.1b,724.2b]. -/
+  | ability (orig : Option Origin) (zone : Option Zone := some .stack)
   | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
   | join (l r : Payload)
   deriving Repr, BEq
@@ -278,7 +278,7 @@ def kind : Payload → Kind
   | .gap => .gap
   | .letter l => .letter l
   | .turnRef => .turnRef
-  | .ability _ => .object
+  | .ability _ _ => .object
   | .pile .. => .pile
   | .join l r => .join l.kind r.kind
 
@@ -299,7 +299,7 @@ namespace Payload
 
 def zone : Payload → Option Zone
   | .object _ zn _ _ _ => zn
-  | .ability _ => some .stack
+  | .ability _ zn => zn
   | .pile zn _ _ => zn
   | .join l r => (l.zone).elim r.zone some
   | _ => none
@@ -331,7 +331,7 @@ def prov : Payload → Option Stamp
 
 def orig : Payload → Option Origin
   | .object _ _ _ og _ => og
-  | .ability og => og
+  | .ability og _ => og
   | .join l r => (l.orig).elim r.orig some
   | _ => none
 
@@ -580,12 +580,13 @@ def unionPayload : Payload → Payload → Option (Kind × Payload)
   | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
     some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
       (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
-  | .ability o1, .ability o2 => some (.object, .ability (agreedField (· == ·) o1 o2))
+  | .ability o1 z1, .ability o2 z2 =>
+    some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
   | .player a, .player b => if a == b then some (.player, .player a) else none
-  | .object _ _ _ o1 _, .ability o2 =>
-    some (.object, .object [] (some .stack) none (agreedField (· == ·) o1 o2) none)
-  | .ability o1, .object _ _ _ o2 _ =>
-    some (.object, .object [] (some .stack) none (agreedField (· == ·) o1 o2) none)
+  | .object _ z1 _ o1 _, .ability o2 z2 =>
+    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
+  | .ability o1 z1, .object _ z2 _ o2 _ =>
+    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
   | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
   | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
   | _, _ => none
@@ -674,7 +675,7 @@ def payloadHasType (t : CardType) : Payload → Bool
 
 /-- Copy origin belongs to the same object or ability that the word selects. -/
 def payloadIsCopy : Payload → Bool
-  | .object _ _ _ og _ | .ability og => isCopyOrigin og
+  | .object _ _ _ og _ | .ability og _ => isCopyOrigin og
   | _ => false
 
 def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
@@ -721,10 +722,10 @@ def wordReaches (w : NounWord) (b : Binding) : Bool :=
       | .join => Kind.lte .player b.kind
       | .stack => onStackZone pl.zone
       | _ => false
-    | .ability _ =>
+    | .ability _ zn =>
       match w with
       | .ability => true
-      | .stack => true
+      | .stack => onStackZone zn
       | _ => false
     | .pile _ _ _ => w == .pile
     | pl =>
@@ -905,7 +906,7 @@ def damageableHeadTysOk (alts : List (List CardType)) : Bool :=
 /-- A copy of an ability is itself an ability [CR#707.10]: the source's payload shape, not its
 kind, decides which object the copy is. -/
 def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
-  | .object, true, _, _ => .ability (some .copy)
+  | .object, true, _, z => .ability (some .copy) z
   | .object, false, ty, z => .object ty z none (some .copy) none
   | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
   | .player, _, _, _ => .player false

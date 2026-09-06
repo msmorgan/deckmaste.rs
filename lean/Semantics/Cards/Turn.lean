@@ -395,7 +395,7 @@ def selfSacrificeThenExile : Ability :=
     (Primitives.Instruction.sequentially
       [ exile (target creature),
         Primitives.Instruction.delay (Primitives.GameEvent.beginningOf .the .endStep Primitives.HeaderPossessor.noPossessor) [] none
-          (Primitives.Instruction.move (that .card) battlefield []) ])
+          (Primitives.Instruction.move (that .card) (some battlefield) []) ])
 theorem okSelfSacrificeThenExile : Ability.check [] selfSacrificeThenExile = [] := by decide
 
 /-- Mirror Universe -/

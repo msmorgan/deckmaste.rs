@@ -186,7 +186,8 @@ mutual
            let kh := host.kindOr .object
            NounPhrase.check none (nomIntro bs what) host ++
              refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player)))
-    | .regenerate n => NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
+    | .clearDamage n | .regenerate n =>
+      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .doAndForbid e deed what =>
       let bs' := e.riderIntro bs
       let k := what.kindOr .object
@@ -220,11 +221,17 @@ mutual
         refuse (choiceOrderOk first (some voters)) .choiceOrder
     | .move what to riders =>
       let bs' := nomIntro bs what
-      NounPhrase.check none bs what ++ ZoneExpr.check bs' to ++ TokenRider.checkAll bs' riders ++
-        refuse what.movable .movable ++ refuse to.destOk .destOk ++
-        refuse (orderOk what.plur to) .arrangementOk ++
-        refuse (destTypeOk (NounPhrase.ty bs what) to.sort) .placeable ++
-        refuse (ridersFitZone riders to.sort) .ridersFit
+      NounPhrase.check none bs what ++
+        (match to with
+         | some destination =>
+           ZoneExpr.check bs' destination ++ TokenRider.checkAll bs' riders ++
+             refuse what.movable .movable ++ refuse destination.destOk .destOk ++
+             refuse (orderOk what.plur destination) .arrangementOk ++
+             refuse (destTypeOk (NounPhrase.ty bs what) destination.sort) .placeable ++
+             refuse (ridersFitZone riders destination.sort) .ridersFit
+         | none =>
+           TokenRider.checkAll bs' riders ++ refuse what.movable .movable ++
+             refuse riders.isEmpty .ridersFit)
     | .counterSpell what => NounPhrase.check none bs what ++ refuse (what.counterable bs) .stackActOn
     | .copy src what times exc agent =>
       let bs' := nomIntro bs agent

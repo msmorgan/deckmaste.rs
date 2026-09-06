@@ -34,14 +34,14 @@ theorem badSingletonBallot : Ballot.check [] (.byLabel ["death"]) = [.ballotLabe
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
     Instruction.check []
-      (.move (target (.and [creature, .inZone (graveyardOf .you)])) battlefield
+      (.move (target (.and [creature, .inZone (graveyardOf .you)])) (some battlefield)
         [.entersTransformed]) = [] := by
   decide
 
 /-- "Return target creature card from your graveyard to your hand transformed." -/
 theorem badTransformedArrivalOffField :
     Instruction.check []
-      (.move (target (.and [creature, .inZone (graveyardOf .you)])) hand [.entersTransformed])
+      (.move (target (.and [creature, .inZone (graveyardOf .you)])) (some hand) [.entersTransformed])
       = [.ridersFit] := by
   decide
 
@@ -79,7 +79,7 @@ theorem okOnePileAfterPartition :
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Instruction.check [] (.move (target .anyPlayer) hand []) = [.movable] := by decide
+    Instruction.check [] (.move (target .anyPlayer) (some hand) []) = [.movable] := by decide
 
 /-- "Put one pile into your hand." -/
 theorem badPilePartitiveWithoutAPartition :

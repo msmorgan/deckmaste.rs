@@ -60,7 +60,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none
-        (.enact (.action "Destroy") (.move (target creature) (.zone .hand .bare) []))] } }
+        (.enact (.action "Destroy") (.move (target creature) (some (.zone .hand .bare)) []))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
 #guard_msgs in
@@ -68,7 +68,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially
-        [.enact (.action "Destroy") (.sequentially [.move (target creature) (.zone .hand .bare) []])])] } }
+        [.enact (.action "Destroy") (.sequentially [.move (target creature) (some (.zone .hand .bare)) []])])] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in
