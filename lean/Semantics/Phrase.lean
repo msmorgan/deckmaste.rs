@@ -29,6 +29,12 @@ inductive ManaTypeTerm where
   | ofColor (color : ColorTerm)
   deriving Repr, BEq
 
+/-- Which version of a zone-changing object supplies the event pattern's characteristics
+[CR#603.10,603.10a]. -/
+inductive ObservationPoint where
+  | before | after
+  deriving DecidableEq, Repr
+
 mutual
   /-- Whose zone: "your graveyard", or a bare zone name. -/
   inductive ZoneScope where
@@ -218,6 +224,7 @@ mutual
 
 
   inductive Condition where
+    | duringPart (part : TurnPart) (whose : Option NounPhrase)
     /-- "if there is a …" -/
     | exists_ (subject : NounPhrase)
     | happened (subject : NounPhrase) (lookback : LookbackClause)
@@ -238,11 +245,10 @@ mutual
     | or (disjuncts : List Condition)
 
   inductive GameEvent where
-    | dies (subject : NounPhrase)
-    | leaves (subject : NounPhrase) (from_ : Option EventSource)
+    | zoneChange (subject : NounPhrase) (from_ : Option EventSource)
+        (to : Option ZoneExpr) (observation : ObservationPoint)
     | draws (player : NounPhrase)
     | losesGame (player : NounPhrase)
-    | enters (subject : NounPhrase) (from_ : Option EventSource)
     /-- "attacks", "attacks you", "blocks", "becomes blocked by …": an object's combat event,
     with the counterpart the sentence names. -/
     | combat (relation : CombatRelation) (subject : NounPhrase) (counterpart : Option NounPhrase)
@@ -257,7 +263,6 @@ mutual
     /-- The game gains a designation: "it becomes night" [CR#731.1]. -/
     | gameBecomes (designation : DesignationLabel)
     | stateHolds (condition : Condition)
-    | putInto (subject : NounPhrase) (destination : ZoneExpr) (from_ : Option EventSource)
     | counterEvent (move : CounterMove) (kind : Option CounterKind) (subject : NounPhrase)
         (batch : CounterBatch) (by_ : Option NounPhrase) (byEffect : Bool)
     | tokensCreated (tokens : NounPhrase) (byEffect : Bool) (by_ : Option NounPhrase)

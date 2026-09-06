@@ -330,10 +330,12 @@ def encroachingMycosynth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Encroaching Mycosynth", cost := some [generic 3, pip .blue], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.offBattlefieldScope
-            (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
+        [ Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.or [artifact, Primitives.Predicate.hasType .battle, creature, enchantment, Primitives.Predicate.hasType .planeswalker], spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, permanentCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ])
                 .adds
-              (Primitives.QualityPayload.bundle { characteristics := { types := [.artifact] } } none))) ] } }
+              (Primitives.QualityPayload.bundle { characteristics := { types := [.artifact] } } none)) ] } }
 
 /-- Darkest Hour -/
 def darkestHour : Spelled := spelled <| .singleFaced
@@ -373,9 +375,11 @@ def nightcreep : Spelled := spelled <| .singleFaced
 def celestialDawnAscriptions : List Ability :=
   [ Primitives.Ability.static (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .sets
       (Primitives.QualityPayload.bundle { characteristics := { subtypes := [landType "Plains"] } } none)),
-    Primitives.Ability.static (Primitives.StaticSpec.offBattlefieldScope
-      (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .sets
-        (Primitives.QualityPayload.colored (.some [.white])))) ]
+    Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .sets
+        (Primitives.QualityPayload.colored (.some [.white]))) ]
 theorem okCelestialDawnAscriptions : Ability.checkText [] celestialDawnAscriptions = [] := by decide
 
 /-- Transguild Courier -/
@@ -678,8 +682,11 @@ def rampantFrogantuaPump : Ability :=
 theorem okRampantFrogantuaPump : Ability.check [] rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
 def maskwoodNexusTypes : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.offBattlefieldScope (Primitives.StaticSpec.qualityChange (allOf creatureYouControl) .adds (Primitives.QualityPayload.everyTypeOf
-      .creature)))
+  Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds (Primitives.QualityPayload.everyTypeOf
+      .creature))
 theorem okMaskwoodNexusTypes : Ability.check [] maskwoodNexusTypes = [] := by decide
 /-- Luxior, Giada's Gift -/
 def luxiorEquippedPermanent : Ability :=

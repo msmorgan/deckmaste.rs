@@ -300,7 +300,7 @@ def colossalGraveReaver : Spelled := spelled <| .singleFaced
           triggeredOr (Primitives.GameEvent.enters thisCreature none) [attacks thisCreature] (mill (.lit 3) Primitives.NounPhrase.you (agent
               := Primitives.NounPhrase.you)),
           whenever
-            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [creature, Primitives.Predicate.inZone yourLibrary])) (graveyardOf Primitives.NounPhrase.you)
+            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) (graveyardOf Primitives.NounPhrase.you)
               (Primitives.EventSource.zones [yourLibrary]))
             (putOntoBattlefield (someOf (exactly 1) them)) ],
       power := stat 7, toughness := stat 6 } }

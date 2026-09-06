@@ -89,7 +89,7 @@ theorem badNestedCoordination :
 /-- "Whenever a creature enters, destroy that creature." -/
 theorem okThatCreatureAfterAntecedent :
     Ability.check []
-      (whenever (.enters (a creature) none) (destroy (that (.type .creature))))
+      (whenever (Primitives.GameEvent.enters (a creature) none) (destroy (that (.type .creature))))
       = [] := by
   decide
 

@@ -54,43 +54,99 @@ Leave the current provenance reads and protection retention in place.
 [general as-event instruction construct](../maybe/lean-core-as-event-instructions.md)
 are separate design tickets. The latter does not block the occasion-enum fold.
 
-## Implementation progress
+## Result
 
-The choice-occasion and damage-pattern folds are implemented. Entry and
-attachment choices share `StaticSpec.choice`, with a `ChoiceOccasion` and
-disclosure. Both named authoring forms remain macros. `GameEvent.damage`
-shares optional source/recipient fields; it requires at least one participant.
-Existing source-first and recipient-only wording keeps its checking order,
-mention order, and trigger versus interception profiles. No voice field.
+All event and applicability folds are complete. Damage shares a participant
+pattern, entry/attachment choices share an occasion, and zone transitions share
+explicit endpoints and an observation point. Named authoring forms remain macros.
+Turn applicability is an ordinary condition. Off-battlefield applicability names
+the actual controlled and owned collections directly.
 
-The syntax build passes. Twelve new event-pattern proofs have clean Lean LSP
-diagnostics. The focused choice, damage, and lookback proof suites and choice card bench
-pass. Existing card/proof sources differ only by the four retired constructor
-spellings becoming macro calls, with the three lookback-only proofs using
-the equivalent raw damage payload to keep their core-only imports.
-Off-battlefield selection expansion remains outstanding too. This ticket is
-not yet complete.
+The user clarified that the Lean prototype must be self-consistent and
+rules-correct, with no compatibility obligation to obsolete checker behavior.
+That authorization supersedes the earlier preservation questions. The affected
+checks and witnesses were corrected rather than deferred.
 
-The user has been asked about two preservation conflicts before implementation:
-`dies` requires known battlefield membership while the equivalent placement
-form permits an unspecified zone, and `partScope` reads its player in the
-incoming scope while ordinary `conditional` reads after the spec. No checking
-or scope contract has been changed to force those folds through.
+## Landing record
 
+### PROVE
 
-Recon also found that `offBattlefieldScope` has a constructor-specific
-protection check: `Static.badDoubleExtension` asserts exactly `[notExtended]`.
-Transparent noun expansion removes the tested boundary. Maskwood Nexus also
-uses a battlefield-only every-subtype check that cannot simply be applied to
-its off-battlefield domains. Explicit selections may publish more noun
-mentions than the wrapper. These need a contract decision before expansion;
-no legacy provenance flag has been added to conceal the difference.
+Measured on `mqoxyntz` over the earlier choice/damage fold `moklsruy`, with
+English lock covered count **20,254**.
 
-The partial change has been refreshed onto the completed characteristic and
-attachment folds. Conflicting macro additions, proof imports, and the chosen
-protection proof were combined; expected results are unchanged. The choice and
-damage folds remain saved in `moklsruy`, pending the remaining scope decision.
+- Full Lean gate: **75 jobs passed**, warnings fatal. Focused event, scope, and affected
+  card checks pass (**33 jobs**); the independent reviewer reran all original
+  repros and confirmed their fixes.
+- Rust closure: `cargo xtask gate --changed` reports **no affected workspace
+  crates**.
+- Existing checked card declarations: **815 retained**, **0 removed**, and
+  **1 added** (`Cards.Trigger.dread`), for **816**. Dread represents its printed
+  Fear ability, damage trigger, and graveyard-arrival trigger with a Shuffle
+  expansion. This is a Lean witness, not a new English parser identity.
+- Named proof inventory: **1,598 → 1,638**. **40 new** event/scope proofs,
+  **68 re-spelled or corrected** (including the two replacements below),
+  **0 restored**, **0 ignored**, and **0 assertions dropped without replacement**.
+- Citations: **0 noncompliant, 0 stale**. The combined feature diff contains
+  **7 changed citation sites**, each read against the local rules text.
+- Parser identity coverage, roundtrip, lexical ownership, construction/traversal
+  identity, tie and failure counts, and licensing-checker totals were not
+  remeasured; no parser or grammar implementation changed. No new checker guard
+  names a card or surface lexeme.
 
-The refreshed partial tree passes `lean/scripts/build` with warnings fatal
-(74 jobs). This verifies the implemented choice/damage folds against the
-combined bench; it does not complete the outstanding zone and scope folds.
+### DISCLOSE
+
+Two retired witness names have explicit replacements:
+
+- `Anaphora.badPlacementIntoBattlefield` → `okPlacementIntoBattlefield`:
+  battlefield arrival is a valid zone-change pattern. The old refusal depended
+  on the spelling used for that pattern.
+- `Static.badDoubleExtension` → `badContradictoryOutsideSelection`: nesting the
+  removed wrapper no longer denotes a distinct semantic error. Its replacement
+  refuses an actually contradictory affected selection. `okSingleExtension`
+  now checks the explicit three-domain selection.
+
+Five existing negative diagnostics change while retaining their rejection:
+`Anaphora.badEntryOriginBattlefield` uses the shared endpoint contradiction;
+`Zone.badDiesInGraveyard` and `badWouldDieInGraveyard` use the shared observed-zone
+check; `Zone.badCardTokenTarget` reports the card/token contradiction without a
+spurious missing-zone diagnostic; `Damage.badGetsSource` reports the missing
+battlefield evidence for both characteristic modifications instead of inventing
+battlefield evidence between them. The other re-spellings preserve their asserted
+results.
+
+Deviations and additions:
+
+- `ObservationPoint` names the before/after distinction, documented in the Game
+  Model glossary and workbench contract. No action-provenance state was added.
+- Zone checking now preserves positive zone evidence on card descriptions and
+  keeps placeless cards/sources placeless when publishing their bindings.
+  Qualified exclusions remain conservative where player identity is unknown;
+  repeated indefinite phrases are not treated as equal references merely
+  because their syntax matches.
+- Endpoint checking, historical mentions, and continuation publication share
+  subject → origin → destination order. Later endpoints can read players
+  introduced by earlier fields. Historical observations do not move references.
+- Review found and fixed discarded departure evidence, false battlefield
+  publication, overly broad player-zone exclusions, missing endpoint scope,
+  impossible origin sets, and whole-turn rejection. Direct witnesses cover
+  each; the reviewer reran the original repros successfully.
+- Celestial Dawn joins Arcane Adaptation, Conspiracy, Maskwood Nexus, and
+  Encroaching Mycosynth in the explicit-selection migration. Its controlled
+  spell domain is broader than Mycosynth's permanent-spell domain.
+- Colossal Grave-Reaver, Voracious Brood, and Syr Konrad now describe arriving
+  cards in after-observation patterns. Dread supplies the compact additional
+  "graveyard from anywhere" witness. Exact card text was verified locally.
+- Three obsolete refusal constructors and two unused origin-spelling helpers
+  are removed. Protection retention and all parked mechanisms remain deferred.
+
+### REPORT
+
+Core `GameEvent`: **34 → 30**. Core `StaticSpec`: **28 → 25**.
+`Condition`: **17 → 18**, adding the turn-position condition. The helper enums
+`ObservationPoint` and `ChoiceOccasion` each have **2** constructors. Instruction
+stays **62** on this ticket. These helper counts are reported separately from the
+core reductions.
+
+English lock coverage is unchanged at **20,254**. Parser selection census,
+construction count, homograph/form-overlap inventories, and performance were not
+remeasured. No parser performance or runtime engine execution claim is made.

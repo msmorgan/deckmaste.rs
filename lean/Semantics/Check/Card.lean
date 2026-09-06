@@ -41,7 +41,6 @@ def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
   | .altCost .this _ => true
   | .costShift .this _ => true
   | .addedCost _ _ => true
-  | .partScope _ _ se => se.onInstantOrSorceryCardOk
   | .conditional se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 

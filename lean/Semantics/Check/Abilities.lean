@@ -460,8 +460,7 @@ def CharacteristicEdit.fits (bs : Bindings) (subject : NounPhrase)
   | .colors op cs => cs.ok && colorOpOk op cs
   | .stat op _ _ => op == .sets
   | .everyTypeOf _ space =>
-    zoneIsB (NounPhrase.zone bs subject) .battlefield &&
-      spaceHosted space (written ++ NounPhrase.ty bs subject)
+    spaceHosted space (written ++ NounPhrase.ty bs subject)
   | .chosenQuality _ q =>
     q.qualityReadOk && q.qualityReadHost.elim true (fun host =>
       tyIs host (written ++ NounPhrase.ty bs subject))
@@ -514,10 +513,6 @@ def ridersFitZone (rs : List TokenRider) (z : Zone) : Bool := ridersZoneFree rs 
 def StaticSpec.isCoord : StaticSpec → Bool
   | .conjunction _ _ => true
   | _ => false
-
-def StaticSpec.notExtended : StaticSpec → Bool
-  | .offBattlefieldScope _ => false
-  | _ => true
 
 def StaticSpec.notCarvedOut : StaticSpec → Bool
   | .retention _ _ => false
@@ -1125,9 +1120,7 @@ mutual
     | .replacement ev alts _ _ _ _ => interceptCtx bs alts ev
     | .damageRule _ src scope op _ => op.intro (scope.intro (src.intro bs))
     | .preventionBan _ what _ => what.intro bs
-    | .partScope _ _ se => StaticSpec.intro bs se
     | .conditional se c _ => c.intro (StaticSpec.intro bs se)
-    | .offBattlefieldScope se => StaticSpec.intro bs se
     | .retention se n => nomIntro (StaticSpec.intro bs se) n
     | .visibility _ who what => what.intro (nomIntro bs who)
     | .additionalTriggers _ _ => bs
@@ -1362,12 +1355,12 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .deonticRule _ _ _ _ bound _ asThough _ =>
     optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
   | .manaRetention _ _ | .partSkip _ _ | .characteristicChange _ _ => []
-  | .offBattlefieldScope _ | .retention _ _ => []
+  | .retention _ _ => []
   | .copyChange _ _ _ | .controlGrant _ _ => []
   | .replacement _ _ _ _ _ _ => []
   | .damageRule _ _ _ op _ => op.numberSlots
   | .preventionBan _ _ _ => []
-  | .conditional _ _ _ | .partScope _ _ _ => []
+  | .conditional _ _ _ => []
   | .visibility _ _ _ | .additionalTriggers _ _ => []
   | .entryRider _ rider => rider.numberSlots
   | .choice _ _ _ _ _ | .conjunction _ _ => []

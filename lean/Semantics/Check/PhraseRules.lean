@@ -458,6 +458,8 @@ mutual
 
 
   def Condition.checkIn (gap : Option Kind) (bs : Bindings) : Condition â†’ CheckResult
+    | .duringPart _ who =>
+      OptNoun.checkIn gap (some .player) bs who ++ refuse (partPossessorOk who) .windowOk
     | .exists_ n => NounPhrase.checkIn gap none bs n ++ refuse n.existentialMention
       .existentialMention
     | .happened who lb =>
@@ -562,18 +564,15 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
   | some z => ZoneExpr.checkIn gap bs z
 
   def GameEvent.checkIn (gap : Option Kind) (bs : Bindings) : GameEvent â†’ CheckResult
-    | .dies n =>
-      NounPhrase.checkIn gap (some .object) bs n ++ refuse (zoneIsB (NounPhrase.zone bs n)
-        .battlefield) (.zoneIs .battlefield)
-    | .leaves n from_ =>
-      NounPhrase.checkIn gap (some .object) bs n ++ OptEventSource.checkIn gap bs from_ ++
-        refuse (zoneFits (NounPhrase.zone bs n) (sourceZone from_)) .zoneFits
+    | .zoneChange n from_ to observation =>
+      let subjects := nomIntro bs n
+      let origins := OptEventSource.introduced subjects from_ ++ subjects
+      NounPhrase.checkIn gap (some .object) bs n ++ OptEventSource.checkIn gap subjects from_ ++
+        OptZoneExpr.checkIn gap origins to ++
+        refuse (transitionSubjectOk (NounPhrase.zone bs n) from_ to observation) .zoneFits ++
+        refuse (transitionEndpointsOk from_ to) .zoneCoherent
     | .draws who => NounPhrase.checkIn gap (some .player) bs who
     | .losesGame who => NounPhrase.checkIn gap (some .player) bs who
-    | .enters n from_ =>
-      NounPhrase.checkIn gap (some .object) bs n ++ OptEventSource.checkIn gap bs from_ ++
-        refuse (zoneFits (NounPhrase.zone bs n) (some .battlefield)) .zoneFits ++
-        refuse (entrySourceOk from_) .lookbackSource
     | .combat .attackerOf n whom =>
       NounPhrase.checkIn gap none bs n ++ AttackDefender.checkIn gap (nomIntro bs n) whom ++
         refuse (n.attackerOk bs) .attacker
@@ -629,11 +628,6 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
         refuse v.markable .statusMarkable
     | .gameBecomes d => refuse d.gameWide (.designationScope d)
     | .stateHolds c => Condition.checkIn gap bs c
-    | .putInto n to from_ =>
-      NounPhrase.checkIn gap (some .object) bs n ++ ZoneExpr.checkIn gap bs to ++
-        OptEventSource.checkIn gap bs from_ ++
-        refuse (putDestOk to) .lookbackDest ++ refuse (putSourceOk from_) .lookbackSource ++
-        refuse (zoneFits (NounPhrase.zone bs n) (sourceZone from_)) .zoneFits
     | .counterEvent dir kind n batch by_ byEffect =>
       let k := n.kindOr .object
       NounPhrase.checkIn gap none bs n ++ OptCounterKind.checkIn gap kind ++

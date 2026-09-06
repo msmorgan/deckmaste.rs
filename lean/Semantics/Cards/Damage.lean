@@ -1190,7 +1190,7 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Knight"],
       text :=
         [ triggeredOr (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))
-            [ putIntoFrom (a creature) graveyard (Primitives.EventSource.anywhereBut [battlefield]),
+            [ putIntoFrom (a (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) graveyard (Primitives.EventSource.anywhereBut [battlefield]),
               leavesZone (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) (graveyardOf Primitives.NounPhrase.you) ]
             (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (each Primitives.Predicate.opponent)),
           activated (Primitives.Cost.mana [generic 1, pip .black]) (mill (.lit 1) (each Primitives.Predicate.anyPlayer) (agent := (each

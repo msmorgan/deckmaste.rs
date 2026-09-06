@@ -86,8 +86,8 @@ theorem badMoveToStack :
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none [] none none
-        (some (.happened (a creature) (.mk (.dies (.asMarker .permanent (.gap .object)))
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
+        (some (.happened (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
           .thisTurn))) (draw (.lit 1) (agent := .you)))
             = [] := by
   decide
@@ -95,15 +95,15 @@ theorem okLookbackObjectDied :
 /-- "When this creature enters, if you died this turn, draw a card." -/
 theorem badLookbackPlayerDied :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none [] none none
-        (some (.happened .you (.mk (.dies (.asMarker .permanent (.gap .object))) .thisTurn))) (draw
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
+        (some (.happened .you (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object))) .thisTurn))) (draw
           (.lit 1) (agent := .you)))
       = [.lookbackSubject] := by
   decide
 
 theorem badLookbackObjectCast :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none [] none none
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (.happened (a creature) (.mk (.casts (.gap .player) none none) .thisTurn))) (draw
           (.lit 1) (agent :=
             .you)))
@@ -113,7 +113,7 @@ theorem badLookbackObjectCast :
 /-- "target creature that entered this turn" -/
 theorem okHappenedToObjectEntry :
     NounPhrase.check (some .object) []
-      (target (.and [creature, .happenedTo (.mk (.enters (.gap .object) none) .thisTurn)])) = [] :=
+      (target (.and [creature, .happenedTo (.mk (Primitives.GameEvent.enters (.gap .object) none) .thisTurn)])) = [] :=
         by
   decide
 
@@ -127,7 +127,7 @@ theorem badHappenedToObjectCast :
 /-- "each opponent who died this turn" -/
 theorem badHappenedToPlayerDied :
     NounPhrase.check (some .player) []
-      (each (.and [.opponent, .happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+      (each (.and [.opponent, .happenedTo (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
         .thisTurn)])) = [.lookbackSubject] := by
   decide
 
@@ -251,7 +251,7 @@ theorem badCastFromStack :
 /-- "… that was put somewhere from the battlefield this turn." -/
 theorem okPlacementOriginBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk (.leaves (.gap .object) (some (.zones [battlefield]))) .thisTurn))
+      (.happenedTo (.mk (Primitives.GameEvent.leaves (.gap .object) (some (.zones [battlefield]))) .thisTurn))
       = [] := by
   decide
 
@@ -293,22 +293,22 @@ theorem badEmptyOriginExclusion :
 
 /-- "… that died this turn." -/
 theorem okDeathLookbackWithoutOrigin :
-    Predicate.check .object [] (.happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+    Predicate.check .object [] (.happenedTo (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
       .thisTurn)) = [] := by decide
 
 /-- "… that was put into a graveyard from the battlefield this turn." -/
 theorem okPlacementIntoGraveyard :
     Predicate.check .object []
       (.happenedTo
-        (.mk (.putInto (.gap .object) graveyard (some (.zones [battlefield]))) .thisTurn)) = [] :=
+        (.mk (Primitives.GameEvent.putInto (.gap .object) graveyard (some (.zones [battlefield]))) .thisTurn)) = [] :=
           by
   decide
 
 /-- "… that was put into the battlefield this turn." -/
-theorem badPlacementIntoBattlefield :
+theorem okPlacementIntoBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk (.putInto (.gap .object) battlefield none) .thisTurn))
-      = [.lookbackDest] := by
+      (.happenedTo (.mk (Primitives.GameEvent.putInto (.gap .object) battlefield none) .thisTurn))
+      = [] := by
   decide
 
 /-- "if you shuffled your library this way" -/
@@ -354,14 +354,14 @@ theorem badResolvedOnBattlefield :
 
 /-- "if it entered this turn" -/
 theorem okEntryLookbackWithoutOrigin :
-    Predicate.check .object [] (.happenedTo (.mk (.enters (.gap .object) none) .thisTurn)) = [] :=
+    Predicate.check .object [] (.happenedTo (.mk (Primitives.GameEvent.enters (.gap .object) none) .thisTurn)) = [] :=
       by decide
 
 /-- "if it entered from the battlefield" -/
 theorem badEntryOriginBattlefield :
     Predicate.check .object []
-      (.happenedTo (.mk (.enters (.gap .object) (some (.zones [battlefield]))) .thisTurn))
-      = [.lookbackSource] := by
+      (.happenedTo (.mk (Primitives.GameEvent.enters (.gap .object) (some (.zones [battlefield]))) .thisTurn))
+      = [.zoneCoherent] := by
   decide
 
 /-- "For each opponent, you draw a card." -/
@@ -543,18 +543,18 @@ theorem badDealtThisWayAbility :
 
 /-- "the number of creatures that died this turn" -/
 theorem okDeathTally :
-    Amount.check [] (.eventTally .count (a creature) (.mk (.dies (.asMarker .permanent (.gap
+    Amount.check [] (.eventTally .count (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap
       .object))) .thisTurn)) = [] := by decide
 
 /-- "the amount of creatures that died this turn" -/
 theorem badDeathSum :
-    Amount.check [] (.eventTally .sum (a creature) (.mk (.dies (.asMarker .permanent (.gap
+    Amount.check [] (.eventTally .sum (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap
       .object))) .thisTurn)) = [.tallyOk] := by
   decide
 
 /-- "creature that died this turn" -/
 theorem okObjectDeathLookbackSubject :
-    Predicate.check .object [] (.happenedTo (.mk (.dies (.asMarker .permanent (.gap .object)))
+    Predicate.check .object [] (.happenedTo (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
       .thisTurn)) = [] := by decide
 
 /-- "creature that won a coin flip this turn" -/

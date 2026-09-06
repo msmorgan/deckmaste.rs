@@ -209,3 +209,39 @@ def dealsDamage (kind : DamageKind) (source : NounPhrase) (patient : Option Noun
 
 register_semantic_macros
 end Semantics.Macros.Primitives.GameEvent
+
+namespace Semantics.Macros.Primitives.GameEvent
+
+/-- A battlefield-to-graveyard transition observed before departure [CR#700.4,603.10a]. -/
+def dies (subject : NounPhrase) : Semantics.GameEvent :=
+  .zoneChange subject (some (.zones [.zone .battlefield .bare]))
+    (some (.zone .graveyard .bare)) .before
+
+def leaves (subject : NounPhrase) (from_ : Option EventSource) : Semantics.GameEvent :=
+  .zoneChange subject from_ none .before
+
+def enters (subject : NounPhrase) (from_ : Option EventSource) : Semantics.GameEvent :=
+  .zoneChange subject from_ (some (.zone .battlefield .bare)) .after
+
+/-- Observation follows the pattern, not an individual occurrence's origin. In particular,
+"from anywhere" is not a leaves-the-battlefield trigger [CR#603.6c,603.10a]. -/
+def putInto (subject : NounPhrase) (destination : ZoneExpr) (from_ : Option EventSource) :
+    Semantics.GameEvent :=
+  let before : Bool := match from_ with
+    | some (.zones zs) => !zs.isEmpty && zs.all (fun z =>
+        z.sort == .battlefield || z.sort == .graveyard ||
+          ((destination.sort == .hand || destination.sort == .library) &&
+            (z.sort == .exile || z.sort == .stack || z.sort == .command)))
+    | _ => false
+  .zoneChange subject from_ (some destination) (if before then .before else .after)
+
+register_semantic_macros
+end Semantics.Macros.Primitives.GameEvent
+
+namespace Semantics.Macros.Primitives.StaticSpec
+
+def partScope (part : TurnPart) (whose : Option NounPhrase) (spec : Semantics.StaticSpec) :
+    Semantics.StaticSpec := .conditional spec (.duringPart part whose) .asLongAs
+
+register_semantic_macros
+end Semantics.Macros.Primitives.StaticSpec

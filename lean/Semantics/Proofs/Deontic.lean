@@ -164,7 +164,7 @@ theorem badDelayedAsCost :
 /-- an "until" rider written as a cost -/
 theorem badHeldUntilAsCost :
     Ability.check []
-      (act (.perform (.holdUntil (exile (target creature)) (.dies (a creature))))
+      (act (.perform (.holdUntil (exile (target creature)) (Primitives.GameEvent.dies (a creature))))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
 

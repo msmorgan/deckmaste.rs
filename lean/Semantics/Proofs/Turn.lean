@@ -85,7 +85,7 @@ theorem badSacrificeExiled :
 
 theorem badDeadCreatureRead :
     Instruction.check []
-      (.delay (.dies (target creature)) [] (some .thisTurn)
+      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn)
         (move (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -156,7 +156,7 @@ theorem badTriggerAtYourTurn :
 
 /-- "Whenever a creature dies, tap it." -/
 theorem badTriggerTapsDeadCreature :
-    Ability.check [] (whenever (.dies (a creature)) (.setStatus .tapped it))
+    Ability.check [] (whenever (Primitives.GameEvent.dies (a creature)) (.setStatus .tapped it))
       = [.zoneIs .battlefield] := by
   decide
 

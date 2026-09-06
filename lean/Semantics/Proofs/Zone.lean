@@ -53,12 +53,11 @@ theorem badTokenGraveyard :
       = [.zoneCoherent] := by
   decide
 
-/-- "Destroy target card token." The Idris pin names only the contradiction; its zone
-obligation was discharged by the same impossible hypothesis (both are `So False`), which the
-list form cannot hide: a placeless head has no battlefield to be destroyed on. -/
+/-- "Destroy target card token" contradicts the distinction between cards and tokens.
+Its explicit token evidence supplies the battlefield zone. -/
 theorem badCardTokenTarget :
     Instruction.check [] (destroy (target (.and [.isToken, .isCard])))
-      = [.contradictionFree, .zoneFits] := by
+      = [.contradictionFree] := by
   decide
 
 /-- "Tap target creature. Untap that token." -/
@@ -144,14 +143,14 @@ theorem badDistributedZoneMoveRead :
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Instruction.check []
-      (.delay (.dies (target creature)) [] (some .thisTurn) (.move (that .card) (some battlefield) []))
+      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn) (.move (that .card) (some battlefield) []))
       = [] := by
   decide
 
 theorem badDiesInGraveyard :
     Instruction.check []
-      (.delay (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) [] (some .thisTurn)
-        (.move (that .card) (some battlefield) [])) = [.zoneIs .battlefield] := by
+      (.delay (Primitives.GameEvent.dies (target (.and [creature, .inZone (graveyardOf .you)]))) [] (some .thisTurn)
+        (.move (that .card) (some battlefield) [])) = [.zoneFits] := by
   decide
 
 /-- "not of a color other than white" -/
@@ -528,13 +527,13 @@ theorem badEachOfTheRest :
 /-- "If a creature you control would die this turn, exile it instead." -/
 theorem okWouldDieOnBattlefield :
     Instruction.check []
-      (replaceEvent (.dies (target creatureYouControl)) (exile it) (some .thisTurn)) = [] := by
+      (replaceEvent (Primitives.GameEvent.dies (target creatureYouControl)) (exile it) (some .thisTurn)) = [] := by
   decide
 
 theorem badWouldDieInGraveyard :
     Instruction.check []
-      (replaceEvent (.dies (target (.and [creature, .inZone (graveyardOf .you)]))) (exile it)
-        (some .thisTurn)) = [.zoneIs .battlefield] := by
+      (replaceEvent (Primitives.GameEvent.dies (target (.and [creature, .inZone (graveyardOf .you)]))) (exile it)
+        (some .thisTurn)) = [.zoneFits] := by
   decide
 
 /-- "Reveal the top card of your library. Put that card into your hand." -/
@@ -674,14 +673,14 @@ theorem badUnlicensedDifference :
 to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none [] none none
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (.compareAmt (countOf creatureYouControl) .less (.lit 7)))
         (draw .theDifference (agent := .you))) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none [] none none
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (exists_ creatureYouControl)) (draw .theDifference (agent := .you))) = [.gapInScope 0]
             := by
   decide
@@ -875,7 +874,7 @@ theorem badUnflipInstruction :
 
 /-- "… if a creature died this turn, …" -/
 theorem okDeathLookback :
-    Condition.check [] (.happened (a creature) (.mk (.dies (.asMarker .permanent (.gap .object)))
+    Condition.check [] (.happened (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
       .thisTurn)) = [] := by decide
 
 /-- "Counter target activated ability." -/

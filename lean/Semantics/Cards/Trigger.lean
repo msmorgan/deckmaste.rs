@@ -945,4 +945,17 @@ def squelch : Spelled := spelled <| .singleFaced
 
 theorem bioplasmTwoCandidates : countOnes .object bioplasmAfterExile = 2 := by decide
 
+/-- "From anywhere" observes Dread after its arrival in the graveyard. -/
+def dread : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Dread", cost := some [generic 3, pip .black, pip .black, pip .black],
+      types := [.creature], subtypes := [creatureType "Elemental", creatureType "Incarnation"],
+      text :=
+        [ keyword "Fear",
+          whenever (Primitives.GameEvent.dealsDamage .any (a creature)
+            (some Primitives.NounPhrase.you)) (destroy it),
+          when (putIntoFrom Primitives.NounPhrase.this graveyard Primitives.EventSource.anywhere)
+            (shuffleInto it (agent := Primitives.NounPhrase.possessorOf .owner it)) ],
+      power := stat 6, toughness := stat 6 } }
+
 end Semantics.Cards

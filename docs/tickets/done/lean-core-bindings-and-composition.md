@@ -36,7 +36,7 @@ The other independently claimable tickets are:
 
 - [Attachment and face predicates](../done/lean-core-attachment-and-face-predicates.md).
 - [Characteristic edits and keyword arguments](../done/lean-core-characteristics-and-keyword-arguments.md).
-- [Events and static specs](../planned/lean-core-events-and-static-specs.md).
+- [Events and static specs](../done/lean-core-events-and-static-specs.md).
 - [Action expansions](../done/lean-core-actions.md).
 
 All five touch shared inductives or checker traversals. Coordinate overlapping

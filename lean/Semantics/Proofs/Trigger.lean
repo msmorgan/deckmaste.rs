@@ -36,18 +36,18 @@ theorem okWhileDoingCast :
 /-- "Whenever this creature attacks while a creature is dying, draw a card." -/
 theorem badWhileDoingMoment :
     Ability.check []
-      (.triggered (attacks thisCreature) [] (some (.whileDoing (.dies (a creature))))
+      (.triggered (attacks thisCreature) [] (some (.whileDoing (Primitives.GameEvent.dies (a creature))))
         [] none none none (draw (.lit 1) (agent := .you))) = [.eventUnderway] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check [] (whenever (.dies (a creature)) (draw (.lit 1) (agent := .you))) = [] := by
+    Ability.check [] (whenever (Primitives.GameEvent.dies (a creature)) (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Whenever target creature dies, draw a card." -/
 theorem badTargetedDeathHeader :
-    Ability.check [] (whenever (.dies (target creature)) (draw (.lit 1) (agent := .you)))
+    Ability.check [] (whenever (Primitives.GameEvent.dies (target creature)) (draw (.lit 1) (agent := .you)))
       = [.headerNontarget] := by
   decide
 
@@ -103,14 +103,14 @@ theorem badGraveyardAttacker :
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check []
-      (.triggered (.enters (a creature) none) [] none []
+      (.triggered (Primitives.GameEvent.enters (a creature) none) [] none []
         (some (.duringPart .turn (some .you))) none none (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 /-- "Whenever a creature enters during the turn, draw a card." -/
 theorem badHeaderBareTurnWindow :
     Ability.check []
-      (.triggered (.enters (a creature) none) [] none []
+      (.triggered (Primitives.GameEvent.enters (a creature) none) [] none []
         (some (.duringPart .turn none)) none none (draw (.lit 1) (agent := .you))) = [.windowOk] :=
             by
   decide
@@ -241,7 +241,7 @@ theorem okMultipliedTrigger :
 
 /-- "If a creature you control dies, that ability triggers an additional time." -/
 theorem badMultipliedNonTrigger :
-    StaticSpec.check [] (.additionalTriggers (.dies (a creatureYouControl)) (exactly 1))
+    StaticSpec.check [] (.additionalTriggers (Primitives.GameEvent.dies (a creatureYouControl)) (exactly 1))
       = [.triggerCountOk] := by
   decide
 

@@ -131,8 +131,6 @@ inductive Refusal where
   | complementWritten
   | lookbackSubject
   | lookbackComplement
-  | lookbackSource
-  | lookbackDest
   | lookbackLocus
   | visibilityOk
   | windowOk
@@ -194,7 +192,6 @@ inductive Refusal where
   | grantable
   | altPayment
   | addedPayment
-  | notExtended
   | notCarvedOut
   | notCoord
   | clauseStatic

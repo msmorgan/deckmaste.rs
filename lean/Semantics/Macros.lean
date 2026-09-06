@@ -889,14 +889,14 @@ def establishThroughout (spec : StaticSpec) (duration : Duration) : Instruction 
   .establish spec (some duration)
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 def doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .partScope .untapStep whose (objectCant (.action "Untap") subject)
+  Primitives.StaticSpec.partScope .untapStep whose (objectCant (.action "Untap") subject)
 /-- "you may choose not to untap <subject> during [<whose>] untap step" -/
 def mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .partScope .untapStep whose
+  Primitives.StaticSpec.partScope .untapStep whose
     (.deonticRule subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
 /-- "untap <subject> during [<whose>] untap step" -/
 def untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  .partScope .untapStep whose
+  Primitives.StaticSpec.partScope .untapStep whose
     (.deonticRule subject .require [.action "Untap"] .patient none .noPatient none .noRider)
 /-- "<subject> can block an additional creature each combat" -/
 def mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
@@ -920,10 +920,10 @@ def cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicat
 /-! ## Events -/
 
 def leavesBattlefield (subject : NounPhrase) : GameEvent :=
-  .leaves subject (some (.zones [battlefield]))
+  Primitives.GameEvent.leaves subject (some (.zones [battlefield]))
 /-- "<subject> leaves <zone>" -/
 def leavesZone (subject : NounPhrase) (zone : ZoneExpr) : GameEvent :=
-  .leaves subject (some (.zones [zone]))
+  Primitives.GameEvent.leaves subject (some (.zones [zone]))
 /-- "at the beginning of <possessor>'s <part>" -/
 def beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor : NounPhrase) :
     GameEvent :=
@@ -938,7 +938,7 @@ def attacksPlayer (subject whom : NounPhrase) : GameEvent :=
   .combat .attackerOf subject (some whom)
 /-- "<n> is put into <zone> from <source>" -/
 def putIntoFrom (subject : NounPhrase) (destination : ZoneExpr) (source : EventSource) : GameEvent :=
-  .putInto subject destination (some source)
+  Primitives.GameEvent.putInto subject destination (some source)
 /-- "N <kind> counters are put on / removed from <subject>" -/
 def counterEvent (move : CounterMove) (kind : CounterKind) (batch : CounterBatch)
     (subject : NounPhrase) : GameEvent :=

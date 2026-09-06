@@ -171,21 +171,22 @@ theorem okSingletonCoordination :
 /-- a coordination of no statements -/
 theorem badEmptyCoordination : StaticSpec.check [] (.conjunction none []) = [.nonEmpty] := by decide
 
-/-- "Creatures you control are every creature type." -/
+/-- Explicit controlled permanents, controlled spells, and owned cards outside the battlefield. -/
 theorem okSingleExtension :
     StaticSpec.check []
-      (.offBattlefieldScope (Primitives.StaticSpec.qualityChange (allOf creatureYouControl) .adds (.everyTypeOf
-          .creature)))
-      = [] := by
-  decide
+      (Primitives.StaticSpec.qualityChange
+        (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds (.everyTypeOf .creature)) = [] := by decide
 
-theorem badDoubleExtension :
+/-- An explicit zone and its negation cannot describe the affected collection. -/
+theorem badContradictoryOutsideSelection :
     StaticSpec.check []
-      (.offBattlefieldScope
-        (.offBattlefieldScope
-          (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
-            (.bundle { characteristics := { types := [.artifact] } } none)))) = [.notExtended] := by
-  decide
+      (Primitives.StaticSpec.qualityChange
+        (allOf (.and [.isCard, creature, .inZone battlefield, .not (.inZone battlefield)]))
+        .adds (.bundle { characteristics := { types := [.artifact] } } none)) =
+      [.zoneCoherent] := by decide
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :

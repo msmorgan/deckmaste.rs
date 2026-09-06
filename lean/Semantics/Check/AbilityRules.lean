@@ -660,7 +660,6 @@ mutual
     | .characteristicChange n edits =>
       NounPhrase.check (some .object) bs n ++ CharacteristicEdit.checkAll bs bs (some n) edits ++
         refuse (CharacteristicEdit.fitsAll bs n edits) .becomesOk
-    | .offBattlefieldScope se => StaticSpec.check bs se ++ refuse se.notExtended .notExtended
     | .retention se n =>
       StaticSpec.check bs se ++ NounPhrase.check (some .object) (StaticSpec.intro bs se) n ++
         refuse se.notCarvedOut .notCarvedOut
@@ -685,8 +684,6 @@ mutual
     | .conditional se c marking =>
       StaticSpec.check bs se ++ Condition.check (StaticSpec.intro bs se) c ++
         refuse (markingOk marking c) .markingOk
-    | .partScope p w se =>
-      OptNoun.check (some .player) bs w ++ StaticSpec.check bs se ++ refuse (windowOk p w) .windowOk
     | .visibility v who what =>
       NounPhrase.check (some .player) bs who ++ VisibleThing.check (nomIntro bs who) what ++
         refuse (visibilityOk v what) .visibilityOk

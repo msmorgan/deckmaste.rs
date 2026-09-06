@@ -138,8 +138,8 @@ theorem nestedStaticConditionals :
 
 theorem nestedTurnPartWindows :
     StaticSpec.check []
-      (.partScope .combat none
-        (.partScope .mainPhase none (.manaRetention .you (.unspent none)))) = [] := by
+      (Primitives.StaticSpec.partScope .combat none
+        (Primitives.StaticSpec.partScope .mainPhase none (.manaRetention .you (.unspent none)))) = [] := by
   decide
 
 theorem voteStartingWithSpecifiedPlayer :

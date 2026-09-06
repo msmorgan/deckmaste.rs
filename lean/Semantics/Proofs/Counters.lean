@@ -93,8 +93,8 @@ theorem badThreeArmHeaderReadback :
 
 theorem badJoinedHeaderReadback :
     Ability.check []
-      (.triggered (.enters thisCreature none) [] none
-        [⟨.dies (a creatureYouControl), [], none, none⟩] none none none
+      (.triggered (Primitives.GameEvent.enters thisCreature none) [] none
+        [⟨Primitives.GameEvent.dies (a creatureYouControl), [], none, none⟩] none none none
         (.putCounters (.lit 1) p11 it)) = [.anaphor .bare .one 0] := by
   decide
 

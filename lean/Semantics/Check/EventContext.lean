@@ -29,19 +29,37 @@ def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option NounPh
 
 def causedByOk (byEffect : Bool) (by_ : Option NounPhrase) : Bool := !(byEffect && by_.isSome)
 
-def putDestOk (z : ZoneExpr) : Bool := z.sort.placementDestOk
+/-- Unknown subject locations remain compatible; explicit locations must meet the
+observed endpoint, including excluded origins. -/
+def EventSource.admits (z : Zone) : EventSource → Bool
+  | .anywhere => true
+  | .zones zs => zs.any (fun origin => origin.sort == z)
+  | .anywhereBut zs => !zs.any (fun origin => match origin with
+      | .zone sort .bare => sort == z
+      | .library _ _ _ .bare => z == .library
+      | _ => false)
 
-def putSourceOk : Option EventSource → Bool
-  | none => true
-  | some src => src.zonesOk Zone.placementOriginOk
+def transitionSubjectOk (z : Option Zone) (src : Option EventSource) (dest : Option ZoneExpr) :
+    ObservationPoint → Bool
+  | .before => z.elim true (fun zone => src.elim true (EventSource.admits zone))
+  | .after => zoneFits z (dest.map ZoneExpr.sort)
+
+/-- Battlefield, stack, exile, and command are single shared zones. A purported move
+from one of these zones back to itself is not a zone change. Player-owned zones may
+have different owners even when their zone sorts agree. -/
+def transitionEndpointsOk (src : Option EventSource) (dest : Option ZoneExpr) : Bool :=
+  let possible := src.elim true (fun origin =>
+    [Zone.battlefield, .graveyard, .exile, .hand, .library, .stack, .command].any
+      (fun zone => origin.admits zone))
+  possible && match src, dest with
+  | some (.zones zs), some to =>
+    !zs.all (fun from_ => from_.sort == to.sort &&
+      ([Zone.battlefield, .stack, .exile, .command].contains to.sort))
+  | _, _ => true
 
 def castSourceOk : Option EventSource → Bool
   | none => true
   | some src => src.zonesOk (fun z => playableFrom (some z))
-
-def entrySourceOk : Option EventSource → Bool
-  | none => true
-  | some src => src.zonesOk Zone.entryOriginOk
 
 /-- The combat relations that name an event: attacking, blocking, becoming blocked. -/
 def CombatRelation.eventRelation : CombatRelation → Bool
@@ -97,12 +115,15 @@ mutual
 /-- The stack a trigger's body reads while the event is happening. -/
 def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .damage _ none none => bs
-  | .dies n => selfSubjIntro bs n
-  | .leaves n _ => selfSubjIntro bs n
+  | .zoneChange n src dest observation =>
+    let origin := (sourceZone src).orElse (fun _ =>
+      if observation == .before then NounPhrase.zone bs n else none)
+    let subjects := moveIntro bs none n origin
+    let origins := OptEventSource.introduced subjects src ++ subjects
+    OptZoneExpr.introduced origins dest ++ origins
   | .damage _ none (some to) => outcomeB .damageDealt :: selfSubjIntro bs to
   | .draws who => selfSubjIntro bs who
   | .losesGame who => selfSubjIntro bs who
-  | .enters n _ => selfSubjIntro bs n
   | .combat _ n none => selfSubjIntro bs n
   | .combat _ n (some m) => selfSubjIntro (nomIntro bs n) m
   | .attacksWith who whom attackers => selfSubjIntro (optIntro (nomIntro bs who) whom) attackers
@@ -116,7 +137,6 @@ def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .statusEvent n _ => selfSubjIntro bs n
   | .gameBecomes _ => bs
   | .stateHolds _ => bs
-  | .putInto n _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
   | .counterEvent _ _ n .emptying _ _ => selfSubjIntro bs n
@@ -143,12 +163,13 @@ termination_by structural ev => ev
 /-- The stack a trigger's body reads after the event has happened. -/
 def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .damage _ none none => bs
-  | .dies n => moveIntro bs none n (some .graveyard)
-  | .leaves n _ => moveIntro bs none n none
+  | .zoneChange n src to _ =>
+    let subjects := moveIntro bs none n (to.map ZoneExpr.sort)
+    let origins := OptEventSource.introduced subjects src ++ subjects
+    OptZoneExpr.introduced origins to ++ origins
   | .damage _ none (some to) => outcomeB .damageDealt :: selfSubjIntro bs to
   | .draws who => nomIntro bs who
   | .losesGame who => nomIntro bs who
-  | .enters n _ => moveIntro bs none n (some .battlefield)
   | .combat .attackerOf n (some whom) =>
     NounPhrase.introduced (nomIntro bs n) whom ++ selfSubjIntro bs n
   | .combat _ n none => selfSubjIntro bs n
@@ -164,7 +185,6 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .statusEvent n _ => selfSubjIntro bs n
   | .gameBecomes _ => bs
   | .stateHolds _ => bs
-  | .putInto n to _ => moveIntro bs none n (some to.sort)
   | .counterEvent _ _ n .one _ _ => selfSubjIntro bs n
   | .counterEvent _ _ n .many _ _ => outcomeB .countersPut :: selfSubjIntro bs n
   | .counterEvent _ _ n .emptying _ _ => selfSubjIntro bs n
@@ -296,10 +316,10 @@ Only `statBecomes` carries one: "whenever this creature's power becomes 3 or les
 game value that may be below zero, so it is `signed`. Every arm is written out so that a new
 event carrying an `Amount` cannot slip in unclassified. -/
 def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
-  | .dies _ | .leaves _ _ | .draws _ | .losesGame _ | .enters _ _ => []
+  | .zoneChange _ _ _ _ | .draws _ | .losesGame _ => []
   | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .damage _ _ _ => []
   | .beginningOf _ _ _ | .casts _ _ _ | .becomesTarget _ _ | .statusEvent _ _ => []
-  | .gameBecomes _ | .stateHolds _ | .putInto _ _ _ => []
+  | .gameBecomes _ | .stateHolds _ => []
   | .counterEvent _ _ _ _ _ _ | .tokensCreated _ _ _ _ | .chapterMark _ | .activates _ _ => []
   -- A game value, not the result of an effect: it reads below zero [CR#107.1b].
   | .statBecomes _ _ value => [(value, .signed)]

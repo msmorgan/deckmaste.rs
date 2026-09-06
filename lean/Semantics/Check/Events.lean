@@ -39,9 +39,9 @@ def GameEvent.facts : GameEvent → EventFacts
   | .verbedEvent _ v _ _ _ => { underway := actStepwiseOf v }
   | .unlocksDoor _ _ => { underway := actStepwiseOf (.core .unlock) }
   | .nthOccurrence _ _ ev | .causes _ ev => ev.facts
-  | .dies _ | .leaves _ _ | .draws _ | .losesGame _ | .enters _ _ | .combat _ _ _
+  | .zoneChange _ _ _ _ | .draws _ | .losesGame _ | .combat _ _ _
   | .attacksWith _ _ _ | .attachment _ _ _ | .becomesTarget _ _ | .statusEvent _ _
-  | .gameBecomes _ | .stateHolds _ | .putInto _ _ _ | .counterEvent _ _ _ _ _ _
+  | .gameBecomes _ | .stateHolds _ | .counterEvent _ _ _ _ _ _
   | .tokensCreated _ _ _ _ | .statBecomes _ _ _ | .flipsCoin _ _ | .rollsDice _ _ _ _
   | .paysCost _ _ _ _ | .tappedForMana _ _ _ | .commitsCrime _ => {}
 termination_by structural ev => ev
@@ -135,14 +135,6 @@ def playableFrom : Option Zone → Bool
 
 def Zone.placementDestOk : Zone → Bool
   | .battlefield | .stack => false
-  | _ => true
-
-def Zone.placementOriginOk : Zone → Bool
-  | .hand | .stack => false
-  | _ => true
-
-def Zone.entryOriginOk : Zone → Bool
-  | .battlefield => false
   | _ => true
 
 /-- Idris `Possessable z`: the zones a player owns. -/

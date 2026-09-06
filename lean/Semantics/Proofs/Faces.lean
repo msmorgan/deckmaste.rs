@@ -85,7 +85,7 @@ theorem badCastWindowAsDeonticStatic :
         { name := some "", cost := some [pip .blue], types := [.instant],
           text :=
             [ .static
-                (.partScope .declareAttackers none
+                (Primitives.StaticSpec.partScope .declareAttackers none
                   (deontic .this .permit [.action "Cast"] .patient .noPatient)),
               .spell none (draw (.lit 1) (agent := .you)) ] }) = [.cardText] := by
   decide

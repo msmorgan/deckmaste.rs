@@ -416,9 +416,11 @@ def arcaneAdaptation : Spelled := spelled <| .singleFaced
     { name := "Arcane Adaptation", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersChoosing thisEnchantment (.subtype .creature)),
-          Primitives.Ability.static (Primitives.StaticSpec.offBattlefieldScope
-            (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .adds
-              (Primitives.QualityPayload.chosenQuality (ofChosen (.subtype .creature))))) ] } }
+          Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds
+              (Primitives.QualityPayload.chosenQuality (ofChosen (.subtype .creature)))) ] } }
 
 def conspiracy : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -426,9 +428,11 @@ def conspiracy : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersChoosing thisEnchantment (.subtype .creature)),
-          Primitives.Ability.static (Primitives.StaticSpec.offBattlefieldScope
-            (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .sets
-              (Primitives.QualityPayload.chosenQuality (ofChosen (.subtype .creature))))) ] } }
+          Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .sets
+              (Primitives.QualityPayload.chosenQuality (ofChosen (.subtype .creature)))) ] } }
 
 def declarationOfNaught : Spelled := spelled <| .singleFaced
   { characteristics :=

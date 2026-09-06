@@ -579,7 +579,7 @@ theorem okChoiceWithActivationRider :
 
 /-- The same choice ridered on a death, which is not an event a choice can be made during. -/
 theorem badChoiceRiderNotUnderway :
-    Instruction.check [] (chooseWhile opponentWithMoreLife (.whileDoing (.dies thisCreature)))
+    Instruction.check [] (chooseWhile opponentWithMoreLife (.whileDoing (Primitives.GameEvent.dies thisCreature)))
       = [.eventUnderway] := by
   decide
 

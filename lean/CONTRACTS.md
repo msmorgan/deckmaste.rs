@@ -599,3 +599,43 @@ evidence that the primary branch actually happened.
 Losing counters captures its player before checking the amount, then uses the
 shared removal instruction and removed-counter outcome. Cost symbols, draw,
 Room operations, and exchange remain unchanged in this pass.
+
+## Shared event patterns and static applicability
+
+`GameEvent.zoneChange` names the subject, optional origin, optional destination,
+and observation point. Its checking and historical mention order is subject,
+origin, destination. An endpoint can refer to a player introduced by an earlier
+field. A missing endpoint is unconstrained; empty origin sets, exclusion of every
+origin, and movement from a single shared zone back into itself are refused.
+Player-qualified exclusions are conservative when only a zone sort is known.
+
+`dies`, `leaves`, `enters`, and `putInto` are authoring macros. Battlefield
+and graveyard departure patterns observe before; ordinary arrivals observe after.
+In particular, graveyard arrival from anywhere is not a battlefield-departure
+pattern [CR#603.6c,603.10a]. The raw observation point retains the distinction.
+Interception publishes departure location; a triggered continuation publishes
+arrival location. Historical observation publishes mentions without moving current
+references or manufacturing an event outcome. Source and destination possessors
+are available in ordinary field order.
+
+Damage event patterns share optional source and patient fields and require at
+least one participant. Named active/passive authoring forms remain macros; no
+semantic voice field is present. Entry and attachment choice specs likewise share
+an occasion enum while retaining choice sort, domain, and disclosure.
+
+`partScope` expands to conditional applicability with `Condition.duringPart`.
+The condition reads the ordinary conditional context, including the spec's
+subject and numeric definitions. A whole-turn condition is meaningful even with
+no possessor. Any stated possessor must denote a player in an admissible number.
+
+Off-battlefield applicability is written as explicit noun selections. Controlled
+permanents, controlled spells, and owned cards outside the battlefield are
+separate domains. Celestial Dawn includes every controlled spell; Encroaching
+Mycosynth includes permanent spells. A placeless card description and its
+published binding stay placeless until positive zone evidence constrains them.
+Subtype-family edits require a hosting card type, not battlefield membership.
+
+The prototype priority applies: the discarded placement-spelling prohibitions,
+wrapper-specific `notExtended` refusal, and accidental battlefield evidence on
+placeless card/source bindings are not compatibility contracts. Their affected
+witnesses are re-spelled or corrected in the landing record.

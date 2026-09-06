@@ -564,7 +564,7 @@ theorem badPreventedThisWayAfterDamageEvent :
 
 theorem badThatMuchAfterDeath :
     Ability.check []
-      (whenever (.dies (a creature))
+      (whenever (Primitives.GameEvent.dies (a creature))
         (.dealDamage thisCreature .thatMuch (target anyTarget))) = [.quantOutcomeInScope 0] := by
   decide
 
@@ -580,7 +580,7 @@ theorem okThatCreatureAfterDamage :
 loses 1 life." -/
 theorem okThatCreatureAfterTargetedDamage :
     Ability.check []
-      (when (.dies thisCreature)
+      (when (Primitives.GameEvent.dies thisCreature)
         (.sequentially
           [ .dealDamage thisCreature (.lit 1) (target creature),
             loseLife (.lit 1) (agent := (controllerOf (that (.type .creature)))) ])) = [] := by
@@ -773,7 +773,7 @@ theorem okGetsCreature :
 theorem badGetsSource :
     Instruction.check []
       (get (target source) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
-      = [.zoneIs .battlefield] := by
+      = [.zoneIs .battlefield, .zoneIs .battlefield] := by
   decide
 
 end Semantics.Proofs.Damage

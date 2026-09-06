@@ -174,6 +174,16 @@ that damage ([CR#615.1]).
 Anything that happens in a game ([CR#700.1]). Whether one happening is one
 Event or several depends on the observer defined by the relevant rule or text.
 
+**Zone Change**:
+An Object's transition from one Zone to another ([CR#400.7]). The Object in the
+new Zone normally has no memory of or relation to its previous existence.
+
+**Observation Point** (project term):
+The moment immediately before or after an Event at which its matching Objects
+and their characteristics are observed ([CR#603.10,603.10a]). A trigger watching
+arrival from anywhere differs from one watching battlefield departure even
+when both match the same occurrence ([CR#603.6c]).
+
 **Action**:
 Something a Player or the game does. Keyword Actions are the specialized verbs
 defined by [CR#701]. Action names what is done; Event names its occurrence as

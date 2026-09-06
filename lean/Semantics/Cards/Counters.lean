@@ -279,7 +279,7 @@ def voraciousBrood : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (entersWithCounters thisCreature
             (forEach 1 (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) plusOnePlusOne),
-          whenever (putIntoFrom (counted (atLeast 1) creature) (graveyardOf Primitives.NounPhrase.you) Primitives.EventSource.anywhere)
+          whenever (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) (graveyardOf Primitives.NounPhrase.you) Primitives.EventSource.anywhere)
             (Primitives.Instruction.putCounters Primitives.Amount.groupSize (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 1, toughness := stat 1 } }
 

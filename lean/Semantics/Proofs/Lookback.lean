@@ -16,7 +16,7 @@ theorem gapRequiresLookback :
 
 theorem scopedCreatureDeath :
     LookbackClause.check .object []
-      (.mk (.dies (.asType .creature (.gap .object) none)) .thisTurn) = [] := by decide
+      (.mk (.zoneChange (.asType .creature (.gap .object) none) (some (.zones [.zone .battlefield .bare])) (some (.zone .graveyard .bare)) .before) .thisTurn) = [] := by decide
 
 theorem nestedLookbackBindsItsOwnParticipant :
     LookbackClause.check .player []
@@ -24,7 +24,7 @@ theorem nestedLookbackBindsItsOwnParticipant :
         (.casts (.gap .player)
           (some (.described (.a .unmarked)
             (.and [.hasType .creature, .inZone (.zone .stack .bare),
-              .happenedTo (.mk (.dies (.asType .creature (.gap .object) none)) .thisTurn)])))
+              .happenedTo (.mk (.zoneChange (.asType .creature (.gap .object) none) (some (.zones [.zone .battlefield .bare])) (some (.zone .graveyard .bare)) .before) .thisTurn)])))
           none) .thisTurn) = [] := by decide
 
 theorem nestedLookbackCannotCaptureOuterGap :

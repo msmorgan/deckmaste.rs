@@ -560,7 +560,8 @@ def zonesAgree : Option Zone → List Predicate → Bool
       | some w => w == z && zonesAgree (some w) ps
 
 def Predicate.negZonesOf : Predicate → List Zone
-  | .not (.inZone z) => [z.sort]
+  | .not (.inZone (.zone z .bare)) => [z]
+  | .not (.inZone (.library _ _ _ .bare)) => [.library]
   | _ => []
 
 def negZones (ps : List Predicate) : List Zone := ps.flatMap Predicate.negZonesOf
@@ -568,10 +569,27 @@ def negZones (ps : List Predicate) : List Zone := ps.flatMap Predicate.negZonesO
 def zoneAdmitsAll (z : Zone) (ps : List Predicate) : Bool :=
   ps.all fun p => zoneAdmits z p.zoneAdmit
 
+/-- Only definite zone identities can prove a clash. Repeated indefinite player
+phrases may introduce different players, so syntax equality would be unsound here. -/
+def ZoneExpr.sameKnownZone : ZoneExpr → ZoneExpr → Bool
+  | .zone z .bare, .zone w .bare => z == w
+  | .zone z (.possessedBy .you), .zone w (.possessedBy .you) => z == w
+  | _, _ => false
+
 def zonesOk (ps : List Predicate) : Bool :=
   let fs := Predicate.flatten ps
-  let z := zoneOr .battlefield (Predicate.seedZoneAll fs)
-  zonesAgree none fs && !(negZones fs).elem z && zoneAdmitsAll z fs
+  let candidates := match Predicate.seedZoneAll fs with
+    | some z => [z]
+    | none =>
+      if fs.any (fun p => match p with | .isCard | .isSource => true | _ => false) then
+        [Zone.battlefield, .graveyard, .exile, .hand, .library, .stack, .command]
+      else [.battlefield]
+  let explicitClash := fs.any (fun p => match p with
+    | .not (.inZone excluded) => fs.any (fun q => match q with
+        | .inZone known => known.sameKnownZone excluded
+        | _ => false)
+    | _ => false)
+  !explicitClash && zonesAgree none fs && candidates.any (fun z => !(negZones fs).elem z && zoneAdmitsAll z fs)
 
 /-- Each status category always has exactly one of its two values [CR#110.5]. -/
 def statusClashOf : Predicate → Predicate → Bool
@@ -684,8 +702,8 @@ def Predicate.headIsPlaceless (p : Predicate) : Bool :=
   (Predicate.flatten [p]).any Predicate.isSourceHead
 
 def Predicate.phraseZone (k : Kind) (p : Predicate) : Option Zone :=
-  if p.headIsPlaceless || !Kind.lte k .object then none
-  else some (zoneOr .battlefield p.seedZone)
+  if !Kind.lte k .object then none
+  else p.seedZone.orElse (fun _ => if p.headIsPlaceless then none else some .battlefield)
 
 def countOthers (ps : List Predicate) : Nat := (ps.filter Predicate.isOther).length
 
@@ -716,7 +734,7 @@ def bindFor (det : Determiner) (plur : Plurality) : Kind → Predicate → Bindi
   | .object, p =>
     if p.seedsAbility then ⟨det, plur, .ability none⟩
     else ⟨det, plur,
-      .object p.seedTy (some (zoneOr .battlefield p.seedZone)) none
+      .object p.seedTy (p.phraseZone .object) none
         (if p.seedsToken then some .token else none) none⟩
   | .player, _ => ⟨det, plur, .player false⟩
   | .quality q, _ => ⟨det, plur, .quality q⟩
@@ -1225,13 +1243,10 @@ mutual
   /-- Nouns mentioned in a historical event pattern. Observing history does not move the
   current bindings or introduce a new event outcome. The bound gap introduces nothing. -/
   def GameEvent.mentioned (bs : Bindings) : GameEvent → List Binding
-    | .dies n | .damage _ none (some n) | .draws n | .losesGame n | .statusEvent n _
+    | .damage _ none (some n) | .draws n | .losesGame n | .statusEvent n _
     | .flipsCoin n _ | .paysLife n | .lifeChanges n _ | .triggers n | .commitsCrime n =>
       NounPhrase.introduced bs n
     | .damage _ none none => []
-    | .leaves n src | .enters n src =>
-      let ns := NounPhrase.introduced bs n
-      OptEventSource.introduced (ns ++ bs) src ++ ns
     | .combat _ n other | .damage _ (some n) other =>
       let ns := NounPhrase.introduced bs n
       OptNoun.introduced (ns ++ bs) other ++ ns
@@ -1249,10 +1264,10 @@ mutual
       let ns := OptNoun.introduced (ws ++ bs) what
       OptEventSource.introduced (ns ++ ws ++ bs) src ++ ns ++ ws
     | .gameBecomes _ | .stateHolds _ | .chapterMark _ => []
-    | .putInto n dest src =>
+    | .zoneChange n src dest _ =>
       let ns := NounPhrase.introduced bs n
-      let zs := ZoneExpr.introduced (ns ++ bs) dest
-      OptEventSource.introduced (zs ++ ns ++ bs) src ++ zs ++ ns
+      let origins := OptEventSource.introduced (ns ++ bs) src
+      OptZoneExpr.introduced (origins ++ ns ++ bs) dest ++ origins ++ ns
     | .counterEvent _ _ n _ by_ _ =>
       let ns := NounPhrase.introduced bs n
       OptNoun.introduced (ns ++ bs) by_ ++ ns
@@ -1775,6 +1790,7 @@ def dropGaps : List Binding → List Binding
 
 mutual
   def Condition.introduced (bs : Bindings) : Condition → List Binding
+    | .duringPart _ who => OptNoun.introduced bs who
     | .exists_ _ => []
     | .happened who _ => NounPhrase.selfSubjIntroduced who
     | .gameIs _ => []
