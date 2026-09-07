@@ -1133,3 +1133,10 @@ Also open, each already routed:
   so `gap` can retire.
 - `lean-macros-from-ron` generates `Macros.lean` from these declarations and
   is now an identity on names.
+
+## Close-out (coordinator, 2026-09-07)
+
+Part 5's cosmetic half (bare embeds, positional application, bare numerals
+in the cards and bodies) moves to `plugins-v2-cosmetic-conversion`, claimed
+next; this ticket lands the reader, the helper layer, the case rule, and
+macro-only cards.
