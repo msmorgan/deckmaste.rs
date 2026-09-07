@@ -8,8 +8,9 @@ retires. It realizes the divergence trajectory of
 drifts toward English constructions, core toward explicit slot reference.
 The evidence artifact is the Lean workbench (`lean/Semantics/`, per
 [Lean is the workbench](lean-is-the-workbench.md)); Idris paths in the
-history of this document are reference only. §3's joined-kind payload is
-the one item still open; `semantics-v2-crate` settles it.
+history of this document are reference only. §3's joined-kind payload was the
+last item open; `semantics-v2-crate` settled it (2026-09-06) and §3 records the
+answer.
 
 ## 1. The layer contract
 
@@ -64,11 +65,20 @@ their consumer vocabulary. The value itself is never stored, and
 countability is the read site's, not the record's. The record is kind-indexed: a binding can
 record only the data its kind can have (an object's head type and zone;
 a player or quality has neither), so an ill-sorted binding — "a player
-in your hand" — is unrepresentable rather than merely unused. The payload of a
-binding at a joined kind remains open; it will be settled with the execution
-shape described in [The kind index joins; union marking is
-spelling](kind-index-joins-union-marking-is-spelling.md), including whether the
-binding carries its antecedent's kind pair. Never rules classifications: timing
+in your hand" — is unrepresentable rather than merely unused. A binding at a
+joined kind is pair-carrying: it holds both halves' records side by side, so
+its kind is the join of the two halves' kinds and it does carry its
+antecedent's kind pair; the half-reading anaphor projects one side rather than
+collapsing the pair. Settled 2026-09-06 by `semantics-v2-crate` on the
+workbench's own execution shape (`Payload.join`, whose kind is the join of its
+halves' and whose zone, type, size and provenance projections read the halves
+in turn) and on the census [The kind index joins; union marking is
+spelling](kind-index-joins-union-marking-is-spelling.md) already recorded — the
+demonstrative echo copies its antecedent's kind pair 33 of 33 times, so a flat
+join would reconstruct on every echo what the pair-carrying record keeps.
+Nothing else about the union family moves: the marked union constructions stay
+spelling-boundary knowledge, as that decision says.
+Never rules classifications: timing
 (announce vs. resolution), staleness, and agreement are always functions
 of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives
