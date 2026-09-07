@@ -1,7 +1,61 @@
 KeywordAbility(
     name: "Station",
+    params: [],
     spelling: "station",
     grammar: FixedKeyword(
         surface: "station",
+    ),
+    // "Station" means "Tap another untapped creature you control: Put a number of
+    // charge counters on this permanent equal to the tapped creature's power.
+    // Activate only as a sorcery." [CR#702.184a]
+    body: Keyword(
+        keyword: "Station",
+        params: [],
+        body: [
+            Activated(
+                cost: Perform(
+                    instruction: Enact(
+                        verb: Action(label: "Tap"),
+                        instruction: SetStatus(
+                            status: Tapped,
+                            subject: Described(
+                                determiner: A(mode: Unmarked),
+                                predicate: And(
+                                    conjuncts: [
+                                        HasType(type: Creature),
+                                        OtherThan(
+                                            anchor: AsMarker(marker: Permanent, subject: This),
+                                        ),
+                                        HasStatus(status: Untapped),
+                                        HasPossessor(axis: Controller, possessor: You),
+                                    ],
+                                ),
+                            ),
+                        ),
+                        agent: You,
+                    ),
+                ),
+                instruction: PutCounters(
+                    amount: StatOf(
+                        axis: Stat(stat: Power),
+                        subject: Pro(
+                            reach: Verbed(
+                                verb: Action(label: "Tap"),
+                                word: Type(type: Creature),
+                                marking: Attributive,
+                            ),
+                            plurality: One,
+                            window: Whole,
+                        ),
+                    ),
+                    kind: Printed(kind: Named(label: "Charge")),
+                    on: AsMarker(marker: Permanent, subject: This),
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
     ),
 )

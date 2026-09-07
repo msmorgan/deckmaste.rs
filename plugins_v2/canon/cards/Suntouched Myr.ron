@@ -1,0 +1,12 @@
+// "Sunburst" [CR#702.44a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Suntouched Myr",
+        cost: [Simple(symbol: Generic(amount: 3))],
+        types: [Artifact, Creature],
+        subtypes: [Of(host: Creature, label: "Myr")],
+        power: Lit(value: 0),
+        toughness: Lit(value: 0),
+        text: [Sunburst],
+    ),
+))

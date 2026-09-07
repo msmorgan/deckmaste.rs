@@ -5,4 +5,12 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "sneak",
     ),
+    // STOP. "Sneak [cost]" means "ANY TIME YOU COULD CAST AN INSTANT DURING YOUR
+    // DECLARE BLOCKERS STEP, you may cast this spell by paying [cost] and returning an
+    // unblocked creature you control to its owner's hand rather than paying this
+    // spell's mana cost." [CR#702.190a] `DeonticRider::Play`'s `PlayTiming` has only
+    // `WhileSearchingLibrary` and `DuringEachOfYourTurns`, so the instant-speed window
+    // inside one's own declare blockers step cannot be written (the cause Flash
+    // carries).
+    body: Keyword(keyword: "Sneak", params: [Cost(cost: Param(0))], body: []),
 )

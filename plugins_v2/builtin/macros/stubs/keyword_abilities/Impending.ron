@@ -103,7 +103,7 @@ KeywordAbility(
                     ],
                 ),
                 instruction: RemoveCounters(
-                    amount: Lit(value: 1),
+                    quantity: Range(low: 1, high: 1),
                     kind: Printed(kind: Named(label: "Time")),
                     from: AsMarker(marker: Permanent, subject: This),
                 ),

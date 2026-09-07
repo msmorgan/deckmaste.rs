@@ -1,0 +1,37 @@
+// "Enchant creature / Enchanted creature gets +3/+3. / Umbra armor" [CR#702.89a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Boar Umbra",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Enchantment],
+        subtypes: [Of(host: Enchantment, label: "Aura")],
+        text: [
+            Keyword(
+                keyword: "Enchant",
+                params: [Subject(predicate: HasType(type: Creature))],
+                body: [],
+            ),
+            Static(
+                spec: Conjunction(
+                    subject: None,
+                    parts: [
+                        Modification(
+                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                            stat: Power,
+                            delta: Up(amount: Lit(value: 3)),
+                        ),
+                        Modification(
+                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                            stat: Toughness,
+                            delta: Up(amount: Lit(value: 3)),
+                        ),
+                    ],
+                ),
+            ),
+            UmbraArmor,
+        ],
+    ),
+))

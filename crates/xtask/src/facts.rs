@@ -386,6 +386,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Unearth",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -542,6 +543,7 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -550,6 +552,7 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -805,6 +808,7 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -1247,12 +1251,12 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Scavenge",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1292,10 +1296,12 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Station",
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Sunburst",
+            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -1325,12 +1331,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Transfigure",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Transmute",
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1339,6 +1347,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "UmbraArmor",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -1346,6 +1355,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -1359,6 +1369,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Vanishing",
+            definition: &[Category::Static, Category::Triggered, Category::Triggered],
             ..D
         },
         Row {
@@ -1370,6 +1381,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {

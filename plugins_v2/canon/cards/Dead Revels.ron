@@ -1,0 +1,44 @@
+// "Spectacle {1}{B} / Return up to two target creature cards from your graveyard to
+// your hand." [CR#702.137a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Dead Revels",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Sorcery],
+        text: [
+            Spectacle(Mana(cost: [
+                Simple(symbol: Generic(amount: 1)),
+                Simple(symbol: Specific(color: Of(color: Black))),
+            ])),
+            Spell(
+                timing: None,
+                instruction: Enact(
+                    verb: Core(deed: Return),
+                    instruction: Move(
+                        subject: Described(
+                            determiner: Target(quantity: Range(low: 0, high: 2)),
+                            predicate: And(
+                                conjuncts: [
+                                    IsCard,
+                                    HasType(type: Creature),
+                                    InZone(
+                                        zone: Zone(
+                                            zone: Graveyard,
+                                            scope: PossessedBy(possessor: You),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                        to: Zone(zone: Hand, scope: Bare),
+                        riders: [],
+                    ),
+                    agent: None,
+                ),
+            ),
+        ],
+    ),
+))

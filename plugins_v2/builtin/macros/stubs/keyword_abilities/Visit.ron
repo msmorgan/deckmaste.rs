@@ -5,4 +5,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "visit",
     ),
+    // STOP. "Visit — [Effect]" means "Whenever you roll to visit your Attractions, if
+    // the result is equal to a number that is lit up on this Attraction, [effect]."
+    // [CR#702.159a] `KeywordParam` has no `Ability` variant to forward the
+    // declaration's argument with (the cause Boast, Gift, Infinity, Max Speed,
+    // Power-Up and Solved share), and nothing reads an Attraction's lit-up numbers
+    // [CR#717.2a].
+    body: Keyword(keyword: "Visit", params: [], body: []),
 )

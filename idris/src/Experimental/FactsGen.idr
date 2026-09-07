@@ -179,7 +179,7 @@ keywordFacts =
   , { word := "Recover", paramShapes := [CostParam], onSpellCard := True, paidCost := True, bodied := True } defaultKeywordFacts
   , { word := "Reinforce", paramShapes := [CompoundParam NumberHead], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Riot", paramShapes := [NoParam] } defaultKeywordFacts
-  , { word := "Ripple", paramShapes := [NumberParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
+  , { word := "Ripple", paramShapes := [NumberParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Scavenge", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Solved", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "Soulbond", paramShapes := [NoParam] } defaultKeywordFacts

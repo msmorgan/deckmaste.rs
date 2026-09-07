@@ -1,0 +1,15 @@
+// "Vanishing 2" [CR#702.63a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Waning Wurm",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Wurm")],
+        power: Lit(value: 7),
+        toughness: Lit(value: 6),
+        text: [Vanishing(Lit(value: 2))],
+    ),
+))

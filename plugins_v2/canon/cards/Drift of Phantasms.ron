@@ -1,0 +1,23 @@
+// "Defender / Flying / Transmute {1}{U}{U}" [CR#702.53a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Drift of Phantasms",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Spirit")],
+        power: Lit(value: 0),
+        toughness: Lit(value: 5),
+        text: [
+            Defender,
+            Flying,
+            Transmute(Mana(cost: [
+                Simple(symbol: Generic(amount: 1)),
+                Simple(symbol: Specific(color: Of(color: Blue))),
+                Simple(symbol: Specific(color: Of(color: Blue))),
+            ])),
+        ],
+    ),
+))

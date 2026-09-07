@@ -1,0 +1,34 @@
+// "Split second / Destroy target artifact or enchantment." [CR#702.61a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Krosan Grip",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Instant],
+        text: [
+            SplitSecond,
+            Spell(
+                timing: None,
+                instruction: Enact(
+                    verb: Action(label: "Destroy"),
+                    instruction: Move(
+                        subject: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: Or(
+                                disjuncts: [
+                                    HasType(type: Artifact),
+                                    HasType(type: Enchantment),
+                                ],
+                            ),
+                        ),
+                        to: Zone(zone: Graveyard, scope: Bare),
+                        riders: [],
+                    ),
+                    agent: None,
+                ),
+            ),
+        ],
+    ),
+))

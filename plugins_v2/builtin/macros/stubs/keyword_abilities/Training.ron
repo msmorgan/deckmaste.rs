@@ -1,7 +1,69 @@
 KeywordAbility(
     name: "Training",
+    params: [],
     spelling: "training",
     grammar: FixedKeyword(
         surface: "training",
+    ),
+    // "Training" means "Whenever this creature and at least one other creature with
+    // power greater than this creature's power attack, put a +1/+1 counter on this
+    // creature." [CR#702.149a]
+    body: Keyword(
+        keyword: "Training",
+        params: [],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: And(
+                        phrases: [
+                            AsType(type: Creature, subject: This, subtype: None),
+                            Described(
+                                determiner: Count(
+                                    quantity: Range(low: 1, high: None),
+                                    mode: None,
+                                ),
+                                predicate: And(
+                                    conjuncts: [
+                                        HasType(type: Creature),
+                                        OtherThan(
+                                            anchor: AsType(
+                                                type: Creature,
+                                                subject: This,
+                                                subtype: None,
+                                            ),
+                                        ),
+                                        Compare(
+                                            axes: [Stat(stat: Power)],
+                                            comparator: Greater,
+                                            bound: StatOf(
+                                                axis: Stat(stat: Power),
+                                                subject: AsType(
+                                                    type: Creature,
+                                                    subject: This,
+                                                    subtype: None,
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    ),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: PutCounters(
+                    amount: Lit(value: 1),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: AsType(type: Creature, subject: This, subtype: None),
+                ),
+            ),
+        ],
     ),
 )

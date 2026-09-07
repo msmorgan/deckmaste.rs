@@ -1,0 +1,29 @@
+// "Undaunted / Destroy all creatures." [CR#702.125a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Sublime Exhalation",
+        cost: [
+            Simple(symbol: Generic(amount: 6)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Sorcery],
+        text: [
+            Undaunted,
+            Spell(
+                timing: None,
+                instruction: Enact(
+                    verb: Action(label: "Destroy"),
+                    instruction: Move(
+                        subject: Described(
+                            determiner: All,
+                            predicate: HasType(type: Creature),
+                        ),
+                        to: Zone(zone: Graveyard, scope: Bare),
+                        riders: [],
+                    ),
+                    agent: None,
+                ),
+            ),
+        ],
+    ),
+))

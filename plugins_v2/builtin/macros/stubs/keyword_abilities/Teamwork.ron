@@ -5,4 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "teamwork",
     ),
+    // STOP. "Teamwork N" means "As an additional cost to cast this spell, you may tap
+    // ANY NUMBER of creatures you control WITH TOTAL POWER N OR MORE." [CR#702.194a]
+    // No `NounPhrase` selects an unbounded group by an aggregate bound on a stat of
+    // the whole group; `Predicate::CompareOver` compares each member (the cause Crew
+    // and Saddle share).
+    body: Keyword(keyword: "Teamwork", params: [Number(amount: Param(0))], body: []),
 )

@@ -1,0 +1,15 @@
+// "Unearth {B}" [CR#702.84a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Dregscape Zombie",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Zombie")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 1),
+        text: [Unearth(Mana(cost: [Simple(symbol: Specific(color: Of(color: Black)))]))],
+    ),
+))

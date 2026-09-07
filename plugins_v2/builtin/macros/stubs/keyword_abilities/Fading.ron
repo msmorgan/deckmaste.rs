@@ -33,7 +33,7 @@ KeywordAbility(
                 instruction: WithContinuation(
                     policy: Required,
                     body: RemoveCounters(
-                        amount: Lit(value: 1),
+                        quantity: Range(low: 1, high: 1),
                         kind: Printed(kind: Named(label: "Fade")),
                         from: AsMarker(marker: Permanent, subject: This),
                     ),

@@ -5,4 +5,54 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "scavenge",
     ),
+    // "Scavenge [cost]" means "[Cost], Exile this card from your graveyard: Put a
+    // number of +1/+1 counters equal to the power of the card you exiled on target
+    // creature. Activate only as a sorcery." [CR#702.97a]
+    body: Keyword(
+        keyword: "Scavenge",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Compound(
+                    costs: [
+                        Param(0),
+                        Perform(
+                            instruction: Enact(
+                                verb: Action(label: "Exile"),
+                                instruction: Move(
+                                    subject: This,
+                                    to: Zone(zone: Exile, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: You,
+                            ),
+                        ),
+                    ],
+                ),
+                instruction: PutCounters(
+                    amount: StatOf(
+                        axis: Stat(stat: Power),
+                        subject: Pro(
+                            reach: Verbed(
+                                verb: Action(label: "Exile"),
+                                word: Card,
+                                marking: Attributive,
+                            ),
+                            plurality: One,
+                            window: Whole,
+                        ),
+                    ),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: HasType(type: Creature),
+                    ),
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
 )

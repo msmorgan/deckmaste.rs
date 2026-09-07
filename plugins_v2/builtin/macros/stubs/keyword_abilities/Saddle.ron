@@ -5,4 +5,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "saddle",
     ),
+    // STOP. "Saddle N" means "Tap ANY NUMBER of other untapped creatures you control
+    // WITH TOTAL POWER N OR GREATER: This permanent becomes saddled until end of turn.
+    // Activate only as a sorcery." [CR#702.171a] No `NounPhrase` selects an unbounded
+    // group by an aggregate bound on a stat of the whole group;
+    // `Predicate::CompareOver` compares each member (the cause Crew and Teamwork
+    // share).
+    body: Keyword(keyword: "Saddle", params: [Number(amount: Param(0))], body: []),
 )
