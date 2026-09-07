@@ -1,18 +1,28 @@
 ---
 needs: []
 ---
-**`cargo xtask facts generate` must not read v2 declarations through v1
-types.** Found by `lean-conferral-tag-removal` (2026-09-07): after the
-conferrer types went, `crates/xtask/src/facts/` still imports
-`deckmaste_semantics` for `DesignationDecl`, `DesignationDef`,
-`DesignationScope`, `DesignationShape`, `CounterScope`, `Bearing`, and
-`ron::options`, because those are how it deserialises the `body` of the
-`plugins_v2/builtin` designation and counter-kind declarations, and the
-counter-kind `dedicated` column needs v1's `Bearing` tree. v1 is
-deletion-bound (`semantics-v1-cutover`), so the v2 declaration bodies need a
-v2 home: decide between relocating the body types into
-`deckmaste_semantics_v2` (they are semantic data the v2 reader already
-loads as macro bodies) and `deckmaste_construction_core` (which types the
-declaration shell), then re-point the generator and delete the import.
-`facts check` must show both generated tables unchanged. Standard
-constraints apply.
+**The registry declarations are typed by the Lean facts, not by v1.**
+Ruling (user, 2026-09-07). `cargo xtask facts generate` writes
+`lean/Semantics/Check/Facts.lean`, the tables Lean's laws read, from the
+`plugins_v2/builtin` declarations plus hand overlays. It deserialises the
+designation, counter, type, and subtype declaration `body` fields through
+v1 `deckmaste_semantics` structs (`DesignationDecl`, `DesignationDef`,
+`DesignationScope`, `DesignationShape`, `CounterScope`, `Bearing`,
+`ron::options`), because those bodies were written in the english_v2 era
+before any v2 semantics type existed. v1 is deletion-bound and v2 must not
+read through it (`CLAUDE.md`, Crate fates).
+
+The shape, since Lean is the spec: `lean/Semantics/Check/FactTypes.lean`
+already declares the columns (`KeywordFacts`, `DesignationFacts`, the
+counter and subtype rows). Mirror it into `deckmaste_semantics_v2` as a
+`facts` module (name-for-name, under the drift test's discipline; it is
+`Check/`-side, so extend the drift test's file list). Make the registry
+declaration bodies deserialise into that mirror — a declaration carries
+its own columns — and have the generator emit `Facts.lean` from the mirror
+through the v2 reader. Overlays survive only for columns no declaration can
+carry (state that list); the rest are deleted with their code. Delete the
+`deckmaste_semantics` import from `crates/xtask/src/facts/`. `facts check`
+shows both generated tables unchanged (the Idris reference is byte-stable).
+The declaration bodies are rewritten by load-and-reserialise, not by hand,
+and `plugins-v2-dialect` converts them again afterwards, so land this
+first. Standard constraints apply.
