@@ -5,9 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "encore",
     ),
-    // STOP. "Encore [cost]" creates, for EACH opponent, a copy "that attacks that
-    // opponent this turn if able" [CR#702.141a]. Nothing binds the per-opponent
-    // iteration so that the copy's own added ability can name "that opponent";
-    // `CreateObject`'s count takes an amount, not a distributive subject.
+    // STOP. "Encore [cost]" creates, for EACH opponent, a copy of this card "that
+    // attacks that opponent this turn if able" [CR#702.141a]. Written with
+    // `DoForEach` over each opponent the kernel refuses the copy's added ability:
+    // the loop binds no player the copy's own text can name ("that opponent" reads
+    // back zero antecedents) and the attack requirement's patient is then unfit.
     body: Keyword(keyword: "Encore", params: [Cost(cost: Param(0))], body: []),
 )

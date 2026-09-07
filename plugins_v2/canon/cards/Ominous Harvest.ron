@@ -1,0 +1,30 @@
+// "Gravestorm / Target player draws a card and loses 1 life." [CR#702.69a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ominous Harvest",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Sorcery],
+        text: [
+            Gravestorm,
+            Spell(
+                timing: None,
+                instruction: Sequentially(steps: [
+                    Draw(
+                        amount: Lit(value: 1),
+                        agent: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: AnyPlayer,
+                        ),
+                    ),
+                    ChangeLife(
+                        delta: Down(amount: Lit(value: 1)),
+                        agent: Pro(reach: Word(word: Player), plurality: One, window: Whole),
+                    ),
+                ]),
+            ),
+        ],
+    ),
+))

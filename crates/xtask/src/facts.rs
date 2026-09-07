@@ -1020,15 +1020,16 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Fortify",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Frenzy",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Graft",
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -1042,7 +1043,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Haunt",
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {

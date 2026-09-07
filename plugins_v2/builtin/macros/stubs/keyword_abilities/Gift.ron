@@ -5,4 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "gift",
     ),
+    // STOP. "Gift a [something]" is a fixed additional cost plus a SECOND ability whose
+    // effect "is defined by the [something] listed" and is not quoted
+    // [CR#702.174a,702.174b]. `KeywordParam` has no `Ability` variant (the cause Boast
+    // shares), so the argument cannot supply the second ability.
+    body: Keyword(keyword: "Gift", params: [Subject(predicate: Param(0))], body: []),
 )

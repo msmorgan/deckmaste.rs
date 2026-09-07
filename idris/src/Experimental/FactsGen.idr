@@ -77,7 +77,7 @@ keywordFacts =
   , { word := "Escalate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Fuse", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Escape", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Foretell", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Foretell", paramShapes := [NoParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Bestow", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Disguise", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Mutate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
@@ -139,10 +139,10 @@ keywordFacts =
   , { word := "ForMirrodin", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Forecast", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "Fortify", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
-  , { word := "Frenzy", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
+  , { word := "Frenzy", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Graft", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Gravestorm", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
-  , { word := "Haunt", paramShapes := [NoParam], onSpellCard := True, bodied := True } defaultKeywordFacts
+  , { word := "Haunt", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "HiddenAgenda", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Hideaway", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Horsemanship", paramShapes := [NoParam] } defaultKeywordFacts
