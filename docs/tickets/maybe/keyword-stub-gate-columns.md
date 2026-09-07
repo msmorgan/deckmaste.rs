@@ -25,3 +25,5 @@ Ruling 2026-09-04: deferred. The gate columns stay in xtask's overlay; the
 expectation is that a keyword's facts derive from its macro definition once
 the semantics-v2 keyword macros are written, so no stub-schema field is
 added before then.
+
+Note (2026-09-07): 35 of 65 keyword-action declarations now carry bodies; the rest are routed by `semantics-v2-keyword-action-residues`.

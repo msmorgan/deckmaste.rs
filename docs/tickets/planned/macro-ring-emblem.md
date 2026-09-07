@@ -35,3 +35,5 @@ until another does or you lose control of it. Not a copiable value
    tempts you" trigger fires even if some or all of the [CR#701.54a] actions
    were impossible, so the verb must emit the fact before/regardless of the
    choice resolving.
+
+Note (2026-09-07): the "future builtin macro" is a v2 declaration (`TheRingTemptsYou`) routed by `semantics-v2-keyword-action-residues`; the engine blockers above are unchanged.

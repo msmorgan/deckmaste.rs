@@ -37,3 +37,5 @@ you move your venture marker into this room" [CR#309.4c].
 Add an idris constructor alongside, or record the asymmetry in
 `idris-mirror-enum-gaps` — the `Type::Dungeon` entry there resolves with this
 ticket either way.
+
+Note (2026-09-07): the "future venture builtin macro" is a v2 declaration under `plugins_v2/builtin/macros/stubs/keyword_actions/`, routed by `semantics-v2-keyword-action-residues`; the engine primitives above are unchanged.
