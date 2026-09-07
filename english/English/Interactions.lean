@@ -106,7 +106,9 @@ theorem all_four_survive {tree : Syntax Lexeme} (member : tree ∈ alternatives)
       (neutral _) alternatives tree :=
   (neutral_selected _ _ _).mpr ⟨member, alternatives_admitted member⟩
 
-/-- This local class has four readings; the abstract correlation example cannot prune it. -/
+/-- This local class has four readings; the abstract correlation example cannot prune it.
+The `Unit` key makes this a statement about the survivor set alone; the same claim under the
+discriminating grammatical scope key is `GrammaticalScope.nested_alternatives_packed`. -/
 theorem all_four_packed :
     ∃ p : Package (Syntax Lexeme) Unit,
       Packs (Selected (fun t ↦ Admissible lexicon t (.verbPhrase .plain) nestedSurface)
@@ -148,7 +150,9 @@ theorem quoted_distinction {left right : Syntax Lexeme} (distinct : left ≠ rig
   apply distinct
   simpa [quotedTree] using h
 
-/-- Lifting this local scope class through a common quotation retains every complete reading. -/
+/-- Lifting this local scope class through a common quotation retains every complete reading.
+Keyed on `Unit`, so it is a corollary of the discriminating-key version,
+`GrammaticalScope.quoted_alternatives_packed`. -/
 theorem quoted_packing_retains_all :
     ∃ p : Package (Syntax Lexeme) Unit,
       Packs (Selected (fun t ↦ Admissible lexicon t (.document .quotedText) quotedSurface)

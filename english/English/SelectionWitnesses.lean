@@ -38,7 +38,11 @@ theorem modifier_scope_preserves {lexicon : Lexicon L} {m l r tree : Syntax L}
   · refine ⟨.node (.coordinate rfl) (.cons (.modify modifier.1 left.1) (.cons right.1 .nil)), ?_⟩
     exact .node (.cons (.modify modifier.2 left.2) (.cons right.2 .nil)) .coordinate
 
-/-- Exact packaging is unique for this class, without choosing a reading within it. -/
+/-- Exact packaging is unique for this class, without choosing a reading within it.
+The key is deliberately trivial: the survivors are one scope class by construction, so every
+projection of them is constant and `Unit` says so honestly. The discriminating-key laws are
+`same_surface_separate` (below), `Scope.anchor_shape_separate` and
+`GrammaticalScope.nested_alternatives_packed`. -/
 theorem modifier_scope_unique (m l r : Syntax L) :
     ∃ p : Package (Syntax L) Unit, Packs (ModifierScope m l r) (fun _ ↦ ()) p ∧
       ∀ q, Packs (ModifierScope m l r) (fun _ ↦ ()) q → q = p := by
@@ -49,8 +53,17 @@ theorem modifier_scope_unique (m l r : Syntax L) :
   intro q hq
   exact packing_unique hq hp (by cases q.scope; rfl)
 
+/-- The neutral policy prefers nothing at all: every `Claims.rank` it assigns is `0`. Stating
+this makes the shape of `acyclic_tie`'s first conjunct explicit — that acyclicity over `neutral`
+holds because the relation is empty, not because cycles are ruled out. The acyclicity claim over
+an inhabited preference is `FrameInteractions.role_acyclic_tie`. -/
+theorem neutral_prefers_nothing (A : Type) (a b : A) : ¬ Prefers (neutral A) a b := by
+  simp [Prefers, neutral, Claims.rank]
+
 open Witnesses in
-/-- Acyclicity leaves two unequal, independently admitted trees on the very same surface. -/
+/-- Acyclicity leaves two unequal, independently admitted trees on the very same surface.
+The acyclicity conjunct is over the empty `neutral` preference (`neutral_prefers_nothing`); the
+same tie against a preference that really prefers something is `FrameInteractions.role_acyclic_tie`. -/
 theorem acyclic_tie :
     (∀ t, ¬ PreferenceChain (neutral (Syntax Lexeme)) t t) ∧ narrow ≠ shared ∧
     Selected (fun t ↦ Admissible lexicon t (.nominal .plural) surface)
@@ -62,7 +75,9 @@ theorem acyclic_tie :
   · exact (neutral_selected _ _ _).mpr ⟨by simp, distinct_analyses.2.2⟩
 
 open Witnesses in
-/-- One representative retains both readings; it is not evidence for unique interpretation. -/
+/-- One representative retains both readings; it is not evidence for unique interpretation.
+The key is deliberately trivial for the same reason as `modifier_scope_unique`: both survivors
+are one scope class, so no projection of them could separate them. -/
 theorem modifier_package_retains_both :
     ∃ p : Package (Syntax Lexeme) Unit,
       Packs (Selected (fun t ↦ Admissible lexicon t (.nominal .plural) surface)
@@ -142,7 +157,9 @@ theorem cross_host_admitted {t : Syntax Lexeme} (h : alternatives t) :
   · exact auxiliary_admitted (adjunct_admitted (pair_admitted attackValid attackValid))
   · exact auxiliary_admitted (pair_admitted attackValid (adjunct_admitted attackValid))
 
-/-- One overt auxiliary survives all three attachment readings, across both hosts. -/
+/-- One overt auxiliary survives all three attachment readings, across both hosts.
+The three alternatives are one scope class, so the key is deliberately trivial; re-keying would
+change what is asserted rather than strengthen it. -/
 theorem cross_host_scope :
     ∃ p : Package (Syntax Lexeme) Unit, Packs alternatives (fun _ ↦ ()) p ∧
       p.readings outside ∧ p.readings inside ∧ p.readings finalConjunct ∧

@@ -156,6 +156,29 @@ theorem concrete_role_selection :
       ⟨_, role_pair_admitted.2⟩ :=
   role_pair_selected _ _ immediate_role
 
+/-- The acyclicity half of `SelectionWitnesses.acyclic_tie`, re-spelled over a preference that is
+actually inhabited. `SelectionWitnesses.neutral` prefers nothing (`neutral_prefers_nothing`), so
+acyclicity over it is a statement about the empty relation; `immediate_role` inhabits
+`RolePreference.Prefers` in this lexicon, so ruling out cycles here has content. The tie half is
+retained in the same shape: two unequal trees, independently admitted on one surface. -/
+theorem role_acyclic_tie :
+    (∃ better worse : Syntax Lexeme, Prefers lexicon better worse) ∧
+    (∀ tree : Syntax Lexeme, ¬ Relation.TransGen (Prefers lexicon) tree tree) ∧
+    selectedTree .put .on .plain .active plural role creatures.tree artifacts.tree ≠
+      postmodifierTree .put .on .plain .active plural role creatures.tree artifacts.tree ∧
+    Admissible lexicon
+      (selectedTree .put .on .plain .active plural role creatures.tree artifacts.tree)
+      (.verbPhrase .plain) ["put", "creatures", "on", "artifacts"] ∧
+    Admissible lexicon
+      (postmodifierTree .put .on .plain .active plural role creatures.tree artifacts.tree)
+      (.verbPhrase .plain) ["put", "creatures", "on", "artifacts"] := by
+  refine ⟨⟨_, _, .role immediate_role⟩, fun _ ↦ no_role_preference_cycle, ?_,
+    role_pair_admitted.1, role_pair_admitted.2⟩
+  intro same
+  have increase := role_step_increases immediate_role
+  rw [same] at increase
+  omega
+
 theorem role_preference_does_not_choose_homographs :
     ¬ Prefers SelectionWitnesses.homographs (.noun false .plural) (.noun true .plural) :=
   equal_role_counts_cannot_prefer rfl

@@ -776,12 +776,12 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Interactions.NestedScope.alternatives` | Kept. |
 | `English.Interactions.NestedScope.alternatives_admitted` | Kept. |
 | `English.Interactions.NestedScope.all_four_survive` | Kept. |
-| `English.Interactions.NestedScope.all_four_packed` | Kept. |
+| `English.Interactions.NestedScope.all_four_packed` | Kept; the `Unit` key is now recorded as trivial, and the discriminating-key statement is `English.GrammaticalScope.nested_alternatives_packed` (keyed on `scopeClass`). |
 | `English.Interactions.NestedScope.quotedTree` | Kept. |
 | `English.Interactions.NestedScope.quotedSurface` | Kept. |
 | `English.Interactions.NestedScope.quoted_admitted` | Kept. |
 | `English.Interactions.NestedScope.quoted_distinction` | Kept. |
-| `English.Interactions.NestedScope.quoted_packing_retains_all` | Kept. |
+| `English.Interactions.NestedScope.quoted_packing_retains_all` | Kept; discriminating-key statement is `English.GrammaticalScope.quoted_alternatives_packed` (keyed on `scopeClass`). |
 | `English.Interactions.Quotation.gainNested` | Kept. |
 | `English.Interactions.Quotation.instruction` | Kept. |
 | `English.Interactions.Quotation.sentence` | Kept. |
@@ -838,7 +838,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Scope.Reading` | Replaced by `English.Scope.AnchorPattern`. Name the raw host/anchor pattern separately from a grammatical Reading. |
 | `English.Scope.anchor_shape_separate` | Kept; proof/signature re-spelled for the renamed schema carrier or v3 admission. |
 | `English.Scope.joint` | Kept. |
-| `English.Scope.joint_alternatives_exact` | Kept. |
+| `English.Scope.joint_alternatives_exact` | Kept, statement unchanged; now proved through the reusable `English.Scope.joint_correlated_pack`, whose grammatical instance over derivable syntax is `English.JointInteractions.joint_alternatives_grammatical` (key `Dependencies.exposed`). |
 
 ### ScopeInteractions.lean
 
@@ -896,9 +896,9 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.SelectionWitnesses.neutral_selected` | Kept. |
 | `English.SelectionWitnesses.ModifierScope` | Kept. |
 | `English.SelectionWitnesses.modifier_scope_preserves` | Kept. |
-| `English.SelectionWitnesses.modifier_scope_unique` | Kept. |
-| `English.SelectionWitnesses.acyclic_tie` | Kept. |
-| `English.SelectionWitnesses.modifier_package_retains_both` | Kept. |
+| `English.SelectionWitnesses.modifier_scope_unique` | Kept; the `Unit` key is deliberate and documented — the survivors are one scope class, so every projection of them is constant. |
+| `English.SelectionWitnesses.acyclic_tie` | Kept, statement unchanged; its acyclicity conjunct is over the empty `neutral` preference, now stated as such by `English.SelectionWitnesses.neutral_prefers_nothing`, and re-spelled over an inhabited preference as `English.FrameInteractions.role_acyclic_tie`. |
+| `English.SelectionWitnesses.modifier_package_retains_both` | Kept; `Unit` key deliberate and documented (single scope class). |
 | `English.SelectionWitnesses.homographs` | Kept. |
 | `English.SelectionWitnesses.homographs_admitted` | Kept. |
 | `English.SelectionWitnesses.same_surface_separate` | Kept. |
@@ -914,7 +914,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.SelectionWitnesses.CrossHost.auxiliary_admitted` | Kept. |
 | `English.SelectionWitnesses.CrossHost.adjunct_admitted` | Kept. |
 | `English.SelectionWitnesses.CrossHost.cross_host_admitted` | Kept. |
-| `English.SelectionWitnesses.CrossHost.cross_host_scope` | Kept. |
+| `English.SelectionWitnesses.CrossHost.cross_host_scope` | Kept; `Unit` key deliberate and documented (single scope class). |
 | `English.SelectionWitnesses.declaredPrinciples` | Kept. |
 | `English.SelectionWitnesses.ordered_principles_winner` | Kept. |
 | `English.SelectionWitnesses.inadmissible_cannot_suppress` | Kept. |

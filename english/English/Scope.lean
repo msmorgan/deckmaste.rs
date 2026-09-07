@@ -120,14 +120,35 @@ theorem anchor_shape_separate (survivors : AnchorPattern → Prop) (p : Package 
 /-- Two mobile choices can be correlated; projection to separate domains loses that relation. -/
 def joint (choices : Bool × Bool) : Prop := choices = (false, false) ∨ choices = (true, true)
 
+/-- The reusable correlated-pair packing: two retained alternatives share one scope, and the two
+combinations a per-coordinate product would license are absent. A retained alternative is excluded
+either by failing to survive or by carrying a different key, so a key with content can do the work
+of an exclusion; `English.JointInteractions.joint_alternatives_grammatical` instantiates this over
+derivable syntax with `Dependencies.exposed` as the key. -/
+theorem joint_correlated_pack {A K : Type} (survivors : A → Prop) (key : A → K) (scope : K)
+    {retainedLeft retainedRight excludedLeft excludedRight : A}
+    (leftSurvives : survivors retainedLeft) (rightSurvives : survivors retainedRight)
+    (leftKey : key retainedLeft = scope) (rightKey : key retainedRight = scope)
+    (leftOut : ¬ (survivors excludedLeft ∧ key excludedLeft = scope))
+    (rightOut : ¬ (survivors excludedRight ∧ key excludedRight = scope)) :
+    ∃ p : Package A K, Packs survivors key p ∧ p.scope = scope ∧
+      p.readings retainedLeft ∧ p.readings retainedRight ∧
+      ¬ p.readings excludedLeft ∧ ¬ p.readings excludedRight := by
+  refine ⟨pack survivors key scope,
+    packing_exists _ _ _ ⟨retainedLeft, leftSurvives, leftKey⟩, rfl,
+    ⟨leftSurvives, leftKey⟩, ⟨rightSurvives, rightKey⟩, leftOut, rightOut⟩
+
 theorem joint_alternatives_exact :
     ∃ p : Package (Bool × Bool) Unit, Packs joint (fun _ ↦ ()) p ∧
       p.readings (false, false) ∧ p.readings (true, true) ∧
       ¬ p.readings (false, true) ∧ ¬ p.readings (true, false) ∧
       (∃ b, joint (false, b)) ∧ (∃ a, joint (a, true)) := by
-  refine ⟨pack joint (fun _ ↦ ()) (), packing_exists _ _ _ ⟨(false, false), Or.inl rfl, rfl⟩,
-    ⟨Or.inl rfl, rfl⟩, ⟨Or.inr rfl, rfl⟩, ?_, ?_, ⟨false, Or.inl rfl⟩, ⟨true, Or.inr rfl⟩⟩
-  · simp [pack, joint]
-  · simp [pack, joint]
+  obtain ⟨p, packed, _, left, right, outLeft, outRight⟩ :=
+    joint_correlated_pack joint (fun _ ↦ ()) ()
+      (retainedLeft := (false, false)) (retainedRight := (true, true))
+      (excludedLeft := (false, true)) (excludedRight := (true, false))
+      (Or.inl rfl) (Or.inr rfl) rfl rfl
+      (by rintro ⟨h | h, _⟩ <;> cases h) (by rintro ⟨h | h, _⟩ <;> cases h)
+  exact ⟨p, packed, left, right, outLeft, outRight, ⟨false, Or.inl rfl⟩, ⟨true, Or.inr rfl⟩⟩
 
 end English.Scope

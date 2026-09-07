@@ -20,6 +20,7 @@ import English.FeatureInteractions
 import English.DependencyInteractions
 import English.AnalysisInteractions
 import English.SharingInteractions
+import English.JointInteractions
 import English.BoundaryInteractions
 
 import English.SpellingWitnesses

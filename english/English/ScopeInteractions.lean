@@ -72,6 +72,42 @@ theorem quoted_scope_related (tree : SchemaWitness lexicon (.verbPhrase .plain) 
   map_related quotedTree quoted_step (fun a ↦ quoted_admitted a.property)
     (nested_scope_related tree member)
 
+/-- `Interactions.NestedScope.all_four_packed` re-keyed on the grammatical scope class. The
+`Unit` key of that statement cannot tell anything apart, so its packing half held for want of a
+key; `scopeClass` does separate classes (`homographs_separate`, `association_separate` below), and
+the four readings are retained here because they are scope-related, not by default. -/
+theorem nested_alternatives_packed :
+    ∃ p : Selection.Package (SchemaWitness lexicon (.verbPhrase .plain) nestedSurface)
+        (Quotient (scopeSetoid lexicon (.verbPhrase .plain) nestedSurface)),
+      Selection.Packs (fun t ↦ t.val ∈ alternatives) scopeClass p ∧
+      ∀ t, p.readings t ↔ t.val ∈ alternatives :=
+  ⟨package (fun t ↦ t.val ∈ alternatives) wideReading,
+    Selection.packing_exists _ _ _ ⟨wideReading, by simp [alternatives, wideReading], rfl⟩,
+    nested_package_exact⟩
+
+private def quotedWide : SchemaWitness lexicon (.document .quotedText) quotedSurface :=
+  ⟨quotedTree wideReading.val, quoted_admitted wideReading.property⟩
+
+private def quotedAlternatives
+    (tree : SchemaWitness lexicon (.document .quotedText) quotedSurface) : Prop :=
+  ∃ a, a ∈ alternatives ∧ tree.val = quotedTree a
+
+/-- `Interactions.NestedScope.quoted_packing_retains_all` re-keyed on the grammatical scope class:
+lifting the class through a quotation retains every reading under a key that distinguishes
+classes, not under a key that cannot distinguish anything. -/
+theorem quoted_alternatives_packed :
+    ∃ p : Selection.Package (SchemaWitness lexicon (.document .quotedText) quotedSurface)
+        (Quotient (scopeSetoid lexicon (.document .quotedText) quotedSurface)),
+      Selection.Packs quotedAlternatives scopeClass p ∧
+      ∀ a, ∀ member : a ∈ alternatives,
+        p.readings ⟨quotedTree a, quoted_admitted (alternatives_admitted member)⟩ := by
+  refine ⟨package quotedAlternatives quotedWide,
+    Selection.packing_exists _ _ _
+      ⟨quotedWide, ⟨_, by simp [alternatives, wideReading], rfl⟩, rfl⟩, ?_⟩
+  intro a member
+  refine (package_exact _ _ _).mpr ⟨⟨a, member, rfl⟩, ?_⟩
+  exact .symm (quoted_scope_related ⟨a, alternatives_admitted member⟩ member)
+
 /-- Homographic noun lexemes cannot collapse merely because their text is identical. -/
 theorem homographs_separate :
     scopeClass ⟨.noun false .plural, SelectionWitnesses.homographs_admitted false⟩ ≠

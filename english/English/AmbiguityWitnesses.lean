@@ -184,4 +184,32 @@ theorem control_unambiguous : ¬ Reading.Ambiguous environment [] (.document .ty
   rintro ⟨a, b, ha, hb, different⟩
   exact different ((control_unique a ha).trans (control_unique b hb).symm)
 
+/-- The analysis roundtrip obligation has teeth: any operation satisfying it is pinned to the
+exact surface of every admitted reading, including both readings of one ambiguous surface. It
+cannot invent, drop or reorder atoms, and it cannot answer the two readings differently. -/
+theorem analysis_roundtrip_has_teeth (render : Reading Lexeme → Option Surface)
+    (roundtrip : Reading.AnalysisRoundtrip environment render) :
+    render nounReading = some (["I", "saw", "her", "duck"] : Surface) ∧
+    render verbReading = some (["I", "saw", "her", "duck"] : Surface) ∧
+    render control = some (["Artifact"] : Surface) :=
+  ⟨roundtrip [] nounReading (.clause .finite) _ noun_admitted,
+    roundtrip [] verbReading (.clause .finite) _ verb_admitted,
+    roundtrip [] control (.document .type) _ control_admitted⟩
+
+/-- A concrete wrong operation the obligation refutes: the renderer that returns nothing. -/
+theorem analysis_roundtrip_rejects_silence :
+    ¬ Reading.AnalysisRoundtrip environment (fun _ ↦ none) := by
+  intro roundtrip
+  cases (analysis_roundtrip_has_teeth _ roundtrip).1
+
+/-- A second concrete wrong operation: a renderer that answers one fixed surface for every
+reading. It agrees with both readings of "I saw her duck" and is still refuted, by an admitted
+reading whose surface differs. -/
+theorem analysis_roundtrip_rejects_constant :
+    ¬ Reading.AnalysisRoundtrip environment
+      (fun _ ↦ some (["I", "saw", "her", "duck"] : Surface)) := by
+  intro roundtrip
+  have wrong := (analysis_roundtrip_has_teeth _ roundtrip).2.2
+  simp at wrong
+
 end English.AmbiguityWitnesses
