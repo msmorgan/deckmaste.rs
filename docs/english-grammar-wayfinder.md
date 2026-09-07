@@ -6,11 +6,15 @@ construction-directed scanning and grammatical admission from full AST products.
 The primary parse result retains all grammatical readings. English and Semantics
 remain independent projects. The `needs:` graph is the scheduling authority.
 
+[Lexical analysis is implemented](tickets/done/english-v2-lexical-analysis.md).
+The [independent interface](../crates/deckmaste_lexical/README.md) exports existing
+vocabulary and catalogs, retains numeral alternatives, and produces the supported
+corpus word/remainder inventory. Production card parsing awaits chart integration.
+
 ## Upcoming work
 
 | Ticket | Deliverable |
 |---|---|
-| [english-v2-lexical-analysis](tickets/planned/english-v2-lexical-analysis.md) | Independent analyses from declared vocabulary/default morphology/explicit replacing overrides; token/source contract and early supported-corpus word inventory. |
 | [english-lean-lexical-ambiguity](tickets/planned/english-lean-lexical-ambiguity.md) | Connect lexical forms to admission, retain readings across classes, and challenge correlated alternatives and relational roundtripping. Runs alongside lexical/Rust work. |
 | [english-v2-feature-chart-integration](tickets/planned/english-v2-feature-chart-integration.md) | Adapt the existing engine/compiler to grammatical summaries, packed alternatives and on-demand AST extraction; exercise both roundtrip laws and actual all-readings consumers. |
 | [english-v2-grammar-family-breadth](tickets/planned/english-v2-grammar-family-breadth.md) | Consumed positive/exclusion and cross-family witnesses for every planned family through the new interfaces. |

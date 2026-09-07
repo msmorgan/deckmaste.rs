@@ -10,7 +10,10 @@ One declaration still drives checked construction, parsing, rendering and
 traversal; no per-construction handwritten renderer or second fallback parser.
 
 Replace construction-directed byte scanning with the independent lexical
-interface. Generate sufficient grammatical summaries/constraints from the same
+interface in [`deckmaste_lexical`](../../../crates/deckmaste_lexical/README.md).
+Consume its occurrence edges, correlated values and shared realization;
+retain numeral/noun/determinative alternatives and account for separators.
+Generate sufficient grammatical summaries/constraints from the same
 declarations and use them at completion. The completion path must not construct
 `BuildValue` products or run full AST constructors to decide admissibility.
 Extract full AST readings on demand after chart construction. Audit each

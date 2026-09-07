@@ -10,6 +10,13 @@ Work independently of grammar-family completion. Preserve its supported-corpus
 word list, catalog/symbol accounting and unknown-form examples; batch missing
 lexemes/forms with declarations and explicit overrides rather than guessing POS.
 
+Start from the [lexical interface and inventory command](../../../crates/deckmaste_lexical/README.md).
+The report's `unmapped_sources` names unmapped core inventories, construction
+literals, modal applicability and keyword-derived adjectives. Its raw occurrences
+also retain genitive/contraction, symbol and catalog gaps. Consolidate the
+supplemental form overrides under their existing declaration owners as their
+authoring sources acquire the shared morphology interface.
+
 Audit the independent declaration/lexical/source interface using the source map
 in the grammar design. Enforce declaration provenance for word-bearing forms, declared
 morphological allomorphs/genitive endings, Onset, lexical identities and
