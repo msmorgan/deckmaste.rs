@@ -218,11 +218,12 @@ parity (§14).
 ## 10. Rust representation
 
 `crates/deckmaste_semantics_v2` mirrors the Lean syntax
-(`lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card}.lean`)
-constructor-for-constructor and field-for-field. Lean is the specification:
-a Lean change is a Rust change, never the reverse, and a drift test in the
-crate fails on any name the two sides disagree on. The crate does no law
-checking. The Lean gate (§13) is the only checker; `deckmaste_lowering_v2`
+(`lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card,Rules}.lean`)
+and the registry fact columns (`lean/Semantics/Check/FactTypes.lean`, the
+`facts` module) constructor-for-constructor and field-for-field. Lean is the
+specification: a Lean change is a Rust change, never the reverse, and a drift
+test in the crate fails on any name the two sides disagree on. The crate does
+no law checking. The Lean gate (§13) is the only checker; `deckmaste_lowering_v2`
 may fail to lower a card that breaks a law, without going out of its way to
 validate. The crate depends on `macro_ron` and on nothing deletion-bound
 (`CLAUDE.md` "Crate fates"); in particular it never depends on
@@ -240,7 +241,13 @@ spelling and grammar, semantics_v2 reads the params and body. The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations
 (keyword actions, keyword abilities, ability words, turn parts) grow bodies
-per family; no new bodyless declarations are added. Cards, tokens, and the
+per family; no new bodyless declarations are added. A registry declaration
+whose columns are the ones Lean's checker reads carries THOSE columns as its
+body, typed by the `facts` mirror rather than by a semantics term: a
+designation declares its `DesignationFacts` rows and a marker counter its
+`CounterFacts` row, and `cargo xtask facts generate` writes
+`lean/Semantics/Check/Facts.lean` from them (ruling, 2026-09-07,
+`facts-generator-sheds-v1`). Cards, tokens, and the
 three rules tables (state-based actions, conferrals, damage results) are
 further kinds in the same tree, all semantics-language RON. `plugins_v2/canon`
 is hand-authored RON first; translation from `deckmaste_english_v2`'s
