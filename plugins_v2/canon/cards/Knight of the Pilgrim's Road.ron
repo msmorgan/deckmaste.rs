@@ -1,0 +1,15 @@
+// "Renown 1" [CR#702.112a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Knight of the Pilgrim's Road",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Knight")],
+        power: Lit(value: 3),
+        toughness: Lit(value: 2),
+        text: [Renown(Lit(value: 1))],
+    ),
+))

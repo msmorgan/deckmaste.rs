@@ -1,7 +1,77 @@
 KeywordAbility(
     name: "Storm",
+    params: [],
     spelling: "storm",
     grammar: FixedKeyword(
         surface: "storm",
+    ),
+    // "Storm" means "When you cast this spell, copy it for each other spell that was cast
+    // before it this turn. You may choose new targets for the copies." [CR#702.40a]
+    // `lean/Semantics/Macros.lean`'s `stormExpansion` is the reference.
+    body: Keyword(
+        keyword: "Storm",
+        params: [],
+        body: [
+            Triggered(
+                event: Casts(
+                    player: You,
+                    spell: AsMarker(marker: Spell, subject: This),
+                    from: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Sequentially(
+                    steps: [
+                        Copy(
+                            sort: FromStack,
+                            subject: AsMarker(marker: Spell, subject: This),
+                            times: EventTally(
+                                op: Count,
+                                subject: Described(
+                                    determiner: A(mode: Unmarked),
+                                    predicate: AnyPlayer,
+                                ),
+                                lookback: Mk(
+                                    event: Casts(
+                                        player: Gap(kind: Player),
+                                        spell: Described(
+                                            determiner: A(mode: Unmarked),
+                                            predicate: And(
+                                                conjuncts: [
+                                                    InZone(zone: Zone(zone: Stack, scope: Bare)),
+                                                    Not(predicate: AbilityHead(class: AnyOnStack)),
+                                                    OtherThan(
+                                                        anchor: AsMarker(
+                                                            marker: Spell,
+                                                            subject: This,
+                                                        ),
+                                                    ),
+                                                ],
+                                            ),
+                                        ),
+                                        from: None,
+                                    ),
+                                    lookback: EarlierThisTurn,
+                                ),
+                            ),
+                            exceptions: [],
+                            agent: You,
+                        ),
+                        WithContinuation(
+                            policy: Optional(agent: You),
+                            body: ChooseNewTargets(
+                                subject: Pro(reach: Word(word: Copy), plurality: Many, window: Whole),
+                            ),
+                            if_did: None,
+                            if_not: None,
+                        ),
+                    ],
+                ),
+            ),
+        ],
     ),
 )
