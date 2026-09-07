@@ -489,7 +489,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `BasicLandType` | The old `basicLandLine` macro has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; ordinary characteristic subtype validation remains `subsFitLine`. |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `Delta Amount` consumers check the carried amount. |
-| `GivingWarrant` | `conferralOk` at `Instruction.gainDesignation` checks the designation and its declared conferrer together. |
+| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Instruction.gainDesignation` checks the designation's own row — `DesignationLabel.checked` for an effectful designation, plus its scope and holder. |
 | `DesignationHolder` | `designationHolderOk` and the declared designation scope/holder checks at designation consumers. |
 | `AxesAt` | `axesAt` in `Predicate.check` requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | `Status.category` derives the category from the status. No separate category argument can disagree; consumers retain `Status.markable` and status-holder checks. |

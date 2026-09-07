@@ -4,6 +4,15 @@
 > `lean/`; Idris paths below are historical. See
 > [Lean is the workbench](lean-is-the-workbench.md).
 
+> Amendment (2026-09-07): registries carry what a designation **is**, not who
+> confers it. `DesignationDecl.conferrers`, the `confers` columns on the
+> keyword-ability, keyword-action and deed facts, and the `Conferral` tag on
+> `Instruction.gainDesignation` are all removed. A keyword's definition body
+> grants the designation, and that is the whole fact [CR#701.37a]; the same
+> fact kept three times and checked for agreement was bookkeeping, not a rule.
+> The registry still supplies the designation's scope, holder, persistence and
+> whether an instruction may confer it at all.
+
 ## Decision
 
 Type, subtype, counter, and designation behavior is sourced from loaded

@@ -64,8 +64,8 @@ is a trailing named argument. `exile thisPermanent` omits the agent;
 
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a
 `ProjAxis`; arithmetic takes an `ArithOp`; `Predicate.or` joins alternatives
-with their own kinds. Designations are open labels whose declared scope and
-conferrers feed the checker tables. `Characteristics` is flat and follows
+with their own kinds. Designations are open labels whose declared scope
+feeds the checker tables. `Characteristics` is flat and follows
 [CR#109.3]. Printed stat slots use `Option Amount`: `none` represents a printed
 `*`, with a characteristic-defining ability supplying its value. `CardFace`
 adds what a printed face carries; `CharacteristicBundle` describes what an
@@ -93,8 +93,8 @@ write.
 builtin_v2 registry declarations and xtask's checker-column overlays.
 `cargo xtask facts check` rejects stale Lean or reference Idris output.
 `FactTypes.lean` owns the shared data columns; `Check/Words` and
-`Check/Keywords` interpret them. Designation conferrers are declared on
-`DesignationDecl` and generate lists, including all sectors and both doors.
+`Check/Keywords` interpret them. A designation declaration generates one table
+row per label it names, so an enum-valued one generates all its members.
 The table-integrity pins remain part of `lean/scripts/build`.
 
 ## Numbers

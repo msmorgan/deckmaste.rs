@@ -311,8 +311,8 @@ used only in composition.
 
 Keyword actions have open labels and expanded instruction bodies. Macros
 construct those bodies; the label records which named action occurred.
-The Lean checker reads declared features for roles, scopes and conferrals,
-rather than requiring a new syntax constructor for each action name.
+The Lean checker reads declared features for roles and scopes, rather than
+requiring a new syntax constructor for each action name.
 `Semantics/Check/Facts.lean` is generated from builtin_v2 declarations and
 checker-column overlays. A missing declaration or required overlay is a
 visible generation gap; `cargo xtask facts check` detects stale generated data.
