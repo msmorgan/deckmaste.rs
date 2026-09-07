@@ -258,8 +258,16 @@ RON as the cached form of that translation.
 The builtin macro families live at `plugins_v2/builtin/macros/<family>/`,
 alongside `macros/meta/`, whose declaration meta-macros the family files
 invoke. They were under `macros/stubs/` while they were bodyless; they are
-declarations now, and `read_builtin_v2` reads the family directories and
-skips `meta/`.
+declarations now.
+
+The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
+by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
+`keyword_abilities`, `keyword_actions`, `subtypes`, `turn_parts`, `types` —
+ignoring every other directory there rather than refusing what it cannot
+place. Beside them live `macros/meta/` and the HELPER macro families (§12),
+which are declarations of no construction at all: semantics_v2 reads every
+`.ron` under `macros/`, construction_core reads the nine, and the xtask drift
+test compares the two readings over the nine.
 
 ### 11.1 What a card may write
 
@@ -306,13 +314,21 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   lookahead decides which form is written and calls `visit_map` or
   `visit_seq` — both of which serde's derived struct visitor implements, so
   the binder names and every forwarded `#[serde(...)]` still govern. The two
-  forms are NEVER mixed: ron's value scanner refuses `C(a, b: c)` while
-  deciding, before either visitor runs, so `exile x (agent := .you)` has no
-  RON spelling and a binder that must be skipped takes the wholly named form.
-  A constructor of ONE field is exempt and keeps its binder: inside a newtype
-  variant ron reads `(x)` as a newtype rather than a one-element tuple, and
-  its `handle_any_struct` then turns a bare identifier into a unit value,
-  discarding the very name the argument is.
+  forms are NEVER mixed: `C(a, b: c)` is refused, so `exile x (agent := .you)`
+  has no RON spelling and a binder that must be skipped takes the wholly named
+  form.
+
+  A constructor of ONE field has nothing for ron's lookahead to see — inside a
+  newtype variant `(x)` is a newtype tuple, and `handle_any_struct` turns the
+  bare identifier into a unit value, discarding the very name the argument is
+  — so the reader classifies the argument list itself: `macro_ron`'s value
+  capture takes the list, and a list that opens with a binder re-reads as the
+  named struct while any other re-reads as a one-element tuple. `CountOf(x)`
+  and `CountOf(group: x)` are the same value. Nothing is rewritten; the only
+  text this makes is the pair of parentheses the capture left behind. The
+  capture at that position does not go through ron's own `RawValue`, whose
+  `Deserialize` re-parses what it captured and refuses anything that is not a
+  standalone value — a fused argument list is not one.
 - **A numeral reads at its leaf.** Lean marks `Amount.lit` and
   `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
   two `#[macro_ron(literal)]`, the marker v1 already uses for `StatValue`'s
@@ -357,6 +373,86 @@ position it expands to and goes through the same reader. A macro's own
 argument list is unaffected: a signature is positional or named as it always
 was, and `read_args` checks argument names against the signature rather than
 against a constructor's binders.
+
+### 12.1 The helper macro layer
+
+`lean/Semantics/Macros.lean`'s 409 `semantic_macro`s are the phrasings a card
+writes over the constructor basis. 279 of them are declarations under
+`plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
+sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
+`nouns`, `mana`, `durations`, `amounts`, `counters`, `instructions`, `events`,
+`abilities`) — each a plain meta with `name`, `kinds`, `params` and `body` and
+no spelling or grammar. The name is the Lean name capitalised, the kind is the
+Lean return type, and the signature is NAMED, with Lean's own defaults as
+parameter defaults. A list-typed parameter registers under the PLURAL of its
+element type, v1's convention (`Abilities` for `Vec<Ability>`); a Lean
+`abbrev` registers under the alias's own name, since that is what the
+signature writes. `lean-macros-from-ron` generates `Macros.lean` from these
+and around the rest.
+
+The other 130 stay Lean-only, in seven buckets. The first is a STOP, not a
+classification: it wants a ruling.
+
+- **Its name is a constructor of its own kind (29).** Lean's leading dot
+  separates `.draw` from `draw`; RON has no such mark, and native dispatch
+  takes the name, so the declaration would load (the identity exemption in
+  `deckmaste_semantics_v2::reader` covers it — its body's head is its own
+  name) and never be invocable. These are the macros that ARE a constructor
+  with defaults filled in: `activated`, `aggregate`, `castBy`, `choose`,
+  `chosenNumber`, `chosenPlayer`, `countOf`, `counterEvent`, `delay`, `doIf`,
+  `draw`, `flipCoins`, `flipsCoin`, `generic`, `happened`, `happenedTo`,
+  `keyword`, `library`, `move`, `ofChosen`, `removeCounters`, `rollDice`,
+  `shiftResult`, `shuffle`, `someOf`, `theRest`, `tokensCreated`, `triggered`,
+  `vote`. Until a ruling gives the dialect a mark of its own, §11.1's
+  macro-only card refusal (Lean's `Authoring.Form.onlyMacros`) cannot be
+  turned on: a card that may write only macros needs a macro for every
+  constructor, and these are the ones with no reachable spelling.
+- **A spelled declaration already owns the identity (15).** The keyword
+  families keep their own declarations: `companion`, `destroy`, `discard`,
+  `exile`, `fight`, `flying`, `flyingCounter`, `levelUp`, `mill`,
+  `proliferate`, `regenerate`, `sacrifice`, `tap`, `transform`, `untap`. A
+  ported body that calls one of these calls the DECLARATION, under its
+  declaration's positional signature.
+- **It calls a `Primitives.*` helper (28).** `Semantics.Macros.Primitives`
+  holds hand-written macros beside the constructor wrappers
+  `declare_semantic_primitives` generates; a wrapper is the constructor and
+  converts as one, but the hand-written helpers are a second Lean-side layer
+  this port does not cover: `addPart`, `addPartThen`, `attachChoosing`,
+  `attachToIt`, `become`, `becomeColor`, `create`, `createTappedAttacking`,
+  `cumulativeUpkeepExpansion`, `dealsCombatDamage`, `doUnless`,
+  `doesntUntap`, `entersChoosing`, `entersChoosingFrom`,
+  `entersChoosingPlayer`, `entersChoosingPlayerSecretly`,
+  `getAdditionalPart`, `leavesBattlefield`, `leavesZone`, `mayDeclineUntap`,
+  `offer`, `offerWhen`, `putIntoFrom`, `splitOverPermanent`,
+  `splitOverPlaneswalker`, `untapsDuring`, `youAnd`, `youOr`.
+- **It computes (23).** Not a substitution bundle: a `let`, a `match`, a
+  `.map` over an argument, an anonymous constructor, a plurality read off a
+  subject. `agentRef`, `amass`, `chooseModes`, `chooseSpree`,
+  `controllerSacrifices`, `dealDamageOwnPower`, `itCondSubject`, `itPrior`,
+  `itsOther`, `joinedHead`, `joinedHeadWhile`, `lookAndSort`,
+  `lookAndSortInto`, `lookedCards`, `lookedTop`, `loseCounters`, `modular`,
+  `ownSubject`, `partyOf`, `requireBlockIt`, `rollRow`, `sacrificeIt`,
+  `scaledMana`. These are routed to
+  `semantics-v2-macro-capture-and-plurality`.
+- **It calls one of the above (28).** A macro that does not port takes its
+  callers with it: `after`, `at_`, `bushido`, `bushidoExpansion`,
+  `cumulativeUpkeep`, `cycling`, `cyclingExpansion`, `fateseal`, `forEach`,
+  `fullParty`, `fullPartyOf`, `get`, `getsBase`, `getsPt`, `levelBand`,
+  `loseAllCounters`, `party`, `partySize`, `partySizeOf`, `prototypeAlt`,
+  `renown`, `renownExpansion`, `scry`, `storm`, `stormExpansion`, `surveil`,
+  `when`, `whenever`.
+- **It expands to no single position (4).** A macro occupies one position, and
+  `List X` / `Option X` is not one: `copyCharacteristics`, `modularExpansion`,
+  `partyRoles`, `stat`.
+- **It is defined by pattern matching on an argument (3).** `agentPlur`,
+  `itOrThem`, `sameWindow`.
+
+Every mirror type a ported signature names is a registered param type
+(`deckmaste_semantics_v2::ron::param_types`), and every position a ported
+body expands to is a registered kind — including four that are not
+`semantic_expression` types and so carry no dispatch set of their own
+(`CharacteristicBundle`, `HeaderPossessor`, `LevelBand`, `PrototypeFrame`),
+registered by hand the way `Delta` is.
 
 ## 13. Gate and bench
 
