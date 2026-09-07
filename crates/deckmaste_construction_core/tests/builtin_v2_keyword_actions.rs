@@ -118,12 +118,23 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
             .collect::<Vec<_>>(),
         EXPECTED_NAMES
     );
+    // The family graduates declaration by declaration
+    // (`semantics-v2-macro-bodies-keyword-actions`): each one either is still a
+    // grammar-only nursery record or is fully graduated. Half-graduation — a
+    // body with no positional signature, or a signature with no body — is what
+    // this must never admit, and every declaration keeps its spelling and
+    // grammar either way.
+    let mut graduated = 0usize;
     for declaration in &actions {
-        assert!(
-            !declaration.is_graduated(),
-            "{} must remain a nursery declaration",
-            declaration.identity()
-        );
+        if declaration.is_graduated() {
+            graduated += 1;
+        } else {
+            assert!(
+                declaration.body().is_none(),
+                "{} carries a body without a positional signature",
+                declaration.identity()
+            );
+        }
         assert!(
             matches!(declaration.spelling(), [SpellingPart::Literal(_)]),
             "{} must have one literal spelling part",
@@ -135,6 +146,10 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
             declaration.identity()
         );
     }
+    assert!(
+        graduated > 0,
+        "no keyword action carries a semantic body; the family's graduation was lost"
+    );
 
     let destroy = action(&declarations, "Destroy");
     assert_eq!(
