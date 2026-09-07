@@ -1,0 +1,30 @@
+// "Enchant creature / Enchanted creature has flying. / Aura swap {2}{U}"
+// [CR#702.5a,702.9b,702.65a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Arcanum Wings",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Enchantment],
+        subtypes: [Of(host: Enchantment, label: "Aura")],
+        text: [
+            Keyword(
+                keyword: "Enchant",
+                params: [Subject(predicate: HasType(type: Creature))],
+                body: [],
+            ),
+            Static(
+                spec: AbilityGrant(
+                    subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                    ability: Flying,
+                ),
+            ),
+            AuraSwap(Mana(cost: [
+                Simple(symbol: Generic(amount: 2)),
+                Simple(symbol: Specific(color: Of(color: Blue))),
+            ])),
+        ],
+    ),
+))

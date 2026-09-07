@@ -1,0 +1,47 @@
+// "For Mirrodin! / Equipped creature gets +4/+4 and has trample. / Equip {5}{G}{G}"
+// [CR#702.163a,702.19a,702.6b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Sylvok Battle-Chair",
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Artifact],
+        subtypes: [Of(host: Artifact, label: "Equipment")],
+        text: [
+            ForMirrodin,
+            Static(
+                spec: Conjunction(
+                    subject: None,
+                    parts: [
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Power,
+                            delta: Up(amount: Lit(value: 4)),
+                        ),
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Toughness,
+                            delta: Up(amount: Lit(value: 4)),
+                        ),
+                        AbilityGrant(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            ability: Trample,
+                        ),
+                    ],
+                ),
+            ),
+            Keyword(
+                keyword: "Equip",
+                params: [Cost(cost: Mana(cost: [
+                    Simple(symbol: Generic(amount: 5)),
+                    Simple(symbol: Specific(color: Of(color: Green))),
+                    Simple(symbol: Specific(color: Of(color: Green))),
+                ]))],
+                body: [],
+            ),
+        ],
+    ),
+))

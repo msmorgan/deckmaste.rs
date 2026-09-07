@@ -1,6 +1,10 @@
 KeywordAbility(
     name: "Champion",
-    params: [Subject],
+    // `Quality`, not `Subject`: the printed argument ("an Elemental") is woven into
+    // "another [object] you control", so the slot is a predicate. The macro-parameter
+    // kind `Subject` is a `NounPhrase`; `KeywordParam::Subject` still carries the
+    // predicate the registry shape names.
+    params: [Quality],
     spelling: "champion",
     grammar: FixedKeyword(
         surface: "champion",
@@ -74,17 +78,18 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: Move(
-                    subject: Pro(
-                        reach: Stamped(verb: Action(label: "Exile")),
-                        plurality: One,
-                        window: Whole,
+                    // "the exiled card": a linked reference to the ability above
+                    // [CR#607.2a], not an anaphor reaching into another ability.
+                    subject: Described(
+                        determiner: The,
+                        predicate: ExiledWith(source: This),
                     ),
                     to: Zone(zone: Battlefield, scope: Bare),
                     riders: [
                         Under(
                             controller: PossessorOf(
                                 axis: Owner,
-                                subject: Pro(reach: Bare, plurality: One, window: Whole),
+                                subject: Pro(reach: Bare, plurality: One, window: Top(depth: 1)),
                             ),
                         ),
                     ],

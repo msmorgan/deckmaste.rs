@@ -1,0 +1,18 @@
+// "Flying / Champion an Elemental" [CR#702.9b,702.72a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Supreme Exemplar",
+        cost: [
+            Simple(symbol: Generic(amount: 6)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Elemental")],
+        power: Lit(value: 10),
+        toughness: Lit(value: 10),
+        text: [
+            Flying,
+            Champion(HasSubtype(subtype: Of(host: Creature, label: "Elemental"))),
+        ],
+    ),
+))

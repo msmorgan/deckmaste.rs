@@ -52,7 +52,13 @@ KeywordAbility(
                             verb: Action(label: "Attach"),
                             instruction: Attachment(
                                 r#move: Attached,
-                                subject: This,
+                                // "this Equipment": a bare `This` has no zone, and an
+                                // attachment's subject must be on the battlefield.
+                                subject: AsType(
+                                    type: Artifact,
+                                    subject: This,
+                                    subtype: Of(host: Artifact, label: "Equipment"),
+                                ),
                                 host: Pro(reach: TokenBorn, plurality: One, window: Whole),
                             ),
                             agent: None,

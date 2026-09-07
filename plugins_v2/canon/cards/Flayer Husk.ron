@@ -1,0 +1,34 @@
+// "Living weapon / Equipped creature gets +1/+1. / Equip {2}" [CR#702.92a,702.6b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Flayer Husk",
+        cost: [Simple(symbol: Generic(amount: 1))],
+        types: [Artifact],
+        subtypes: [Of(host: Artifact, label: "Equipment")],
+        text: [
+            LivingWeapon,
+            Static(
+                spec: Conjunction(
+                    subject: None,
+                    parts: [
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Power,
+                            delta: Up(amount: Lit(value: 1)),
+                        ),
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Toughness,
+                            delta: Up(amount: Lit(value: 1)),
+                        ),
+                    ],
+                ),
+            ),
+            Keyword(
+                keyword: "Equip",
+                params: [Cost(cost: Mana(cost: [Simple(symbol: Generic(amount: 2))]))],
+                body: [],
+            ),
+        ],
+    ),
+))
