@@ -22,10 +22,13 @@ use macro_ron::SupportsMacros;
 pub const MACRO_KIND: &str = "Macro";
 
 /// The kinds the declaration meta-macros in `plugins_v2/<plugin>/macros/meta/`
-/// produce. Four of them — `Subtype`, `CounterKind`, `TurnPart`, `Type` — name
-/// a position a card also writes, so a declaration registered under one is
-/// invocable there by its bare name; the rest are name-erasing loader tags
-/// that open no card position, exactly as v1's `TypeDef` and `Counter` do.
+/// produce. Three of them — `Subtype`, `CounterKind`, `TurnPart` — carry the
+/// serde name of a v2 syntax type, so a declaration registered under one is
+/// invocable by its bare name wherever a card writes that type. `Type` does
+/// NOT: v2's card-type position is `CardType`, so a `Type` declaration is a
+/// loader tag until a ticket reconciles the two names. The remaining five are
+/// name-erasing loader tags that open no card position at all, exactly as v1's
+/// `TypeDef` and `Counter` do.
 pub const DECLARATION_KINDS: &[&str] = &[
     "AbilityWord",
     "CounterKind",

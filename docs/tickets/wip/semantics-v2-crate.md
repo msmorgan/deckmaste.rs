@@ -48,7 +48,7 @@ cargo test -p macro_ron -p deckmaste_construction_core -p deckmaste_construction
   -p deckmaste_spelling -p deckmaste_tui -p deckmaste -p xtask
 ```
 
-Green: 103 suites, 4733 passed, 0 failed, 6 pre-existing ignored. The closure
+Green: 103 suites, 4734 passed, 0 failed, 6 pre-existing ignored. The closure
 is that wide because `macro_ron` changed (see STOP 1); the path move alone
 would have derived `construction_core`, `english_v2`, `xtask`.
 
@@ -200,13 +200,28 @@ implements this mapping and pins it.
   Rust ergonomics and Rust's sizedness, neither visible to the mirror: the
   drift test compares names and order, not representation. Boxing is uniform
   over each reference cycle rather than minimal, so it cannot be wrong.
+- **Two rules-table field types are narrower than v1's.**
+  `ConferralRule.confer` is an `Ability` where v1 wrote a `Property` (an
+  ability, a continuous effect, a state-based or a turn-based one); the builtin
+  table writes an ability and v2 has no `Property`, so the wider type would be
+  invented here rather than mirrored. `DamageResultRule.remove` is a
+  `CounterKind` where v1 wrote a `CounterRef` — an identity resolved against
+  the plugin's declared counter registry — so a named counter is carried as the
+  label `CounterKind::Named` holds and the binding to a declaration is not made
+  here. Both narrowings are `lean-rules-tables`'s to widen or confirm; both are
+  stated in `rules.rs`'s own module doc.
 - **`Nat` → `u32`, `Int` → `i32`.** Lean's numbers are unbounded; a printed
   card's are not.
-- **`crates/xtask/src/gate.rs` learns the new path.** `--changed` classified
-  `plugins/builtin_v2` paths as declaration data and routed them to every
-  reader; it now recognises `plugins_v2/builtin` too, and finds a reader by
-  either spelling of the path in its sources. Without this the gate would have
-  under-derived its own closure for this landing.
+- **`crates/xtask/src/gate.rs` learns the new format, not just the new path.**
+  `--changed` classified `plugins/builtin_v2` paths as declaration data and
+  routed them to every reader. It now routes ALL of `plugins_v2/` — every tree
+  there is data `deckmaste_semantics_v2`'s reader consumes, and no crate owns
+  the directory, so a `plugins_v2/testing` (later `plugins_v2/canon`) change
+  would otherwise derive an empty closure although `tests/reader.rs` reads that
+  tree. A `plugins_v2/builtin` path additionally routes to the english-v2
+  readers, which read the same declaration file under their own metadata, and a
+  reader is found by either spelling of the path in its sources. Two gate tests
+  cover it and the metadata snapshot gained the crate.
 - **`crates/xtask/src/facts/lean.rs` temp fixtures re-pointed.** Eight tests
   built their fixture tree at `<temp>/plugins/builtin_v2` and were red after
   the move. Repaired, not deleted or weakened.
@@ -221,9 +236,9 @@ already defined, because every public name is Lean's.
 
 ### REPORT
 
-**Assurance counts.** Added 26 tests (12 unit: 5 `reads`, 5 `ron`, plus the
-mapping and scan pins in the drift suite; 3 `lean_drift`; 6 `reader`; 2 xtask
-`plugins_v2_declarations`; and the fixture-carried cases inside them).
+**Assurance counts.** Added 27 tests (12 unit: 5 `reads`, 5 `ron`, plus the
+mapping and scan pins in the drift suite; 3 `lean_drift`; 6 `reader`; 2 xtask `plugins_v2_declarations`; 1 xtask
+`gate`; and the fixture-carried cases inside them).
 Restored 0. Re-spelled 0. Ignored with blockers 0. **Removed 0** — nothing this
 landing touched retired a test's subject; the eight `facts::lean` tests that
 went red at the move were repaired in place.
@@ -233,6 +248,17 @@ went red at the move were repaired in place.
 moved from `plugins/builtin_v2` to `plugins_v2/builtin`, all 1541 accepted by
 both readers. No performance advisory: this landing runs no corpus command, and
 the coverage-command wall time is unchanged because nothing it reads changed.
+
+## Ledger
+
+- **`plugins-v2-symlink-retirement`** (minted planned, needs
+  `semantics-v2-crate`): 31 tracked `.rs` files still spell
+  `plugins/builtin_v2` — 11 `construction_core` tests, `english_v2`'s
+  `environment.rs` and `parser/scan.rs` plus 12 of its tests, and 5 `xtask`
+  sites. That ticket re-points them, deletes the symlink and its `.gitignore`
+  force-include, and narrows `read_builtin_v2`'s root check back to one name.
+- **The three SBA rules with no v2 counterpart** stay with `plugins-v2-canon`,
+  which owns porting `plugins/builtin`'s rules content; no new ticket.
 
 ### Ledger — routed at integrate
 

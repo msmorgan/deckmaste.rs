@@ -7,16 +7,28 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_semantics_v2::abilities::Ability;
+use deckmaste_semantics_v2::abilities::CounterKindSource;
 use deckmaste_semantics_v2::abilities::Instruction;
+use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::card::Card;
+use deckmaste_semantics_v2::events::ReplUse;
 use deckmaste_semantics_v2::phrase::Amount;
 use deckmaste_semantics_v2::phrase::DetPhrase;
+use deckmaste_semantics_v2::phrase::GameEvent;
 use deckmaste_semantics_v2::phrase::NounPhrase;
+use deckmaste_semantics_v2::phrase::ObservationPoint;
 use deckmaste_semantics_v2::phrase::Predicate;
+use deckmaste_semantics_v2::phrase::Quantity;
+use deckmaste_semantics_v2::phrase::ZoneExpr;
+use deckmaste_semantics_v2::phrase::ZoneScope;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::Color;
+use deckmaste_semantics_v2::words::CounterKind;
+use deckmaste_semantics_v2::words::ProjAxis;
+use deckmaste_semantics_v2::words::Stat;
 use deckmaste_semantics_v2::words::Subtype;
+use deckmaste_semantics_v2::words::Zone;
 
 fn testing_plugin() -> Plugin {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/testing");
@@ -85,7 +97,15 @@ fn a_card_reads_through_nested_macro_expansion() {
     else {
         panic!("the nested macro expanded to {recipient:?}");
     };
-    assert!(matches!(**determiner, DetPhrase::Target { .. }));
+    assert_eq!(
+        **determiner,
+        DetPhrase::Target {
+            quantity: Box::new(Quantity::Range {
+                low: Some(1),
+                high: Some(1),
+            }),
+        }
+    );
     let Predicate::Or { disjuncts } = &**predicate else {
         panic!("expected a disjunction, got {predicate:?}");
     };
@@ -145,10 +165,69 @@ fn the_three_rules_tables_load() {
             r#type: CardType::Creature
         }
     );
-    assert!(matches!(sba.then, Instruction::Move { .. }));
+    assert_eq!(
+        sba.then,
+        Instruction::Move {
+            subject: NounPhrase::This,
+            to: ZoneExpr::Zone {
+                zone: Zone::Graveyard,
+                scope: Box::new(ZoneScope::Bare),
+            },
+            riders: vec![],
+        }
+    );
 
+    // [CR#306.5b]: the planeswalker's intrinsic "enters with a number of
+    // loyalty counters equal to its printed loyalty number", a replacement
+    // effect [CR#614.1c] observed after the move onto the battlefield.
     let conferral = &plugin.rules.conferral[0];
-    assert!(matches!(conferral.confer, Ability::Static { .. }));
+    let Ability::Static { spec } = &conferral.confer else {
+        panic!("expected a static ability, got {:?}", conferral.confer);
+    };
+    let StaticSpec::Replacement {
+        event,
+        alternatives,
+        timing,
+        replacement,
+        r#use,
+        limit,
+    } = &**spec
+    else {
+        panic!("expected a replacement, got {spec:?}");
+    };
+    assert_eq!(
+        *event,
+        GameEvent::ZoneChange {
+            subject: Box::new(NounPhrase::This),
+            from: None,
+            to: Some(Box::new(ZoneExpr::Zone {
+                zone: Zone::Battlefield,
+                scope: Box::new(ZoneScope::Bare),
+            })),
+            observation: ObservationPoint::After,
+        }
+    );
+    assert_eq!(*alternatives, vec![]);
+    assert_eq!(*timing, None);
+    assert_eq!(*r#use, ReplUse::Repeatedly);
+    assert_eq!(*limit, None);
+    assert_eq!(
+        **replacement,
+        Instruction::PutCounters {
+            amount: Amount::StatOf {
+                axis: ProjAxis::Stat {
+                    stat: Stat::Loyalty
+                },
+                subject: Box::new(NounPhrase::This),
+            },
+            kind: CounterKindSource::Printed {
+                kind: CounterKind::Named {
+                    label: "loyalty".to_string(),
+                },
+            },
+            on: NounPhrase::This,
+        }
+    );
 
     let damage = &plugin.rules.damage_result[0];
     assert_eq!(

@@ -10,6 +10,19 @@
 //! join the mirror and the drift test, and any difference between the Lean
 //! shape and this one is resolved in the Lean's favour.
 //!
+//! Two field TYPES are narrower than v1's, and deliberately so — both are
+//! `lean-rules-tables`'s to widen or confirm, not this crate's:
+//!
+//! - [`ConferralRule::confer`] is an [`Ability`], where v1 wrote a `Property`
+//!   (an ability, a continuous effect, a state-based or a turn-based one). The
+//!   builtin table writes an ability and v2 has no `Property`, so the wider
+//!   type would be invented here rather than mirrored.
+//! - [`DamageResultRule::remove`] is a [`CounterKind`], where v1 wrote a
+//!   `CounterRef` — an identity resolved against the plugin's declared counter
+//!   registry. v2 has no such registry type, so a named counter is carried as
+//!   the label `CounterKind::Named` holds and the binding to a declaration is
+//!   not made here.
+//!
 //! They are ordinary semantics-language RON, read through the same expander as
 //! cards and tokens (`docs/decisions/semantics-v2.md` §11).
 

@@ -209,14 +209,33 @@ fn closure_for_paths(
 ) -> Vec<String> {
     let mut roots = BTreeSet::new();
     for path in paths {
-        if is_builtin_v2_path(path) {
-            roots.extend(builtin_v2_readers.iter().cloned());
+        if is_plugins_v2_path(path) {
+            // Every `plugins_v2` tree is data `deckmaste_semantics_v2`'s reader
+            // consumes — `builtin` through the declaration tests, `testing`
+            // through the reader tests, `canon` when it lands — and no crate
+            // OWNS the directory, so without this the closure would be empty
+            // for a fixture change.
+            roots.insert(PLUGINS_V2_READER.to_owned());
+            // The builtin declarations are the file `deckmaste_english_v2` and
+            // `deckmaste_construction_core` read too, under their own metadata.
+            if is_builtin_v2_path(path) {
+                roots.extend(builtin_v2_readers.iter().cloned());
+            }
         } else if let Some(package) = owner_for_path(metadata, path) {
             roots.insert(package.name.clone());
         }
     }
     reverse_dependency_closure(metadata, &roots)
 }
+
+/// The v2 plugin format: every tree under `plugins_v2/`, plus the
+/// `plugins/builtin_v2` symlink still standing at the old path.
+fn is_plugins_v2_path(path: &Path) -> bool {
+    path.starts_with("plugins_v2") || path.starts_with("plugins/builtin_v2")
+}
+
+/// The crate whose reader consumes any `plugins_v2` tree.
+const PLUGINS_V2_READER: &str = "deckmaste_semantics_v2";
 
 /// The builtin declaration tree, at its `plugins_v2/builtin` home and at the
 /// `plugins/builtin_v2` symlink still standing in the old place.
@@ -376,7 +395,8 @@ mod tests {
     use super::*;
 
     /// Shaped like the real workspace: a root package whose directory contains
-    /// every other package, plus the `deckmaste_english_v2` dependency chain.
+    /// every other package, plus the `deckmaste_english_v2` and
+    /// `deckmaste_semantics_v2` dependency chains.
     const METADATA: &str = r#"
     {
       "workspace_root": "/workspace",
@@ -385,7 +405,8 @@ mod tests {
         {"name":"deckmaste_construction_core","manifest_path":"/workspace/crates/deckmaste_construction_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_core/src/lib.rs"}],"dependencies":[]},
         {"name":"deckmaste_construction","manifest_path":"/workspace/crates/deckmaste_construction/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
         {"name":"deckmaste_english_v2","manifest_path":"/workspace/crates/deckmaste_english_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_english_v2/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
-        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_english_v2"}]}
+        {"name":"deckmaste_semantics_v2","manifest_path":"/workspace/crates/deckmaste_semantics_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_semantics_v2/src/lib.rs"}],"dependencies":[]},
+        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_english_v2"},{"path":"/workspace/crates/deckmaste_semantics_v2"}]}
       ]
     }
     "#;
@@ -436,6 +457,9 @@ mod tests {
         );
     }
 
+    /// A declaration file is read by every crate that reads the shared
+    /// contract — the two english-v2 readers under their typed metadata, and
+    /// `deckmaste_semantics_v2` under an opaque one.
     #[test]
     fn builtin_declaration_path_starts_from_each_reader() {
         let packages = closure_for_paths(
@@ -455,9 +479,26 @@ mod tests {
                 "deckmaste_construction_core",
                 "deckmaste_construction",
                 "deckmaste_english_v2",
+                "deckmaste_semantics_v2",
                 "xtask"
             ]
         );
+    }
+
+    /// A fixture plugin is read by `deckmaste_semantics_v2` alone: it is not a
+    /// declaration file, so the english-v2 readers stay out of the closure.
+    #[test]
+    fn a_plugins_v2_fixture_starts_from_the_semantics_reader() {
+        let packages = closure_for_paths(
+            &metadata(),
+            &[PathBuf::from("plugins_v2/testing/cards/Lightning Bolt.ron")],
+            &BTreeSet::from([
+                "deckmaste_construction_core".to_owned(),
+                "deckmaste_english_v2".to_owned(),
+                "xtask".to_owned(),
+            ]),
+        );
+        assert_eq!(packages, ["deckmaste_semantics_v2", "xtask"]);
     }
 
     #[test]
