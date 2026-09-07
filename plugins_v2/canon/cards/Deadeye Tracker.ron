@@ -1,0 +1,45 @@
+// "{1}{B}, {T}: Exile two target cards from an opponent's graveyard. This
+// creature explores." [CR#701.13a,701.44a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Deadeye Tracker",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [
+            Of(host: Creature, label: "Human"),
+            Of(host: Creature, label: "Pirate"),
+        ],
+        power: Lit(value: 1),
+        toughness: Lit(value: 1),
+        text: [
+            Activated(
+                cost: Compound(costs: [
+                    Mana(cost: [
+                        Simple(symbol: Generic(amount: 1)),
+                        Simple(symbol: Specific(color: Of(color: Black))),
+                    ]),
+                    TapSymbol,
+                ]),
+                instruction: Sequentially(steps: [
+                    Exile(Described(
+                        determiner: Target(quantity: Range(low: 2, high: 2)),
+                        predicate: And(conjuncts: [
+                            IsCard,
+                            InZone(zone: Zone(zone: Graveyard, scope: PossessedBy(
+                                possessor: Described(determiner: A(mode: Unmarked), predicate: Opponent),
+                            ))),
+                        ]),
+                    )),
+                    Explore(AsType(type: Creature, subject: This, subtype: None)),
+                ]),
+                timing: None,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
+))

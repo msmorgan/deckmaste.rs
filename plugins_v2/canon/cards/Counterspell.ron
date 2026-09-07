@@ -1,0 +1,25 @@
+// "Counter target spell." A spell is an object on the stack that is not an
+// ability [CR#112.1,113.1]; countering moves it to its owner's graveyard
+// [CR#701.6a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Counterspell",
+        cost: [
+            Simple(symbol: Specific(color: Of(color: Blue))),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Instant],
+        text: [
+            Spell(
+                timing: None,
+                instruction: Counter(Described(
+                    determiner: Target(quantity: Range(low: 1, high: 1)),
+                    predicate: And(conjuncts: [
+                        InZone(zone: Zone(zone: Stack, scope: Bare)),
+                        Not(predicate: AbilityHead(class: AnyOnStack)),
+                    ]),
+                )),
+            ),
+        ],
+    ),
+))

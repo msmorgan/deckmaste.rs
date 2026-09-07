@@ -1,0 +1,17 @@
+// "Untap target permanent." [CR#701.26b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Burst of Energy",
+        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        types: [Instant],
+        text: [
+            Spell(
+                timing: None,
+                instruction: Untap(Described(
+                    determiner: Target(quantity: Range(low: 1, high: 1)),
+                    predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                )),
+            ),
+        ],
+    ),
+))

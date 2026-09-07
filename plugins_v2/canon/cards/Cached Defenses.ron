@@ -1,0 +1,14 @@
+// "Bolster 3." [CR#701.39a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Cached Defenses",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Sorcery],
+        text: [
+            Spell(timing: None, instruction: Bolster(Lit(value: 3))),
+        ],
+    ),
+))

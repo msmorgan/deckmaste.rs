@@ -1,0 +1,29 @@
+// "As an additional cost to cast this spell, sacrifice a creature. Draw two
+// cards." The sacrifice is performed as a cost [CR#701.21a,601.2f].
+SingleFaced(face: (
+    characteristics: (
+        name: "Village Rites",
+        cost: [Simple(symbol: Specific(color: Of(color: Black)))],
+        types: [Instant],
+        text: [
+            Static(spec: AddedCost(
+                cost: Perform(instruction: Sacrifice(
+                    Described(
+                        determiner: A(mode: Unmarked),
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                            HasPossessor(axis: Controller, possessor: You),
+                        ]),
+                    ),
+                    You,
+                )),
+                offered: false,
+            )),
+            Spell(
+                timing: None,
+                instruction: Draw(amount: Lit(value: 2), agent: You),
+            ),
+        ],
+    ),
+))

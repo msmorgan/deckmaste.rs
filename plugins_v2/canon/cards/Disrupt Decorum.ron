@@ -1,0 +1,24 @@
+// "Goad all creatures you don't control." [CR#701.15a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Disrupt Decorum",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Red))),
+            Simple(symbol: Specific(color: Of(color: Red))),
+        ],
+        types: [Sorcery],
+        text: [
+            Spell(
+                timing: None,
+                instruction: Goad(Described(
+                    determiner: All,
+                    predicate: And(conjuncts: [
+                        HasType(type: Creature),
+                        Not(predicate: HasPossessor(axis: Controller, possessor: You)),
+                    ]),
+                )),
+            ),
+        ],
+    ),
+))

@@ -1,6 +1,8 @@
 // "Clash" [CR#701.30a]: the player reveals the top card of their library and
 // may then put that card on the bottom of their library. "Clash with an
-// opponent" [CR#701.30b] is a separate printed shape and a separate macro.
+// opponent" [CR#701.30b] is a separate printed shape and a separate macro. The
+// library the card goes back to is its own owner's, derived rather than written
+// [CR#400.3].
 KeywordAction(
     name: "Clash",
     params: [Subject],
@@ -28,7 +30,7 @@ KeywordAction(
                     place: OneEnd(end: Bottom),
                     order: None,
                     offset: None,
-                    scope: PossessedBy(possessor: Param(0)),
+                    scope: Bare,
                 ),
                 riders: [],
             ),

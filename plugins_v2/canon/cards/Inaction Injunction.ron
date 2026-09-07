@@ -1,0 +1,29 @@
+// "Detain target creature an opponent controls. Draw a card." [CR#701.35a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Inaction Injunction",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Sorcery],
+        text: [
+            Spell(
+                timing: None,
+                instruction: Sequentially(steps: [
+                    Detain(Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            HasPossessor(
+                                axis: Controller,
+                                possessor: Described(determiner: A(mode: Unmarked), predicate: Opponent),
+                            ),
+                        ]),
+                    )),
+                    Draw(amount: Lit(value: 1), agent: You),
+                ]),
+            ),
+        ],
+    ),
+))

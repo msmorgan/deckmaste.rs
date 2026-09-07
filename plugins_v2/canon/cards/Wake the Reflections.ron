@@ -1,0 +1,11 @@
+// "Populate." [CR#701.36a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Wake the Reflections",
+        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        types: [Sorcery],
+        text: [
+            Spell(timing: None, instruction: Populate),
+        ],
+    ),
+))
