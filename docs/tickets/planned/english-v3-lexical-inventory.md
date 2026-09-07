@@ -35,3 +35,7 @@ Frame inventories, through realization and reanalysis. A short remainder list
 is not a grammar-coverage claim. The ticket may leave explicitly named lexical
 gaps for the machine-on report, but common closed-class words already required
 by the complete grammar must be declared. Standard constraints apply.
+
+Note (2026-09-07): `stubs/flavor_words/` is not lexical input. A flavor
+word is an open slot (`flavor-words-are-vocabulary`); the inventory
+excludes that family.
