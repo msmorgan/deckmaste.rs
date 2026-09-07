@@ -590,3 +590,28 @@ reserialised `Abbey Gargoyles` cost becomes `[2, White, White, White]`.
 `cargo xtask facts check` must stay byte-identical and `lean-check` 118/118 —
 run it in the loop, not only at the end.
 
+
+## Rulings after the second landing (user, 2026-09-07)
+
+- **One-argument positional application reads.** ron classifies `(x)` in a
+  newtype variant as a newtype tuple and drops the identifier, so the
+  reader uses macro_ron's existing value capture: if the first token after
+  `(` is not `ident:`, the captured value is re-read as a sequence. No
+  rewriting; classification only. `CountOf(x)` reads.
+- **construction_core reads only its nine spelled families by name** and
+  ignores every other directory under `plugins_v2/builtin/macros/`. Helper
+  macro declarations live beside them under `macros/<family>/` with a plain
+  meta (`name`, `kinds`, `params`, `body`), no spelling or grammar.
+- **Comments are preserved by splice.** The one-off card converter keeps
+  each file's leading comment block verbatim and reserialises only the
+  value; interior comments are counted, listed in the landing record, and
+  re-placed by hand. The converter is deleted afterwards.
+- **Non-term Lean macros stay Lean-only.** The 50 `semantic_macro`s that
+  are functions, compute from their arguments, or pattern-match are not
+  substitution bundles and do not port. List them in ADR §12;
+  `lean-macros-from-ron` generates around them. The 24 computing ones are
+  routed by name to `semantics-v2-macro-capture-and-plurality`.
+- **The remaining v1 embed sites are deferred** until part 5's conversion
+  shows which positions suffer; the landing record lists the candidates
+  with the card that wants each, for veto, and a follow-up ticket carries
+  the marking.
