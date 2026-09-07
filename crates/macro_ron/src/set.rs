@@ -439,6 +439,9 @@ pub struct MacroSet {
     kinds: KindSet,
     options: ron::Options,
     param_types: ParamTypeSet,
+    /// Whether a field a constructor does not declare is refused rather than
+    /// ignored — see [`MacroSet::denying_unknown_fields`].
+    deny_unknown_fields: bool,
     /// Macros namespaced by kind — a macro is only visible at positions of
     /// the types it expands to, so kinds can reuse names.
     macros: HashMap<Ident, HashMap<Ident, MacroDef>>,
@@ -453,6 +456,7 @@ impl MacroSet {
             kinds,
             options: ron::Options::default(),
             param_types: ParamTypeSet::default(),
+            deny_unknown_fields: false,
             macros: HashMap::new(),
         }
     }
@@ -472,6 +476,27 @@ impl MacroSet {
     pub fn with_param_types(mut self, param_types: ParamTypeSet) -> Self {
         self.param_types = param_types;
         self
+    }
+
+    /// Refuses a named field the constructor at that position does not
+    /// declare, naming both, instead of letting serde ignore it.
+    ///
+    /// serde's own default is to skip an unrecognized key, so a misspelled or
+    /// retired argument reads as an absent one: `amount:` written for a
+    /// `quantity` field produced a count-less removal, and a `conferral:`
+    /// argument left over from a retired signature passed unnoticed. Off by
+    /// default, because a consumer whose files carry consumer-private keys
+    /// (the declaration file's metadata half) depends on the skipping.
+    #[must_use]
+    pub fn denying_unknown_fields(mut self) -> Self {
+        self.deny_unknown_fields = true;
+        self
+    }
+
+    /// Whether unknown fields are refused — see
+    /// [`denying_unknown_fields`](Self::denying_unknown_fields).
+    pub(crate) fn denies_unknown_fields(&self) -> bool {
+        self.deny_unknown_fields
     }
 
     pub(crate) fn options(&self) -> &ron::Options {

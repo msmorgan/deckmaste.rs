@@ -266,3 +266,50 @@ fn a_prelude_carries_its_macros_into_the_plugin_loaded_over_it() {
     );
     assert!(plugin.macros.get("NounPhrase", "AnyTarget").is_some());
 }
+
+/// A field the constructor does not declare is refused, naming both — never
+/// skipped. serde's default is to ignore an unrecognized key, which read a
+/// misspelling as an omission: Fading and Impending wrote `amount:` where the
+/// constructor declares `quantity`, and the removal came out count-less
+/// (`docs/decisions/semantics-v2.md` §11).
+#[test]
+fn an_undeclared_field_on_a_constructor_is_refused() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let error = macros
+        .read_str::<Instruction>("RerollStored(amount: Lit(value: 1), whose: You, agent: You)")
+        .expect_err("a field the constructor does not declare is refused");
+    let message = error.to_string();
+    assert!(
+        message.contains("`RerollStored`") && message.contains("`amount`"),
+        "the refusal names the constructor and the field: {message}"
+    );
+    assert!(
+        message.contains("`quantity`"),
+        "the refusal lists the declared fields: {message}"
+    );
+}
+
+/// The same refusal at a plain struct position, where the constructor named is
+/// the struct itself.
+#[test]
+fn an_undeclared_field_on_a_struct_is_refused() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let error = macros
+        .read_str::<Card>(r#"SingleFaced(face: (characteristics: (name: "X", conferral: None)))"#)
+        .expect_err("a field the struct does not declare is refused");
+    let message = error.to_string();
+    assert!(
+        message.contains("`Characteristics`") && message.contains("`conferral`"),
+        "the refusal names the struct and the field: {message}"
+    );
+}
+
+/// A declared field still reads: the refusal is about names the constructor
+/// does not have, not about named arguments as such.
+#[test]
+fn a_declared_field_still_reads() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    macros
+        .read_str::<Instruction>("RerollStored(quantity: Range(low: 1), whose: You, agent: You)")
+        .expect("the declared spelling reads");
+}

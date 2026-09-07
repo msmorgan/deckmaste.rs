@@ -189,11 +189,19 @@ pub fn raw_options() -> ::ron::Options {
 
 /// An empty macro set over [`kinds`] reading [`raw_options`] — the base every
 /// plugin load starts from before its `macros/` directory is folded in.
+///
+/// The set refuses unknown fields: a key a constructor does not declare is an
+/// error naming both, never a silently skipped one. serde's default — skip
+/// what you don't recognize — read a misspelling as an omission, so Fading and
+/// Impending wrote `amount:` at a `quantity` field and got a count-less
+/// removal, and `conferral:` arguments left over from a retired signature
+/// passed unnoticed (§11).
 #[must_use]
 pub fn macro_set() -> MacroSet {
     MacroSet::new(kinds())
         .with_options(raw_options())
         .with_param_types(param_types())
+        .denying_unknown_fields()
 }
 
 #[cfg(test)]

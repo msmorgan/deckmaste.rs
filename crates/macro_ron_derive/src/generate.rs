@@ -167,8 +167,15 @@ fn embed_construct(ty: &Ident, v: &Variant) -> TokenStream {
 
 /// The private owned helper struct's ident for a struct variant:
 /// `__` + type + variant (e.g. `__ClauseWhen`). The name never appears in
-/// RON text (the variant reads/writes the helper as newtype content), so no
-/// `#[serde(rename)]` is needed.
+/// RON text (the variant reads/writes the helper as newtype content), but it
+/// IS the struct name serde passes to `deserialize_struct`, which the
+/// unknown-field refusal would otherwise name. It is NOT renamed to the
+/// variant's own name: ron writes a struct's serde name whenever
+/// `struct_names` is on (`deckmaste_migrations` reads such output back), and
+/// a rename to a bare variant name can also collide with a registered kind,
+/// which turns a mid-stream newtype-variant body into a capture position.
+/// The refusal gets the variant's real name threaded down from the variant
+/// access instead — see `WrapVariant::newtype_variant_seed`.
 fn helper_ident(ty: &Ident, v_ident: &Ident) -> Ident {
     format_ident!("__{ty}{v_ident}")
 }
