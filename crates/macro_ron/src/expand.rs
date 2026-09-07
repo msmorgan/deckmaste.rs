@@ -1667,8 +1667,29 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             Intercept::Skip => false,
         };
         if !interceptable {
-            let owner = self.owner.unwrap_or_else(|| name.into());
+            let variant = self.owner;
+            let owner = variant.unwrap_or_else(|| name.into());
             let wrapped = self.wrap_struct(owner, fields, visitor);
+            // Positional application (`MacroSet::reading_positional_arguments`):
+            // a struct variant's arguments may come in the constructor's
+            // declared binder order. ron decides which form is written by
+            // lookahead inside `deserialize_any` (`handle_any_struct`), handing
+            // the named form to `visit_map` and the positional one to
+            // `visit_seq` — both of which serde's derived struct visitor
+            // implements, so the binder names and every forwarded
+            // `#[serde(...)]` still govern. A mixed `C(a, b: c)` is refused
+            // there, by the scanner, before either visitor runs.
+            //
+            // Only a struct VARIANT (`variant.is_some()`) and only above one
+            // field: a plain struct position keeps its name in ron's
+            // diagnostics, and a one-field variant has no positional form to
+            // read (see the method's docs for ron's own reason).
+            if variant.is_some()
+                && fields.len() > 1
+                && self.ctx.read.macros.reads_positional_arguments()
+            {
+                return self.de.deserialize_any(wrapped);
+            }
             return self.de.deserialize_struct(name, fields, wrapped);
         }
         self.via_capture(Some(name), move |de| {
@@ -2499,6 +2520,20 @@ impl<'de, 'f, A: EnumAccess<'de>> EnumAccess<'de> for WrapEnum<'de, 'f, A> {
     }
 }
 
+/// Reads one value through [`Deserializer::deserialize_any`], so ron decides
+/// by lookahead whether a struct position is written named or positionally.
+struct AnyShapeSeed<V> {
+    visitor: V,
+}
+
+impl<'de, V: Visitor<'de>> DeserializeSeed<'de> for AnyShapeSeed<V> {
+    type Value = V::Value;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_any(self.visitor)
+    }
+}
+
 struct WrapVariant<'de, 'f, A> {
     variant: A,
     ctx: Ctx<'de, 'f>,
@@ -2554,13 +2589,24 @@ impl<'de, A: VariantAccess<'de>> VariantAccess<'de> for WrapVariant<'de, '_, A> 
         let declared = self
             .owner
             .and_then(|owner| declared(self.ctx, owner, fields));
-        self.variant.struct_variant(
-            fields,
-            Wrap {
-                visitor,
-                ctx: self.ctx,
-                declared,
-            },
-        )
+        let wrapped = Wrap {
+            visitor,
+            ctx: self.ctx,
+            declared,
+        };
+        // Positional application at a plainly serde-derived enum. ron's own
+        // `struct_variant` reads the named form and nothing else (it goes
+        // straight to `handle_struct_after_name`), so take the NEWTYPE channel
+        // instead: with `unwrap_variant_newtypes` the variant's parens become
+        // the content's, and `deserialize_any` then picks the form by
+        // lookahead — the same path a `SupportsMacros` helper struct takes.
+        // serde's derived struct-variant visitor implements both `visit_map`
+        // and `visit_seq`, so the binder names still govern either way.
+        if fields.len() > 1 && self.ctx.read.macros.reads_positional_arguments() {
+            return self
+                .variant
+                .newtype_variant_seed(AnyShapeSeed { visitor: wrapped });
+        }
+        self.variant.struct_variant(fields, wrapped)
     }
 }

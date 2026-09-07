@@ -442,6 +442,9 @@ pub struct MacroSet {
     /// Whether a field a constructor does not declare is refused rather than
     /// ignored — see [`MacroSet::denying_unknown_fields`].
     deny_unknown_fields: bool,
+    /// Whether a constructor may be applied positionally — see
+    /// [`MacroSet::reading_positional_arguments`].
+    positional_arguments: bool,
     /// Macros namespaced by kind — a macro is only visible at positions of
     /// the types it expands to, so kinds can reuse names.
     macros: HashMap<Ident, HashMap<Ident, MacroDef>>,
@@ -457,6 +460,7 @@ impl MacroSet {
             options: ron::Options::default(),
             param_types: ParamTypeSet::default(),
             deny_unknown_fields: false,
+            positional_arguments: false,
             macros: HashMap::new(),
         }
     }
@@ -497,6 +501,32 @@ impl MacroSet {
     /// [`denying_unknown_fields`](Self::denying_unknown_fields).
     pub(crate) fn denies_unknown_fields(&self) -> bool {
         self.deny_unknown_fields
+    }
+
+    /// Accepts a constructor's arguments in its declared binder order —
+    /// `Hybrid(Generic(1), Red)` for `Hybrid(left: Generic(1), right: Red)` —
+    /// which is what the Lean bench writes.
+    ///
+    /// The two forms are never mixed: ron's own value scanner refuses
+    /// `C(a, b: c)` while deciding which one is written. A constructor of ONE
+    /// field is exempt and keeps its binder: inside a newtype variant ron
+    /// reads `(x)` as a newtype rather than a one-element tuple, and its
+    /// `handle_any_struct` then turns a bare identifier into `visit_unit`,
+    /// discarding the very name the argument is (`ron` 0.12 `de/mod.rs`,
+    /// `deserialize_any` → `handle_any_struct` → `StructType::Unit`).
+    ///
+    /// Off by default: it changes which visitor method a struct position
+    /// reaches, so a consumer opts in.
+    #[must_use]
+    pub fn reading_positional_arguments(mut self) -> Self {
+        self.positional_arguments = true;
+        self
+    }
+
+    /// Whether a constructor may be applied positionally — see
+    /// [`reading_positional_arguments`](Self::reading_positional_arguments).
+    pub(crate) fn reads_positional_arguments(&self) -> bool {
+        self.positional_arguments
     }
 
     pub(crate) fn options(&self) -> &ron::Options {

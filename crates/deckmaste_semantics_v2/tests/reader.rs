@@ -466,3 +466,72 @@ fn a_non_numeral_gets_no_leaf_sugar() {
         .read_str::<Amount>("\"three\"")
         .expect_err("a string is not an amount");
 }
+
+/// A constructor may be applied positionally, in its declared binder order —
+/// which is what the Lean bench writes.
+#[test]
+fn a_constructor_may_be_applied_positionally() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let hybrid: ManaSymbol = macros
+        .read_str(r"Hybrid(Generic(amount: 1), Red)")
+        .expect("a two-field constructor applied positionally");
+    assert_eq!(
+        hybrid,
+        ManaSymbol::Hybrid {
+            left: SimpleManaSymbol::Generic { amount: 1 },
+            right: Color::Red,
+        }
+    );
+    let subtype: Subtype = macros
+        .read_str(r#"Of(Creature, "Gargoyle")"#)
+        .expect("a subtype applied positionally");
+    assert_eq!(
+        subtype,
+        Subtype::Of {
+            host: CardType::Creature,
+            label: "Gargoyle".to_owned(),
+        }
+    );
+}
+
+/// The named form is unchanged, and the two agree.
+#[test]
+fn the_named_and_positional_forms_agree() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let named: ManaSymbol = macros
+        .read_str(r"Hybrid(left: Generic(amount: 1), right: Red)")
+        .expect("the named form reads");
+    let positional: ManaSymbol = macros
+        .read_str(r"Hybrid(Generic(amount: 1), Red)")
+        .expect("the positional form reads");
+    assert_eq!(named, positional);
+}
+
+/// The two forms are never mixed: a named argument after a positional one is
+/// refused, so an author cannot half-skip a binder.
+#[test]
+fn a_mixed_application_is_refused() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    macros
+        .read_str::<ManaSymbol>(r"Hybrid(Generic(amount: 1), right: Red)")
+        .expect_err("positional then named is neither form");
+    macros
+        .read_str::<ManaSymbol>(r"Hybrid(left: Generic(amount: 1), Red)")
+        .expect_err("named then positional is neither form");
+}
+
+/// A constructor of ONE field keeps its binder: ron reads `(x)` inside a
+/// newtype variant as a newtype rather than a one-element tuple, and its
+/// `handle_any_struct` turns a bare identifier into a unit value, discarding
+/// the name. The refusal is an error, never a misreading.
+#[test]
+fn a_one_field_constructor_keeps_its_binder() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let named: SimpleManaSymbol = macros
+        .read_str("Generic(amount: 2)")
+        .expect("the named form reads");
+    assert_eq!(named, SimpleManaSymbol::Generic { amount: 2 });
+    macros
+        .read_str::<SimpleManaSymbol>("Generic(2)")
+        .expect_err("a one-argument positional application is not read");
+}
