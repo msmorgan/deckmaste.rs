@@ -1,10 +1,53 @@
+// "Forage" [CR#701.61a] = "Exile three cards from your graveyard or sacrifice a
+// Food." The disjunction is the foraging player's choice.
 KeywordAction(
     name: "Forage",
+    params: [Subject],
     spelling: "forage",
     grammar: Verb(
         bare: "forage",
         // No Oracle or Comprehensive Rules occurrence of "forages" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
         frame_set: Intransitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Forage"),
+        instruction: ChooseModes(
+        quantity: Range(low: 1, high: 1),
+        modes: [
+            (None, Enact(
+                verb: Action(label: "Exile"),
+                instruction: Move(
+                    subject: Described(
+                        determiner: Count(quantity: Range(low: 3, high: 3), mode: None),
+                        predicate: And(conjuncts: [
+                            IsCard,
+                            InZone(zone: Zone(zone: Graveyard, scope: PossessedBy(possessor: Param(0)))),
+                        ]),
+                    ),
+                    to: Zone(zone: Exile, scope: Bare),
+                    riders: [],
+                ),
+                agent: Param(0),
+            )),
+            (None, Enact(
+                verb: Action(label: "Sacrifice"),
+                instruction: Move(
+                    subject: Described(
+                        determiner: A(mode: Unmarked),
+                        predicate: And(conjuncts: [
+                            HasSubtype(subtype: Of(host: Artifact, label: "Food")),
+                            InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                            HasPossessor(axis: Controller, possessor: Param(0)),
+                        ]),
+                    ),
+                    to: Zone(zone: Graveyard, scope: Bare),
+                    riders: [],
+                ),
+                agent: Param(0),
+            )),
+        ],
+    ),
+        agent: Param(0),
     ),
 )

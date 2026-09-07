@@ -1,8 +1,47 @@
+// "Airbend [objects]" [CR#701.65a]: the named player exiles them, and for as
+// long as each exiled card remains exiled its owner may cast it by paying {2}
+// rather than its mana cost. The permission is a continuous deontic clause
+// scoped to the exile, read back off the airbending stamp.
 KeywordAction(
     name: "Airbend",
+    params: [Subject, Subject],
     spelling: "airbend",
     grammar: Verb(
         bare: "airbend",
         frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Airbend"),
+        instruction: Sequentially(steps: [
+        Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
+        Establish(
+            spec: DeonticRule(
+                subject: PossessorOf(
+                    axis: Owner,
+                    subject: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
+                ),
+                compulsion: Permit,
+                deeds: [Action(label: "Cast")],
+                role: Agent,
+                bound: None,
+                patient: Counterpart(
+                    patient: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
+                ),
+                as_though: None,
+                rider: Play(
+                    from: Zone(zone: Exile, scope: Bare),
+                    limit: None,
+                    timing: None,
+                    exclusive: false,
+                    payment: PayingInstead(cost: Mana(cost: [Simple(symbol: Generic(amount: 2))])),
+                ),
+            ),
+            duration: ForAsLongAs(condition: Matches(
+                subject: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
+                predicate: InZone(zone: Zone(zone: Exile, scope: Bare)),
+            )),
+        ),
+    ]),
+        agent: Param(1),
     ),
 )

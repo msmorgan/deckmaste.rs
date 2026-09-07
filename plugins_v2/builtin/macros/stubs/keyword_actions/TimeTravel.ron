@@ -1,10 +1,62 @@
+// "Time travel" [CR#701.56a]: choose any number of permanents you control with
+// one or more time counters on them and/or suspended cards you own in exile
+// with one or more time counters on them, and for each put a time counter on it
+// or remove one from it. A suspended card is read as its state — an exiled card
+// its owner owns bearing time counters [CR#702.62a].
 KeywordAction(
     name: "TimeTravel",
+    params: [],
     spelling: "time travel",
     grammar: Verb(
         bare: "time travel",
         // No Oracle or Comprehensive Rules occurrence of "time travels" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
         frame_set: Intransitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Time Travel"),
+        instruction: Sequentially(steps: [
+        Choose(
+            first: None,
+            chosen: Described(
+                determiner: Count(quantity: Range(low: None, high: None), mode: None),
+                predicate: Or(disjuncts: [
+                    And(conjuncts: [
+                        InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        HasPossessor(axis: Controller, possessor: You),
+                        HasCounters(kind: Named(label: "Time")),
+                    ]),
+                    And(conjuncts: [
+                        IsCard,
+                        InZone(zone: Zone(zone: Exile, scope: Bare)),
+                        HasPossessor(axis: Owner, possessor: You),
+                        HasCounters(kind: Named(label: "Time")),
+                    ]),
+                ]),
+            ),
+            disclosure: Openly,
+            when: None,
+            agent: You,
+        ),
+        DoForEach(
+            group: Pro(reach: Bare, plurality: Many, window: Whole),
+            body: ChooseModes(
+                quantity: Range(low: 1, high: 1),
+                modes: [
+                    (None, PutCounters(
+                        amount: Lit(value: 1),
+                        kind: Printed(kind: Named(label: "Time")),
+                        on: Pro(reach: Bare, plurality: One, window: Whole),
+                    )),
+                    (None, RemoveCounters(
+                        quantity: Range(low: 1, high: 1),
+                        kind: Printed(kind: Named(label: "Time")),
+                        from: Pro(reach: Bare, plurality: One, window: Whole),
+                    )),
+                ],
+            ),
+        ),
+    ]),
+        agent: None,
     ),
 )

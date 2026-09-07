@@ -1,5 +1,9 @@
+// "Clash" [CR#701.30a]: the player reveals the top card of their library and
+// may then put that card on the bottom of their library. "Clash with an
+// opponent" [CR#701.30b] is a separate printed shape and a separate macro.
 KeywordAction(
     name: "Clash",
+    params: [Subject],
     spelling: "clash",
     grammar: Verb(
         bare: "clash",
@@ -7,5 +11,31 @@ KeywordAction(
         frame_set: Custom(
             frames: [[], [Lex("Preposition", "With"), ObjectNounPhrase]],
         ),
+    ),
+    body: Enact(
+        verb: Action(label: "Clash"),
+        instruction: Sequentially(steps: [
+        Expose(
+            verb: Reveal,
+            exposed: Cards(cards: LibrarySlice(end: Top, amount: Lit(value: 1), whose: Param(0))),
+            agent: Param(0),
+        ),
+        WithContinuation(
+            policy: Optional(agent: Param(0)),
+            body: Move(
+                subject: Pro(reach: Word(word: Card), plurality: One, window: Whole),
+                to: Library(
+                    place: OneEnd(end: Bottom),
+                    order: None,
+                    offset: None,
+                    scope: PossessedBy(possessor: Param(0)),
+                ),
+                riders: [],
+            ),
+            if_did: None,
+            if_not: None,
+        ),
+    ]),
+        agent: Param(0),
     ),
 )

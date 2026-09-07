@@ -1,8 +1,16 @@
+// "Untap [permanent]" [CR#701.26b]: rotate it back to upright from sideways.
+// Only a tapped permanent can be untapped. Lean `untap`.
 KeywordAction(
     name: "Untap",
+    params: [Subject],
     spelling: "untap",
     grammar: Verb(
         bare: "untap",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
+    ),
+    body: Enact(
+        verb: Action(label: "Untap"),
+        instruction: SetStatus(status: Untapped, subject: Param(0)),
+        agent: None,
     ),
 )

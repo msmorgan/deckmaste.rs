@@ -1,10 +1,19 @@
+// "Exert [permanent]" [CR#701.43a]: you choose to have it not untap during your
+// next untap step. Exerting again before that step does not stack — each effect
+// expires in the same step [CR#701.43b] — so the skip is one untap step.
 KeywordAction(
     name: "Exert",
+    params: [Subject],
     spelling: "exert",
     grammar: Verb(
         bare: "exert",
         // No Oracle or Comprehensive Rules occurrence of "exerts" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
         frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Exert"),
+        instruction: SkipUntap(subject: Param(0), steps: Lit(value: 1)),
+        agent: None,
     ),
 )

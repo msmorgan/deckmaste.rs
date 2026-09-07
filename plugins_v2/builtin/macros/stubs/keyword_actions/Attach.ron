@@ -1,5 +1,9 @@
+// "Attach [Aura, Equipment, or Fortification] to [object or player]"
+// [CR#701.3a]: take it from where it is and put it onto that object or player.
+// Lean `Primitives.Instruction.attachTo`.
 KeywordAction(
     name: "Attach",
+    params: [Subject, Subject],
     spelling: "attach",
     grammar: Verb(
         bare: "attach",
@@ -7,5 +11,10 @@ KeywordAction(
         frame_set: Custom(
             frames: [[ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]],
         ),
+    ),
+    body: Enact(
+        verb: Action(label: "Attach"),
+        instruction: Attachment(move: Attached, subject: Param(0), host: Param(1)),
+        agent: None,
     ),
 )

@@ -1,5 +1,9 @@
+// "[Player] shuffles" [CR#701.24a]: randomize the cards in that player's
+// library so no player knows their order. Lean `shuffle`; the basis carries the
+// act directly, so the body is the constructor under the deed's own name.
 KeywordAction(
     name: "Shuffle",
+    params: [Subject],
     spelling: "shuffle",
     grammar: Verb(
         bare: "shuffle",
@@ -11,4 +15,5 @@ KeywordAction(
             ],
         ),
     ),
+    body: Shuffle(agent: Param(0)),
 )

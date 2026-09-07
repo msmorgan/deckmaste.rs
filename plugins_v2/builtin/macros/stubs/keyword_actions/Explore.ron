@@ -1,8 +1,56 @@
+// "[Permanent] explores" [CR#701.44a]: its controller reveals the top card of
+// their library; if a land card is revealed this way that player puts it into
+// their hand, otherwise they put a +1/+1 counter on the exploring permanent and
+// may put the revealed card into their graveyard.
 KeywordAction(
     name: "Explore",
+    params: [Subject],
     spelling: "explore",
     grammar: Verb(
         bare: "explore",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
+    ),
+    body: Enact(
+        verb: Action(label: "Explore"),
+        instruction: Sequentially(steps: [
+        Expose(
+            verb: Reveal,
+            exposed: Cards(cards: LibrarySlice(
+                end: Top,
+                amount: Lit(value: 1),
+                whose: PossessorOf(axis: Controller, subject: Param(0)),
+            )),
+            agent: PossessorOf(axis: Controller, subject: Param(0)),
+        ),
+        DoIf(
+            condition: Matches(
+                subject: Pro(reach: Verbed(verb: Action(label: "Reveal"), word: Card, marking: ThisWay), plurality: One, window: Whole),
+                predicate: HasType(type: Land),
+            ),
+            instruction: Move(
+                subject: Pro(reach: Verbed(verb: Action(label: "Reveal"), word: Card, marking: ThisWay), plurality: One, window: Whole),
+                to: Zone(zone: Hand, scope: PossessedBy(possessor: PossessorOf(axis: Controller, subject: Param(0)))),
+                riders: [],
+            ),
+            otherwise: Sequentially(steps: [
+                PutCounters(
+                    amount: Lit(value: 1),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: Param(0),
+                ),
+                WithContinuation(
+                    policy: Optional(agent: PossessorOf(axis: Controller, subject: Param(0))),
+                    body: Move(
+                        subject: Pro(reach: Verbed(verb: Action(label: "Reveal"), word: Card, marking: ThisWay), plurality: One, window: Whole),
+                        to: Zone(zone: Graveyard, scope: Bare),
+                        riders: [],
+                    ),
+                    if_did: None,
+                    if_not: None,
+                ),
+            ]),
+        ),
+    ]),
+        agent: None,
     ),
 )

@@ -1,8 +1,17 @@
+// "Heal [damage dealt to a permanent]" [CR#701.69a]: remove that marked damage
+// from that permanent. The whole-permanent reading is the one the rule gives
+// for "is healed"; the basis carries removal of marked damage as one act.
 KeywordAction(
     name: "Heal",
+    params: [Subject],
     spelling: "heal",
     grammar: Verb(
         bare: "heal",
         frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Heal"),
+        instruction: ClearDamage(subject: Param(0)),
+        agent: None,
     ),
 )

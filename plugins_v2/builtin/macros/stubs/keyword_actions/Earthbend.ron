@@ -1,8 +1,66 @@
+// "Earthbend N" [CR#701.66a] = "Target land you control becomes a 0/0 land
+// creature with haste in addition to its other types. Put N +1/+1 counters on
+// it. When that land dies or is put into exile, return it to the battlefield
+// tapped under your control."
 KeywordAction(
     name: "Earthbend",
+    params: [Amount],
     spelling: "earthbend",
     grammar: Verb(
         bare: "earthbend",
         frame_set: MeasureComplement,
+    ),
+    body: Enact(
+        verb: Action(label: "Earthbend"),
+        instruction: Sequentially(steps: [
+        Establish(
+            spec: CharacteristicChange(
+                subject: Described(
+                    determiner: Target(quantity: Range(low: 1, high: 1)),
+                    predicate: And(conjuncts: [
+                        HasType(type: Land),
+                        HasPossessor(axis: Controller, possessor: You),
+                    ]),
+                ),
+                edits: [
+                    TypeLine(op: Adds, changes: (types: [Creature])),
+                    Stat(op: Sets, axis: Power, amount: Lit(value: 0)),
+                    Stat(op: Sets, axis: Toughness, amount: Lit(value: 0)),
+                    AddedAbilities(abilities: [Keyword(keyword: "Haste", params: [], body: None)]),
+                ],
+            ),
+            duration: None,
+        ),
+        PutCounters(
+            amount: Param(0),
+            kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+            on: Pro(reach: Word(word: Type(type: Land)), plurality: One, window: Whole),
+        ),
+        Delay(
+            event: ZoneChange(
+                subject: Pro(reach: Word(word: Type(type: Land)), plurality: One, window: Whole),
+                from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                to: Zone(zone: Graveyard, scope: Bare),
+                observation: Before,
+            ),
+            alternatives: [ZoneChange(
+                subject: Pro(reach: Word(word: Type(type: Land)), plurality: One, window: Whole),
+                from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                to: Zone(zone: Exile, scope: Bare),
+                observation: Before,
+            )],
+            duration: None,
+            body: Enact(
+                verb: Core(deed: Return),
+                instruction: Move(
+                    subject: Pro(reach: Word(word: Type(type: Land)), plurality: One, window: Whole),
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    riders: [EntersAs(status: Tapped), Under(controller: You)],
+                ),
+                agent: None,
+            ),
+        ),
+    ]),
+        agent: None,
     ),
 )

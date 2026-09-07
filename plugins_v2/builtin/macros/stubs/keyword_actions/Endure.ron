@@ -1,8 +1,40 @@
+// "[Permanent] endures N" [CR#701.63a]: its controller creates an N/N white
+// Spirit creature token unless they put N +1/+1 counters on that permanent. The
+// "unless" is the controller's own choice between the two.
 KeywordAction(
     name: "Endure",
+    params: [Subject, Amount],
     spelling: "endure",
     grammar: Verb(
         bare: "endure",
         frame_set: MeasureComplement,
+    ),
+    body: Enact(
+        verb: Action(label: "Endure"),
+        instruction: ChooseModes(
+        quantity: Range(low: 1, high: 1),
+        modes: [
+            (None, PutCounters(
+                amount: Param(1),
+                kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                on: Param(0),
+            )),
+            (None, CreateObject(
+                count: Lit(value: 1),
+                spec: Token(
+                    spec: Written(characteristics: (characteristics: (
+                        colors: [White],
+                        types: [Creature],
+                        subtypes: [Of(host: Creature, label: "Spirit")],
+                        power: Param(1),
+                        toughness: Param(1),
+                    ))),
+                    riders: [],
+                ),
+                agent: PossessorOf(axis: Controller, subject: Param(0)),
+            )),
+        ],
+    ),
+        agent: None,
     ),
 )
