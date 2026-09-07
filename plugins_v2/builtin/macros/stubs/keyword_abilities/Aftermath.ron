@@ -1,7 +1,68 @@
 KeywordAbility(
     name: "Aftermath",
+    params: [],
     spelling: "aftermath",
     grammar: FixedKeyword(
         surface: "aftermath",
+    ),
+    // "Aftermath" means "You may cast this half of this split card from your
+    // graveyard," "This half of this split card can't be cast from any zone other
+    // than a graveyard," and "If this spell was cast from a graveyard, exile it
+    // instead of putting it anywhere else any time it would leave the stack."
+    // [CR#702.127a] The first two clauses are the one exclusive play permission
+    // `DeonticRider::Play` spells with `exclusive: true`.
+    body: Keyword(
+        keyword: "Aftermath",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action(label: "Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(patient: This),
+                    as_though: None,
+                    rider: Play(
+                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        limit: None,
+                        timing: None,
+                        exclusive: true,
+                        payment: ItsOwnCost,
+                    ),
+                ),
+            ),
+            Static(
+                spec: Conditional(
+                    spec: Replacement(
+                        event: ZoneChange(
+                            subject: AsMarker(marker: Spell, subject: This),
+                            from: Zones(zones: [Zone(zone: Stack, scope: Bare)]),
+                            to: None,
+                            observation: Before,
+                        ),
+                        alternatives: [],
+                        timing: None,
+                        replacement: Enact(
+                            verb: Action(label: "Exile"),
+                            instruction: Move(
+                                subject: AsMarker(marker: Spell, subject: This),
+                                to: Zone(zone: Exile, scope: Bare),
+                                riders: [],
+                            ),
+                            agent: None,
+                        ),
+                        r#use: Repeatedly,
+                        limit: None,
+                    ),
+                    condition: Matches(
+                        subject: AsMarker(marker: Spell, subject: This),
+                        predicate: CastFrom(zone: Zone(zone: Graveyard, scope: Bare)),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+        ],
     ),
 )

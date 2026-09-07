@@ -5,4 +5,37 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "annihilator",
     ),
+    // "Annihilator N" means "Whenever this creature attacks, defending player
+    // sacrifices N permanents." [CR#702.86a]
+    body: Keyword(
+        keyword: "Annihilator",
+        params: [Number(amount: Param(0))],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Enact(
+                    verb: Action(label: "Sacrifice"),
+                    instruction: Move(
+                        subject: Described(
+                            determiner: Count(quantity: ExactlyOf(amount: Param(0)), mode: None),
+                            predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        ),
+                        to: Zone(zone: Graveyard, scope: Bare),
+                        riders: [],
+                    ),
+                    agent: CombatPlayer(role: Defending),
+                ),
+            ),
+        ],
+    ),
 )

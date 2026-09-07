@@ -449,6 +449,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -813,6 +814,7 @@ fn overlay() -> Vec<Row> {
         // No new row is a keyword counter [CR#122.1b].
         Row {
             label: "Absorb",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -824,6 +826,7 @@ fn overlay() -> Vec<Row> {
             label: "Aftermath",
             on_permanent_card: false,
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -840,6 +843,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "AuraSwap",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -852,6 +856,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {

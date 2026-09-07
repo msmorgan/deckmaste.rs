@@ -1,0 +1,15 @@
+// "Afterlife 2" [CR#702.135a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ministrant of Obligation",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Cleric")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 1),
+        text: [Afterlife(Lit(value: 2))],
+    ),
+))

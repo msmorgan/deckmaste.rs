@@ -9,4 +9,35 @@ KeywordAbility(
             nominal_number: Plural,
         ),
     ),
+    // "Affinity for [text]" means "This spell costs {1} less to cast for each
+    // [text] you control." [CR#702.41a]
+    body: Keyword(
+        keyword: "Affinity",
+        params: [Quality(predicate: Param(0))],
+        body: [
+            Static(
+                spec: CostShift(
+                    subject: AsMarker(marker: Spell, subject: This),
+                    shift: Less(
+                        amount: Arith(
+                            op: Times,
+                            left: Lit(value: 1),
+                            right: CountOf(
+                                group: Described(
+                                    determiner: Bare,
+                                    predicate: And(
+                                        conjuncts: [
+                                            Param(0),
+                                            HasPossessor(axis: Controller, possessor: You),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        floor: None,
+                    ),
+                ),
+            ),
+        ],
+    ),
 )

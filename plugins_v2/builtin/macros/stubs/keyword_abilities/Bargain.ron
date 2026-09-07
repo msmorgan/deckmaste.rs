@@ -1,7 +1,41 @@
 KeywordAbility(
     name: "Bargain",
+    params: [],
     spelling: "bargain",
     grammar: FixedKeyword(
         surface: "bargain",
+    ),
+    // "Bargain" means "As an additional cost to cast this spell, you may sacrifice
+    // an artifact, enchantment, or token." [CR#702.166a]
+    body: Keyword(
+        keyword: "Bargain",
+        params: [],
+        body: [
+            Static(
+                spec: AddedCost(
+                    cost: Perform(
+                        instruction: Enact(
+                            verb: Action(label: "Sacrifice"),
+                            instruction: Move(
+                                subject: Described(
+                                    determiner: A(mode: Unmarked),
+                                    predicate: Or(
+                                        disjuncts: [
+                                            HasType(type: Artifact),
+                                            HasType(type: Enchantment),
+                                            IsToken,
+                                        ],
+                                    ),
+                                ),
+                                to: Zone(zone: Graveyard, scope: Bare),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                    ),
+                    offered: true,
+                ),
+            ),
+        ],
     ),
 )
