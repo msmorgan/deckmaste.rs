@@ -510,7 +510,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Features.Countability` | Kept. |
 | `English.Features.Declarations` | Kept. |
 | `English.Features.NominalUse` | Kept. |
-| `English.Features.DeterminerUse` | Kept. |
+| `English.Features.DeterminerUse` | Kept; its `genitive` constructor is replaced by `English.Features.Transparent`, so countability is head-owned. |
 | `English.Features.containsTarget` | Kept. |
 | `English.Features.Temporal` | Kept. |
 | `English.Features.Local` | Kept. |
@@ -546,7 +546,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.FeatureInteractions.passive_temporal` | Kept. |
 | `English.FeatureInteractions.ordinary_np_not_temporal` | Kept. |
 | `English.FeatureInteractions.passive_frame_does_not_acquire_object` | Kept. |
-| `English.FeatureInteractions.genitive_preserves_countability` | Kept. |
+| `English.FeatureInteractions.genitive_preserves_countability` | Replaced by `English.FeatureInteractions.genitive_determiner_is_transparent`. The wildcard `Features.DeterminerUse.genitive` constructor it was proved from is retired in favour of `Features.Transparent`; the replacement states head-owned countability and adds the discriminating conjuncts (the genitive declares no use of its own, and cannot license a head that declares none). |
 
 ### FrameDeclarations.lean
 

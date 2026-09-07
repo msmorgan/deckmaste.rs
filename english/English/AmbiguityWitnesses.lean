@@ -81,7 +81,7 @@ theorem noun_admitted : Reading.Admitted environment [] nounReading (.clause .fi
   · simp [nounReading, subject, nounPredicate, herDuck, nominalFrame, Features.Conforms,
       Features.ChildrenConform, Features.Local, Syntax.nominalCase, FrameCases, CaseAt,
       Relation.casePosition, Lexical.features, speakerWord, word, Case.Allows, Case.Argument]
-    exact ⟨.count, .noun ⟨.singular, rfl⟩, .word ⟨.singular, rfl⟩⟩
+    exact Or.inl ⟨.count, .noun ⟨.singular, rfl⟩, .word ⟨.singular, rfl⟩⟩
   · simp [nounReading, subject, nounPredicate, herDuck, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
   · simp [nounReading, subject, nounPredicate, herDuck, Reading.GrammarConforms,

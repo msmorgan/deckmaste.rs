@@ -46,7 +46,7 @@ theorem count_admitted : Reading.Admitted environment [] counted (.nounPhrase si
     .node (.cons (.word (lexicon := grammar) ⟨one_licensed, Or.inr ⟨_, _, rfl, rfl⟩, rfl⟩)
       (.cons (.noun (lexicon := grammar) ⟨creature_licensed, ⟨.count, rfl⟩, rfl⟩) .nil)) .determine⟩
   · simp [counted, Features.Conforms, Features.ChildrenConform, Features.Local]
-    exact ⟨.count, creature_use, one_use⟩
+    exact Or.inl ⟨.count, creature_use, one_use⟩
   · simp [counted, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
   · simp [counted, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
 
@@ -58,7 +58,7 @@ theorem quantified_mass_admitted : Reading.Admitted environment [] quantifiedMas
     .node (.cons (.word (lexicon := grammar) ⟨much_licensed, Or.inr ⟨_, _, rfl, rfl⟩, rfl⟩)
       (.cons (.noun (lexicon := grammar) ⟨mana_licensed, ⟨.mass, rfl⟩, rfl⟩) .nil)) .determine⟩
   · simp [quantifiedMass, Features.Conforms, Features.ChildrenConform, Features.Local]
-    exact ⟨.mass, mana_use, much_use⟩
+    exact Or.inl ⟨.mass, mana_use, much_use⟩
   · simp [quantifiedMass, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
   · simp [quantifiedMass, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
 
@@ -67,15 +67,58 @@ theorem count_determiner_rejects_mass (surface : Surface) :
       (.node (.determine .singular) [.word one (.determinativePhrase .singular), .noun mana .singular])
       (.nounPhrase singular) surface := by
   intro admitted
-  obtain ⟨use, nominal, determiner⟩ := admitted.1.2.1.1
-  cases nominal with
-  | noun nounUse =>
-    cases determiner with
-    | word detUse =>
-      rcases nounUse with ⟨n, h⟩
-      rcases detUse with ⟨m, k⟩
-      simp [mana, one, word] at h k
-      exact h.2.trans k.2.symm |> Features.Countability.noConfusion
+  rcases admitted.1.2.1.1 with ⟨use, nominal, determiner⟩ | ⟨transparent, _⟩
+  · cases nominal with
+    | noun nounUse =>
+      cases determiner with
+      | word detUse =>
+        rcases nounUse with ⟨n, h⟩
+        rcases detUse with ⟨m, k⟩
+        simp [mana, one, word] at h k
+        exact h.2.trans k.2.symm |> Features.Countability.noConfusion
+  · cases transparent
+
+/-- A genitive determiner built over an ordinary noun phrase; the possessed head owns the
+countability. -/
+def genitiveDeterminer : Reading Lexeme := .node (.genitive .singular) [counted]
+def possessedMana : Reading Lexeme :=
+  .node (.determine .singular) [genitiveDeterminer, .noun mana .singular]
+
+/-- The first `Derives`/`Realizes` witness for `Construction.genitive`: without one, the genitive
+production and its linearization were unreachable and the transparency law ranged over no derivable
+tree. The head here is mass, so a determiner that declared its own countability could not license
+it. -/
+theorem genitive_mass_admitted : Reading.Admitted environment [] possessedMana
+    (.nounPhrase singular) ["one", "creature", .closing "'s", "mana"] := by
+  refine ⟨⟨.node .determine
+    (.cons (.node .genitive (.cons count_admitted.1.1 .nil))
+      (.cons (.noun (lexicon := grammar) ⟨mana_licensed, .mass, rfl⟩) .nil)), ?_, ?_, ?_⟩,
+    .node (.cons (.node (.cons count_admitted.2 .nil) .genitive)
+      (.cons (.noun (lexicon := grammar) ⟨mana_licensed, ⟨.mass, rfl⟩, rfl⟩) .nil)) .determine⟩
+  · refine ⟨Or.inr ⟨.genitive, .mass, mana_use⟩, ⟨⟨trivial, ?_⟩, ?_⟩⟩
+    · exact ⟨count_admitted.1.2.1, trivial⟩
+    · simp [Features.Conforms, Features.ChildrenConform, Features.Local]
+  · simp [possessedMana, genitiveDeterminer, counted, Dependencies.Safe, Dependencies.ChildrenSafe,
+      Dependencies.Local]
+  · simp [possessedMana, genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
+      Reading.LocalGrammar]
+
+/-- Head-owned countability, at the level of admission: the genitive licenses the mass head above
+and the count head here, and neither admission goes through a countability claim of its own. -/
+theorem genitive_count_admitted : Reading.Admitted environment []
+    (.node (.determine .singular) [genitiveDeterminer, .noun creature .singular])
+    (.nounPhrase singular) ["one", "creature", .closing "'s", "creature"] := by
+  refine ⟨⟨.node .determine
+    (.cons (.node .genitive (.cons count_admitted.1.1 .nil))
+      (.cons (.noun (lexicon := grammar) ⟨creature_licensed, .count, rfl⟩) .nil)), ?_, ?_, ?_⟩,
+    .node (.cons (.node (.cons count_admitted.2 .nil) .genitive)
+      (.cons (.noun (lexicon := grammar) ⟨creature_licensed, ⟨.count, rfl⟩, rfl⟩) .nil)) .determine⟩
+  · refine ⟨Or.inr ⟨.genitive, .count, creature_use⟩, ⟨⟨trivial, ?_⟩, ?_⟩⟩
+    · exact ⟨count_admitted.1.2.1, trivial⟩
+    · simp [Features.Conforms, Features.ChildrenConform, Features.Local]
+  · simp [genitiveDeterminer, counted, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
+  · simp [genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
+      Reading.LocalGrammar]
 
 def targetMarker := word .targetMarker .targeting ["target"]
 def targetVerb := word .targetVerb (.verb .plain none) ["target"]

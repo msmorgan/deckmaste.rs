@@ -81,6 +81,38 @@ theorem addressee_were : Reading.Admitted environment [] (clause you wereYou add
 theorem finite_tense_is_past : Reading.HasTense (clause it was singular) .past :=
   .clause (.auxiliary rfl)
 
+/-- A nonfinite lexical use carries no Tense at all: the exclusion `HasTense` was missing. -/
+theorem no_tense_on_nonfinite (t : Tense) : ¬ Reading.HasTense exiledTree t := by
+  intro h
+  cases h with
+  | verb bundle => simp [exiled, word] at bundle
+
+/-- Finiteness is what the auxiliary's complement position reads, not Word Form or Tense. -/
+theorem finite_is_not_nonfinite_use : ¬ Reading.NonfiniteUse (passive was) := by
+  intro h
+  cases h with
+  | auxiliary bundle => simp [was, word] at bundle
+
+/-- One Word Form and one Inflectional Form, two Finiteness values: the dimensions separate. -/
+theorem plain_form_both_finite_and_nonfinite :
+    attack.bundle = .verb .plain none ∧
+    attackPlural.bundle = .verb .plain (some (.present, plural)) ∧
+    attack.Licensed environment ∧ attackPlural.Licensed environment ∧
+    attack.spelling = attackPlural.spelling :=
+  ⟨rfl, rfl, attack_licensed, attackPlural_licensed, rfl⟩
+
+/-- The preterite Inflectional Form correlates with past Tense but is a distinct field: the same
+admitted tree satisfies `HasTense … .past` and refutes `HasTense … .present`. -/
+theorem preterite_is_not_tense :
+    was.bundle = .verb .preterite (some (.past, singular)) ∧
+    Reading.HasTense (clause it was singular) .past ∧
+    ¬ Reading.HasTense (clause it was singular) .present := by
+  refine ⟨rfl, finite_tense_is_past, ?_⟩
+  intro h
+  cases h with
+  | clause inner => cases inner with
+    | auxiliary bundle => simp [was, word, singular] at bundle
+
 theorem wrong_plural_was_excluded (surface : Surface) :
     ¬ Reading.Admitted environment [] (clause they was plural) (.clause .finite) surface := by
   intro admitted

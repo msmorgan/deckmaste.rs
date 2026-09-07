@@ -51,7 +51,7 @@ theorem mass_quantity : Admitted lexicon features muchDamage (.nounPhrase ⟨.th
     .node (.cons (.word (Or.inl ⟨rfl,rfl,rfl⟩))
       (.cons (.noun (Or.inr (Or.inl ⟨rfl,rfl,rfl⟩))) .nil)) .determine⟩,?basic⟩
   case basic =>
-    exact ⟨⟨.mass,.noun (Or.inr ⟨rfl,rfl⟩),.word (Or.inl ⟨rfl,rfl⟩)⟩,
+    exact ⟨Or.inl ⟨.mass,.noun (Or.inr ⟨rfl,rfl⟩),.word (Or.inl ⟨rfl,rfl⟩)⟩,
       ⟨⟨trivial,trivial⟩,⟨⟨trivial,trivial⟩,trivial⟩⟩⟩
 
 theorem numerical_mass_excluded (q : Syntax Lexeme) :
@@ -101,7 +101,7 @@ theorem passive_temporal : Admitted lexicon features passiveTemporal
     .node (.cons (.word (Or.inr (Or.inr ⟨rfl,rfl,rfl⟩)))
       (.cons (.noun (Or.inr (Or.inr ⟨rfl,rfl,rfl⟩))) .nil)) .determine
   have turnC : Conforms features thisTurn :=
-    ⟨⟨.count,.noun (Or.inl ⟨Or.inr rfl,rfl⟩),.word (Or.inr (Or.inr rfl))⟩,
+    ⟨Or.inl ⟨.count,.noun (Or.inl ⟨Or.inr rfl,rfl⟩),.word (Or.inr (Or.inr rfl))⟩,
       ⟨⟨trivial,trivial⟩,⟨⟨trivial,trivial⟩,trivial⟩⟩⟩
   exact ⟨⟨.node (.adjunct .temporal)
     (.cons (.verb (lexicon := lexicon) ⟨rfl,rfl,rfl,rfl⟩ .nil) (.cons turnD .nil)),
@@ -119,8 +119,28 @@ theorem ordinary_np_not_temporal : ¬ Temporal features muchDamage := by
 theorem passive_frame_does_not_acquire_object :
     ¬ JudgeFrame lexicon [thisTurn] [] [] := by intro h; cases h
 
-theorem genitive_preserves_countability (possessor : Syntax Lexeme) :
-    DeterminerUse features (.node (.genitive .singular) [possessor]) .mass ∧
-    DeterminerUse features (.node (.genitive .plural) [possessor]) .count := ⟨.genitive,.genitive⟩
+/-- Countability is head-owned: a genitive determiner passes the head's use through (mass and count
+alike) and declares none of its own, so it cannot supply a use the head does not declare. Replaces
+`genitive_preserves_countability`, whose wildcard `DeterminerUse.genitive` proved a mass claim and a
+count claim about the same shape from one constructor and so discriminated nothing. The third
+conjunct is the weakened-premise counterexample: it is exactly what fails if `Transparent` is
+weakened back to a `DeterminerUse` constructor holding for every countability. -/
+theorem genitive_determiner_is_transparent (possessor : Syntax Lexeme) :
+    Local features
+      (.node (.determine .singular) [.node (.genitive .singular) [possessor], damage]) ∧
+    Local features (.node (.determine .plural)
+      [.node (.genitive .plural) [possessor], .noun .creature .plural]) ∧
+    (∀ use, ¬ DeterminerUse features (.node (.genitive .singular) [possessor]) use) ∧
+    ¬ Local features (.node (.determine .singular)
+      [.node (.genitive .singular) [possessor], .noun .white .singular]) := by
+  have undeclared : ∀ use, ¬ NominalUse features (.noun .white .singular) use := by
+    rintro use nominal
+    cases nominal with
+    | noun declared => simp [features] at declared
+  refine ⟨Or.inr ⟨.genitive, .mass, .noun (Or.inr ⟨rfl,rfl⟩)⟩,
+    Or.inr ⟨.genitive, .count, .noun (Or.inl ⟨Or.inl rfl,rfl⟩)⟩, ?_, ?_⟩
+  · intro use determiner
+    cases determiner
+  · rintro (⟨use,nominal,_⟩ | ⟨_,use,nominal⟩) <;> exact undeclared use nominal
 
 end English.FeatureInteractions

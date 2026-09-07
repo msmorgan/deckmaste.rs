@@ -46,8 +46,13 @@ inductive DeterminerUse (features : Declarations L) : Syntax L → Countability 
       DeterminerUse features (.word head (.determinativePhrase number)) use
   | numeral {number : Number} {numeral : Syntax L} :
       DeterminerUse features (.node (.quantify number) [numeral]) .count
-  | genitive {number : Number} {possessor : Syntax L} {use : Countability} :
-      DeterminerUse features (.node (.genitive number) [possessor]) use
+
+/-- A genitive determiner declares no countability of its own: the nominal head owns it. Being
+transparent is not the same as having every use, which would let a genitive satisfy a head's
+count claim and its mass claim alike. -/
+inductive Transparent : Syntax L → Prop where
+  | genitive {number : Number} {possessor : Syntax L} :
+      Transparent (.node (.genitive number) [possessor])
 
 /-- Targeting precedes descriptive modifiers; adjective ordering otherwise stays open. -/
 def containsTarget : Syntax L → Bool
@@ -85,7 +90,8 @@ def Local (features : Declarations L) (tree : Syntax L)
       ((left.nominalCase features.nominalCase gapCase).common
         (right.nominalCase features.nominalCase gapCase)).Argument
   | .node (.determine _) [det,head] =>
-      ∃ use, NominalUse features head use ∧ DeterminerUse features det use
+      (∃ use, NominalUse features head use ∧ DeterminerUse features det use) ∨
+        (Transparent det ∧ ∃ use, NominalUse features head use)
   | .node .barePlural [head] => NominalUse features head .count
   | .node .bareMass [head] => NominalUse features head .mass
   | .modify _ head | .node (.attributive _ _) [head] | .node (.targeting _ _) [head] =>
@@ -134,9 +140,10 @@ theorem admitted_base {lexicon : Lexicon L} {features : Declarations L} {tree : 
 theorem numeral_rejects_mass (features : Declarations L) (number : Number)
     (quantity head : Syntax L) (massOnly : ¬ NominalUse features head .count) :
     ¬ Local features (.node (.determine number) [.node (.quantify number) [quantity],head]) := by
-  rintro ⟨use,nominal,determiner⟩
-  cases determiner
-  exact massOnly nominal
+  rintro (⟨use,nominal,determiner⟩ | ⟨transparent,_⟩)
+  · cases determiner
+    exact massOnly nominal
+  · cases transparent
 
 theorem target_must_be_outer (features : Declarations L) (marker : L) (number : Number)
     (modifier head : Syntax L) :
