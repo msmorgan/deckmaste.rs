@@ -1,0 +1,47 @@
+// "Job select / Equipped creature gets +3/+2 and is a Warrior in addition to its
+// other types. / Equip {5}" [CR#702.182a,702.6b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Warrior's Sword",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Red))),
+        ],
+        types: [Artifact],
+        subtypes: [Of(host: Artifact, label: "Equipment")],
+        text: [
+            JobSelect,
+            Static(
+                spec: Conjunction(
+                    subject: None,
+                    parts: [
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Power,
+                            delta: Up(amount: Lit(value: 3)),
+                        ),
+                        Modification(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            stat: Toughness,
+                            delta: Up(amount: Lit(value: 2)),
+                        ),
+                        CharacteristicChange(
+                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                            edits: [
+                                TypeLine(
+                                    op: Adds,
+                                    changes: (subtypes: [Of(host: Creature, label: "Warrior")]),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
+            Keyword(
+                keyword: "Equip",
+                params: [Cost(cost: Mana(cost: [Simple(symbol: Generic(amount: 5))]))],
+                body: [],
+            ),
+        ],
+    ),
+))
