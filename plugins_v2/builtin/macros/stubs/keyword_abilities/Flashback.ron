@@ -5,4 +5,67 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "flashback",
     ),
+    // "Flashback [cost]" means "You may cast this card from your graveyard if the
+    // resulting spell is an instant or sorcery spell by paying [cost] rather than
+    // paying its mana cost" and "If the flashback cost was paid, exile this card
+    // instead of putting it anywhere else any time it would leave the stack."
+    // [CR#702.34a]
+    body: Keyword(
+        keyword: "Flashback",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action(label: "Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(patient: This),
+                    as_though: None,
+                    rider: Play(
+                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(cost: Param(0)),
+                    ),
+                ),
+            ),
+            Static(
+                spec: Conditional(
+                    spec: Replacement(
+                        event: ZoneChange(
+                            subject: AsMarker(marker: Spell, subject: This),
+                            from: Zones(zones: [Zone(zone: Stack, scope: Bare)]),
+                            to: None,
+                            observation: Before,
+                        ),
+                        alternatives: [],
+                        timing: None,
+                        replacement: Enact(
+                            verb: Action(label: "Exile"),
+                            instruction: Move(
+                                subject: AsMarker(marker: Spell, subject: This),
+                                to: Zone(zone: Exile, scope: Bare),
+                                riders: [],
+                            ),
+                            agent: None,
+                        ),
+                        r#use: Repeatedly,
+                        limit: None,
+                    ),
+                    condition: CompareAmt(
+                        subject: Paid(
+                            facet: Readback(which: ByKeyword(keyword: "Flashback"), lookback: None),
+                            subject: AsMarker(marker: Spell, subject: This),
+                        ),
+                        comparator: AtLeast,
+                        bound: Lit(value: 1),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+        ],
+    ),
 )

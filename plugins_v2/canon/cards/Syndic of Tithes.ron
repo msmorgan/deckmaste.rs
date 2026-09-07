@@ -1,0 +1,15 @@
+// "Extort" [CR#702.101a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Syndic of Tithes",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Cleric")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+        text: [Extort],
+    ),
+))

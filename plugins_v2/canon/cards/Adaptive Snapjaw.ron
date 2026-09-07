@@ -1,0 +1,15 @@
+// "Evolve" [CR#702.100a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Adaptive Snapjaw",
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Lizard"), Of(host: Creature, label: "Beast")],
+        power: Lit(value: 6),
+        toughness: Lit(value: 2),
+        text: [Evolve],
+    ),
+))

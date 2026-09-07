@@ -49,7 +49,7 @@ keywordFacts =
   , { word := "Warp", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Afterlife", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Boast", paramShapes := [AbilityParam] } defaultKeywordFacts
-  , { word := "Exhaust", paramShapes := [AbilityParam] } defaultKeywordFacts
+  , { word := "Exhaust", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "PowerUp", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "Affinity", paramShapes := [QualityParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Annihilator", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
@@ -137,7 +137,7 @@ keywordFacts =
   , { word := "Firebending", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Flanking", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "ForMirrodin", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
-  , { word := "Forecast", paramShapes := [AbilityParam], onSpellCard := True } defaultKeywordFacts
+  , { word := "Forecast", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "Fortify", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Frenzy", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Graft", paramShapes := [NumberParam] } defaultKeywordFacts

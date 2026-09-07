@@ -5,4 +5,50 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "fading",
     ),
+    // "Fading N" means "This permanent enters with N fade counters on it" and "At the
+    // beginning of your upkeep, remove a fade counter from this permanent. If you
+    // can't, sacrifice the permanent." [CR#702.32a]
+    body: Keyword(
+        keyword: "Fading",
+        params: [Number(amount: Param(0))],
+        body: [
+            Static(
+                spec: EntryRider(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    rider: WithCounters(
+                        amount: Param(0),
+                        kind: Printed(kind: Named(label: "Fade")),
+                        mark: Fresh,
+                    ),
+                ),
+            ),
+            Triggered(
+                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(player: You)),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: WithContinuation(
+                    policy: Required,
+                    body: RemoveCounters(
+                        amount: Lit(value: 1),
+                        kind: Printed(kind: Named(label: "Fade")),
+                        from: AsMarker(marker: Permanent, subject: This),
+                    ),
+                    if_did: None,
+                    if_not: Enact(
+                        verb: Action(label: "Sacrifice"),
+                        instruction: Move(
+                            subject: AsMarker(marker: Permanent, subject: This),
+                            to: Zone(zone: Graveyard, scope: Bare),
+                            riders: [],
+                        ),
+                        agent: You,
+                    ),
+                ),
+            ),
+        ],
+    ),
 )

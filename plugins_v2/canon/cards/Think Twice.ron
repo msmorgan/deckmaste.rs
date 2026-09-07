@@ -1,0 +1,18 @@
+// "Draw a card. / Flashback {2}{U}" [CR#702.34a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Think Twice",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Instant],
+        text: [
+            Spell(timing: None, instruction: Draw(amount: Lit(value: 1), agent: You)),
+            Flashback(Mana(cost: [
+                Simple(symbol: Generic(amount: 2)),
+                Simple(symbol: Specific(color: Of(color: Blue))),
+            ])),
+        ],
+    ),
+))

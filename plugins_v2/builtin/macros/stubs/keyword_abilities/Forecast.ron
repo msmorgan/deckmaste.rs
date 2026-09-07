@@ -1,8 +1,13 @@
 KeywordAbility(
     name: "Forecast",
-    params: [Ability],
+    params: [],
     spelling: "forecast",
     grammar: FixedKeyword(
         surface: "forecast",
     ),
+    // STOP. "Forecast — [Activated ability]" qualifies the activated ability written
+    // after it: it may be activated only from its owner's hand, only during their
+    // upkeep, only once each turn, and reveals the card [CR#702.57a,702.57b]. Nothing
+    // lets a definition qualify the ability printed after the keyword.
+    body: Keyword(keyword: "Forecast", params: [], body: []),
 )

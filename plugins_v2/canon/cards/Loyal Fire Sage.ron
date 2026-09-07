@@ -1,0 +1,46 @@
+// "Firebending 1 / {5}: Create a 1/1 white Ally creature token." [CR#702.189a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Loyal Fire Sage",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Red))),
+        ],
+        types: [Creature],
+        subtypes: [
+            Of(host: Creature, label: "Human"),
+            Of(host: Creature, label: "Cleric"),
+            Of(host: Creature, label: "Ally"),
+        ],
+        power: Lit(value: 3),
+        toughness: Lit(value: 3),
+        text: [
+            Firebending(Lit(value: 1)),
+            Activated(
+                cost: Mana(cost: [Simple(symbol: Generic(amount: 5))]),
+                instruction: CreateObject(
+                    count: Lit(value: 1),
+                    spec: Token(
+                        spec: Written(
+                            characteristics: (
+                                characteristics: (
+                                    colors: [White],
+                                    types: [Creature],
+                                    subtypes: [Of(host: Creature, label: "Ally")],
+                                    power: Lit(value: 1),
+                                    toughness: Lit(value: 1),
+                                ),
+                            ),
+                        ),
+                        riders: [],
+                    ),
+                    agent: You,
+                ),
+                timing: None,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
+))

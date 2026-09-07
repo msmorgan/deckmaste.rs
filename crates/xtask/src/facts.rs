@@ -392,6 +392,7 @@ fn overlay() -> Vec<Row> {
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -657,6 +658,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Evoke",
             paid_cost: true,
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -992,6 +994,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Fading",
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {

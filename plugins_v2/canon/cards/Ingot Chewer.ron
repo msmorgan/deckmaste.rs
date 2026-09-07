@@ -1,0 +1,35 @@
+// "When this creature enters, destroy target artifact. / Evoke {R}" [CR#702.74a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ingot Chewer",
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Red))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Elemental")],
+        power: Lit(value: 3),
+        toughness: Lit(value: 3),
+        text: [
+            Triggered(
+                event: ZoneChange(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Destroy(Described(
+                    determiner: Target(quantity: Range(low: 1, high: 1)),
+                    predicate: HasType(type: Artifact),
+                )),
+            ),
+            Evoke(Mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
+        ],
+    ),
+))
