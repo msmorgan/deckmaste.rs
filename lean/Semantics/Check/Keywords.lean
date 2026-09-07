@@ -86,11 +86,4 @@ def CounterKind.known : CounterKind → Bool
   | .keyword k => keywordCounterOk k
   | .named l => knownCounter l
 
-/-- Instructed conferral needs an effectful designation; an expansion's conferral must be
-one of the designations declared for its keyword ability or deed. -/
-def conferralOk (label : DesignationLabel) : Conferral → Bool
-  | .instructed => label.checked
-  | .byKeyword keyword => (keywordFactsFor keyword).elim false (·.confers.elem label)
-  | .byDeed deed => (deedFacts deed).elim false (·.confers.elem label)
-
 end Semantics

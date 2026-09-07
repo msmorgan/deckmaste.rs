@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "an enduring story",
     grammar: FixedTerm(surface: "an enduring story"),
-    body: DesignationDecl(name: "EnduringStory", conferrers: [KeywordAbility("Storied")], definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
+    body: DesignationDecl(name: "EnduringStory", definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
 )

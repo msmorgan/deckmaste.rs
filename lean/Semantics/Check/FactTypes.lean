@@ -79,8 +79,6 @@ structure ActFacts where
   /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
   own library is a different deed. -/
   opponentsLibrary : Bool := false
-  /-- The designations this keyword action's expansion confers [CR#701.37a]. -/
-  confers : List DesignationLabel := []
   deriving Repr, BEq
 
 def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
@@ -175,8 +173,6 @@ structure KeywordFacts where
   empty list is a keyword whose definition the workbench has not yet declared. -/
   definition : List AbilityCategory := []
   wantsModes : Bool := false
-  /-- The designations this keyword ability's expansion confers [CR#702.112a]. -/
-  confers : List DesignationLabel := []
   deriving Repr, BEq
 
 end Semantics

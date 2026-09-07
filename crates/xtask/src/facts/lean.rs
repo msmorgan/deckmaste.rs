@@ -1,7 +1,6 @@
 //! Lean registry tables. The overlay supplies only columns absent from
 //! declarations.
 
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
@@ -12,8 +11,6 @@ use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
-use deckmaste_semantics::CoreDeed;
-use deckmaste_semantics::DesignationConferrer;
 use deckmaste_semantics::DesignationDecl;
 use deckmaste_semantics::DesignationDef;
 use deckmaste_semantics::DesignationScope;
@@ -47,17 +44,6 @@ fn surface(row: &NormalizedDeclaration) -> anyhow::Result<String> {
         })
         .collect::<anyhow::Result<Vec<_>>>()
         .map(|parts| parts.join(""))
-}
-
-fn string_list(values: &[String]) -> String {
-    format!(
-        "[{}]",
-        values
-            .iter()
-            .map(|value| quoted(value))
-            .collect::<Vec<_>>()
-            .join(", ")
-    )
 }
 
 fn argument_schema(params: &[&str]) -> anyhow::Result<String> {
@@ -110,26 +96,6 @@ fn add_schema(schemas: &mut Vec<String>, params: &[&str]) -> anyhow::Result<()> 
     Ok(())
 }
 
-fn core_deed(deed: CoreDeed) -> &'static str {
-    match deed {
-        CoreDeed::Attack => ".attack",
-        CoreDeed::Block => ".block",
-        CoreDeed::Target => ".target",
-        CoreDeed::Copy => ".copy",
-        CoreDeed::Draw => ".draw",
-        CoreDeed::GainLife => ".gainLife",
-        CoreDeed::LoseGame => ".loseGame",
-        CoreDeed::WinGame => ".winGame",
-        CoreDeed::Spend => ".spend",
-        CoreDeed::Trigger => ".trigger",
-        CoreDeed::Put => ".put",
-        CoreDeed::Return => ".return_",
-        CoreDeed::GainControl => ".gainControl",
-        CoreDeed::Unlock => ".unlock",
-        CoreDeed::FullyUnlock => ".fullyUnlock",
-    }
-}
-
 struct DesignationRow {
     labels: Vec<String>,
     decl: DesignationDecl,
@@ -176,13 +142,6 @@ fn designations(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<Designatio
         .collect()
 }
 
-fn conferrals(rows: &[DesignationRow], wanted: &DesignationConferrer) -> Vec<String> {
-    rows.iter()
-        .filter(|row| row.decl.conferrers.contains(wanted))
-        .flat_map(|row| row.labels.iter().cloned())
-        .collect()
-}
-
 fn table(out: &mut String, name: &str, ty: &str, rows: &[String]) {
     writeln!(
         out,
@@ -192,10 +151,7 @@ fn table(out: &mut String, name: &str, ty: &str, rows: &[String]) {
     .unwrap();
 }
 
-fn keyword_rows(
-    declarations: &[NormalizedDeclaration],
-    designations: &[DesignationRow],
-) -> anyhow::Result<Vec<String>> {
+fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
     let overlays = overlay();
     for declared in declarations
         .iter()
@@ -280,22 +236,12 @@ fn keyword_rows(
                     }
                 ));
             }
-            let conferred = conferrals(
-                designations,
-                &DesignationConferrer::KeywordAbility(row.label.into()),
-            );
-            if !conferred.is_empty() {
-                fields.push(format!("confers := {}", string_list(&conferred)));
-            }
             Ok(format!("{{ {} }}", fields.join(", ")))
         })
         .collect()
 }
 
-fn action_rows(
-    declarations: &[NormalizedDeclaration],
-    designations: &[DesignationRow],
-) -> anyhow::Result<Vec<String>> {
+fn action_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
     let mut seen = BTreeSet::new();
     let mut result = Vec::new();
     for declared in declarations
@@ -311,25 +257,13 @@ fn action_rows(
             seen.insert(label),
             "{name}: duplicate action overlay key {label}"
         );
-        let conferred = conferrals(
-            designations,
-            &DesignationConferrer::KeywordAction(name.into()),
-        );
         let fields = fields
             .trim()
             .trim_start_matches('{')
             .trim_end_matches('}')
             .trim();
-        let fields = if conferred.is_empty() {
-            fields.to_owned()
-        } else {
-            format!(
-                "{fields}{}confers := {}",
-                if fields.is_empty() { "" } else { ", " },
-                string_list(&conferred)
-            )
-        };
-        result.push(format!("({}, {{ {fields} }})", quoted(label)));
+        let body = if fields.is_empty() { "{}".to_owned() } else { format!("{{ {fields} }}") };
+        result.push(format!("({}, {body})", quoted(label)));
     }
     for &(label, _) in ACTION_OVERLAY {
         anyhow::ensure!(
@@ -497,36 +431,6 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
 pub(super) fn render(root: &Path) -> anyhow::Result<String> {
     let declarations = macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let designations = designations(&declarations)?;
-    let identities: BTreeSet<_> = declarations
-        .iter()
-        .map(|row| (row.identity().kind(), row.identity().name()))
-        .collect();
-    let mut core_conferrals: BTreeMap<&str, Vec<String>> = BTreeMap::new();
-    for row in &designations {
-        for conferrer in row.decl.conferrers.iter() {
-            let key = match conferrer {
-                DesignationConferrer::KeywordAbility(name) => {
-                    (DeclarationKind::KeywordAbility, name.as_str())
-                }
-                DesignationConferrer::KeywordAction(name) => {
-                    (DeclarationKind::KeywordAction, name.as_str())
-                }
-                DesignationConferrer::CoreDeed(deed) => {
-                    core_conferrals
-                        .entry(core_deed(*deed))
-                        .or_default()
-                        .extend(row.labels.iter().cloned());
-                    continue;
-                }
-            };
-            anyhow::ensure!(
-                identities.contains(&key),
-                "{}: undeclared designation conferrer {}",
-                row.decl.name,
-                key.1
-            );
-        }
-    }
     let mut out = String::from(
         "-- Generated by `cargo xtask facts generate`; edit registry declarations and xtask overlays.\nimport Semantics.Check.FactTypes\n\nnamespace Semantics\n\n",
     );
@@ -534,13 +438,13 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "actFacts",
         "(KeywordActionLabel × ActFacts)",
-        &action_rows(&declarations, &designations)?,
+        &action_rows(&declarations)?,
     );
     table(
         &mut out,
         "keywordFacts",
         "KeywordFacts",
-        &keyword_rows(&declarations, &designations)?,
+        &keyword_rows(&declarations)?,
     );
     table(
         &mut out,
@@ -560,11 +464,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         "SubtypeFacts",
         &subtype_rows(&declarations)?,
     );
-    out.push_str("def coreDeedConferrals : CoreDeed → List DesignationLabel\n");
-    for (deed, labels) in core_conferrals {
-        writeln!(out, "  | {deed} => {}", string_list(&labels)).unwrap();
-    }
-    out.push_str("  | _ => []\n\nend Semantics\n");
+    out.push_str("end Semantics\n");
     Ok(out)
 }
 
@@ -594,34 +494,6 @@ mod tests {
         let destination = temp.path().join("plugins_v2/builtin/macros/stubs");
         copy_tree(&source, &destination);
         temp
-    }
-
-    #[test]
-    fn declaration_conferrer_changes_reach_the_generated_keyword_row() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/stubs/designations/EnduringStory.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        fs::write(
-            path,
-            source.replace("KeywordAbility(\"Storied\")", "KeywordAbility(\"Renown\")"),
-        )
-        .unwrap();
-        let generated = render(temp.path()).unwrap();
-        let renown = generated
-            .lines()
-            .find(|line| line.contains("word := \"Renown\""))
-            .unwrap();
-        assert!(
-            renown.contains("confers := [\"an enduring story\", \"renowned\"]"),
-            "{renown}"
-        );
-        let storied = generated
-            .lines()
-            .find(|line| line.contains("word := \"Storied\""))
-            .unwrap();
-        assert!(!storied.contains("confers :="), "{storied}");
     }
 
     #[test]
@@ -733,28 +605,6 @@ mod tests {
         let error = render(temp.path()).unwrap_err().to_string();
         assert!(
             error.contains("TestKeyword: keyword declaration has no gate-column overlay"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn undeclared_conferrers_are_rejected() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/stubs/designations/EnduringStory.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        fs::write(
-            path,
-            source.replace(
-                "KeywordAbility(\"Storied\")",
-                "KeywordAbility(\"Undeclared\")",
-            ),
-        )
-        .unwrap();
-        let error = render(temp.path()).unwrap_err().to_string();
-        assert!(
-            error.contains("undeclared designation conferrer Undeclared"),
             "{error}"
         );
     }

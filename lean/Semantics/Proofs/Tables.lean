@@ -27,21 +27,23 @@ theorem designationLabelsDistinct : distinctDesignationLabels designationTable =
 
 theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
-theorem spaceSculptorConfersEverySector :
-    ["alpha sector", "beta sector", "gamma sector"].all
-      (fun label => conferralOk label (.byKeyword "SpaceSculptor")) = true := by decide
+/-- The enum-valued designation reaches the table under every one of its members, and each is
+effectful, so an instruction may confer it. -/
+theorem everySectorLabelIsAnEffectfulDesignation :
+    ["alpha sector", "beta sector", "gamma sector"].all DesignationLabel.checked = true := by decide
 
-theorem unlockConfersEitherDoor :
-    ["left half unlocked", "right half unlocked"].all
-      (fun label => conferralOk label (.byDeed (.core .unlock))) = true := by decide
+/-- The two door designations are exactly the rows the table marks with a room half. -/
+theorem bothDoorLabelsAreDeclaredHalves :
+    (designationTable.filter (·.half.isSome)).map (·.label)
+      = ["left half unlocked", "right half unlocked"] := by decide
 
-theorem storiedDoesNotConferCitysBlessing :
-    conferralOk "the city's blessing" (.byKeyword "Storied") = false := by decide
+/-- The one designation the table marks non-effectful: a rule confers it, so no instruction
+may. -/
+theorem aRuleOnlyDesignationIsNotEffectful : DesignationLabel.checked "commander" = false := by
+  decide
 
-theorem unlockDoesNotConferSector :
-    conferralOk "alpha sector" (.byDeed (.core .unlock)) = false := by decide
-
-theorem coreFactsIncludeTheirDeclaredConferrals :
-    (coreDeedFacts .unlock).confers = ["left half unlocked", "right half unlocked"] := by decide
+/-- A label outside the declared enum is no designation at all, so nothing may confer it. -/
+theorem anUndeclaredSectorIsNotADesignation :
+    DesignationLabel.checked "delta sector" = false := by decide
 
 end Semantics.Proofs.Tables

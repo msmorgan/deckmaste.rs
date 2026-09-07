@@ -489,14 +489,6 @@ inductive LockState where
   | locked | unlocked
   deriving DecidableEq, Repr
 
-/-- How a designation was conferred: by an instruction, in a keyword ability's expansion, or
-in a keyword action's (deed's) expansion, named by the conferrer. -/
-inductive Conferral where
-  | instructed
-  | byKeyword (keyword : KeywordLabel)
-  | byDeed (deed : Deed)
-  deriving DecidableEq, Repr
-
 /-- Which endpoint of an attachment relation the predicate describes. -/
 inductive AttachmentSide where
   | host | attachment

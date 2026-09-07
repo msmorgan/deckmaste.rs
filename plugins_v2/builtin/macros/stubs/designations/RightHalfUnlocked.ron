@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "right half unlocked",
     grammar: FixedTerm(surface: "right half unlocked"),
-    body: DesignationDecl(name: "RightHalfUnlocked", conferrers: [CoreDeed(Unlock)], definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: DesignationDecl(name: "RightHalfUnlocked", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
 )

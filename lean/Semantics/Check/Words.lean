@@ -130,7 +130,7 @@ def atLeastTwo : Nat → Bool
 taxonomy has a row, so no lookup here can fail. Attacking and blocking are the turn-based
 actions of the declare-attackers and declare-blockers steps [CR#508.1,509.1]; unlocking and
 fully unlocking belong to a card type's own rules, not to a keyword [CR#709.5f,709.5i]. -/
-private def coreDeedRuleFacts : CoreDeed → ActFacts
+def coreDeedFacts : CoreDeed → ActFacts
   /- The declaring side of an attack is the active player or a creature they control
   [CR#508.1,508.1a]. -/
   | .attack =>
@@ -189,10 +189,6 @@ def distinctActLabels : List (KeywordActionLabel × ActFacts) → Bool
 def distinctAbilityDeedLabels : List (KeywordLabel × ActFacts) → Bool
   | [] => true
   | f :: fs => !(fs.map (·.1)).elem f.1 && distinctAbilityDeedLabels fs
-
-/-- The facts for a deed, dispatched on its source. A core deed always has them. -/
-def coreDeedFacts (deed : CoreDeed) : ActFacts :=
-  { coreDeedRuleFacts deed with confers := coreDeedConferrals deed }
 
 def deedFacts : Deed → Option ActFacts
   | .core d => some (coreDeedFacts d)

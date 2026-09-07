@@ -127,7 +127,7 @@ def cradleToGrave : Instruction :=
 theorem okCradleToGrave : Instruction.check [] cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
-  when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" .instructed none)
+  when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" none)
 theorem okAragornKingOfGondor : Ability.check [] aragornKingOfGondor = [] := by decide
 def firmamentSage : Ability := whenever (Primitives.GameEvent.gameBecomes "night") (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
 theorem okFirmamentSage : Ability.check [] firmamentSage = [] := by decide
@@ -188,7 +188,7 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
 
 def archivistOfGondor : Ability :=
   triggeredIf (dealsCombatDamage yourCommander (a Primitives.Predicate.anyPlayer)) (thereIsNo "the monarch")
-    (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" .instructed none)
+    (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" none)
 theorem okArchivistOfGondor : Ability.check [] archivistOfGondor = [] := by decide
 
 def hissingMiasma : Spelled := spelled <| .singleFaced

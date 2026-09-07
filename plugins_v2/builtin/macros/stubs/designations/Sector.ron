@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "sector designation",
     grammar: FixedTerm(surface: "sector designation"),
-    body: DesignationDecl(name: "Sector", conferrers: [KeywordAbility("SpaceSculptor")], definition: Stored(scope: Object, shape: Enum(["Alpha", "Beta", "Gamma"]), uniqueness: None, persistence: EffectSupplied)),
+    body: DesignationDecl(name: "Sector", definition: Stored(scope: Object, shape: Enum(["Alpha", "Beta", "Gamma"]), uniqueness: None, persistence: EffectSupplied)),
 )

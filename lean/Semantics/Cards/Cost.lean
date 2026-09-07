@@ -100,7 +100,7 @@ def witchsMist : Ability :=
 theorem okWitchsMist : Ability.check [] witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
-    (Primitives.Instruction.gainDesignation (target creature) "goaded" .instructed none)
+    (Primitives.Instruction.gainDesignation (target creature) "goaded" none)
 theorem okGoadTargetCreature : Ability.check [] goadTargetCreature = [] := by decide
 /-- Krenko, Mob Boss -/
 def krenko : Ability :=

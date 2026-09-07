@@ -192,12 +192,12 @@ mutual
         refuse (deedRidesOk deed) .deedRides ++
         refuse (deedFits [deed] .patient k what.isAbility (NounPhrase.headTys bs' what) (NounPhrase.zone bs' what))
           .deedFits
-    | .gainDesignation n d w span =>
+    | .gainDesignation n d span =>
       let k := n.kindOr .object
       NounPhrase.check none bs n ++ OptDuration.check (nomIntro bs n) span ++
         refuse (d.scope == some (.heldBy k)) (.designationScope d) ++
         refuse (designationHolderOk d (NounPhrase.zone bs n)) (.designationHolder d k) ++
-        refuse (conferralOk d w) (.designationChecked d)
+        refuse d.checked (.designationChecked d)
     | .unlock door => Door.check bs door ++ refuse door.namesHost .doorNamesHost
     | .setGameDesignation d =>
       refuse d.gameWide (.designationScope d) ++ refuse d.checked (.designationChecked d)

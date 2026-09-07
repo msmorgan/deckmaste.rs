@@ -941,7 +941,7 @@ mutual
     | .attachment _ what _ => what.costNounOk
     | .clearDamage n => n.costNounOk
     | .doAndForbid e _ _ => e.costActionOk
-    | .gainDesignation n _ _ _ => n.costNounOk
+    | .gainDesignation n _ _ => n.costNounOk
     | .unlock .thisDoor => true
     | .unlock (.doorOf _ room) => room.costNounOk
     | .setGameDesignation _ | .conclude _ _ | .drawGame | .changeLife _ _ | .draw
@@ -1083,7 +1083,7 @@ mutual
     | .attachment _ what host => sameIntro (optAgentIntro (nomIntro bs what) host) []
     | .clearDamage n => sameIntro (nomIntro bs n) []
     | .doAndForbid e _ _ => Instruction.profile bs e
-    | .gainDesignation n _ _ _ => sameIntro (nomIntro bs n) []
+    | .gainDesignation n _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
     | .setGameDesignation _ => sameIntro bs []
     | .conclude _ who => sameIntro (nomIntro bs who) []
@@ -1505,7 +1505,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .setStatus _ _ | .turnOver _ | .combat _ _ => []
   | .attachment _ _ _ | .clearDamage _ | .doAndForbid _ _ _ => []
-  | .gainDesignation _ _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
+  | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
   | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
   | .move _ _ riders => TokenRider.ridersSlots riders

@@ -108,34 +108,31 @@ theorem badPtDefinitionClause :
 
 /-- "You become the monarch." -/
 theorem okBecomesMonarch :
-    Instruction.check [] (.gainDesignation .you "the monarch" .instructed none) = [] := by decide
+    Instruction.check [] (.gainDesignation .you "the monarch" none) = [] := by decide
 
 /-- "You become goaded." The Idris pin refutes the scope; a player is not a holder of it
 either. -/
 theorem badGoadedPlayer :
-    Instruction.check [] (.gainDesignation .you "goaded" .instructed none)
+    Instruction.check [] (.gainDesignation .you "goaded" none)
       = [.designationScope "goaded", .designationHolder "goaded" .player] := by
   decide
 
-/-- "… it becomes monstrous," conferred by the Monstrosity keyword action's own expansion. -/
-theorem okMonstrousByDeed :
-    Instruction.check []
-      (.gainDesignation thisCreature "monstrous" (.byDeed (.action "Monstrosity")) none)
-      = [] := by
+/-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
+theorem okBecomesMonstrous :
+    Instruction.check [] (.gainDesignation thisCreature "monstrous" none) = [] := by
   decide
 
-/-- The same conferral misattributed to a keyword ability: Monstrosity is a keyword action
-(a deed), so no keyword row confers "monstrous". -/
-theorem badMonstrousByKeyword :
-    Instruction.check []
-      (.gainDesignation thisCreature "monstrous" (.byKeyword "Monstrosity") none)
-      = [.designationChecked "monstrous"] := by
+/-- A designation a rule confers is not one an instruction may grant. The commander is held by
+a card, so the scope and holder refusals land too; the last is the law itself. -/
+theorem badGainsCommander :
+    Instruction.check [] (.gainDesignation thisCreature "commander" none)
+      = [.designationScope "commander", .designationHolder "commander" .object,
+         .designationChecked "commander"] := by
   decide
 
-/-- "You get an enduring story," conferred by the storied keyword ability's own expansion. -/
-theorem okEnduringStoryByStoried :
-    Instruction.check [] (.gainDesignation .you "an enduring story" (.byKeyword "Storied") none)
-      = [] := by
+/-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
+theorem okGetsAnEnduringStory :
+    Instruction.check [] (.gainDesignation .you "an enduring story" none) = [] := by
   decide
 
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/

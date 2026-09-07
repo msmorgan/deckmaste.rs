@@ -373,7 +373,7 @@ mutual
     /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
     | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
-        (conferral : Conferral) (duration : Option Duration)
+        (duration : Option Duration)
     | unlock (door : Door)
     | setGameDesignation (designation : DesignationLabel)
     | conclude (verb : OutcomeVerb) (agent : NounPhrase := .you)

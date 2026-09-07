@@ -755,15 +755,6 @@ pub enum LockState {
     Unlocked,
 }
 
-/// How a designation was conferred: by an instruction, in a keyword ability's expansion, or
-/// in a keyword action's (deed's) expansion, named by the conferrer.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Conferral {
-    Instructed,
-    ByKeyword { keyword: KeywordLabel },
-    ByDeed { deed: Deed },
-}
-
 /// Which endpoint of an attachment relation the predicate describes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AttachmentSide {

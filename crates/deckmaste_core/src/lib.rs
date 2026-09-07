@@ -112,7 +112,6 @@ pub use decision::Visibility;
 
 mod designation;
 pub use designation::CoreDeed;
-pub use designation::DesignationConferrer;
 pub use designation::DesignationDecl;
 pub use designation::DesignationDef;
 pub use designation::DesignationPersistence;

@@ -4,5 +4,5 @@ Designation(
     params: [],
     spelling: "renowned",
     grammar: FixedTerm(surface: "renowned"),
-    body: DesignationDecl(name: "Renowned", conferrers: [KeywordAbility("Renown")], definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: DesignationDecl(name: "Renowned", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
 )

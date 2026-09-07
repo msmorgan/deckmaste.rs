@@ -91,14 +91,6 @@ pub enum CoreDeed {
     FullyUnlock,
 }
 
-/// The declared source of a designation in an expansion.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum DesignationConferrer {
-    KeywordAbility(Ident),
-    KeywordAction(Ident),
-    CoreDeed(CoreDeed),
-}
-
 /// A designation declaration (§6, taxonomy §8): an open `Ident`
 /// vocabulary carrying a definition. Declaration-file type (like `MacroDef`);
 /// references to designations elsewhere use a bare `Ident`.
@@ -106,9 +98,6 @@ pub enum DesignationConferrer {
 pub struct DesignationDecl {
     pub name: Ident,
     pub definition: DesignationDef,
-    /// Expansions that confer this designation; empty when none are declared.
-    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
-    pub conferrers: Arc<[DesignationConferrer]>,
 }
 
 #[cfg(test)]

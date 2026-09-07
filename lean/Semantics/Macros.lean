@@ -842,7 +842,7 @@ semantic_macro makeMonstrous (amount : Amount) : Instruction :=
   .doIf (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
     (.sequentially
       [ .putCounters amount (.printed plusOnePlusOne) thisPermanent,
-        .gainDesignation thisPermanent "monstrous" (.byDeed (.action "Monstrosity")) none ])
+        .gainDesignation thisPermanent "monstrous" none ])
     none
 semantic_macro get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
@@ -1136,7 +1136,7 @@ semantic_macro renownExpansion (count : Nat) : Ability :=
     (.not (.matches thisCreature (.hasDesignation "renowned" none)))
     (.sequentially
       [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
-        .gainDesignation thisCreature "renowned" (.byKeyword "Renown") none ])
+        .gainDesignation thisCreature "renowned" none ])
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 semantic_macro stormExpansion : Ability :=

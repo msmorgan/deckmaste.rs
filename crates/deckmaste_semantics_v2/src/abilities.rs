@@ -39,7 +39,6 @@ use crate::words::Color;
 use crate::words::ColorFreedom;
 use crate::words::ColorOrColorless;
 use crate::words::ColorSpec;
-use crate::words::Conferral;
 use crate::words::CopySort;
 use crate::words::CostNamed;
 use crate::words::CounterKind;
@@ -819,7 +818,6 @@ pub enum Instruction {
     GainDesignation {
         subject: NounPhrase,
         designation: DesignationLabel,
-        conferral: Conferral,
         duration: Option<Duration>,
     },
     Unlock {
