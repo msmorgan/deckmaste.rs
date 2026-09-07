@@ -11,10 +11,12 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
+use deckmaste_construction_core::macro_def::ParameterType;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::card::Card;
 use deckmaste_semantics_v2::reader::Plugin;
+use deckmaste_semantics_v2::ron::param_types;
 use deckmaste_semantics_v2::triggers::Timing;
 use deckmaste_semantics_v2::words::ItalicWord;
 use deckmaste_semantics_v2::words::TurnPart;
@@ -68,6 +70,30 @@ fn both_readers_accept_every_builtin_declaration() {
         "neither reader found a declaration; the tree moved or the test is looking in the \
          wrong place"
     );
+}
+
+/// Every param type name `deckmaste_semantics_v2::ron::param_types()`
+/// registers also parses as a `deckmaste_construction_core::macro_def::
+/// ParameterType`: the declaration file is the shared contract
+/// (`docs/decisions/semantics-v2.md` §11), so a name the semantics side
+/// accepts must not be unregistrable on the typed side. `ParameterType` is
+/// open (a name outside its eight typed variants normalizes to `Other`
+/// rather than failing), so this never fails for a real registration — it
+/// exists to catch a future closing-back-up of the enum.
+#[test]
+fn every_semantics_v2_param_type_parses_in_construction_core() {
+    let types = param_types();
+    let names: Vec<&str> = types.names().collect();
+    assert!(
+        !names.is_empty(),
+        "param_types() registered nothing; the test is looking at the wrong set"
+    );
+    for name in names {
+        assert!(
+            ParameterType::new(name).is_ok(),
+            "`{name}` is a `deckmaste_semantics_v2` param type construction_core cannot parse"
+        );
+    }
 }
 
 /// A plugin whose only content is the given `macros/` and `cards/` files,
