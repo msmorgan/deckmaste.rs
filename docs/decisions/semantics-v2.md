@@ -142,6 +142,10 @@ declarations eventually (`lean-macros-from-ron`). The
 `Composite` tag is itself basis: `destroy x = Composite Destroy (Move x
 Graveyard)` keeps the tag that deontics key on — indestructible cants the
 Destroy action and ignores an untagged move [CR#701.8a,702.12b,701.8b]. A
+keyword-ability macro carries the keyword's own definition as its
+`Ability.keyword` body (ruling, 2026-09-06): a card may write the keyword
+bare, and a written definition is an ability of one of the categories the
+keyword's registry row declares [CR#702.1]. A
 word absent from both records gets a speculative workbench definition,
 tagged as such pending the real macro. Where the workbench's expansion story
 shows a core variant decomposable — `Sacrifice` is a Composite-taggable

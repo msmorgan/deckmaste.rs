@@ -667,7 +667,7 @@ def Ability.category : Ability → Option AbilityCategory
 
 /-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare; a written
 definition is an ability of one of the categories the keyword's registry row declares, and a
-triggered one keys on the same stack regime the row declares [CR#113.6]. -/
+triggered one keys on the same stack regime the row declares. -/
 def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
   | none => true
   | some ab =>

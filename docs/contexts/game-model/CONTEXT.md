@@ -140,6 +140,12 @@ An Ability written as a statement that is simply true and may create continuous
 Effects while active ([CR#113.3d,604.1,609.1]).
 _Avoid_: Static Effect
 
+**Ability Category**:
+Which of the four general kinds an Ability is: Spell Ability, Activated
+Ability, Triggered Ability, or Static Ability ([CR#113.3]). A Keyword Ability's
+definition is written in one of the latter three.
+_Avoid_: Ability Class, which names the families a grant or a removal selects
+
 **Keyword Ability**:
 An Ability represented in rules text by a keyword whose game rule supplies its
 meaning ([CR#702.1]). One keyword name may represent multiple component
