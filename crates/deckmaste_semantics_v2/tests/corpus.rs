@@ -180,3 +180,70 @@ fn every_ported_alias_expands() {
         Ability: "activated(cost: TapSymbol, instruction: Shuffle(agent: You))",
     }
 }
+
+/// The dialect's WRITER, over the whole card corpus: every card reads, writes,
+/// and reads back to the same value, and every injection and numeral leaf is
+/// written bare.
+///
+/// `crate::ron::raw_options`' `UNWRAP_NEWTYPES` is the writer
+/// (`docs/decisions/semantics-v2.md` §11.1): an `#[macro_ron(embed)]` struct
+/// variant serializes its payload through a newtype struct named
+/// `Type.Variant`, which the extension drops, so `ManaSymbol::Simple { … }`
+/// writes `White` and `Amount::Lit { … }` writes `3`. Nothing exercised that
+/// direction over the corpus before; the substring assertions below are what
+/// makes the elision a fact rather than a claim, and the round trip is what
+/// makes it lossless.
+///
+/// The way back is the UNRESTRICTED read on purpose. A written value is the
+/// constructor basis, not author vocabulary: expansion is name-erasing
+/// (`ron::tests::no_kind_remembers_its_invocation`), so a card's macro
+/// invocations are gone by the time it is a value, and §11.1's macro-only rule
+/// refuses what comes back at a card entry. That is the gap between this pin
+/// and a file-level conversion, and it is why `plugins-v2-cosmetic-conversion`
+/// stopped.
+#[test]
+fn every_card_writes_and_reads_back_to_the_same_value() {
+    let root = plugins_root();
+    let builtin = Plugin::load(root.join("builtin")).expect("the prelude reads");
+    let options = deckmaste_semantics_v2::ron::raw_options();
+    // Each pair is an injection or a numeral leaf together with the binder it
+    // would keep if it were written out; the writer must elide every one.
+    let never_written = [
+        "Simple(symbol:",
+        "Specific(color:",
+        "Of(color:",
+        "Lit(color:",
+        "Lit(value:",
+        "Generic(amount:",
+    ];
+    let mut written = 0;
+    for name in ["canon", "testing"] {
+        let plugin = Plugin::load_with_prelude(&builtin, root.join(name))
+            .unwrap_or_else(|error| panic!("plugins_v2/{name} reads: {error}"));
+        for (stem, card) in &plugin.cards {
+            let text = options
+                .to_string(card)
+                .unwrap_or_else(|error| panic!("{name}/{stem} writes: {error}"));
+            for elided in never_written {
+                assert!(
+                    !text.contains(elided),
+                    "{name}/{stem} was written with `{elided}`, which the dialect elides"
+                );
+            }
+            let read_back = plugin
+                .macros
+                .read_str::<deckmaste_semantics_v2::card::Card>(&text)
+                .unwrap_or_else(|error| panic!("{name}/{stem} reads back: {error}"));
+            assert_eq!(
+                &read_back, card,
+                "{name}/{stem} did not survive the round trip"
+            );
+            written += 1;
+        }
+    }
+    println!("{written} card(s) read, wrote, and read back to the same value");
+    assert!(
+        written >= 120,
+        "only {written} cards written; the scan lost the corpus it reads"
+    );
+}
