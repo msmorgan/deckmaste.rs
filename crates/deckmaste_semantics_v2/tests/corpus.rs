@@ -247,3 +247,57 @@ fn every_card_writes_and_reads_back_to_the_same_value() {
         "only {written} cards written; the scan lost the corpus it reads"
     );
 }
+
+/// The corpus stays converted: no card or declaration body writes out an
+/// injection or a numeral leaf the dialect elides.
+///
+/// `plugins-v2-cosmetic-conversion` reserialised every macro-free sub-value
+/// through the writer, so the corpus now spells `[2, White, White, White]`
+/// where it spelled `[Simple(symbol: Generic(amount: 2)), …]`. Written-out
+/// forms stay LEGAL — §11.1's carve-out keeps a literal leaf spellable, and an
+/// injection's constructor is never refused — so this is a ratchet on the
+/// corpus, not a rule about the dialect: a new card authored the long way is
+/// caught here rather than drifting back one file at a time.
+///
+/// The four spellings are the ones a single `(constructor, binder)` pair fixes
+/// unambiguously across the whole mirror. `ColorOrColorless::Of` and
+/// `ColorTerm::Lit` are deliberately absent: `Of(color:` is also
+/// `ManaMatch::Of`'s spelling, so the text alone does not say which
+/// constructor is written, and a guard that cannot tell them apart would
+/// refuse a legitimate write.
+#[test]
+fn no_source_file_writes_out_an_elided_constructor() {
+    let root = plugins_root();
+    let elided = [
+        "Simple(symbol:",
+        "Specific(color:",
+        "Generic(amount:",
+        "Lit(value:",
+    ];
+    let mut checked = 0;
+    for dir in [
+        root.join("canon/cards"),
+        root.join("testing/cards"),
+        root.join("testing/macros"),
+        root.join("builtin/macros"),
+    ] {
+        for path in deckmaste_semantics_v2::reader::ron_files_recursive(&dir)
+            .expect("the corpus directory is readable")
+        {
+            let source = std::fs::read_to_string(&path).expect("a corpus file is readable UTF-8");
+            for spelling in elided {
+                assert!(
+                    !source.contains(spelling),
+                    "{} writes `{spelling}`, which the dialect elides",
+                    path.display()
+                );
+            }
+            checked += 1;
+        }
+    }
+    println!("{checked} source file(s) hold no elided constructor");
+    assert!(
+        checked >= 2_000,
+        "only {checked} files checked; the scan lost the corpus it reads"
+    );
+}
