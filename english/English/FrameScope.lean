@@ -75,7 +75,8 @@ theorem related_preserves_lexemes {lexicon : Lexicon L} {category : Category} {s
 
 mutual
   def anchorCount : Syntax L → Nat
-    | .node (.coordinate _ _ _) children => childAnchors children + 1
+    | .node (.coordinate _ _ _) children | .node (.serialCoordinate _ _) children =>
+        childAnchors children + 1
     | .node _ children => childAnchors children
     | .frameCoordination _ a b => childAnchors a + childAnchors b + 1
     | .sharedCoordination _ _ a b => anchorCount a + anchorCount b + 1
@@ -132,10 +133,138 @@ theorem related_preserves_anchors {lexicon : Lexicon L} {category : Category} {s
   | symm _ ih => exact ih.symm
   | trans _ _ ih₁ ih₂ => exact ih₁.trans ih₂
 
-theorem flat_nested_differ (c : Coordinator) (cat : Category) (a b d : Syntax L) :
-    anchorCount (.node (.coordinate c cat) [a,b,d]) ≠
-      anchorCount (group c cat a (group c cat b d)) := by
-  simp [anchorCount, childAnchors, group]
+def serial (c : Coordinator) (cat : Category) (children : List (Syntax L)) : Syntax L :=
+  .node (.serialCoordinate c cat) children
+
+mutual
+  /-- Ordered anchors a tree contributes to its host; a non-coordination host is one anchor. -/
+  def anchorWidth : Syntax L → Nat
+    | .node (.coordinate _ _ _) children | .node (.serialCoordinate _ _) children =>
+        childWidth children
+    | .sharedCoordination _ _ a b => anchorWidth a + anchorWidth b
+    | .frameCoordination _ a b => childWidth a + childWidth b
+    | _ => 1
+  def childWidth : List (Syntax L) → Nat
+    | [] => 0
+    | first :: rest => anchorWidth first + childWidth rest
+end
+
+mutual
+  /-- Ordered anchor topology of a tree, anchors identified by source position. Group arity is
+  retained, so a flat coordination and a nested one of the same coordinands differ here even
+  where their cardinality agrees. -/
+  def anchorsFrom : Nat → Syntax L → Scope.Anchors
+    | start,.node (.coordinate _ _ _) children
+    | start,.node (.serialCoordinate _ _) children => .group (childAnchorsFrom start children)
+    | start,.sharedCoordination _ _ a b =>
+        .group [anchorsFrom start a,anchorsFrom (start + anchorWidth a) b]
+    | start,.frameCoordination _ a b =>
+        .group (childAnchorsFrom start a ++ childAnchorsFrom (start + childWidth a) b)
+    | start,_ => .leaf start
+  def childAnchorsFrom : Nat → List (Syntax L) → List Scope.Anchors
+    | _,[] => []
+    | start,first :: rest =>
+        anchorsFrom start first :: childAnchorsFrom (start + anchorWidth first) rest
+end
+
+/-- The anchor projection the boundary abstraction was written against. -/
+def projectAnchors (tree : Syntax L) : Scope.Anchors := anchorsFrom 0 tree
+
+mutual
+  /-- The ordered projection never invents an anchor: its group count is bounded by the
+  cardinality. Equality fails exactly where a coordination sits under a transparent host, which
+  is why the count alone cannot support an anchor-shape law. -/
+  theorem anchorCount_anchorsFrom (start : Nat) (tree : Syntax L) :
+      (anchorsFrom start tree).groups ≤ anchorCount tree := by
+    match tree with
+    | .node (.coordinate c cat right) children =>
+        have inner := anchorCount_childAnchorsFrom start children
+        simp only [anchorsFrom, anchorCount, Scope.Anchors.groups]
+        omega
+    | .node (.serialCoordinate c cat) children =>
+        have inner := anchorCount_childAnchorsFrom start children
+        simp only [anchorsFrom, anchorCount, Scope.Anchors.groups]
+        omega
+    | .sharedCoordination c cat a b =>
+        have left := anchorCount_anchorsFrom start a
+        have right := anchorCount_anchorsFrom (start + anchorWidth a) b
+        simp only [anchorsFrom, anchorCount, Scope.Anchors.groups, Scope.Anchors.groupList]
+        omega
+    | .frameCoordination c a b =>
+        have left := anchorCount_childAnchorsFrom start a
+        have right := anchorCount_childAnchorsFrom (start + childWidth a) b
+        simp only [anchorsFrom, anchorCount, Scope.Anchors.groups,
+          Scope.Anchors.groupList_append]
+        omega
+    | .noun _ _ | .adjective _ | .marker _ | .word _ _ | .identity _ _ | .gap _
+    | .ellipsis _ _ | .modify _ _ | .relativeForm _ _ _ _ _
+    | .node (.document _) _ | .node (.keyword _ _ _) _ | .node (.determine _) _
+    | .node .barePlural _ | .node .bareMass _ | .node (.attributive _ _) _
+    | .node (.targeting _ _) _ | .node (.rightNodeRaising _ _) _ | .node (.genitive _) _
+    | .node (.quantify _) _ | .node (.compare _) _ | .node (.measure _) _
+    | .node (.preposition _ _) _ | .node (.verb _ _ _ _) _ | .node (.auxiliary _ _ _ _ _ _) _
+    | .node (.finite _ _ _) _ | .node (.initialAdverbial _) _ | .node .imperative _
+    | .node (.nonfinite _ _) _ | .node (.subordinate _ _) _ | .node (.adjunct _ _ _) _ =>
+        simp [anchorsFrom, Scope.Anchors.groups]
+  theorem anchorCount_childAnchorsFrom (start : Nat) (children : List (Syntax L)) :
+      Scope.Anchors.groupList (childAnchorsFrom start children) ≤ childAnchors children := by
+    match children with
+    | [] => simp [childAnchorsFrom, childAnchors, Scope.Anchors.groupList]
+    | first :: rest =>
+        have head := anchorCount_anchorsFrom start first
+        have tail := anchorCount_childAnchorsFrom (start + anchorWidth first) rest
+        simp only [childAnchorsFrom, childAnchors, Scope.Anchors.groupList]
+        omega
+end
+
+/-- The arithmetic the flat/nested separation rests on, independent of any derivation. -/
+private theorem flat_nested_anchors (c : Coordinator) (cat : Category) (a b d : Syntax L) :
+    anchorCount (serial c cat [a,b,d]) ≠ anchorCount (group c cat a (group c cat b d)) := by
+  simp [serial, group, anchorCount, childAnchors]
+
+/-- Flat serial coordination and the nested binary bracketing of the same three coordinands are
+both derivable, and the anchor cardinality separates them. This is a property of the declared
+productions and linearizations, not a claim that the nested analysis is wrong for Oracle
+English. -/
+theorem flat_nested_differ {lexicon : Lexicon L} {category : Category} {c : Coordinator}
+    {cat : Category} {a b d : Syntax L}
+    (flat : Derives lexicon (serial c cat [a,b,d]) category)
+    (nested : Derives lexicon (group c cat a (group c cat b d)) category) :
+    ∃ flatTree nestedTree : Syntax L, Derives lexicon flatTree category ∧
+      Derives lexicon nestedTree category ∧ anchorCount flatTree ≠ anchorCount nestedTree :=
+  ⟨_,_,flat,nested,flat_nested_anchors c cat a b d⟩
+
+/-- Cardinality alone would merge shapes the ordered projection separates: a binary and a flat
+three-item coordination have the same anchor count and different anchor topologies. -/
+theorem projectAnchors_flat_ne_nested {lexicon : Lexicon L} {category : Category}
+    {pair triple : Syntax L}
+    (pairDerives : Derives lexicon pair category) (tripleDerives : Derives lexicon triple category)
+    (sameCount : anchorCount pair = anchorCount triple)
+    (pairShape : projectAnchors pair = .group [.leaf 0,.leaf 1])
+    (tripleShape : projectAnchors triple = Scope.flat) :
+    ∃ x y : Syntax L, Derives lexicon x category ∧ Derives lexicon y category ∧
+      anchorCount x = anchorCount y ∧ projectAnchors x ≠ projectAnchors y := by
+  refine ⟨pair,triple,pairDerives,tripleDerives,sameCount,?_⟩
+  rw [pairShape,tripleShape]
+  simp [Scope.flat]
+
+/-- The anchor-shape law of `Scope.anchor_shape_separate`, over derivable trees whose ordered
+projections are the two shapes it names. -/
+theorem anchor_shape_separate {lexicon : Lexicon L} {category : Category}
+    (survivors : Scope.AnchorPattern → Prop)
+    (p : Selection.Package Scope.AnchorPattern Scope.Anchors)
+    (packed : Selection.Packs survivors Scope.AnchorPattern.anchors p)
+    {flatTree nestedTree : Syntax L}
+    (flatDerives : Derives lexicon flatTree category)
+    (nestedDerives : Derives lexicon nestedTree category)
+    (flatShape : projectAnchors flatTree = Scope.flat)
+    (nestedShape : projectAnchors nestedTree = Scope.nested)
+    (flatSites nestedSites : List (List Nat)) :
+    ∃ x y : Syntax L, Derives lexicon x category ∧ Derives lexicon y category ∧
+      ¬ (p.readings ⟨projectAnchors x,flatSites⟩ ∧ p.readings ⟨projectAnchors y,nestedSites⟩) := by
+  refine ⟨flatTree,nestedTree,flatDerives,nestedDerives,?_⟩
+  rw [flatShape,nestedShape]
+  exact Scope.anchor_shape_separate survivors p packed flatSites nestedSites
 
 def setoid (lexicon : Lexicon L) (category : Category) (surface : Surface) :
     Setoid (SchemaWitness lexicon category surface) where
@@ -160,6 +289,7 @@ mutual
   /-- The declared role sequence determines which edge is opaque to an enclosing search. -/
   def projectHost : Syntax L → Scope.Host
     | .node (.coordinate c _ _) [a,b] => .coordinate c (projectHost a) (projectHost b)
+    | .node (.serialCoordinate c _) children => serialHost c children
     | .node (.auxiliary _ _ _ _ _ _) [a] => .auxiliary (projectHost a)
     | .node (.verb _ _ frame _) children => .frame (frameHost children frame)
     | .node (.preposition _ _) [a] => .role (projectHost a)
@@ -174,6 +304,12 @@ mutual
     | .marker _ :: _ :: rest,.marked _ _ :: frame => frameHost rest frame
     | .marker _ :: rest,.fixed _ :: frame => frameHost rest frame
     | _,_ => .leaf 0
+  /-- A flat serial coordination has the same right-periphery topology as the binary rule
+  applied to its coordinands in order: only the last one stays reachable. -/
+  def serialHost : Coordinator → List (Syntax L) → Scope.Host
+    | _,[] => .leaf 0
+    | _,[only] => projectHost only
+    | c,first :: rest => .coordinate c (projectHost first) (serialHost c rest)
 end
 
 theorem actual_nonfinal_boundary (c : Coordinator) (cat : Category) (a b : Syntax L)

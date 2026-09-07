@@ -120,6 +120,9 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
   | coordinate {coordinator : Coordinator} {category right : Category} {a b : Surface} :
       Linearizes lexicon (.coordinate coordinator category right) [a, b] (a ++ coordinator.surface
         ++ b)
+  | serialCoordinate {coordinator : Coordinator} {category : Category} {items : List Surface} :
+      Linearizes lexicon (.serialCoordinate coordinator category) items
+        (Surface.serial coordinator.surface items)
 
 mutual
   /-- Realization does not choose a reading or certify grammatical licensing. -/

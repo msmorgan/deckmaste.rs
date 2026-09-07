@@ -40,6 +40,10 @@ inductive NominalUse (features : Declarations L) : Syntax L → Countability →
   | coordinate {c : Coordinator} {number : Number} {a b : Syntax L} {use : Countability} :
       NominalUse features a use → NominalUse features b use →
       NominalUse features (.node (.coordinate c (.nominal number)) [a,b]) use
+  | serialCoordinate {c : Coordinator} {number : Number} {children : List (Syntax L)}
+      {use : Countability} :
+      (∀ child ∈ children, NominalUse features child use) →
+      NominalUse features (.node (.serialCoordinate c (.nominal number)) children) use
 
 inductive DeterminerUse (features : Declarations L) : Syntax L → Countability → Prop where
   | word {head : L} {number : Number} {use : Countability} : features.determinerUse head use →
@@ -54,14 +58,20 @@ inductive Transparent : Syntax L → Prop where
   | genitive {number : Number} {possessor : Syntax L} :
       Transparent (.node (.genitive number) [possessor])
 
-/-- Targeting precedes descriptive modifiers; adjective ordering otherwise stays open. -/
-def containsTarget : Syntax L → Bool
-  | .node (.targeting _ _) _ => true
-  | .modify _ head | .node (.attributive _ _) [head] | .relativeForm _ head _ _ _ =>
-    containsTarget head
-  | .node (.coordinate _ _ _) [a,b] => containsTarget a || containsTarget b
-  | .node (.adjunct _ _ _) [head,_] => containsTarget head
-  | _ => false
+mutual
+  /-- Targeting precedes descriptive modifiers; adjective ordering otherwise stays open. -/
+  def containsTarget : Syntax L → Bool
+    | .node (.targeting _ _) _ => true
+    | .modify _ head | .node (.attributive _ _) [head] | .relativeForm _ head _ _ _ =>
+      containsTarget head
+    | .node (.coordinate _ _ _) [a,b] => containsTarget a || containsTarget b
+    | .node (.serialCoordinate _ _) children => childrenContainTarget children
+    | .node (.adjunct _ _ _) [head,_] => containsTarget head
+    | _ => false
+  def childrenContainTarget : List (Syntax L) → Bool
+    | [] => false
+    | first :: rest => containsTarget first || childrenContainTarget rest
+end
 
 inductive Temporal (features : Declarations L) : Syntax L → Prop where
   | noun {head : L} {number : Number} : features.temporalNoun head →
@@ -73,6 +83,9 @@ inductive Temporal (features : Declarations L) : Syntax L → Prop where
   | coordinate {c : Coordinator} {category : Category} {a b : Syntax L} :
       Temporal features a → Temporal features b →
       Temporal features (.node (.coordinate c category) [a,b])
+  | serialCoordinate {c : Coordinator} {category : Category} {children : List (Syntax L)} :
+      (∀ child ∈ children, Temporal features child) →
+      Temporal features (.node (.serialCoordinate c category) children)
 
 /-- These checks complement category/number checking; none consult a spelling or card identity. -/
 def Local (features : Declarations L) (tree : Syntax L)
@@ -89,6 +102,8 @@ def Local (features : Declarations L) (tree : Syntax L)
   | .sharedCoordination _ (.nounPhrase _) left right =>
       ((left.nominalCase features.nominalCase gapCase).common
         (right.nominalCase features.nominalCase gapCase)).Argument
+  | .node (.serialCoordinate _ (.nounPhrase _)) children =>
+      (childrenNominalCase features.nominalCase children gapCase).Argument
   | .node (.determine _) [det,head] =>
       (∃ use, NominalUse features head use ∧ DeterminerUse features det use) ∨
         (Transparent det ∧ ∃ use, NominalUse features head use)

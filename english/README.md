@@ -127,6 +127,15 @@ sentences retained alongside them.
 `Selection` and `RolePreference` retain optional preference-view algebra;
 `Scope`, `GrammaticalScope` and `FrameScope` retain local scope and projection
 laws. A selected view or one scope class is never the complete v3 reading set.
+The anchor abstraction is now projected, not cardinality-only:
+`FrameScope.projectAnchors` maps a tree onto `Scope.Anchors`, retaining ordered
+anchors and group arity, and `FrameScope.anchorCount` survives as the coarse
+measure it bounds (`FrameScope.anchorCount_anchorsFrom`). Both shapes the
+boundary laws name are inhabited by derivable trees:
+`FamilyWitnesses.serial_anchor_shapes` projects a flat serial coordination onto
+`Scope.flat` and the nested binary bracketing of the same coordinands onto
+`Scope.nested`, and `FamilyWitnesses.serial_anchor_count_coarser` exhibits two
+derivable trees the cardinality alone would merge.
 Those modules are outside the admission import closure. Their former carrier
 names are now `Scope.AnchorPattern` and `GrammaticalScope.SchemaWitness`, leaving
 one public `Reading` concept. The obsolete `Analysis.Selected`, global
@@ -141,3 +150,15 @@ additional adjective, placement, sharing and auxiliary cases. The
 continues to route richer linguistic elaborations and production correspondence.
 This landing claims connected families and the named proofs, not an exhaustive
 Oracle grammar, a global absence of unintended ambiguity, or correctness of Rust.
+
+`Construction.serialCoordinate` gives flat serial-comma Coordination its own
+production, distinct from the binary rule repeated, and `Surface.serial` its own
+linearization in both surface relations.
+`FamilyWitnesses.nested_rejects_serial_surface` states a property of *this
+model*: under the declared linearizations the nested binary bracketing has no
+realization on the serial-comma surface, because no binary coordination emits a
+comma. It is not evidence that the nested analysis is wrong for Oracle English;
+the workbench proves properties of the proposed model, not correspondence to
+Oracle English. `FamilyWitnesses.nested_admitted_without_commas` is the
+weakened-premise contrast: remove the commas and the nested bracketing realizes
+the surface again.

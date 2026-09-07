@@ -126,6 +126,7 @@ inductive Construction (Lexeme : Type) where
   | subordinate (marker : Lexeme) (finiteness : Finiteness)
   | adjunct (host dependent : Category) (placement : Placement := .after)
   | coordinate (coordinator : Coordinator) (category : Category) (right : Category := category)
+  | serialCoordinate (coordinator : Coordinator) (category : Category)
 
 /-- Lexical licensing and word forms remain independent assumptions. -/
 structure Lexicon (Lexeme : Type) where
@@ -331,6 +332,13 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Production lexicon (.coordinate .andOr (.nounPhrase left) (.nounPhrase right))
         [.nounPhrase left, .nounPhrase right] (.nounPhrase right)
 
+  /-- Flat serial coordination is a distinct rule, not the binary rule repeated: three or more
+  coordinands are sisters under one node. -/
+  | serialCoordinate {coordinator : Coordinator} {category : Category} {n : Nat} :
+      coordinable category = true →
+      Production lexicon (.serialCoordinate coordinator category)
+        (List.replicate (n + 3) category) (coordinationResult coordinator category)
+
 inductive RelativeForm where
   | that_ | zero | fronted | supplementary
   deriving DecidableEq
@@ -393,6 +401,9 @@ def subjectAgreement {Lexeme : Type} (position : SubjectPosition) : Syntax Lexem
   | .node (.coordinate .or_ (.nounPhrase left) (.nounPhrase right)) _
   | .node (.coordinate .andOr (.nounPhrase left) (.nounPhrase right)) _ =>
       some (match position with | .beforeVerb => right | .afterVerb => left)
+  | .node (.serialCoordinate .and_ (.nounPhrase agreement)) _ =>
+      some (agreement.additive agreement)
+  | .node (.serialCoordinate _ (.nounPhrase agreement)) _ => some agreement
   | .node (.adjunct _ _ _) [head, _] => subjectAgreement position head
   | _ => none
 
@@ -417,6 +428,10 @@ inductive FiniteLicense {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       {agreement : Agreement} : FiniteLicense lexicon left agreement →
       FiniteLicense lexicon right agreement →
       FiniteLicense lexicon (.node (.coordinate coordinator category) [left, right]) agreement
+  | serialCoordinate {coordinator : Coordinator} {category : Category}
+      {children : List (Syntax Lexeme)} {agreement : Agreement} :
+      (∀ child ∈ children, FiniteLicense lexicon child agreement) →
+      FiniteLicense lexicon (.node (.serialCoordinate coordinator category) children) agreement
 
 mutual
   /-- Earlier overt VP projections supply grammatical recoverability, never game referents. -/
@@ -736,6 +751,9 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
   | coordinate {coordinator : Coordinator} {category right : Category} {a b : Surface} :
       Linearizes lexicon (.coordinate coordinator category right) [a, b] (a ++ coordinator.surface
         ++ b)
+  | serialCoordinate {coordinator : Coordinator} {category : Category} {items : List Surface} :
+      Linearizes lexicon (.serialCoordinate coordinator category) items
+        (Surface.serial coordinator.surface items)
 
 mutual
   /-- Realization does not choose a reading or certify grammatical licensing. -/

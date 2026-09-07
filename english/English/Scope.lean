@@ -89,6 +89,22 @@ inductive Anchors where
 def flat : Anchors := .group [.leaf 0, .leaf 1, .leaf 2]
 def nested : Anchors := .group [.leaf 0, .group [.leaf 1, .leaf 2]]
 
+mutual
+  /-- Coordination groups in an ordered anchor topology: the quantity a cardinality measure sees. -/
+  def Anchors.groups : Anchors → Nat
+    | .leaf _ => 0
+    | .group children => Anchors.groupList children + 1
+  def Anchors.groupList : List Anchors → Nat
+    | [] => 0
+    | first :: rest => first.groups + Anchors.groupList rest
+end
+
+theorem Anchors.groupList_append (a b : List Anchors) :
+    Anchors.groupList (a ++ b) = Anchors.groupList a + Anchors.groupList b := by
+  induction a with
+  | nil => simp [Anchors.groupList]
+  | cons first rest ih => simp [Anchors.groupList, ih, Nat.add_assoc]
+
 /-- Site assignments may vary while every ordered anchor remains part of the class identity. -/
 structure AnchorPattern where
   anchors : Anchors

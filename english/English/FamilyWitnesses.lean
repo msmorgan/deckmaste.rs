@@ -1,4 +1,5 @@
 import English.GrammarWitnesses
+import English.FrameScope
 
 /-! One connected environment exercises the grammar families and their composition. -/
 namespace English.FamilyWitnesses
@@ -147,5 +148,146 @@ theorem document_rejects_bare_nominal :
   intro h
   cases h with
   | document h => cases h
+
+/-! Flat serial-comma Coordination: three coordinands under one node, whose surface carries the
+serial commas, beside the nested binary bracketing of the same three coordinands. -/
+
+def whitened : Reading Lexeme := .node .barePlural [modified]
+def serialThree : Reading Lexeme :=
+  FrameScope.serial .and_ (.nounPhrase plural) [objects, temporal, whitened]
+def nestedThree : Reading Lexeme :=
+  FrameScope.group .and_ (.nounPhrase plural) objects
+    (FrameScope.group .and_ (.nounPhrase plural) temporal whitened)
+def pairTwo : Reading Lexeme := FrameScope.group .and_ (.nounPhrase plural) objects temporal
+
+/-- The serial surface: the Oxford comma before the coordinator is part of the realization. -/
+def serialSurface : Surface :=
+  ["creatures", .closing ",", "turns", .closing ",", "and", "white", "creatures"]
+
+theorem whitened_derives : Derives grammar whitened (.nounPhrase plural) :=
+  JudgesIn.node (lexicon := grammar) .barePlural (.cons modified_derives .nil)
+theorem whitened_realizes : Reading.Realizes grammar whitened ["white", "creatures"] :=
+  Reading.Realizes.node (lexicon := grammar)
+    (.cons (.modify adjective_realizes noun_realizes) .nil) .barePlural
+
+theorem serialThree_derives : Derives grammar serialThree (.nounPhrase plural) :=
+  JudgesIn.node (lexicon := grammar) (Production.serialCoordinate (n := 0) rfl)
+    (.cons objects_derives (.cons temporal_derives (.cons whitened_derives .nil)))
+theorem serialThree_realizes : Reading.Realizes grammar serialThree serialSurface :=
+  Reading.Realizes.node (lexicon := grammar)
+    (.cons objects_realizes (.cons temporal_realizes (.cons whitened_realizes .nil)))
+    (.serialCoordinate (lexicon := grammar))
+
+theorem nestedThree_derives : Derives grammar nestedThree (.nounPhrase plural) :=
+  JudgesIn.node (lexicon := grammar) (Production.coordinate rfl)
+    (.cons objects_derives
+      (.cons (JudgesIn.node (lexicon := grammar) (Production.coordinate rfl)
+        (.cons temporal_derives (.cons whitened_derives .nil))) .nil))
+theorem nestedThree_realizes : Reading.Realizes grammar nestedThree
+    ["creatures", "and", "turns", "and", "white", "creatures"] :=
+  Reading.Realizes.node (lexicon := grammar)
+    (.cons objects_realizes
+      (.cons (Reading.Realizes.node (lexicon := grammar)
+        (.cons temporal_realizes (.cons whitened_realizes .nil)) .coordinate) .nil))
+    .coordinate
+
+theorem pairTwo_derives : Derives grammar pairTwo (.nounPhrase plural) :=
+  JudgesIn.node (lexicon := grammar) (Production.coordinate rfl)
+    (.cons objects_derives (.cons temporal_derives .nil))
+
+theorem serial_admitted :
+    Reading.Admitted environment [] serialThree (.nounPhrase plural) serialSurface := by
+  refine ⟨⟨serialThree_derives, ?_, ?_, ?_⟩, serialThree_realizes⟩
+  · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
+      Features.Conforms, Features.ChildrenConform, Features.Local, childrenNominalCase,
+      Syntax.nominalCase, Case.common, Case.Argument, Features.containsTarget]
+    exact ⟨noun_use, .modify noun_use⟩
+  · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
+      Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.exposed,
+      Dependencies.childrenExposed]
+  · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
+      Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+
+private theorem objects_surface {surface : Surface}
+    (realized : Reading.Realizes grammar objects surface) :
+    surface = (["creatures"] : Surface) := by
+  cases realized with
+  | node children linearizes =>
+    cases linearizes
+    cases children with
+    | cons head _ =>
+      cases head with
+      | noun declared => exact declared.2.2
+
+private theorem nested_surface {surface : Surface}
+    (realized : Reading.Realizes grammar nestedThree surface) :
+    ∃ rest, surface = (["creatures", "and"] : Surface) ++ rest := by
+  cases realized with
+  | node children linearizes =>
+    cases linearizes with
+    | coordinate =>
+      cases children with
+      | cons head _ => exact ⟨_, by rw [objects_surface head]; rfl⟩
+
+/-- Under the declared linearizations the nested binary bracketing has no realization on the
+serial-comma surface: a binary coordination emits its coordinator between its two coordinands and
+introduces no comma. This is a property of this model's declared linearizations, not evidence
+that the nested analysis is wrong for Oracle English. -/
+theorem nested_rejects_serial_surface :
+    ¬ Reading.Admitted environment [] nestedThree (.nounPhrase plural) serialSurface := by
+  rintro ⟨_, realized⟩
+  obtain ⟨rest, equation⟩ := nested_surface realized
+  simp [serialSurface] at equation
+
+/-- Weakened premise: drop the comma atoms from the surface and the same nested bracketing is
+admitted, so the exclusion above rests on the declared linearizations, not on the bracketing. -/
+theorem nested_admitted_without_commas :
+    Reading.Admitted environment [] nestedThree (.nounPhrase plural)
+      ["creatures", "and", "turns", "and", "white", "creatures"] := by
+  refine ⟨⟨nestedThree_derives, ?_, ?_, ?_⟩, nestedThree_realizes⟩
+  · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
+      Features.Conforms, Features.ChildrenConform, Features.Local,
+      Syntax.nominalCase, Case.common, Case.Argument, Features.containsTarget]
+    exact ⟨noun_use, .modify noun_use⟩
+  · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
+      Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.exposed,
+      Dependencies.childrenExposed]
+  · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
+      Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+
+/-- Both bracketings of the same three coordinands derive, and their anchor cardinality differs. -/
+theorem serial_flat_nested_differ :
+    ∃ flatTree nestedTree : Reading Lexeme,
+      Derives grammar flatTree (.nounPhrase plural) ∧
+      Derives grammar nestedTree (.nounPhrase plural) ∧
+        FrameScope.anchorCount flatTree ≠ FrameScope.anchorCount nestedTree :=
+  FrameScope.flat_nested_differ serialThree_derives nestedThree_derives
+
+/-- The two derivable bracketings project onto the two anchor shapes the boundary abstraction
+names, and a binary coordination projects onto a two-anchor group. -/
+theorem serial_anchor_shapes :
+    FrameScope.projectAnchors serialThree = Scope.flat ∧
+    FrameScope.projectAnchors nestedThree = Scope.nested ∧
+    FrameScope.projectAnchors pairTwo = .group [.leaf 0, .leaf 1] := ⟨rfl, rfl, rfl⟩
+
+theorem serial_anchor_shape_separate (survivors : Scope.AnchorPattern → Prop)
+    (p : Selection.Package Scope.AnchorPattern Scope.Anchors)
+    (packed : Selection.Packs survivors Scope.AnchorPattern.anchors p)
+    (flatSites nestedSites : List (List Nat)) :
+    ∃ x y : Reading Lexeme, Derives grammar x (.nounPhrase plural) ∧
+      Derives grammar y (.nounPhrase plural) ∧
+      ¬ (p.readings ⟨FrameScope.projectAnchors x, flatSites⟩ ∧
+          p.readings ⟨FrameScope.projectAnchors y, nestedSites⟩) :=
+  FrameScope.anchor_shape_separate survivors p packed serialThree_derives nestedThree_derives
+    rfl rfl flatSites nestedSites
+
+/-- The cardinality alone would merge a binary coordination with a flat three-item one: same
+anchor count, different ordered anchor topology. -/
+theorem serial_anchor_count_coarser :
+    ∃ x y : Reading Lexeme, Derives grammar x (.nounPhrase plural) ∧
+      Derives grammar y (.nounPhrase plural) ∧
+      FrameScope.anchorCount x = FrameScope.anchorCount y ∧
+      FrameScope.projectAnchors x ≠ FrameScope.projectAnchors y :=
+  FrameScope.projectAnchors_flat_ne_nested pairTwo_derives serialThree_derives rfl rfl rfl
 
 end English.FamilyWitnesses

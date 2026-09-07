@@ -172,6 +172,8 @@ theorem control_unique (tree : Reading Lexeme)
     case document rule => cases rule <;> cases resultEq
     case adjunct license => cases license <;> cases resultEq
     case coordinate licensed => exact False.elim (coordination_not_type _ _ licensed resultEq.symm)
+    case serialCoordinate licensed =>
+      exact False.elim (coordination_not_type _ _ licensed resultEq.symm)
   case rightNodeRaising body filler =>
     cases resultEq
     have localCheck := admitted.1.2.2.2.1

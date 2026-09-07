@@ -13,14 +13,22 @@ def postmodifierTree (head marker : L) (form : InflectionalForm) (voice : Voice)
   .node (.verb head form [object agreement] voice)
     [.node (.adjunct (.nounPhrase agreement) .prepositionPhrase)
       [obj,.node (.preposition marker role.category) [value]]]
-/-- PP occurrences on governed material's right periphery, in source order.
-A PP's own complement is not another occurrence on its enclosing noun's edge. -/
-def postmodifiers : Syntax L → List (Syntax L)
-  | .node (.adjunct _ .prepositionPhrase .after) [head, mobile] => postmodifiers head ++ [mobile]
-  | .node (.coordinate _ _ _) [_, right] => postmodifiers right
-  | .node .barePlural [head] | .node (.determine _) [_, head] => postmodifiers head
-  | .modify _ head => postmodifiers head
-  | _ => []
+mutual
+  /-- PP occurrences on governed material's right periphery, in source order.
+  A PP's own complement is not another occurrence on its enclosing noun's edge. -/
+  def postmodifiers : Syntax L → List (Syntax L)
+    | .node (.adjunct _ .prepositionPhrase .after) [head, mobile] => postmodifiers head ++ [mobile]
+    | .node (.coordinate _ _ _) [_, right] => postmodifiers right
+    | .node (.serialCoordinate _ _) children => lastPostmodifiers children
+    | .node .barePlural [head] | .node (.determine _) [_, head] => postmodifiers head
+    | .modify _ head => postmodifiers head
+    | _ => []
+  /-- Only the final coordinand of a flat serial coordination has a right periphery. -/
+  def lastPostmodifiers : List (Syntax L) → List (Syntax L)
+    | [] => []
+    | [last] => postmodifiers last
+    | _ :: rest => lastPostmodifiers rest
+end
 
 def matchesRole (marker : L) (role : Complement) : Syntax L → Prop
   | .node (.preposition head category) [_] => head = marker ∧ category = role.category

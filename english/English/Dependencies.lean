@@ -72,7 +72,8 @@ def Local (features : Declarations L) : Syntax L → Prop
   | .node (.finite _ _ _) [subject,_] =>
       (∃ category, subject = .gap category) ∨ exposed subject = []
   | .node (.document _) children => childrenExposed children .complement = []
-  | .node (.coordinate _ _ _) children => childrenExposed children .complement = []
+  | .node (.coordinate _ _ _) children | .node (.serialCoordinate _ _) children =>
+      childrenExposed children .complement = []
   | .frameCoordination _ a b =>
       childrenExposed a .complement = [] ∧ childrenExposed b .complement = []
   | .sharedCoordination _ _ a b => exposed a = exposed b

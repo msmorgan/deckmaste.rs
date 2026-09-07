@@ -44,20 +44,33 @@ def Relation.casePosition : Relation → CasePosition
   | .subject => .nominative
   | .object | .complement => .accusative
 
-/-- Ordinary headed NPs are Case-invariant; lexical NPs declare their own licences. -/
-def Syntax.nominalCase {L : Type} (wordCase : L → Case) (tree : Syntax L)
-    (gapCase : Case := .nominativeOrAccusative) : Case :=
-  match tree with
-  | .word head (.nounPhrase _) | .identity head (.nounPhrase _) => wordCase head
-  | .gap (.nounPhrase _) => gapCase
-  | .node (.determine _) _ | .node .barePlural _ | .node .bareMass _ => .nominativeOrAccusative
-  | .node (.coordinate _ (.nounPhrase _) (.nounPhrase _)) [left, right]
-  | .sharedCoordination _ (.nounPhrase _) left right =>
-      (left.nominalCase wordCase gapCase).common (right.nominalCase wordCase gapCase)
-  | .node (.adjunct (.nounPhrase _) _ _) [head, _] => head.nominalCase wordCase gapCase
-  | .node (.rightNodeRaising (.nounPhrase _) _) [body, head] =>
-      body.nominalCase wordCase (head.nominalCase wordCase gapCase)
-  | _ => .noCommonCase
+mutual
+  /-- Ordinary headed NPs are Case-invariant; lexical NPs declare their own licences. -/
+  def Syntax.nominalCase {L : Type} (wordCase : L → Case) (tree : Syntax L)
+      (gapCase : Case := .nominativeOrAccusative) : Case :=
+    match tree with
+    | .word head (.nounPhrase _) | .identity head (.nounPhrase _) => wordCase head
+    | .gap (.nounPhrase _) => gapCase
+    | .node (.determine _) _ | .node .barePlural _ | .node .bareMass _ => .nominativeOrAccusative
+    | .node (.coordinate _ (.nounPhrase _) (.nounPhrase _)) [left, right]
+    | .sharedCoordination _ (.nounPhrase _) left right =>
+        (left.nominalCase wordCase gapCase).common (right.nominalCase wordCase gapCase)
+    | .node (.serialCoordinate _ (.nounPhrase _)) children =>
+        childrenNominalCase wordCase children gapCase
+    | .node (.adjunct (.nounPhrase _) _ _) [head, _] => head.nominalCase wordCase gapCase
+    | .node (.rightNodeRaising (.nounPhrase _) _) [body, head] =>
+        body.nominalCase wordCase (head.nominalCase wordCase gapCase)
+    | _ => .noCommonCase
+  /-- Every coordinand of a flat serial coordination licenses the same Case, as in the binary
+  rule; an empty coordination licenses none. -/
+  def childrenNominalCase {L : Type} (wordCase : L → Case) (trees : List (Syntax L))
+      (gapCase : Case := .nominativeOrAccusative) : Case :=
+    match trees with
+    | [] => .noCommonCase
+    | [only] => only.nominalCase wordCase gapCase
+    | first :: rest =>
+        (first.nominalCase wordCase gapCase).common (childrenNominalCase wordCase rest gapCase)
+end
 
 def CaseAt {L : Type} (wordCase : L → Case) (relation : Relation)
     (category : Category) (tree : Syntax L)

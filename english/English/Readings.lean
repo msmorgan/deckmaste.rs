@@ -22,6 +22,10 @@ inductive NonfiniteUse : Reading L → Prop where
   | coordinate {coordinator : Coordinator} {category : Category} {left right : Reading L} :
       NonfiniteUse left → NonfiniteUse right →
       NonfiniteUse (.node (.coordinate coordinator category) [left, right])
+  | serialCoordinate {coordinator : Coordinator} {category : Category}
+      {children : List (Reading L)} :
+      (∀ child ∈ children, NonfiniteUse child) →
+      NonfiniteUse (.node (.serialCoordinate coordinator category) children)
   | ellipsis {form : InflectionalForm} {voice : Voice} : NonfiniteUse (.ellipsis form voice)
 
 /-- Tense is available to parents without confusing it with finiteness or morphological form. -/

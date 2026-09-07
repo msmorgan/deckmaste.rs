@@ -633,7 +633,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.FrameScope.attachment_anchors` | Kept. |
 | `English.FrameScope.step_preserves_anchors` | Kept. |
 | `English.FrameScope.related_preserves_anchors` | Kept; proof/signature re-spelled for the renamed schema carrier or v3 admission. |
-| `English.FrameScope.flat_nested_differ` | Kept. |
+| `English.FrameScope.flat_nested_differ` | Kept; re-spelled over derivable trees. The flat side is now `Construction.serialCoordinate`, which has a production, so the statement carries `Derives` for both bracketings; the arithmetic it used to assert is retained as `English.FrameScope.flat_nested_anchors`. |
 | `English.FrameScope.setoid` | Kept. |
 | `English.FrameScope.key` | Kept. |
 | `English.FrameScope.key_exact` | Kept; proof/signature re-spelled for the renamed schema carrier or v3 admission. |

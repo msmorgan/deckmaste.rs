@@ -57,6 +57,15 @@ def Surface.join (separator : Surface) : List Surface → Surface
   | [item] => item
   | item :: next :: rest => item ++ separator ++ Surface.join separator (next :: rest)
 
+/-- Serial coordination of three or more units: commas between units and the coordinator before
+the last one, so the comma preceding the coordinator is retained. The two-item shape is only ever
+reached as the tail of a longer list, where that comma is the serial one. -/
+def Surface.serial (coordinator : Surface) : List Surface → Surface
+  | [] => []
+  | [item] => item
+  | [next, last] => next ++ [.closing ","] ++ coordinator ++ last
+  | item :: rest => item ++ [.closing ","] ++ Surface.serial coordinator rest
+
 def Surface.capitalize : Surface → Surface
   | [] => []
   | first :: rest => first.capitalize :: rest
