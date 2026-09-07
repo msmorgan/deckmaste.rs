@@ -25,5 +25,8 @@ pub mod abilities;
 pub mod card;
 pub mod events;
 pub mod phrase;
+pub mod reader;
+pub mod ron;
+pub mod rules;
 pub mod triggers;
 pub mod words;

@@ -244,6 +244,30 @@ fn kind_names<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Ident>, 
 }
 
 impl<Metadata> MacroDef<Metadata> {
+    /// This definition with its consumer metadata dropped: the same name,
+    /// kinds, signature, template and body, carrying the unit payload
+    /// [`MacroSet`] stores.
+    ///
+    /// The metadata is opaque to this crate, so a consumer that reads
+    /// declarations under its OWN metadata type — or under an ignoring one,
+    /// which is how a second consumer of the same declaration files reads
+    /// them — has no other way to register what it read: the registry's
+    /// entries are `MacroDef<()>`, and `body` is crate-private, so the value
+    /// cannot be rebuilt from outside.
+    #[must_use]
+    pub fn erase_metadata(&self) -> MacroDef {
+        MacroDef {
+            name: self.name,
+            kinds: self.kinds.clone(),
+            params: self.params.clone(),
+            template: self.template.clone(),
+            plural: self.plural.clone(),
+            frames: self.frames.clone(),
+            metadata: (),
+            body: self.body.clone(),
+        }
+    }
+
     #[must_use]
     pub fn body(&self) -> &str {
         &self.body
