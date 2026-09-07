@@ -19,7 +19,11 @@ counted, listed, and re-placed by hand; the converter is deleted. Oracles:
 writer's positional/embed elision is what `semantics-v2-embed-candidates`
 reads its evidence from. Standard constraints apply.
 
-## Landing record (2026-09-07)
+## Landing record (first landing, 2026-09-07)
+
+SUPERSEDED by the ruling and the second landing below, which resolve its
+STOP 1 and land the conversion. Kept for the evidence that produced the
+ruling.
 
 **The ticket does not land. Its central instruction — load each card file and
 reserialise its value through the dialect's writer — is unimplementable
@@ -251,3 +255,244 @@ untouched. Positional writing applies to one-field constructor and macro
 applications (`colorIs(Red)`, `hasType(Creature)`), never to multi-field
 ones, so no binder name the Lean contract relies on disappears from a
 multi-field site. Scratchpad only, deleted after. Oracles unchanged.
+
+## Landing record (second landing, 2026-09-07)
+
+The ruling above lands. `plugins_v2`'s cards, tokens, rules rows and family
+bodies now write the dialect: injections and numeral leaves bare, one-field
+constructor applications positional. 1,610 rewrites across 413 files, and
+`lean/Generated` is byte-identical to the step-1 baseline through every one.
+
+Measured on `qkwunvnp` (`test: the corpus stays in the dialect`), `nproc` 24,
+load average 1.77.
+
+### PROVE
+
+**No silent loss.** Nothing stopped being covered, and no VALUE changed. Four
+oracles, each run on the converted tree:
+
+- `cargo xtask lean-check`: `plugins_v2/canon` 118/118, `plugins_v2/testing`
+  2/2, and **`lean/Generated/{Canon,Testing}.lean` byte-identical to the
+  step-1 baseline** — the same 267,615 B, `diff -r` clean. A rewrite that
+  elided the wrong constructor, or dropped a binder a defaulted field needed,
+  would move those bytes.
+- `cargo xtask facts check`: both generated files up to date; neither
+  regenerated, so `Facts.lean` and `FactsGen.idr` are byte-identical too.
+- **Every card, token and rules row read to the same value before and after.**
+  Each of the 120 cards, 1 token and 3 rules tables was read and written
+  through the dialect writer into a scratchpad dump before the conversion and
+  again after: **0 differing lines.** The only diff the dump showed was the
+  `HashMap` iteration order of a declaration's `params`, which is unstable
+  between runs and identical once normalised.
+- The whole gate closure green (below), including
+  `deckmaste_construction_core`'s builtin reading and `xtask`'s facts
+  generation, which are the corpus's OTHER two readers.
+
+**Every comment survives, byte for byte.** 2,483 comment lines across 2,219
+corpus files before; **2,483 after, with zero drift in any file** — compared
+text-for-text, not counted. The converter refuses to elide or re-shape any
+application whose parentheses hold a comment, so nothing had to be re-placed
+by hand. The ruling's interior-comment ceremony therefore reports **0
+interior comments in card files** (canon and testing both keep their comments
+in the leading block) and **835 interior comments in 218 declaration files,
+all preserved in place**.
+
+**Structural laws.** The Lean build ends in success with no warnings (80
+jobs). `cargo test -p deckmaste_semantics_v2 --test lean_drift` green: the
+landing edits no Rust mirror declaration at all. The emitter stays total and
+every emitted card still proves. The conversion is IDEMPOTENT: a second run
+over the converted tree makes 0 rewrites.
+
+**No word-naming.** No guard added here names a lexeme, construction, verb,
+noun, preposition or card identity. The converter resolves every head against
+the mirror's own declared schema (`cargo xtask map enums`) — a constructor is
+elided because its `(type, variant)` pair carries `#[macro_ron(embed)]` or
+`#[macro_ron(literal)]` on the mirror, never because of how it is spelled. The
+new ratchet reads four `(constructor, binder)` spellings of those declared
+markers, which is a TYPE's variants, not a word.
+
+### DISCLOSE
+
+**The converter.** A type-directed source-to-source rewrite, in the session
+scratchpad, deleted after the run; nothing of it entered version control. It
+lexes each file into a span-preserving tree, walks it from the file's root
+type (`Card` for a card, `CharacteristicBundle` for a token, `Vec<SbaRule>`
+and its two siblings for the rules tables, the declaration's own `kinds[0]`
+for a body), and reassembles by splicing ORIGINAL SLICES around rewritten
+children — which is why layout and comments come through untouched. Three
+rules fire:
+
+| Rule | Rewrites | What it does |
+| --- | --- | --- |
+| injection elided | 645 | `Simple(symbol: …)` 301, `Specific(color: …)` 172, `Of(color: …)` 172, `Lit(color: …)` 0 |
+| numeral leaf elided | 456 | `Lit(value: N)` 326, `Generic(amount: N)` 130 |
+| one-field application made positional | 509 | `SingleFaced` 119, `Target` 25, `HasType` 23, `Type` 18, `And` 16, then a tail |
+
+By scope: cards and tables 1,212 (638 embed, 368 numeral, 206 positional);
+declaration bodies 397 (7 embed, 88 numeral, 302 positional); one meta.
+
+The walk is genuinely type-directed and it has to be: `Of` is declared by four
+types, and only `ColorOrColorless::Of{color}` is an injection —
+`ManaMatch::Of{color}` has the same head AND the same binder. A name-keyed
+rewrite would have elided both. Where the expected type is unavailable — a
+macro parameter declared `Any`, which is what `mana` and `hasType` take — the
+walk falls back to resolving the head against the whole mirror and proceeds
+only when exactly one type declares that variant with those binders, which is
+how `mana(cost: [Simple(symbol: Specific(color: Of(color: Green)))])` still
+becomes `mana(cost: [Green])`: `Simple` is unique, and it hands its child the
+`SimpleManaSymbol` its own field declares.
+
+**Elision is restricted to macro-free sub-values, as the ruling says**: a
+payload containing a macro invocation or a `Param(…)` hole is left alone,
+because eliding the constructor would move the hole to a position of a
+different type. The positional rewrite has no such restriction — the
+constructor stays and only its binder goes — so `Static(spec: someMacro(…))`
+converts.
+
+**Three cards, before and after.**
+
+*A mana cost* — `Abbey Gargoyles`:
+
+```
+cost: [                                   cost: [
+    Simple(symbol: Generic(amount: 2)),       2,
+    Simple(symbol: Specific(color:            White,
+        Of(color: White))),          →        White,
+    …                                         White,
+],                                        ],
+power: Lit(value: 3),                     power: 3,
+```
+
+*A keyword with a parameter* — `Kitsune Blademaster`:
+
+```
+text: [                                   text: [
+    keyword(label: "FirstStrike"),   →        keyword(label: "FirstStrike"),
+    bushido(Lit(value: 1)),                   bushido(1),
+],                                        ],
+```
+
+The numeral leaf converts INSIDE a macro's positional argument; the macro
+invocation itself is untouched.
+
+*A triggered ability* — `Thraben Inspector`:
+
+```
+cost: [Simple(symbol: Specific(color: Of(color: White)))],   →   cost: [White],
+power: Lit(value: 1),                                        →   power: 1,
+text: [ triggered(event: zoneChange( … ), instruction: investigate(you)) ],
+```
+
+— the trigger's own line is byte-identical: every position in it is a macro
+invocation with a named signature, and the ruling leaves those alone.
+
+**STOPs.** None. Two findings that the ruling's own "wherever the reader reads
+them back unambiguously" fence settles, both reported rather than resolved by
+me:
+
+1. **A macro with a NAMED signature cannot be applied positionally, so the
+   ruling's two examples do not read.** `hasType(Creature)` and `colorIs(Red)`
+   are both refused — `1:17: Expected colon` — and the refusal is ron's own,
+   before any of our machinery: `read_args` (`expand.rs:2162`) reads a
+   `Params::Named` signature through `variant.struct_variant`, which wants a
+   map. The one-field classification the second dialect ruling added applies to
+   CONSTRUCTORS, not to macro argument lists. So macro invocations keep their
+   binders everywhere and only constructors were made positional. Making the
+   ruling's examples read is a reader change — the same classification, moved
+   to the macro path — and is out of this ticket's scope by its own fence.
+2. **The family bodies have a second reader that does not read positional
+   application, and it found this by failing.** `cargo xtask facts` reads the
+   bodies of four families into typed rows (`keyword_abilities`,
+   `keyword_actions`, `counter_kinds`, `designations` — the four `*_STUBS`
+   paths in `crates/xtask/src/facts.rs`), through a `MacroSet` that does not
+   declare `reading_positional_arguments`. The first full run converted them
+   and `facts check` broke on `designations/citysBlessing.ron`'s
+   `HeldBy(holder: Player)` → `HeldBy(Player)`. The corpus was restored from
+   the pre-conversion snapshot and re-converted with those four families
+   excluded from the positional rule; they keep their embed and numeral
+   elisions (5 and 83), which every reader reads. The cost is 963 positional
+   rewrites not made. `deckmaste_construction_core` is NOT affected — it takes
+   a body as raw text — so the exclusion is exactly the four.
+
+**Deviations and additions.**
+
+- **`SingleFaced(face: (…))` became `SingleFaced((…))` on all 119
+  single-faced cards.** It is a one-field application, so the ruling's rule
+  covers it, and it reads (`lean-check` 118/118 through it). It is also the
+  one place where the dialect's brevity costs legibility: the doubled
+  parenthesis at the head of every card is harder to read than the binder it
+  replaced. Flagged for veto — exempting an application whose payload is an
+  anonymous struct is a one-condition change, but the converter is deleted, so
+  a veto costs rebuilding it.
+- The two `plugins_v2/testing/macros/` declarations are converted as well;
+  the brief named the plugin, and they are family bodies in every sense that
+  matters.
+- New: `no_source_file_writes_out_an_elided_constructor` in `tests/corpus.rs`,
+  a ratchet so the corpus does not drift back one file at a time. It guards
+  the four `(constructor, binder)` spellings a single pair fixes unambiguously;
+  `Of(color:` and `Lit(color:` are deliberately absent, because `ManaMatch::Of`
+  shares the first and a text guard cannot tell the two apart.
+- `cargo xtask cite bless` was not run: the audit selects 0 citation sites, and
+  no citation text moved — the converter never rewrites a line that carries
+  only a comment.
+
+**Glossary.** No term this landing needed is missing from
+`docs/contexts/game-model/CONTEXT.md`.
+
+**Assurance counts.** Restored 0, re-spelled 0, retired 0,
+ignored-with-blocker 0, added 1
+(`no_source_file_writes_out_an_elided_constructor`), removed 0. Across both
+landings of this ticket: added 2, removed 0.
+
+### REPORT
+
+- `cargo xtask lean-check`: `plugins_v2/canon` 118/118, `plugins_v2/testing`
+  2/2, 0.4 s warm. `lean/Generated` byte-identical to the step-1 baseline,
+  267,615 B.
+- `lean/scripts/build`: success, 80 jobs, no warnings.
+- `cargo xtask facts check`: both generated files up to date; neither
+  regenerated.
+- `cargo test -p deckmaste_semantics_v2 --test corpus`: `plugins_v2/builtin`
+  2,414 declarations across 31 kinds; 124 nullary declarations expand;
+  `plugins_v2/canon` 118 cards; `plugins_v2/testing` 2 cards, 1 token,
+  1 sba / 1 conferral / 1 damage row; 120 cards read, wrote and read back to
+  the same value; 2,215 source files hold no elided constructor.
+- `cargo test -p deckmaste_semantics_v2 --test lean_drift`: 4 passed.
+- `cargo xtask cite check --list-noncompliant`: 0. `cargo xtask cite check`:
+  15,738 citations, 0 stale. `jj diff --git --from <ruling> --to @ | cargo
+  xtask cite audit --diff`: 0 sites.
+- `cargo xtask gate --changed` closure, run green in 2 m 16 s (46
+  `test result: ok` lines, 0 failed): `cargo test -p
+  deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2
+  -p deckmaste_semantics_v2 -p xtask`.
+- `cargo fmt --all --check` clean; clippy clean on `deckmaste_semantics_v2`
+  (`--all-targets`).
+- Diff: 413 files changed, 1,030 insertions, 1,030 deletions — a line-for-line
+  rewrite, which is what "layout untouched" looks like in a diffstat.
+- Comment identity: 2,483 comment lines over 2,219 files, before and after,
+  0 files with drift. Interior comments re-placed by hand: 0.
+
+## Handoff (second landing)
+
+The workspace is parked with `@` empty and NOT integrated. Every step of the
+brief is landed and green; the converter is deleted.
+
+Open, each already routed or newly raised:
+
+- `semantics-v2-embed-candidates` carries the marking decision and now has the
+  census this ticket's first landing wrote. Re-read its "what a card FILE
+  writes" table against the converted tree: the five marked positions are at 0
+  writes, so the table's remaining rows are the whole of the question.
+- **New, unrouted: positional application for a NAMED macro signature**
+  (STOP-note 1). It is the same argument-list classification the reader already
+  does for a one-field constructor, moved to `read_args`' `Params::Named`
+  branch, and it would let `hasType(Creature)` and `colorIs(Red)` read — 176
+  named one-field macro invocations in card source today. Wants its own ticket.
+- **New, unrouted: the facts generator's reader does not read the dialect**
+  (STOP-note 2). Four families' bodies are excluded from positional
+  application only because `cargo xtask facts` reads them through a plainer
+  `MacroSet`. Pointing it at `deckmaste_semantics_v2::ron::macro_set()` — or
+  giving it the two switches — would retire the exclusion and the 963 rewrites
+  it costs.
+- The `SingleFaced((…))` shape above is the one thing in the converted tree a
+  reviewer may want reverted.
