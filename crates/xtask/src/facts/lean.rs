@@ -583,7 +583,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let source = root.join("plugins_v2/builtin/macros/stubs");
-        let destination = temp.path().join("plugins/builtin_v2/macros/stubs");
+        let destination = temp.path().join("plugins_v2/builtin/macros/stubs");
         copy_tree(&source, &destination);
         temp
     }
@@ -593,7 +593,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/designations/EnduringStory.ron");
+            .join("plugins_v2/builtin/macros/stubs/designations/EnduringStory.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
@@ -621,7 +621,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/keyword_actions/TestAction.ron");
+            .join("plugins_v2/builtin/macros/stubs/keyword_actions/TestAction.ron");
         fs::write(
             path,
             "KeywordAction(name: \"TestAction\", spelling: \"test action\")",
@@ -639,7 +639,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/keyword_abilities/Ward.ron");
+            .join("plugins_v2/builtin/macros/stubs/keyword_abilities/Ward.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
@@ -668,7 +668,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/keyword_abilities/Ward.ron");
+            .join("plugins_v2/builtin/macros/stubs/keyword_abilities/Ward.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             &path,
@@ -718,7 +718,7 @@ mod tests {
         let temp = fixture();
         fs::write(
             temp.path()
-                .join("plugins/builtin_v2/macros/stubs/keyword_abilities/TestKeyword.ron"),
+                .join("plugins_v2/builtin/macros/stubs/keyword_abilities/TestKeyword.ron"),
             "KeywordAbility(name: \"TestKeyword\", spelling: \"test keyword\")",
         )
         .unwrap();
@@ -734,7 +734,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/designations/EnduringStory.ron");
+            .join("plugins_v2/builtin/macros/stubs/designations/EnduringStory.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
@@ -756,7 +756,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins/builtin_v2/macros/stubs/counter_kinds/Poison.ron");
+            .join("plugins_v2/builtin/macros/stubs/counter_kinds/Poison.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(path, source.replace("scope: Player", "scope: Object")).unwrap();
         let generated = render(temp.path()).unwrap();
