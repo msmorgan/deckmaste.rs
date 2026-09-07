@@ -521,10 +521,45 @@ theorem okRenownWithRenownExpansion :
       = [] := by
   decide
 
-/-- "Flying (When this creature deals combat damage to a player, …)" -/
-theorem badBodyOnBodilessKeyword :
+/-- "Flying (When this creature deals combat damage to a player, …)": flying's definition is a
+static ability [CR#702.9b], so a triggered body is the wrong category. Re-spelled from
+`badBodyOnBodilessKeyword`, which asserted the same refusal when no keyword took a static body. -/
+theorem badTriggeredBodyOnStaticKeyword :
     Ability.check [] (.keyword "Flying" [] (some (renownExpansion 1)))
       = [.keywordBodyFits "Flying"] := by
+  decide
+
+/-- "Flying (This creature can't be blocked except by creatures with flying and/or reach.)" -/
+theorem okFlyingWithFlyingDefinition : Ability.check [] flying = [] := by decide
+
+/-- "Renown 1 (This creature can't be blocked except by creatures with flying and/or reach.)":
+renown's definition is a triggered ability [CR#702.112a]. -/
+theorem badStaticBodyOnTriggeredKeyword :
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some flyingExpansion))
+      = [.keywordBodyFits "Renown"] := by
+  decide
+
+/-- "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of
+turn.)" -/
+theorem okBushidoWithBushidoDefinition : Ability.check [] (bushido 2) = [] := by decide
+
+/-- "Cycling {2} ({2}, Discard this card: Draw a card.)" -/
+theorem okCyclingWithCyclingDefinition :
+    Ability.check [] (cycling (.mana [generic 2])) = [] := by decide
+
+/-- "Flying ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
+definition is static [CR#702.9b]. -/
+theorem badActivatedBodyOnStaticKeyword :
+    Ability.check [] (.keyword "Flying" [] (some (cyclingExpansion (.mana [generic 2]))))
+      = [.keywordBodyFits "Flying"] := by
+  decide
+
+/-- "Bushido 2 ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
+definition is triggered [CR#702.45a]. -/
+theorem badActivatedBodyOnTriggeredKeyword :
+    Ability.check [] (.keyword "Bushido" [.number (.lit 2)]
+        (some (cyclingExpansion (.mana [generic 2]))))
+      = [.keywordBodyFits "Bushido"] := by
   decide
 
 /-- "Renown 1 (When you cast this spell, copy it …)" -/

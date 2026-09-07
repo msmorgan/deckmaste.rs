@@ -1164,6 +1164,22 @@ semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 semantic_macro cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword "CumulativeUpkeep" [.cost cost] (some (cumulativeUpkeepExpansion cost))
+/-- Flying's definition, a static ability: "This creature can't be blocked except by creatures
+with flying and/or reach." [CR#702.9b] -/
+semantic_macro flyingExpansion : Ability :=
+  .static (deontic thisCreature .forbid [.core .block] .patient
+    (.counterpart (allOf (.and [creature,
+      .not (.or [.hasKeyword (.the "Flying"), .hasKeyword (.the "Reach")])]))))
+/-- "Flying" with its definition. -/
+semantic_macro flying : Ability := .keyword "Flying" [] (some flyingExpansion)
+/-- Bushido N's definition, a triggered ability: "Whenever this creature blocks or becomes
+blocked, it gets +N/+N until end of turn." [CR#702.45a] -/
+semantic_macro bushidoExpansion (count : Nat) : Ability :=
+  triggeredOr (blocks thisCreature none) [becomesBlocked thisCreature none]
+    (get thisCreature (.up (.lit count)) (.up (.lit count)) (some untilEndOfTurn))
+/-- "Bushido N" with its definition. -/
+semantic_macro bushido (count : Nat) : Ability :=
+  .keyword "Bushido" [.number (.lit count)] (some (bushidoExpansion count))
 semantic_macro activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
 /-- "[cost]: <instruction>. Activate only <timing>." -/
@@ -1182,6 +1198,14 @@ semantic_macro activatedOnlyIf (cost : Cost) (instruction : Instruction) (guard 
 semantic_macro activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (limit : UsageLimit)
     (guard : Condition) : Ability :=
   .activated cost instruction none (some limit) (some guard) none
+
+/-- Cycling [cost]'s definition, an activated ability: "[Cost], Discard this card: Draw a card."
+[CR#702.29a] -/
+semantic_macro cyclingExpansion (cost : Cost) : Ability :=
+  activated (.compound [cost, .perform (discard .this (agent := .you))]) (draw (.lit 1))
+/-- "Cycling [cost]" with its definition. -/
+semantic_macro cycling (cost : Cost) : Ability :=
+  .keyword "Cycling" [.cost cost] (some (cyclingExpansion cost))
 
 /-! ## Cards -/
 
