@@ -228,24 +228,21 @@ fn closure_for_paths(
     reverse_dependency_closure(metadata, &roots)
 }
 
-/// The v2 plugin format: every tree under `plugins_v2/`, plus the
-/// `plugins/builtin_v2` symlink still standing at the old path.
+/// The v2 plugin format: every tree under `plugins_v2/`.
 fn is_plugins_v2_path(path: &Path) -> bool {
-    path.starts_with("plugins_v2") || path.starts_with("plugins/builtin_v2")
+    path.starts_with("plugins_v2")
 }
 
 /// The crate whose reader consumes any `plugins_v2` tree.
 const PLUGINS_V2_READER: &str = "deckmaste_semantics_v2";
 
-/// The builtin declaration tree, at its `plugins_v2/builtin` home and at the
-/// `plugins/builtin_v2` symlink still standing in the old place.
+/// The builtin declaration tree, at its `plugins_v2/builtin` home.
 fn is_builtin_v2_path(path: &Path) -> bool {
-    path.starts_with("plugins_v2/builtin") || path.starts_with("plugins/builtin_v2")
+    path.starts_with("plugins_v2/builtin")
 }
 
-/// What a crate's sources say when they read the builtin declarations, under
-/// either spelling of the path.
-const BUILTIN_V2_NEEDLES: &[&str] = &["builtin_v2", "plugins_v2/builtin"];
+/// What a crate's sources say when they read the builtin declarations.
+const BUILTIN_V2_NEEDLES: &[&str] = &["plugins_v2/builtin"];
 
 fn owner_for_path<'a>(metadata: &'a Metadata, path: &Path) -> Option<&'a Package> {
     let path = metadata.workspace_root.join(path);
@@ -465,7 +462,7 @@ mod tests {
         let packages = closure_for_paths(
             &metadata(),
             &[PathBuf::from(
-                "plugins/builtin_v2/macros/stubs/types/Foo.ron",
+                "plugins_v2/builtin/macros/stubs/types/Foo.ron",
             )],
             &BTreeSet::from([
                 "deckmaste_construction_core".to_owned(),

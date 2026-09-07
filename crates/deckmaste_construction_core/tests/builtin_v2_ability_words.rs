@@ -34,7 +34,7 @@ fn builtin_v2_ability_word_nursery_matches_the_independent_catalog() {
         .lines()
         .map(|surface| (declaration_name(surface), surface.to_owned()))
         .collect::<BTreeMap<_, _>>();
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let actual = declarations
         .iter()

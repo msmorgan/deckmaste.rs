@@ -17,7 +17,7 @@ use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 
 fn declarations() -> Vec<deckmaste_construction_core::macro_def::NormalizedDeclaration> {
-    read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+    read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
         .expect("builtin-v2 declarations load")
 }
 

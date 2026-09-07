@@ -98,7 +98,7 @@ fn counter<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a Nor
 #[test]
 fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let counters = declarations
         .iter()

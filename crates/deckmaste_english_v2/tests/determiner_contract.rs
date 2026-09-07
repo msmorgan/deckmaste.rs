@@ -18,7 +18,7 @@ use deckmaste_english_v2::visit::Visitor;
 
 fn parser() -> Parser {
     let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
     )
     .expect("builtin declarations load");
     let cards = CatalogProviderRows::new(

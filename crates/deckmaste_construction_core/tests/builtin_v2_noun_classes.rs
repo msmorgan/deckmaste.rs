@@ -10,7 +10,7 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 #[test]
 fn every_builtin_noun_declaration_inherits_its_class_semantics() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let mut census = BTreeMap::new();
 

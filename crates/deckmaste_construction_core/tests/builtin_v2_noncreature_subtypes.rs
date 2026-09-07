@@ -154,7 +154,7 @@ fn compact_ron(source: &str) -> String {
 #[test]
 fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load through the production reader");
 
     let mut total = 0;
@@ -174,7 +174,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
         );
 
         let directory = workspace_root
-            .join("plugins/builtin_v2/macros/stubs/subtypes")
+            .join("plugins_v2/builtin/macros/stubs/subtypes")
             .join(spec.directory);
         let authored_files = fs::read_dir(&directory)
             .unwrap_or_else(|error| panic!("reading {}: {error}", directory.display()))
@@ -240,7 +240,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
     }
     assert_eq!(total, 138);
 
-    let subtype_root = workspace_root.join("plugins/builtin_v2/macros/stubs/subtypes");
+    let subtype_root = workspace_root.join("plugins_v2/builtin/macros/stubs/subtypes");
     assert!(
         !subtype_root.join("planar").exists(),
         "planar subtypes are a named model gap, not covered inventory"
@@ -254,7 +254,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
 #[test]
 fn noncreature_subtype_surfaces_preserve_attested_number_boundaries() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2")).unwrap();
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin")).unwrap();
 
     assert_eq!(
         surfaces(subtype(
@@ -314,7 +314,7 @@ fn noncreature_subtype_surfaces_preserve_attested_number_boundaries() {
 #[test]
 fn spell_subtypes_share_one_category_without_inventing_other_subtype_domains() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2")).unwrap();
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin")).unwrap();
     let spell_names = declarations
         .iter()
         .filter(|declaration| {
@@ -339,7 +339,7 @@ fn spell_subtypes_share_one_category_without_inventing_other_subtype_domains() {
 #[test]
 fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2")).unwrap();
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin")).unwrap();
     let expected = [
         (
             SubtypeCategory::Artifact,

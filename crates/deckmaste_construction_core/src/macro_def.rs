@@ -1234,7 +1234,7 @@ pub enum ValidationError {
         spelling_head: String,
         grammar_head: String,
     },
-    #[error("builtin_v2 root must be an existing directory named `builtin` or `builtin_v2`")]
+    #[error("builtin_v2 root must be an existing directory named `builtin`")]
     InvalidBuiltinRoot,
     #[error("`{relative}` is not a recognized builtin_v2 nursery declaration location")]
     UnexpectedBuiltinLocation { relative: PathBuf },
@@ -1648,9 +1648,8 @@ fn read_sources_mapped(
 /// Reads the committed builtin-v2 nursery through the ordinary macro reader.
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
-/// named `builtin` (its home since the `plugins_v2/` move) or `builtin_v2`
-/// (the symlink left at the old path), and only `.ron` files below
-/// `macros/stubs` are read.
+/// named `builtin` (its home under `plugins_v2/`), and only `.ron` files
+/// below `macros/stubs` are read.
 /// The path fixes each file's declaration kind, subtype category, and name.
 ///
 /// # Errors
@@ -1661,7 +1660,7 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
     let named = root
         .file_name()
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name == "builtin" || name == "builtin_v2");
+        .is_some_and(|name| name == "builtin");
     if !named || !root.is_dir() {
         return Err(validation_error_at(
             root,

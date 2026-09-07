@@ -30,7 +30,7 @@ pub(super) struct FlavorWordsArgs {
     #[arg(long, default_value = "data/gen/catalogs/ability-words.txt")]
     ability_words: PathBuf,
     /// Generated flavor-word stub directory.
-    #[arg(long, default_value = "plugins/builtin_v2/macros/stubs/flavor_words")]
+    #[arg(long, default_value = "plugins_v2/builtin/macros/stubs/flavor_words")]
     output: PathBuf,
     /// Check that the generated stubs are byte-for-byte current.
     #[arg(

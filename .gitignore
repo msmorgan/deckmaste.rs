@@ -4,9 +4,6 @@
 /.superpowers/
 /plugins/*/
 !/plugins/builtin/
-# A symlink to `plugins_v2/builtin`, kept until every reader moves to the new
-# path; no trailing slash, because a symlink is a file to the ignore rules.
-!/plugins/builtin_v2
 !/plugins/canon/
 !/plugins/testing/
 !/plugins/demo/

@@ -30,7 +30,7 @@ fn builtin_v2_flavor_word_nursery_matches_the_corpus_census() {
     let cards = AtomicCards::parse(&card_bytes).expect("the corpus snapshot must parse");
     let expected = deckmaste_data::flavor_words::census(&cards, &catalog, &ability_words);
 
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let actual = declarations
         .iter()

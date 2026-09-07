@@ -172,7 +172,7 @@ fn semantic_body_comparison_preserves_whitespace_inside_strings() {
 #[test]
 fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 type declarations must load through the production reader");
     let types = type_rows(&declarations);
 
@@ -230,7 +230,7 @@ fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
         assert_eq!(
             declaration.provenance().path(),
             workspace_root
-                .join("plugins/builtin_v2/macros/stubs/types")
+                .join("plugins_v2/builtin/macros/stubs/types")
                 .join(format!("{}.ron", expected.name))
         );
     }

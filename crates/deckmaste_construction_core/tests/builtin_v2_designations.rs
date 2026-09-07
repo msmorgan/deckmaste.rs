@@ -9,7 +9,7 @@ use deckmaste_construction_core::macro_def::read_str;
 #[test]
 fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let designations = declarations
         .iter()

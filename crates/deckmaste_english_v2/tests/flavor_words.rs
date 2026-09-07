@@ -17,7 +17,7 @@ use deckmaste_english_v2::visit::Visitor;
 
 fn environment() -> ParserEnvironment {
     ParserEnvironment::try_from_parts(
-        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
             .expect("builtin-v2 declarations load"),
         [CatalogProviderRows::new(
             CatalogProvider::CardNames,

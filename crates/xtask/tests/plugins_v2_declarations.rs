@@ -64,13 +64,3 @@ fn both_readers_accept_every_builtin_declaration() {
          wrong place"
     );
 }
-
-/// The symlink left at the old path is the same tree, so a reader that has not
-/// moved yet still sees every declaration.
-#[test]
-fn the_old_path_still_reaches_the_same_declarations() {
-    let moved = read_builtin_v2(builtin()).expect("the new path reads");
-    let linked = read_builtin_v2(workspace_root().join("plugins/builtin_v2"))
-        .expect("the symlinked old path reads");
-    assert_eq!(moved.len(), linked.len());
-}

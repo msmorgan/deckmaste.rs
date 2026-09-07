@@ -148,7 +148,7 @@ fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<Adapt
 
 fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
     let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
     )
     .context("loading integrated builtin-v2 declarations")?;
     let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");

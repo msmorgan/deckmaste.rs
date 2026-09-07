@@ -27,7 +27,7 @@ fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
 #[test]
 fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let mut declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let mut declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations load");
     declarations.extend([
         declaration(
@@ -145,7 +145,7 @@ fn counter_and_designation_terms_parse_render_visit_and_own_exactly() {
     }
 
     let mut declarations =
-        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
             .expect("builtin-v2 declarations load");
     declarations.extend([
         declaration(
@@ -228,7 +228,7 @@ fn structured_power_toughness_counters_remain_nonlexical_counter_kinds() {
     }
 
     let environment = ParserEnvironment::try_from_parts(
-        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
             .expect("builtin-v2 declarations load"),
         [CatalogProviderRows::new(
             CatalogProvider::CardNames,

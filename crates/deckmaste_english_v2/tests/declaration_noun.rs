@@ -18,7 +18,7 @@ fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
 
 fn parser_with(extra: impl IntoIterator<Item = NormalizedDeclaration>) -> Parser {
     let mut declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
     )
     .expect("builtin-v2 declarations load");
     declarations.extend(extra);

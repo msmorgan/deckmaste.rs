@@ -1736,7 +1736,7 @@ mod tests {
         third_person: Option<&str>,
     ) -> ParserEnvironment {
         let mut declarations = read_builtin_v2(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
         )
         .expect("integrated builtin-v2 rows load")
         .into_iter()

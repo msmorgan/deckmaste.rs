@@ -170,7 +170,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         .lines()
         .map(|head| (declaration_name(head), head))
         .collect::<BTreeMap<_, _>>();
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let actual = declarations
         .iter()
@@ -272,7 +272,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
 #[test]
 fn landwalk_declares_one_bound_suffix_surface() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let grammar = ability(&declarations, "Landwalk")
         .grammar()
@@ -286,7 +286,7 @@ fn landwalk_declares_one_bound_suffix_surface() {
 #[test]
 fn prepositional_quality_keywords_declare_their_selected_markers() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
 
     for (name, member, nominal_number) in [
@@ -309,7 +309,7 @@ fn prepositional_quality_keywords_declare_their_selected_markers() {
 #[test]
 fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
 
     for name in [
@@ -340,7 +340,7 @@ fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
 #[test]
 fn attachment_keywords_declare_their_participial_adjective_surfaces() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     for (name, surface) in [
         ("Equip", "equipped"),
@@ -365,7 +365,7 @@ fn attachment_keywords_declare_their_participial_adjective_surfaces() {
 #[test]
 fn level_up_declares_its_distinct_block_label_surface() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let grammar = ability(&declarations, "LevelUp")
         .grammar()

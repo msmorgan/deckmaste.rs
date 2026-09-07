@@ -94,7 +94,7 @@ fn build_report_from_source(source: &str) -> anyhow::Result<CountedReport> {
     let selection_exceptions = deckmaste_english_v2::parser::selection_exception_inventory()
         .map_err(anyhow::Error::new)
         .context("validating English-v2 selection exception inventory")?;
-    let builtin_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
+    let builtin_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
     let builtin_nouns = builtin_noun_morphology(&builtin_root)?;
     let card_name_catalog_rows = super::card_name_catalog_row_count()?;
     let parenthetical_inventory = super::corpus::parenthetical_inventory()?;
@@ -969,7 +969,7 @@ mod tests {
         use deckmaste_construction_core::macro_def::Metadata;
 
         let root =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
         let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(&root)
             .expect("builtin-v2 sources authenticate independently");
         let reader = deckmaste_construction_core::macro_def::declaration_macro_set()
@@ -1095,7 +1095,7 @@ mod tests {
     #[test]
     fn builtin_noun_morphology_census_reports_changed_totals_but_keeps_its_partition_law() {
         let root =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2");
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
         let census = builtin_noun_morphology_census(&root)
             .expect("authenticated builtin-v2 noun sources census cleanly");
 

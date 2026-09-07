@@ -1534,7 +1534,7 @@ pub(crate) fn reset_reading_lookup_count() {
 #[cfg(test)]
 pub(crate) fn canonical_test_environment() -> ParserEnvironment {
     let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
     )
     .expect("integrated builtin-v2 declarations load");
     ParserEnvironment::try_from_parts(declarations, [canonical_test_catalog_provider()])

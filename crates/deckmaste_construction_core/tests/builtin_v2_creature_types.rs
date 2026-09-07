@@ -68,7 +68,7 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
         .collect::<BTreeMap<_, _>>();
     assert_eq!(expected.len(), 324, "canonical creature-type count changed");
 
-    let directory = workspace_root.join("plugins/builtin_v2/macros/stubs/subtypes/creature");
+    let directory = workspace_root.join("plugins_v2/builtin/macros/stubs/subtypes/creature");
     let authored_files = fs::read_dir(&directory)
         .expect("creature-type nursery must exist")
         .map(|entry| {
@@ -89,7 +89,7 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
         "catalog entries and committed creature-type files must be bijective"
     );
 
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let creature_types = declarations
         .iter()

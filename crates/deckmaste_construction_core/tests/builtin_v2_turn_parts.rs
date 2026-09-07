@@ -9,7 +9,7 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 #[test]
 fn turn_parts_contribute_to_the_noun_inventory_with_derived_plurals() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 turn-part declarations must load through the production reader");
     let rows = declarations
         .iter()

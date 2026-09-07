@@ -1093,7 +1093,7 @@ fn normalized_projection(
 #[test]
 fn builtin_reader_authenticates_every_final_path_family() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     for (relative, source, kind, name) in [
         (
@@ -1182,7 +1182,7 @@ fn builtin_reader_authenticates_every_final_path_family() {
     }
 
     let missing_temporary = tempfile::tempdir().unwrap();
-    let missing = missing_temporary.path().join("builtin_v2");
+    let missing = missing_temporary.path().join("builtin");
     let error = read_builtin_v2(&missing).unwrap_err();
     assert_eq!(error.path(), missing);
     let position = error.position().unwrap();
@@ -1192,7 +1192,7 @@ fn builtin_reader_authenticates_every_final_path_family() {
 #[test]
 fn builtin_reader_uses_final_paths_and_is_iteration_independent() {
     let left = tempfile::tempdir().unwrap();
-    let left_root = left.path().join("builtin_v2");
+    let left_root = left.path().join("builtin");
     fs::create_dir(&left_root).unwrap();
     write_builtin(
         &left_root,
@@ -1218,7 +1218,7 @@ KeywordAction(
     );
 
     let right = tempfile::tempdir().unwrap();
-    let right_root = right.path().join("builtin_v2");
+    let right_root = right.path().join("builtin");
     fs::create_dir(&right_root).unwrap();
     write_builtin(&right_root, "keyword_actions/Destroy.ron", DESTROY);
     write_builtin(
@@ -1271,7 +1271,7 @@ KeywordAction(
 #[test]
 fn builtin_reader_authenticates_kind_category_name_and_root() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(
         &root,
@@ -1357,7 +1357,7 @@ KeywordAction(
 #[test]
 fn builtin_kind_and_name_mismatches_ignore_decoys() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(
         &root,
@@ -1402,7 +1402,7 @@ KeywordAbility(
 #[test]
 fn builtin_subtype_category_mismatch_locates_the_category_field_value() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(
         &root,
@@ -1436,7 +1436,7 @@ Subtype(
 #[test]
 fn builtin_subtype_category_mismatch_skips_field_text_inside_raw_strings() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(
         &root,
@@ -1478,7 +1478,7 @@ fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
         ("keyword_actions/Scry.ron", "KeywordAction(name: \"Scry\""),
     ] {
         let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path().join("builtin_v2");
+        let root = temporary.path().join("builtin");
         fs::create_dir(&root).unwrap();
         write_builtin(&root, relative, source);
         let path = root.join("macros/stubs").join(relative);
@@ -1490,7 +1490,7 @@ fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
 #[test]
 fn unknown_builtin_nursery_locations_fail_closed() {
     let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin_v2");
+    let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(&root, "mystery/Scry.ron", DESTROY);
     let error = read_builtin_v2(&root).unwrap_err();
