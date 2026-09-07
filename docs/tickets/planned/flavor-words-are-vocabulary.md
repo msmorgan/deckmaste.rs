@@ -1,29 +1,20 @@
 ---
 needs: []
 ---
-**A flavor word is an open slot; the per-word declarations go.** Ruling (user,
+**The v2 reader does not register flavor words as macros.** Ruling (user,
 2026-09-07). `plugins_v2/builtin/macros/flavor_words/` holds 630 bodyless
-declarations whose only content is a spelling and a `FixedTerm` grammar.
-The semantics never invokes one: `Ability.italicHead` carries
-`flavorWord (label : FlavorWordLabel)` with the label as a string
-(`lean/Semantics/Words.lean`, inert vocabulary per `semantics-v2.md` §16),
-and nothing about a flavor word is enumerable — any italic run before an
-ability that is not an ability word is a flavor word, whatever it says.
-
-The semantics already has the shape: `flavorWord (word : FlavorWordLabel)
+declarations whose only content is a spelling and a `FixedTerm` grammar;
+they are english_v2's recognition vocabulary and stay exactly as they are.
+Editing english_v2 is out of scope. The semantics never invokes one: a
+flavor word is an open slot, `flavorWord (word : FlavorWordLabel)
 (ability : Ability)` in `Macros.lean`, ported as the builtin `flavorWord`
-helper, so a card writes `flavorWord("Kowabunga", ability)` today. What
-changes is english_v2's side. Delete the 630 declarations and the family;
-no catalog or list replaces them. The grammar gets a term that means "literally whatever string is
-here": an italic-marked run captured verbatim as the `FlavorWordLabel`,
-with the ability-word declarations still taking precedence where the run
-is one of them. Retire the `FlavorWord` meta,
-`DeclarationKind::FlavorWord`, the `flavor_words` entry in
-`BUILTIN_FAMILIES`, `FlavorWordLabelTerm`'s per-word lookup, and the
-semantics_v2 reader's registration of the family. `cargo xtask facts
-check` byte-identical; english_v2's coverage lock unchanged
-(`DECKMASTE_COVERAGE_LOCK=report`, every identity that parsed through a
-flavor-word declaration still parses through the open slot, listed if
-not). Ability words are NOT the same shape: they are a closed list with
-rules meaning per `[CR#207.2c]` and keep their declarations. Standard
-constraints apply.
+helper, so a card writes `flavorWord("Kowabunga", ability)` today with
+the label as a string.
+
+Scope, semantics_v2 only: the v2 reader (`deckmaste_semantics_v2::ron`,
+`reader.rs`) skips the `flavor_words` family so no flavor-word declaration
+enters the macro table or the corpus count; the `FlavorWord` meta and
+construction_core's reading of the family are untouched. The corpus test
+states the new count. Whether english_v2 later replaces the per-word list
+with an open-slot term is that lane's decision and is not scheduled here.
+Standard constraints apply.
