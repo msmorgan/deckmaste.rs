@@ -129,6 +129,12 @@ fn typed_card_reads_go_through_the_restricted_api() {
         let Ok(source) = std::fs::read_to_string(&path) else {
             continue;
         };
+        // The v2 grammar's `Card` is a different type with no restricted
+        // read API; a file that reads through `deckmaste_semantics_v2` is
+        // not this gate's subject.
+        if source.contains("deckmaste_semantics_v2::") {
+            continue;
+        }
         let Ok(file) = syn::parse_file(&source) else {
             continue;
         };
