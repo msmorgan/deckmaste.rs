@@ -1,30 +1,32 @@
 ---
 needs: []
 ---
-**Flavor words go back to being stubs.** Ruling (user, 2026-09-07). The
-630 files under `plugins_v2/builtin/macros/flavor_words/` are not macros:
-a flavor word is an open slot, `flavorWord (word : FlavorWordLabel)
+**Delete the flavor-word declarations.** Ruling (user, 2026-09-07). A
+flavor word is an open slot: `flavorWord (word : FlavorWordLabel)
 (ability : Ability)` in `Macros.lean`, ported as the builtin `flavorWord`
 helper, so a card writes `flavorWord("Kowabunga", ability)` with the label
-as a string. The files are english_v2's recognition vocabulary (spelling
-plus a `FixedTerm` grammar) and stay exactly as they are in content;
-editing english_v2 is out of scope; correcting `deckmaste_lexical`, the
-English v3 lexical crate, is in scope.
+as a string. Nothing about a flavor word is enumerable, so the 630
+per-word declarations under `plugins_v2/builtin/macros/flavor_words/`
+model nothing. Delete the family, the `FlavorWord` meta,
+`DeclarationKind::FlavorWord` and the `flavor_words` entry in
+construction_core's `BUILTIN_FAMILIES`, and whatever in the v2 reader or
+`xtask` registers or counts the family. The corpus test states the new
+count.
 
-Move the family back to `plugins_v2/builtin/macros/stubs/flavor_words/`,
-where it lived before `plugins-v2-dialect`'s rename, and re-point
-construction_core's `BUILTIN_FAMILIES` entry for that one family to the
-stubs path (a path constant only; no other construction_core or
-english_v2 change). The v2 reader (`deckmaste_semantics_v2::reader`)
-never reads `stubs/`, so no flavor-word declaration enters the macro
-table or the corpus count; the corpus test states the new count. The
-`FlavorWord` meta is untouched.
+english_v2 breakage this causes is accepted: English v3 is the horizon
+version and english_v2 is not corrected for this. Record what broke
+(coverage-lock identities that stopped parsing, failing tests by name)
+in the landing record and route it to the v3 tickets, not to english_v2
+fixes. The tests that fail because their subject is gone are re-spelled
+against `deckmaste_lexical`'s open slot where a v3 subject exists, and
+otherwise listed with the ticket that will re-cover them.
 
-Second part, `deckmaste_lexical`: a flavor word is an open slot there too.
-An italic run before an ability that is not a declared ability word is a
-flavor word, captured verbatim as its label; the stubs are never a lexical
-inventory source (no `Source` of any `SourceKind` points at
-`stubs/flavor_words/`), and `english-v3-lexical-inventory` reads them out
-of its "existing plugin declarations" input. Pin it: an italic run absent
-from every declaration analyses as a flavor word, and a declared ability
-word does not. Standard constraints apply.
+`deckmaste_lexical` (English v3's lexical crate) is in scope: an italic run
+before an ability that is not a declared ability word is a flavor word,
+captured verbatim as its label; no `Source` of any `SourceKind` points at
+a flavor-word list, and `english-v3-lexical-inventory` excludes the
+family from its input. Pin it: an italic run absent from every
+declaration analyses as a flavor word, and a declared ability word does
+not. Standard constraints apply, except the coverage lock: a decrease
+whose every lost identity is listed and routed is this ticket's expected
+result.
