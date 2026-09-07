@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "Cipher",
+    params: [],
     spelling: "cipher",
     grammar: FixedKeyword(
         surface: "cipher",
     ),
+    // STOP. Cipher's first half is a SPELL ability [CR#702.99a], which
+    // `Ability.category` leaves categoryless and `keywordBodyFits` refuses; its
+    // second half turns on a card being "encoded on" a creature [CR#702.99b], a
+    // relation between an exiled card and a permanent that no `Predicate` reads.
+    body: Keyword(keyword: "Cipher", params: [], body: []),
 )

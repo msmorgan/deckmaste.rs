@@ -1,7 +1,15 @@
 KeywordAbility(
     name: "Daybound",
+    params: [],
     spelling: "daybound",
     grammar: FixedKeyword(
         surface: "daybound",
     ),
+    // STOP. Daybound's second and third abilities are "As it becomes night, if this
+    // permanent is front face up, transform it" and "This permanent can't transform
+    // except due to its daybound ability" [CR#702.145b]. The first is a static that
+    // acts on a game-designation change without using the stack [CR#702.145c], and
+    // the second excepts one named ability from a prohibition; neither has a
+    // `StaticSpec`.
+    body: Keyword(keyword: "Daybound", params: [], body: []),
 )

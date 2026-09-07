@@ -1,7 +1,27 @@
 KeywordAbility(
     name: "Defender",
+    params: [],
     spelling: "defender",
     grammar: FixedKeyword(
         surface: "defender",
+    ),
+    // "A creature with defender can't attack." [CR#702.3b]
+    body: Keyword(
+        keyword: "Defender",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Attack)],
+                    role: Agent,
+                    bound: None,
+                    patient: NoPatient,
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
     ),
 )

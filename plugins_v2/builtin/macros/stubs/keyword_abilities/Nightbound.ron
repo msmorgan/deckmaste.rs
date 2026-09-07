@@ -1,7 +1,11 @@
 KeywordAbility(
     name: "Nightbound",
+    params: [],
     spelling: "nightbound",
     grammar: FixedKeyword(
         surface: "nightbound",
     ),
+    // STOP. Nightbound is daybound's opposite face and has the same shape
+    // [CR#702.145b,702.145d]; see `Daybound.ron`.
+    body: Keyword(keyword: "Nightbound", params: [], body: []),
 )

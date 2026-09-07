@@ -245,6 +245,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Defender",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -391,6 +392,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Dredge",
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -787,6 +789,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Decayed",
             counter_eligible: true,
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -917,6 +920,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Devoid",
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {

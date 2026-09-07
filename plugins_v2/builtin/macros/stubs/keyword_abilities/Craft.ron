@@ -5,4 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "craft",
     ),
+    // STOP. "Craft with [materials] [cost]" [CR#702.167a] takes the materials
+    // description as a second argument; the declaration's signature is `[Cost]`
+    // alone, so the exile cost over "permanents you control and/or cards in your
+    // graveyard" has no parameter to read.
+    body: Keyword(keyword: "Craft", params: [Cost(cost: Param(0))], body: []),
 )

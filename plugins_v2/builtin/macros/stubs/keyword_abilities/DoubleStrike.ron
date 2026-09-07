@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "DoubleStrike",
+    params: [],
     spelling: "double strike",
     grammar: FixedKeyword(
         surface: "double strike",
     ),
+    // STOP. "Double strike is a static ability that modifies the rules for the
+    // combat damage step" [CR#702.4a]; the entry states the two-step damage rule
+    // [CR#702.4b] rather than quoting an expansion.
+    body: Keyword(keyword: "DoubleStrike", params: [], body: []),
 )

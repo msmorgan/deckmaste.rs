@@ -1,7 +1,99 @@
 KeywordAbility(
     name: "Demonstrate",
+    params: [],
     spelling: "demonstrate",
     grammar: FixedKeyword(
         surface: "demonstrate",
+    ),
+    // "Demonstrate" means "When you cast this spell, you may copy it and you may
+    // choose new targets for the copy. If you copy the spell, choose an opponent.
+    // That player copies the spell and may choose new targets for that copy."
+    // [CR#702.144a]
+    body: Keyword(
+        keyword: "Demonstrate",
+        params: [],
+        body: [
+            Triggered(
+                event: Casts(
+                    player: You,
+                    spell: AsMarker(marker: Spell, subject: This),
+                    from: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: WithContinuation(
+                    policy: Optional(agent: You),
+                    body: Sequentially(
+                        steps: [
+                            Copy(
+                                sort: FromStack,
+                                subject: AsMarker(marker: Spell, subject: This),
+                                times: Lit(value: 1),
+                                exceptions: [],
+                                agent: You,
+                            ),
+                            WithContinuation(
+                                policy: Optional(agent: You),
+                                body: ChooseNewTargets(
+                                    subject: Pro(
+                                        reach: Word(word: Copy),
+                                        plurality: One,
+                                        window: Whole,
+                                    ),
+                                ),
+                                if_did: None,
+                                if_not: None,
+                            ),
+                        ],
+                    ),
+                    if_did: Sequentially(
+                        steps: [
+                            Choose(
+                                first: None,
+                                chosen: Described(
+                                    determiner: A(mode: Unmarked),
+                                    predicate: Opponent,
+                                ),
+                                disclosure: Openly,
+                                when: None,
+                                agent: You,
+                            ),
+                            Copy(
+                                sort: FromStack,
+                                subject: AsMarker(marker: Spell, subject: This),
+                                times: Lit(value: 1),
+                                exceptions: [],
+                                agent: Described(
+                                    determiner: The,
+                                    predicate: ChosenPlayer(r#ref: TheChoice),
+                                ),
+                            ),
+                            WithContinuation(
+                                policy: Optional(
+                                    agent: Described(
+                                        determiner: The,
+                                        predicate: ChosenPlayer(r#ref: TheChoice),
+                                    ),
+                                ),
+                                body: ChooseNewTargets(
+                                    subject: Pro(
+                                        reach: Word(word: Copy),
+                                        plurality: One,
+                                        window: Whole,
+                                    ),
+                                ),
+                                if_did: None,
+                                if_not: None,
+                            ),
+                        ],
+                    ),
+                    if_not: None,
+                ),
+            ),
+        ],
     ),
 )

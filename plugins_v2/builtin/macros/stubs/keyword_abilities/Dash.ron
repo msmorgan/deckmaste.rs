@@ -5,4 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "dash",
     ),
+    // STOP. Dash's second ability is "If this spell's dash cost was paid, return the
+    // permanent this spell becomes to its owner's hand at the beginning of the next
+    // end step" [CR#702.109a] — a static that creates a delayed triggered ability.
+    // No `StaticSpec` creates one.
+    body: Keyword(keyword: "Dash", params: [Cost(cost: Param(0))], body: []),
 )
