@@ -32,7 +32,7 @@ theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withD
 private def rawKeywordCard : Card := .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
-      power := stat 1, toughness := stat 1, text := [.keyword "Flying" [] none] } }
+      power := stat 1, toughness := stat 1, text := [.keyword "Flying" [] []] } }
 
 theorem expandedValueIsDefinitionallyIdentical : withKeyword.card = rawKeywordCard := by rfl
 
@@ -91,11 +91,11 @@ example (card : Card) : Spelled := spelled <| card
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
 example : Spelled := spelled <|
-  let _discarded : Ability := .keyword "Flying" [] none
+  let _discarded : Ability := .keyword "Flying" [] []
   withKeyword.card
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
-example : Spelled := spelled <| (withKeyword.card, (Ability.keyword "Flying" [] none)).1
+example : Spelled := spelled <| (withKeyword.card, (Ability.keyword "Flying" [] [])).1
 
 end Semantics.Proofs.Authoring

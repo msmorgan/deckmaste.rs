@@ -665,19 +665,24 @@ def Ability.category : Ability → Option AbilityCategory
   | .activated _ _ _ _ _ _ => some .activated
   | _ => none
 
-/-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare; a written
-definition is an ability of one of the categories the keyword's registry row declares, and a
-triggered one keys on the same stack regime the row declares. -/
-def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
-  | none => true
-  | some ab =>
-    match ab.category with
-    | none => false
-    | some c =>
-      (keywordDefinition k).elem c &&
-        match ab with
-        | .triggered ev _ _ _ _ _ _ _ => keywordStackRegime k == bodyEventRegime ev
-        | _ => true
+/-- One ability of a keyword's definition: its category is one the keyword's registry row
+declares, and a triggered one keys on the same stack regime the row declares. -/
+def keywordBodyPartFits (k : KeywordLabel) (ab : Ability) : Bool :=
+  match ab.category with
+  | none => false
+  | some c =>
+    (keywordDefinition k).elem c &&
+      match ab with
+      | .triggered ev _ _ _ _ _ _ _ => keywordStackRegime k == bodyEventRegime ev
+      | _ => true
+
+/-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare, leaving the
+definition empty; a written one is the abilities the keyword represents, each of a declared
+category. A keyword whose definition is several abilities of different categories — decayed and
+modular each pair a static ability with a triggered one [CR#702.147a,702.43a] — writes them as
+the several abilities they are. -/
+def keywordBodyFits (k : KeywordLabel) (body : List Ability) : Bool :=
+  body.all (keywordBodyPartFits k)
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k [] _ => if keywordParamless k then some k else none

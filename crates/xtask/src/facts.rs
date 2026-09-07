@@ -1088,6 +1088,12 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Modular",
+            // "This permanent enters with N +1/+1 counters on it" and "When
+            // this permanent is put into a graveyard from the battlefield, you
+            // may put a +1/+1 counter on target artifact creature for each
+            // +1/+1 counter on this permanent" — a static ability and a
+            // triggered one [CR#702.43a].
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -1434,7 +1440,10 @@ fn render(root: &Path) -> anyhow::Result<String> {
         if row.paid_cost {
             fields.push("paidCost := True".to_owned());
         }
-        if row.definition.contains(&Category::Triggered) {
+        // The reference table has no category list, and its own `bodied`
+        // column means "the entry defines ONE triggered ability with a quoted
+        // expansion" — so a multi-category definition is not bodied there.
+        if row.definition == [Category::Triggered] {
             fields.push("bodied := True".to_owned());
         }
         if row.wants_modes {

@@ -211,7 +211,7 @@ theorem badChosenProtectionBeforeChoice :
             text :=
               [ .static
                   (.abilityGrant thisCreature
-                    (.keyword "Protection" [.quality (ofChosen .color)] none)),
+                    (.keyword "Protection" [.quality (ofChosen .color)] [])),
                 .static (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
@@ -308,7 +308,7 @@ theorem okParameterisedEcho :
 
 /-- "Echo" -/
 theorem badBareEcho :
-    Ability.check [] (.keyword "Echo" [] none) = [.keywordParamFits "Echo"] := by decide
+    Ability.check [] (.keyword "Echo" [] []) = [.keywordParamFits "Echo"] := by decide
 
 /-- "each creature with flying" -/
 theorem okKnownKeywordClass : AbilityClass.known (.keyword "Flying") = true := by decide

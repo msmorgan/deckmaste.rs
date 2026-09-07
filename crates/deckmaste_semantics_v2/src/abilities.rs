@@ -1081,7 +1081,7 @@ pub enum Ability {
     Keyword {
         keyword: KeywordLabel,
         params: Vec<KeywordParam>,
-        body: Option<Box<Ability>>,
+        body: Vec<Ability>,
     },
     Activated {
         cost: Box<Cost>,

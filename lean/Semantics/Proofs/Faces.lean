@@ -227,7 +227,7 @@ theorem okProtectionFromAColor :
 
 /-- "Protection from player" -/
 theorem badProtectionFromPlayerRestriction :
-    Ability.check [] (.keyword "Protection" [.subject .anyPlayer] none)
+    Ability.check [] (.keyword "Protection" [.subject .anyPlayer] [])
       = [.keywordParamFits "Protection"] := by
   decide
 
@@ -517,7 +517,7 @@ theorem badCumulativeUpkeepOnSpell :
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
 theorem okRenownWithRenownExpansion :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some (renownExpansion 1)))
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [renownExpansion 1])
       = [] := by
   decide
 
@@ -525,7 +525,7 @@ theorem okRenownWithRenownExpansion :
 static ability [CR#702.9b], so a triggered body is the wrong category. Re-spelled from
 `badBodyOnBodilessKeyword`, which asserted the same refusal when no keyword took a static body. -/
 theorem badTriggeredBodyOnStaticKeyword :
-    Ability.check [] (.keyword "Flying" [] (some (renownExpansion 1)))
+    Ability.check [] (.keyword "Flying" [] [renownExpansion 1])
       = [.keywordBodyFits "Flying"] := by
   decide
 
@@ -535,7 +535,7 @@ theorem okFlyingWithFlyingDefinition : Ability.check [] flying = [] := by decide
 /-- "Renown 1 (This creature can't be blocked except by creatures with flying and/or reach.)":
 renown's definition is a triggered ability [CR#702.112a]. -/
 theorem badStaticBodyOnTriggeredKeyword :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some flyingExpansion))
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [flyingExpansion])
       = [.keywordBodyFits "Renown"] := by
   decide
 
@@ -550,7 +550,7 @@ theorem okCyclingWithCyclingDefinition :
 /-- "Flying ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
 definition is static [CR#702.9b]. -/
 theorem badActivatedBodyOnStaticKeyword :
-    Ability.check [] (.keyword "Flying" [] (some (cyclingExpansion (.mana [generic 2]))))
+    Ability.check [] (.keyword "Flying" [] [cyclingExpansion (.mana [generic 2])])
       = [.keywordBodyFits "Flying"] := by
   decide
 
@@ -558,13 +558,26 @@ theorem badActivatedBodyOnStaticKeyword :
 definition is triggered [CR#702.45a]. -/
 theorem badActivatedBodyOnTriggeredKeyword :
     Ability.check [] (.keyword "Bushido" [.number (.lit 2)]
-        (some (cyclingExpansion (.mana [generic 2]))))
+        [cyclingExpansion (.mana [generic 2])])
       = [.keywordBodyFits "Bushido"] := by
+  decide
+
+/-- "Modular 1 (This permanent enters with a +1/+1 counter on it. When it dies, you may put a
++1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.)": a
+definition of two abilities in two categories [CR#702.43a]. -/
+theorem okModularWithModularDefinition : Ability.check [] (modular 1) = [] := by decide
+
+/-- "Modular 1 (… {2}, Discard this card: Draw a card.)": one element of the definition list is
+of a category modular does not declare [CR#702.43a]. -/
+theorem badUndeclaredCategoryInDefinitionList :
+    Ability.check [] (.keyword "Modular" [.number (.lit 1)]
+        (modularExpansion 1 ++ [cyclingExpansion (.mana [generic 2])]))
+      = [.keywordBodyFits "Modular"] := by
   decide
 
 /-- "Renown 1 (When you cast this spell, copy it …)" -/
 theorem badRenownWithStormExpansion :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] (some stormExpansion))
+    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [stormExpansion])
       = [.keywordBodyFits "Renown"] := by
   decide
 
@@ -584,7 +597,7 @@ theorem okCostedUnearth :
 
 /-- "Unearth" -/
 theorem badBareUnearth :
-    Ability.check [] (.keyword "Unearth" [] none) = [.keywordParamFits "Unearth"] := by decide
+    Ability.check [] (.keyword "Unearth" [] []) = [.keywordParamFits "Unearth"] := by decide
 
 /-- "Retrace {1}" -/
 theorem badCostedRetrace :

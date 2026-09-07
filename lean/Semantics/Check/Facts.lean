@@ -222,7 +222,7 @@ def keywordFacts : List KeywordFacts :=
     { word := "Melee", argumentSchemas := [[]], definition := [.triggered] },
     { word := "Mentor", argumentSchemas := [[]], definition := [.triggered] },
     { word := "Mobilize", argumentSchemas := [[⟨.number, none⟩]], definition := [.triggered] },
-    { word := "Modular", argumentSchemas := [[⟨.number, none⟩]] },
+    { word := "Modular", argumentSchemas := [[⟨.number, none⟩]], definition := [.static, .triggered] },
     { word := "MoreThanMeetsTheEye", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
     { word := "Myriad", argumentSchemas := [[]], definition := [.triggered] },
     { word := "Nightbound", argumentSchemas := [[]] },

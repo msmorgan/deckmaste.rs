@@ -741,9 +741,7 @@ mutual
   def Ability.check (bs : Bindings) : Ability → List Refusal
     | .keyword k param body =>
       KeywordParam.checkAll bs ((keywordSchemaFor k param).getD []) param ++
-        (match body with
-         | none => []
-         | some b => Ability.check [] b) ++
+        Ability.checkAll [] body ++
         refuse (keywordParamFits k param) (.keywordParamFits k) ++
         refuse (keywordBodyFits k body) (.keywordBodyFits k) ++
         refuse (keywordCostPaidByYou k param) (.keywordCostPaidByYou k)

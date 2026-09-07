@@ -457,7 +457,10 @@ mutual
     | term (keyword : KeywordTerm)
 
   inductive Ability where
-    | keyword (keyword : KeywordLabel) (params : List KeywordParam) (body : Option Ability)
+    /-- A keyword ability [CR#702.1]. `body` is the keyword's definition, held the way a text
+    box holds rules text [CR#109.3]: empty where the card writes the keyword bare, and otherwise
+    the abilities the keyword represents. -/
+    | keyword (keyword : KeywordLabel) (params : List KeywordParam) (body : List Ability)
     | activated (cost : Cost) (instruction : Instruction) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
     | triggered (event : GameEvent) (alternatives : List GameEvent)
