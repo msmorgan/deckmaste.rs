@@ -24,6 +24,10 @@ and exact refusal lists; a `Spelled` card pairs its syntax with a proof of
 labels are registry keys, and their checker facts are generated from those
 declarations plus overlays for columns the declarations do not carry.
 
+Inert vocabulary (ruling 2026-09-06, [Semantics v2 §16](semantics-v2.md)):
+an enum no checker function reads is engine-facing vocabulary the syntax
+carries opaquely. It owes no law, and its members are not twins to prune.
+
 Pins are named theorems, normally `okX` / `badX`, proved by `decide`. A positive
 pin fixes `check term = []`; its negative twin fixes the complete expected
 refusal list. Retain the Idris names and card sentences as provenance when

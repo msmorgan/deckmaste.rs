@@ -76,3 +76,23 @@ Sections to add:
 
 Leave §3's joined-kind payload flagged open; it is a design item for
 `semantics-v2-crate`, not a blocker on promotion.
+
+## Landing record
+
+Change: `semantics-v2-adr-promotion` workspace, 2026-09-06. Docs only; no
+crate, data, or gate touched, so the test closure is empty and the coverage
+lock is unaffected.
+
+- `docs/decisions/semantics-v2.md`: draft header replaced by a decision
+  header; §6 and §8 re-pointed from Idris and `plugins/builtin` to Lean and
+  `plugins_v2`; §9 rewritten with the supersessions and the ticket chain;
+  §§10–16 added (Rust representation, plugin format, macro system, gate and
+  bench, parity and cutover, registries, inert vocabulary).
+- `docs/decisions/README.md`: entry no longer says Draft.
+- `CLAUDE.md`: a `Crate fates (semantics_v2)` section pointing at §§10–16.
+- `docs/decisions/lean-is-the-workbench.md`: the inert-vocabulary ruling
+  mirrored under Checking and assurance.
+
+Deviations and additions: none beyond the ticket's list. §3's joined-kind
+payload stays open by the ticket's own instruction. Citations: no new rule
+numbers; `cite check` 0 non-compliant, 0 stale.

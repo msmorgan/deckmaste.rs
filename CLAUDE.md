@@ -76,6 +76,17 @@ Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
   rewrite ADR.
 - Everything else is unaffected by the rewrite.
 
+## Crate fates (semantics_v2)
+
+Authority: `docs/decisions/semantics-v2.md` §§10–16. `deckmaste_semantics_v2`
+mirrors the Lean syntax constructor-for-constructor over `plugins_v2/` and
+depends on `macro_ron` alone; it takes the `deckmaste_semantics` name at
+parity (`semantics-v2-parity`). Deletion-bound at that cutover:
+`deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`,
+`deckmaste_plugin` (`deck.rs`, `provenance.rs` rehomed), `idris/`,
+`plugins/builtin`, `plugins/canon`. The `_v2` sibling rule above applies
+verbatim: no parity copying into v1, no new v1 registries.
+
 ## Terminology
 
 - Before terminology-sensitive work — naming a public type, variant, field or

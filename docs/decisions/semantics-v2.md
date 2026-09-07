@@ -1,25 +1,15 @@
 # Semantics v2 — the encoded-English shape
 
-> Workbench succession (2026-09-05): current workbench evidence lives in
-> `lean/`; Idris paths below are historical. See
-> [Lean is the workbench](lean-is-the-workbench.md).
-
-Draft — not settled (2026-08-07). This decision fixes the target shape of
+Decision: 2026-09-06 (draft 2026-08-07). §§1–7 fix the target shape of
 the semantics layer — the form the macro and card rewrite aims at — and the
-rules for growing it. It realizes the
-divergence trajectory of [semantics-spelling-lowering
-§17](semantics-spelling-lowering.md): semantics drifts toward English
-constructions, core toward explicit slot reference. While a draft, it moves
-freely with the design discussion.
-The evidence artifacts are the Idris workbench
-(`idris/src/Experimental.idr`, machinery, with its evidence bench
-`idris/src/Experimental/Cards.idr` — typechecking positives, pinned
-`failing` negatives) and its translation guide (`idris/src/Bridge.idr` — new⇄old pairs
-and the T-rule inventory; parked out of the build while chapters accumulate,
-resuming with the lowering work); this document is the contract those
-artifacts probe. The workbench is deliberately divorced from the current verifier and
-from runnability; it becomes the real semantics validator only when v2
-replaces the verifier's shape.
+rules for growing it; §§10–16 fix how that layer lands as Rust and how v1
+retires. It realizes the divergence trajectory of
+[semantics-spelling-lowering §17](semantics-spelling-lowering.md): semantics
+drifts toward English constructions, core toward explicit slot reference.
+The evidence artifact is the Lean workbench (`lean/Semantics/`, per
+[Lean is the workbench](lean-is-the-workbench.md)); Idris paths in the
+history of this document are reference only. §3's joined-kind payload is
+the one item still open; `semantics-v2-crate` settles it.
 
 ## 1. The layer contract
 
@@ -130,14 +120,15 @@ the word.
 
 Top-level constructors are the engine primitive basis and nothing else. The
 classification is consulted per word, never re-derived: the core taxonomy
-(`cargo xtask map enums`) plus the builtin macro definitions
-(`plugins/builtin/macros/`) are the record of the whittling. Keyword actions,
+(`cargo xtask map enums`) plus the v2 macro declarations
+(`plugins_v2/builtin/macros/`, §11) are the record of the whittling. Keyword actions,
 keyword abilities, and common phrasings generally are phrase-shaped macros over
 the basis, mirroring the real definitions' name, params, and body. A core shape
 is judged by lowerability and by its algebra; meta constructs are legitimate in
 the core. Phrasing knowledge belongs to the card language or the spelling
-declarations. The hand-written Idris macro layer
-is a stand-in to be generated from those definitions eventually. The
+declarations. The hand-written Lean macro layer
+(`lean/Semantics/Macros.lean`) is a stand-in to be generated from those
+declarations eventually (`lean-macros-from-ron`). The
 `Composite` tag is itself basis: `destroy x = Composite Destroy (Move x
 Graveyard)` keeps the tag that deontics key on — indestructible cants the
 Destroy action and ignores an untagged move [CR#701.8a,702.12b,701.8b]. A
@@ -180,26 +171,118 @@ mimicked.
 
 ## 8. Process
 
-The workbench grows chapter by chapter: pick one structural question, ground
-it in real parses (`cargo xtask english inspect` / `bracket`, corpus lines)
-and the style guide, prove the shape with typechecking positives and pinned
-`failing` negatives, record findings in the module doc; Bridge pairs
-catch up in batch when the lowering work resumes. Reference machinery comes
-before vocabulary breadth. Completion is
-two audits — every English AST construction has a settled v2 counterpart or
-an explicit lowering note, and the old worked corpus transcribes cleanly —
-after which this contract plus the Bridge T-rule inventory spec the
-macro/card rewrite and the accompanying lowering changes.
+The workbench grows chapter by chapter in Lean: pick one structural
+question, ground it in real parses (`cargo xtask english inspect` /
+`bracket`, corpus lines) and the style guide, prove the shape with positive
+pins and pinned negative refusal lists, record findings in the module doc.
+Reference machinery comes before vocabulary breadth. The exhaustive
+English-AST-to-workbench crosswalk once planned as the completion audit is
+retired (`semantics-v2-lean-spec-crosswalk`, 2026-09-06); completion is
+parity (§14).
 
 ## 9. Affected contracts and tickets
 
 - [semantics-spelling-lowering](semantics-spelling-lowering.md): §7's indexed
   scope calculus becomes core-only normal form (see §1 above); §17's
-  trajectory is realized by this contract.
-- [idris-is-a-soundness-gate](idris-is-a-soundness-gate.md): unchanged today;
-  the workbench sits outside the emit/check gate until v2 replaces the
-  verifier's shape.
-- Tickets informed: `target-sugar-elaboration`,
-  `idris-distinct-position-proof` (its deep-scan obligation is subsumed
-  structurally by the `Other` presupposition), `frames-catalog-merge`
-  (capability unification).
+  trajectory is realized by this contract; §9's lowering contract carries
+  over to `deckmaste_lowering_v2` unchanged.
+- [idris-is-a-soundness-gate](idris-is-a-soundness-gate.md): superseded by
+  the Lean gate of §13 once `lean-card-soundness-gate` lands.
+- [english-v2-rewrite](english-v2-rewrite.md): its cutover and §14's are
+  coordinated by `semantics-v1-cutover`; `macro_ron` is retained by both.
+- [workbench-ron-shaped-and-label-rulings](workbench-ron-shaped-and-label-rulings.md):
+  the direction of travel stays RON → workbench; §11 names the RON.
+- The ticket chain: `semantics-v2-crate` → `lean-card-soundness-gate` →
+  `lean-rules-tables` and the four `semantics-v2-macro-bodies-*` families →
+  `plugins-v2-canon` (with `lean-hand-bench-retirement`) → `lowering-v2` →
+  `semantics-v2-parity` → `semantics-v1-cutover`; `lean-constructor-collapse`
+  follows parity. Parked: `lean-macros-from-ron`,
+  `semantics-v2-english-translation`.
+
+## 10. Rust representation
+
+`crates/deckmaste_semantics_v2` mirrors the Lean syntax
+(`lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card}.lean`)
+constructor-for-constructor and field-for-field. Lean is the specification:
+a Lean change is a Rust change, never the reverse, and a drift test in the
+crate fails on any name the two sides disagree on. The crate does no law
+checking. The Lean gate (§13) is the only checker; `deckmaste_lowering_v2`
+may fail to lower a card that breaks a law, without going out of its way to
+validate. The crate depends on `macro_ron` and on nothing deletion-bound
+(`CLAUDE.md` "Crate fates"); in particular it never depends on
+`deckmaste_construction_core` or `deckmaste_spelling`. It exposes as plain
+functions the structural reads lowering needs (binding resolution, kind
+projection) and nothing that refuses.
+
+## 11. Plugin format
+
+`plugins_v2/` is the v2 plugin format. `plugins/builtin_v2` moves to
+`plugins_v2/builtin`, with a symlink at the old path until english_v2 and
+xtask read the new one. One declaration file per macro carries `name`,
+`params`, `spelling`, `grammar`, and a semantic `body`: english_v2 reads the
+spelling and grammar, semantics_v2 reads the params and body. The file is
+the shared contract; neither crate depends on the other for it, and an xtask
+drift test loads every declaration both ways. Today's bodyless declarations
+(keyword actions, keyword abilities, ability words, turn parts) grow bodies
+per family; no new bodyless declarations are added. Cards, tokens, and the
+three rules tables (state-based actions, conferrals, damage results) are
+further kinds in the same tree, all semantics-language RON. `plugins_v2/canon`
+is hand-authored RON first; translation from `deckmaste_english_v2`'s
+`OracleText` is a later crate (`semantics-v2-english-translation`), with
+RON as the cached form of that translation.
+
+## 12. Macro system
+
+`macro_ron` is unchanged: a dumb expander whose `MacroDef<Metadata>` carries
+consumer-typed, opaque metadata. Kinds are one per `SupportsMacros` enum and
+exist only to disambiguate same-name macros at different usage sites; Lean's
+`MacroParameters` classes are a proof device, not the kind set. Macros
+invoke other macros up to the expander's depth limit; there is no
+self-recursion. §7's discipline (no default arguments, one macro per phrase
+shape, term-for-term expansion) is unchanged.
+
+## 13. Gate and bench
+
+The `lean-card-soundness-gate` emitter writes each expanded card as
+untracked generated Lean and an xtask gate proves `Card.check` empty by
+`decide`; `Macros.lean` plays no part in the gate. The Idris emitter, checker
+and baselines retire with it. The hand-written `lean/Semantics/Cards/` bench
+is a stand-in: as each card lands in `plugins_v2/canon` the emitted term
+supersedes its hand spelling (`lean-hand-bench-retirement`), and canon cards
+without Lean versions get them by emission. Pins in `Proofs/` that are
+theorems about constructions rather than cards stay. The workbench is not a
+second authoring surface.
+
+## 14. Parity and cutover
+
+v1 retires when card translation reaches parity, measured by
+`semantics-v2-parity`: a per-card comparison of v2 and v1 lowerings, v1 as a
+starting point and not an oracle (not everything in canon is known to lower
+correctly), each disagreement adjudicated by hand and recorded, then the
+whole-game slow tests on v2. At cutover `deckmaste_semantics_v2` takes the
+`deckmaste_semantics` name and `plugins_v2/` becomes `plugins/`. Deletion
+set, enumerated from `cargo metadata` at cutover with differences from this
+list reported: `deckmaste_semantics`, `deckmaste_lowering`,
+`deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs`
+rehomed; `energy.rs` dropped as vestigial, its `deckmaste_migrations` call
+site going with it), `idris/`, `plugins/builtin`, `plugins/canon`, and the
+splice machinery of `deckmaste_spelling` already slated by
+[english-v2-rewrite](english-v2-rewrite.md). `deckmaste_migrations` sheds
+`deckmaste_legacy_render` and survives.
+
+## 15. Registries
+
+The `plugins_v2/builtin` declarations are the sole v2 registries and already
+generate `lean/Semantics/Check/Facts.lean`. v1's registries under
+`plugins/builtin/macros` are frozen until deletion; anything v1 has that a v2
+declaration lacks is added as a v2 declaration, never the other way.
+
+## 16. Inert vocabulary
+
+Ruling (user, 2026-09-06). The `Words.lean` and `Events.lean` enums no
+checker function reads (`Disclosure`, `CoinFace`, `RoundMode`, `Parity`,
+`ArithOp`, `SpecialAction`, and the rest, 35 at the time of the ruling) are
+engine-facing vocabulary the semantics layer carries opaquely. They were
+carried vocabulary in the Idris reference too. They owe no admission law and
+are not twins to prune: the as-written rule keeps each printed word its own
+constructor. The same holds of payload fields no law projects.

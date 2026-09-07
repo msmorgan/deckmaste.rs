@@ -47,8 +47,9 @@ requires explicit review rather than an opportunistic refactor.
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md) —
   Open plugin macros own positional semantic frames and the lexical facts
   needed to parse them.
-- [Semantics v2](semantics-v2.md) — Draft: semantics encodes surface English
-  in situ; lowering owns all rearrangement.
+- [Semantics v2](semantics-v2.md) — Semantics encodes surface English in
+  situ and lowering owns all rearrangement; `deckmaste_semantics_v2` mirrors
+  the Lean syntax over the `plugins_v2` format, and v1 retires at parity.
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —
   Semantics takes the join lattice; the marked union constructions are
   spelling-boundary knowledge.
