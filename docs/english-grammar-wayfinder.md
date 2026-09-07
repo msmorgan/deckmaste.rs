@@ -6,10 +6,12 @@ analyses. It retains every grammatical Reading and shares no code or model with
 Semantics. The `needs:` graph is the scheduling authority.
 
 [Lexical analysis is implemented](tickets/done/english-v2-lexical-analysis.md).
-The current [`english-v2-feature-chart-integration`](tickets/wip/english-v2-feature-chart-integration.md)
-claim is producing the disposable v3 chart prototype that anchors this new
-line. `english-v2-keyword-action-verb-inflections` remains with its owner; the
-lexical-inventory ticket consumes any useful declarations only after it lands.
+The retained-reading experiments are preserved on
+`archive-english-v2-feature-chart-integration` as optional implementation
+evidence; they create no scheduling edge and do not constrain the Lean model or
+fresh v3 runtime. `english-v2-keyword-action-verb-inflections` remains with its
+owner; the lexical-inventory ticket consumes any useful declarations only after
+it lands.
 
 ## Production chain
 

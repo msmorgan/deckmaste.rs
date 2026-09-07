@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-feature-chart-integration]
+needs: [english-v2-lexical-analysis]
 ---
 # Rebuild the English workbench around the v3 grammar relation
 

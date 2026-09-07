@@ -237,6 +237,7 @@ transferring their evidence. Their old implementation boundaries do not survive.
 
 | Retired ticket(s) | Live replacement |
 |---|---|
+| `english-v2-feature-chart-integration` | Prototype code is preserved on `archive-english-v2-feature-chart-integration`; its chart, generated-boundary and roundtrip obligations transfer to `english-v3-packed-chart`, `english-v3-construction-compiler` and `english-v3-generated-roundtrip-slice`. |
 | `english-lean-lexical-ambiguity`, `english-lean-proof-gaps` | `english-v3-lean-grammar-model`, then `english-v3-lean-proof-audit` |
 | `english-v2-grammar-lexical-source` | `english-v3-lexical-inventory` |
 | `english-v2-grammar-family-breadth` and all eleven predicted family-completion tickets | `english-v3-whole-grammar-activation` |
