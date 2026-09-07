@@ -1,7 +1,42 @@
 KeywordAbility(
     name: "Horsemanship",
+    params: [],
     spelling: "horsemanship",
     grammar: FixedKeyword(
         surface: "horsemanship",
+    ),
+    // "A creature with horsemanship can't be blocked by creatures without
+    // horsemanship." [CR#702.31b]
+    body: Keyword(
+        keyword: "Horsemanship",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Block)],
+                    role: Patient,
+                    bound: None,
+                    patient: Counterpart(
+                        patient: Described(
+                            determiner: All,
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    Not(
+                                        predicate: HasKeyword(
+                                            keyword: The(keyword: "Horsemanship"),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
     ),
 )

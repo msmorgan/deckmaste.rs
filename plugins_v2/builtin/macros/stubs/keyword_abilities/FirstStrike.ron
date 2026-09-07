@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "FirstStrike",
+    params: [],
     spelling: "first strike",
     grammar: FixedKeyword(
         surface: "first strike",
     ),
+    // STOP. "First strike is a static ability that modifies the rules for the combat
+    // damage step" [CR#702.7a]; the entry states the two-step damage rule
+    // [CR#702.7b] rather than quoting an expansion.
+    body: Keyword(keyword: "FirstStrike", params: [], body: []),
 )

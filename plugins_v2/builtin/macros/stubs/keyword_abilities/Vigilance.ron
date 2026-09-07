@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "Vigilance",
+    params: [],
     spelling: "vigilance",
     grammar: FixedKeyword(
         surface: "vigilance",
     ),
+    // STOP. "Attacking doesn't cause creatures with vigilance to tap"
+    // [CR#702.20b]. No `StaticSpec` suppresses a turn-based action; `Replacement`
+    // intercepts a `GameEvent`, and the declare-attackers tap is not one.
+    body: Keyword(keyword: "Vigilance", params: [], body: []),
 )

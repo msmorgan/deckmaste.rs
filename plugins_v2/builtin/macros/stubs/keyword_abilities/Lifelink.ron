@@ -1,7 +1,11 @@
 KeywordAbility(
     name: "Lifelink",
+    params: [],
     spelling: "lifelink",
     grammar: FixedKeyword(
         surface: "lifelink",
     ),
+    // STOP. Lifelink substitutes the RESULT of damage [CR#702.15b], like infect and
+    // wither; see `Infect.ron`.
+    body: Keyword(keyword: "Lifelink", params: [], body: []),
 )

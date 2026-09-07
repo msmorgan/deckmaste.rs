@@ -319,6 +319,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Indestructible",
             counter_eligible: true,
+            definition: &[],
             ..D
         },
         Row {
@@ -361,15 +362,18 @@ fn overlay() -> Vec<Row> {
             label: "Hexproof",
             extra: &[Shape::Quality],
             counter_eligible: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Menace",
             counter_eligible: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Skulk",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -459,9 +463,14 @@ fn overlay() -> Vec<Row> {
             definition: &[Category::Triggered],
             ..D
         },
-        Row { label: "Fear", ..D },
+        Row {
+            label: "Fear",
+            definition: &[Category::Static],
+            ..D
+        },
         Row {
             label: "Shroud",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -475,6 +484,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Landwalk",
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -801,6 +811,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Shadow",
             counter_eligible: true,
+            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -1035,6 +1046,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Horsemanship",
+            definition: &[Category::Static],
             ..D
         },
         Row {

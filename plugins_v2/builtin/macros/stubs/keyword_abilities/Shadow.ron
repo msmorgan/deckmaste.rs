@@ -1,7 +1,69 @@
 KeywordAbility(
     name: "Shadow",
+    params: [],
     spelling: "shadow",
     grammar: FixedKeyword(
         surface: "shadow",
+    ),
+    // "A creature with shadow can't be blocked by creatures without shadow, and a
+    // creature without shadow can't be blocked by creatures with shadow."
+    // [CR#702.28b]
+    body: Keyword(
+        keyword: "Shadow",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Block)],
+                    role: Patient,
+                    bound: None,
+                    patient: Counterpart(
+                        patient: Described(
+                            determiner: All,
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    Not(predicate: HasKeyword(keyword: The(keyword: "Shadow"))),
+                                ],
+                            ),
+                        ),
+                    ),
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+            Static(
+                spec: DeonticRule(
+                    subject: Described(
+                        determiner: All,
+                        predicate: And(
+                            conjuncts: [
+                                HasType(type: Creature),
+                                Not(predicate: HasKeyword(keyword: The(keyword: "Shadow"))),
+                            ],
+                        ),
+                    ),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Block)],
+                    role: Patient,
+                    bound: None,
+                    patient: Counterpart(
+                        patient: Described(
+                            determiner: All,
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    HasKeyword(keyword: The(keyword: "Shadow")),
+                                ],
+                            ),
+                        ),
+                    ),
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
     ),
 )

@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "Trample",
+    params: [],
     spelling: "trample",
     grammar: FixedKeyword(
         surface: "trample",
     ),
+    // STOP. "Trample is a static ability that modifies the rules for assigning an
+    // attacking creature's combat damage" [CR#702.19a]; the entry states the
+    // assignment order [CR#702.19b] rather than quoting an expansion.
+    body: Keyword(keyword: "Trample", params: [], body: []),
 )

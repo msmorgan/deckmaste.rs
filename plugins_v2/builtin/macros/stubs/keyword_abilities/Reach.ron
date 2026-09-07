@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "Reach",
+    params: [],
     spelling: "reach",
     grammar: FixedKeyword(
         surface: "reach",
     ),
+    // STOP. Reach's content is stated inside flying's blocking restriction
+    // [CR#702.17b,702.9b] — "a creature with flying can't be blocked except by
+    // creatures with flying and/or reach". The entry quotes no expansion of reach
+    // itself.
+    body: Keyword(keyword: "Reach", params: [], body: []),
 )

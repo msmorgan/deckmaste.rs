@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "Haste",
+    params: [],
     spelling: "haste",
     grammar: FixedKeyword(
         surface: "haste",
     ),
+    // STOP. "Haste is a static ability" [CR#702.10a] whose entry states the
+    // summoning-sickness exemptions [CR#702.10b,702.10c] rather than quoting an
+    // expansion.
+    body: Keyword(keyword: "Haste", params: [], body: []),
 )

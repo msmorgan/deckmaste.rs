@@ -1,7 +1,12 @@
 KeywordAbility(
     name: "Intimidate",
+    params: [],
     spelling: "intimidate",
     grammar: FixedKeyword(
         surface: "intimidate",
     ),
+    // STOP. "A creature with intimidate can't be blocked except by artifact
+    // creatures and/or creatures that SHARE A COLOR WITH IT" [CR#702.13b]. No
+    // `Predicate` reads "shares a color with <subject>".
+    body: Keyword(keyword: "Intimidate", params: [], body: []),
 )
