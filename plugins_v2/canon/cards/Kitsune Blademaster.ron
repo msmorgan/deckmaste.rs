@@ -1,0 +1,18 @@
+// "First strike / Bushido 1" [CR#702.45a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Kitsune Blademaster",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Fox"), Of(host: Creature, label: "Samurai")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+        text: [
+            Keyword(keyword: "FirstStrike", params: [], body: []),
+            Bushido(Lit(value: 1)),
+        ],
+    ),
+))

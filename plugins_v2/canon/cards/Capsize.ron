@@ -1,0 +1,30 @@
+// "Buyback {3} / Return target permanent to its owner's hand." [CR#702.27a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Capsize",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Instant],
+        text: [
+            Buyback(Mana(cost: [Simple(symbol: Generic(amount: 3))])),
+            Spell(
+                timing: None,
+                instruction: Enact(
+                    verb: Core(deed: Return),
+                    instruction: Move(
+                        subject: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        ),
+                        to: Zone(zone: Hand, scope: Bare),
+                        riders: [],
+                    ),
+                    agent: None,
+                ),
+            ),
+        ],
+    ),
+))

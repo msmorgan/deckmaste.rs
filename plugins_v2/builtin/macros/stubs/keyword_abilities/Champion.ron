@@ -5,4 +5,91 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "champion",
     ),
+    // "Champion an [object]" means "When this permanent enters, sacrifice it unless
+    // you exile another [object] you control" and "When this permanent leaves the
+    // battlefield, return the exiled card to the battlefield under its owner's
+    // control." [CR#702.72a]
+    body: Keyword(
+        keyword: "Champion",
+        params: [Subject(predicate: Param(0))],
+        body: [
+            Triggered(
+                event: ZoneChange(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: WithContinuation(
+                    policy: Optional(agent: You),
+                    body: Enact(
+                        verb: Action(label: "Exile"),
+                        instruction: Move(
+                            subject: Described(
+                                determiner: A(mode: Unmarked),
+                                predicate: And(
+                                    conjuncts: [
+                                        Param(0),
+                                        HasPossessor(axis: Controller, possessor: You),
+                                        OtherThan(
+                                            anchor: AsMarker(marker: Permanent, subject: This),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            to: Zone(zone: Exile, scope: Bare),
+                            riders: [],
+                        ),
+                        agent: You,
+                    ),
+                    if_did: None,
+                    if_not: Enact(
+                        verb: Action(label: "Sacrifice"),
+                        instruction: Move(
+                            subject: AsMarker(marker: Permanent, subject: This),
+                            to: Zone(zone: Graveyard, scope: Bare),
+                            riders: [],
+                        ),
+                        agent: You,
+                    ),
+                ),
+            ),
+            Triggered(
+                event: ZoneChange(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                    to: None,
+                    observation: Before,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Move(
+                    subject: Pro(
+                        reach: Stamped(verb: Action(label: "Exile")),
+                        plurality: One,
+                        window: Whole,
+                    ),
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    riders: [
+                        Under(
+                            controller: PossessorOf(
+                                axis: Owner,
+                                subject: Pro(reach: Bare, plurality: One, window: Whole),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
 )

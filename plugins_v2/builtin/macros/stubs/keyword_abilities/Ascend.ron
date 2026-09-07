@@ -1,7 +1,16 @@
 KeywordAbility(
     name: "Ascend",
+    params: [],
     spelling: "ascend",
     grammar: FixedKeyword(
         surface: "ascend",
     ),
+    // STOP. Ascend on a permanent means "Any time you control ten or more
+    // permanents and you don't have the city's blessing, you get the city's
+    // blessing for the rest of the game." [CR#702.131b] No `StaticSpec` performs an
+    // instruction when a state holds; `DeonticRider::StateBased` is the only
+    // state-checked clause and its `StateBasedCause` has the single value
+    // `NonpositiveLife`. The spell form [CR#702.131a] is a spell ability, which
+    // `Ability.category` leaves categoryless and `keywordBodyFits` refuses.
+    body: Keyword(keyword: "Ascend", params: [], body: []),
 )

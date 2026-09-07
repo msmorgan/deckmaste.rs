@@ -478,6 +478,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Changeling",
             on_spell_card: true,
+            definition: &[Category::Static],
             ..D
         },
         Row { label: "Crew", ..D },
@@ -608,6 +609,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Bestow",
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -689,6 +691,7 @@ fn overlay() -> Vec<Row> {
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -866,10 +869,12 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Bloodthirst",
+            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Champion",
+            definition: &[Category::Triggered, Category::Triggered],
             ..D
         },
         Row {

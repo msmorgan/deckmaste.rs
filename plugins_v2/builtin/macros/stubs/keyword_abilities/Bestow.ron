@@ -5,4 +5,17 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "bestow",
     ),
+    // "Bestow [cost]" means "As you cast this spell, you may choose to cast it
+    // bestowed. If you do, you pay [cost] rather than its mana cost."
+    // [CR#702.103a] What a bestowed spell then becomes is [CR#702.103b]'s own rule,
+    // not part of the quoted definition.
+    body: Keyword(
+        keyword: "Bestow",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Static(
+                spec: AltCost(subject: AsMarker(marker: Spell, subject: This), cost: Param(0)),
+            ),
+        ],
+    ),
 )

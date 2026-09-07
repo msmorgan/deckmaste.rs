@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "Banding",
+    params: [],
     spelling: "banding",
     grammar: FixedKeyword(
         surface: "banding",
     ),
+    // STOP. "Banding is a static ability that modifies the rules for combat"
+    // [CR#702.22a]; the entry states the modified declare-attackers and
+    // damage-assignment rules [CR#702.22c..702.22j] rather than quoting an
+    // expansion, so there is no definition to write.
+    body: Keyword(keyword: "Banding", params: [], body: []),
 )

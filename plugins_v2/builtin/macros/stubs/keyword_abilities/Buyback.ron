@@ -5,4 +5,47 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "buyback",
     ),
+    // "Buyback [cost]" means "You may pay an additional [cost] as you cast this
+    // spell" and "If the buyback cost was paid, put this spell into its owner's
+    // hand instead of into that player's graveyard as it resolves." [CR#702.27a]
+    body: Keyword(
+        keyword: "Buyback",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Static(spec: AddedCost(cost: Param(0), offered: true)),
+            Static(
+                spec: Conditional(
+                    spec: Replacement(
+                        event: ZoneChange(
+                            subject: AsMarker(marker: Spell, subject: This),
+                            from: Zones(zones: [Zone(zone: Stack, scope: Bare)]),
+                            to: Zone(zone: Graveyard, scope: Bare),
+                            observation: Before,
+                        ),
+                        alternatives: [],
+                        timing: None,
+                        replacement: Move(
+                            subject: AsMarker(marker: Spell, subject: This),
+                            to: Zone(zone: Hand, scope: Bare),
+                            riders: [],
+                        ),
+                        r#use: Repeatedly,
+                        limit: None,
+                    ),
+                    condition: CompareAmt(
+                        subject: Paid(
+                            facet: Readback(
+                                which: ByKeyword(keyword: "Buyback"),
+                                lookback: None,
+                            ),
+                            subject: AsMarker(marker: Spell, subject: This),
+                        ),
+                        comparator: AtLeast,
+                        bound: Lit(value: 1),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+        ],
+    ),
 )

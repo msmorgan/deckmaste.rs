@@ -1,0 +1,15 @@
+// "Changeling" [CR#702.73a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Woodland Changeling",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Shapeshifter")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+        text: [Changeling],
+    ),
+))
