@@ -1,0 +1,15 @@
+// "Cycling {2}" [CR#702.29a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Barkhide Mauler",
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Beast")],
+        power: Lit(value: 4),
+        toughness: Lit(value: 4),
+        text: [Cycling(Mana(cost: [Simple(symbol: Generic(amount: 2))]))],
+    ),
+))

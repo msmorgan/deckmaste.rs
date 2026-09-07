@@ -1,0 +1,15 @@
+// "Persist" [CR#702.79a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Putrid Goblin",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Goblin")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+        text: [Persist],
+    ),
+))

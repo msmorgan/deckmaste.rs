@@ -1,0 +1,16 @@
+// "Cumulative upkeep {G}" [CR#702.24a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Uktabi Efreet",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Efreet")],
+        power: Lit(value: 5),
+        toughness: Lit(value: 4),
+        text: [CumulativeUpkeep(Mana(cost: [Simple(symbol: Specific(color: Of(color: Green)))]))],
+    ),
+))

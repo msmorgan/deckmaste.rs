@@ -1,0 +1,15 @@
+// "Battle cry" [CR#702.91a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Accorder Paladin",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Knight")],
+        power: Lit(value: 3),
+        toughness: Lit(value: 1),
+        text: [BattleCry],
+    ),
+))

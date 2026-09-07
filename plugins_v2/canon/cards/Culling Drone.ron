@@ -1,0 +1,15 @@
+// "Devoid / Ingest" [CR#702.114a,702.115a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Culling Drone",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Eldrazi"), Of(host: Creature, label: "Drone")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+        text: [Devoid, Ingest],
+    ),
+))

@@ -1,0 +1,15 @@
+// "Soulshift 3" [CR#702.46a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Kami of Empty Graves",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Spirit")],
+        power: Lit(value: 4),
+        toughness: Lit(value: 1),
+        text: [Soulshift(Lit(value: 3))],
+    ),
+))

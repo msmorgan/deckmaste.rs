@@ -1,0 +1,15 @@
+// "Shadow" [CR#702.28b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Dauthi Marauder",
+        cost: [
+            Simple(symbol: Generic(amount: 2)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Dauthi"), Of(host: Creature, label: "Minion")],
+        power: Lit(value: 3),
+        toughness: Lit(value: 1),
+        text: [Shadow],
+    ),
+))
