@@ -481,6 +481,18 @@ impl<'de> Visitor<'de> for Probe<'_, 'de, '_> {
     }
 }
 
+/// Whether a captured fragment opens with a numeral — a digit, or `-` then a
+/// digit. Both the literal sugar and the untagged-embed fall-through key on
+/// it: a numeral reads at the position's own numeral leaf, or at the leaf of
+/// the type it embeds.
+fn is_numeral_led(source: &str) -> bool {
+    let trimmed = source.trim();
+    trimmed.starts_with(|c: char| c.is_ascii_digit())
+        || trimmed
+            .strip_prefix('-')
+            .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+}
+
 /// Reads just the leading identifier of a captured fragment through the enum
 /// channel, or `None` if the fragment doesn't open with one (a scalar, a
 /// sequence, …). Used by the untagged-embed path to decide whether the value
@@ -1670,28 +1682,36 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        // Literal sugar: at a kind whose grammar is strict but whose reader
-        // accepts a bare numeral (`Quantity`: `3` for `Literal(3)`; `StatValue`:
-        // `-1` for `Number(-1)`, e.g. Spinal Parasite's -1/-1), capture the next
-        // value first. If it's numeral-led (a digit, or `-` then a digit), splice
-        // it into the wrapper and re-read; otherwise re-read it verbatim. The
-        // capture runs wherever a value can be captured (`Full`, and the
-        // newtype-content `SkipStructs` — an enum position is an ordinary value);
-        // only `Skip` opts out, so the re-reads below can't loop: the spliced
-        // `Literal(N)` re-read runs with `Full` but is no longer numeral-led (it
-        // is `Wrapper(...)`), so it falls to the verbatim branch, and the
-        // verbatim re-read runs with `Skip`, which skips this capture.
-        if self.intercept != Intercept::Skip
-            && let Some(wrapper) = self.ctx.read.macros.literal_wrapper(name)
-        {
+        // Three kind-driven pre-scans share ONE capture of the next value:
+        // literal sugar, the untagged embed, and the bare defaulted
+        // invocation. Each used to capture and re-read on its own, and a
+        // re-read with `Skip` cancels every scan after it — so a kind that
+        // both embeds and carries a numeral leaf (`SimpleManaSymbol`) lost
+        // its embed to its literal. Capturing once and trying them in order
+        // keeps all three live; the verbatim re-read at the end opts out with
+        // `Skip`, so none of them can loop. The capture runs wherever a value
+        // can be captured (`Full`, and the newtype-content `SkipStructs` — an
+        // enum position is an ordinary value); only `Skip` opts out.
+        let literal = self.ctx.read.macros.literal_wrapper(name);
+        let embeds = self.ctx.read.macros.embeds_untagged(name);
+        let bare_invocable = self.ctx.read.macros.has_bare_invocable(name);
+        if self.intercept != Intercept::Skip && (literal.is_some() || embeds || bare_invocable) {
             let source = <&RawValue>::deserialize(self.de)?.get_ron();
-            let trimmed = source.trim();
-            let numeral_led = trimmed.starts_with(|c: char| c.is_ascii_digit())
-                || trimmed
-                    .strip_prefix('-')
-                    .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()));
-            if numeral_led {
-                let spliced = self.ctx.read.splice(format!("{wrapper}({source})"));
+
+            // Literal sugar: at a kind whose grammar is strict but whose
+            // reader accepts a bare numeral (`Quantity`: `3` for `Literal(3)`;
+            // `StatValue`: `-1` for `Number(-1)`, e.g. Spinal Parasite's
+            // -1/-1; `Amount`: `3` for `Lit(value: 3)`), splice the numeral
+            // into the wrapper and re-read. The spliced re-read runs with
+            // `Full` but is no longer numeral-led (it is `Wrapper(...)`), so
+            // it cannot re-enter this branch.
+            if let Some((wrapper, binder)) = literal
+                && is_numeral_led(source)
+            {
+                let spliced = self.ctx.read.splice(match binder {
+                    Some(binder) => format!("{wrapper}({binder}: {source})"),
+                    None => format!("{wrapper}({source})"),
+                });
                 // The wrapper is text the READER invented, and restriction
                 // follows textual provenance (spec §4): read it free, or a
                 // bare numeral would route through the wrapper's identity
@@ -1707,73 +1727,59 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     de.deserialize_enum(name, variants, visitor)
                 });
             }
-            return reread(source, self.ctx, Intercept::Skip, |de| {
-                de.deserialize_enum(name, variants, visitor)
-            });
-        }
 
-        // Untagged embed: at a kind that embeds another type, an identifier
-        // that names neither one of this kind's own variants nor one of its
-        // macros falls through to the embedded type. Capture the value, read
-        // its leading identifier, and — if it isn't native here — re-present
-        // the whole value to the host visitor through `visit_newtype_struct`,
-        // so its `Deserialize` reads the embedded type and wraps it. That
-        // re-read names the embedded type's own `Deserialize`, which re-enters
-        // under the embedded namespace (its variants and macros), so a macro
-        // of the embedded kind is remembered as that kind. A native value
-        // re-reads verbatim with `Skip` through the normal `EnumIntercept`
-        // below; the fall-through re-reads with `Full` so the embedded
-        // `deserialize_enum` stays intercepted.
-        if self.intercept != Intercept::Skip && self.ctx.read.macros.embeds_untagged(name) {
-            let source = <&RawValue>::deserialize(self.de)?.get_ron();
-            let native = match leading_ident::<Self::Error>(source, self.ctx)? {
-                Some(ident) => {
-                    // The second native-candidacy consult (spec §4): it runs
-                    // before `EnumIntercept`, so restriction must suppress
-                    // here too or a banned ident at an embed-hosting kind
-                    // falls through to the embedded type instead of erroring.
-                    (self.ctx.native_variant_ok(name, ident.as_str())
-                        && variants.contains(&ident.as_str()))
-                        || ident == "Param"
-                        || self.ctx.read.macros.get(name, &ident).is_some()
+            // Untagged embed: at a kind that embeds another type, an
+            // identifier that names neither one of this kind's own variants
+            // nor one of its macros falls through to the embedded type —
+            // re-presented to the host visitor through `visit_newtype_struct`,
+            // so its `Deserialize` reads the embedded type and wraps it. That
+            // re-read names the embedded type's own `Deserialize`, which
+            // re-enters under the embedded namespace (its variants and
+            // macros), so a macro of the embedded kind is remembered as that
+            // kind. The fall-through re-reads with `Full` so the embedded
+            // `deserialize_enum` stays intercepted. Calling the visitor
+            // directly (not ron's named `deserialize_newtype_struct`) avoids
+            // re-parsing the value as a struct named after the host kind.
+            if embeds {
+                let native = match leading_ident::<Self::Error>(source, self.ctx)? {
+                    Some(ident) => {
+                        // The second native-candidacy consult (spec §4): it
+                        // runs before `EnumIntercept`, so restriction must
+                        // suppress here too or a banned ident at an
+                        // embed-hosting kind falls through to the embedded
+                        // type instead of erroring.
+                        (self.ctx.native_variant_ok(name, ident.as_str())
+                            && variants.contains(&ident.as_str()))
+                            || ident == "Param"
+                            || self.ctx.read.macros.get(name, &ident).is_some()
+                    }
+                    // A numeral falls through when the host has no numeral
+                    // leaf of its own — the literal branch above returned for
+                    // every kind that does. `2` at a mana-cost position is
+                    // `Simple(Generic(2))`, one hop at a time, exactly as
+                    // `Green` is.
+                    None if is_numeral_led(source) => false,
+                    // Not identifier-led and not a numeral (a string, a
+                    // sequence): the host kind's own grammar handles it.
+                    None => true,
+                };
+                if !native {
+                    return reread(source, self.ctx, Intercept::Full, |de| {
+                        visitor.visit_newtype_struct(de)
+                    });
                 }
-                // Not identifier-led (a scalar, a sequence): the host kind's
-                // own grammar handles it.
-                None => true,
-            };
-            if native {
-                return reread(source, self.ctx, Intercept::Skip, |de| {
-                    de.deserialize_enum(name, variants, visitor)
-                });
             }
-            // Hand the value to the host visitor as newtype content: its
-            // `visit_newtype_struct` reads the embedded type and wraps it.
-            // The wrapped deserializer is macro-aware (`Full`), so the
-            // embedded `Deserialize`'s `deserialize_enum` re-enters the
-            // intercept under the embedded type's namespace — variants and
-            // macros alike. Calling the visitor directly (not ron's named
-            // `deserialize_newtype_struct`) avoids re-parsing the value as a
-            // struct named after the host kind.
-            return reread(source, self.ctx, Intercept::Full, |de| {
-                visitor.visit_newtype_struct(de)
-            });
-        }
 
-        // Bare defaulted invocation: a macro whose params are all defaulted
-        // may be written by its bare name (`Hexproof` for `Hexproof()`). ron
-        // reads a bare identifier through the unit-variant channel, but a
-        // named macro's arguments come through the struct-variant channel,
-        // which errors on it — and `VariantAccess` is one-shot, so the shape
-        // can't be re-tried once chosen. Pre-scan instead: capture the value,
-        // and if it's a bare identifier naming such a macro, splice the
-        // explicit empty-args form and re-read, expanding identically to
-        // `Hexproof()`. A parenthesized form, a non-macro identifier, or a
-        // non-identifier value re-reads verbatim with `Skip` through the
-        // normal `EnumIntercept` path below (the re-read opts out of this
-        // scan, so it can't loop).
-        if self.intercept != Intercept::Skip && self.ctx.read.macros.has_bare_invocable(name) {
-            let source = <&RawValue>::deserialize(self.de)?.get_ron();
-            if let Some(ident) = leading_ident::<Self::Error>(source, self.ctx)?
+            // Bare defaulted invocation: a macro whose params are all
+            // defaulted may be written by its bare name (`Hexproof` for
+            // `Hexproof()`). ron reads a bare identifier through the
+            // unit-variant channel, but a named macro's arguments come through
+            // the struct-variant channel, which errors on it — and
+            // `VariantAccess` is one-shot, so the shape can't be re-tried once
+            // chosen. Splice the explicit empty-args form instead, expanding
+            // identically to `Hexproof()`.
+            if bare_invocable
+                && let Some(ident) = leading_ident::<Self::Error>(source, self.ctx)?
                 && source.trim() == ident.as_str()
                 && self
                     .ctx
@@ -1787,6 +1793,10 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     de.deserialize_enum(name, variants, visitor)
                 });
             }
+
+            // None of the three applied: re-read the captured value verbatim
+            // through the ordinary `EnumIntercept` path below, with the scans
+            // off.
             return reread(source, self.ctx, Intercept::Skip, |de| {
                 de.deserialize_enum(name, variants, visitor)
             });

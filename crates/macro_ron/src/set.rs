@@ -519,9 +519,15 @@ impl MacroSet {
             .flat_map(|(kind, named)| named.values().map(move |def| (kind, def)))
     }
 
-    /// See [`Kind::literal_wrapper`](crate::Kind::literal_wrapper).
-    pub(crate) fn literal_wrapper(&self, position: &str) -> Option<&'static str> {
-        self.kinds.get(position)?.literal
+    /// See [`Kind::literal_wrapper`](crate::Kind::literal_wrapper). The
+    /// second element is the wrapper's binder name when it is a struct
+    /// variant (`Kind::literal_binder`).
+    pub(crate) fn literal_wrapper(
+        &self,
+        position: &str,
+    ) -> Option<(&'static str, Option<&'static str>)> {
+        let kind = self.kinds.get(position)?;
+        Some((kind.literal?, kind.literal_binder))
     }
 
     /// The validator for the param type named `name`, if registered.

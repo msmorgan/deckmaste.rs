@@ -30,7 +30,9 @@ pub enum Marker {
     Embed,
     /// Compartment: the payload enum's accepted names lift into this enum.
     Flatten,
-    /// Bare-literal wrapper (`Count::Literal`) — Kind metadata only.
+    /// Bare-literal wrapper (`Count::Literal`, `Amount::Lit { value }`) —
+    /// Kind metadata only. A struct variant of one field carries its binder
+    /// with it, so the reader splices `Lit(value: 3)`.
     Literal,
     /// Newtype over a NAMED STRUCT, spelled field-spliced in RON
     /// (`Activated(cost: …, effect: …)`, via `unwrap_variant_newtypes`).
@@ -280,12 +282,16 @@ fn field(f: &syn::Field) -> Result<Field> {
 
 fn validate(ident: &Ident, marker: Option<Marker>, shape: &Shape) -> Result<()> {
     match marker {
+        // A `literal` numeral leaf may also be a struct variant of one field
+        // (`Amount::Lit { value }`): the binder rides along to the splice.
+        Some(Marker::Literal) if matches!(shape, Shape::Struct(fs) if fs.len() == 1) => {}
         Some(Marker::Expanded | Marker::Literal | Marker::Flatten | Marker::Spliced)
             if !matches!(shape, Shape::Newtype(_)) =>
         {
             return Err(Error::new(
                 ident.span(),
-                "expanded/literal/flatten/spliced markers require a newtype variant",
+                "expanded/flatten/spliced markers require a newtype variant \
+                 (literal also takes a one-field struct variant)",
             ));
         }
         Some(Marker::Expanded | Marker::Literal | Marker::Flatten | Marker::Spliced) | None => {}

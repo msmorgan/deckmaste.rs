@@ -14,6 +14,9 @@ pub struct Kind {
     pub(crate) name: Ident,
     pub(crate) remembers: bool,
     pub(crate) literal: Option<&'static str>,
+    /// The literal wrapper's binder name, when the wrapper is a struct
+    /// variant: the splice is `Lit(value: 3)` rather than `Lit(3)`.
+    pub(crate) literal_binder: Option<&'static str>,
     pub(crate) embeds: bool,
     /// The kind's dispatch set (`SupportsMacros::ALL_VARIANTS`), supplied by
     /// the derive. Empty for a hand-built `Kind`, which only costs the checks
@@ -46,6 +49,7 @@ impl Kind {
             name: name.into(),
             remembers: false,
             literal: None,
+            literal_binder: None,
             embeds: false,
             variants: &[],
             own_variants: &[],
@@ -141,6 +145,15 @@ impl Kind {
     #[must_use]
     pub fn literal_wrapper(mut self, wrapper: &'static str) -> Self {
         self.literal = Some(wrapper);
+        self
+    }
+
+    /// The binder the literal wrapper's one field carries, when the wrapper
+    /// is a struct variant (`Amount::Lit { value }`): the reader splices
+    /// `Lit(value: 3)`, the spelling that variant reads.
+    #[must_use]
+    pub fn literal_binder(mut self, binder: &'static str) -> Self {
+        self.literal_binder = Some(binder);
         self
     }
 

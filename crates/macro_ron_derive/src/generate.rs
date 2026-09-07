@@ -559,7 +559,7 @@ fn concat_signature_lists(ty: &Ident, tails: &[&Type]) -> TokenStream {
 
 /// The `Kind` builder chain: `remembers_expansion` ⇔ an `expanded` variant,
 /// `embeds_untagged` ⇔ an `embed` variant, `literal_wrapper` ⇔ a `literal`
-/// variant.
+/// variant (plus `literal_binder` when that variant is a struct).
 fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
     let mut kind = quote!(
         ::macro_ron::Kind::new(#ty_name)
@@ -576,6 +576,15 @@ fn gen_kind(input: &Input, ty_name: &str) -> TokenStream {
     if let Some(v) = input.literal() {
         let wrapper = v.ident.to_string();
         kind = quote!(#kind.literal_wrapper(#wrapper));
+        if let Shape::Struct(fields) = &v.shape {
+            let binder = fields[0]
+                .ident
+                .as_ref()
+                .expect("struct fields are named")
+                .to_string();
+            let binder = binder.strip_prefix("r#").unwrap_or(&binder).to_owned();
+            kind = quote!(#kind.literal_binder(#binder));
+        }
     }
     kind
 }
@@ -764,8 +773,8 @@ fn gen_serialize(input: &Input) -> TokenStream {
             // literal, and the name-erased newtype embed: all delegate to the
             // payload — so a literal writes `3`, never `Literal(3)`. (The read
             // side is the literal-aware reader in `deckmaste_core::ron`.)
-            (Some(Marker::Expanded | Marker::Flatten | Marker::Literal), _)
-            | (Some(Marker::Embed), Shape::Newtype(_)) => arms.push(quote! {
+            (Some(Marker::Expanded | Marker::Flatten), _)
+            | (Some(Marker::Literal | Marker::Embed), Shape::Newtype(_)) => arms.push(quote! {
                 #ty::#v_ident(__f0) => ::serde::Serialize::serialize(__f0, serializer),
             }),
             (Some(Marker::Embed), Shape::Tuple(fields)) => {
@@ -787,14 +796,15 @@ fn gen_serialize(input: &Input) -> TokenStream {
                 // … and the ordinary tagged tuple arm otherwise.
                 arms.push(tuple_arm(ty, &ty_name, index, v_ident, &name, fields.len()));
             }
-            // A struct embed writes bare like the newtype one, but names the
-            // constructor it elides: `serialize_newtype_struct` carries
-            // `Type.Variant`, which RON's `UNWRAP_NEWTYPES` drops (leaving
-            // `Green`) while a structural consumer — `deckmaste_semantics_v2`'s
-            // Lean emitter, which must name every constructor — reads it off
-            // and restores the application. `.` is a legal RON raw-identifier
-            // character, so the name still validates when the extension is off.
-            (Some(Marker::Embed), Shape::Struct(fields)) => {
+            // A struct embed and a struct `literal` both write their one
+            // field bare, but name the constructor they elide:
+            // `serialize_newtype_struct` carries `Type.Variant`, which RON's
+            // `UNWRAP_NEWTYPES` drops (leaving `Green`, or `3`) while a
+            // structural consumer — `deckmaste_semantics_v2`'s Lean emitter,
+            // which must name every constructor — reads it off and restores
+            // the application. `.` is a legal RON raw-identifier character, so
+            // the name still validates when the extension is off.
+            (Some(Marker::Embed | Marker::Literal), Shape::Struct(fields)) => {
                 let field = fields[0].ident.as_ref().expect("struct fields are named");
                 let qualified = format!("{ty_name}.{name}");
                 arms.push(quote! {

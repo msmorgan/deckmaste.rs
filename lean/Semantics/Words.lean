@@ -583,3 +583,5 @@ inductive ChoiceOccasion where
   deriving DecidableEq, Repr
 
 end Semantics
+
+attribute [semantic_literal] Semantics.SimpleManaSymbol.generic

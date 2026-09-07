@@ -615,15 +615,14 @@ pub enum ColorOrColorless {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum SimpleManaSymbol {
-    Generic {
-        amount: u32,
-    },
+    /// The numeral leaf of a mana cost: a bare `2` reads here, and through
+    /// the injection above at a `ManaSymbol` position [CR#107.4].
+    #[macro_ron(literal)]
+    Generic { amount: u32 },
     /// Carries only its mana type, so a bare `Colorless`/`Green` reads here
     /// [CR#107.4].
     #[macro_ron(embed)]
-    Specific {
-        color: ColorOrColorless,
-    },
+    Specific { color: ColorOrColorless },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]

@@ -494,6 +494,8 @@ pub enum Amount {
         index: u32,
         shape: AmountShape,
     },
+    /// The numeral leaf of the amount language: a bare `3` reads here.
+    #[macro_ron(literal)]
     Lit {
         value: i32,
     },

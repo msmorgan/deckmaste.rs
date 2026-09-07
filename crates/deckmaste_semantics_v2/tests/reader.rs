@@ -406,3 +406,63 @@ fn an_injection_writes_bare() {
         .expect("a mana symbol writes");
     assert_eq!(text, "Green");
 }
+
+/// A numeral reads at its leaf: `3` at an amount position is `Lit(value: 3)`,
+/// the constructor Lean marks `semantic_literal`.
+#[test]
+fn a_bare_numeral_reads_as_an_amount() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let amount: Amount = macros.read_str("3").expect("a bare numeral is an amount");
+    assert_eq!(amount, Amount::Lit { value: 3 });
+    let written = deckmaste_semantics_v2::ron::raw_options()
+        .to_string(&amount)
+        .expect("an amount writes");
+    assert_eq!(written, "3");
+}
+
+/// The numeral leaf reached through the injection chain, which is what makes
+/// `[2, Green, Blue]` a mana cost.
+#[test]
+fn a_mana_cost_is_numerals_and_colours() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let cost: Vec<ManaSymbol> = macros
+        .read_str("[2, Green, Blue]")
+        .expect("a mana cost of a numeral and two colours");
+    assert_eq!(
+        cost,
+        vec![
+            ManaSymbol::Simple {
+                symbol: SimpleManaSymbol::Generic { amount: 2 }
+            },
+            green_symbol(),
+            ManaSymbol::Simple {
+                symbol: SimpleManaSymbol::Specific {
+                    color: ColorOrColorless::Of { color: Color::Blue }
+                }
+            },
+        ]
+    );
+    let written = deckmaste_semantics_v2::ron::raw_options()
+        .to_string(&cost)
+        .expect("a mana cost writes");
+    assert_eq!(written, "[2,Green,Blue]");
+}
+
+/// The sugar adds a spelling; the written-out leaf still reads.
+#[test]
+fn the_written_out_numeral_leaf_still_reads() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let amount: Amount = macros
+        .read_str("Lit(value: 3)")
+        .expect("the written leaf reads");
+    assert_eq!(amount, Amount::Lit { value: 3 });
+}
+
+/// A value that is not a numeral gets no sugar: the amount grammar refuses it.
+#[test]
+fn a_non_numeral_gets_no_leaf_sugar() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    macros
+        .read_str::<Amount>("\"three\"")
+        .expect_err("a string is not an amount");
+}
