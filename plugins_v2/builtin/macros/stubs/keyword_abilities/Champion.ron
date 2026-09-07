@@ -15,7 +15,7 @@ KeywordAbility(
     // control." [CR#702.72a]
     body: Keyword(
         keyword: "Champion",
-        params: [Subject(predicate: Param(0))],
+        params: [Quality(predicate: Param(0))],
         body: [
             Triggered(
                 event: ZoneChange(

@@ -19,10 +19,19 @@ KeywordAbility(
                             instruction: Move(
                                 subject: Described(
                                     determiner: A(mode: Unmarked),
+                                    // Each arm carries the battlefield the sacrifice
+                                    // presupposes: `IsToken` seeds it on its own, and
+                                    // coordinated arms must seed alike.
                                     predicate: Or(
                                         disjuncts: [
-                                            HasType(type: Artifact),
-                                            HasType(type: Enchantment),
+                                            And(conjuncts: [
+                                                HasType(type: Artifact),
+                                                InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                            ]),
+                                            And(conjuncts: [
+                                                HasType(type: Enchantment),
+                                                InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                            ]),
                                             IsToken,
                                         ],
                                     ),

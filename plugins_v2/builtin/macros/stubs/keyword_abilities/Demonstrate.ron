@@ -79,11 +79,13 @@ KeywordAbility(
                                         predicate: ChosenPlayer(r#ref: TheChoice),
                                     ),
                                 ),
+                                // "that copy": the one the chosen player just made,
+                                // not the caster's, which is still on the stack.
                                 body: ChooseNewTargets(
                                     subject: Pro(
                                         reach: Word(word: Copy),
                                         plurality: One,
-                                        window: Whole,
+                                        window: Top(depth: 1),
                                     ),
                                 ),
                                 if_did: None,

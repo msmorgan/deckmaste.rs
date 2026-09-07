@@ -873,6 +873,9 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
+            // "A spell is 'bargained' if its controller sacrificed a permanent as
+            // it was cast" [CR#702.166b] — a cost a later clause reads back.
+            paid_cost: true,
             definition: &[Category::Static],
             ..D
         },

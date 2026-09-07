@@ -1,0 +1,59 @@
+// "Farm // Market", the aftermath split [CR#702.127a,709.4]. Farm: "Destroy target
+// attacking or blocking creature." Market: "Aftermath / Draw two cards, then
+// discard two cards."
+Split(
+    left: (
+        characteristics: (
+            name: "Farm",
+            cost: [
+                Simple(symbol: Generic(amount: 2)),
+                Simple(symbol: Specific(color: Of(color: White))),
+            ],
+            types: [Instant],
+            text: [
+                Spell(
+                    timing: None,
+                    instruction: Destroy(Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            Or(disjuncts: [
+                                InCombat(relation: AttackerOf, counterpart: None),
+                                InCombat(relation: BlockerOf, counterpart: None),
+                            ]),
+                        ]),
+                    )),
+                ),
+            ],
+        ),
+    ),
+    right: (
+        characteristics: (
+            name: "Market",
+            cost: [
+                Simple(symbol: Generic(amount: 2)),
+                Simple(symbol: Specific(color: Of(color: Blue))),
+            ],
+            types: [Sorcery],
+            text: [
+                Aftermath,
+                Spell(
+                    timing: None,
+                    instruction: Sequentially(steps: [
+                        Draw(amount: Lit(value: 2), agent: You),
+                        Discard(
+                            Described(
+                                determiner: Count(quantity: Range(low: 2, high: 2), mode: None),
+                                predicate: And(conjuncts: [
+                                    IsCard,
+                                    InZone(zone: Zone(zone: Hand, scope: PossessedBy(possessor: You))),
+                                ]),
+                            ),
+                            You,
+                        ),
+                    ]),
+                ),
+            ],
+        ),
+    ),
+)

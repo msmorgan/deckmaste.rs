@@ -112,10 +112,10 @@ keywordFacts =
   , { word := "Assist", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "AuraSwap", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Backup", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
-  , { word := "Bargain", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
+  , { word := "Bargain", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "BattleCry", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Bloodthirst", paramShapes := [NumberParam] } defaultKeywordFacts
-  , { word := "Champion", paramShapes := [SubjectParam] } defaultKeywordFacts
+  , { word := "Champion", paramShapes := [QualityParam] } defaultKeywordFacts
   , { word := "Cipher", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Compleated", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Conspire", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
