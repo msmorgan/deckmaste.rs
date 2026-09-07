@@ -5,4 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "hideaway",
     ),
+    // STOP. "Hideaway N" ends with the exiled card gaining "The player who controls the
+    // permanent that exiled this card may look at this card in the exile zone"
+    // [CR#702.75a]. `actFacts` names no looking deed, so that granted permission cannot
+    // be written: `Instruction::Expose(verb: LookAt, …)` is an instruction, and a
+    // `DeonticRule` permits deeds, not instructions.
+    body: Keyword(keyword: "Hideaway", params: [Number(amount: Param(0))], body: []),
 )

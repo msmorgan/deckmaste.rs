@@ -336,6 +336,7 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -689,6 +690,12 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
+            definition: &[
+                Category::Static,
+                Category::Static,
+                Category::Static,
+                Category::Triggered,
+            ],
             ..D
         },
         Row {
@@ -1051,7 +1058,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Hideaway",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1092,10 +1098,12 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "LevelUp",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "LivingMetal",
+            definition: &[Category::Static],
             ..D
         },
         Row {

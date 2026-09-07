@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "HiddenAgenda",
+    params: [],
     spelling: "hidden agenda",
     grammar: FixedKeyword(
         surface: "hidden agenda",
     ),
+    // STOP. Hidden agenda functions "as a conspiracy card with hidden agenda is put
+    // into the command zone" [CR#702.106a]. Conspiracy cards are outside this repo's
+    // Vintage-playable scope, so the zone, the face-down conspiracy and the secretly
+    // chosen name it speaks of are not modelled at all.
+    body: Keyword(keyword: "HiddenAgenda", params: [], body: []),
 )

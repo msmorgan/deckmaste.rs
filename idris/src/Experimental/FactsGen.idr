@@ -144,7 +144,7 @@ keywordFacts =
   , { word := "Gravestorm", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
   , { word := "Haunt", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "HiddenAgenda", paramShapes := [NoParam] } defaultKeywordFacts
-  , { word := "Hideaway", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
+  , { word := "Hideaway", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Horsemanship", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Increment", paramShapes := [NoParam], regime := Just AtCasting, bodied := True } defaultKeywordFacts
   , { word := "Infinity", paramShapes := [AbilityParam] } defaultKeywordFacts

@@ -6,4 +6,11 @@ KeywordAbility(
         surface: "kicker",
         participial_adjective: (surface: "kicked",),
     ),
+    // "Kicker [cost]" means "You may pay an additional [cost] as you cast this spell."
+    // [CR#702.33a]
+    body: Keyword(
+        keyword: "Kicker",
+        params: [Cost(cost: Param(0))],
+        body: [Static(spec: AddedCost(cost: Param(0), offered: true))],
+    ),
 )

@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "Improvise",
+    params: [],
     spelling: "improvise",
     grammar: FixedKeyword(
         surface: "improvise",
     ),
+    // STOP. "Improvise" means "For each generic mana in this spell's total cost, you may
+    // tap an untapped artifact you control rather than pay that mana" [CR#702.126a] —
+    // the per-mana-symbol payment alternative convoke, delve and assist also want, and
+    // that no `StaticSpec` offers.
+    body: Keyword(keyword: "Improvise", params: [], body: []),
 )
