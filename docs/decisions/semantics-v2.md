@@ -158,9 +158,10 @@ mimicked.
 - One macro per verb lemma. Frames understand inflection, so surface
   agreement variants are one definition; the old macro layer's agreement
   pairs (draw/draws) do not carry into v2.
-- Agents are explicit and there are no default arguments anywhere. The
+- Agents are explicit; core constructors take every field required. The
   imperative's unpronounced subject is supplied by the frame as an explicit
-  `You` in the term.
+  `You` in the term. A macro PARAMETER may carry a default (§12, ruling
+  2026-09-07); a constructor field may not.
 - Agentive verbs — those the CR gives a player actor — put that performer
   in clause position and require it, the factored form of the real macros'
   agent parameter: a dependent context cannot re-use the subject term at
@@ -264,7 +265,8 @@ skips `meta/`.
 
 The dialect is what the Lean bench writes, spelled in RON. Four rulings
 (2026-09-07, `plugins-v2-dialect`), each a reader rule rather than a
-per-type convenience:
+per-type convenience, and each off by default in `macro_ron` — v2's
+`MacroSet` turns them on, v1's does not:
 
 - **Unknown fields are refused.** A named argument a constructor does not
   declare is an error naming both, never a skipped key. serde's default —
@@ -274,41 +276,59 @@ per-type convenience:
   signature passed unnoticed. `MacroSet::denying_unknown_fields` turns the
   check on; v2's macro set does.
 - **A constructor that carries only its payload may be left unwritten.** A
-  constructor with exactly one field whose type is another syntax type is an
+  constructor of exactly one field whose type is another syntax type is an
   INJECTION: it adds no information, so the reader supplies it. `Green` at a
   mana-symbol position is `Simple(symbol: Specific(color: Of(color: Green)))`,
-  one hop at a time. This is v1's `#[macro_ron(embed)]` rule (see
+  one hop at a time. The mechanism is v1's `#[macro_ron(embed)]` (see
   `deckmaste_semantics`'s `mana.rs` for why an untagged fall-through rather
-  than `serde(untagged)`), generalized three ways the mirror needs: the
-  constructor may be a struct variant with a binder name, a type may carry
-  more than one injection, and the fall-through is a source rewrite over a
-  shape registry rather than a `visit_newtype_struct` hop, so a plain
-  `#[derive(Deserialize)]` type takes part. Native dispatch always wins: an
-  identifier the position's own grammar or macro namespace claims is never
-  routed. Where two injections both accept a spelling the reader refuses it,
-  naming both constructors — it does not guess.
+  than `serde(untagged)`), extended one way the mirror needs: the embed
+  variant may be a STRUCT variant of one field, so it keeps the binder name
+  that is the contract with the Lean constructor. Everything else about
+  `embed` is unchanged, the ONE-PER-ENUM rule above all — two untagged
+  fall-throughs at one position would race for the same identifier, and the
+  derive refuses a second. The chain is hand-chosen, never enumerated from
+  the mirror: today `ManaSymbol::Simple`, `SimpleManaSymbol::Specific`,
+  `ColorOrColorless::Of` and `ColorTerm::Lit`, which is v1's chain mapped
+  onto v2. Native dispatch always wins: an identifier the position's own
+  grammar or macro namespace claims is never routed.
+
+  An injection also WRITES bare, so a card file spells the colour and
+  nothing else. The elided constructor is not lost on the way out: the
+  variant's payload is written through a newtype struct named
+  `Type.Variant`, which ron's `unwrap_newtypes` extension drops, while a
+  structural consumer that must name every constructor — the Lean emitter
+  (§13) — reads that name and restores the application.
 - **A constructor may be applied positionally.** Arguments in the
   constructor's declared binder order, which is what Lean writes:
-  `Simple(Specific(Of(Green)))`. The order comes from the shape registry the
-  `#[derive(Syntax)]` derive builds from the mirror itself, so the binder
-  names stay the contract with Lean and the mirror keeps its struct fields.
-  Trailing named arguments after positional ones — Lean's
-  `exile x (agent := .you)` — are NOT part of the dialect: RON has no mixed
-  application form, and ron's own value scanner refuses `C(a, b: c)` before
-  any reader hook runs. Write the wholly named form when a binder must be
-  skipped.
+  `Hybrid(Generic(amount: 1), Red)` for
+  `Hybrid(left: Generic(amount: 1), right: Red)`. The reader does not rewrite
+  the text: it hands the position to ron's own `deserialize_any`, whose
+  lookahead decides which form is written and calls `visit_map` or
+  `visit_seq` — both of which serde's derived struct visitor implements, so
+  the binder names and every forwarded `#[serde(...)]` still govern. The two
+  forms are NEVER mixed: ron's value scanner refuses `C(a, b: c)` while
+  deciding, before either visitor runs, so `exile x (agent := .you)` has no
+  RON spelling and a binder that must be skipped takes the wholly named form.
+  A constructor of ONE field is exempt and keeps its binder: inside a newtype
+  variant ron reads `(x)` as a newtype rather than a one-element tuple, and
+  its `handle_any_struct` then turns a bare identifier into a unit value,
+  discarding the very name the argument is.
 - **A numeral reads at its leaf.** Lean marks `Amount.lit` and
   `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
-  two `#[macro_ron(numeral)]`. A bare numeral reads at a position's own
-  numeral leaf, or through an injection to a type that has one, so
-  `[2, Green, Blue]` is a mana cost and `power: 3` is an amount.
+  two `#[macro_ron(literal)]`, the marker v1 already uses for `StatValue`'s
+  bare `-1`. A struct-variant literal carries its binder to the splice, so
+  `3` reads as `Lit(value: 3)`. A numeral also falls through an INJECTION to
+  a leaf further down — a position that embeds another type and has no
+  numeral leaf of its own passes the numeral on — so `[2, Green, Blue]` is a
+  mana cost and `power: 3` is an amount. Like an injection, a numeral leaf
+  writes bare and carries its constructor to the Lean emitter the same way.
 
-The shape registry (`macro_ron::ShapeSet`) is built by `#[derive(Syntax)]`,
-whose `register` walks every type its fields name: registering the roots
-registers the mirror's whole reachable graph, so the registry cannot fall
-behind the syntax. It carries no policy of its own — which constructors are
-injections and which are numeral leaves is declared on the mirror, beside the
-Lean constructor each one mirrors.
+Which constructors are injections and which are numeral leaves is declared on
+the mirror, beside the Lean constructor each one mirrors; `macro_ron` carries
+no policy of its own. The reader rules are not per-type conveniences but they
+are per-consumer: a `MacroSet` that declares none of them reads exactly as it
+did before, which is what keeps v1 — the embed mechanism's other user —
+unchanged.
 
 ## 12. Macro system
 
@@ -317,13 +337,21 @@ consumer-typed, opaque metadata. Kinds are one per `SupportsMacros` enum and
 exist only to disambiguate same-name macros at different usage sites; Lean's
 `MacroParameters` classes are a proof device, not the kind set. Macros
 invoke other macros up to the expander's depth limit; there is no
-self-recursion. §7's discipline (no default arguments, one macro per phrase
-shape, term-for-term expansion) is unchanged.
+self-recursion. §7's discipline (one macro per phrase shape, term-for-term
+expansion) is unchanged, except that a macro PARAMETER may now carry a
+default: the no-default-slots rule was an Idris carryover about core
+constructors, and Idris retires with v1 (ruling, 2026-09-07). A helper macro
+declares Lean's named defaults as defaults on the parameter, and generated
+Lean carries them natively. Core constructors take every field required, as
+[card-authoring-binds-no-implicits](card-authoring-binds-no-implicits.md)
+says.
 
 `macro_ron` gains the reader rules §11.1 records — the unknown-field refusal,
 injections, positional application, numeral leaves — all off by default and
-all consumer-declared: a `MacroSet` with no shapes registered and no
-`denying_unknown_fields` reads exactly as it did before. What a macro's own
+all consumer-declared: two `MacroSet` switches (`denying_unknown_fields`,
+`reading_positional_arguments`) and two `#[macro_ron(...)]` markers on the
+mirror (`embed`, `literal`). A `MacroSet` with neither switch, over types
+carrying neither marker, reads exactly as it did before. What a macro's own
 BODY may write is what a card may write, because a body is read at the
 position it expands to and goes through the same reader. A macro's own
 argument list is unaffected: a signature is positional or named as it always
