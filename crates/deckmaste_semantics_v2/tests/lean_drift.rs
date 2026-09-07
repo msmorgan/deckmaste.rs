@@ -9,6 +9,12 @@
 //! Both sides are read from source: the Lean by the small line-oriented parser
 //! below, the Rust by `syn`. Neither side maintains a hand-written inventory
 //! that could itself go stale.
+//!
+//! The name mapping itself lives in the crate
+//! ([`deckmaste_semantics_v2::lean_emit`]), because the card gate emits Lean
+//! through the same correspondence this test reads it through. This test scans
+//! the Lean names RAW and asserts the mapping round-trips on every one of them,
+//! so a Lean spelling the emitter would get wrong fails here first.
 
 #![allow(
     clippy::too_many_lines,
@@ -61,59 +67,10 @@ const PAIRS: &[(&str, &str, &str)] = &[
 // The name mapping
 // ---------------------------------------------------------------------------
 
-/// Rust keywords that a raw identifier (`r#type`) can escape. Serde reads and
-/// writes a raw identifier under its bare word, so the RON surface keeps the
-/// Lean spelling.
-const RAWABLE: &[&str] = &[
-    "as", "break", "const", "continue", "dyn", "else", "enum", "extern", "false", "fn", "for",
-    "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return",
-    "static", "struct", "trait", "true", "type", "unsafe", "use", "where", "while", "abstract",
-    "become", "box", "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual",
-    "yield", "try", "gen", "async", "await",
-];
-
-/// Rust keywords no raw identifier can escape; these take a trailing
-/// underscore and a `serde(rename)` back to the Lean spelling.
-const UNRAWABLE: &[&str] = &["crate", "self", "Self", "super"];
-
-/// A Lean constructor name as its Rust variant: the same word, dropping Lean's
-/// trailing-underscore keyword escape, in `UpperCamelCase`.
-fn variant_name(lean: &str) -> String {
-    let stem = lean.trim_end_matches('_');
-    let mut chars = stem.chars();
-    let mut out: String = match chars.next() {
-        Some(first) => first.to_uppercase().collect(),
-        None => String::new(),
-    };
-    out.push_str(chars.as_str());
-    if UNRAWABLE.contains(&out.as_str()) {
-        out.push('_');
-    }
-    out
-}
-
-/// A Lean field name as its Rust field: the same word, dropping Lean's
-/// trailing-underscore keyword escape, in `snake_case`, with Rust's own escape
-/// applied where the word is a keyword.
-fn field_name(lean: &str) -> String {
-    let stem = lean.trim_end_matches('_');
-    let mut snake = String::new();
-    for ch in stem.chars() {
-        if ch.is_uppercase() {
-            snake.push('_');
-            snake.extend(ch.to_lowercase());
-        } else {
-            snake.push(ch);
-        }
-    }
-    if RAWABLE.contains(&snake.as_str()) {
-        return format!("r#{snake}");
-    }
-    if UNRAWABLE.contains(&snake.as_str()) {
-        snake.push('_');
-    }
-    snake
-}
+use deckmaste_semantics_v2::lean_emit::lean_field;
+use deckmaste_semantics_v2::lean_emit::lean_variant;
+use deckmaste_semantics_v2::lean_emit::rust_field;
+use deckmaste_semantics_v2::lean_emit::rust_variant;
 
 // ---------------------------------------------------------------------------
 // The Lean side
@@ -185,7 +142,7 @@ fn lean_binder(group: &str) -> Vec<String> {
     let Some((names, _)) = group.split_once(':') else {
         return Vec::new();
     };
-    names.split_whitespace().map(field_name).collect()
+    names.split_whitespace().map(ToString::to_string).collect()
 }
 
 /// Whether a line opens a structure field (`name : Type`), as opposed to
@@ -300,10 +257,7 @@ fn lean_entry(text: &str) -> Vec<(String, Vec<String>)> {
             .iter()
             .all(|p| p.chars().all(|c| c.is_alphanumeric() || c == '_'))
     {
-        return parts
-            .iter()
-            .map(|p| (variant_name(p), Vec::new()))
-            .collect();
+        return parts.iter().map(|p| (p.clone(), Vec::new())).collect();
     }
     vec![lean_constructor(text)]
 }
@@ -317,7 +271,7 @@ fn lean_constructor(text: &str) -> (String, Vec<String>) {
     let mut parts = head.splitn(2, char::is_whitespace);
     let name = parts.next().unwrap_or_default();
     let rest = parts.next().unwrap_or_default();
-    (variant_name(name), lean_args(rest))
+    (name.to_string(), lean_args(rest))
 }
 
 /// Expands the `| a | b | c` unit runs a single Lean line may carry.
@@ -394,6 +348,22 @@ fn rust_declarations(source: &str) -> BTreeMap<String, Shape> {
 // The comparison
 // ---------------------------------------------------------------------------
 
+/// One declaration's Lean shape as its Rust shape: the mapping applied to
+/// every constructor and field name the scan read raw.
+fn translate(shape: &Shape) -> Shape {
+    shape
+        .iter()
+        .map(|(member, fields)| {
+            let member = if member == STRUCT_MEMBER {
+                STRUCT_MEMBER.to_string()
+            } else {
+                rust_variant(member)
+            };
+            (member, fields.iter().map(|f| rust_field(f)).collect())
+        })
+        .collect()
+}
+
 fn describe(member: &str) -> String {
     if member == STRUCT_MEMBER {
         "(fields)".to_string()
@@ -406,7 +376,10 @@ fn describe(member: &str) -> String {
 fn rust_mirrors_the_lean_syntax_declaration_for_declaration() {
     let mut report = String::new();
     for (file, lean_source, rust_source) in PAIRS {
-        let lean = lean_declarations(lean_source);
+        let lean: BTreeMap<String, Shape> = lean_declarations(lean_source)
+            .iter()
+            .map(|(name, shape)| (name.clone(), translate(shape)))
+            .collect();
         let rust = rust_declarations(rust_source);
 
         for name in lean.keys() {
@@ -483,12 +456,57 @@ fn the_drift_scan_finds_the_whole_syntax() {
 /// The name mapping is the one the crate documents.
 #[test]
 fn the_name_mapping_is_the_documented_one() {
-    assert_eq!(variant_name("hasType"), "HasType");
-    assert_eq!(variant_name("return_"), "Return");
-    assert_eq!(variant_name("self"), "Self_");
-    assert_eq!(field_name("from_"), "from");
-    assert_eq!(field_name("type"), "r#type");
-    assert_eq!(field_name("by_"), "by");
-    assert_eq!(field_name("callerWidth"), "caller_width");
+    assert_eq!(rust_variant("hasType"), "HasType");
+    assert_eq!(rust_variant("return_"), "Return");
+    assert_eq!(rust_variant("self"), "Self_");
+    assert_eq!(rust_field("from_"), "from");
+    assert_eq!(rust_field("type"), "r#type");
+    assert_eq!(rust_field("by_"), "by");
+    assert_eq!(rust_field("callerWidth"), "caller_width");
     assert_eq!(lean_unit_run("up | down"), vec!["up", "down"]);
+}
+
+/// The card gate writes Lean back through the inverse of this mapping, so
+/// every constructor and field name the six syntax files declare has to
+/// survive the round trip. A Lean spelling that does not is a name the emitted
+/// term would get wrong — an unbuildable module, or worse, a different
+/// constructor.
+#[test]
+fn every_lean_name_round_trips_through_the_emitters_mapping() {
+    let mut broken = String::new();
+    let mut names = 0usize;
+    for (file, lean_source, _) in PAIRS {
+        for (declaration, shape) in lean_declarations(lean_source) {
+            for (member, fields) in shape {
+                if member != STRUCT_MEMBER {
+                    names += 1;
+                    let back = lean_variant(&rust_variant(&member));
+                    if back != member {
+                        writeln!(
+                            broken,
+                            "{file}: `{declaration}.{member}` comes back as `{back}`"
+                        )
+                        .unwrap();
+                    }
+                }
+                for field in fields {
+                    names += 1;
+                    let back = lean_field(&rust_field(&field));
+                    if back != field {
+                        writeln!(
+                            broken,
+                            "{file}: `{declaration}.{member}`'s field `{field}` comes back as \
+                             `{back}`"
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        names >= 800,
+        "the scan found only {names} names to round-trip"
+    );
+    assert!(broken.is_empty(), "names the mapping loses:\n{broken}");
 }

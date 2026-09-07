@@ -21,3 +21,7 @@
 # wires it as a PreToolUse command, so a checkout without it would point at a
 # missing script.
 !/.claude/hooks/
+# The Lean card soundness gate's emitted terms (`cargo xtask lean-check`):
+# generated per run from `plugins_v2/`, never committed.
+/lean/Generated/
+/lean/Generated.lean

@@ -24,6 +24,7 @@
 pub mod abilities;
 pub mod card;
 pub mod events;
+pub mod lean_emit;
 pub mod phrase;
 pub mod reader;
 pub mod reads;

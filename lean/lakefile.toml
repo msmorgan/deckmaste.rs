@@ -22,3 +22,11 @@ roots = ["Semantics.Cards"]
 [[lean_lib]]
 name = "SemanticsProofs"
 roots = ["Semantics.Proofs"]
+
+# The card soundness gate's emitted cards (`cargo xtask lean-check`): untracked,
+# regenerated per run, and deliberately OUTSIDE `defaultTargets` so
+# `./scripts/build` stays the hand workbench's gate and succeeds with no
+# `Generated/` present.
+[[lean_lib]]
+name = "Generated"
+roots = ["Generated"]
