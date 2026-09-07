@@ -58,7 +58,7 @@ pub const LEAN_NAMESPACE: &str = "Semantics";
 // compares it to Rust through [`rust_variant`]/[`rust_field`]; the emitter
 // writes Rust back as Lean through [`lean_variant`]/[`lean_field`]. Keeping
 // the pair here — with the drift test asserting the round trip over every name
-// the six Lean files declare — is what stops the gate and the drift test from
+// the mirrored Lean files declare — is what stops the gate and the drift test from
 // disagreeing about what a constructor is called.
 
 /// Rust keywords that a raw identifier (`r#type`) can escape. Serde reads and
@@ -78,7 +78,7 @@ pub const UNRAWABLE: &[&str] = &["crate", "self", "Self", "super"];
 
 /// The words Lean's own grammar reserves, so the mirrored declaration spells
 /// them with a trailing underscore (`from_`, `while_`). The list is the exact
-/// set the seven syntax files use; the drift test's round trip over every Lean
+/// set the mirrored Lean files use; the drift test's round trip over every Lean
 /// name is what keeps it from going stale.
 pub const LEAN_ESCAPED: &[&str] = &[
     "as", "by", "class", "end", "exists", "from", "repeat", "return", "then", "unless", "until",

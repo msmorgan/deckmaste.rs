@@ -1,6 +1,7 @@
 //! The drift test:
 //! `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card,Rules}.lean`
-//! against the seven Rust modules that mirror them.
+//! and `lean/Semantics/Check/FactTypes.lean` against the eight Rust modules
+//! that mirror them.
 //!
 //! Lean is the specification (`docs/decisions/semantics-v2.md` §10), so this
 //! fails on any difference in EITHER direction: a declaration, constructor or
@@ -66,6 +67,11 @@ const PAIRS: &[(&str, &str, &str)] = &[
         "Rules",
         include_str!("../../../lean/Semantics/Rules.lean"),
         include_str!("../src/rules.rs"),
+    ),
+    (
+        "Check/FactTypes",
+        include_str!("../../../lean/Semantics/Check/FactTypes.lean"),
+        include_str!("../src/facts.rs"),
     ),
 ];
 
@@ -473,7 +479,7 @@ fn the_name_mapping_is_the_documented_one() {
 }
 
 /// The card gate writes Lean back through the inverse of this mapping, so
-/// every constructor and field name the six syntax files declare has to
+/// every constructor and field name the mirrored Lean files declare has to
 /// survive the round trip. A Lean spelling that does not is a name the emitted
 /// term would get wrong — an unbuildable module, or worse, a different
 /// constructor.

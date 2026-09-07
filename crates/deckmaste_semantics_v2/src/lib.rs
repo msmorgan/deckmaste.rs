@@ -2,10 +2,12 @@
 //! from the Lean workbench.
 //!
 //! `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card,Rules}.lean`
-//! is the specification. Each of those files has a module here that mirrors it
-//! constructor-for-constructor and field-for-field; a Lean change is a Rust
-//! change, never the reverse, and `tests/lean_drift.rs` fails on any name the
-//! two sides disagree on (`docs/decisions/semantics-v2.md` §10).
+//! is the specification, together with `lean/Semantics/Check/FactTypes.lean`
+//! for the registry fact columns a declaration carries. Each of those files
+//! has a module here that mirrors it constructor-for-constructor and
+//! field-for-field; a Lean change is a Rust change, never the reverse, and
+//! `tests/lean_drift.rs` fails on any name the two sides disagree on
+//! (`docs/decisions/semantics-v2.md` §10).
 //!
 //! The crate does no law checking and emits no refusals. [`reads`] exposes the
 //! structural reads lowering needs — kind projection and binding resolution —
@@ -24,6 +26,7 @@
 pub mod abilities;
 pub mod card;
 pub mod events;
+pub mod facts;
 pub mod lean_emit;
 pub mod phrase;
 pub mod reader;
