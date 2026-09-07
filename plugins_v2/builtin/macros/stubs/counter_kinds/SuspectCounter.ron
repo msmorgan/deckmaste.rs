@@ -2,5 +2,5 @@ CounterKind(
     name: "SuspectCounter",
     params: [],
     spelling: "suspect",
-    body: Counter(name: "SuspectCounter", scope: Object),
+    body: CounterFacts(label: "Suspect", holder: Object),
 )

@@ -9,5 +9,5 @@ CounterKind(
     params: [],
     spelling: "charge",
     grammar: FixedTerm(surface: "charge"),
-    body: Counter(name: "ChargeCounter"),
+    body: CounterFacts(label: "Charge", holder: Object),
 )

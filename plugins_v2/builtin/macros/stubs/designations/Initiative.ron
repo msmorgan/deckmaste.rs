@@ -5,5 +5,7 @@ Designation(
     params: [],
     spelling: "the initiative",
     grammar: FixedTerm(surface: "the initiative"),
-    body: DesignationDecl(name: "Initiative", definition: Stored(scope: Player, shape: Flag, uniqueness: PerGame, persistence: Permanently)),
+    body: [
+        DesignationFacts(label: "the initiative", scope: HeldBy(holder: Player), effectful: true, zone: None, type: None, half: None),
+    ],
 )

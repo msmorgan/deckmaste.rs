@@ -145,7 +145,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: Player")
+            .contains("CounterFacts(label: \"Energy\", holder: Player)")
     );
     assert!(
         counter(&declarations, "DeathtouchCounter")

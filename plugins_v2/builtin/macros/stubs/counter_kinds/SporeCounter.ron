@@ -3,5 +3,5 @@ CounterKind(
     params: [],
     spelling: "spore",
     grammar: FixedTerm(surface: "spore"),
-    body: Counter(name: "SporeCounter"),
+    body: CounterFacts(label: "Spore", holder: Object),
 )

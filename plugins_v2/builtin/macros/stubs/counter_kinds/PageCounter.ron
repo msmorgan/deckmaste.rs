@@ -2,5 +2,5 @@ CounterKind(
     name: "PageCounter",
     params: [],
     spelling: "page",
-    body: Counter(name: "PageCounter", scope: Object),
+    body: CounterFacts(label: "Page", holder: Object),
 )

@@ -2,5 +2,5 @@ CounterKind(
     name: "StashCounter",
     params: [],
     spelling: "stash",
-    body: Counter(name: "StashCounter", scope: Object),
+    body: CounterFacts(label: "Stash", holder: Object),
 )

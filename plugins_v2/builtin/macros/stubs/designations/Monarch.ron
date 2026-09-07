@@ -9,13 +9,7 @@ Designation(
     params: [],
     spelling: "the monarch",
     grammar: FixedTerm(surface: "the monarch"),
-    body: DesignationDecl(
-        name: "Monarch",
-        definition: Stored(
-            scope: Player,
-            shape: Flag,
-            uniqueness: PerGame,
-            persistence: Permanently,
-        ),
-    ),
+    body: [
+        DesignationFacts(label: "the monarch", scope: HeldBy(holder: Player), effectful: true, zone: None, type: None, half: None),
+    ],
 )

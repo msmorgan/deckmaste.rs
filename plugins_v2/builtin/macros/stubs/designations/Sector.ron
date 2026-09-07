@@ -4,5 +4,9 @@ Designation(
     params: [],
     spelling: "sector designation",
     grammar: FixedTerm(surface: "sector designation"),
-    body: DesignationDecl(name: "Sector", definition: Stored(scope: Object, shape: Enum(["Alpha", "Beta", "Gamma"]), uniqueness: None, persistence: EffectSupplied)),
+    body: [
+        DesignationFacts(label: "alpha sector", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+        DesignationFacts(label: "beta sector", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+        DesignationFacts(label: "gamma sector", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
 )

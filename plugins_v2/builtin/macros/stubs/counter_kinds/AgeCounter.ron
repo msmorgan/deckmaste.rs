@@ -12,5 +12,5 @@ CounterKind(
     params: [],
     spelling: "age",
     grammar: FixedTerm(surface: "age"),
-    body: Counter(name: "AgeCounter"),
+    body: CounterFacts(label: "Age", holder: Object),
 )

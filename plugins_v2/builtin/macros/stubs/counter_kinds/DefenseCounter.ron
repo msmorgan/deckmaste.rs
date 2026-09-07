@@ -7,5 +7,5 @@ CounterKind(
     params: [],
     spelling: "defense",
     grammar: FixedTerm(surface: "defense"),
-    body: Counter(name: "DefenseCounter"),
+    body: CounterFacts(label: "Defense", holder: Object),
 )

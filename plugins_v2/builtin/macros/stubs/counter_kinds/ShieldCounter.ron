@@ -12,5 +12,5 @@ CounterKind(
     params: [],
     spelling: "shield",
     grammar: FixedTerm(surface: "shield"),
-    body: Counter(name: "ShieldCounter"),
+    body: CounterFacts(label: "Shield", holder: Object),
 )

@@ -70,94 +70,105 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
         commander.spelling(),
         [SpellingPart::Literal("commander".to_owned())]
     );
+    // The commander is an attribute of the card, retained across zone changes
+    // [CR#903.3], and no instruction confers it.
     assert!(
         commander
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: Object")
+            .contains("scope: HeldByCard")
     );
+    assert!(
+        commander
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("effectful: false")
+    );
+
     let monarch = &designations[9];
     assert_eq!(
         monarch.spelling(),
         [SpellingPart::Literal("the monarch".to_owned())]
     );
-    assert!(monarch.body().unwrap().get_ron().contains("scope: Player"));
     assert!(
         monarch
             .body()
             .unwrap()
             .get_ron()
-            .contains("uniqueness: PerGame")
+            .contains("scope: HeldBy(holder: Player)")
     );
+
     let citys_blessing = &designations[0];
     assert!(
         citys_blessing
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: Player")
+            .contains(r#"label: "the city's blessing""#)
     );
     assert!(
         citys_blessing
             .body()
             .unwrap()
             .get_ron()
-            .contains("uniqueness: PerPlayer")
-    );
-    assert!(
-        citys_blessing
-            .body()
-            .unwrap()
-            .get_ron()
-            .contains("persistence: Permanently")
+            .contains("scope: HeldBy(holder: Player)")
     );
 
+    // An enum-shaped designation declares one row per member [CR#731.1].
     let day_night = &designations[2];
-    assert!(day_night.body().unwrap().get_ron().contains("scope: Game"));
     assert!(
         day_night
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"shape: Enum(["Day", "Night"])"#)
+            .contains(r#"label: "day", scope: HeldByGame"#)
     );
     assert!(
         day_night
             .body()
             .unwrap()
             .get_ron()
-            .contains("uniqueness: PerGame")
+            .contains(r#"label: "night", scope: HeldByGame"#)
     );
 
+    // An object-held designation is read on the battlefield.
     let goaded = &designations[4];
-    assert!(goaded.body().unwrap().get_ron().contains("shape: Relation"));
     assert!(
         goaded
             .body()
             .unwrap()
             .get_ron()
-            .contains("persistence: EffectSupplied")
+            .contains("scope: HeldBy(holder: Object)")
+    );
+    assert!(
+        goaded
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("zone: Battlefield")
     );
 
     let level = &designations[8];
-    assert!(level.body().unwrap().get_ron().contains("shape: Number"));
+    assert!(
+        level
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains(r#"label: "level""#)
+    );
 
     let sector = &designations[16];
-    assert!(
-        sector
-            .body()
-            .unwrap()
-            .get_ron()
-            .contains(r#"shape: Enum(["Alpha", "Beta", "Gamma"])"#)
-    );
-    assert!(
-        sector
-            .body()
-            .unwrap()
-            .get_ron()
-            .contains("persistence: EffectSupplied")
-    );
+    for label in ["alpha sector", "beta sector", "gamma sector"] {
+        assert!(
+            sector
+                .body()
+                .unwrap()
+                .get_ron()
+                .contains(&format!(r#"label: "{label}""#))
+        );
+    }
 }
 
 #[test]

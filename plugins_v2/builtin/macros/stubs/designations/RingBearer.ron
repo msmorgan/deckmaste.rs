@@ -5,5 +5,7 @@ Designation(
     params: [],
     spelling: "Ring-bearer",
     grammar: FixedTerm(surface: "Ring-bearer"),
-    body: DesignationDecl(name: "RingBearer", definition: Stored(scope: Object, shape: Relation, uniqueness: PerPlayer, persistence: EffectSupplied)),
+    body: [
+        DesignationFacts(label: "Ring-bearer", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
 )

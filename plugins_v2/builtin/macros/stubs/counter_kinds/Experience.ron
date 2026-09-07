@@ -6,5 +6,5 @@ CounterKind(
     params: [],
     spelling: "experience",
     grammar: FixedTerm(surface: "experience"),
-    body: Counter(name: "Experience", scope: Player),
+    body: CounterFacts(label: "Experience", holder: Player),
 )

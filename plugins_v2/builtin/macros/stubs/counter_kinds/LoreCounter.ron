@@ -11,5 +11,5 @@ CounterKind(
     params: [],
     spelling: "lore",
     grammar: FixedTerm(surface: "lore"),
-    body: Counter(name: "LoreCounter"),
+    body: CounterFacts(label: "Lore", holder: Object),
 )

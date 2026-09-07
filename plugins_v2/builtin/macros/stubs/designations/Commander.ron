@@ -9,13 +9,7 @@ Designation(
     params: [],
     spelling: "commander",
     grammar: FixedTerm(surface: "commander"),
-    body: DesignationDecl(
-        name: "Commander",
-        definition: Stored(
-            scope: Object,
-            shape: Flag,
-            uniqueness: None,
-            persistence: Permanently,
-        ),
-    ),
+    body: [
+        DesignationFacts(label: "commander", scope: HeldByCard, effectful: false, zone: None, type: None, half: None),
+    ],
 )

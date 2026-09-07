@@ -2,5 +2,5 @@ CounterKind(
     name: "FuseCounter",
     params: [],
     spelling: "fuse",
-    body: Counter(name: "FuseCounter", scope: Object),
+    body: CounterFacts(label: "Fuse", holder: Object),
 )

@@ -2,5 +2,5 @@ CounterKind(
     name: "EggCounter",
     params: [],
     spelling: "egg",
-    body: Counter(name: "EggCounter", scope: Object),
+    body: CounterFacts(label: "Egg", holder: Object),
 )

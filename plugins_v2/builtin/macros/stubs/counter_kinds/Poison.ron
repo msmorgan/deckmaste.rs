@@ -8,5 +8,5 @@ CounterKind(
     params: [],
     spelling: "poison",
     grammar: FixedTerm(surface: "poison"),
-    body: Counter(name: "Poison", scope: Player),
+    body: CounterFacts(label: "Poison", holder: Player),
 )

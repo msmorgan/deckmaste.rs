@@ -1,5 +1,9 @@
-//! Lean registry tables. The overlay supplies only columns absent from
-//! declarations.
+//! Lean registry tables. A declaration carries its own fact columns in its
+//! body, read as the `deckmaste_semantics_v2::facts` mirror of
+//! `lean/Semantics/Check/FactTypes.lean`; the overlays supply only the columns
+//! no declaration body has room for — the keyword-ability gate columns (whose
+//! Idris twin reads the same table) and the keyword-action checker columns
+//! (whose bodies are the actions' own instructions).
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -11,11 +15,14 @@ use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
-use deckmaste_semantics::DesignationDecl;
-use deckmaste_semantics::DesignationDef;
-use deckmaste_semantics::DesignationScope;
-use deckmaste_semantics::DesignationShape;
-use ron::value::RawValue;
+use deckmaste_semantics_v2::facts::CounterFacts;
+use deckmaste_semantics_v2::facts::DesignationFacts;
+use deckmaste_semantics_v2::facts::DesignationScope;
+use deckmaste_semantics_v2::ron::raw_options;
+use deckmaste_semantics_v2::words::CardType;
+use deckmaste_semantics_v2::words::Kind;
+use deckmaste_semantics_v2::words::RoomHalf;
+use deckmaste_semantics_v2::words::Zone;
 use serde::Deserialize;
 
 use super::KEYWORD_ROWS_EXEMPT;
@@ -30,6 +37,54 @@ pub(super) const GENERATED: &str = "lean/Semantics/Check/Facts.lean";
 
 fn quoted(value: &str) -> String {
     serde_json::to_string(value).expect("a string serializes to JSON")
+}
+
+/// A fact column's `Kind` as Lean's constructor. Only the two Entity kinds
+/// [CR#109.1,102.1] carry a designation or a counter.
+fn kind(kind: &Kind) -> anyhow::Result<&'static str> {
+    match kind {
+        Kind::Object => Ok(".object"),
+        Kind::Player => Ok(".player"),
+        other => anyhow::bail!("a fact column holds no {other:?}"),
+    }
+}
+
+fn zone(zone: Zone) -> &'static str {
+    match zone {
+        Zone::Battlefield => ".battlefield",
+        Zone::Graveyard => ".graveyard",
+        Zone::Exile => ".exile",
+        Zone::Hand => ".hand",
+        Zone::Library => ".library",
+        Zone::Stack => ".stack",
+        Zone::Command => ".command",
+    }
+}
+
+fn card_type(card_type: CardType) -> &'static str {
+    match card_type {
+        CardType::Creature => ".creature",
+        CardType::Artifact => ".artifact",
+        CardType::Land => ".land",
+        CardType::Enchantment => ".enchantment",
+        CardType::Instant => ".instant",
+        CardType::Sorcery => ".sorcery",
+        CardType::Planeswalker => ".planeswalker",
+        CardType::Battle => ".battle",
+        CardType::Kindred => ".kindred",
+    }
+}
+
+fn room_half(half: RoomHalf) -> &'static str {
+    match half {
+        RoomHalf::Left => ".left",
+        RoomHalf::Right => ".right",
+    }
+}
+
+/// An optional column as Lean writes it.
+fn optional(value: Option<&'static str>) -> String {
+    value.map_or_else(|| "none".to_owned(), |value| format!("some {value}"))
 }
 
 fn surface(row: &NormalizedDeclaration) -> anyhow::Result<String> {
@@ -94,52 +149,6 @@ fn add_schema(schemas: &mut Vec<String>, params: &[&str]) -> anyhow::Result<()> 
         add_schema(schemas, &["Cost"])?;
     }
     Ok(())
-}
-
-struct DesignationRow {
-    labels: Vec<String>,
-    decl: DesignationDecl,
-}
-
-fn designations(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<DesignationRow>> {
-    rows.iter()
-        .filter(|row| row.identity().kind() == DeclarationKind::Designation)
-        .map(|row| {
-            let body = row.body().with_context(|| {
-                format!(
-                    "{}: designation has no declaration body",
-                    row.identity().name()
-                )
-            })?;
-            let decl: DesignationDecl = deckmaste_semantics::ron::options()
-                .from_str(body.get_ron())
-                .with_context(|| format!("reading designation {}", row.identity().name()))?;
-            let labels = match &decl.definition {
-                DesignationDef::Stored {
-                    shape: DesignationShape::Enum(values),
-                    scope,
-                    ..
-                } => {
-                    // The enum's declared values name its members. Object-held
-                    // members qualify the family name;
-                    // game-held members stand alone.
-                    let family = row.identity().name().to_lowercase();
-                    values
-                        .iter()
-                        .map(|value| {
-                            if *scope == DesignationScope::Game {
-                                value.as_str().to_lowercase()
-                            } else {
-                                format!("{} {family}", value.as_str().to_lowercase())
-                            }
-                        })
-                        .collect()
-                }
-                _ => vec![surface(row)?],
-            };
-            Ok(DesignationRow { labels, decl })
-        })
-        .collect()
 }
 
 fn table(out: &mut String, name: &str, ty: &str, rows: &[String]) {
@@ -274,49 +283,17 @@ fn action_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<Str
     Ok(result)
 }
 
+/// A counter declaration's body.
+///
+/// A counter Lean names with a `CounterKind` constructor of its own — a
+/// `boost` counter [CR#122.1a] or a `keyword` counter [CR#122.1b] — carries
+/// its conferral payload and contributes no row: `counterFacts` is the table
+/// of `named` counters, which is what `Check/Words.lean` looks a bare label up
+/// in.
 #[derive(Deserialize)]
-#[serde(rename = "Counter")]
-struct CounterRow {
-    #[serde(default)]
-    scope: deckmaste_semantics::CounterScope,
-    #[serde(default)]
-    confers: Vec<Box<RawValue>>,
-}
-
-// Only the bearing's structure is needed to distinguish the dedicated P/T and
-// keyword counter forms. The expressions inside those bearings remain opaque to
-// this classifier.
-#[derive(Deserialize)]
-enum Bearing {
-    Continuous(serde::de::IgnoredAny, CounterModification),
-    #[serde(other)]
-    Other,
-}
-#[derive(Deserialize)]
-enum CounterModification {
-    Power(serde::de::IgnoredAny),
-    Toughness(serde::de::IgnoredAny),
-    Several(Vec<CounterModification>),
-    GainAbility(CounterAbility),
-    #[serde(other)]
-    Other,
-}
-#[derive(Deserialize)]
-enum CounterAbility {
-    Keyword(serde::de::IgnoredAny),
-    #[serde(other)]
-    Other,
-}
-impl CounterModification {
-    fn dedicated(&self) -> bool {
-        match self {
-            Self::Power(_) | Self::Toughness(_) | Self::GainAbility(CounterAbility::Keyword(_)) => {
-                true
-            }
-            Self::Several(parts) => !parts.is_empty() && parts.iter().all(Self::dedicated),
-            _ => false,
-        }
-    }
+enum CounterBody {
+    CounterFacts(CounterFacts),
+    Counter(serde::de::IgnoredAny),
 }
 
 fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
@@ -325,78 +302,53 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::CounterKind)
     {
-        let body = row.body().with_context(|| {
-            format!("{}: counter has no declaration body", row.identity().name())
-        })?;
-        let counter: CounterRow = deckmaste_semantics::ron::options().from_str(body.get_ron())?;
-        let dedicated = counter.confers.iter().any(|bearing| {
-            matches!(deckmaste_semantics::ron::options().from_str::<Bearing>(bearing.get_ron()), Ok(Bearing::Continuous(_, modification)) if modification.dedicated())
-        });
-        if dedicated {
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: counter has no declaration body"))?;
+        let body: CounterBody = raw_options()
+            .from_str(body.get_ron())
+            .with_context(|| format!("reading counter {name}"))?;
+        let CounterBody::CounterFacts(facts) = body else {
             continue;
-        }
-        let spelling = surface(row)?;
-        let mut chars = spelling.chars();
-        let label = chars
-            .next()
-            .with_context(|| "empty counter spelling")?
-            .to_uppercase()
-            .collect::<String>()
-            + chars.as_str();
-        let holder = match counter.scope {
-            deckmaste_semantics::CounterScope::Object => ".object",
-            deckmaste_semantics::CounterScope::Player => ".player",
         };
-        result.push(format!("⟨{}, {holder}⟩", quoted(&label)));
+        result.push(format!(
+            "⟨{}, {}⟩",
+            quoted(&facts.label),
+            kind(&facts.holder)?
+        ));
     }
     Ok(result)
 }
 
-// Effectfulness, card-lifetime scope, and Room-half columns are absent from
-// Stored.
-const DESIGNATION_OVERLAY: &[(&str, bool, bool, Option<&str>)] = &[
-    ("Commander", false, true, None),
-    ("LeftHalfUnlocked", true, false, Some(".left")),
-    ("RightHalfUnlocked", true, false, Some(".right")),
-    ("Monarch", true, false, None),
-    ("Initiative", true, false, None),
-    ("CitysBlessing", true, false, None),
-    ("EnduringStory", true, false, None),
-    ("Goaded", true, false, None),
-    ("RingBearer", true, false, None),
-    ("Monstrous", true, false, None),
-    ("Renowned", true, false, None),
-    ("Suspected", true, false, None),
-    ("Prepared", true, false, None),
-    ("Sector", true, false, None),
-    ("Saddled", true, false, None),
-    ("Harnessed", true, false, None),
-    ("Level", true, false, None),
-    ("Solved", true, false, None),
-    ("DayNight", true, false, None),
-];
-
-fn designation_rows(rows: &[DesignationRow]) -> anyhow::Result<Vec<String>> {
+fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
     let mut result = Vec::new();
-    for row in rows {
-        let name = row.decl.name.as_str();
-        // These checker columns are absent from the registry's stored-state
-        // schema.
-        let &(_, effectful, card, half) = DESIGNATION_OVERLAY
-            .iter()
-            .find(|(label, _, _, _)| *label == name)
-            .with_context(|| format!("{name}: designation has no checker-column overlay"))?;
-        let DesignationDef::Stored { scope, .. } = &row.decl.definition else {
-            anyhow::bail!("{name}: derived designation has no checker-column overlay");
-        };
-        let (scope, zone) = match scope {
-            DesignationScope::Player => (".heldBy .player", "none"),
-            DesignationScope::Game => (".heldByGame", "none"),
-            DesignationScope::Object if card => (".heldByCard", "none"),
-            DesignationScope::Object => (".heldBy .object", "some .battlefield"),
-        };
-        for label in &row.labels {
-            result.push(format!("{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {zone}, type := none, half := {} }}", quoted(label), half.map_or("none".into(), |half| format!("some {half}"))));
+    for row in declarations
+        .iter()
+        .filter(|row| row.identity().kind() == DeclarationKind::Designation)
+    {
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: designation has no declaration body"))?;
+        let rows: Vec<DesignationFacts> = raw_options()
+            .from_str(body.get_ron())
+            .with_context(|| format!("reading designation {name}"))?;
+        anyhow::ensure!(!rows.is_empty(), "{name}: designation declares no fact row");
+        for facts in rows {
+            let scope = match &facts.scope {
+                DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind(holder)?),
+                DesignationScope::HeldByCard => ".heldByCard".to_owned(),
+                DesignationScope::HeldByGame => ".heldByGame".to_owned(),
+            };
+            result.push(format!(
+                "{{ label := {}, scope := {scope}, effectful := {}, zone := {}, type := {}, half := {} }}",
+                quoted(&facts.label),
+                facts.effectful,
+                optional(facts.zone.map(zone)),
+                optional(facts.r#type.map(card_type)),
+                optional(facts.half.map(room_half)),
+            ));
         }
     }
     Ok(result)
@@ -430,7 +382,6 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
 
 pub(super) fn render(root: &Path) -> anyhow::Result<String> {
     let declarations = macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
-    let designations = designations(&declarations)?;
     let mut out = String::from(
         "-- Generated by `cargo xtask facts generate`; edit registry declarations and xtask overlays.\nimport Semantics.Check.FactTypes\n\nnamespace Semantics\n\n",
     );
@@ -456,7 +407,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "designationTable",
         "DesignationFacts",
-        &designation_rows(&designations)?,
+        &designation_rows(&declarations)?,
     );
     table(
         &mut out,
@@ -616,10 +567,90 @@ mod tests {
             .path()
             .join("plugins_v2/builtin/macros/stubs/counter_kinds/Poison.ron");
         let source = fs::read_to_string(&path).unwrap();
-        fs::write(path, source.replace("scope: Player", "scope: Object")).unwrap();
+        fs::write(path, source.replace("holder: Player", "holder: Object")).unwrap();
         let generated = render(temp.path()).unwrap();
         assert!(generated.contains("⟨\"Poison\", .object⟩"));
         assert!(!generated.contains("⟨\"Poison\", .player⟩"));
+    }
+
+    /// A counter Lean names with a `CounterKind` constructor of its own
+    /// [CR#122.1a,122.1b] carries its conferral payload instead of a fact row,
+    /// and the generated table of `named` counters leaves it out.
+    #[test]
+    fn a_counter_carrying_a_conferral_payload_declares_no_named_row() {
+        let temp = fixture();
+        let path = temp
+            .path()
+            .join("plugins_v2/builtin/macros/stubs/counter_kinds/ChargeCounter.ron");
+        let source = fs::read_to_string(&path).unwrap();
+        assert!(
+            render(temp.path())
+                .unwrap()
+                .contains("⟨\"Charge\", .object⟩")
+        );
+        fs::write(
+            &path,
+            source.replace(
+                "CounterFacts(label: \"Charge\", holder: Object)",
+                "Counter(name: \"ChargeCounter\", confers: \
+                 [Continuous(This, GainAbility(Keyword(Flying)))])",
+            ),
+        )
+        .unwrap();
+        assert!(!render(temp.path()).unwrap().contains("\"Charge\""));
+    }
+
+    /// Every designation column is the declaration's own, so changing one in
+    /// the declaration changes the emitted row.
+    #[test]
+    fn designation_columns_are_read_from_the_declaration() {
+        let temp = fixture();
+        let path = temp
+            .path()
+            .join("plugins_v2/builtin/macros/stubs/designations/Goaded.ron");
+        let source = fs::read_to_string(&path).unwrap();
+        fs::write(
+            &path,
+            source
+                .replace("effectful: true", "effectful: false")
+                .replace("zone: Battlefield", "zone: Graveyard")
+                .replace("half: None", "half: Left"),
+        )
+        .unwrap();
+        let generated = render(temp.path()).unwrap();
+        let row = generated
+            .lines()
+            .find(|line| line.contains("label := \"goaded\""))
+            .unwrap();
+        assert!(
+            row.contains(
+                "effectful := false, zone := some .graveyard, type := none, half := some .left"
+            ),
+            "{row}"
+        );
+    }
+
+    /// A designation whose body declares no row is a designation the checker
+    /// would never find, so the generator refuses it.
+    #[test]
+    fn a_designation_declaring_no_row_is_refused() {
+        let temp = fixture();
+        let path = temp
+            .path()
+            .join("plugins_v2/builtin/macros/stubs/designations/Goaded.ron");
+        let source = fs::read_to_string(&path).unwrap();
+        let start = source.find("body: [").unwrap();
+        let end = source.rfind("],").unwrap();
+        fs::write(
+            &path,
+            format!("{}body: [{}", &source[..start], &source[end..]),
+        )
+        .unwrap();
+        let error = render(temp.path()).unwrap_err().to_string();
+        assert!(
+            error.contains("Goaded: designation declares no fact row"),
+            "{error}"
+        );
     }
 
     #[test]

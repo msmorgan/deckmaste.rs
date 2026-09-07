@@ -4,5 +4,7 @@ Designation(
     params: [],
     spelling: "harnessed",
     grammar: FixedTerm(surface: "harnessed"),
-    body: DesignationDecl(name: "Harnessed", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+    body: [
+        DesignationFacts(label: "harnessed", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
 )

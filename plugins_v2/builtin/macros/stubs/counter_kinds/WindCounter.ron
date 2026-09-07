@@ -2,5 +2,5 @@ CounterKind(
     name: "WindCounter",
     params: [],
     spelling: "wind",
-    body: Counter(name: "WindCounter", scope: Object),
+    body: CounterFacts(label: "Wind", holder: Object),
 )
