@@ -1554,7 +1554,7 @@ The Target Noun *target/targets* and the Target Verb
 Targeting Marker, never projections of it. The Target Noun is declared and
 licenses noun uses such as *choose new targets*; the Target Verb, and with it
 verb uses such as *a spell that targets*, is not yet declared and is owned by
-`english-v2-target-verb-subject-selection`. The declared homograph licence
+`english-v3-whole-grammar-activation`. The declared homograph licence
 governs the shared surface without any scanner or grammar guard naming the
 marker, a construction, or a card.
 

@@ -17,8 +17,8 @@ The [wayfinder](../english-grammar-wayfinder.md) explains the replacement sequen
 the ticket `needs:` graph schedules it.
 
 Unbucketed historical failures and the generic period frontier are owned by
-`english-v2-grammar-migration-close` for representative triage. A demonstrated
+`english-v3-systemic-residuals` for representative triage. A demonstrated
 general omission gets a migration ticket; genuinely local residuals pass to
-`english-v2-stage-5-grammar-buildout-14-10` after the closure judgment. Record
+`english-v3-corpus-long-tail` after the closure judgment. Record
 new unshaped families here when they arise, without duplicating ticket-owned
 obligations or treating old coverage counts as current measurements.

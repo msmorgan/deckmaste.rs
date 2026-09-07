@@ -11,8 +11,10 @@ The [review](english-grammar-review.md) records checked claims and limits.
 The descriptions of Lean definitions below record the existing model and its
 limits. [The accepted lexical-analysis decision](decisions/english-lexical-analysis.md)
 is the current production contract; the model has not yet implemented its
-lexical-analysis admission or retention across all ambiguity classes. Existing
-proofs remain evidence for their stated fragments, not a claim of that update.
+lexical-analysis admission, complete connected grammar or retention across all
+ambiguity classes. The v3 Lean-model and proof-audit tickets replace that shape
+before Rust treats it as design evidence. Existing proofs remain salvageable
+evidence for their stated fragments, not a claim of v3 correspondence.
 
 ## Reviewed architecture
 
@@ -131,11 +133,12 @@ candidate enumeration, or correctness of a future Rust implementation.
 
 ## Migration obligations and bounded limits
 
-The architectural choices above are resolved. The formalization is a checked
-prototype of those choices, not an exhaustive set of productions. The
-production correspondence below pins the implementation sequence and its
-[obligation register](english-grammar-migration-obligations.md). Before implementing a family, it
-must pin the following elaborations and preserve its inherited witnesses:
+The current formalization is a checked prototype of the choices it actually
+states, not an exhaustive set of productions or the final v3 model. The
+production correspondence below and its
+[obligation register](english-grammar-migration-obligations.md) preserve the
+elaborations that the rebuilt model and whole-grammar activation must account
+for together:
 
 - Generalize local marked-role competition beyond the checked Object plus one
   marked Complement, using the declared sequence, first eligible occurrence,
@@ -159,9 +162,9 @@ must pin the following elaborations and preserve its inherited witnesses:
   resolution and card validation outside English. No executable Lean parser,
   renderer, generator or Semantics consumer is required.
 
-The review is complete for its named design decisions and finite challenges.
-Migration planning may proceed; a production slice is ready only when its
-applicable elaborations and correspondence checks have been discharged.
+The review is complete for its named historical decisions and finite
+challenges. The v3 model rechecks them as one connected grammar before the new
+Rust chart and compiler are treated as production machinery.
 
 
 ## Production correspondence
@@ -174,8 +177,8 @@ schedule; the whole-grammar family/source map above remains useful.
 
 | Existing machinery | Current disposition |
 |---|---|
-| Generic Earley chart and packed forest | Reuse scheduling and diagnostics; establish feature/dependency-sensitive admission and exact retained alternatives in the first integration. |
-| Bidirectional declaration compiler | Retain one declaration driving checked types, parse rules, rendering and traversal; generate grammatical summary/constraint operations rather than using full AST products during completion. |
+| Generic Earley chart and packed forest | Treat the current prototype as evidence; pack incomplete and complete derivations under feature/dependency-sensitive admission before broad grammar work. |
+| Bidirectional declaration compiler | Build a fresh v3 compiler core and proc-macro shell. Selectively port useful syntax and diagnostics while one declaration still drives checked types, parse rules, rendering and traversal. |
 | Core/plugin vocabulary and catalogs | Feed one independent lexical-analysis interface from declared forms, defaults/overrides and grammatical properties. Reuse identities, indexes and provenance. |
 | Frame declarations | Preserve ordered categories, relations, fixed/marked and optional roles, voice restrictions, retained Objects and typed children. Adapt the existing compiled frame capability to lexical analyses. |
 | AST materialization | Extract readings on demand; preserve every admitted complete alternative and keep any deferred checks in the admission contract. |
@@ -197,15 +200,18 @@ surface strings or anchor counts are insufficient reasons to merge readings.
 
 ### Replacement boundaries and iteration
 
-The lexical interface and first chart integration expose the new contract
-before family breadth. Complete source-backed positive/exclusion and
-cross-family witnesses through real production consumers; unused declarations
-and unchanged coverage counts do not establish implementation. Consolidate the
-replaced paths with their callers and tests. Family completion follows shared
-breadth, with lexical inventory work independently batched.
+The lexical interface and current chart prototype expose the new contract. The
+corrected Lean model then establishes the complete grammatical relation before
+the shared lexical model, packed chart and fresh compiler are finalized. One
+generated interacting slice proves the machinery. The following ticket
+translates every planned family and turns the whole grammar on against the
+supported corpus; it does not migrate families one by one. Source-backed
+positive/exclusion and cross-family witnesses remain required, and unused
+declarations or unchanged coverage counts do not establish implementation.
 
 Existing done-ticket descriptions record what their landings established;
 archived WIP Rust is a salvage source. Current WIP claims remain untouched.
-Targeted Lean deltas accompany the interfaces they refine, and correspondence
-is tested through Rust. The long-tail handoff remains revisable from measured
-residuals rather than a global completeness or uniqueness claim.
+Subsequent Rust discoveries that change the grammatical relation return to Lean
+before their implementation is treated as settled. Systemic residuals are
+grouped by measured cause after activation, and the long-tail handoff remains
+revisable rather than a global uniqueness claim.

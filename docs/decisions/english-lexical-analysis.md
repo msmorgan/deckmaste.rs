@@ -1,9 +1,11 @@
 # Independent lexical analysis and retained grammatical readings
 
-Accepted 2026-09-07 after the rewrite planning dialogue. Replace the current
-`english_v2` grammar in place, salvaging useful implementation and evidence.
-English remains an independent NLP project with no interaction with Semantics.
-The [wayfinder](../english-grammar-wayfinder.md) names the implementation work.
+Accepted 2026-09-07 after the rewrite planning dialogue and amended after the
+first integration exposed the cost of fitting retained Readings into v2. Build
+a fresh `english_v3` grammar and parser, salvaging useful implementation and
+evidence without preserving v2 interfaces. English remains an independent NLP
+project with no interaction with Semantics. The
+[wayfinder](../english-grammar-wayfinder.md) names the implementation work.
 
 ## Authority and retained work
 
@@ -16,10 +18,11 @@ witnesses survive. Old coverage figures describe their measured trees only.
 
 Keep bidirectional construction declarations: one declaration drives generated
 parsing rules, checked construction, rendering and traversal. Per-construction
-handwritten renderers are not an alternative implementation. The proposed
-Rust-data-first replacement of the compiler was withdrawn; compiler changes
-serve the new lexical/admission interfaces, rather than starting another DSL
-project. Existing generated types may change where that interface requires it.
+handwritten renderers are not an alternative implementation. Build a fresh
+compiler core and thin proc-macro shell for v3 rather than adding a retained-
+Reading backend to the v2 compiler. The old compiler supplies candidate syntax,
+diagnostics and generation techniques only; v3 owns its compiler IR, generated
+types and runtime contract without compatibility adapters.
 
 Salvage catalogs, lexical identities, declared forms and frames, immutable
 indexes, source/normalization evidence, corpus subset/report/inspection tools,
@@ -94,11 +97,15 @@ full AST child values. Generated declarations supply those checks. Full AST
 construction happens when a reading is requested from the forest.
 
 Packing preserves every distinction that can affect a parent's admissibility
-and keeps alternatives correlated. A feature-sensitive key is a candidate
-implementation, not a proof that an arbitrary bundle is sufficient. Open
+and keeps alternatives correlated. It applies to incomplete derivation
+histories as well as completed constituents; carrying one explicit child vector
+per partial Earley item merely postpones the Cartesian product and does not
+meet this requirement. A feature-sensitive key is a candidate implementation,
+not a proof that an arbitrary bundle is sufficient. Summary equivalence means
+that every possible parent treats the packed alternatives alike. Open
 dependencies must remain represented until their context is available. Any
 deferred validity check must participate in the definition of an admitted
-reading: an unchecked forest path is not a successful grammatical analysis.
+Reading: an unchecked forest path is not a successful grammatical analysis.
 
 The primary result retains all admitted readings. Multiple grammatical readings
 are successful parsing, including unrelated homographs and different scope
@@ -114,21 +121,37 @@ classes and their invariants remain useful relationships within the complete
 reading set. Neither a specific alternative-subtree AST nor a general new
 forest implementation is mandated; exact recoverability is the contract.
 
-## Iteration and evidence
+## V3 sequence and evidence
 
-The first production integration exercises ambiguous output and both roundtrip
-laws, before broad grammar migration. Measure lexical alternatives, packed
-nodes and completion/materialization work on interacting fixtures. If the
-existing compiler cannot express the needed grammatical summaries, report the
-concrete missing operation and bounded extension; do not silently restore the
-AST product or undertake another compiler rewrite.
+Update the independent Lean English workbench first so it accurately describes
+the v3 lexical relation, connected grammar, admitted Readings, ambiguity
+correlations and relational roundtrip obligations. Lean does not model Earley
+scheduling or prove the Rust implementation, but Rust must not knowingly build
+against a superseded grammatical judgment.
+
+Extract a small data-only lexical model, then harden the chart so incomplete and
+complete derivations are packed. Build the fresh construction compiler against
+those interfaces and exercise ambiguous output and both roundtrip laws through
+one generated interacting slice. Measure lexical alternatives, chart items,
+intermediate and completed nodes, forest families, completion work and requested
+materializations.
+
+After that slice, translate the complete intended grammar top-down and activate
+it against the supported corpus as one interconnected machine. Every planned
+family must have real general productions and cross-family use, while incomplete
+lexical inventories and uncommon variants may remain named residuals. Do not
+resume a family-by-family or card-by-card migration before this activation.
+Permissive catch-alls, unused declarations and opaque source leaves do not count
+as breadth.
 
 Run tokenization/analysis and the word inventory on the supported corpus early.
 Account separately for catalog, keyword and notation material so a numeric
 coverage count cannot conceal lexical gaps. Use the existing whole-grammar
-family map, establish consumed capability across families, then deepen their
-inventories. New general omissions may reopen design. The long-tail handoff is
-an adaptable judgment from measured residuals, without a fixed coverage target
+family map and obligation register as the input to the complete declaration.
+Group the resulting failures by shared lexical, grammatical, compiler or parser
+cause. Repair those systemic causes before the long-tail handoff; mint later
+residual tickets from the measured report rather than from predicted card
+families. The handoff is an adaptable judgment without a fixed coverage target
 or a claim that no general grammar gap can remain.
 
 The landing contract changes only where the accepted ambiguity/position design
@@ -149,14 +172,16 @@ lost-correlation exclusions using inhabited grammatical examples. State the
 relational roundtrip obligations without making them true merely by definition.
 An executable Lean parser or proof of the Rust engine is not scheduled.
 
-The new lexical/ambiguity ticket handles those interfaces; the remaining
-`english-lean-proof-gaps` work retains its substantive obligations, including
-flat coordination, tense and countability. Neither an external review nor a
-desire to defer work authorizes declaring Oracle English tense-neutral. The
-amount of explicit forest structure Lean needs depends on the concrete
-counterexamples; a blanket SPPF formalization is not a prerequisite.
+The v3 Lean model and proof audit handle those interfaces and retain the
+substantive proof-gap obligations, including flat coordination, tense and
+countability. Neither an external review nor a desire to defer work authorizes
+declaring Oracle English tense-neutral. Lean models the linguistic relations
+and the information the implementation must preserve; a formal Earley or SPPF
+implementation is outside its scope.
 
-The main engineering uncertainty is how much compiler/admission adaptation and
-feature-sensitive packing cost. Reviews identified the existing eager AST
-product in source, but did not measure its runtime contribution. The first
-integration measures the change before committing to broader migration.
+The main engineering uncertainty is the size of the future-admissibility state
+and the compression achieved by packing partial derivations. The chart and
+compiler tickets measure those costs before whole-grammar activation. Their
+results may change the representation or evaluation strategy, including making
+lexical lookup lazy behind the same independent interface; they do not return
+morphology to construction-directed scanning or restore eager AST admission.

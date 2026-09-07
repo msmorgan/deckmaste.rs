@@ -15,7 +15,7 @@ and closed-class ownership WIP lands. Retain the ordinary Target Noun
 *target/targets* for phrases such as *choose new targets* and *the target*.
 The Target Verb *target/targets/targeted/targeting* for clauses such as *a
 spell that targets* is split to
-[`english-v2-target-verb-subject-selection`](../planned/english-v2-target-verb-subject-selection.md)
+[`english-v2-target-verb-subject-selection`](../../english-grammar-migration-obligations.md#retired-ticket-routing)
 (coordinator, 2026-09-04). Both are legitimate homographs, not projections of
 the prenominal marker.
 

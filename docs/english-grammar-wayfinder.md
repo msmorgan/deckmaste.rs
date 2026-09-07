@@ -1,78 +1,57 @@
-# English grammar rewrite
+# English v3 grammar
 
 Current authority: [independent lexical analysis and retained readings](decisions/english-lexical-analysis.md).
-Keep bidirectional construction declarations; separate declared morphology from
-construction-directed scanning and grammatical admission from full AST products.
-The primary parse result retains all grammatical readings. English and Semantics
-remain independent projects. The `needs:` graph is the scheduling authority.
+English v3 is a fresh bidirectional grammar over independent declared lexical
+analyses. It retains every grammatical Reading and shares no code or model with
+Semantics. The `needs:` graph is the scheduling authority.
 
 [Lexical analysis is implemented](tickets/done/english-v2-lexical-analysis.md).
-The [independent interface](../crates/deckmaste_lexical/README.md) exports existing
-vocabulary and catalogs, retains numeral alternatives, and produces the supported
-corpus word/remainder inventory. Production card parsing awaits chart integration.
+The current [`english-v2-feature-chart-integration`](tickets/wip/english-v2-feature-chart-integration.md)
+claim is producing the disposable v3 chart prototype that anchors this new
+line. `english-v2-keyword-action-verb-inflections` remains with its owner; the
+lexical-inventory ticket consumes any useful declarations only after it lands.
 
-## Upcoming work
+## Production chain
 
-| Ticket | Deliverable |
-|---|---|
-| [english-lean-lexical-ambiguity](tickets/planned/english-lean-lexical-ambiguity.md) | Connect lexical forms to admission, retain readings across classes, and challenge correlated alternatives and relational roundtripping. Runs alongside lexical/Rust work. |
-| [english-v2-feature-chart-integration](tickets/planned/english-v2-feature-chart-integration.md) | Adapt the existing engine/compiler to grammatical summaries, packed alternatives and on-demand AST extraction; exercise both roundtrip laws and actual all-readings consumers. |
-| [english-v2-grammar-family-breadth](tickets/planned/english-v2-grammar-family-breadth.md) | Consumed positive/exclusion and cross-family witnesses for every planned family through the new interfaces. |
-| [english-v2-grammar-migration-close](tickets/planned/english-v2-grammar-migration-close.md) | Consolidate the replaced paths, reconcile evidence and owners, and make the revisable long-tail handoff judgment. |
-| [english-v2-stage-5-grammar-buildout-14-10](tickets/planned/english-v2-stage-5-grammar-buildout-14-10.md) | Eventual supported-corpus completion through coherent residual work. The handoff is not completion of this umbrella. |
+| Order | Ticket | Deliverable |
+|---:|---|---|
+| 1 | [english-v3-lean-grammar-model](tickets/planned/english-v3-lean-grammar-model.md) | Rebuild the independent English workbench around the complete v3 grammar, lexical relation, admitted Readings and relational roundtripping. |
+| 2 | [english-v3-lean-proof-audit](tickets/planned/english-v3-lean-proof-audit.md) | Make the model's central inhabitants, exclusions and correlation laws nonvacuous before Rust follows them. |
+| 3 | [english-v3-lexical-model](tickets/planned/english-v3-lexical-model.md) | Extract the small data-only model shared by lexical analysis, generated constructions and English v3. |
+| 4a | [english-v3-packed-chart](tickets/planned/english-v3-packed-chart.md) | Pack incomplete and complete derivations, define future-admissibility summaries and measure actual growth. |
+| 4b | [english-v3-lexical-inventory](tickets/planned/english-v3-lexical-inventory.md) | Consolidate declared morphology, catalogs, numeral codecs and supported-corpus lexical remainders. |
+| 5 | [english-v3-construction-compiler](tickets/planned/english-v3-construction-compiler.md) | Build the independent compiler core and thin proc macro that generate every bidirectional projection. |
+| 6 | [english-v3-generated-roundtrip-slice](tickets/planned/english-v3-generated-roundtrip-slice.md) | Prove the generated pipeline and both roundtrip laws on one bounded interacting slice. |
+| 7 | [english-v3-whole-grammar-activation](tickets/planned/english-v3-whole-grammar-activation.md) | Declare every planned family together, turn the complete machine on, and establish the first supported-corpus baseline. |
+| 8 | [english-v3-systemic-residuals](tickets/planned/english-v3-systemic-residuals.md) | Repair failures by shared cause until the remaining work is a productive long tail. |
+| 9 | [english-v3-production-cutover](tickets/planned/english-v3-production-cutover.md) | Move every production consumer to v3 and retire the replaced v2 parser/compiler paths. |
+| 10 | [english-v3-corpus-long-tail](tickets/planned/english-v3-corpus-long-tail.md) | Complete the remaining supported-corpus work in coherent residual batches. |
 
-[english-v2-grammar-lexical-source](tickets/planned/english-v2-grammar-lexical-source.md)
-completes the vocabulary/source inventory after lexical analysis, independently
-of the grammar-family schedule. [english-lean-proof-gaps](tickets/planned/english-lean-proof-gaps.md)
-retains the remaining model repairs after accounting for the focused Lean work.
-Neither inventory exhaustion nor every formal residual blocks the breadth
-experiment. Concrete missing interfaces are repaired where they are needed.
+The chart and lexical-inventory tickets can run in parallel after the shared
+model lands. Everything before the whole-grammar activation establishes a
+sound machine; none of those slices becomes the grammar-migration work unit.
+The activation translates the complete connected grammar informed by Lean and
+only then measures what the corpus accepts.
 
-## Family completion
+## Evidence and salvage
 
-These tickets consume breadth. They retain linguistic requirements, authentic
-witnesses and consolidation work; they do not prescribe the old scanner,
-hoisted-AST representation or uniqueness policy.
+The [whole-grammar source map](english-grammar-design.md#whole-intended-grammar-and-source-map)
+and [obligation register](english-grammar-migration-obligations.md) preserve the
+requirements formerly distributed across family tickets. V2 declarations,
+tests, catalogs and algorithms are quarries. V2 scanner APIs, eager AST
+admission, stored ownership, destructive selection and compatibility shapes do
+not constrain v3.
 
-| Ticket | Responsibility |
-|---|---|
-| `english-v2-lexeme-owned-verb-frames` | Lexical predicates, shared relations, agreement, copular/passive frames and remaining codec replacement. |
-| `english-v2-adjective-inventory` | Nominal/countability features and adjective/participle distribution. |
-| `english-v2-subordinate-clause` | Shared dependent clauses and selected forms. |
-| `english-v2-remaining-prepositions` | PP distributions, grammatical Complement selection and attachment alternatives. |
-| `english-v2-relative-clause` | Relative forms, extraction, category/relation gaps and boundaries. |
-| `english-v2-scope-device-cross-host-gates` | Coordination and exact correlated readings across hosts; optional preference explanations. |
-| `english-v2-grammar-measure-phrases` | Measures, arithmetic, comparison, degree and distribution. |
-| `english-v2-grammar-document` | Textual/cost/keyword collections, reminders, quotations and templates. |
-| `english-v2-grammar-context-ellipsis` | Recoverability and shared/omitted dependents in real document contexts. |
-| `english-v2-type-line-construction` | Open Type ordering, Type Line declarations and consumer. |
-| `english-v2-target-verb-subject-selection` | Target Verb/marker/Noun distinctions and Infectious Curse; retain multiple readings where grammatical. |
+The old predicted family tickets are retired rather than carried into the
+execution graph. Their evidence is owned first by whole-grammar activation and
+then by cause-grouped residual work. New residual tickets are minted from the
+machine-on report, rather than forecast from individual failed cards.
 
-## Salvage and ticket disposition
+Old v2 instrumentation tickets that depend on a selected tree or the v2 AST are
+also retired. The v3 activation and residual tickets own reproducible corpus
+inspection, structural validation and performance evidence against the new
+all-Readings interface.
 
-The reviewed [family/source map](english-grammar-design.md#whole-intended-grammar-and-source-map)
-and [obligation register](english-grammar-migration-obligations.md) remain the
-starting evidence. Existing frame-compiler landings are reusable capability,
-not proof that the new lexical/admission interface exists. Archived Rust work
-is unfinished and does not establish production breadth. Restored Lean witnesses
-retain their stated limits, including the still-admitted crossed word forms.
-
-Three new tickets introduce lexical analysis, chart integration and focused
-Lean changes. Existing breadth, frame/scope/source/Target Verb, model residual
-and closure tickets are refocused. The register records eighteen retired
-legacy tickets, their retained witnesses and replacement owners. Retirements
-are cancellations/merges, not falsely completed implementations. Other legacy
-instrumentation and semantic-consumer tickets remain outside this parser's
-readiness graph; they do not authorize game-semantic admission constraints.
-
-WIP tickets and claims are untouched. In particular,
-`english-v2-keyword-action-verb-inflections` remains with its owner. Assess its
-integrated morphology data against the shared lexical interface; do not create
-a second implementation of its active work or edit its claim. Done-ticket
-bodies remain historical landing evidence.
-
-## The former re-layering wayfinder
-
-The [current reading contract](decisions/english-lexical-analysis.md#chart-admission-and-ambiguity)
-supersedes the former Group R/hoisted-representative schedule. Local scope
-classes may organize readings; all valid classes coexist in the primary result.
+WIP tickets and claims remain untouched. Done tickets remain historical landing
+evidence; their old owner names describe the work graph that existed when they
+landed.
