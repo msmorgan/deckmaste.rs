@@ -1,7 +1,86 @@
 KeywordAbility(
     name: "Flanking",
+    params: [],
     spelling: "flanking",
     grammar: FixedKeyword(
         surface: "flanking",
+    ),
+    // "Flanking" means "Whenever this creature becomes blocked by a creature without
+    // flanking, the blocking creature gets -1/-1 until end of turn."
+    // [CR#702.25a]
+    body: Keyword(
+        keyword: "Flanking",
+        params: [],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: BlockedBy,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: Described(
+                        determiner: A(mode: Unmarked),
+                        predicate: And(
+                            conjuncts: [
+                                HasType(type: Creature),
+                                Not(predicate: HasKeyword(keyword: The(keyword: "Flanking"))),
+                            ],
+                        ),
+                    ),
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Establish(
+                    spec: Conjunction(
+                        subject: None,
+                        parts: [
+                            Modification(
+                                subject: Described(
+                                    determiner: The,
+                                    predicate: And(
+                                        conjuncts: [
+                                            HasType(type: Creature),
+                                            InCombat(
+                                                relation: BlockerOf,
+                                                counterpart: AsType(
+                                                    type: Creature,
+                                                    subject: This,
+                                                    subtype: None,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                                stat: Power,
+                                delta: Down(amount: Lit(value: 1)),
+                            ),
+                            Modification(
+                                subject: Described(
+                                    determiner: The,
+                                    predicate: And(
+                                        conjuncts: [
+                                            HasType(type: Creature),
+                                            InCombat(
+                                                relation: BlockerOf,
+                                                counterpart: AsType(
+                                                    type: Creature,
+                                                    subject: This,
+                                                    subtype: None,
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                                stat: Toughness,
+                                delta: Down(amount: Lit(value: 1)),
+                            ),
+                        ],
+                    ),
+                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                ),
+            ),
+        ],
     ),
 )

@@ -5,4 +5,97 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "rampage",
     ),
+    // "Rampage N" means "Whenever this creature becomes blocked, it gets +N/+N until
+    // end of turn for each creature blocking it beyond the first." [CR#702.23a]
+    body: Keyword(
+        keyword: "Rampage",
+        params: [Number(amount: Param(0))],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: BlockedBy,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Establish(
+                    spec: Conjunction(
+                        subject: None,
+                        parts: [
+                            Modification(
+                                subject: AsType(type: Creature, subject: This, subtype: None),
+                                stat: Power,
+                                delta: Up(
+                                    amount: Arith(
+                                        op: Times,
+                                        left: Param(0),
+                                        right: Arith(
+                                            op: Minus,
+                                            left: CountOf(
+                                                group: Described(
+                                                    determiner: Bare,
+                                                    predicate: And(
+                                                        conjuncts: [
+                                                            HasType(type: Creature),
+                                                            InCombat(
+                                                                relation: BlockerOf,
+                                                                counterpart: AsType(
+                                                                    type: Creature,
+                                                                    subject: This,
+                                                                    subtype: None,
+                                                                ),
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ),
+                                            ),
+                                            right: Lit(value: 1),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            Modification(
+                                subject: AsType(type: Creature, subject: This, subtype: None),
+                                stat: Toughness,
+                                delta: Up(
+                                    amount: Arith(
+                                        op: Times,
+                                        left: Param(0),
+                                        right: Arith(
+                                            op: Minus,
+                                            left: CountOf(
+                                                group: Described(
+                                                    determiner: Bare,
+                                                    predicate: And(
+                                                        conjuncts: [
+                                                            HasType(type: Creature),
+                                                            InCombat(
+                                                                relation: BlockerOf,
+                                                                counterpart: AsType(
+                                                                    type: Creature,
+                                                                    subject: This,
+                                                                    subtype: None,
+                                                                ),
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ),
+                                            ),
+                                            right: Lit(value: 1),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                ),
+            ),
+        ],
+    ),
 )

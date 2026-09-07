@@ -1,7 +1,69 @@
 KeywordAbility(
     name: "LivingWeapon",
+    params: [],
     spelling: "living weapon",
     grammar: FixedKeyword(
         surface: "living weapon",
+    ),
+    // "Living weapon" means "When this Equipment enters, create a 0/0 black
+    // Phyrexian Germ creature token, then attach this Equipment to it."
+    // [CR#702.92a]
+    body: Keyword(
+        keyword: "LivingWeapon",
+        params: [],
+        body: [
+            Triggered(
+                event: ZoneChange(
+                    subject: AsType(
+                        type: Artifact,
+                        subject: This,
+                        subtype: Of(host: Artifact, label: "Equipment"),
+                    ),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Sequentially(
+                    steps: [
+                        CreateObject(
+                            count: Lit(value: 1),
+                            spec: Token(
+                                spec: Written(
+                                    characteristics: (
+                                        characteristics: (
+                                            colors: [Black],
+                                            types: [Creature],
+                                            subtypes: [
+                                                Of(host: Creature, label: "Phyrexian"),
+                                                Of(host: Creature, label: "Germ"),
+                                            ],
+                                            power: Lit(value: 0),
+                                            toughness: Lit(value: 0),
+                                        ),
+                                    ),
+                                ),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                        Enact(
+                            verb: Action(label: "Attach"),
+                            instruction: Attachment(
+                                r#move: Attached,
+                                subject: This,
+                                host: Pro(reach: TokenBorn, plurality: One, window: Whole),
+                            ),
+                            agent: None,
+                        ),
+                    ],
+                ),
+            ),
+        ],
     ),
 )

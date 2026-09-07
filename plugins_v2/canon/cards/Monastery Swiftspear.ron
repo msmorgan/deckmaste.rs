@@ -1,0 +1,15 @@
+// "Haste / Prowess" [CR#702.108a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Monastery Swiftspear",
+        cost: [Simple(symbol: Specific(color: Of(color: Red)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Monk")],
+        power: Lit(value: 1),
+        toughness: Lit(value: 2),
+        text: [
+            Keyword(keyword: "Haste", params: [], body: []),
+            Prowess,
+        ],
+    ),
+))

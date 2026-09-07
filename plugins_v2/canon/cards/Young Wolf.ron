@@ -1,0 +1,12 @@
+// "Undying" [CR#702.93a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Young Wolf",
+        cost: [Simple(symbol: Specific(color: Of(color: Green)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Wolf")],
+        power: Lit(value: 1),
+        toughness: Lit(value: 1),
+        text: [Undying],
+    ),
+))
