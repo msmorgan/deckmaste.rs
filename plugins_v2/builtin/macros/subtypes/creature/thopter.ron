@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "thopter",
+    spelling: "Thopter",
+    grammar: Noun(singular: "Thopter"),
+)
+

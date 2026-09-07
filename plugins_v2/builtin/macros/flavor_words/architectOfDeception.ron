@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "architectOfDeception",
+    spelling: "Architect of Deception",
+    grammar: FixedTerm(surface: "Architect of Deception"),
+)

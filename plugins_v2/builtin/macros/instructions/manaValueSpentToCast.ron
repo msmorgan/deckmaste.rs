@@ -1,0 +1,7 @@
+// "the amount of mana spent to cast <spell>"
+(
+    name: "manaValueSpentToCast",
+    kinds: [Amount],
+    params: {"spell": NounPhrase},
+    body: Paid(ManaValueSpent, Param(spell)),
+)

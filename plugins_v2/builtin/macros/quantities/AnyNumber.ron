@@ -1,6 +1,0 @@
-(
-    name: "AnyNumber",
-    kinds: [Quantity],
-    params: [],
-    body: Range(None, None),
-)

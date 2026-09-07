@@ -1,0 +1,22 @@
+KeywordAbility(
+    name: "suspend",
+    params: [Amount, Cost],
+    spelling: "suspend",
+    grammar: FixedKeyword(
+        surface: "suspend",
+    ),
+    // STOP. Suspend's first of three abilities is "If you could begin to cast this card
+    // by putting it onto the stack from your hand, you may pay [cost] and exile it with
+    // N time counters on it. THIS ACTION DOESN'T USE THE STACK." [CR#702.62a] No
+    // instruction or static performs a special action (the cause Companion, Foretell
+    // and Plot share), and nothing reads "you could begin to cast this card" — a
+    // counterfactual over the casting procedure. Its second and third abilities
+    // (upkeep counter removal and the last-counter trigger) function in the exile zone
+    // on a card the first ability put there, and a definition cannot depend on a half
+    // that is not written.
+    body: Keyword(
+        keyword: "Suspend",
+        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        body: [],
+    ),
+)

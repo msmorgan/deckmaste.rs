@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MysticArcanum",
-    spelling: "Mystic Arcanum",
-    grammar: FixedTerm(surface: "Mystic Arcanum"),
-)

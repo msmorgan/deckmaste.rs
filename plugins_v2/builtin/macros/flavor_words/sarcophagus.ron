@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sarcophagus",
+    spelling: "Sarcophagus",
+    grammar: FixedTerm(surface: "Sarcophagus"),
+)

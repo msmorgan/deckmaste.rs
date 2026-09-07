@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "summaryExecution",
+    spelling: "Summary Execution",
+    grammar: FixedTerm(surface: "Summary Execution"),
+)

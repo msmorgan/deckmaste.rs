@@ -1,7 +1,0 @@
-// "<who> searches their library for a <p>"
-(
-    name: "SearchTheirLibraryFor",
-    kinds: [Instruction],
-    params: {"p": Predicate, "agent": Default(NounPhrase, You)},
-    body: Search(scope: OneZone(zone: LibraryOf(player: They)), quantity: Exactly(n: 1), predicate: Param(p), agent: Param(agent)),
-)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "vibroShockGauntlets",
+    spelling: "Vibro-Shock Gauntlets",
+    grammar: FixedTerm(surface: "Vibro-Shock Gauntlets"),
+)

@@ -1,0 +1,6 @@
+(
+    name: "revealCards",
+    kinds: [Instruction],
+    params: {"cards": NounPhrase, "agent": Default(NounPhrase, You)},
+    body: Expose(verb: Reveal, exposed: Cards(cards: Param(cards)), agent: Param(agent)),
+)

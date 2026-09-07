@@ -1,7 +1,0 @@
-// "a color", "a creature type": a quality noun.
-(
-    name: "Quality",
-    kinds: [Predicate],
-    params: {"sort": QualitySort},
-    body: QualityNoun(Param(sort), None),
-)

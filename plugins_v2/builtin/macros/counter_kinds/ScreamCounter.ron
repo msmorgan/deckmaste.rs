@@ -1,6 +1,0 @@
-CounterKind(
-    name: "ScreamCounter",
-    params: [],
-    spelling: "scream",
-    body: CounterFacts(label: "Scream", holder: Object),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Beaver",
-    spelling: "Beaver",
-    grammar: Noun(singular: "Beaver", plural: Unavailable),
-)
-

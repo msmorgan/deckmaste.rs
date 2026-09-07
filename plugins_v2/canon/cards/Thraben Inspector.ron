@@ -24,7 +24,7 @@ SingleFaced(face: (
                 timing: None,
                 limit: None,
                 intervening: None,
-                instruction: Investigate(You),
+                instruction: investigate(You),
             ),
         ],
     ),

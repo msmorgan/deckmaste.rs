@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "origamiFu",
+    spelling: "Origami-Fu",
+    grammar: FixedTerm(surface: "Origami-Fu"),
+)

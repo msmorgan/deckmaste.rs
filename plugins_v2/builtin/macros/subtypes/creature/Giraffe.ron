@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Giraffe",
-    spelling: "Giraffe",
-    grammar: Noun(singular: "Giraffe", plural: Unavailable),
-)
-

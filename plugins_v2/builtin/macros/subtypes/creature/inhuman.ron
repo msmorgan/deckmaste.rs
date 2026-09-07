@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "inhuman",
+    spelling: "Inhuman",
+    grammar: Noun(singular: "Inhuman", plural: Unavailable),
+)
+

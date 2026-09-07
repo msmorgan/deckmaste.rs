@@ -1,0 +1,7 @@
+// "{G/P}": a Phyrexian mana symbol [CR#107.4f].
+(
+    name: "phyrexianPip",
+    kinds: [ManaSymbol],
+    params: {"color": Color},
+    body: Phyrexian(Param(color), None),
+)

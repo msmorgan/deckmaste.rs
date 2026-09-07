@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "NeurotraumalRod",
-    spelling: "Neurotraumal Rod",
-    grammar: FixedTerm(surface: "Neurotraumal Rod"),
-)

@@ -22,25 +22,25 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .map(|declaration| declaration.identity().name())
             .collect::<Vec<_>>(),
         [
-            "CitysBlessing",
-            "Commander",
-            "DayNight",
-            "EnduringStory",
-            "Goaded",
-            "Harnessed",
-            "Initiative",
-            "LeftHalfUnlocked",
-            "Level",
-            "Monarch",
-            "Monstrous",
-            "Prepared",
-            "Renowned",
-            "RightHalfUnlocked",
-            "RingBearer",
-            "Saddled",
-            "Sector",
-            "Solved",
-            "Suspected",
+            "citysBlessing",
+            "commander",
+            "dayNight",
+            "enduringStory",
+            "goaded",
+            "harnessed",
+            "initiative",
+            "leftHalfUnlocked",
+            "level",
+            "monarch",
+            "monstrous",
+            "prepared",
+            "renowned",
+            "rightHalfUnlocked",
+            "ringBearer",
+            "saddled",
+            "sector",
+            "solved",
+            "suspected",
         ],
     );
     // `planar controller` deliberately has no nursery row: no supported card
@@ -48,7 +48,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     assert!(
         designations
             .iter()
-            .all(|declaration| declaration.identity().name() != "PlanarController")
+            .all(|declaration| declaration.identity().name() != "planarController")
     );
     for declaration in &designations {
         assert_eq!(declaration.params(), Some([].as_slice()));

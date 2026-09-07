@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Armadillo",
-    spelling: "Armadillo",
-    grammar: Noun(singular: "Armadillo", plural: Unavailable),
-)
-

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Leech",
-    spelling: "Leech",
-    // Supported Oracle uses `Leeches` only in names and self-reference, not as a subtype noun.
-    grammar: Noun(singular: "Leech", plural: Unavailable),
-)

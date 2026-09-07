@@ -1,8 +1,0 @@
-// No supported Oracle rules-text plural is attested for this proper subtype name.
-Subtype(
-    category: Planeswalker,
-    name: "Huatli",
-    spelling: "Huatli",
-    grammar: Noun(singular: "Huatli", plural: Unavailable),
-)
-

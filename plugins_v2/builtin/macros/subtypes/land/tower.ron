@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Land,
+    name: "tower",
+    spelling: "Tower",
+    grammar: Noun(singular: "Tower", plural: Unavailable),
+)
+

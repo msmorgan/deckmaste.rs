@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Bison",
-    spelling: "Bison",
-    grammar: Noun(singular: "Bison", plural: Unavailable),
-)
-

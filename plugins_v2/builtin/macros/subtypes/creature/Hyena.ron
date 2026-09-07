@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hyena",
-    spelling: "Hyena",
-    grammar: Noun(singular: "Hyena", plural: Unavailable),
-)
-

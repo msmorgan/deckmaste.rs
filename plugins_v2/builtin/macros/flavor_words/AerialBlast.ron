@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AerialBlast",
-    spelling: "Aerial Blast",
-    grammar: FixedTerm(surface: "Aerial Blast"),
-)

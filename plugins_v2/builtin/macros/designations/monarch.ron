@@ -1,0 +1,15 @@
+// The monarch ([CR#725.1]): a PLAYER designation — "a designation a player
+// can have". Exactly one player holds it at a time ([CR#725.3] — becoming
+// the monarch strips the previous monarch), and it persists until an effect
+// moves it. The registry row carries the designation's scope column; the
+// draw trigger and combat-damage transfer ([CR#725.2]) are engine rules
+// machinery, not a conferred payload.
+Designation(
+    name: "monarch",
+    params: [],
+    spelling: "the monarch",
+    grammar: FixedTerm(surface: "the monarch"),
+    body: [
+        DesignationFacts(label: "the monarch", scope: HeldBy(holder: Player), effectful: true, zone: None, type: None, half: None),
+    ],
+)

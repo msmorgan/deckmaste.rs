@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Peasant",
-    spelling: "Peasant",
-    grammar: Noun(singular: "Peasant", plural: Unavailable),
-)
-

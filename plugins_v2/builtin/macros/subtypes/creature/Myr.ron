@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Myr",
-    spelling: "Myr",
-    grammar: Noun(singular: "Myr", plural: "Myr"),
-)
-

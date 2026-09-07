@@ -1,0 +1,6 @@
+CounterKind(
+    name: "pageCounter",
+    params: [],
+    spelling: "page",
+    body: CounterFacts(label: "Page", holder: Object),
+)

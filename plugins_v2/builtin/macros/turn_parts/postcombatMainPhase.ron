@@ -1,0 +1,8 @@
+// Phases and steps [CR#500.1].
+TurnPart(
+    name: "postcombatMainPhase",
+    spelling: "postcombat main phase",
+    grammar: Noun(singular: "postcombat main phase"),
+    params: [],
+    body: PostcombatMain,
+)

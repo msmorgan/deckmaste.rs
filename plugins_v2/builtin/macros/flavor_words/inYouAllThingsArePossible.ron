@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "inYouAllThingsArePossible",
+    spelling: "In You, All Things Are Possible",
+    grammar: FixedTerm(surface: "In You, All Things Are Possible"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DoubleOverdrive",
-    spelling: "Double Overdrive",
-    grammar: FixedTerm(surface: "Double Overdrive"),
-)

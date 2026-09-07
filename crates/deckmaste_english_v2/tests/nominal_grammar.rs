@@ -878,7 +878,7 @@ fn assert_former_count_fixture_ownership(
             0,
             9,
             LexicalProvenanceKind::Lexeme,
-            "lexeme:type/Creature/plural",
+            "lexeme:type/creature/plural",
         ),
         (
             9,
@@ -1573,7 +1573,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     0,
                     7,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:keyword_action/Destroy/bare",
+                    "lexeme:keyword_action/destroy/bare",
                 ),
                 (
                     7,
@@ -1585,7 +1585,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     14,
                     24,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:type/Artifact/plural",
+                    "lexeme:type/artifact/plural",
                 ),
                 (
                     24,
@@ -1606,7 +1606,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     0,
                     7,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:keyword_action/Destroy/bare",
+                    "lexeme:keyword_action/destroy/bare",
                 ),
                 (
                     7,
@@ -1618,7 +1618,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     14,
                     24,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:type/Creature/plural",
+                    "lexeme:type/creature/plural",
                 ),
                 (
                     24,
@@ -1630,7 +1630,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     28,
                     41,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:type/Planeswalker/plural",
+                    "lexeme:type/planeswalker/plural",
                 ),
                 (
                     41,
@@ -1657,7 +1657,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     6,
                     16,
                     LexicalProvenanceKind::Lexeme,
-                    "lexeme:type/Creature/plural",
+                    "lexeme:type/creature/plural",
                 ),
                 (16, 21, LexicalProvenanceKind::Lexeme, "core-verb:Gain"),
                 (21, 23, LexicalProvenanceKind::Codec, "codec:ScalarNumber"),
@@ -1705,7 +1705,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                 0,
                 7,
                 LexicalProvenanceKind::Lexeme,
-                "lexeme:keyword_action/Destroy/bare",
+                "lexeme:keyword_action/destroy/bare",
             ),
             (
                 7,
@@ -1723,7 +1723,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                 18,
                 26,
                 LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Artifact/singular",
+                "lexeme:type/artifact/singular",
             ),
             (
                 26,
@@ -1747,7 +1747,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                 36,
                 46,
                 LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Creature/plural",
+                "lexeme:type/creature/plural",
             ),
             (
                 46,
@@ -2149,22 +2149,22 @@ fn aggregate_noun_inventory_accepts_every_contributing_subtype_family() {
     let parser = parser();
     let environment = parser.environment();
     let artifact =
-        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Artifact), "Clue");
+        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Artifact), "clue");
     let battle =
-        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Battle), "Siege");
+        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Battle), "siege");
     let creature =
-        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Creature), "Elf");
+        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Creature), "elf");
     let enchantment = DeclarationIdentity::new(
         DeclarationKind::Subtype(SubtypeCategory::Enchantment),
-        "Aura",
+        "aura",
     );
-    let land = DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Land), "Forest");
+    let land = DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Land), "forest");
     let planeswalker = DeclarationIdentity::new(
         DeclarationKind::Subtype(SubtypeCategory::Planeswalker),
-        "Jace",
+        "jace",
     );
     let spell =
-        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Spell), "Arcane");
+        DeclarationIdentity::new(DeclarationKind::Subtype(SubtypeCategory::Spell), "arcane");
 
     for identity in [
         artifact,
@@ -2183,7 +2183,7 @@ fn aggregate_noun_inventory_accepts_every_contributing_subtype_family() {
     assert!(
         deckmaste_english_v2::ast::DeclarationNoun::new(
             environment,
-            DeclarationIdentity::new(DeclarationKind::KeywordAbility, "Flying"),
+            DeclarationIdentity::new(DeclarationKind::KeywordAbility, "flying"),
         )
         .is_none(),
         "noncontributing declaration kinds remain outside the noun inventory",
@@ -2835,22 +2835,22 @@ fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsi
             .expect("Type declarations are count nouns"),
         )
     };
-    assert!(AndNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
-    assert!(OrNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
-    assert!(AndOrNominalCoordination::new(vec![coordination_member(head("Artifact"))]).is_none());
+    assert!(AndNominalCoordination::new(vec![coordination_member(head("artifact"))]).is_none());
+    assert!(OrNominalCoordination::new(vec![coordination_member(head("artifact"))]).is_none());
+    assert!(AndOrNominalCoordination::new(vec![coordination_member(head("artifact"))]).is_none());
     assert!(
-        AndNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+        AndNominalCoordination::new(vec![coordination_member(plural_head("artifact"))]).is_none()
     );
     assert!(
-        OrNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+        OrNominalCoordination::new(vec![coordination_member(plural_head("artifact"))]).is_none()
     );
     assert!(
-        AndOrNominalCoordination::new(vec![coordination_member(plural_head("Artifact"))]).is_none()
+        AndOrNominalCoordination::new(vec![coordination_member(plural_head("artifact"))]).is_none()
     );
     let mixed_number = || {
         vec![
-            coordination_member(head("Artifact")),
-            coordination_member(plural_head("Artifact")),
+            coordination_member(head("artifact")),
+            coordination_member(plural_head("artifact")),
         ]
     };
     assert!(AndNominalCoordination::new(mixed_number()).is_none());
@@ -2862,7 +2862,7 @@ fn coordination_minimum_arity_and_concord_class_are_unconstructible_when_inconsi
                 marker: TargetingMarker::Target,
             },
         )),
-        nominal("Artifact"),
+        nominal("artifact"),
     )
     .expect("target determiner agrees with artifact");
     let determined = UnqualifiedReference::DeterminedNominal(determined);

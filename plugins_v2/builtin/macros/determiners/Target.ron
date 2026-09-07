@@ -1,7 +1,0 @@
-// "target …"
-(
-    name: "Target",
-    kinds: [NounPhrase],
-    params: {"p": Predicate},
-    body: Described(Target(quantity: Range(1, 1)), Param(p)),
-)

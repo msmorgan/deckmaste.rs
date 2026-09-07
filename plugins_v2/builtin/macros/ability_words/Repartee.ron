@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Repartee",
-    spelling: "Repartee",
-    grammar: FixedTerm(surface: "Repartee"),
-)

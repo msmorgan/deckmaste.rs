@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "hedgehog",
+    spelling: "Hedgehog",
+    grammar: Noun(singular: "Hedgehog", plural: Unavailable),
+)
+

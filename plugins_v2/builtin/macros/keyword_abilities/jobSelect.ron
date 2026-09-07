@@ -1,0 +1,71 @@
+KeywordAbility(
+    name: "jobSelect",
+    params: [],
+    spelling: "job select",
+    grammar: FixedKeyword(
+        surface: "job select",
+    ),
+    // "Job select" means "When this Equipment enters, create a 1/1 colorless Hero
+    // creature token, then attach this Equipment to it." [CR#702.182a]
+    body: Keyword(
+        keyword: "JobSelect",
+        params: [],
+        body: [
+            Triggered(
+                event: ZoneChange(
+                    subject: AsType(
+                        type: Artifact,
+                        subject: This,
+                        subtype: Of(host: Artifact, label: "Equipment"),
+                    ),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Sequentially(
+                    steps: [
+                        CreateObject(
+                            count: Lit(value: 1),
+                            spec: Token(
+                                spec: Written(
+                                    characteristics: (
+                                        characteristics: (
+                                            colors: [],
+                                            types: [Creature],
+                                            subtypes: [Of(host: Creature, label: "Hero")],
+                                            power: Lit(value: 1),
+                                            toughness: Lit(value: 1),
+                                        ),
+                                    ),
+                                ),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                        Enact(
+                            verb: Action(label: "Attach"),
+                            instruction: Attachment(
+                                r#move: Attached,
+                                // "this Equipment": a bare `This` has no zone, and an
+                                // attachment's subject must be on the battlefield.
+                                subject: AsType(
+                                    type: Artifact,
+                                    subject: This,
+                                    subtype: Of(host: Artifact, label: "Equipment"),
+                                ),
+                                host: Pro(reach: TokenBorn, plurality: One, window: Whole),
+                            ),
+                            agent: None,
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)

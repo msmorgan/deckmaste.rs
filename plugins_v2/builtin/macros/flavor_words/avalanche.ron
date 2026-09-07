@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "avalanche",
+    spelling: "Avalanche!",
+    grammar: FixedTerm(surface: "Avalanche!"),
+)

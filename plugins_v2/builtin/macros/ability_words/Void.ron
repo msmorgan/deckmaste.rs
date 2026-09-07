@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Void",
-    spelling: "Void",
-    grammar: FixedTerm(surface: "Void"),
-)

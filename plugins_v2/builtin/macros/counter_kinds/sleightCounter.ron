@@ -1,0 +1,6 @@
+CounterKind(
+    name: "sleightCounter",
+    params: [],
+    spelling: "sleight",
+    body: CounterFacts(label: "Sleight", holder: Object),
+)

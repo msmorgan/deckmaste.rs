@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "tyranid",
+    spelling: "Tyranid",
+    grammar: Noun(singular: "Tyranid", plural: Unavailable),
+)
+

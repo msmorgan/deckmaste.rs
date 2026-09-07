@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "CleanupStep",
-    spelling: "cleanup step",
-    grammar: Noun(singular: "cleanup step"),
-    params: [],
-    body: Cleanup,
-)

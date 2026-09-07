@@ -1,7 +1,0 @@
-// "<subject> can block an additional creature each combat"
-(
-    name: "MayBlockAdditional",
-    kinds: [StaticSpec],
-    params: {"subject": NounPhrase, "quantity": Quantity},
-    body: DeonticRule(Param(subject), Permit, [Core(deed: Block)], Agent, Additional(quantity: Param(quantity)), Counterpart(patient: AllOf(p: Creature)), None, NoRider),
-)

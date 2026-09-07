@@ -31,8 +31,8 @@ SingleFaced(face: (
                 timing: None,
                 limit: None,
                 intervening: None,
-                instruction: FaceAVillainousChoice(
-                    Sacrifice(
+                instruction: faceAVillainousChoice(
+                    sacrifice(
                         Described(
                             determiner: A(mode: Unmarked),
                             predicate: And(conjuncts: [

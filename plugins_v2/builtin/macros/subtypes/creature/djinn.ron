@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "djinn",
+    spelling: "Djinn",
+    grammar: Noun(singular: "Djinn"),
+)
+

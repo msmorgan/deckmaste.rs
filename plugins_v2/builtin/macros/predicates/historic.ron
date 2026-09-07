@@ -1,0 +1,7 @@
+// "historic": an artifact, legendary, or Saga [CR#700.6].
+(
+    name: "historic",
+    kinds: [Predicate],
+    params: [],
+    body: Or(disjuncts: [HasType(r#type: Artifact), HasSupertype(supertype: Legendary), HasSubtype(subtype: Of(Enchantment, "Saga"))]),
+)

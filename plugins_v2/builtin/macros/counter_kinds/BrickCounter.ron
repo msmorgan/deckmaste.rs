@@ -1,6 +1,0 @@
-CounterKind(
-    name: "BrickCounter",
-    params: [],
-    spelling: "brick",
-    body: CounterFacts(label: "Brick", holder: Object),
-)

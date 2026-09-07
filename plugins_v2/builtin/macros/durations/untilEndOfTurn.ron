@@ -1,0 +1,6 @@
+(
+    name: "untilEndOfTurn",
+    kinds: [Duration],
+    params: [],
+    body: Until(end: EndOf(Turn, None)),
+)

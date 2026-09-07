@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "moldEarth",
+    spelling: "Mold Earth",
+    grammar: FixedTerm(surface: "Mold Earth"),
+)

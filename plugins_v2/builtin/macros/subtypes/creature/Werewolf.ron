@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Werewolf",
-    spelling: "Werewolf",
-    grammar: Noun(singular: "Werewolf", plural: "Werewolves"),
-)
-

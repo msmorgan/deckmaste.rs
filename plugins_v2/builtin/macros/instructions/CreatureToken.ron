@@ -1,6 +1,0 @@
-(
-    name: "CreatureToken",
-    kinds: [CharacteristicBundle],
-    params: {"power": Nat, "toughness": Nat, "colors": Colors, "subtypes": Subtypes},
-    body: CreatureTokenOf(power: Lit(value: Param(power)), toughness: Lit(value: Param(toughness)), colors: Param(colors), subtypes: Param(subtypes)),
-)

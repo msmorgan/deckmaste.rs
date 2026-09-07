@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MultiThreatEliminator",
-    spelling: "Multi-threat Eliminator",
-    grammar: FixedTerm(surface: "Multi-threat Eliminator"),
-)

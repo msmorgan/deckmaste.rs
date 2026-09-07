@@ -86,33 +86,33 @@ fn surfaces(declaration: &NormalizedDeclaration) -> Vec<(SurfaceFeature, &str)> 
 
 fn attested_plural(category: SubtypeCategory, name: &str) -> Option<&'static str> {
     match (category, name) {
-        (SubtypeCategory::Artifact, "Attraction") => Some("Attractions"),
-        (SubtypeCategory::Artifact, "Bobblehead") => Some("Bobbleheads"),
-        (SubtypeCategory::Artifact, "Clue") => Some("Clues"),
-        (SubtypeCategory::Artifact, "Contraption") => Some("Contraptions"),
-        (SubtypeCategory::Artifact, "Equipment") => Some("Equipment"),
-        (SubtypeCategory::Artifact, "Food") => Some("Foods"),
-        (SubtypeCategory::Artifact, "Fortification") => Some("Fortifications"),
-        (SubtypeCategory::Artifact, "Spacecraft") => Some("Spacecraft"),
-        (SubtypeCategory::Artifact, "Treasure") => Some("Treasures"),
-        (SubtypeCategory::Artifact, "Vehicle") => Some("Vehicles"),
-        (SubtypeCategory::Battle, "Siege") => Some("Sieges"),
-        (SubtypeCategory::Enchantment, "Aura") => Some("Auras"),
-        (SubtypeCategory::Enchantment, "Curse") => Some("Curses"),
-        (SubtypeCategory::Enchantment, "Role") => Some("Roles"),
-        (SubtypeCategory::Enchantment, "Room") => Some("Rooms"),
-        (SubtypeCategory::Enchantment, "Saga") => Some("Sagas"),
-        (SubtypeCategory::Enchantment, "Shard") => Some("Shards"),
-        (SubtypeCategory::Enchantment, "Shrine") => Some("Shrines"),
-        (SubtypeCategory::Land, "Cave") => Some("Caves"),
-        (SubtypeCategory::Land, "Desert") => Some("Deserts"),
-        (SubtypeCategory::Land, "Forest") => Some("Forests"),
-        (SubtypeCategory::Land, "Gate") => Some("Gates"),
-        (SubtypeCategory::Land, "Island") => Some("Islands"),
-        (SubtypeCategory::Land, "Mountain") => Some("Mountains"),
-        (SubtypeCategory::Land, "Plains") => Some("Plains"),
-        (SubtypeCategory::Land, "Swamp") => Some("Swamps"),
-        (SubtypeCategory::Land, "Town") => Some("Towns"),
+        (SubtypeCategory::Artifact, "attraction") => Some("Attractions"),
+        (SubtypeCategory::Artifact, "bobblehead") => Some("Bobbleheads"),
+        (SubtypeCategory::Artifact, "clue") => Some("Clues"),
+        (SubtypeCategory::Artifact, "contraption") => Some("Contraptions"),
+        (SubtypeCategory::Artifact, "equipment") => Some("Equipment"),
+        (SubtypeCategory::Artifact, "food") => Some("Foods"),
+        (SubtypeCategory::Artifact, "fortification") => Some("Fortifications"),
+        (SubtypeCategory::Artifact, "spacecraft") => Some("Spacecraft"),
+        (SubtypeCategory::Artifact, "treasure") => Some("Treasures"),
+        (SubtypeCategory::Artifact, "vehicle") => Some("Vehicles"),
+        (SubtypeCategory::Battle, "siege") => Some("Sieges"),
+        (SubtypeCategory::Enchantment, "aura") => Some("Auras"),
+        (SubtypeCategory::Enchantment, "curse") => Some("Curses"),
+        (SubtypeCategory::Enchantment, "role") => Some("Roles"),
+        (SubtypeCategory::Enchantment, "room") => Some("Rooms"),
+        (SubtypeCategory::Enchantment, "saga") => Some("Sagas"),
+        (SubtypeCategory::Enchantment, "shard") => Some("Shards"),
+        (SubtypeCategory::Enchantment, "shrine") => Some("Shrines"),
+        (SubtypeCategory::Land, "cave") => Some("Caves"),
+        (SubtypeCategory::Land, "desert") => Some("Deserts"),
+        (SubtypeCategory::Land, "forest") => Some("Forests"),
+        (SubtypeCategory::Land, "gate") => Some("Gates"),
+        (SubtypeCategory::Land, "island") => Some("Islands"),
+        (SubtypeCategory::Land, "mountain") => Some("Mountains"),
+        (SubtypeCategory::Land, "plains") => Some("Plains"),
+        (SubtypeCategory::Land, "swamp") => Some("Swamps"),
+        (SubtypeCategory::Land, "town") => Some("Towns"),
         _ => None,
     }
 }
@@ -126,7 +126,11 @@ fn catalog_stem(spelling: &str) -> String {
             '\'' | '!' => {}
             character => {
                 if capitalize {
-                    stem.extend(character.to_uppercase());
+                    if stem.is_empty() {
+                        stem.extend(character.to_lowercase());
+                    } else {
+                        stem.extend(character.to_uppercase());
+                    }
                     capitalize = false;
                 } else {
                     stem.push(character);
@@ -260,33 +264,33 @@ fn noncreature_subtype_surfaces_preserve_attested_number_boundaries() {
         surfaces(subtype(
             &declarations,
             SubtypeCategory::Artifact,
-            "Equipment"
+            "equipment"
         )),
         [
             (SurfaceFeature::Singular, "Equipment"),
             (SurfaceFeature::Plural, "Equipment"),
         ]
     );
-    for (name, plural) in [
-        ("Food", "Foods"),
-        ("Clue", "Clues"),
-        ("Treasure", "Treasures"),
+    for (name, singular, plural) in [
+        ("food", "Food", "Foods"),
+        ("clue", "Clue", "Clues"),
+        ("treasure", "Treasure", "Treasures"),
     ] {
         assert_eq!(
             surfaces(subtype(&declarations, SubtypeCategory::Artifact, name)),
             [
-                (SurfaceFeature::Singular, name),
+                (SurfaceFeature::Singular, singular),
                 (SurfaceFeature::Plural, plural),
             ]
         );
     }
 
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Land, "Locus")),
+        surfaces(subtype(&declarations, SubtypeCategory::Land, "locus")),
         [(SurfaceFeature::Singular, "Locus")]
     );
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Enchantment, "Saga")),
+        surfaces(subtype(&declarations, SubtypeCategory::Enchantment, "saga")),
         [
             (SurfaceFeature::Singular, "Saga"),
             (SurfaceFeature::Plural, "Sagas"),
@@ -294,18 +298,18 @@ fn noncreature_subtype_surfaces_preserve_attested_number_boundaries() {
     );
 
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Land, "PowerPlant")),
+        surfaces(subtype(&declarations, SubtypeCategory::Land, "powerPlant")),
         [(SurfaceFeature::Singular, "Power-Plant")]
     );
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Land, "Urzas")),
+        surfaces(subtype(&declarations, SubtypeCategory::Land, "urzas")),
         [(SurfaceFeature::Singular, "Urza's")]
     );
     assert_eq!(
         surfaces(subtype(
             &declarations,
             SubtypeCategory::Planeswalker,
-            "Jace"
+            "jace"
         )),
         [(SurfaceFeature::Singular, "Jace")]
     );
@@ -324,14 +328,14 @@ fn spell_subtypes_share_one_category_without_inventing_other_subtype_domains() {
         .collect::<BTreeSet<_>>();
     assert_eq!(
         spell_names,
-        BTreeSet::from(["Adventure", "Arcane", "Lesson", "Omen", "Trap"])
+        BTreeSet::from(["adventure", "arcane", "lesson", "omen", "trap"])
     );
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Spell, "Adventure")),
+        surfaces(subtype(&declarations, SubtypeCategory::Spell, "adventure")),
         [(SurfaceFeature::Singular, "Adventure")]
     );
     assert_eq!(
-        surfaces(subtype(&declarations, SubtypeCategory::Spell, "Arcane")),
+        surfaces(subtype(&declarations, SubtypeCategory::Spell, "arcane")),
         [(SurfaceFeature::Singular, "Arcane")]
     );
 }
@@ -343,23 +347,23 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
     let expected = [
         (
             SubtypeCategory::Artifact,
-            "Equipment",
-            "Subtype(name:\"Equipment\",types:[Artifact],confers:[Static(May(Attach(what:Ref(This),to:Type(Creature))))])",
+            "equipment",
+            "Subtype(name:\"Equipment\",types:[Artifact],confers:[Static(May(attach(what:Ref(This),to:Type(Creature))))])",
         ),
         (
             SubtypeCategory::Artifact,
-            "Fortification",
-            "Subtype(name:\"Fortification\",types:[Artifact],confers:[Static(May(Attach(what:Ref(This),to:Type(Land))))])",
+            "fortification",
+            "Subtype(name:\"Fortification\",types:[Artifact],confers:[Static(May(attach(what:Ref(This),to:Type(Land))))])",
         ),
         (
             SubtypeCategory::Enchantment,
-            "Aura",
+            "aura",
             "Subtype(name:\"Aura\",types:[Enchantment],confers:[StateBased(condition:Not(LegallyAttached(This)),effect:Move(This,Graveyard))])",
         ),
         (
             SubtypeCategory::Enchantment,
-            "Saga",
-            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,LoreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,LoreCounter,1)),StateBased(condition:And([Compare(GreatestWatchedThreshold(This),AtLeast,1),Compare(CounterCount(This,LoreCounter),AtLeast,GreatestWatchedThreshold(This))]),effect:Sacrifice(You,This))])",
+            "saga",
+            "Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,loreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,loreCounter,1)),StateBased(condition:And([Compare(GreatestWatchedThreshold(This),AtLeast,1),Compare(CounterCount(This,loreCounter),AtLeast,GreatestWatchedThreshold(This))]),effect:sacrifice(You,This))])",
         ),
     ];
 
@@ -383,10 +387,10 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             (declaration.identity().kind(), declaration.identity().name()),
             (
                 DeclarationKind::Subtype(SubtypeCategory::Artifact),
-                "Equipment" | "Fortification"
+                "equipment" | "fortification"
             ) | (
                 DeclarationKind::Subtype(SubtypeCategory::Enchantment),
-                "Aura" | "Saga"
+                "aura" | "saga"
             )
         ) {
             assert!(

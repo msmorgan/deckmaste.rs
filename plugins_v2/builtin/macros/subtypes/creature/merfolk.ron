@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "merfolk",
+    spelling: "Merfolk",
+    grammar: Noun(singular: "Merfolk", plural: "Merfolk"),
+)
+

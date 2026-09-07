@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ThoseWhoCameBefore",
-    spelling: "Those Who Came Before",
-    grammar: FixedTerm(surface: "Those Who Came Before"),
-)

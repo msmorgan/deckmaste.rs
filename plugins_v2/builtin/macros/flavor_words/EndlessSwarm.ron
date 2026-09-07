@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EndlessSwarm",
-    spelling: "Endless Swarm",
-    grammar: FixedTerm(surface: "Endless Swarm"),
-)

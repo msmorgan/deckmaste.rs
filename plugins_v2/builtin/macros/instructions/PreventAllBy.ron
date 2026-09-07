@@ -1,7 +1,0 @@
-// "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]."
-(
-    name: "PreventAllBy",
-    kinds: [Instruction],
-    params: {"kind": DamageKind, "source": NounPhrase, "scope": DamageScope, "duration": Duration},
-    body: Establish(DamageRule(Param(kind), DealtBy(source: Param(source)), Param(scope), Prevent(All, None), Repeatedly), Param(duration)),
-)

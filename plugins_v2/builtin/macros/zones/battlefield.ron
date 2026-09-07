@@ -1,0 +1,6 @@
+(
+    name: "battlefield",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Zone(Battlefield, Bare),
+)

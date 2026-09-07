@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "unearthlyPower",
+    spelling: "Unearthly Power",
+    grammar: FixedTerm(surface: "Unearthly Power"),
+)

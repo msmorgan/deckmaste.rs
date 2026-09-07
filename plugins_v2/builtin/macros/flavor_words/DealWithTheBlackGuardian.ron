@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DealWithTheBlackGuardian",
-    spelling: "Deal with the Black Guardian",
-    grammar: FixedTerm(surface: "Deal with the Black Guardian"),
-)

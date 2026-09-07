@@ -175,6 +175,15 @@ fn declaration_name(surface: &str) -> anyhow::Result<String> {
         !name.is_empty(),
         "flavor word {surface:?} cannot form a declaration name",
     );
+    // Declarations are named the way Lean names them: the first character is
+    // lowercase, every later character keeps its case.
+    let mut characters = name.chars();
+    let name = characters
+        .next()
+        .into_iter()
+        .flat_map(char::to_lowercase)
+        .chain(characters)
+        .collect();
     Ok(name)
 }
 
@@ -368,14 +377,14 @@ mod tests {
 
     #[test]
     fn declaration_names_are_stable_for_punctuation_and_numeric_initials() {
-        assert_eq!(declaration_name("Aerial Blast").unwrap(), "AerialBlast");
-        assert_eq!(declaration_name("Allons-y!").unwrap(), "AllonsY");
-        assert_eq!(declaration_name("Bigby's Hand").unwrap(), "BigbysHand");
-        assert_eq!(declaration_name("... Catch").unwrap(), "EllipsisCatch");
-        assert_eq!(declaration_name("Throw ...").unwrap(), "ThrowEllipsis");
+        assert_eq!(declaration_name("Aerial Blast").unwrap(), "aerialBlast");
+        assert_eq!(declaration_name("Allons-y!").unwrap(), "allonsY");
+        assert_eq!(declaration_name("Bigby's Hand").unwrap(), "bigbysHand");
+        assert_eq!(declaration_name("... Catch").unwrap(), "ellipsisCatch");
+        assert_eq!(declaration_name("Throw ...").unwrap(), "throwEllipsis");
         assert_eq!(
             declaration_name("10,000 Needles").unwrap(),
-            "Flavor10000Needles"
+            "flavor10000Needles"
         );
     }
 

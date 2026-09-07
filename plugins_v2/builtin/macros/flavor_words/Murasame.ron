@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Murasame",
-    spelling: "Murasame",
-    grammar: FixedTerm(surface: "Murasame"),
-)

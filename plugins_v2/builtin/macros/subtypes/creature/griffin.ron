@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "griffin",
+    spelling: "Griffin",
+    grammar: Noun(singular: "Griffin", plural: Unavailable),
+)
+

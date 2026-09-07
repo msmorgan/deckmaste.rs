@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Land,
+    name: "planet",
+    spelling: "Planet",
+    grammar: Noun(singular: "Planet", plural: Unavailable),
+)
+

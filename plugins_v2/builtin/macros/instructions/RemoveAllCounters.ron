@@ -1,7 +1,0 @@
-// "remove all [<kind>] counters from <from>"
-(
-    name: "RemoveAllCounters",
-    kinds: [Instruction],
-    params: {"kind": CounterKindSource, "from_": NounPhrase},
-    body: RemoveCounters(None, Param(kind), Param(from_)),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hamster",
-    spelling: "Hamster",
-    grammar: Noun(singular: "Hamster"),
-)
-

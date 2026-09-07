@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "exileCannon",
+    spelling: "Exile Cannon",
+    grammar: FixedTerm(surface: "Exile Cannon"),
+)

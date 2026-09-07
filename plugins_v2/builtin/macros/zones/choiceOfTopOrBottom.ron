@@ -1,0 +1,7 @@
+// "on the top or bottom of its owner's library, <chooser>'s choice"
+(
+    name: "choiceOfTopOrBottom",
+    kinds: [ZoneExpr],
+    params: {"chooser": NounPhrase},
+    body: Library(EitherEnd(chooser: Param(chooser)), None, None, Bare),
+)

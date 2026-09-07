@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "sand",
+    spelling: "Sand",
+    grammar: Noun(singular: "Sand", plural: Unavailable),
+)
+

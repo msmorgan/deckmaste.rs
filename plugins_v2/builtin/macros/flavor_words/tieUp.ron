@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "tieUp",
+    spelling: "Tie Up",
+    grammar: FixedTerm(surface: "Tie Up"),
+)

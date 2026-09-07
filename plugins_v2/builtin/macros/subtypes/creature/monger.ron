@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "monger",
+    spelling: "Monger",
+    grammar: Noun(singular: "Monger", plural: Unavailable),
+)
+

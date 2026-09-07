@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Incubate",
-    spelling: "incubate",
-    grammar: Verb(
-        bare: "incubate",
-        frame_set: MeasureComplement,
-    ),
-)

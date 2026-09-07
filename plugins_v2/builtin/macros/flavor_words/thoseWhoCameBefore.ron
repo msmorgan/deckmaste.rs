@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "thoseWhoCameBefore",
+    spelling: "Those Who Came Before",
+    grammar: FixedTerm(surface: "Those Who Came Before"),
+)

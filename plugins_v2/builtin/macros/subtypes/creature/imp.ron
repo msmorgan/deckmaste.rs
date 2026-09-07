@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "imp",
+    spelling: "Imp",
+    grammar: Noun(singular: "Imp"),
+)
+

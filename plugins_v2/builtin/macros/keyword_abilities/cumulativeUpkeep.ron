@@ -1,0 +1,67 @@
+KeywordAbility(
+    name: "cumulativeUpkeep",
+    params: [Cost],
+    spelling: "cumulative upkeep",
+    grammar: FixedKeyword(
+        surface: "cumulative upkeep",
+    ),
+    // "Cumulative upkeep [cost]" means "At the beginning of your upkeep, if this
+    // permanent is on the battlefield, put an age counter on it. Then you may pay
+    // [cost] for each age counter on it. If you don't, sacrifice it."
+    // [CR#702.24a]
+    body: Keyword(
+        keyword: "CumulativeUpkeep",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Triggered(
+                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(player: You)),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: Matches(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                ),
+                instruction: Sequentially(
+                    steps: [
+                        PutCounters(
+                            amount: Lit(value: 1),
+                            kind: Printed(kind: Named(label: "Age")),
+                            on: AsMarker(marker: Permanent, subject: This),
+                        ),
+                        WithContinuation(
+                            policy: Optional(agent: You),
+                            body: Pay(
+                                cost: Scaled(
+                                    cost: Param(0),
+                                    amount: Arith(
+                                        op: Times,
+                                        left: Lit(value: 1),
+                                        right: StatOf(
+                                            axis: Counter(kind: Named(label: "Age")),
+                                            subject: AsMarker(marker: Permanent, subject: This),
+                                        ),
+                                    ),
+                                ),
+                                times: Once,
+                                agent: You,
+                            ),
+                            if_did: None,
+                            if_not: Enact(
+                                verb: Action(label: "Sacrifice"),
+                                instruction: Move(
+                                    subject: AsMarker(marker: Permanent, subject: This),
+                                    to: Zone(zone: Graveyard, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: You,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)

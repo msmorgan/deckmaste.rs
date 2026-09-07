@@ -1,7 +1,0 @@
-Subtype(
-    category: Land,
-    name: "Town",
-    spelling: "Town",
-    grammar: Noun(singular: "Town"),
-)
-

@@ -1,6 +1,0 @@
-CounterKind(
-    name: "DreamCounter",
-    params: [],
-    spelling: "dream",
-    body: CounterFacts(label: "Dream", holder: Object),
-)

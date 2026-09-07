@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CyberneticSenses",
-    spelling: "Cybernetic Senses",
-    grammar: FixedTerm(surface: "Cybernetic Senses"),
-)

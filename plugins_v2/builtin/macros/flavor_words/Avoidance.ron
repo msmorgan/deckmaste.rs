@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Avoidance",
-    spelling: "Avoidance",
-    grammar: FixedTerm(surface: "Avoidance"),
-)

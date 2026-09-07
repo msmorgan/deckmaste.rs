@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Atog",
-    spelling: "Atog",
-    grammar: Noun(singular: "Atog", plural: Unavailable),
-)
-

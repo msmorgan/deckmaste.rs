@@ -1,0 +1,60 @@
+KeywordAbility(
+    name: "modular",
+    params: [Amount],
+    spelling: "modular",
+    grammar: FixedKeyword(
+        surface: "modular",
+    ),
+    // "Modular N" means "This permanent enters with N +1/+1 counters on it" and "When
+    // this permanent is put into a graveyard from the battlefield, you may put a +1/+1
+    // counter on target artifact creature for each +1/+1 counter on this permanent."
+    // [CR#702.43a] `lean/Semantics/Macros.lean`'s `modularExpansion` is the reference.
+    body: Keyword(
+        keyword: "Modular",
+        params: [Number(amount: Param(0))],
+        body: [
+            Static(
+                spec: EntryRider(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    rider: WithCounters(
+                        amount: Param(0),
+                        kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                        mark: Fresh,
+                    ),
+                ),
+            ),
+            Triggered(
+                event: ZoneChange(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                    to: Zone(zone: Graveyard, scope: Bare),
+                    observation: Before,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: WithContinuation(
+                    policy: Optional(agent: You),
+                    body: PutCounters(
+                        amount: StatOf(
+                            axis: Counter(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                            subject: AsMarker(marker: Permanent, subject: This),
+                        ),
+                        kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                        on: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: And(
+                                conjuncts: [HasType(type: Artifact), HasType(type: Creature)],
+                            ),
+                        ),
+                    ),
+                    if_did: None,
+                    if_not: None,
+                ),
+            ),
+        ],
+    ),
+)

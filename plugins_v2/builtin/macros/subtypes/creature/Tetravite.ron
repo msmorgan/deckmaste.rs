@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Tetravite",
-    spelling: "Tetravite",
-    grammar: Noun(singular: "Tetravite", plural: Unavailable),
-)
-

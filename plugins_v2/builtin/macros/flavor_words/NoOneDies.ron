@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "NoOneDies",
-    spelling: "No One Dies!",
-    grammar: FixedTerm(surface: "No One Dies!"),
-)

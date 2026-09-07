@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "sloth",
+    spelling: "Sloth",
+    grammar: Noun(singular: "Sloth", plural: Unavailable),
+)
+

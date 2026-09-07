@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "channel",
+    spelling: "Channel",
+    grammar: FixedTerm(surface: "Channel"),
+)

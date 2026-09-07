@@ -1,6 +1,0 @@
-(
-    name: "PutOntoBattlefieldTapped",
-    kinds: [Instruction],
-    params: {"subject": NounPhrase},
-    body: Move(Param(subject), Battlefield, [EntersAs(status: Tapped)]),
-)

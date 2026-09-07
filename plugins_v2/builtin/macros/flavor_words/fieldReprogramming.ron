@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "fieldReprogramming",
+    spelling: "Field Reprogramming",
+    grammar: FixedTerm(surface: "Field Reprogramming"),
+)

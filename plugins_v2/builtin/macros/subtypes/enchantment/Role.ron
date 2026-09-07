@@ -1,7 +1,0 @@
-Subtype(
-    category: Enchantment,
-    name: "Role",
-    spelling: "Role",
-    grammar: Noun(singular: "Role"),
-)
-

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "leadingFromTheFront",
+    spelling: "Leading from the Front",
+    grammar: FixedTerm(surface: "Leading from the Front"),
+)

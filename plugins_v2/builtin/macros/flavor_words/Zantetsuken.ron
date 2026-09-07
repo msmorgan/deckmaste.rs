@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Zantetsuken",
-    spelling: "Zantetsuken",
-    grammar: FixedTerm(surface: "Zantetsuken"),
-)

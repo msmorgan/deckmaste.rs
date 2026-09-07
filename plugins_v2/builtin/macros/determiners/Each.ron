@@ -1,7 +1,0 @@
-// "each …"
-(
-    name: "Each",
-    kinds: [NounPhrase],
-    params: {"p": Predicate},
-    body: Described(Each, Param(p)),
-)

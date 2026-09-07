@@ -1,6 +1,0 @@
-(
-    name: "CardOnTheStack",
-    kinds: [Predicate],
-    params: [],
-    body: And(conjuncts: [IsCard, Spell]),
-)

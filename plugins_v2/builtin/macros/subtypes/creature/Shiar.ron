@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Shiar",
-    spelling: "Shi'ar",
-    grammar: Noun(singular: "Shi'ar", plural: Unavailable),
-)
-

@@ -1,0 +1,17 @@
+// "[Player] discards [cards]" [CR#701.9a]: move them from that player's hand to
+// that player's graveyard. Lean `discard`; the agent is the discarding player,
+// written explicitly.
+KeywordAction(
+    name: "discard",
+    params: [Subject, Subject],
+    spelling: "discard",
+    grammar: Verb(
+        bare: "discard",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Discard"),
+        instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
+        agent: Param(1),
+    ),
+)

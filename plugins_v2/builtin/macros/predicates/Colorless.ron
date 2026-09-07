@@ -1,7 +1,0 @@
-// "colorless": an object of no color [CR#105.2c].
-(
-    name: "Colorless",
-    kinds: [Predicate],
-    params: [],
-    body: ColorCount(Eq, 0),
-)

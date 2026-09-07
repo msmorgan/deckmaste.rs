@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: Lit(value: 10),
         toughness: Lit(value: 10),
         text: [
-            Flying,
+            flying,
             Keyword(
                 keyword: "Champion",
                 params: [

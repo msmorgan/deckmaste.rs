@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Stagger",
-    spelling: "Stagger",
-    grammar: FixedTerm(surface: "Stagger"),
-)

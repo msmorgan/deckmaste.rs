@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Kangaroo",
-    spelling: "Kangaroo",
-    grammar: Noun(singular: "Kangaroo", plural: Unavailable),
-)
-

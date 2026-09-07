@@ -1,7 +1,0 @@
-Subtype(
-    category: Land,
-    name: "Cave",
-    spelling: "Cave",
-    grammar: Noun(singular: "Cave"),
-)
-

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "thalakos",
+    spelling: "Thalakos",
+    grammar: Noun(singular: "Thalakos", plural: Unavailable),
+)
+

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "berserk",
+    spelling: "Berserk",
+    grammar: FixedTerm(surface: "Berserk"),
+)

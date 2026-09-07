@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "tyrannosaurusRex",
+    spelling: "Tyrannosaurus Rex",
+    grammar: FixedTerm(surface: "Tyrannosaurus Rex"),
+)

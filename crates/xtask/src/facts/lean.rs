@@ -166,7 +166,7 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAbility)
     {
-        let label = declared.identity().name();
+        let label = &super::label_of(declared.identity().name());
         anyhow::ensure!(
             overlays.iter().any(|row| row.label == label)
                 || KEYWORD_STUBS_EXEMPT
@@ -180,7 +180,7 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         .map(|row| {
             let declared = declarations.iter().find(|decl| {
                 decl.identity().kind() == DeclarationKind::KeywordAbility
-                    && decl.identity().name() == row.label
+                    && super::label_of(decl.identity().name()) == row.label
             });
             anyhow::ensure!(
                 declared.is_some()
@@ -368,7 +368,7 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
                 .iter()
                 .find(|row| {
                     row.identity().kind() == DeclarationKind::Subtype(category)
-                        && row.identity().name() == name
+                        && super::label_of(row.identity().name()) == name
                 })
                 .with_context(|| format!("{name}: frame overlay has no subtype declaration"))?;
             let subtype = match category {
@@ -470,7 +470,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/Ward.ron");
+            .join("plugins_v2/builtin/macros/keyword_abilities/ward.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
@@ -499,7 +499,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/Ward.ron");
+            .join("plugins_v2/builtin/macros/keyword_abilities/ward.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             &path,
@@ -565,7 +565,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/counter_kinds/Poison.ron");
+            .join("plugins_v2/builtin/macros/counter_kinds/poison.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(path, source.replace("holder: Player", "holder: Object")).unwrap();
         let generated = render(temp.path()).unwrap();
@@ -581,7 +581,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/counter_kinds/ChargeCounter.ron");
+            .join("plugins_v2/builtin/macros/counter_kinds/chargeCounter.ron");
         let source = fs::read_to_string(&path).unwrap();
         assert!(
             render(temp.path())
@@ -607,7 +607,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/designations/Goaded.ron");
+            .join("plugins_v2/builtin/macros/designations/goaded.ron");
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             &path,
@@ -637,7 +637,7 @@ mod tests {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/designations/Goaded.ron");
+            .join("plugins_v2/builtin/macros/designations/goaded.ron");
         let source = fs::read_to_string(&path).unwrap();
         let start = source.find("body: [").unwrap();
         let end = source.rfind("],").unwrap();
@@ -648,7 +648,7 @@ mod tests {
         .unwrap();
         let error = render(temp.path()).unwrap_err().to_string();
         assert!(
-            error.contains("Goaded: designation declares no fact row"),
+            error.contains("goaded: designation declares no fact row"),
             "{error}"
         );
     }

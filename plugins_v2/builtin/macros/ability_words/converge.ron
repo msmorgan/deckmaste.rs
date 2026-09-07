@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "converge",
+    spelling: "Converge",
+    grammar: FixedTerm(surface: "Converge"),
+)

@@ -1,7 +1,0 @@
-// "among <group>": the whole of a group, sliced.
-(
-    name: "Among",
-    kinds: [NounPhrase],
-    params: {"group": NounPhrase},
-    body: SomeOf(Whole, None, Param(group)),
-)

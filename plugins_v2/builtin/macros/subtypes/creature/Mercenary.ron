@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Mercenary",
-    spelling: "Mercenary",
-    grammar: Noun(singular: "Mercenary", plural: "Mercenaries"),
-)
-

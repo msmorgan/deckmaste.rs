@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "vigilance",
+    params: [],
+    spelling: "vigilance",
+    grammar: FixedKeyword(
+        surface: "vigilance",
+    ),
+    // Settled empty. "Attacking doesn't cause creatures with vigilance to tap"
+    // [CR#702.20b]: the entry defines only how the game treats the keyword — it quotes
+    // no expansion — so there is no definition to write (ruling 2026-09-07).
+    body: Keyword(keyword: "Vigilance", params: [], body: []),
+)

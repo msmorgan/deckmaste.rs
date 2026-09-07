@@ -9,7 +9,7 @@ SingleFaced(face: (
         toughness: Lit(value: 2),
         text: [
             Keyword(keyword: "Haste", params: [], body: []),
-            Prowess,
+            prowess,
         ],
     ),
 ))

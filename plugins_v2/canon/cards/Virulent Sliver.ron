@@ -19,7 +19,7 @@ SingleFaced(face: (
                             ],
                         ),
                     ),
-                    ability: Poisonous(Lit(value: 1)),
+                    ability: poisonous(Lit(value: 1)),
                 ),
             ),
         ],

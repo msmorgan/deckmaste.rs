@@ -18,10 +18,10 @@ SingleFaced(face: (
             Static(
                 spec: AbilityGrant(
                     subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
-                    ability: Flying,
+                    ability: flying,
                 ),
             ),
-            AuraSwap(Mana(cost: [
+            auraSwap(Mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),

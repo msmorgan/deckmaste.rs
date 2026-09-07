@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "flamesOfRebirth",
+    spelling: "Flames of Rebirth",
+    grammar: FixedTerm(surface: "Flames of Rebirth"),
+)

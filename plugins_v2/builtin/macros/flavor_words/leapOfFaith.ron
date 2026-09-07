@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "leapOfFaith",
+    spelling: "Leap of Faith",
+    grammar: FixedTerm(surface: "Leap of Faith"),
+)

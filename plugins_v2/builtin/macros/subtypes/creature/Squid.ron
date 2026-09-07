@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Squid",
-    spelling: "Squid",
-    grammar: Noun(singular: "Squid", plural: Unavailable),
-)
-

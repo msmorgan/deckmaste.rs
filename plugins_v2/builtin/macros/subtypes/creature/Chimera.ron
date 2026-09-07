@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Chimera",
-    spelling: "Chimera",
-    grammar: Noun(singular: "Chimera", plural: Unavailable),
-)
-

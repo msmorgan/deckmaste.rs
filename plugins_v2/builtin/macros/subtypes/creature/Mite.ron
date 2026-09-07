@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Mite",
-    spelling: "Mite",
-    grammar: Noun(singular: "Mite", plural: Unavailable),
-)
-

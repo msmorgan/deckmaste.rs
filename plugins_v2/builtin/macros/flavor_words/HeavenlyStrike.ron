@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "HeavenlyStrike",
-    spelling: "Heavenly Strike",
-    grammar: FixedTerm(surface: "Heavenly Strike"),
-)

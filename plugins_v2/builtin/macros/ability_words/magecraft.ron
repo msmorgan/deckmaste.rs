@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "magecraft",
+    spelling: "Magecraft",
+    grammar: FixedTerm(surface: "Magecraft"),
+)

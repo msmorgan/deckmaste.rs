@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Thundaga",
-    spelling: "Thundaga",
-    grammar: FixedTerm(surface: "Thundaga"),
-)

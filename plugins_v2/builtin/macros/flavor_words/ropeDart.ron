@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ropeDart",
+    spelling: "Rope Dart",
+    grammar: FixedTerm(surface: "Rope Dart"),
+)

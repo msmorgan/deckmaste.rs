@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Sliver",
-    spelling: "Sliver",
-    grammar: Noun(singular: "Sliver"),
-)
-

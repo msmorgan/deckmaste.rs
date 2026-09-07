@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "landfall",
+    spelling: "Landfall",
+    grammar: FixedTerm(surface: "Landfall"),
+)

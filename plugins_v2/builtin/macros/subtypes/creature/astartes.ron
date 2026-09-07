@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "astartes",
+    spelling: "Astartes",
+    grammar: Noun(singular: "Astartes", plural: Unavailable),
+)
+

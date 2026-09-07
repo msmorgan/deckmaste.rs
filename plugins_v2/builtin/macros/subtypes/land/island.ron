@@ -1,0 +1,7 @@
+Subtype(
+    category: Land,
+    name: "island",
+    spelling: "Island",
+    grammar: Noun(singular: "Island"),
+)
+

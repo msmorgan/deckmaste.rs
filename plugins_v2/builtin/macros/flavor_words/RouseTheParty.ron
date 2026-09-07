@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "RouseTheParty",
-    spelling: "Rouse the Party",
-    grammar: FixedTerm(surface: "Rouse the Party"),
-)

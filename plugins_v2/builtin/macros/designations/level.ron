@@ -1,0 +1,10 @@
+// A level is a designation any permanent can have [CR#716.2b].
+Designation(
+    name: "level",
+    params: [],
+    spelling: "level",
+    grammar: FixedTerm(surface: "level"),
+    body: [
+        DesignationFacts(label: "level", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
+)

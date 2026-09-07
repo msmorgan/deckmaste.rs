@@ -1,0 +1,39 @@
+// "Proliferate" [CR#701.34a]: choose any number of permanents and/or players
+// that have a counter, then give each one additional counter of each kind that
+// permanent or player already has. Lean `proliferate`.
+KeywordAction(
+    name: "proliferate",
+    params: [],
+    spelling: "proliferate",
+    grammar: Verb(
+        bare: "proliferate",
+        frame_set: Intransitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Proliferate"),
+        instruction: Sequentially(steps: [
+        Choose(
+            first: None,
+            chosen: Described(
+                determiner: Count(quantity: Range(low: None, high: None), mode: None),
+                predicate: Or(disjuncts: [
+                    And(conjuncts: [
+                        InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        HasCounters(kind: None),
+                    ]),
+                    Compare(axes: [AnyCounter(kind: Player)], comparator: AtLeast, bound: Lit(value: 1)),
+                ]),
+            ),
+            disclosure: Openly,
+            when: None,
+            agent: None,
+        ),
+        PutCounters(
+            amount: Lit(value: 1),
+            kind: Own,
+            on: EachOf(group: Pro(reach: Word(word: Join), plurality: Many, window: Whole)),
+        ),
+    ]),
+        agent: None,
+    ),
+)

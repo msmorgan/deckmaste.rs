@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Enchantment,
+    name: "class",
+    spelling: "Class",
+    grammar: Noun(singular: "Class", plural: Unavailable),
+)
+

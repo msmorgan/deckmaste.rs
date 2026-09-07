@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GalianBeast",
-    spelling: "Galian Beast",
-    grammar: FixedTerm(surface: "Galian Beast"),
-)

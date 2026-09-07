@@ -1,0 +1,7 @@
+// "put <subject> onto the battlefield tapped and attacking"
+(
+    name: "putOntoBattlefieldTappedAttacking",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase},
+    body: Move(Param(subject), battlefield, [EntersAs(status: Tapped), EntersAttacking(defender: None)]),
+)

@@ -1,0 +1,59 @@
+// "[Permanent] explores" [CR#701.44a]: its controller reveals the top card of
+// their library; if a land card is revealed this way that player puts it into
+// their hand, otherwise they put a +1/+1 counter on the exploring permanent and
+// may put that card into their graveyard. The card is read back off the library
+// slice the reveal opened, as the printed reminder text reads it ("that card");
+// the hand it goes to is its own owner's, derived rather than written
+// [CR#400.3].
+KeywordAction(
+    name: "explore",
+    params: [Subject],
+    spelling: "explore",
+    grammar: Verb(
+        bare: "explore",
+        frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
+    ),
+    body: Enact(
+        verb: Action(label: "Explore"),
+        instruction: Sequentially(steps: [
+        Expose(
+            verb: Reveal,
+            exposed: Cards(cards: LibrarySlice(
+                end: Top,
+                amount: Lit(value: 1),
+                whose: PossessorOf(axis: Controller, subject: Param(0)),
+            )),
+            agent: PossessorOf(axis: Controller, subject: Param(0)),
+        ),
+        DoIf(
+            condition: Matches(
+                subject: Pro(reach: Word(word: Card), plurality: One, window: Whole),
+                predicate: HasType(type: Land),
+            ),
+            instruction: Move(
+                subject: Pro(reach: Word(word: Card), plurality: One, window: Whole),
+                to: Zone(zone: Hand, scope: Bare),
+                riders: [],
+            ),
+            otherwise: Sequentially(steps: [
+                PutCounters(
+                    amount: Lit(value: 1),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: Param(0),
+                ),
+                WithContinuation(
+                    policy: Optional(agent: PossessorOf(axis: Controller, subject: Param(0))),
+                    body: Move(
+                        subject: Pro(reach: Word(word: Card), plurality: One, window: Whole),
+                        to: Zone(zone: Graveyard, scope: Bare),
+                        riders: [],
+                    ),
+                    if_did: None,
+                    if_not: None,
+                ),
+            ]),
+        ),
+    ]),
+        agent: None,
+    ),
+)

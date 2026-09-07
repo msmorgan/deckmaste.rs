@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Druid",
-    spelling: "Druid",
-    grammar: Noun(singular: "Druid"),
-)
-

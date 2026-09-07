@@ -1,0 +1,7 @@
+// "<who> may vote an additional time"
+(
+    name: "mayVoteAdditional",
+    kinds: [StaticSpec],
+    params: {"who": NounPhrase, "quantity": Quantity},
+    body: DeonticRule(Param(who), Permit, [Action(label: "Vote")], Agent, Additional(quantity: Param(quantity)), NoPatient, None, NoRider),
+)

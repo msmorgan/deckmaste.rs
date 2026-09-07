@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "yeti",
+    spelling: "Yeti",
+    grammar: Noun(singular: "Yeti", plural: Unavailable),
+)
+

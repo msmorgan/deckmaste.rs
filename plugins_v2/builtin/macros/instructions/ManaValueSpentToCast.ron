@@ -1,7 +1,0 @@
-// "the amount of mana spent to cast <spell>"
-(
-    name: "ManaValueSpentToCast",
-    kinds: [Amount],
-    params: {"spell": NounPhrase},
-    body: Paid(ManaValueSpent, Param(spell)),
-)

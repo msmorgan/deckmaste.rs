@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ParallelUniverse",
-    spelling: "Parallel Universe",
-    grammar: FixedTerm(surface: "Parallel Universe"),
-)

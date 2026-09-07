@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DispelMagic",
-    spelling: "Dispel Magic",
-    grammar: FixedTerm(surface: "Dispel Magic"),
-)

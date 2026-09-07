@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
         power: Lit(value: 3),
         toughness: Lit(value: 2),
-        text: [Trample, Melee],
+        text: [trample, melee],
     ),
 ))

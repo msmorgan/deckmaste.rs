@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "LoudRuckus",
-    spelling: "Loud Ruckus",
-    grammar: FixedTerm(surface: "Loud Ruckus"),
-)

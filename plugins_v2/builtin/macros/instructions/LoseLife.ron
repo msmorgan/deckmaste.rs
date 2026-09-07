@@ -1,6 +1,0 @@
-(
-    name: "LoseLife",
-    kinds: [Instruction],
-    params: {"amount": Amount, "agent": Default(NounPhrase, You)},
-    body: ChangeLife(delta: Down(amount: Param(amount)), agent: Param(agent)),
-)

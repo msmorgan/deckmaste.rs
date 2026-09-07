@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DrainLife",
-    spelling: "Drain Life",
-    grammar: FixedTerm(surface: "Drain Life"),
-)

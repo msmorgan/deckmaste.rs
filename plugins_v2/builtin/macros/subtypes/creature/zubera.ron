@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "zubera",
+    spelling: "Zubera",
+    grammar: Noun(singular: "Zubera", plural: "Zubera"),
+)
+

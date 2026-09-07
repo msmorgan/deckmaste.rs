@@ -1,0 +1,17 @@
+KeywordAbility(
+    name: "awaken",
+    params: [Amount, Cost],
+    spelling: "awaken",
+    grammar: FixedKeyword(
+        surface: "awaken",
+    ),
+    // STOP. "Awaken N—[cost]" is an alternative-cost static plus a SPELL ability
+    // [CR#702.113a]. `Ability.category` is `none` for `Ability::Spell`, so
+    // `keywordBodyFits` refuses a spell ability in a keyword definition; the
+    // alternative cost alone would be half the definition.
+    body: Keyword(
+        keyword: "Awaken",
+        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        body: [],
+    ),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BardicInspiration",
-    spelling: "Bardic Inspiration",
-    grammar: FixedTerm(surface: "Bardic Inspiration"),
-)

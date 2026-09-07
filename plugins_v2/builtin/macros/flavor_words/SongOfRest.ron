@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SongOfRest",
-    spelling: "Song of Rest",
-    grammar: FixedTerm(surface: "Song of Rest"),
-)

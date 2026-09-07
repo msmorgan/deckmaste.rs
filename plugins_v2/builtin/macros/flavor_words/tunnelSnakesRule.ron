@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "tunnelSnakesRule",
+    spelling: "Tunnel Snakes Rule!",
+    grammar: FixedTerm(surface: "Tunnel Snakes Rule!"),
+)

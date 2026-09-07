@@ -467,6 +467,37 @@ mod tests {
         Plugin::load(&plugin.0).expect("an identity declaration must load, not be refused");
     }
 
+    /// Case is the mark (`semantics-v2.md` §11): a declaration under Lean's
+    /// own camelCase name does not collide with the `PascalCase` constructor it
+    /// is named for, and BOTH readings stay reachable at the same position —
+    /// `draw(…)` the macro, `Draw(…)` the constructor. This is the pair that
+    /// the collision refusal above used to make unreachable.
+    #[test]
+    fn a_camel_case_declaration_does_not_collide_with_its_constructor() {
+        let plugin = TempPlugin::new(
+            "camel",
+            &[(
+                "draw.ron",
+                r#"(
+                    name: "draw",
+                    kinds: [Instruction],
+                    params: [Amount],
+                    body: Draw(Param(0), You),
+                )"#,
+            )],
+        );
+        let plugin = Plugin::load(&plugin.0).expect("a camelCase declaration must load");
+        let through_macro = plugin
+            .macros
+            .read_str::<crate::abilities::Instruction>("draw(Lit(value: 1))")
+            .expect("`draw` reads as the macro");
+        let native = plugin
+            .macros
+            .read_str::<crate::abilities::Instruction>("Draw(amount: Lit(value: 1), agent: You)")
+            .expect("`Draw` reads as the constructor");
+        assert_eq!(through_macro, native);
+    }
+
     /// A BODYLESS declaration (body `()`, a meta-macro's omitted-argument
     /// default) whose name equals a native variant is also exempt: nothing
     /// meaningful was ever reachable through it, so nothing is shadowed —

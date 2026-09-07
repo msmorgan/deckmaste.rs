@@ -1,0 +1,14 @@
+KeywordAbility(
+    name: "convoke",
+    params: [],
+    spelling: "convoke",
+    grammar: FixedKeyword(
+        surface: "convoke",
+    ),
+    // STOP. Convoke substitutes a tap for a single mana symbol of the total cost —
+    // "For each colored mana in this spell's total cost, you may tap an untapped
+    // creature of that color you control rather than pay that mana" [CR#702.51a].
+    // `Cost` has no per-symbol payment alternative; `StaticSpec::AltCost` replaces a
+    // whole cost.
+    body: Keyword(keyword: "Convoke", params: [], body: []),
+)

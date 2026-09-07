@@ -1,7 +1,0 @@
-// "Whenever <event> while <concurrent>, <instruction>"
-(
-    name: "TriggeredWhile",
-    kinds: [Ability],
-    params: {"event": GameEvent, "while_": Concurrent, "instruction": Instruction},
-    body: Triggered(Param(event), [], Param(while_), [], None, None, None, Param(instruction)),
-)

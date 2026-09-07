@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "phyrexian",
+    spelling: "Phyrexian",
+    grammar: FixedTerm(surface: "Phyrexian"),
+)

@@ -9,11 +9,11 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Demonstrate,
+            demonstrate,
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [
-                    Mill(Lit(value: 5), You, You),
+                    mill(Lit(value: 5), You, You),
                     Enact(
                         verb: Core(deed: Return),
                         instruction: Move(

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Treefolk",
-    spelling: "Treefolk",
-    grammar: Noun(singular: "Treefolk", plural: "Treefolk"),
-)
-

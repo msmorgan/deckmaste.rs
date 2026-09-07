@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "sphinx",
+    spelling: "Sphinx",
+    grammar: Noun(singular: "Sphinx", plural: Unavailable),
+)
+

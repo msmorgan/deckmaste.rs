@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Possum",
-    spelling: "Possum",
-    grammar: Noun(singular: "Possum", plural: Unavailable),
-)
-

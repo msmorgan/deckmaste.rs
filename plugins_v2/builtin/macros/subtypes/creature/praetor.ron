@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "praetor",
+    spelling: "Praetor",
+    grammar: Noun(singular: "Praetor", plural: Unavailable),
+)
+

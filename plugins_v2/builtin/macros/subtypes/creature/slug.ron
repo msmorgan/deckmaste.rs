@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "slug",
+    spelling: "Slug",
+    grammar: Noun(singular: "Slug", plural: Unavailable),
+)
+

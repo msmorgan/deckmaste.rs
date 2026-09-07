@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "BeginningPhase",
-    spelling: "beginning phase",
-    grammar: Noun(singular: "beginning phase"),
-    params: [],
-    body: BeginningPhase,
-)

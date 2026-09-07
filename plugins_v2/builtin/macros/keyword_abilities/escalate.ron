@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "escalate",
+    params: [Cost],
+    spelling: "escalate",
+    grammar: FixedKeyword(
+        surface: "escalate",
+    ),
+    // STOP. "Escalate [cost]" means "For each mode you choose beyond the first as you
+    // cast this spell, you pay an additional [cost]" [CR#702.120a]. `StaticSpec::
+    // AddedCost` takes no multiplier, and no amount counts the modes chosen.
+    body: Keyword(keyword: "Escalate", params: [Cost(cost: Param(0))], body: []),
+)

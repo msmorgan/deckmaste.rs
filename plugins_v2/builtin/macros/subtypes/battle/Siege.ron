@@ -1,7 +1,0 @@
-Subtype(
-    category: Battle,
-    name: "Siege",
-    spelling: "Siege",
-    grammar: Noun(singular: "Siege"),
-)
-

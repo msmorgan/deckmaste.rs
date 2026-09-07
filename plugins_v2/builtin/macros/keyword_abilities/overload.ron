@@ -1,0 +1,14 @@
+KeywordAbility(
+    name: "overload",
+    params: [Cost],
+    spelling: "overload",
+    grammar: FixedKeyword(
+        surface: "overload",
+    ),
+    // STOP. "Overload [cost]" is an alternative cost plus "If you chose to pay this
+    // spell's overload cost, CHANGE ITS TEXT by replacing all instances of the word
+    // 'target' with the word 'each.'" [CR#702.96a,702.96c] That second static is a
+    // text-changing effect [CR#612.1] over a printed word; no `CharacteristicEdit`
+    // rewrites rules text word by word (the cause Cleave shares).
+    body: Keyword(keyword: "Overload", params: [Cost(cost: Param(0))], body: []),
+)

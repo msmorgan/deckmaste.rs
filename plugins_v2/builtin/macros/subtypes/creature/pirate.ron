@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "pirate",
+    spelling: "Pirate",
+    grammar: Noun(singular: "Pirate"),
+)
+

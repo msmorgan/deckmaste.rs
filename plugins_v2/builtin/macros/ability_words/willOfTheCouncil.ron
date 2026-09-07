@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "willOfTheCouncil",
+    spelling: "Will of the council",
+    grammar: FixedTerm(surface: "Will of the council"),
+)

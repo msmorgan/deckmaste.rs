@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sorcerousElixir",
+    spelling: "Sorcerous Elixir",
+    grammar: FixedTerm(surface: "Sorcerous Elixir"),
+)

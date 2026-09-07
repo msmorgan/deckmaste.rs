@@ -1,0 +1,6 @@
+(
+    name: "copyOfACard",
+    kinds: [Predicate],
+    params: [],
+    body: IsCopyOfACard,
+)

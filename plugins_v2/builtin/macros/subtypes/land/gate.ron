@@ -1,0 +1,7 @@
+Subtype(
+    category: Land,
+    name: "gate",
+    spelling: "Gate",
+    grammar: Noun(singular: "Gate"),
+)
+

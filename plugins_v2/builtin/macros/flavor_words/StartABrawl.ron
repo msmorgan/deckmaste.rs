@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "StartABrawl",
-    spelling: "Start a Brawl",
-    grammar: FixedTerm(surface: "Start a Brawl"),
-)

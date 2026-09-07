@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "StrikeADeal",
-    spelling: "Strike a Deal",
-    grammar: FixedTerm(surface: "Strike a Deal"),
-)

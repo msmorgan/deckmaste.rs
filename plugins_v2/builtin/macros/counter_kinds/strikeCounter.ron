@@ -1,0 +1,6 @@
+CounterKind(
+    name: "strikeCounter",
+    params: [],
+    spelling: "strike",
+    body: CounterFacts(label: "Strike", holder: Object),
+)

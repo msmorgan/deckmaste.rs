@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Eldrazi",
-    spelling: "Eldrazi",
-    grammar: Noun(singular: "Eldrazi", plural: "Eldrazi"),
-)
-

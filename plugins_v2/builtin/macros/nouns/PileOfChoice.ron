@@ -1,7 +1,0 @@
-// "the pile of <player>'s choice"
-(
-    name: "PileOfChoice",
-    kinds: [NounPhrase],
-    params: {"player": NounPhrase},
-    body: PileOf(Counted(quantity: Exactly(n: 1)), Param(player)),
-)

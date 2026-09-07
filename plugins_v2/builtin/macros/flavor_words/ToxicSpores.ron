@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ToxicSpores",
-    spelling: "Toxic Spores",
-    grammar: FixedTerm(surface: "Toxic Spores"),
-)

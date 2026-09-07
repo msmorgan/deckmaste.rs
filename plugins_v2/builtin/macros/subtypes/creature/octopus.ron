@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "octopus",
+    spelling: "Octopus",
+    grammar: Noun(singular: "Octopus", plural: "Octopuses"),
+)
+

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "impound",
+    spelling: "Impound",
+    grammar: FixedTerm(surface: "Impound"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Sec",
-    spelling: "Sec",
-    grammar: FixedTerm(surface: "Sec"),
-)

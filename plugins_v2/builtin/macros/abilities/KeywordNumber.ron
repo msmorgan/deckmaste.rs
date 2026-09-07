@@ -1,7 +1,0 @@
-// "<keyword> N", e.g. "bushido 2"
-(
-    name: "KeywordNumber",
-    kinds: [Ability],
-    params: {"label": KeywordLabel, "amount": Amount},
-    body: Keyword(Param(label), [Number(amount: Param(amount))], []),
-)

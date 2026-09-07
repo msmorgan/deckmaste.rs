@@ -1,7 +1,0 @@
-// "that turn's": the extra turn just granted, as a header possessor.
-(
-    name: "ThatTurns",
-    kinds: [HeaderPossessor],
-    params: [],
-    body: ByTurn(turn: ThatTurn),
-)

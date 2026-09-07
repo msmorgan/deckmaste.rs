@@ -1,7 +1,0 @@
-// "<keyword> N—<cost>", e.g. "suspend 4—{1}{U}"
-(
-    name: "KeywordNumberCosting",
-    kinds: [Ability],
-    params: {"label": KeywordLabel, "amount": Amount, "cost": Cost},
-    body: Keyword(Param(label), [Number(amount: Param(amount)), Cost(cost: Param(cost))], []),
-)

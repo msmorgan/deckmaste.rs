@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Elf",
-    spelling: "Elf",
-    grammar: Noun(singular: "Elf", plural: "Elves"),
-)
-

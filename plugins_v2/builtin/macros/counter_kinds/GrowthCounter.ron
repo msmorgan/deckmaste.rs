@@ -1,6 +1,0 @@
-CounterKind(
-    name: "GrowthCounter",
-    params: [],
-    spelling: "growth",
-    body: CounterFacts(label: "Growth", holder: Object),
-)

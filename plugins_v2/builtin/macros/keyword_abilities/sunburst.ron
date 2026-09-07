@@ -1,0 +1,62 @@
+KeywordAbility(
+    name: "sunburst",
+    params: [],
+    spelling: "sunburst",
+    grammar: FixedKeyword(
+        surface: "sunburst",
+    ),
+    // "Sunburst" means "If this object is entering as a creature, ignoring any
+    // type-changing effects that would affect it, it enters with a +1/+1 counter on it
+    // for each color of mana spent to cast it. Otherwise, it enters with a charge
+    // counter on it for each color of mana spent to cast it." [CR#702.44a]
+    body: Keyword(
+        keyword: "Sunburst",
+        params: [],
+        body: [
+            Static(
+                spec: Conditional(
+                    spec: EntryRider(
+                        subject: AsMarker(marker: Permanent, subject: This),
+                        rider: WithCounters(
+                            amount: Paid(
+                                facet: ColorsSpent,
+                                subject: AsMarker(marker: Spell, subject: This),
+                            ),
+                            kind: Printed(
+                                kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1)),
+                            ),
+                            mark: Fresh,
+                        ),
+                    ),
+                    condition: Matches(
+                        subject: AsMarker(marker: Permanent, subject: This),
+                        predicate: HasType(type: Creature),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+            Static(
+                spec: Conditional(
+                    spec: EntryRider(
+                        subject: AsMarker(marker: Permanent, subject: This),
+                        rider: WithCounters(
+                            amount: Paid(
+                                facet: ColorsSpent,
+                                subject: AsMarker(marker: Spell, subject: This),
+                            ),
+                            kind: Printed(kind: Named(label: "Charge")),
+                            mark: Fresh,
+                        ),
+                    ),
+                    condition: Not(
+                        condition: Matches(
+                            subject: AsMarker(marker: Permanent, subject: This),
+                            predicate: HasType(type: Creature),
+                        ),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+        ],
+    ),
+)

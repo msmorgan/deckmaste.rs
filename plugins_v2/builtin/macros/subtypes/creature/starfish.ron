@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "starfish",
+    spelling: "Starfish",
+    // Supported Oracle uses this only as an attributive subtype; no plural noun context is attested.
+    grammar: Noun(singular: "Starfish", plural: Unavailable),
+)

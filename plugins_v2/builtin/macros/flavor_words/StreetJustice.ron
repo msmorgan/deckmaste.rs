@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "StreetJustice",
-    spelling: "Street Justice",
-    grammar: FixedTerm(surface: "Street Justice"),
-)

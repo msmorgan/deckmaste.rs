@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "pegasus",
+    spelling: "Pegasus",
+    grammar: Noun(singular: "Pegasus", plural: "Pegasi"),
+)
+

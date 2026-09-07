@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Vampire",
-    spelling: "Vampire",
-    grammar: Noun(singular: "Vampire"),
-)
-

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Beholder",
-    spelling: "Beholder",
-    grammar: Noun(singular: "Beholder", plural: Unavailable),
-)
-

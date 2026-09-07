@@ -1,7 +1,0 @@
-// "another player": any player other than you.
-(
-    name: "OtherPlayer",
-    kinds: [Predicate],
-    params: [],
-    body: And(conjuncts: [AnyPlayer, OtherThan(anchor: You)]),
-)

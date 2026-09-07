@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "animateWalkingStatue",
+    spelling: "Animate Walking Statue",
+    grammar: FixedTerm(surface: "Animate Walking Statue"),
+)

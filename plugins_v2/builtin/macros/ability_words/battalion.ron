@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "battalion",
+    spelling: "Battalion",
+    grammar: FixedTerm(surface: "Battalion"),
+)

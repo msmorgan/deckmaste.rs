@@ -1,0 +1,7 @@
+// A token's characteristics from the parts a creature token names.
+(
+    name: "creatureTokenOf",
+    kinds: [CharacteristicBundle],
+    params: {"power": Amount, "toughness": Amount, "colors": Colors, "subtypes": Subtypes},
+    body: (characteristics: (colors: Param(colors), types: [Creature], subtypes: Param(subtypes), power: Param(power), toughness: Param(toughness))),
+)

@@ -35,7 +35,7 @@ SingleFaced(face: (
                     agent: None,
                 ),
             ),
-            Recover(Mana(cost: [
+            recover(Mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Black))),
             ])),

@@ -1,8 +1,0 @@
-// No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Artifact,
-    name: "Mutagen",
-    spelling: "Mutagen",
-    grammar: Noun(singular: "Mutagen", plural: Unavailable),
-)
-

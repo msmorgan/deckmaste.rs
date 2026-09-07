@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "decimate",
+    spelling: "Decimate",
+    grammar: FixedTerm(surface: "Decimate"),
+)

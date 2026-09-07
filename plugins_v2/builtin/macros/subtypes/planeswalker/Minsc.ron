@@ -1,8 +1,0 @@
-// No supported Oracle rules-text plural is attested for this proper subtype name.
-Subtype(
-    category: Planeswalker,
-    name: "Minsc",
-    spelling: "Minsc",
-    grammar: Noun(singular: "Minsc", plural: Unavailable),
-)
-

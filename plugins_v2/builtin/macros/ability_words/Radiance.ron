@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Radiance",
-    spelling: "Radiance",
-    grammar: FixedTerm(surface: "Radiance"),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Varmint",
-    spelling: "Varmint",
-    grammar: Noun(singular: "Varmint", plural: Unavailable),
-)
-

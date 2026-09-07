@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MakeThemPay",
-    spelling: "Make Them Pay",
-    grammar: FixedTerm(surface: "Make Them Pay"),
-)

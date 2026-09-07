@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "brandNewSky",
+    spelling: "Brand-new Sky",
+    grammar: FixedTerm(surface: "Brand-new Sky"),
+)

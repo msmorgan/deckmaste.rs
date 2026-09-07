@@ -1,7 +1,0 @@
-Subtype(
-    category: Land,
-    name: "Gate",
-    spelling: "Gate",
-    grammar: Noun(singular: "Gate"),
-)
-

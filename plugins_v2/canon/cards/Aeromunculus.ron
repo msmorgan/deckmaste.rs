@@ -22,7 +22,7 @@ SingleFaced(face: (
                     Simple(symbol: Specific(color: Of(color: Green))),
                     Simple(symbol: Specific(color: Of(color: Blue))),
                 ]),
-                instruction: Adapt(Lit(value: 1)),
+                instruction: adapt(Lit(value: 1)),
                 timing: None,
                 limit: None,
                 guard: None,

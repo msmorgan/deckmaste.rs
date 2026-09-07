@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Llama",
-    spelling: "Llama",
-    grammar: Noun(singular: "Llama", plural: Unavailable),
-)
-

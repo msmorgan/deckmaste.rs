@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "enclave",
+    spelling: "Enclave",
+    grammar: FixedTerm(surface: "Enclave"),
+)

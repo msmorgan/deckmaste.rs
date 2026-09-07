@@ -1,0 +1,6 @@
+(
+    name: "spellType",
+    kinds: [Subtype],
+    params: {"label": String},
+    body: Spell(label: Param(label)),
+)

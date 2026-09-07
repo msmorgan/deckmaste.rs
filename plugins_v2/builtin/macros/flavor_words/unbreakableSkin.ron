@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "unbreakableSkin",
+    spelling: "Unbreakable Skin",
+    grammar: FixedTerm(surface: "Unbreakable Skin"),
+)

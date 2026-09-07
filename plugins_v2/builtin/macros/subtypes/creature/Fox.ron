@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Fox",
-    spelling: "Fox",
-    grammar: Noun(singular: "Fox", plural: Unavailable),
-)
-

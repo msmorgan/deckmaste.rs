@@ -1,0 +1,7 @@
+// "<keyword> <quality> <cost>", e.g. "plainscycling {2}" [CR#702.29e]
+(
+    name: "keywordQualityCosting",
+    kinds: [Ability],
+    params: {"label": KeywordLabel, "quality": Predicate, "cost": Cost},
+    body: Keyword(Param(label), [Quality(predicate: Param(quality)), Cost(cost: Param(cost))], []),
+)

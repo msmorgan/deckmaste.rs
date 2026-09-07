@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UnlockAbility",
-    spelling: "Unlock Ability",
-    grammar: FixedTerm(surface: "Unlock Ability"),
-)

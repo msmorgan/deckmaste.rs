@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DevastatingCharge",
-    spelling: "Devastating Charge",
-    grammar: FixedTerm(surface: "Devastating Charge"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CallForAid",
-    spelling: "Call for Aid",
-    grammar: FixedTerm(surface: "Call for Aid"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "WildMagicSurge",
-    spelling: "Wild Magic Surge",
-    grammar: FixedTerm(surface: "Wild Magic Surge"),
-)

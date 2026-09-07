@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CommunicationBead",
-    spelling: "Communication Bead",
-    grammar: FixedTerm(surface: "Communication Bead"),
-)

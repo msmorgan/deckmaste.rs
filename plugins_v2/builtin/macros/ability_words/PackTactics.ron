@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "PackTactics",
-    spelling: "Pack tactics",
-    grammar: FixedTerm(surface: "Pack tactics"),
-)

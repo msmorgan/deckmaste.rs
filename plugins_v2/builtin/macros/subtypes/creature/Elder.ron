@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Elder",
-    spelling: "Elder",
-    grammar: Noun(singular: "Elder", plural: Unavailable),
-)
-

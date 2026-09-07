@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FireOfTzeentch",
-    spelling: "Fire of Tzeentch",
-    grammar: FixedTerm(surface: "Fire of Tzeentch"),
-)

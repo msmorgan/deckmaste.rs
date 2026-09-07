@@ -1,0 +1,7 @@
+// "that much damage prevented this way"
+(
+    name: "preventedThisWay",
+    kinds: [Amount],
+    params: [],
+    body: TheOutcome(sort: DamagePrevented),
+)

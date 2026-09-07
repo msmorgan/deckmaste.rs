@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GaeBolg",
-    spelling: "Gae Bolg",
-    grammar: FixedTerm(surface: "Gae Bolg"),
-)

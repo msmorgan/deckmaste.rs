@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "minion",
+    spelling: "Minion",
+    grammar: Noun(singular: "Minion", plural: Unavailable),
+)
+

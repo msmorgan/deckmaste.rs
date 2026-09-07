@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "pavitrsSev",
+    spelling: "Pavitr's Sevā",
+    grammar: FixedTerm(surface: "Pavitr's Sevā"),
+)

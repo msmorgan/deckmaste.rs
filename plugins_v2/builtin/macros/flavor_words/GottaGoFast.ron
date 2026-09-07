@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GottaGoFast",
-    spelling: "Gotta Go Fast",
-    grammar: FixedTerm(surface: "Gotta Go Fast"),
-)

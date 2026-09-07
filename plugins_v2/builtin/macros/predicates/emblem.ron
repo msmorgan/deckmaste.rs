@@ -1,0 +1,6 @@
+(
+    name: "emblem",
+    kinds: [Predicate],
+    params: [],
+    body: IsEmblem,
+)

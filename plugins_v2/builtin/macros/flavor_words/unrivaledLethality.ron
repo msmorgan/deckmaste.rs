@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "unrivaledLethality",
+    spelling: "Unrivaled Lethality",
+    grammar: FixedTerm(surface: "Unrivaled Lethality"),
+)

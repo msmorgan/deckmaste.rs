@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Gremlin",
-    spelling: "Gremlin",
-    grammar: Noun(singular: "Gremlin"),
-)
-

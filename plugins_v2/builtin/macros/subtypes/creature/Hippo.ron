@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hippo",
-    spelling: "Hippo",
-    grammar: Noun(singular: "Hippo", plural: Unavailable),
-)
-

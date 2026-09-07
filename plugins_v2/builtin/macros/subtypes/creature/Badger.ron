@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Badger",
-    spelling: "Badger",
-    grammar: Noun(singular: "Badger", plural: Unavailable),
-)
-

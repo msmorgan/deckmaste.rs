@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "fuse",
+    params: [],
+    spelling: "fuse",
+    grammar: FixedKeyword(
+        surface: "fuse",
+    ),
+    // Settled empty. "Fuse is a static ability found on some split cards"; the entry
+    // states how the game treats casting such a card — the player may choose to cast
+    // both halves, and the resulting spell has the combined characteristics of its
+    // two halves [CR#702.102a,702.102b] — rather than quoting an expansion.
+    body: Keyword(keyword: "Fuse", params: [], body: []),
+)

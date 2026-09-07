@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "crew",
+    params: [Amount],
+    spelling: "crew",
+    grammar: FixedKeyword(
+        surface: "crew",
+    ),
+    // STOP. "Crew N" taps "any number of other untapped creatures you control with
+    // total power N or greater" [CR#702.122a]. No `NounPhrase` selects an
+    // unbounded group by an aggregate bound on a stat of the whole group;
+    // `Predicate::CompareOver` compares each member.
+    body: Keyword(keyword: "Crew", params: [Number(amount: Param(0))], body: []),
+)

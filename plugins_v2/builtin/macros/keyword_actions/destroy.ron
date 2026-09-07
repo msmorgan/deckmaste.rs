@@ -1,0 +1,18 @@
+// "Destroy [permanent]" [CR#701.8a]: move it from the battlefield to its
+// owner's graveyard. The deed label is what indestructible cants and what
+// regeneration replaces [CR#701.8b,701.8c]; the untagged move is not a
+// destruction. Lean `destroy`.
+KeywordAction(
+    name: "destroy",
+    params: [Subject],
+    spelling: "destroy",
+    grammar: Verb(
+        bare: "destroy",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Destroy"),
+        instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
+        agent: None,
+    ),
+)

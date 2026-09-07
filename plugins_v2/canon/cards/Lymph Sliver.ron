@@ -22,7 +22,7 @@ SingleFaced(face: (
                             ],
                         ),
                     ),
-                    ability: Absorb(Lit(value: 1)),
+                    ability: absorb(Lit(value: 1)),
                 ),
             ),
         ],

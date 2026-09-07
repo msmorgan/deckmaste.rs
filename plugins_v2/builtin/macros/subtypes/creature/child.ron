@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "child",
+    spelling: "Child",
+    // Supported Oracle uses `Children` only in a flavor-word label, not as a subtype noun.
+    grammar: Noun(singular: "Child", plural: Unavailable),
+)

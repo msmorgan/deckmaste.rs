@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "beeble",
+    spelling: "Beeble",
+    grammar: Noun(singular: "Beeble", plural: Unavailable),
+)
+

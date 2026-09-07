@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "lemur",
+    spelling: "Lemur",
+    grammar: Noun(singular: "Lemur", plural: Unavailable),
+)
+

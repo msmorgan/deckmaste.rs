@@ -1,0 +1,6 @@
+(
+    name: "exileZone",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Zone(Exile, Bare),
+)

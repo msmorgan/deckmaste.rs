@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Tentacle",
-    spelling: "Tentacle",
-    grammar: Noun(singular: "Tentacle", plural: Unavailable),
-)
-

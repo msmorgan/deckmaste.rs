@@ -1,0 +1,15 @@
+KeywordAbility(
+    name: "spaceSculptor",
+    params: [],
+    spelling: "space sculptor",
+    grammar: FixedKeyword(
+        surface: "space sculptor",
+    ),
+    // Settled empty. "This keyword ability causes creatures to gain sector
+    // designations" [CR#702.158a]; the entry states when each player chooses a sector
+    // designation for their undesignated creatures, as a state-based action
+    // [CR#702.158c], rather than quoting an expansion, so there is no definition to
+    // write.
+    // The entry defines only how the game treats the keyword (ruling 2026-09-07).
+    body: Keyword(keyword: "SpaceSculptor", params: [], body: []),
+)

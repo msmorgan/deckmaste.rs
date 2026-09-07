@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CureWounds",
-    spelling: "Cure Wounds",
-    grammar: FixedTerm(surface: "Cure Wounds"),
-)

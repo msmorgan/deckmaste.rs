@@ -1,6 +1,0 @@
-(
-    name: "Hand",
-    kinds: [ZoneExpr],
-    params: [],
-    body: Zone(Hand, Bare),
-)

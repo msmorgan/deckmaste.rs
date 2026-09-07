@@ -1,0 +1,7 @@
+Type(
+    name: "battle",
+    spelling: "battle",
+    grammar: Noun(singular: "battle"),
+    params: [],
+    body: TypeDef(name: "Battle", permanent_type: true),
+)

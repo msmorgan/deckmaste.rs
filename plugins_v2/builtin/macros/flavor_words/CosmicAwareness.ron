@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CosmicAwareness",
-    spelling: "Cosmic Awareness",
-    grammar: FixedTerm(surface: "Cosmic Awareness"),
-)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "ogre",
+    spelling: "Ogre",
+    grammar: Noun(singular: "Ogre", plural: Unavailable),
+)
+

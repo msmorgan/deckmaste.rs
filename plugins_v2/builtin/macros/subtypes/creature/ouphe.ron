@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "ouphe",
+    spelling: "Ouphe",
+    grammar: Noun(singular: "Ouphe", plural: Unavailable),
+)
+

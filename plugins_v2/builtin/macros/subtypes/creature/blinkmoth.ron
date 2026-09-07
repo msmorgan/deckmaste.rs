@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "blinkmoth",
+    spelling: "Blinkmoth",
+    grammar: Noun(singular: "Blinkmoth", plural: Unavailable),
+)
+

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "drone",
+    spelling: "Drone",
+    grammar: Noun(singular: "Drone", plural: Unavailable),
+)
+

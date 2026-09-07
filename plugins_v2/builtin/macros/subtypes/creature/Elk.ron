@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Elk",
-    spelling: "Elk",
-    grammar: Noun(singular: "Elk", plural: Unavailable),
-)
-

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "pincher",
+    spelling: "Pincher",
+    grammar: Noun(singular: "Pincher", plural: Unavailable),
+)
+

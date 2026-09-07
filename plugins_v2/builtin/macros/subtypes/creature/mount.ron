@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "mount",
+    spelling: "Mount",
+    grammar: Noun(singular: "Mount"),
+)
+

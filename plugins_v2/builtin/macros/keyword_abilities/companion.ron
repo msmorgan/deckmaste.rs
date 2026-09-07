@@ -1,0 +1,14 @@
+KeywordAbility(
+    name: "companion",
+    params: [Condition],
+    spelling: "companion",
+    grammar: FixedKeyword(
+        surface: "companion",
+    ),
+    // STOP. Companion "functions outside the game" and grants a special action that
+    // pays {3} to put the card into your hand [CR#702.139a]. Nothing in the grammar
+    // speaks about the zone outside the game or about special actions. The
+    // declaration's `Condition` parameter is a phrase `Condition`, which cannot fill
+    // `KeywordParam::DeckCondition` either, so the argument is not forwardable.
+    body: Keyword(keyword: "Companion", params: [], body: []),
+)

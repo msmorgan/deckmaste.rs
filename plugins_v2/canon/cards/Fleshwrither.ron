@@ -12,7 +12,7 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 3),
         text: [
-            Transfigure(Mana(cost: [
+            transfigure(Mana(cost: [
                 Simple(symbol: Generic(amount: 1)),
                 Simple(symbol: Specific(color: Of(color: Black))),
                 Simple(symbol: Specific(color: Of(color: Black))),

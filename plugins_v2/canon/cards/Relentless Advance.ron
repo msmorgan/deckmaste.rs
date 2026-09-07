@@ -10,7 +10,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Amass(Of(host: Creature, label: "Zombie"), Lit(value: 3)),
+                instruction: amass(Of(host: Creature, label: "Zombie"), Lit(value: 3)),
             ),
         ],
     ),

@@ -1,6 +1,0 @@
-CounterKind(
-    name: "RadCounter",
-    params: [],
-    spelling: "rad",
-    body: CounterFacts(label: "Rad", holder: Player),
-)

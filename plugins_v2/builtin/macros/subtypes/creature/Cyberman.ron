@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Cyberman",
-    spelling: "Cyberman",
-    grammar: Noun(singular: "Cyberman", plural: Unavailable),
-)
-

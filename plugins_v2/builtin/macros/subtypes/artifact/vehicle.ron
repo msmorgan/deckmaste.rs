@@ -1,0 +1,7 @@
+Subtype(
+    category: Artifact,
+    name: "vehicle",
+    spelling: "Vehicle",
+    grammar: Noun(singular: "Vehicle"),
+)
+

@@ -1,0 +1,15 @@
+KeywordAbility(
+    name: "tribute",
+    params: [Amount],
+    spelling: "tribute",
+    grammar: FixedKeyword(
+        surface: "tribute",
+    ),
+    // STOP. "Tribute N" means "As this creature enters, choose an opponent. THAT PLAYER
+    // MAY put an additional N +1/+1 counters on it as it enters." [CR#702.104a]
+    // `StaticSpec::Choice` makes the entry choice of an opponent, but no entry rider is
+    // optional and none is decided by a player other than the permanent's controller:
+    // `StaticSpec::EntryRider` takes a `TokenRider` and only `TokenRider::AsCopyOf`
+    // carries an `optional` flag (the cause Riot and Unleash share).
+    body: Keyword(keyword: "Tribute", params: [Number(amount: Param(0))], body: []),
+)

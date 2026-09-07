@@ -1,0 +1,14 @@
+KeywordAbility(
+    name: "phasing",
+    params: [],
+    spelling: "phasing",
+    grammar: FixedKeyword(
+        surface: "phasing",
+    ),
+    // Settled empty. "Phasing is a static ability that modifies the rules of the untap
+    // step" [CR#702.26a]; the entry states when permanents phase out and in and how
+    // the game treats a phased-out permanent [CR#702.26b..702.26i] rather than
+    // quoting an expansion, so there is no definition to write.
+    // The entry defines only how the game treats the keyword (ruling 2026-09-07).
+    body: Keyword(keyword: "Phasing", params: [], body: []),
+)

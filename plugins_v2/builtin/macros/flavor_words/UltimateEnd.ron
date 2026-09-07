@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UltimateEnd",
-    spelling: "Ultimate End",
-    grammar: FixedTerm(surface: "Ultimate End"),
-)

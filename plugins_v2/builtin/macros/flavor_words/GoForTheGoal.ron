@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GoForTheGoal",
-    spelling: "Go for the Goal!",
-    grammar: FixedTerm(surface: "Go for the Goal!"),
-)

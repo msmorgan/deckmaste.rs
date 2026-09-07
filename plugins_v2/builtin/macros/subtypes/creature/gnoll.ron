@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "gnoll",
+    spelling: "Gnoll",
+    grammar: Noun(singular: "Gnoll", plural: Unavailable),
+)
+

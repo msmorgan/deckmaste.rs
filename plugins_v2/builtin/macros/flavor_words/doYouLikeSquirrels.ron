@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "doYouLikeSquirrels",
+    spelling: "Do You Like Squirrels?",
+    grammar: FixedTerm(surface: "Do You Like Squirrels?"),
+)

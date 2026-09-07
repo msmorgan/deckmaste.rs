@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "PeacefulCoexistence",
-    spelling: "Peaceful Coexistence",
-    grammar: FixedTerm(surface: "Peaceful Coexistence"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TakeTheElevator",
-    spelling: "Take the Elevator",
-    grammar: FixedTerm(surface: "Take the Elevator"),
-)

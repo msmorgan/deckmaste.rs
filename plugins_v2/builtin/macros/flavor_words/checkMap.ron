@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "checkMap",
+    spelling: "Check Map",
+    grammar: FixedTerm(surface: "Check Map"),
+)

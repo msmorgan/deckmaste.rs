@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Servo",
-    spelling: "Servo",
-    grammar: Noun(singular: "Servo"),
-)
-

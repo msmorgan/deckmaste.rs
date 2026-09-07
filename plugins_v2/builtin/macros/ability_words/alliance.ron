@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "alliance",
+    spelling: "Alliance",
+    grammar: FixedTerm(surface: "Alliance"),
+)

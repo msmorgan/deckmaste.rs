@@ -1,7 +1,0 @@
-// "on the bottom of your library in <arrangement>"
-(
-    name: "OnBottomIn",
-    kinds: [ZoneExpr],
-    params: {"arrangement": Arrangement},
-    body: Library(OneEnd(end: Bottom), Param(arrangement), None, Bare),
-)

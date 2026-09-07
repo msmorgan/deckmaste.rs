@@ -1,0 +1,7 @@
+Subtype(
+    category: Land,
+    name: "mountain",
+    spelling: "Mountain",
+    grammar: Noun(singular: "Mountain"),
+)
+

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Gungnir",
-    spelling: "Gungnir",
-    grammar: FixedTerm(surface: "Gungnir"),
-)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "eternal",
+    spelling: "Eternal",
+    grammar: Noun(singular: "Eternal", plural: Unavailable),
+)
+

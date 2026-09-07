@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Ferocious",
-    spelling: "Ferocious",
-    grammar: FixedTerm(surface: "Ferocious"),
-)

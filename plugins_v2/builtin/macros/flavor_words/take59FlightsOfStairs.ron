@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "take59FlightsOfStairs",
+    spelling: "Take 59 Flights of Stairs",
+    grammar: FixedTerm(surface: "Take 59 Flights of Stairs"),
+)

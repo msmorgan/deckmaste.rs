@@ -17,7 +17,7 @@ SingleFaced(face: (
                     Simple(symbol: Specific(color: Of(color: Red))),
                     Simple(symbol: Specific(color: Of(color: Red))),
                 ]),
-                instruction: Monstrosity(Lit(value: 3)),
+                instruction: monstrosity(Lit(value: 3)),
                 timing: None,
                 limit: None,
                 guard: None,

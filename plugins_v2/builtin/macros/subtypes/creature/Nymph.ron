@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Nymph",
-    spelling: "Nymph",
-    grammar: Noun(singular: "Nymph", plural: Unavailable),
-)
-

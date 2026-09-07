@@ -9,7 +9,7 @@ SingleFaced(face: (
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [
-                    Mill(Lit(value: 2), You, You),
+                    mill(Lit(value: 2), You, You),
                     Draw(amount: Lit(value: 1), agent: You),
                 ]),
             ),

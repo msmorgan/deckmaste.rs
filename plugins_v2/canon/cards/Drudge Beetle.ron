@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 2),
         text: [
-            Scavenge(Mana(cost: [
+            scavenge(Mana(cost: [
                 Simple(symbol: Generic(amount: 5)),
                 Simple(symbol: Specific(color: Of(color: Green))),
             ])),

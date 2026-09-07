@@ -1,0 +1,7 @@
+// "When <event>, if <condition>, <instruction>"
+(
+    name: "triggeredIf",
+    kinds: [Ability],
+    params: {"event": GameEvent, "condition": Condition, "instruction": Instruction},
+    body: Triggered(Param(event), [], None, [], None, None, Param(condition), Param(instruction)),
+)

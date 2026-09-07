@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Basilisk",
-    spelling: "Basilisk",
-    grammar: Noun(singular: "Basilisk", plural: Unavailable),
-)
-

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Oyster",
-    spelling: "Oyster",
-    grammar: Noun(singular: "Oyster", plural: Unavailable),
-)
-

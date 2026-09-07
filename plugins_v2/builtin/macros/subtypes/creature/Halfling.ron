@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Halfling",
-    spelling: "Halfling",
-    grammar: Noun(singular: "Halfling"),
-)
-

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "stashCounter",
+    params: [],
+    spelling: "stash",
+    body: CounterFacts(label: "Stash", holder: Object),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "aurochs",
+    spelling: "Aurochs",
+    // Supported Oracle uses this only as a singular subtype noun; no plural context is attested.
+    grammar: Noun(singular: "Aurochs", plural: Unavailable),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Synth",
-    spelling: "Synth",
-    grammar: Noun(singular: "Synth", plural: Unavailable),
-)
-

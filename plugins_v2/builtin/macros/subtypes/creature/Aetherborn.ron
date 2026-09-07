@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Aetherborn",
-    spelling: "Aetherborn",
-    grammar: Noun(singular: "Aetherborn", plural: "Aetherborn"),
-)
-

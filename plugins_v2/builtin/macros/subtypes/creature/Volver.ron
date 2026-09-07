@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Volver",
-    spelling: "Volver",
-    grammar: Noun(singular: "Volver", plural: Unavailable),
-)
-

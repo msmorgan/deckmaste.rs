@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "cyberneticSenses",
+    spelling: "Cybernetic Senses",
+    grammar: FixedTerm(surface: "Cybernetic Senses"),
+)

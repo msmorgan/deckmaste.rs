@@ -1,0 +1,6 @@
+CounterKind(
+    name: "bountyCounter",
+    params: [],
+    spelling: "bounty",
+    body: CounterFacts(label: "Bounty", holder: Object),
+)

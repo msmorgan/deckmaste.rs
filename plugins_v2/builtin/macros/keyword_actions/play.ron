@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "play",
+    spelling: "play",
+    grammar: Verb(
+        bare: "play",
+        frame_set: Transitive,
+    ),
+)

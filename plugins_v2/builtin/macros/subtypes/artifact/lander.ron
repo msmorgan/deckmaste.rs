@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Artifact,
+    name: "lander",
+    spelling: "Lander",
+    grammar: Noun(singular: "Lander", plural: Unavailable),
+)
+

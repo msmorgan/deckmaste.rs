@@ -1,0 +1,7 @@
+// "if no colored mana was spent to cast <spell>"
+(
+    name: "noColoredManaSpentToCast",
+    kinds: [Condition],
+    params: {"spell": NounPhrase},
+    body: CompareAmt(colorsSpentToCast(spell: Param(spell)), Eq, Lit(value: 0)),
+)

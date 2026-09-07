@@ -1,6 +1,0 @@
-(
-    name: "CopyOfACard",
-    kinds: [Predicate],
-    params: [],
-    body: IsCopyOfACard,
-)

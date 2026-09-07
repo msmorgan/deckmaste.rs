@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "animalMayHam",
+    spelling: "Animal May-Ham",
+    grammar: FixedTerm(surface: "Animal May-Ham"),
+)

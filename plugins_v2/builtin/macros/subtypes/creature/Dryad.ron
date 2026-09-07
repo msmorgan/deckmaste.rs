@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Dryad",
-    spelling: "Dryad",
-    grammar: Noun(singular: "Dryad", plural: Unavailable),
-)
-

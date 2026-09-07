@@ -13,8 +13,8 @@ SingleFaced(face: (
         power: Lit(value: 0),
         toughness: Lit(value: 0),
         text: [
-            Flash,
-            Ravenous,
+            flash,
+            ravenous,
             Triggered(
                 event: ZoneChange(
                     subject: AsType(type: Creature, subject: This, subtype: None),

@@ -1425,7 +1425,7 @@ fn stub_field<'a>(src: &'a str, field: &str) -> Option<&'a str> {
 
 /// A keyword stub's declared parameter shape.
 fn stub_shape(dir: &Path, name: &str) -> anyhow::Result<Option<Shape>> {
-    let path = dir.join(format!("{name}.ron"));
+    let path = dir.join(format!("{}.ron", name_of(name)));
     if !path.exists() {
         return Ok(None);
     }
@@ -1664,6 +1664,27 @@ const DESIGNATION_MAP: &[(&str, &[&str])] = &[
     ("Sector", &["AlphaSector", "BetaSector", "GammaSector"]),
 ];
 
+/// A declaration's LABEL: its name with the first character capitalised.
+///
+/// A declaration name is Lean's camelCase macro name (`flying`,
+/// `theRingTemptsYou`) since the case ruling of `plugins-v2-dialect`; the
+/// workbench's tables and this file's overlays are keyed by the `PascalCase`
+/// label that name capitalises to, so the two meet here.
+pub(super) fn label_of(name: &str) -> String {
+    let mut characters = name.chars();
+    characters.next().map_or_else(String::new, |first| {
+        first.to_uppercase().collect::<String>() + characters.as_str()
+    })
+}
+
+/// The inverse of [`label_of`]: the declaration name a label is written under.
+pub(super) fn name_of(label: &str) -> String {
+    let mut characters = label.chars();
+    characters.next().map_or_else(String::new, |first| {
+        first.to_lowercase().collect::<String>() + characters.as_str()
+    })
+}
+
 /// A label reduced to its comparable core: the workbench spells a multi-word
 /// label with spaces ("The Ring Tempts You") where the stub file names it in
 /// one word, and a counter's stub gives its printed spelling ("double
@@ -1766,7 +1787,7 @@ fn designation_labels(stubs: &[String]) -> Vec<String> {
     stubs
         .iter()
         .flat_map(
-            |stub| match DESIGNATION_MAP.iter().find(|(s, _)| s == stub) {
+            |stub| match DESIGNATION_MAP.iter().find(|(s, _)| **s == label_of(stub)) {
                 Some((_, ctors)) => ctors.iter().map(|c| (*c).to_owned()).collect::<Vec<_>>(),
                 None => vec![stub.clone()],
             },
@@ -1865,7 +1886,7 @@ fn report(t: &Table) -> bool {
 fn counter_stub_spellings(dir: &Path) -> anyhow::Result<Vec<String>> {
     let mut spellings = Vec::new();
     for name in stub_names(dir)? {
-        if name == "P1P1Counter" || name == "M1M1Counter" {
+        if label_of(&name) == "P1P1Counter" || label_of(&name) == "M1M1Counter" {
             continue;
         }
         let path = dir.join(format!("{name}.ron"));
@@ -2042,7 +2063,13 @@ mod tests {
 
     #[test]
     fn recorded_reasons_name_labels_that_are_really_there() {
-        let stubs = stub_names(&root().join(KEYWORD_STUBS)).expect("reading the keyword stubs");
+        // Stub file stems are declaration names (camelCase); the exemption
+        // tables name labels, so compare through `label_of`.
+        let stubs = stub_names(&root().join(KEYWORD_STUBS))
+            .expect("reading the keyword stubs")
+            .iter()
+            .map(|name| label_of(name))
+            .collect::<Vec<_>>();
         for e in KEYWORD_STUBS_EXEMPT {
             assert!(
                 stubs.contains(&e.label.to_owned()),
@@ -2054,8 +2081,11 @@ mod tests {
         for e in KEYWORD_ROWS_EXEMPT {
             assert!(rows.contains(&e.label), "{}: no such row", e.label);
         }
-        let designations =
-            stub_names(&root().join(DESIGNATION_STUBS)).expect("reading the designation stubs");
+        let designations = stub_names(&root().join(DESIGNATION_STUBS))
+            .expect("reading the designation stubs")
+            .iter()
+            .map(|name| label_of(name))
+            .collect::<Vec<_>>();
         for e in DESIGNATION_STUBS_EXEMPT {
             assert!(
                 designations.contains(&e.label.to_owned()),

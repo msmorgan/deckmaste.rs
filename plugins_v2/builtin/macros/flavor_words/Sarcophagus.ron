@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Sarcophagus",
-    spelling: "Sarcophagus",
-    grammar: FixedTerm(surface: "Sarcophagus"),
-)

@@ -1,0 +1,7 @@
+// "the <p> from among <group>": every member the description picks.
+(
+    name: "allFromAmong",
+    kinds: [NounPhrase],
+    params: {"p": Predicate, "group": NounPhrase},
+    body: SomeOf(Whole, Param(p), Param(group)),
+)

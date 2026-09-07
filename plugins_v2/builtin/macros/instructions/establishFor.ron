@@ -1,0 +1,7 @@
+// Several static clauses sharing one subject, as one instruction.
+(
+    name: "establishFor",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "parts": StaticSpecs, "duration": Duration},
+    body: Establish(Conjunction(Param(subject), Param(parts)), Param(duration)),
+)

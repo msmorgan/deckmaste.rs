@@ -1,0 +1,51 @@
+KeywordAbility(
+    name: "umbraArmor",
+    params: [],
+    spelling: "umbra armor",
+    grammar: FixedKeyword(
+        surface: "umbra armor",
+    ),
+    // "Umbra armor" means "If enchanted permanent would be destroyed, instead remove
+    // all damage marked on it and destroy this Aura." [CR#702.89a]
+    body: Keyword(
+        keyword: "UmbraArmor",
+        params: [],
+        body: [
+            Static(
+                spec: Replacement(
+                    event: VerbedEvent(
+                        agent: None,
+                        verb: Action(label: "Destroy"),
+                        patient: AttachHost(word: Enchanted, head: Permanent),
+                        becomes: None,
+                        locus: None,
+                    ),
+                    alternatives: [],
+                    timing: None,
+                    replacement: Sequentially(
+                        steps: [
+                            ClearDamage(
+                                subject: AttachHost(word: Enchanted, head: Permanent),
+                            ),
+                            Enact(
+                                verb: Action(label: "Destroy"),
+                                instruction: Move(
+                                    subject: AsType(
+                                        type: Enchantment,
+                                        subject: This,
+                                        subtype: Of(host: Enchantment, label: "Aura"),
+                                    ),
+                                    to: Zone(zone: Graveyard, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: None,
+                            ),
+                        ],
+                    ),
+                    r#use: Repeatedly,
+                    limit: None,
+                ),
+            ),
+        ],
+    ),
+)

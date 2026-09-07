@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "fight",
+    spelling: "fight",
+    grammar: Verb(
+        bare: "fight",
+        frame_set: Transitive,
+    ),
+)

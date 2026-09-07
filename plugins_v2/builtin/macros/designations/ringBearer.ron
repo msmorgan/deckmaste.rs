@@ -1,0 +1,11 @@
+// Ring-bearer is a permanent designation, one for each player
+// [CR#701.54a,701.54b].
+Designation(
+    name: "ringBearer",
+    params: [],
+    spelling: "Ring-bearer",
+    grammar: FixedTerm(surface: "Ring-bearer"),
+    body: [
+        DesignationFacts(label: "Ring-bearer", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
+)

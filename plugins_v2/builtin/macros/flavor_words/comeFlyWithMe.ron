@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "comeFlyWithMe",
+    spelling: "Come Fly With Me",
+    grammar: FixedTerm(surface: "Come Fly With Me"),
+)

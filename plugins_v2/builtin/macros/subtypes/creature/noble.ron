@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "noble",
+    spelling: "Noble",
+    grammar: Noun(singular: "Noble", plural: Unavailable),
+)
+

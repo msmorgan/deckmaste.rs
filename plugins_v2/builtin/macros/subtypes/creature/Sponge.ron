@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Sponge",
-    spelling: "Sponge",
-    grammar: Noun(singular: "Sponge", plural: Unavailable),
-)
-

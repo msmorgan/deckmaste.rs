@@ -1,0 +1,21 @@
+// "[Player] mills N cards" [CR#701.17a]: that player puts that many cards from
+// the top of their library into their graveyard. Lean `mill`. The clamp to
+// library size [CR#701.17b] is the rules', not the clause's.
+KeywordAction(
+    name: "mill",
+    params: [Amount, Subject, Subject],
+    spelling: "mill",
+    grammar: Verb(
+        bare: "mill",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Mill"),
+        instruction: Move(
+        subject: LibrarySlice(end: Top, amount: Param(0), whose: Param(1)),
+        to: Zone(zone: Graveyard, scope: Bare),
+        riders: [],
+    ),
+        agent: Param(2),
+    ),
+)

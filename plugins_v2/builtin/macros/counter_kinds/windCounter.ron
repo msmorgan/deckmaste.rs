@@ -1,0 +1,6 @@
+CounterKind(
+    name: "windCounter",
+    params: [],
+    spelling: "wind",
+    body: CounterFacts(label: "Wind", holder: Object),
+)

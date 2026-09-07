@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "naturalShelter",
+    spelling: "Natural Shelter",
+    grammar: FixedTerm(surface: "Natural Shelter"),
+)

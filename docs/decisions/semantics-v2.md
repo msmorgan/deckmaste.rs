@@ -260,6 +260,19 @@ alongside `macros/meta/`, whose declaration meta-macros the family files
 invoke. They were under `macros/stubs/` while they were bodyless; they are
 declarations now.
 
+**Case is the mark.** A declaration's name is Lean's own macro name, verbatim
+and camelCase — `flying`, `theRingTemptsYou`, `willOfTheCouncil` — while the
+mirror's constructors stay PascalCase, so `draw` is the macro and `Draw(…)` the
+constructor, exactly as Lean's `.draw`/`draw` separates the two (ruling,
+2026-09-07). The file stem is still the name. Nothing else moves: spelling,
+grammar and every semantic label a body writes are unchanged, and the emitted
+Lean is byte-identical across the rename. Two readers take a name as a LABEL
+rather than as an identity and capitalise it at that boundary — `cargo xtask
+facts`'s keyword and subtype overlays, through `label_of`/`name_of` there — and
+one stopped taking it at all: an ability word's italic label is now its
+SPELLING, which is what the bench writes (`abilityWord "will of the council"`).
+`lean-macros-from-ron` is an identity on names.
+
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
 `keyword_abilities`, `keyword_actions`, `subtypes`, `turn_parts`, `types` —
@@ -382,8 +395,8 @@ writes over the constructor basis. 279 of them are declarations under
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `counters`, `instructions`, `events`,
 `abilities`) — each a plain meta with `name`, `kinds`, `params` and `body` and
-no spelling or grammar. The name is the Lean name capitalised, the kind is the
-Lean return type, and the signature is NAMED, with Lean's own defaults as
+no spelling or grammar. The name is the Lean name verbatim (§11), the kind is
+the Lean return type, and the signature is NAMED, with Lean's own defaults as
 parameter defaults. A list-typed parameter registers under the PLURAL of its
 element type, v1's convention (`Abilities` for `Vec<Ability>`); a Lean
 `abbrev` registers under the alias's own name, since that is what the

@@ -72,7 +72,7 @@ fn connive() -> VerbPhrase {
         &environment,
         VerbInventoryRef::Declaration(DeclarationId::new(
             DeclarationKind::KeywordAction,
-            "Connive",
+            "connive",
         )),
     )
     .expect("the builtin grammar declares intransitive Connive");
@@ -563,7 +563,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         (TextSpan { start: 50, end: 54 }, "vocab:FiniteCopula/Are"),
         (TextSpan { start: 84, end: 90 }, "vocab:Preposition/Among"),
         (TextSpan { start: 67, end: 73 }, "vocab:Supertype/Basic"),
-        (TextSpan { start: 73, end: 78 }, "lexeme:type/Land/singular"),
+        (TextSpan { start: 73, end: 78 }, "lexeme:type/land/singular"),
         (
             TextSpan { start: 78, end: 84 },
             "lexeme:CommonNoun/Type/plural",
@@ -1043,7 +1043,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (
                 17,
                 26,
-                "lexeme:keyword_action/Connive/third_person_singular"
+                "lexeme:keyword_action/connive/third_person_singular"
             ),
             (26, 27, "form:triggered/triggered/1"),
             (27, 31, "vocab:SubjectPronoun/You"),
@@ -1052,9 +1052,9 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (38, 43, "lexeme:CommonNoun/Life/singular"),
             (43, 44, "structural:Sentences/sentences/terminator/0"),
             (44, 45, "structural:Sentences/sentences/separator/uniform/0"),
-            (45, 52, "lexeme:keyword_action/Destroy/bare"),
+            (45, 52, "lexeme:keyword_action/destroy/bare"),
             (52, 59, "vocab:TargetingMarker/Target"),
-            (59, 68, "lexeme:type/Creature/singular"),
+            (59, 68, "lexeme:type/creature/singular"),
             (68, 69, "structural:Sentences/sentences/terminator/0"),
         ]
     );
@@ -1428,7 +1428,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     ));
     assert!(matches!(
         clause.predicate(),
-        Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive")
+        Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("connive")
     ));
 }
 
@@ -1552,7 +1552,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (19, 24, "determinative:DeterminativeHead/Each"),
             (24, 31, "lexeme:CommonNoun/Player/singular"),
             (31, 33, "form:possessive/singular/0/affix"),
-            (33, 43, "lexeme:turn_part/DrawStep/singular"),
+            (33, 43, "lexeme:turn_part/drawStep/singular"),
             (43, 44, "form:triggered/triggered/1"),
             (44, 48, "vocab:SubjectPronoun/You"),
             (48, 53, "core-verb:Gain"),
@@ -1609,12 +1609,12 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (
                 17,
                 26,
-                "lexeme:keyword_action/Connive/third_person_singular"
+                "lexeme:keyword_action/connive/third_person_singular"
             ),
             (26, 27, "form:triggered/triggered/1"),
             (27, 30, "form:finite_condition/finite_condition/0"),
             (30, 34, "vocab:SubjectPronoun/You"),
-            (34, 42, "lexeme:keyword_action/Connive/bare"),
+            (34, 42, "lexeme:keyword_action/connive/bare"),
             (42, 43, "form:finite_condition/finite_condition/2"),
             (43, 47, "vocab:SubjectPronoun/You"),
             (47, 52, "core-verb:Gain"),
@@ -2104,7 +2104,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
     let Predicate::Atomic(cost_predicate) = cost_clause.predicate() else {
         panic!("the clause cost stores its predicate in the shared algebra")
     };
-    assert_eq!(declared_action_name(cost_predicate), Some("Destroy"));
+    assert_eq!(declared_action_name(cost_predicate), Some("destroy"));
     assert_eq!(
         symbols.symbols(),
         &[
@@ -2156,9 +2156,9 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (17, 18, "codec:LoyaltyMagnitude"),
             (18, 19, "form:loyalty/loyalty/0/suffix"),
             (19, 21, "structural:Activated/costs/separator/last/0"),
-            (21, 28, "lexeme:keyword_action/Destroy/bare"),
+            (21, 28, "lexeme:keyword_action/destroy/bare"),
             (28, 35, "vocab:TargetingMarker/Target"),
-            (35, 44, "lexeme:type/Creature/singular"),
+            (35, 44, "lexeme:type/creature/singular"),
             (44, 46, "form:activated/activated/1"),
             (46, 49, "vocab:SubjectPronoun/You"),
             (49, 54, "core-verb:Gain"),
@@ -2166,9 +2166,9 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (56, 61, "lexeme:CommonNoun/Life/singular"),
             (61, 62, "structural:Sentences/sentences/terminator/0"),
             (62, 63, "structural:Sentences/sentences/separator/uniform/0"),
-            (63, 70, "lexeme:keyword_action/Destroy/bare"),
+            (63, 70, "lexeme:keyword_action/destroy/bare"),
             (70, 77, "vocab:TargetingMarker/Target"),
-            (77, 86, "lexeme:type/Creature/singular"),
+            (77, 86, "lexeme:type/creature/singular"),
             (86, 87, "structural:Sentences/sentences/terminator/0"),
         ],
     );
@@ -2350,7 +2350,7 @@ fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
 }
 
 fn predicate_identity(predicate: &VerbPhrase) -> String {
-    if declared_action_name(predicate) == Some("Connive") {
+    if declared_action_name(predicate) == Some("connive") {
         return "connive".to_owned();
     }
     if let Some(magnitude) = gain_life_magnitude(predicate) {
@@ -2796,7 +2796,7 @@ impl Visitor for LogicVisitor {
     fn visit_verb_phrase(&mut self, value: &VerbPhrase) {
         if let Some(magnitude) = gain_life_magnitude(value) {
             self.0.push(LogicVisit::GainLife(magnitude));
-        } else if declared_action_name(value) == Some("Connive") {
+        } else if declared_action_name(value) == Some("connive") {
             self.0.push(LogicVisit::Connive);
         } else {
             panic!("unexpected logic visitor predicate payload: {value:?}");
@@ -3594,7 +3594,7 @@ impl Visitor for AttachmentEnvelopeVisitor {
 
     fn visit_predicate(&mut self, value: &Predicate) {
         match value {
-            Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive") => {
+            Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("connive") => {
                 self.0.push("Predicate:Connive");
             }
             Predicate::Atomic(predicate) if gain_life_magnitude(predicate) == Some(2) => {
@@ -4392,7 +4392,7 @@ fn plain_modal_modes_render_visitor_and_claims_are_hand_derived() {
                 "structural:ModalModeValue/sentences/separator/uniform/0"
             ),
             (36, 39, "vocab:SubjectPronoun/You"),
-            (39, 47, "lexeme:keyword_action/Connive/bare"),
+            (39, 47, "lexeme:keyword_action/connive/bare"),
             (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
             (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
             (49, 53, "form:bullet_marker/bullet_marker/0"),

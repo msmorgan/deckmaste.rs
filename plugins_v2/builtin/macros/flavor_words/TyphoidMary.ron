@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TyphoidMary",
-    spelling: "Typhoid Mary",
-    grammar: FixedTerm(surface: "Typhoid Mary"),
-)

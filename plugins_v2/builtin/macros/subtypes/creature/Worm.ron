@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Worm",
-    spelling: "Worm",
-    grammar: Noun(singular: "Worm", plural: Unavailable),
-)
-

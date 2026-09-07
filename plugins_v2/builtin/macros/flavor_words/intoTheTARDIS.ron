@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "intoTheTARDIS",
+    spelling: "Into the TARDIS",
+    grammar: FixedTerm(surface: "Into the TARDIS"),
+)

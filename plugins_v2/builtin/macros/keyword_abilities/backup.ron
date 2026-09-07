@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "backup",
+    params: [Amount],
+    spelling: "backup",
+    grammar: FixedKeyword(
+        surface: "backup",
+    ),
+    // STOP. "Backup N" grants "the non-backup abilities of this creature printed
+    // below this one" [CR#702.165a]. No `Predicate` reads a printed position in the
+    // text box, so `StaticSpec::AbilityGrantFrom`'s `except` cannot select them.
+    body: Keyword(keyword: "Backup", params: [Number(amount: Param(0))], body: []),
+)

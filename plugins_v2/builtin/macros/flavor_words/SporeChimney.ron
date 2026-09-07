@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SporeChimney",
-    spelling: "Spore Chimney",
-    grammar: FixedTerm(surface: "Spore Chimney"),
-)

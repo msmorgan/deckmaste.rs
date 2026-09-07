@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MedicusMinistorum",
-    spelling: "Medicus Ministorum",
-    grammar: FixedTerm(surface: "Medicus Ministorum"),
-)

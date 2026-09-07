@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "nymph",
+    spelling: "Nymph",
+    grammar: Noun(singular: "Nymph", plural: Unavailable),
+)
+

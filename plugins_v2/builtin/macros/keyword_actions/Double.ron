@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Double",
-    spelling: "double",
-    grammar: Verb(
-        bare: "double",
-        frame_set: Transitive,
-    ),
-)

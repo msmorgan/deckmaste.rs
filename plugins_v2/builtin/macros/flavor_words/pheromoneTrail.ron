@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "pheromoneTrail",
+    spelling: "Pheromone Trail",
+    grammar: FixedTerm(surface: "Pheromone Trail"),
+)

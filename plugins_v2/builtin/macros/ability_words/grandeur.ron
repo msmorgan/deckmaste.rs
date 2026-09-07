@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "grandeur",
+    spelling: "Grandeur",
+    grammar: FixedTerm(surface: "Grandeur"),
+)

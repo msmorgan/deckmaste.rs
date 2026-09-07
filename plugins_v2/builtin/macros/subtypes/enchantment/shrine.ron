@@ -1,0 +1,7 @@
+Subtype(
+    category: Enchantment,
+    name: "shrine",
+    spelling: "Shrine",
+    grammar: Noun(singular: "Shrine"),
+)
+

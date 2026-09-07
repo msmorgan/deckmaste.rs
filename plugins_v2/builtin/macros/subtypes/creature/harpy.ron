@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "harpy",
+    spelling: "Harpy",
+    grammar: Noun(singular: "Harpy", plural: Unavailable),
+)
+

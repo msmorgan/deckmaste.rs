@@ -1,7 +1,0 @@
-// "that player or planeswalker": the joined phrase just named.
-(
-    name: "ThatJoin",
-    kinds: [NounPhrase],
-    params: [],
-    body: That(w: Join),
-)

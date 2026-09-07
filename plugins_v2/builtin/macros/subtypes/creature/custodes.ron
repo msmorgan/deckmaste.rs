@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "custodes",
+    spelling: "Custodes",
+    grammar: Noun(singular: "Custodes", plural: Unavailable),
+)
+

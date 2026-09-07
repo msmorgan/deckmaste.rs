@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Rigger",
-    spelling: "Rigger",
-    grammar: Noun(singular: "Rigger"),
-)
-

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FindACrossing",
-    spelling: "Find a Crossing",
-    grammar: FixedTerm(surface: "Find a Crossing"),
-)

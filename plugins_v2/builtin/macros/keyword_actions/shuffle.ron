@@ -1,0 +1,25 @@
+// "[Player] shuffles" [CR#701.24a]: randomize the cards in that player's
+// library so no player knows their order. Lean `shuffle`; the basis carries the
+// act directly, so the body is the constructor under the deed's own name.
+// Its body's outermost identifier is the declaration's own name — an
+// identity reconstruction of the native `Instruction::Shuffle` variant, so
+// `semantics-v2-macro-param-kinds`'s collision refusal exempts it: reading
+// `Shuffle(agent: X)` natively or through this macro produces the same
+// value, so no rename is needed (unlike `Search`/`Vote`/`Exchange`, whose
+// declarations carry no such identity body and so DO collide).
+KeywordAction(
+    name: "shuffle",
+    params: [Subject],
+    spelling: "shuffle",
+    grammar: Verb(
+        bare: "shuffle",
+        frame_set: Custom(
+            frames: [
+                [],
+                [ObjectNounPhrase],
+                [ObjectNounPhrase, Lex("Preposition", "Into"), ObjectNounPhrase],
+            ],
+        ),
+    ),
+    body: Shuffle(agent: Param(0)),
+)

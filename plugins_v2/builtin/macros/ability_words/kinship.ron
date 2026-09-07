@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "kinship",
+    spelling: "Kinship",
+    grammar: FixedTerm(surface: "Kinship"),
+)

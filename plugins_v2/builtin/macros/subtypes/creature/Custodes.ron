@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Custodes",
-    spelling: "Custodes",
-    grammar: Noun(singular: "Custodes", plural: Unavailable),
-)
-

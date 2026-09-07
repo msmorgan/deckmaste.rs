@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "salamander",
+    spelling: "Salamander",
+    grammar: Noun(singular: "Salamander"),
+)
+

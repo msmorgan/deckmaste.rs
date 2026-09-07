@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Constellation",
-    spelling: "Constellation",
-    grammar: FixedTerm(surface: "Constellation"),
-)

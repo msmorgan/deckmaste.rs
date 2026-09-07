@@ -1,0 +1,7 @@
+CounterKind(
+    name: "verseCounter",
+    params: [],
+    spelling: "verse",
+    grammar: FixedTerm(surface: "verse"),
+    body: CounterFacts(label: "Verse", holder: Object),
+)

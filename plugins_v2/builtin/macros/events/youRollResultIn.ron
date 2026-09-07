@@ -1,0 +1,7 @@
+// "you roll a die and the result is <q>"
+(
+    name: "youRollResultIn",
+    kinds: [GameEvent],
+    params: {"quantity": Quantity},
+    body: RollsDice(You, One, None, ResultIn(quantity: Param(quantity))),
+)

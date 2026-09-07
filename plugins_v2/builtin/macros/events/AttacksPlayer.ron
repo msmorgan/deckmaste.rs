@@ -1,7 +1,0 @@
-// "<subject> attacks <whom>"
-(
-    name: "AttacksPlayer",
-    kinds: [GameEvent],
-    params: {"subject": NounPhrase, "whom": NounPhrase},
-    body: Combat(AttackerOf, Param(subject), Param(whom)),
-)

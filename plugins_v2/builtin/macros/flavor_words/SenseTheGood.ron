@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SenseTheGood",
-    spelling: "Sense the Good",
-    grammar: FixedTerm(surface: "Sense the Good"),
-)

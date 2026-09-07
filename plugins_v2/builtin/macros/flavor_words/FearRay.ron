@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FearRay",
-    spelling: "Fear Ray",
-    grammar: FixedTerm(surface: "Fear Ray"),
-)

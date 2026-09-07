@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "JollyGutpipes",
-    spelling: "Jolly Gutpipes",
-    grammar: FixedTerm(surface: "Jolly Gutpipes"),
-)

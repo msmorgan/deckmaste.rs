@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ultimaFounding",
+    spelling: "Ultima Founding",
+    grammar: FixedTerm(surface: "Ultima Founding"),
+)

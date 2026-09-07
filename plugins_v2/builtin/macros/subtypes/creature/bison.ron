@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "bison",
+    spelling: "Bison",
+    grammar: Noun(singular: "Bison", plural: Unavailable),
+)
+

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "plagueCounter",
+    params: [],
+    spelling: "plague",
+    body: CounterFacts(label: "Plague", holder: Object),
+)

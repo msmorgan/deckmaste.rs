@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "shaman",
+    spelling: "Shaman",
+    grammar: Noun(singular: "Shaman"),
+)
+

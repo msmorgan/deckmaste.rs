@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Ox",
-    spelling: "Ox",
-    grammar: Noun(singular: "Ox", plural: "Oxen"),
-)
-

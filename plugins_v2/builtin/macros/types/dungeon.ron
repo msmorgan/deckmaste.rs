@@ -1,0 +1,7 @@
+Type(
+    name: "dungeon",
+    spelling: "dungeon",
+    grammar: Noun(singular: "dungeon"),
+    params: [],
+    body: TypeDef(name: "Dungeon", permanent_type: false),
+)

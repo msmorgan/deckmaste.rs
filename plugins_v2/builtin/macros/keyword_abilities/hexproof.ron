@@ -1,0 +1,42 @@
+KeywordAbility(
+    name: "hexproof",
+    params: [],
+    spelling: "hexproof",
+    grammar: FixedKeyword(
+        surface: "hexproof",
+    ),
+    // "Hexproof" on a permanent means "This permanent can't be the target of spells
+    // or abilities your opponents control." [CR#702.11b] The player form
+    // [CR#702.11c] is what a grant to a player reads.
+    body: Keyword(
+        keyword: "Hexproof",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Target)],
+                    role: Patient,
+                    bound: None,
+                    patient: TargetedBy(
+                        patient: Described(
+                            determiner: All,
+                            predicate: And(
+                                conjuncts: [
+                                    InZone(zone: Zone(zone: Stack, scope: Bare)),
+                                    HasPossessor(
+                                        axis: Controller,
+                                        possessor: PlayerGroup(group: YourOpponents),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
+    ),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "platypus",
+    spelling: "Platypus",
+    grammar: Noun(singular: "Platypus", plural: Unavailable),
+)
+

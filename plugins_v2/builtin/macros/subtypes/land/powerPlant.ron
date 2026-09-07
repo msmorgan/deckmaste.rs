@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Land,
+    name: "powerPlant",
+    spelling: "Power-Plant",
+    grammar: Noun(singular: "Power-Plant", plural: Unavailable),
+)
+

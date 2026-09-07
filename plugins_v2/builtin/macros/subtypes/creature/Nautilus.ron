@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Nautilus",
-    spelling: "Nautilus",
-    grammar: Noun(singular: "Nautilus", plural: Unavailable),
-)
-

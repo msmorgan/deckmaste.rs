@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "hag",
+    spelling: "Hag",
+    grammar: Noun(singular: "Hag", plural: Unavailable),
+)
+

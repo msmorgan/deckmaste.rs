@@ -12,7 +12,7 @@ SingleFaced(face: (
                         determiner: Each,
                         predicate: AnyPlayer,
                     ),
-                    part: UpkeepStep,
+                    part: upkeepStep,
                 ),
             ),
         ],

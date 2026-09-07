@@ -9,7 +9,7 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Buyback(Mana(cost: [Simple(symbol: Generic(amount: 3))])),
+            buyback(Mana(cost: [Simple(symbol: Generic(amount: 3))])),
             Spell(
                 timing: None,
                 instruction: Enact(

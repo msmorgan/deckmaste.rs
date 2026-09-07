@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "keenSenses",
+    spelling: "Keen Senses",
+    grammar: FixedTerm(surface: "Keen Senses"),
+)

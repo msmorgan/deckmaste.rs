@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FleshFlayer",
-    spelling: "Flesh Flayer",
-    grammar: FixedTerm(surface: "Flesh Flayer"),
-)

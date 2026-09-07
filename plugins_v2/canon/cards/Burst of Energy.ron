@@ -7,7 +7,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Untap(Described(
+                instruction: untap(Described(
                     determiner: Target(quantity: Range(low: 1, high: 1)),
                     predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
                 )),

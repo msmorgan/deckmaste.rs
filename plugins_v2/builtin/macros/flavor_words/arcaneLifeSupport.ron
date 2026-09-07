@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "arcaneLifeSupport",
+    spelling: "Arcane Life-support",
+    grammar: FixedTerm(surface: "Arcane Life-support"),
+)

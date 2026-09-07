@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "fendThemOff",
+    spelling: "Fend Them Off",
+    grammar: FixedTerm(surface: "Fend Them Off"),
+)

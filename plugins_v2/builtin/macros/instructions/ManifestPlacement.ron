@@ -1,9 +1,0 @@
-// Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
-// This retains the existing fragment; face-down characteristics and the turn-up special
-// action are not represented here.
-(
-    name: "ManifestPlacement",
-    kinds: [Instruction],
-    params: {"subject": NounPhrase},
-    body: Enact(verb: Action(label: "Manifest"), instruction: Move(Param(subject), Battlefield, []), agent: None),
-)

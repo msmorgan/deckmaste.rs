@@ -1,0 +1,9 @@
+KeywordAction(
+    name: "activate",
+    spelling: "activate",
+    grammar: Verb(
+        bare: "activate",
+        participle: "activated",
+        frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
+    ),
+)

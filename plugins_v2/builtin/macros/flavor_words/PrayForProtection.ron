@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "PrayForProtection",
-    spelling: "Pray for Protection",
-    grammar: FixedTerm(surface: "Pray for Protection"),
-)

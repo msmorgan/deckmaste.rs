@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ProclamatorHailer",
-    spelling: "Proclamator Hailer",
-    grammar: FixedTerm(surface: "Proclamator Hailer"),
-)

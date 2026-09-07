@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "shivasAid",
+    spelling: "Shiva's Aid",
+    grammar: FixedTerm(surface: "Shiva's Aid"),
+)

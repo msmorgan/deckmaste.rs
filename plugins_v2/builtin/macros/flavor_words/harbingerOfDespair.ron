@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "harbingerOfDespair",
+    spelling: "Harbinger of Despair",
+    grammar: FixedTerm(surface: "Harbinger of Despair"),
+)

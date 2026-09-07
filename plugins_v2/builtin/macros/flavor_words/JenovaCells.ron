@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "JenovaCells",
-    spelling: "Jenova Cells",
-    grammar: FixedTerm(surface: "Jenova Cells"),
-)

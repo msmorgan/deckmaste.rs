@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "echidna",
+    spelling: "Echidna",
+    grammar: Noun(singular: "Echidna", plural: Unavailable),
+)
+

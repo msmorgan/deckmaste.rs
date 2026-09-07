@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "perfectIllumination",
+    spelling: "Perfect Illumination",
+    grammar: FixedTerm(surface: "Perfect Illumination"),
+)

@@ -7,7 +7,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: DealsDamageToAnyTarget(Lit(value: 3)),
+                instruction: dealsDamageToAnyTarget(Lit(value: 3)),
             ),
         ],
     ),

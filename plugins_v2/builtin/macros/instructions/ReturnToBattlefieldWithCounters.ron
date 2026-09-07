@@ -1,7 +1,0 @@
-// "return <subject> to the battlefield under <who>'s control with N <kind> counters on it"
-(
-    name: "ReturnToBattlefieldWithCounters",
-    kinds: [Instruction],
-    params: {"subject": NounPhrase, "who": NounPhrase, "amount": Amount, "kind": CounterKind},
-    body: Move(Param(subject), Battlefield, [Under(controller: Param(who)), WithCounters(Param(amount), Printed(kind: Param(kind)), Fresh)]),
-)

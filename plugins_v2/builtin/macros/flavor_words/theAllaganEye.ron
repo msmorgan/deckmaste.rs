@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "theAllaganEye",
+    spelling: "The Allagan Eye",
+    grammar: FixedTerm(surface: "The Allagan Eye"),
+)

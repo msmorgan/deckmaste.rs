@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Survival",
-    spelling: "Survival",
-    grammar: FixedTerm(surface: "Survival"),
-)

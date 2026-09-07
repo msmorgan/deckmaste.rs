@@ -1,7 +1,0 @@
-// "<what> can be the target of <by> as though it didn't have <p>"
-(
-    name: "CanBeTargetedAsThough",
-    kinds: [StaticSpec],
-    params: {"what": NounPhrase, "by_": NounPhrase, "p": Predicate},
-    body: DeonticRule(Param(what), Permit, [Core(deed: Target)], Patient, None, TargetedBy(patient: Param(by_)), Of(predicate: Param(p)), NoRider),
-)

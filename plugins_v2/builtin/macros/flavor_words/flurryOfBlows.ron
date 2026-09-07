@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "flurryOfBlows",
+    spelling: "Flurry of Blows",
+    grammar: FixedTerm(surface: "Flurry of Blows"),
+)

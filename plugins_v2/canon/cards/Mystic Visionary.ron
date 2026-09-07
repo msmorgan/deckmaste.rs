@@ -17,7 +17,7 @@ SingleFaced(face: (
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
         text: [
-            Threshold(
+            threshold(
                 Static(
                     spec: Conditional(
                         spec: AbilityGrant(

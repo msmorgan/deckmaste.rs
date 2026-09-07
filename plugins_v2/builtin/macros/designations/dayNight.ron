@@ -1,0 +1,11 @@
+// Day and night are game designations; the game has at most one [CR#731.1].
+Designation(
+    name: "dayNight",
+    params: [],
+    spelling: "day or night",
+    grammar: FixedTerm(surface: "day or night"),
+    body: [
+        DesignationFacts(label: "day", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
+        DesignationFacts(label: "night", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
+    ],
+)

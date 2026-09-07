@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "timeLordsPrerogative",
+    spelling: "Time Lord's Prerogative",
+    grammar: FixedTerm(surface: "Time Lord's Prerogative"),
+)

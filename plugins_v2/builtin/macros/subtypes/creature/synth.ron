@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "synth",
+    spelling: "Synth",
+    grammar: Noun(singular: "Synth", plural: Unavailable),
+)
+

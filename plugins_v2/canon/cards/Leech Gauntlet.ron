@@ -14,14 +14,14 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 2),
         text: [
-            Lifelink,
+            lifelink,
             Static(
                 spec: AbilityGrant(
                     subject: AttachHost(word: Equipped, head: Type(type: Creature)),
-                    ability: Lifelink,
+                    ability: lifelink,
                 ),
             ),
-            Reconfigure(Mana(cost: [Simple(symbol: Generic(amount: 4))])),
+            reconfigure(Mana(cost: [Simple(symbol: Generic(amount: 4))])),
         ],
     ),
 ))

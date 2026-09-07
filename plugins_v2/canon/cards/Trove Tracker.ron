@@ -26,7 +26,7 @@ SingleFaced(face: (
                 intervening: None,
                 instruction: Draw(amount: Lit(value: 1), agent: You),
             ),
-            Encore(Mana(cost: [
+            encore(Mana(cost: [
                 Simple(symbol: Generic(amount: 5)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
                 Simple(symbol: Specific(color: Of(color: Blue))),

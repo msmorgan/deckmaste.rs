@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TeamTARDIS",
-    spelling: "Team TARDIS",
-    grammar: FixedTerm(surface: "Team TARDIS"),
-)

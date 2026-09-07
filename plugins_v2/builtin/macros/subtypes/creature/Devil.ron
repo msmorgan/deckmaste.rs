@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Devil",
-    spelling: "Devil",
-    grammar: Noun(singular: "Devil"),
-)
-

@@ -1,8 +1,0 @@
-// No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Land,
-    name: "Lair",
-    spelling: "Lair",
-    grammar: Noun(singular: "Lair", plural: Unavailable),
-)
-

@@ -12,7 +12,7 @@ SingleFaced(face: (
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [
-                    Discard(
+                    discard(
                         Described(
                             determiner: All,
                             predicate: And(conjuncts: [

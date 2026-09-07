@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "KeenSenses",
-    spelling: "Keen Senses",
-    grammar: FixedTerm(surface: "Keen Senses"),
-)

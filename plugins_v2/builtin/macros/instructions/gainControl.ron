@@ -1,0 +1,7 @@
+// "<player> gains control of <subject> [duration]"
+(
+    name: "gainControl",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "duration": Duration, "agent": Default(NounPhrase, You)},
+    body: Establish(ControlGrant(Param(agent), Param(subject)), Param(duration)),
+)

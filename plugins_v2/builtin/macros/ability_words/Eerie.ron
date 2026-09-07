@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Eerie",
-    spelling: "Eerie",
-    grammar: FixedTerm(surface: "Eerie"),
-)

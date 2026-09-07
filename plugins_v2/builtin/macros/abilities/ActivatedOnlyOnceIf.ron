@@ -1,7 +1,0 @@
-// "[cost]: <instruction>. Activate only once <limit> and only if <guard>."
-(
-    name: "ActivatedOnlyOnceIf",
-    kinds: [Ability],
-    params: {"cost": Cost, "instruction": Instruction, "limit": UsageLimit, "guard": Condition},
-    body: Activated(Param(cost), Param(instruction), None, Param(limit), Param(guard), None),
-)

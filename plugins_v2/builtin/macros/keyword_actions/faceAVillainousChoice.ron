@@ -1,0 +1,29 @@
+// "<agent> faces a villainous choice — <A>, or <B>" [CR#701.55a]: "means
+// '<agent> chooses <A> or <B>. Then all actions in the chosen option are
+// performed.'" No dedicated Lean `semantic_macro` exists for this shape
+// (absent from `lean/Semantics/Macros.lean`); this is the general
+// `Instruction::ChooseModes` core constructor Lean's own `chooseModes`
+// wraps (`quantity := exactly 1`, no costs, two modes), per
+// `lean/Semantics/Check/Facts.lean`'s "Face A Villainous Choice" row, which
+// requires an `Enact` agent (`agentRole := playerAgent`).
+KeywordAction(
+    name: "faceAVillainousChoice",
+    params: [Instruction, Instruction, Subject],
+    spelling: "face a villainous choice",
+    grammar: Verb(
+        bare: "face a villainous choice",
+        third_person: "faces a villainous choice",
+        frame_set: Intransitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Face A Villainous Choice"),
+        instruction: ChooseModes(
+            quantity: Range(low: 1, high: 1),
+            modes: [
+                (None, Param(0)),
+                (None, Param(1)),
+            ],
+        ),
+        agent: Param(2),
+    ),
+)

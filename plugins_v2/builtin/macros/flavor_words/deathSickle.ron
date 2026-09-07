@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "deathSickle",
+    spelling: "Death Sickle",
+    grammar: FixedTerm(surface: "Death Sickle"),
+)

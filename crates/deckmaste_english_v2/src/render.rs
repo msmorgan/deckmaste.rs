@@ -219,9 +219,9 @@ mod tests {
                 .map(|claim| (claim.span.start, claim.span.end, claim.owner.stable_id()))
                 .collect::<Vec<_>>(),
             [
-                (0, 7, "lexeme:keyword_action/Destroy/bare"),
+                (0, 7, "lexeme:keyword_action/destroy/bare"),
                 (7, 14, "vocab:TargetingMarker/Target"),
-                (14, 23, "lexeme:type/Creature/singular"),
+                (14, 23, "lexeme:type/creature/singular"),
                 (23, 24, "structural:Sentences/sentences/terminator/0"),
             ]
         );

@@ -1,7 +1,0 @@
-// "<subject> enters with an additional N <kind> counters on it"
-(
-    name: "EntersWithAdditionalCounters",
-    kinds: [StaticSpec],
-    params: {"subject": NounPhrase, "amount": Amount, "kind": CounterKind},
-    body: EntryRider(Param(subject), WithCounters(Param(amount), Printed(kind: Param(kind)), Additional)),
-)

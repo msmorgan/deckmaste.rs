@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AdvancedSpecies",
-    spelling: "Advanced Species",
-    grammar: FixedTerm(surface: "Advanced Species"),
-)

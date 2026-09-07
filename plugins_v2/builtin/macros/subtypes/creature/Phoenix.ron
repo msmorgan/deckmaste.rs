@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Phoenix",
-    spelling: "Phoenix",
-    grammar: Noun(singular: "Phoenix", plural: Unavailable),
-)
-

@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "SpellMastery",
-    spelling: "Spell mastery",
-    grammar: FixedTerm(surface: "Spell mastery"),
-)

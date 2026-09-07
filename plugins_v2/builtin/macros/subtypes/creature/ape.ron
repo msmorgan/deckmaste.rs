@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "ape",
+    spelling: "Ape",
+    grammar: Noun(singular: "Ape", plural: Unavailable),
+)
+

@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "TemptingOffer",
-    spelling: "Tempting offer",
-    grammar: FixedTerm(surface: "Tempting offer"),
-)

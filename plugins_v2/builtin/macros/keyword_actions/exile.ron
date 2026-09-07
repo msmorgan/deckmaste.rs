@@ -1,0 +1,21 @@
+// "Exile [object]" [CR#701.13a]: move it to the exile zone from wherever it is.
+// The deed names no zone of its own, so the patient may be anywhere. Lean
+// `exile`.
+KeywordAction(
+    name: "exile",
+    params: [Subject],
+    spelling: "exile",
+    grammar: Verb(
+        bare: "exile",
+        participle: "exiled",
+        frame_set: Custom(frames: [
+            [ObjectNounPhrase],
+            [ObjectNounPhrase, PredicativeComplement],
+        ]),
+    ),
+    body: Enact(
+        verb: Action(label: "Exile"),
+        instruction: Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
+        agent: None,
+    ),
+)

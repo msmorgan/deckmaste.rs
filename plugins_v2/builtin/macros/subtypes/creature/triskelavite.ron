@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "triskelavite",
+    spelling: "Triskelavite",
+    grammar: Noun(singular: "Triskelavite", plural: Unavailable),
+)
+

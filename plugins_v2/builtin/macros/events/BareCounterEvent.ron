@@ -1,7 +1,0 @@
-// "counters are put on / removed from <subject>", the kind unsaid.
-(
-    name: "BareCounterEvent",
-    kinds: [GameEvent],
-    params: {"move": CounterMove, "batch": CounterBatch, "subject": NounPhrase},
-    body: CounterEvent(Param(move), None, Param(subject), Param(batch), None, false),
-)

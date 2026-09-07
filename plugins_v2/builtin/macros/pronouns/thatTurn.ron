@@ -1,0 +1,7 @@
+// "that turn"
+(
+    name: "thatTurn",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(ThatTurn, One, Whole),
+)

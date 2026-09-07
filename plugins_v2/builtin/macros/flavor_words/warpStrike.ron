@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "warpStrike",
+    spelling: "Warp-Strike",
+    grammar: FixedTerm(surface: "Warp-Strike"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FirstContact",
-    spelling: "First Contact",
-    grammar: FixedTerm(surface: "First Contact"),
-)

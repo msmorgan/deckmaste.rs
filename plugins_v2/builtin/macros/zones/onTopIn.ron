@@ -1,0 +1,6 @@
+(
+    name: "onTopIn",
+    kinds: [ZoneExpr],
+    params: {"arrangement": Arrangement},
+    body: Library(OneEnd(end: Top), Param(arrangement), None, Bare),
+)

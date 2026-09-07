@@ -24,12 +24,12 @@ SingleFaced(face: (
                 timing: None,
                 limit: None,
                 intervening: None,
-                instruction: Destroy(Described(
+                instruction: destroy(Described(
                     determiner: Target(quantity: Range(low: 1, high: 1)),
                     predicate: HasType(type: Artifact),
                 )),
             ),
-            Evoke(Mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
+            evoke(Mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
         ],
     ),
 ))

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Scientist",
-    spelling: "Scientist",
-    grammar: Noun(singular: "Scientist", plural: Unavailable),
-)
-

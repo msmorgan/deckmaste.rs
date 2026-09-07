@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Porcupine",
-    spelling: "Porcupine",
-    grammar: Noun(singular: "Porcupine", plural: Unavailable),
-)
-

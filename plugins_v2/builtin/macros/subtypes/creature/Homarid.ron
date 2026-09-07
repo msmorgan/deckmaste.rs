@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Homarid",
-    spelling: "Homarid",
-    grammar: Noun(singular: "Homarid", plural: Unavailable),
-)
-

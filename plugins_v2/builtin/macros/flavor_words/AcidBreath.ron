@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AcidBreath",
-    spelling: "Acid Breath",
-    grammar: FixedTerm(surface: "Acid Breath"),
-)

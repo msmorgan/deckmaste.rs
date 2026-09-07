@@ -1,0 +1,22 @@
+// "meld <subject> into <name>" [CR#701.42a]: combine two specific permanents
+// you control into a single melded permanent. Lean `meldInto`; its
+// `agent : Option NounPhrase := none` stays a fixed `agent: None` since no
+// caller in this family needs it written.
+KeywordAction(
+    name: "meld",
+    params: [Subject, String],
+    spelling: "meld",
+    grammar: Verb(
+        bare: "meld",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Meld"),
+        instruction: Move(
+            subject: Param(0),
+            to: Zone(zone: Battlefield, scope: Bare),
+            riders: [EntersMelded(into: Param(1))],
+        ),
+        agent: None,
+    ),
+)

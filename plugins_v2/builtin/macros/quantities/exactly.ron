@@ -1,0 +1,6 @@
+(
+    name: "exactly",
+    kinds: [Quantity],
+    params: {"n": Nat},
+    body: Range(Param(n), Param(n)),
+)

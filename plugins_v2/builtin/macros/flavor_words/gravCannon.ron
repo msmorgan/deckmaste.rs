@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "gravCannon",
+    spelling: "Grav-cannon",
+    grammar: FixedTerm(surface: "Grav-cannon"),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "wraith",
+    spelling: "Wraith",
+    grammar: Noun(singular: "Wraith"),
+)
+

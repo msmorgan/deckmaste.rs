@@ -1,6 +1,0 @@
-(
-    name: "CreatureType",
-    kinds: [Subtype],
-    params: {"label": String},
-    body: Of(Creature, Param(label)),
-)

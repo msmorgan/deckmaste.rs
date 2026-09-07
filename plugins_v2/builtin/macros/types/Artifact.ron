@@ -1,7 +1,0 @@
-Type(
-    name: "Artifact",
-    spelling: "artifact",
-    grammar: Noun(singular: "artifact"),
-    params: [],
-    body: TypeDef(name: "Artifact", permanent_type: true),
-)

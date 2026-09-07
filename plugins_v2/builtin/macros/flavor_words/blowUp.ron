@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "blowUp",
+    spelling: "Blow Up",
+    grammar: FixedTerm(surface: "Blow Up"),
+)

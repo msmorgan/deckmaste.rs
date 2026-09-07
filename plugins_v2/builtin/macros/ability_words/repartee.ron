@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "repartee",
+    spelling: "Repartee",
+    grammar: FixedTerm(surface: "Repartee"),
+)

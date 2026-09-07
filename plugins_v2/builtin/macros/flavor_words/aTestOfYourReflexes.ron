@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "aTestOfYourReflexes",
+    spelling: "A Test of Your Reflexes!",
+    grammar: FixedTerm(surface: "A Test of Your Reflexes!"),
+)

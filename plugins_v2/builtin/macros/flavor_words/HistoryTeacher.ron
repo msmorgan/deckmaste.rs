@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "HistoryTeacher",
-    spelling: "History Teacher",
-    grammar: FixedTerm(surface: "History Teacher"),
-)

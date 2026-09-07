@@ -1,0 +1,7 @@
+CounterKind(
+    name: "sporeCounter",
+    params: [],
+    spelling: "spore",
+    grammar: FixedTerm(surface: "spore"),
+    body: CounterFacts(label: "Spore", holder: Object),
+)

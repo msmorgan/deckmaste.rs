@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            SplitSecond,
+            splitSecond,
             Spell(
                 timing: None,
                 instruction: Enact(

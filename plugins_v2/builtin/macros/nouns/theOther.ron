@@ -1,0 +1,7 @@
+// "the other pile": the one remaining after a choice among two.
+(
+    name: "theOther",
+    kinds: [NounPhrase],
+    params: {"kind": Kind},
+    body: TheRest(Param(kind), One),
+)

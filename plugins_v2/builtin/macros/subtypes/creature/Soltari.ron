@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Soltari",
-    spelling: "Soltari",
-    grammar: Noun(singular: "Soltari", plural: Unavailable),
-)
-

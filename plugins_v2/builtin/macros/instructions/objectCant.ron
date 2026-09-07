@@ -1,0 +1,7 @@
+// "<subject> can't be <deed>ed"
+(
+    name: "objectCant",
+    kinds: [StaticSpec],
+    params: {"deed": Deed, "subject": NounPhrase},
+    body: DeonticRule(Param(subject), Forbid, [Param(deed)], Patient, None, NoPatient, None, NoRider),
+)

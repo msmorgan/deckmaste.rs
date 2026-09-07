@@ -1,7 +1,0 @@
-// "if it's a <p>"
-(
-    name: "ItsA",
-    kinds: [Condition],
-    params: {"p": Predicate},
-    body: Matches(It, Param(p)),
-)

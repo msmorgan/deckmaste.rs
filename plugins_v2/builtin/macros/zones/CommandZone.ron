@@ -1,7 +1,0 @@
-// "the command zone", scoped to nobody.
-(
-    name: "CommandZone",
-    kinds: [ZoneExpr],
-    params: [],
-    body: Zone(Command, Bare),
-)

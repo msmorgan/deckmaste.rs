@@ -1,0 +1,6 @@
+CounterKind(
+    name: "floodCounter",
+    params: [],
+    spelling: "flood",
+    body: CounterFacts(label: "Flood", holder: Object),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Enchantment,
-    name: "Curse",
-    spelling: "Curse",
-    grammar: Noun(singular: "Curse"),
-)
-

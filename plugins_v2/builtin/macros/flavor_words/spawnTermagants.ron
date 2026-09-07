@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "spawnTermagants",
+    spelling: "Spawn Termagants",
+    grammar: FixedTerm(surface: "Spawn Termagants"),
+)

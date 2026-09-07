@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Capybara",
-    spelling: "Capybara",
-    grammar: Noun(singular: "Capybara", plural: Unavailable),
-)
-

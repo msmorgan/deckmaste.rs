@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "broodTelepathy",
+    spelling: "Brood Telepathy",
+    grammar: FixedTerm(surface: "Brood Telepathy"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UnrivaledLethality",
-    spelling: "Unrivaled Lethality",
-    grammar: FixedTerm(surface: "Unrivaled Lethality"),
-)

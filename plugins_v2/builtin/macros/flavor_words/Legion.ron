@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Legion",
-    spelling: "Legion",
-    grammar: FixedTerm(surface: "Legion"),
-)

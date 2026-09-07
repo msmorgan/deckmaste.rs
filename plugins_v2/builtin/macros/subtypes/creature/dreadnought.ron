@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "dreadnought",
+    spelling: "Dreadnought",
+    grammar: Noun(singular: "Dreadnought", plural: Unavailable),
+)
+

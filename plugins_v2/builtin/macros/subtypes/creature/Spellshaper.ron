@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Spellshaper",
-    spelling: "Spellshaper",
-    grammar: Noun(singular: "Spellshaper", plural: Unavailable),
-)
-

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "timeCompression",
+    spelling: "Time Compression",
+    grammar: FixedTerm(surface: "Time Compression"),
+)

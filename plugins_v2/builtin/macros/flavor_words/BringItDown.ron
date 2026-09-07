@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BringItDown",
-    spelling: "Bring it Down!",
-    grammar: FixedTerm(surface: "Bring it Down!"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BlowUp",
-    spelling: "Blow Up",
-    grammar: FixedTerm(surface: "Blow Up"),
-)

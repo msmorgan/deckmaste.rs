@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "theLastCenturion",
+    spelling: "The Last Centurion",
+    grammar: FixedTerm(surface: "The Last Centurion"),
+)

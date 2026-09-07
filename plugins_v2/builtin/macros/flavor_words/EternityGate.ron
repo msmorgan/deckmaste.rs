@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EternityGate",
-    spelling: "Eternity Gate",
-    grammar: FixedTerm(surface: "Eternity Gate"),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Orb",
-    spelling: "Orb",
-    grammar: Noun(singular: "Orb", plural: Unavailable),
-)
-

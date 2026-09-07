@@ -1,0 +1,7 @@
+Subtype(
+    category: Artifact,
+    name: "food",
+    spelling: "Food",
+    grammar: Noun(singular: "Food"),
+)
+

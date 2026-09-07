@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "phoenix",
+    spelling: "Phoenix",
+    grammar: Noun(singular: "Phoenix", plural: Unavailable),
+)
+

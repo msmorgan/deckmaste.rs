@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "ox",
+    spelling: "Ox",
+    grammar: Noun(singular: "Ox", plural: "Oxen"),
+)
+

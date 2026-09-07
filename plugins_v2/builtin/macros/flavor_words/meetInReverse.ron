@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "meetInReverse",
+    spelling: "Meet in Reverse",
+    grammar: FixedTerm(surface: "Meet in Reverse"),
+)

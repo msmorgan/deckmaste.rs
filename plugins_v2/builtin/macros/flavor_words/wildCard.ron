@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "wildCard",
+    spelling: "Wild Card",
+    grammar: FixedTerm(surface: "Wild Card"),
+)

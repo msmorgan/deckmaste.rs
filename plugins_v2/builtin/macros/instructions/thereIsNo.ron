@@ -1,0 +1,7 @@
+// "if there is no <designation>"
+(
+    name: "thereIsNo",
+    kinds: [Condition],
+    params: {"designation": DesignationLabel},
+    body: NoHolder(designation: Param(designation)),
+)

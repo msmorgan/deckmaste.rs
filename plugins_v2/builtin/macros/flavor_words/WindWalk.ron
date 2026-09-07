@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "WindWalk",
-    spelling: "Wind Walk",
-    grammar: FixedTerm(surface: "Wind Walk"),
-)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "reveal",
+    spelling: "Reveal",
+    grammar: FixedTerm(surface: "Reveal"),
+)

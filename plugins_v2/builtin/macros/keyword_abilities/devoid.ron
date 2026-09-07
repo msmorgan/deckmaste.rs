@@ -1,0 +1,22 @@
+KeywordAbility(
+    name: "devoid",
+    params: [],
+    spelling: "devoid",
+    grammar: FixedKeyword(
+        surface: "devoid",
+    ),
+    // "Devoid" means "This object is colorless." [CR#702.114a] A
+    // characteristic-defining ability, so it is static [CR#604.3].
+    body: Keyword(
+        keyword: "Devoid",
+        params: [],
+        body: [
+            Static(
+                spec: CharacteristicChange(
+                    subject: This,
+                    edits: [Colors(op: Sets, colors: r#Some(colors: []))],
+                ),
+            ),
+        ],
+    ),
+)

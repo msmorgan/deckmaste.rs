@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "devourerOfSouls",
+    spelling: "Devourer of Souls",
+    grammar: FixedTerm(surface: "Devourer of Souls"),
+)

@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "vivid",
+    spelling: "Vivid",
+    grammar: FixedTerm(surface: "Vivid"),
+)

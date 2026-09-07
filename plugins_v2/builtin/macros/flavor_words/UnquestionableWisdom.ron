@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UnquestionableWisdom",
-    spelling: "Unquestionable Wisdom",
-    grammar: FixedTerm(surface: "Unquestionable Wisdom"),
-)

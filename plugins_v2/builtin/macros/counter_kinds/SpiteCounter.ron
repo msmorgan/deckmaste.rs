@@ -1,6 +1,0 @@
-CounterKind(
-    name: "SpiteCounter",
-    params: [],
-    spelling: "spite",
-    body: CounterFacts(label: "Spite", holder: Object),
-)

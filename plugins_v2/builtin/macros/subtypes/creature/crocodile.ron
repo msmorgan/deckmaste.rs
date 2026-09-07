@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "crocodile",
+    spelling: "Crocodile",
+    grammar: Noun(singular: "Crocodile", plural: Unavailable),
+)
+

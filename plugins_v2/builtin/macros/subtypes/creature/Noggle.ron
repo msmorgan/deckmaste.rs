@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Noggle",
-    spelling: "Noggle",
-    grammar: Noun(singular: "Noggle", plural: Unavailable),
-)
-

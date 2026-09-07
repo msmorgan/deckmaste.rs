@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Phaeron",
-    spelling: "Phaeron",
-    grammar: FixedTerm(surface: "Phaeron"),
-)

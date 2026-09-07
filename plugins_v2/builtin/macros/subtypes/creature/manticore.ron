@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "manticore",
+    spelling: "Manticore",
+    grammar: Noun(singular: "Manticore", plural: Unavailable),
+)
+

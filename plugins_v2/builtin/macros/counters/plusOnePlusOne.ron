@@ -1,0 +1,6 @@
+(
+    name: "plusOnePlusOne",
+    kinds: [CounterKind],
+    params: [],
+    body: Boost(Up(amount: 1), Up(amount: 1)),
+)

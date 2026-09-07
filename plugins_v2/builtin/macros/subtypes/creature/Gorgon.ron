@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Gorgon",
-    spelling: "Gorgon",
-    grammar: Noun(singular: "Gorgon"),
-)
-

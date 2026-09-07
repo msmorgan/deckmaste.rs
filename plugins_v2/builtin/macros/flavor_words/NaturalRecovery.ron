@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "NaturalRecovery",
-    spelling: "Natural Recovery",
-    grammar: FixedTerm(surface: "Natural Recovery"),
-)

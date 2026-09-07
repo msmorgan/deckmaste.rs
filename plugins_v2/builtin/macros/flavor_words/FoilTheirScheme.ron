@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FoilTheirScheme",
-    spelling: "Foil Their Scheme",
-    grammar: FixedTerm(surface: "Foil Their Scheme"),
-)

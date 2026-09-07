@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "centaur",
+    spelling: "Centaur",
+    grammar: Noun(singular: "Centaur", plural: Unavailable),
+)
+

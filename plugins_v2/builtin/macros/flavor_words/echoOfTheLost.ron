@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "echoOfTheLost",
+    spelling: "Echo of the Lost",
+    grammar: FixedTerm(surface: "Echo of the Lost"),
+)

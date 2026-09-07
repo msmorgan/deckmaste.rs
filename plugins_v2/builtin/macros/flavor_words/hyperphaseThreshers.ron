@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "hyperphaseThreshers",
+    spelling: "Hyperphase Threshers",
+    grammar: FixedTerm(surface: "Hyperphase Threshers"),
+)

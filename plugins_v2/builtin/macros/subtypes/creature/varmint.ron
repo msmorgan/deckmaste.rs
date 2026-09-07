@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "varmint",
+    spelling: "Varmint",
+    grammar: Noun(singular: "Varmint", plural: Unavailable),
+)
+

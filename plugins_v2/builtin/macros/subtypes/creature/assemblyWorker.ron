@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "assemblyWorker",
+    spelling: "Assembly-Worker",
+    grammar: Noun(singular: "Assembly-Worker", plural: Unavailable),
+)
+

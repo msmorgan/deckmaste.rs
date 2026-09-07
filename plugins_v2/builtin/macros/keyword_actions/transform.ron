@@ -1,0 +1,17 @@
+// "Transform [permanent]" [CR#701.27a]: turn it over so that its other face is
+// up. Only a permanent represented by a double-faced token or card can
+// transform [CR#701.27a,701.27c]. Lean `transform`.
+KeywordAction(
+    name: "transform",
+    params: [Subject],
+    spelling: "transform",
+    grammar: Verb(
+        bare: "transform",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Transform"),
+        instruction: TurnOver(subject: Param(0)),
+        agent: None,
+    ),
+)

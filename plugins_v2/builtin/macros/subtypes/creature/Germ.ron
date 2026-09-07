@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Germ",
-    spelling: "Germ",
-    grammar: Noun(singular: "Germ", plural: Unavailable),
-)
-

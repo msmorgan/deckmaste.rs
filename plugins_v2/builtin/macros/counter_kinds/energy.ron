@@ -1,0 +1,10 @@
+// Energy counters ([CR#122.1] — counters on players): PLAYER-borne, a pure
+// resource. They do nothing but accumulate and be paid ({E} costs); no
+// conferred bearing.
+CounterKind(
+    name: "energy",
+    params: [],
+    spelling: "energy",
+    grammar: FixedTerm(surface: "energy"),
+    body: CounterFacts(label: "Energy", holder: Player),
+)

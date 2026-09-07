@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Kree",
-    spelling: "Kree",
-    grammar: Noun(singular: "Kree", plural: Unavailable),
-)
-

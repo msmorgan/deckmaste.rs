@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Tiefling",
-    spelling: "Tiefling",
-    grammar: Noun(singular: "Tiefling"),
-)
-

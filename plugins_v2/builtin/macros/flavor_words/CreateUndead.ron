@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "CreateUndead",
-    spelling: "Create Undead",
-    grammar: FixedTerm(surface: "Create Undead"),
-)

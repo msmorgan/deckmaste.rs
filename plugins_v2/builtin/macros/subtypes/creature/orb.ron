@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "orb",
+    spelling: "Orb",
+    grammar: Noun(singular: "Orb", plural: Unavailable),
+)
+

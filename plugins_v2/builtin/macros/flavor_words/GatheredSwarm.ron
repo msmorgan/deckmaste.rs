@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GatheredSwarm",
-    spelling: "Gathered Swarm",
-    grammar: FixedTerm(surface: "Gathered Swarm"),
-)

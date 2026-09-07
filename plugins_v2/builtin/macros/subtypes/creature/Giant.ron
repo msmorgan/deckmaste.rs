@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Giant",
-    spelling: "Giant",
-    grammar: Noun(singular: "Giant"),
-)
-

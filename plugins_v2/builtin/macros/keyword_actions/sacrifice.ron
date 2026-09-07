@@ -1,0 +1,18 @@
+// "[Player] sacrifices [permanent]" [CR#701.21a]: its controller moves it from
+// the battlefield directly to its owner's graveyard. Sacrificing is not
+// destroying, so nothing that replaces destruction sees it. Lean `sacrifice`.
+KeywordAction(
+    name: "sacrifice",
+    params: [Subject, Subject],
+    spelling: "sacrifice",
+    grammar: Verb(
+        bare: "sacrifice",
+        participle: "sacrificed",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Sacrifice"),
+        instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
+        agent: Param(1),
+    ),
+)

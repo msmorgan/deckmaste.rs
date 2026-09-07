@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "qu",
+    spelling: "Qu",
+    grammar: Noun(singular: "Qu", plural: Unavailable),
+)
+

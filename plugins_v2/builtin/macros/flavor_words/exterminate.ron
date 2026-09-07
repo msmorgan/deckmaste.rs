@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "exterminate",
+    spelling: "Exterminate!",
+    grammar: FixedTerm(surface: "Exterminate!"),
+)

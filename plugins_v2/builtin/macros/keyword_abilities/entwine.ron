@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "entwine",
+    params: [Cost],
+    spelling: "entwine",
+    grammar: FixedKeyword(
+        surface: "entwine",
+    ),
+    // STOP. "Entwine [cost]" means "You may choose all modes of this spell instead of
+    // just the number specified" [CR#702.42a]. `Instruction::ChooseModes` carries the
+    // quantity on the spell's own clause; no constructor lets a separate static
+    // rewrite that quantity.
+    body: Keyword(keyword: "Entwine", params: [Cost(cost: Param(0))], body: []),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "faerie",
+    spelling: "Faerie",
+    grammar: Noun(singular: "Faerie"),
+)
+

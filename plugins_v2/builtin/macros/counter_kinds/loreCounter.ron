@@ -1,0 +1,15 @@
+// Lore counters ([CR#714.3] — Sagas use lore counters to track their
+// progress; counters in general [CR#122.1]): a MARKER counter with no
+// conferred bearing of its own. Its only role is to be counted — chapter
+// abilities gate on the lore total crossing their threshold
+// ([CR#714.2b], read by `CounterCount(This, LoreCounter)` under
+// `Crossed`), and the final-chapter sacrifice compares it to the final
+// chapter number ([CR#714.4]). Like `AgeCounter`, the CR gives lore
+// counters no behavior beyond being counted.
+CounterKind(
+    name: "loreCounter",
+    params: [],
+    spelling: "lore",
+    grammar: FixedTerm(surface: "lore"),
+    body: CounterFacts(label: "Lore", holder: Object),
+)

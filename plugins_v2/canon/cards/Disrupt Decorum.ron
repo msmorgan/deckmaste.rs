@@ -11,7 +11,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Goad(Described(
+                instruction: goad(Described(
                     determiner: All,
                     predicate: And(conjuncts: [
                         HasType(type: Creature),

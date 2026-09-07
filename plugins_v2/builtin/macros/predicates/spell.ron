@@ -1,0 +1,7 @@
+// "spell": an object on the stack that is not an ability [CR#112.1,113.1].
+(
+    name: "spell",
+    kinds: [Predicate],
+    params: [],
+    body: And(conjuncts: [InZone(zone: stack), Not(predicate: AbilityHead(class: AnyOnStack))]),
+)

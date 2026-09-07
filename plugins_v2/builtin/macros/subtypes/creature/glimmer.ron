@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "glimmer",
+    spelling: "Glimmer",
+    grammar: Noun(singular: "Glimmer"),
+)
+

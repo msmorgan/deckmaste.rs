@@ -21,21 +21,21 @@ struct ExpectedType {
 
 const EXPECTED_TYPES: [ExpectedType; 10] = [
     ExpectedType {
-        name: "Artifact",
+        name: "artifact",
         singular: "artifact",
         plural: Some("artifacts"),
         permanent_type: true,
         body: r#"TypeDef(name:"Artifact",permanent_type:true)"#,
     },
     ExpectedType {
-        name: "Battle",
+        name: "battle",
         singular: "battle",
         plural: Some("battles"),
         permanent_type: true,
         body: r#"TypeDef(name:"Battle",permanent_type:true)"#,
     },
     ExpectedType {
-        name: "Creature",
+        name: "creature",
         singular: "creature",
         plural: Some("creatures"),
         permanent_type: true,
@@ -51,39 +51,39 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         )"#,
     },
     ExpectedType {
-        name: "Dungeon",
+        name: "dungeon",
         singular: "dungeon",
         plural: Some("dungeons"),
         permanent_type: false,
         body: r#"TypeDef(name:"Dungeon",permanent_type:false)"#,
     },
     ExpectedType {
-        name: "Enchantment",
+        name: "enchantment",
         singular: "enchantment",
         plural: Some("enchantments"),
         permanent_type: true,
         body: r#"TypeDef(name:"Enchantment",permanent_type:true)"#,
     },
     ExpectedType {
-        name: "Instant",
+        name: "instant",
         singular: "instant",
         plural: Some("instants"),
         permanent_type: false,
         body: r#"TypeDef(
             name:"Instant",
             permanent_type:false,
-            confers:[Static(May(Cast(what:Ref(This),window:InstantSpeed)))]
+            confers:[Static(May(cast(what:Ref(This),window:InstantSpeed)))]
         )"#,
     },
     ExpectedType {
-        name: "Kindred",
+        name: "kindred",
         singular: "kindred",
         plural: None,
         permanent_type: false,
         body: r#"TypeDef(name:"Kindred",permanent_type:false)"#,
     },
     ExpectedType {
-        name: "Land",
+        name: "land",
         singular: "land",
         plural: Some("lands"),
         permanent_type: true,
@@ -94,14 +94,14 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         )"#,
     },
     ExpectedType {
-        name: "Planeswalker",
+        name: "planeswalker",
         singular: "planeswalker",
         plural: Some("planeswalkers"),
         permanent_type: true,
         body: r#"TypeDef(name:"Planeswalker",permanent_type:true)"#,
     },
     ExpectedType {
-        name: "Sorcery",
+        name: "sorcery",
         singular: "sorcery",
         plural: Some("sorceries"),
         permanent_type: false,
@@ -110,7 +110,7 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
 ];
 
 const CR_TYPES_OUTSIDE_MODELED_TYPE_LINE: [&str; 5] =
-    ["Conspiracy", "Phenomenon", "Plane", "Scheme", "Vanguard"];
+    ["conspiracy", "phenomenon", "plane", "scheme", "vanguard"];
 
 fn compact_ron(source: &str) -> String {
     let source = ron::value::RawValue::from_ron(source)

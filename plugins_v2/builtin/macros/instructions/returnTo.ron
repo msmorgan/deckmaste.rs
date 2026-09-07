@@ -1,0 +1,7 @@
+// "return <subject> to <zone>"
+(
+    name: "returnTo",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "destination": ZoneExpr, "riders": TokenRiders, "agent": Default(NounPhrase, None)},
+    body: Enact(verb: Core(deed: Return), instruction: Move(Param(subject), Param(destination), Param(riders)), agent: Param(agent)),
+)

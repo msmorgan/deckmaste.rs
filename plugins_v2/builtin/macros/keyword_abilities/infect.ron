@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "infect",
+    params: [],
+    spelling: "infect",
+    grammar: FixedKeyword(
+        surface: "infect",
+    ),
+    // STOP. Infect substitutes the RESULT of damage — poison counters for life
+    // loss, -1/-1 counters for marked damage [CR#702.90b,702.90c]. That substitution
+    // is the plugin's `rules/damage` table (`DamageResultRule`); `StaticSpec`'s
+    // `DamageRule` only prevents, redirects or scales.
+    body: Keyword(keyword: "Infect", params: [], body: []),
+)

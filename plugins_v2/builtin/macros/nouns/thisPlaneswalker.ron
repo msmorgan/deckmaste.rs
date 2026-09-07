@@ -1,0 +1,6 @@
+(
+    name: "thisPlaneswalker",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Planeswalker, This, None),
+)

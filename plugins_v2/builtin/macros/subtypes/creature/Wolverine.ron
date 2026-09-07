@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Wolverine",
-    spelling: "Wolverine",
-    grammar: Noun(singular: "Wolverine", plural: Unavailable),
-)
-

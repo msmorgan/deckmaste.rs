@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Nephilim",
-    spelling: "Nephilim",
-    grammar: Noun(singular: "Nephilim", plural: Unavailable),
-)
-

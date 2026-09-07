@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DrawArcanum",
-    spelling: "Draw Arcanum",
-    grammar: FixedTerm(surface: "Draw Arcanum"),
-)

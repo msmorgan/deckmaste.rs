@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Efreet",
-    spelling: "Efreet",
-    grammar: Noun(singular: "Efreet"),
-)
-

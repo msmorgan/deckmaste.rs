@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "smashRelics",
+    spelling: "Smash Relics",
+    grammar: FixedTerm(surface: "Smash Relics"),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "leviathan",
+    spelling: "Leviathan",
+    grammar: Noun(singular: "Leviathan"),
+)
+

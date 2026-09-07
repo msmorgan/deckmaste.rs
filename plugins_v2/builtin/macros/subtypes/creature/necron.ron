@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "necron",
+    spelling: "Necron",
+    grammar: Noun(singular: "Necron", plural: Unavailable),
+)
+

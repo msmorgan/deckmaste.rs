@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "royalGuard",
+    spelling: "Royal Guard",
+    grammar: FixedTerm(surface: "Royal Guard"),
+)

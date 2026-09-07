@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "hiveMind",
+    spelling: "Hive Mind",
+    grammar: FixedTerm(surface: "Hive Mind"),
+)

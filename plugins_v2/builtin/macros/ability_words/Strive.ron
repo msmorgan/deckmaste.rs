@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Strive",
-    spelling: "Strive",
-    grammar: FixedTerm(surface: "Strive"),
-)

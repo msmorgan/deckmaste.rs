@@ -1,0 +1,7 @@
+// "if it's a <p> card": the card slot's occupant, tested.
+(
+    name: "itsACard",
+    kinds: [Condition],
+    params: {"p": Predicate},
+    body: Matches(itCard, Param(p)),
+)

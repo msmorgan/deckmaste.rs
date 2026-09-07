@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Jellyfish",
-    spelling: "Jellyfish",
-    grammar: Noun(singular: "Jellyfish", plural: Unavailable),
-)
-

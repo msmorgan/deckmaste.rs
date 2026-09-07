@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Stowage",
-    spelling: "Stowage",
-    grammar: FixedTerm(surface: "Stowage"),
-)

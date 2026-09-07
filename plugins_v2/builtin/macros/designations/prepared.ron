@@ -1,0 +1,10 @@
+// Prepared is a permanent designation [CR#722.3a].
+Designation(
+    name: "prepared",
+    params: [],
+    spelling: "prepared",
+    grammar: FixedTerm(surface: "prepared"),
+    body: [
+        DesignationFacts(label: "prepared", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
+)

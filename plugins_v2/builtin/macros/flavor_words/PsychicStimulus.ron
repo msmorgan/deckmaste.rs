@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "PsychicStimulus",
-    spelling: "Psychic Stimulus",
-    grammar: FixedTerm(surface: "Psychic Stimulus"),
-)

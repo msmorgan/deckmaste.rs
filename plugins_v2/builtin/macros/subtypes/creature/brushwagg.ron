@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "brushwagg",
+    spelling: "Brushwagg",
+    grammar: Noun(singular: "Brushwagg", plural: Unavailable),
+)
+

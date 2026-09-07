@@ -1,7 +1,0 @@
-// "the number of times <subject>'s <keyword> cost was paid"
-(
-    name: "TimesPaid",
-    kinds: [Amount],
-    params: {"which": PaidCostName, "subject": NounPhrase},
-    body: Paid(TimesPaid(which: Param(which)), Param(subject)),
-)

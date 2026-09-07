@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "echo",
+    params: [Cost],
+    spelling: "echo",
+    grammar: FixedKeyword(
+        surface: "echo",
+    ),
+    // STOP. Echo's intervening if is "if this permanent came under your control
+    // since the beginning of your last upkeep" [CR#702.30a]. `Lookback` has no
+    // value for that window.
+    body: Keyword(keyword: "Echo", params: [Cost(cost: Param(0))], body: []),
+)

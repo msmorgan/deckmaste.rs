@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "wolf",
+    spelling: "Wolf",
+    grammar: Noun(singular: "Wolf", plural: "Wolves"),
+)
+

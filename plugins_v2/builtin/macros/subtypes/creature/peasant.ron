@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "peasant",
+    spelling: "Peasant",
+    grammar: Noun(singular: "Peasant", plural: Unavailable),
+)
+

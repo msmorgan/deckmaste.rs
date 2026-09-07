@@ -1,0 +1,15 @@
+KeywordAbility(
+    name: "maxSpeed",
+    params: [Ability],
+    spelling: "max speed",
+    grammar: FixedKeyword(
+        surface: "max speed",
+    ),
+    // STOP. "Max speed — [Ability]" means "As long as your speed is 4, this object
+    // has '[Ability].'" [CR#702.178a] Two things are missing at once: `KeywordParam`
+    // has no `Ability` variant to forward the declaration's argument with (the cause
+    // Boast, Gift and Infinity share), and a player's speed [CR#702.179b] is a
+    // player-level value no `Amount` projects — `PlayerStat` has only `LifeTotal`
+    // and `StartingLifeTotal`.
+    body: Keyword(keyword: "MaxSpeed", params: [], body: []),
+)

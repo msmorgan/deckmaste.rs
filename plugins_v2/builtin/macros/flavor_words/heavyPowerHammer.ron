@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "heavyPowerHammer",
+    spelling: "Heavy Power Hammer",
+    grammar: FixedTerm(surface: "Heavy Power Hammer"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Exterminate",
-    spelling: "Exterminate!",
-    grammar: FixedTerm(surface: "Exterminate!"),
-)

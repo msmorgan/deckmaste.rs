@@ -1,0 +1,6 @@
+(
+    name: "thisVehicle",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Artifact, This, artifactType(label: "Vehicle")),
+)

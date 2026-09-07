@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Zombie")],
         power: Lit(value: 2),
         toughness: Lit(value: 1),
-        text: [Unearth(Mana(cost: [Simple(symbol: Specific(color: Of(color: Black)))]))],
+        text: [unearth(Mana(cost: [Simple(symbol: Specific(color: Of(color: Black)))]))],
     ),
 ))

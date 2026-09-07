@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "traceAether",
+    spelling: "Trace Aether",
+    grammar: FixedTerm(surface: "Trace Aether"),
+)

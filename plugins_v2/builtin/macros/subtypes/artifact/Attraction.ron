@@ -1,7 +1,0 @@
-Subtype(
-    category: Artifact,
-    name: "Attraction",
-    spelling: "Attraction",
-    grammar: Noun(singular: "Attraction"),
-)
-

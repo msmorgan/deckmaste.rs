@@ -1,0 +1,7 @@
+// "search <whose>'s graveyard, hand, and library for <q> <p>"
+(
+    name: "searchZonesOf",
+    kinds: [Instruction],
+    params: {"whose": NounPhrase, "quantity": Quantity, "p": Predicate, "agent": Default(NounPhrase, You)},
+    body: Search(scope: SomeZones(Param(whose), [Graveyard, Hand, Library]), quantity: Param(quantity), predicate: Param(p), agent: Param(agent)),
+)

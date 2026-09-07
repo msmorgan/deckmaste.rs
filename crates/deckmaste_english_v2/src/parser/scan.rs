@@ -1742,7 +1742,7 @@ mod tests {
         .into_iter()
         .filter(|declaration| {
             declaration.identity().kind() == DeclarationKind::KeywordAction
-                && matches!(declaration.identity().name(), "Destroy" | "Connive")
+                && matches!(declaration.identity().name(), "destroy" | "connive")
         })
         .collect::<Vec<_>>();
         if !declarations.iter().any(|declaration| {
@@ -1909,10 +1909,10 @@ mod tests {
 
     #[test]
     fn generated_declaration_scan_isolated_to_active_environment() {
-        let scry = declaration_environment("Scry", "scry", Some("scries"));
-        let connive = declaration_environment("Connive", "connive", None);
+        let scry = declaration_environment("scry", "scry", Some("scries"));
+        let connive = declaration_environment("connive", "connive", None);
         let context = context("Context Card");
-        let terminal = declaration_terminal("Scry");
+        let terminal = declaration_terminal("scry");
 
         let scan = |environment: &ParserEnvironment, text: &str| {
             let input = ScanInput {
@@ -1934,7 +1934,7 @@ mod tests {
         assert_eq!(
             scry_matches[0].value,
             Leaf::Declaration(DeclarationLeaf {
-                id: DeclarationId::new(DeclarationKind::KeywordAction, "Scry"),
+                id: DeclarationId::new(DeclarationKind::KeywordAction, "scry"),
                 feature: SurfaceFeature::PLAIN,
                 onset: Onset::Consonant,
             })
@@ -1956,15 +1956,15 @@ mod tests {
     #[test]
     fn parser_instances_route_declaration_scans_through_their_own_environment() {
         let scry = Parser::new(parser_declaration_environment(
-            "Scry",
+            "scry",
             "scry",
             Some("scries"),
         ))
         .expect("required declarations are present");
-        let connive = Parser::new(parser_declaration_environment("Connive", "connive", None))
+        let connive = Parser::new(parser_declaration_environment("connive", "connive", None))
             .expect("required declarations are present");
         let context = context("Context Card");
-        let terminal = declaration_terminal("Scry");
+        let terminal = declaration_terminal("scry");
 
         let scry_matches = scry.test_only_scan_terminal("Scry", &context, terminal, 0);
         assert_eq!(scry_matches.len(), 1);
@@ -2828,11 +2828,11 @@ mod tests {
             ),
             (
                 Leaf::Declaration(DeclarationLeaf {
-                    id: DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+                    id: DeclarationId::new(DeclarationKind::KeywordAction, "destroy"),
                     feature: SurfaceFeature::PLAIN,
                     onset: Onset::Consonant,
                 }),
-                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Inflectional(Plain), onset: Consonant })",
+                "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"destroy\" }, feature: Inflectional(Plain), onset: Consonant })",
             ),
             (
                 Leaf::IntransitiveVerb {
@@ -2840,7 +2840,7 @@ mod tests {
                         &canonical_test_environment(),
                         crate::environment::VerbInventoryRef::Declaration(DeclarationId::new(
                             DeclarationKind::KeywordAction,
-                            "Connive",
+                            "connive",
                         )),
                     )
                     .expect("the canonical environment declares intransitive Connive"),
@@ -2849,7 +2849,7 @@ mod tests {
                         crate::constructions::InflectionalForm::ThirdPersonSingularPresent,
                     onset: Onset::Consonant,
                 },
-                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, concord_class: ThirdPersonSingular, inflectional_form: ThirdPersonSingularPresent, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"connive\" }) }, concord_class: ThirdPersonSingular, inflectional_form: ThirdPersonSingularPresent, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),
@@ -3150,7 +3150,7 @@ mod tests {
     #[test]
     fn structural_trace_declaration_noun_value_label_is_pinned() {
         let environment = canonical_test_environment();
-        let id = DeclarationId::new(DeclarationKind::Type, "Creature");
+        let id = DeclarationId::new(DeclarationKind::Type, "creature");
         assert_eq!(
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
@@ -3170,7 +3170,7 @@ mod tests {
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
+            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"creature\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

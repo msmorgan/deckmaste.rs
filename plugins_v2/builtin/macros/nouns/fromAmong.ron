@@ -1,0 +1,7 @@
+// "N <p> from among <group>"
+(
+    name: "fromAmong",
+    kinds: [NounPhrase],
+    params: {"quantity": Quantity, "p": Predicate, "group": NounPhrase},
+    body: SomeOf(Counted(quantity: Param(quantity)), Param(p), Param(group)),
+)

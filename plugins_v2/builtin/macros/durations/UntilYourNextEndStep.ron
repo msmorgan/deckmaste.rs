@@ -1,6 +1,0 @@
-(
-    name: "UntilYourNextEndStep",
-    kinds: [Duration],
-    params: [],
-    body: Until(end: StartOf(EndStep, You)),
-)

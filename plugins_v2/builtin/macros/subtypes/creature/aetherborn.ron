@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "aetherborn",
+    spelling: "Aetherborn",
+    grammar: Noun(singular: "Aetherborn", plural: "Aetherborn"),
+)
+

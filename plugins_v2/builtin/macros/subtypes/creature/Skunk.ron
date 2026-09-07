@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Skunk",
-    spelling: "Skunk",
-    grammar: Noun(singular: "Skunk", plural: Unavailable),
-)
-

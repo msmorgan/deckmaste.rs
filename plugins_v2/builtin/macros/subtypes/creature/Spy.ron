@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Spy",
-    spelling: "Spy",
-    grammar: Noun(singular: "Spy", plural: Unavailable),
-)
-

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ColdSnap",
-    spelling: "Cold Snap",
-    grammar: FixedTerm(surface: "Cold Snap"),
-)

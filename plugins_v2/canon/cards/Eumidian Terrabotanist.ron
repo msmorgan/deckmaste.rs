@@ -11,7 +11,7 @@ SingleFaced(face: (
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Insect"), Of(host: Creature, label: "Druid")],
         text: [
-            Landfall(
+            landfall(
                 Triggered(
                     event: ZoneChange(
                         subject: Described(

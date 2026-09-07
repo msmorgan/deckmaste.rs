@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DiamondDust",
-    spelling: "Diamond Dust",
-    grammar: FixedTerm(surface: "Diamond Dust"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "PrinceOfChaos",
-    spelling: "Prince of Chaos",
-    grammar: FixedTerm(surface: "Prince of Chaos"),
-)

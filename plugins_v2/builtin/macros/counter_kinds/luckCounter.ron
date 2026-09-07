@@ -1,0 +1,12 @@
+// Luck counters ([CR#122.1], Chance Encounter): a MARKER counter with no
+// conferred bearing of its own. Like `AgeCounter`/`LoyaltyCounter`/
+// `DefenseCounter`, it does nothing but accumulate — its only role is to be
+// counted (`CounterCount(This, LuckCounter)`, "if this enchantment has ten
+// or more luck counters on it"). No counter-kind subrule effect to model.
+CounterKind(
+    name: "luckCounter",
+    params: [],
+    spelling: "luck",
+    grammar: FixedTerm(surface: "luck"),
+    body: CounterFacts(label: "Luck", holder: Object),
+)

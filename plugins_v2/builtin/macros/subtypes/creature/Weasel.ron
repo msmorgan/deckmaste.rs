@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Weasel",
-    spelling: "Weasel",
-    grammar: Noun(singular: "Weasel", plural: Unavailable),
-)
-

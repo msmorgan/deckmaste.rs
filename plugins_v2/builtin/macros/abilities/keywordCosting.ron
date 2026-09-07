@@ -1,0 +1,7 @@
+// "<keyword> <cost>"
+(
+    name: "keywordCosting",
+    kinds: [Ability],
+    params: {"label": KeywordLabel, "cost": Cost},
+    body: Keyword(Param(label), [Cost(cost: Param(cost))], []),
+)

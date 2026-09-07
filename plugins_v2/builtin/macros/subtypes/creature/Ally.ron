@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Ally",
-    spelling: "Ally",
-    grammar: Noun(singular: "Ally", plural: "Allies"),
-)
-

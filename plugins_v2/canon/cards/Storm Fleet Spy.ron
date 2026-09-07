@@ -10,7 +10,7 @@ SingleFaced(face: (
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
         text: [
-            Raid(
+            raid(
                 Triggered(
                     event: ZoneChange(
                         subject: AsType(type: Creature, subject: This, subtype: None),

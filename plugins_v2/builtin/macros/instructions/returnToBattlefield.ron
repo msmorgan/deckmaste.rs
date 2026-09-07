@@ -1,0 +1,7 @@
+// "return <subject> to the battlefield"
+(
+    name: "returnToBattlefield",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase},
+    body: returnTo(subject: Param(subject), destination: battlefield, riders: []),
+)

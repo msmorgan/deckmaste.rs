@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UltimateJechtShot",
-    spelling: "Ultimate Jecht Shot",
-    grammar: FixedTerm(surface: "Ultimate Jecht Shot"),
-)

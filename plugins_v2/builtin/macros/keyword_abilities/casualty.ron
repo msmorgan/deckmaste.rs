@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "casualty",
+    params: [Amount],
+    spelling: "casualty",
+    grammar: FixedKeyword(
+        surface: "casualty",
+    ),
+    // STOP. Casualty's triggered half says "If the spell has any targets, you may
+    // choose new targets for the copy" [CR#702.153a]. No `Condition` reads "has any
+    // targets": `Predicate::Targets` requires the targeted subject to be named.
+    body: Keyword(keyword: "Casualty", params: [Number(amount: Param(0))], body: []),
+)

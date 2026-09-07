@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Detective",
-    spelling: "Detective",
-    grammar: Noun(singular: "Detective"),
-)
-

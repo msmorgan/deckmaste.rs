@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "strikeADeal",
+    spelling: "Strike a Deal",
+    grammar: FixedTerm(surface: "Strike a Deal"),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "burningChains",
+    spelling: "Burning Chains",
+    grammar: FixedTerm(surface: "Burning Chains"),
+)

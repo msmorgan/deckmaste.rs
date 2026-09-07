@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "hyperfragRound",
+    spelling: "Hyperfrag Round",
+    grammar: FixedTerm(surface: "Hyperfrag Round"),
+)

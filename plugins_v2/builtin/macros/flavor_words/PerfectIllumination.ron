@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "PerfectIllumination",
-    spelling: "Perfect Illumination",
-    grammar: FixedTerm(surface: "Perfect Illumination"),
-)

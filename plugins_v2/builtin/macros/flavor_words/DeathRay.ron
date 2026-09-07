@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DeathRay",
-    spelling: "Death Ray",
-    grammar: FixedTerm(surface: "Death Ray"),
-)

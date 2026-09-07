@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DoHomework",
-    spelling: "Do Homework",
-    grammar: FixedTerm(surface: "Do Homework"),
-)

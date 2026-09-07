@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "masterOfMachines",
+    spelling: "Master of Machines",
+    grammar: FixedTerm(surface: "Master of Machines"),
+)

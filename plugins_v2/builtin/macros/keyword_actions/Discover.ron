@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Discover",
-    spelling: "discover",
-    grammar: Verb(
-        bare: "discover",
-        frame_set: MeasureComplement,
-    ),
-)

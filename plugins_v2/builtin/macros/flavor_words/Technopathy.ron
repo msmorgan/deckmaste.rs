@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Technopathy",
-    spelling: "Technopathy",
-    grammar: FixedTerm(surface: "Technopathy"),
-)

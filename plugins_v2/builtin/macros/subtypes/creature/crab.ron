@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "crab",
+    spelling: "Crab",
+    grammar: Noun(singular: "Crab"),
+)
+

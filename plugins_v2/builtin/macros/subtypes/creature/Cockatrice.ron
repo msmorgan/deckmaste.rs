@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Cockatrice",
-    spelling: "Cockatrice",
-    grammar: Noun(singular: "Cockatrice", plural: Unavailable),
-)
-

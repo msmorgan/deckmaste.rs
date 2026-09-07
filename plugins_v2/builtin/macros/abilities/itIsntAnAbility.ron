@@ -1,0 +1,7 @@
+// "if it isn't <p>", read of the ability just named.
+(
+    name: "itIsntAnAbility",
+    kinds: [Condition],
+    params: {"p": Predicate},
+    body: Not(condition: Matches(that(w: Ability), Param(p))),
+)

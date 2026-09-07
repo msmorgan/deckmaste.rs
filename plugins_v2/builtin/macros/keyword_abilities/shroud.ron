@@ -1,0 +1,29 @@
+KeywordAbility(
+    name: "shroud",
+    params: [],
+    spelling: "shroud",
+    grammar: FixedKeyword(
+        surface: "shroud",
+    ),
+    // "Shroud" means "This permanent or player can't be the target of spells or
+    // abilities." [CR#702.18a] The permanent half is the printed one; the player
+    // half is what a grant to a player reads.
+    body: Keyword(
+        keyword: "Shroud",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Target)],
+                    role: Patient,
+                    bound: None,
+                    patient: NoPatient,
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
+    ),
+)

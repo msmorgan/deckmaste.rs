@@ -84,37 +84,37 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
     let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
 
     for (text, expected) in [
-        ("Flying", vec!["Flying"]),
-        ("Flying, haste", vec!["Flying", "Haste"]),
-        ("Equip {2}", vec!["Equip"]),
-        ("Kicker {2}", vec!["Kicker"]),
-        ("Cycling {2}", vec!["Cycling"]),
-        ("Cycling—{2}", vec!["Cycling"]),
-        ("Ward {2}", vec!["Ward"]),
-        ("Ward—{2}", vec!["Ward"]),
-        ("Ward—Pay 3 life.", vec!["Ward"]),
-        ("Ward—{2}, Pay 2 life.", vec!["Ward"]),
-        ("Reinforce 3—{1}{G}", vec!["Reinforce"]),
-        ("Reinforce 3 {1}{G}", vec!["Reinforce"]),
-        ("Toxic 2", vec!["Toxic"]),
-        ("Enchant creature you control", vec!["Enchant"]),
-        ("Enchant creature or Vehicle", vec!["Enchant"]),
-        ("Enchant artifact an opponent controls", vec!["Enchant"]),
-        ("Enchant creature card in a graveyard", vec!["Enchant"]),
-        ("Enchant creature with power 3 or less", vec!["Enchant"]),
+        ("Flying", vec!["flying"]),
+        ("Flying, haste", vec!["flying", "haste"]),
+        ("Equip {2}", vec!["equip"]),
+        ("Kicker {2}", vec!["kicker"]),
+        ("Cycling {2}", vec!["cycling"]),
+        ("Cycling—{2}", vec!["cycling"]),
+        ("Ward {2}", vec!["ward"]),
+        ("Ward—{2}", vec!["ward"]),
+        ("Ward—Pay 3 life.", vec!["ward"]),
+        ("Ward—{2}, Pay 2 life.", vec!["ward"]),
+        ("Reinforce 3—{1}{G}", vec!["reinforce"]),
+        ("Reinforce 3 {1}{G}", vec!["reinforce"]),
+        ("Toxic 2", vec!["toxic"]),
+        ("Enchant creature you control", vec!["enchant"]),
+        ("Enchant creature or Vehicle", vec!["enchant"]),
+        ("Enchant artifact an opponent controls", vec!["enchant"]),
+        ("Enchant creature card in a graveyard", vec!["enchant"]),
+        ("Enchant creature with power 3 or less", vec!["enchant"]),
         (
             "Enchant creature with another Aura attached to it",
-            vec!["Enchant"],
+            vec!["enchant"],
         ),
-        ("Enchant creature without flying", vec!["Enchant", "Flying"]),
-        ("Affinity for artifacts", vec!["Affinity"]),
-        ("Protection from black", vec!["Protection"]),
-        ("LEVEL 1-3\n4/4", vec!["LevelUp"]),
-        ("Protection from everything", vec!["Protection"]),
-        ("Protection from black and from red", vec!["Protection"]),
+        ("Enchant creature without flying", vec!["enchant", "flying"]),
+        ("Affinity for artifacts", vec!["affinity"]),
+        ("Protection from black", vec!["protection"]),
+        ("LEVEL 1-3\n4/4", vec!["levelUp"]),
+        ("Protection from everything", vec!["protection"]),
+        ("Protection from black and from red", vec!["protection"]),
         (
             "Protection from Vampires, from Werewolves, and from Zombies",
-            vec!["Protection"],
+            vec!["protection"],
         ),
     ] {
         let parsed = assert_exact_document(&parser, &environment, text);
@@ -138,7 +138,7 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
                         .then_some(name.as_str())
                 })
                 .collect::<Vec<_>>();
-            assert_eq!(creature_subtypes, ["Vampire", "Werewolf", "Zombie"]);
+            assert_eq!(creature_subtypes, ["vampire", "werewolf", "zombie"]);
         }
     }
 }
@@ -151,19 +151,19 @@ fn declaration_backed_bound_qualities_realize_fused_keyword_surfaces_exactly() {
     for (text, expected_quality) in [
         (
             "Islandwalk",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Island"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "island"),
         ),
         (
             "Desertwalk",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Desert"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "desert"),
         ),
-        ("Nonbasic landwalk", (DeclarationKind::Type, "Land")),
-        ("Legendary landwalk", (DeclarationKind::Type, "Land")),
+        ("Nonbasic landwalk", (DeclarationKind::Type, "land")),
+        ("Legendary landwalk", (DeclarationKind::Type, "land")),
         (
             "Snow swampwalk",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Swamp"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "swamp"),
         ),
-        ("Artifact landwalk", (DeclarationKind::Type, "Land")),
+        ("Artifact landwalk", (DeclarationKind::Type, "land")),
     ] {
         let parsed = assert_exact_document(&parser, &environment, text);
         let mut visitor = DeclarationVisitor::default();
@@ -172,7 +172,7 @@ fn declaration_backed_bound_qualities_realize_fused_keyword_surfaces_exactly() {
             visitor
                 .0
                 .iter()
-                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "Landwalk"),
+                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "landwalk"),
             "{text:?}: {:?}",
             visitor.0,
         );
@@ -211,15 +211,15 @@ fn declaration_backed_bound_qualities_use_running_case_inside_grants() {
     for (text, expected_quality) in [
         (
             "Enchanted creature has mountainwalk.",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Mountain"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "mountain"),
         ),
         (
             "Target creature gains islandwalk until end of turn.",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Island"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "island"),
         ),
         (
             "Create a 1/1 green Saproling creature token with forestwalk.",
-            (DeclarationKind::Subtype(SubtypeCategory::Land), "Forest"),
+            (DeclarationKind::Subtype(SubtypeCategory::Land), "forest"),
         ),
     ] {
         let parsed = assert_exact_document(&parser, &environment, text);
@@ -229,7 +229,7 @@ fn declaration_backed_bound_qualities_use_running_case_inside_grants() {
             visitor
                 .0
                 .iter()
-                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "Landwalk"),
+                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == "landwalk"),
             "{text:?}: {:?}",
             visitor.0,
         );
@@ -339,16 +339,16 @@ fn attachment_participial_adjectives_remain_declaration_backed() {
     let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
 
     for (text, expected) in [
-        ("Enchanted creature has flying.", "Enchant"),
-        ("Enchanted creature can't block.", "Enchant"),
-        ("An enchanted creature can't block.", "Enchant"),
-        ("Target enchanted permanent can't block.", "Enchant"),
-        ("Enchanted creatures can't block.", "Enchant"),
-        ("This creature is enchanted.", "Enchant"),
-        ("Equipped creature has haste.", "Equip"),
-        ("Equipped creature can't block.", "Equip"),
-        ("Equipped creatures can't block.", "Equip"),
-        ("This creature is equipped.", "Equip"),
+        ("Enchanted creature has flying.", "enchant"),
+        ("Enchanted creature can't block.", "enchant"),
+        ("An enchanted creature can't block.", "enchant"),
+        ("Target enchanted permanent can't block.", "enchant"),
+        ("Enchanted creatures can't block.", "enchant"),
+        ("This creature is enchanted.", "enchant"),
+        ("Equipped creature has haste.", "equip"),
+        ("Equipped creature can't block.", "equip"),
+        ("Equipped creatures can't block.", "equip"),
+        ("This creature is equipped.", "equip"),
     ] {
         let parsed = assert_exact_document(&parser, &environment, text);
         let mut visitor = DeclarationVisitor::default();

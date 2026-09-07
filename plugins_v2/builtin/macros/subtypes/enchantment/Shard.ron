@@ -1,7 +1,0 @@
-Subtype(
-    category: Enchantment,
-    name: "Shard",
-    spelling: "Shard",
-    grammar: Noun(singular: "Shard"),
-)
-

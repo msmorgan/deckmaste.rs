@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Spell,
+    name: "trap",
+    spelling: "Trap",
+    grammar: Noun(singular: "Trap", plural: Unavailable),
+)
+

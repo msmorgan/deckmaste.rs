@@ -7,6 +7,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Myr")],
         power: Lit(value: 0),
         toughness: Lit(value: 0),
-        text: [Sunburst],
+        text: [sunburst],
     ),
 ))

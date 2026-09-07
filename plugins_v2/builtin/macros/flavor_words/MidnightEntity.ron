@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MidnightEntity",
-    spelling: "Midnight Entity",
-    grammar: FixedTerm(surface: "Midnight Entity"),
-)

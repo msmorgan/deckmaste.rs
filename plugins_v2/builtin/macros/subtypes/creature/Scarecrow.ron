@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Scarecrow",
-    spelling: "Scarecrow",
-    grammar: Noun(singular: "Scarecrow", plural: Unavailable),
-)
-

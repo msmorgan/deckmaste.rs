@@ -11,11 +11,11 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 3),
         text: [
-            Surge(Mana(cost: [
+            surge(Mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),
-            Flying,
+            flying,
         ],
     ),
 ))

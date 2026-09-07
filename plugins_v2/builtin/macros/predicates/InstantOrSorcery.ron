@@ -1,6 +1,0 @@
-(
-    name: "InstantOrSorcery",
-    kinds: [Predicate],
-    params: [],
-    body: Or(disjuncts: [Instant, Sorcery]),
-)

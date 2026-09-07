@@ -1,0 +1,7 @@
+// "Whenever <event>, <instruction>. This ability triggers only once each turn."
+(
+    name: "triggeredOnlyOnce",
+    kinds: [Ability],
+    params: {"event": GameEvent, "limit": UsageLimit, "instruction": Instruction},
+    body: Triggered(Param(event), [], None, [], None, Param(limit), None, Param(instruction)),
+)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "bindingContract",
+    spelling: "Binding Contract",
+    grammar: FixedTerm(surface: "Binding Contract"),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Lobster",
-    spelling: "Lobster",
-    grammar: Noun(singular: "Lobster", plural: Unavailable),
-)
-

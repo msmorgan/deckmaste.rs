@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Dalek",
-    spelling: "Dalek",
-    grammar: Noun(singular: "Dalek"),
-)
-

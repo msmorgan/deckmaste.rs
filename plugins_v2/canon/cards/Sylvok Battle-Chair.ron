@@ -11,7 +11,7 @@ SingleFaced(face: (
         types: [Artifact],
         subtypes: [Of(host: Artifact, label: "Equipment")],
         text: [
-            ForMirrodin,
+            forMirrodin,
             Static(
                 spec: Conjunction(
                     subject: None,
@@ -28,12 +28,12 @@ SingleFaced(face: (
                         ),
                         AbilityGrant(
                             subject: AttachHost(word: Equipped, head: Type(type: Creature)),
-                            ability: Trample,
+                            ability: trample,
                         ),
                     ],
                 ),
             ),
-            Equip(Mana(cost: [
+            equip(Mana(cost: [
                 Simple(symbol: Generic(amount: 5)),
                 Simple(symbol: Specific(color: Of(color: Green))),
                 Simple(symbol: Specific(color: Of(color: Green))),

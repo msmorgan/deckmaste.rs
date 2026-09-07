@@ -36,7 +36,7 @@ SingleFaced(face: (
                     )),
                 ]),
                 instruction: Sequentially(steps: [
-                    Exile(Described(
+                    exile(Described(
                         determiner: All,
                         predicate: And(conjuncts: [
                             HasType(type: Creature),
@@ -47,7 +47,7 @@ SingleFaced(face: (
                             ]),
                         ]),
                     )),
-                    Meld(
+                    meld(
                         Pro(reach: Stamped(verb: Action(label: "Exile")), plurality: Many, window: Whole),
                         "Chittering Host",
                     ),

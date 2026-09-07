@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "processor",
+    spelling: "Processor",
+    grammar: Noun(singular: "Processor", plural: Unavailable),
+)
+

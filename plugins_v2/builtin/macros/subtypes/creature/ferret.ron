@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "ferret",
+    spelling: "Ferret",
+    grammar: Noun(singular: "Ferret", plural: Unavailable),
+)
+

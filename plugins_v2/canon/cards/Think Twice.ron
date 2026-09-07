@@ -9,7 +9,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             Spell(timing: None, instruction: Draw(amount: Lit(value: 1), agent: You)),
-            Flashback(Mana(cost: [
+            flashback(Mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),

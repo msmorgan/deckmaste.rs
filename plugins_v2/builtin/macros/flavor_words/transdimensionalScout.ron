@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "transdimensionalScout",
+    spelling: "Transdimensional Scout",
+    grammar: FixedTerm(surface: "Transdimensional Scout"),
+)

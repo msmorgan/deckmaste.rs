@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Mutsunokami",
-    spelling: "Mutsunokami",
-    grammar: FixedTerm(surface: "Mutsunokami"),
-)

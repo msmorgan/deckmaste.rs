@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ThreeAutostubs",
-    spelling: "Three Autostubs",
-    grammar: FixedTerm(surface: "Three Autostubs"),
-)

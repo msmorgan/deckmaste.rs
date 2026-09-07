@@ -1,0 +1,19 @@
+// Equipment ([CR#301.5]) — "an Equipment can be attached to a creature. It
+// can't legally be attached to anything that isn't a creature." That STATES A
+// QUALITY of the object, which [CR#113.12] is explicit is neither granting an
+// ability nor setting a characteristic, so the host rule is conferred
+// ability-free as the `Static` flavor rather than forged into an Ability.
+Subtype(
+    category: Artifact,
+    name: "equipment",
+    spelling: "Equipment",
+    grammar: Noun(singular: "Equipment", plural: "Equipment"),
+    params: [],
+    body: Subtype(
+        name: "Equipment",
+        types: [Artifact],
+        confers: [
+            Static(May(attach(what: Ref(This), to: Type(Creature)))),
+        ],
+    ),
+)

@@ -1,6 +1,0 @@
-(
-    name: "Graveyard",
-    kinds: [ZoneExpr],
-    params: [],
-    body: Zone(Graveyard, Bare),
-)

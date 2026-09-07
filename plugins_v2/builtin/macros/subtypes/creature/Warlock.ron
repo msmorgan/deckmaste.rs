@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Warlock",
-    spelling: "Warlock",
-    grammar: Noun(singular: "Warlock"),
-)
-

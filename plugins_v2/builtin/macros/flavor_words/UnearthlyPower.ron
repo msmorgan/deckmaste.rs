@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "UnearthlyPower",
-    spelling: "Unearthly Power",
-    grammar: FixedTerm(surface: "Unearthly Power"),
-)

@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Wurm")],
         power: Lit(value: 7),
         toughness: Lit(value: 6),
-        text: [Vanishing(Lit(value: 2))],
+        text: [vanishing(Lit(value: 2))],
     ),
 ))

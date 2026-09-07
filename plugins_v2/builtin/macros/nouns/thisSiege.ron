@@ -1,0 +1,6 @@
+(
+    name: "thisSiege",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Battle, This, Of(Battle, "Siege")),
+)

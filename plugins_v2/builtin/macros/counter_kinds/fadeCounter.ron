@@ -1,0 +1,9 @@
+// Fade counters are marker counters. Fading and cards such as Tangle Wire
+// count them, but the counters confer no behavior by themselves.
+CounterKind(
+    name: "fadeCounter",
+    params: [],
+    spelling: "fade",
+    grammar: FixedTerm(surface: "fade"),
+    body: CounterFacts(label: "Fade", holder: Object),
+)

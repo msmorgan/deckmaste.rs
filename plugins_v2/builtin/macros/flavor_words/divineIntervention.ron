@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "divineIntervention",
+    spelling: "Divine Intervention",
+    grammar: FixedTerm(surface: "Divine Intervention"),
+)

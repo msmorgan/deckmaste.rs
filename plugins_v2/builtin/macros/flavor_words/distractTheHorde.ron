@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "distractTheHorde",
+    spelling: "Distract the Horde",
+    grammar: FixedTerm(surface: "Distract the Horde"),
+)

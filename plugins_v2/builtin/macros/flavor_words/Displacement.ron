@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Displacement",
-    spelling: "Displacement",
-    grammar: FixedTerm(surface: "Displacement"),
-)

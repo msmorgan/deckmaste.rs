@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Egg",
-    spelling: "Egg",
-    grammar: Noun(singular: "Egg"),
-)
-

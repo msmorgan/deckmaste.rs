@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Believe",
-    spelling: "Believe",
-    grammar: FixedTerm(surface: "Believe"),
-)

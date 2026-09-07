@@ -10,7 +10,7 @@ SingleFaced(face: (
         types: [Artifact],
         subtypes: [Of(host: Artifact, label: "Equipment")],
         text: [
-            JobSelect,
+            jobSelect,
             Static(
                 spec: Conjunction(
                     subject: None,
@@ -37,7 +37,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            Equip(Mana(cost: [Simple(symbol: Generic(amount: 5))])),
+            equip(Mana(cost: [Simple(symbol: Generic(amount: 5))])),
         ],
     ),
 ))

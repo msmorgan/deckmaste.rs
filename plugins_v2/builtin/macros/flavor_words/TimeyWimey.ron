@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TimeyWimey",
-    spelling: "Timey-Wimey",
-    grammar: FixedTerm(surface: "Timey-Wimey"),
-)

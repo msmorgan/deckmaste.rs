@@ -12,7 +12,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Counter(Described(
+                instruction: counter(Described(
                     determiner: Target(quantity: Range(low: 1, high: 1)),
                     predicate: And(conjuncts: [
                         InZone(zone: Zone(zone: Stack, scope: Bare)),

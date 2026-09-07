@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "VeilOfTime",
-    spelling: "Veil of Time",
-    grammar: FixedTerm(surface: "Veil of Time"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Titanic",
-    spelling: "Titanic",
-    grammar: FixedTerm(surface: "Titanic"),
-)

@@ -1,0 +1,49 @@
+// "Behold a [quality]" [CR#701.4a] = "Reveal a [quality] card from your hand or
+// choose a [quality] permanent you control on the battlefield." The disjunction
+// is the beholding player's choice, so it is a one-of-two mode choice.
+KeywordAction(
+    name: "behold",
+    params: [Quality],
+    spelling: "behold",
+    grammar: Verb(
+        bare: "behold",
+        // No Oracle or Comprehensive Rules occurrence of "beholds" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Behold"),
+        instruction: ChooseModes(
+        quantity: Range(low: 1, high: 1),
+        modes: [
+            (None, Expose(
+                verb: Reveal,
+                exposed: Cards(cards: Described(
+                    determiner: A(mode: Unmarked),
+                    predicate: And(conjuncts: [
+                        IsCard,
+                        Param(0),
+                        InZone(zone: Zone(zone: Hand, scope: PossessedBy(possessor: You))),
+                    ]),
+                )),
+                agent: You,
+            )),
+            (None, Choose(
+                first: None,
+                chosen: Described(
+                    determiner: A(mode: Unmarked),
+                    predicate: And(conjuncts: [
+                        Param(0),
+                        InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        HasPossessor(axis: Controller, possessor: You),
+                    ]),
+                ),
+                disclosure: Openly,
+                when: None,
+                agent: You,
+            )),
+        ],
+    ),
+        agent: You,
+    ),
+)

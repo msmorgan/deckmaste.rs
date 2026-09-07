@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Spell,
+    name: "arcane",
+    spelling: "Arcane",
+    grammar: Noun(singular: "Arcane", plural: Unavailable),
+)
+

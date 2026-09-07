@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "ManifestDread",
-    spelling: "manifest dread",
-    grammar: Verb(
-        bare: "manifest dread",
-        third_person: "manifests dread",
-        frame_set: Intransitive,
-    ),
-)

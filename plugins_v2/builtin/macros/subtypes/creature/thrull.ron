@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "thrull",
+    spelling: "Thrull",
+    grammar: Noun(singular: "Thrull"),
+)
+

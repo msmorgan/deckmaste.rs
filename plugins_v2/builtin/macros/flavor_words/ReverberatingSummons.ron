@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ReverberatingSummons",
-    spelling: "Reverberating Summons",
-    grammar: FixedTerm(surface: "Reverberating Summons"),
-)

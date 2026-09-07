@@ -1,0 +1,10 @@
+// Experience counters ([CR#122.1] — counters on players): PLAYER-borne,
+// counted by the abilities that award them ("for each experience counter you
+// have"); no conferred bearing.
+CounterKind(
+    name: "experience",
+    params: [],
+    spelling: "experience",
+    grammar: FixedTerm(surface: "experience"),
+    body: CounterFacts(label: "Experience", holder: Player),
+)

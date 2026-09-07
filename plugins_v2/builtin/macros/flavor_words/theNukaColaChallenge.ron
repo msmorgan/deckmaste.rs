@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "theNukaColaChallenge",
+    spelling: "The Nuka-Cola Challenge",
+    grammar: FixedTerm(surface: "The Nuka-Cola Challenge"),
+)

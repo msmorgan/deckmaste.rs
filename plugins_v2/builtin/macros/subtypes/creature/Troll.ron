@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Troll",
-    spelling: "Troll",
-    grammar: Noun(singular: "Troll", plural: Unavailable),
-)
-

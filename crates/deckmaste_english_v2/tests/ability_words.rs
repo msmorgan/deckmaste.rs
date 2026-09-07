@@ -90,9 +90,9 @@ fn attested_ability_word_lead_in_parses_renders_visits_and_owns_exactly() {
     assert!(
         visitor
             .0
-            .contains(&(DeclarationKind::AbilityWord, "Landfall".into()))
+            .contains(&(DeclarationKind::AbilityWord, "landfall".into()))
     );
-    assert!(visitor.0.contains(&(DeclarationKind::Type, "Land".into())));
+    assert!(visitor.0.contains(&(DeclarationKind::Type, "land".into())));
 }
 
 #[test]

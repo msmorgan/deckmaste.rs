@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "cast",
+    spelling: "cast",
+    grammar: Verb(
+        bare: "cast",
+        preterite: "cast",
+        participle: "cast",
+        frame_set: Transitive,
+    ),
+)

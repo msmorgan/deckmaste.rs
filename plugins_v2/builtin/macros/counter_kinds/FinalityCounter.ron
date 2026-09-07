@@ -1,6 +1,0 @@
-CounterKind(
-    name: "FinalityCounter",
-    params: [],
-    spelling: "finality",
-    body: CounterFacts(label: "Finality", holder: Object),
-)

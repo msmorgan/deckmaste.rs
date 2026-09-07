@@ -8,8 +8,11 @@ use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_construction_core::macro_def::read_str;
 
+/// The declaration name a catalog surface is written under: the surface's
+/// words joined in camelCase, which is Lean's macro name for the same ability
+/// word (`willOfTheCouncil`).
 fn declaration_name(surface: &str) -> String {
-    surface
+    let joined = surface
         .split(' ')
         .map(|word| word.replace('\'', ""))
         .map(|word| {
@@ -21,6 +24,13 @@ fn declaration_name(surface: &str) -> String {
                 .chain(chars)
                 .collect::<String>()
         })
+        .collect::<String>();
+    let mut chars = joined.chars();
+    chars
+        .next()
+        .into_iter()
+        .flat_map(char::to_lowercase)
+        .chain(chars)
         .collect()
 }
 

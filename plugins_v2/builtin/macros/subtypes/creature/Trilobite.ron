@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Trilobite",
-    spelling: "Trilobite",
-    grammar: Noun(singular: "Trilobite", plural: Unavailable),
-)
-

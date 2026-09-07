@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "wall",
+    spelling: "Wall",
+    grammar: Noun(singular: "Wall"),
+)
+

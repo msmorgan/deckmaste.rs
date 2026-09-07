@@ -1,0 +1,6 @@
+(
+    name: "tapped",
+    kinds: [Predicate],
+    params: [],
+    body: HasStatus(status: Tapped),
+)

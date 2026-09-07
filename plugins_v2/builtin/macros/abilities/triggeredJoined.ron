@@ -1,0 +1,7 @@
+// "Whenever <event> and whenever <joined events>, <instruction>"
+(
+    name: "triggeredJoined",
+    kinds: [Ability],
+    params: {"event": GameEvent, "joins": JoinedHeaders, "instruction": Instruction},
+    body: Triggered(Param(event), [], None, Param(joins), None, None, None, Param(instruction)),
+)

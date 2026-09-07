@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "dauthi",
+    spelling: "Dauthi",
+    grammar: Noun(singular: "Dauthi", plural: Unavailable),
+)
+

@@ -137,21 +137,21 @@ fn declaration_noun(kind: DeclarationKind, name: &str, _feature: SurfaceFeature)
 }
 
 fn creature() -> Noun {
-    card_type("Creature")
+    card_type("creature")
 }
 
 fn creatures() -> Noun {
-    declaration_noun(DeclarationKind::Type, "Creature", SurfaceFeature::Plural)
+    declaration_noun(DeclarationKind::Type, "creature", SurfaceFeature::Plural)
 }
 
 fn artifact() -> Noun {
-    card_type("Artifact")
+    card_type("artifact")
 }
 
 fn equipment() -> Noun {
     declaration_noun(
         DeclarationKind::Subtype(SubtypeCategory::Artifact),
-        "Equipment",
+        "equipment",
         SurfaceFeature::Singular,
     )
 }
@@ -501,7 +501,7 @@ fn destroy(object: Object) -> VerbPhrase {
         &environment,
         VerbInventoryRef::Declaration(DeclarationId::new(
             DeclarationKind::KeywordAction,
-            "Destroy",
+            "destroy",
         )),
     )
     .expect("the builtin grammar declares transitive Destroy");
@@ -518,7 +518,7 @@ fn connive() -> VerbPhrase {
         &environment,
         VerbInventoryRef::Declaration(DeclarationId::new(
             DeclarationKind::KeywordAction,
-            "Connive",
+            "connive",
         )),
     )
     .expect("the builtin grammar declares intransitive Connive");
@@ -759,10 +759,10 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 
         fn visit_sentence(&mut self, sentence: &Sentence) {
             let label = match sentence {
-                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Destroy")) => {
+                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("destroy")) => {
                     "destroy"
                 }
-                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive")) => {
+                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("connive")) => {
                     "connive"
                 }
                 Sentence::Declarative(_) => "gain",
@@ -848,21 +848,21 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
     assert!(
         DeclarationNoun::new(
             &environment,
-            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            DeclarationId::new(DeclarationKind::Type, "creature"),
         )
         .is_some()
     );
     assert!(
         DeclarationNoun::new(
             &environment,
-            DeclarationId::new(DeclarationKind::Type, "Definitely Not A Type"),
+            DeclarationId::new(DeclarationKind::Type, "definitely Not A Type"),
         )
         .is_none()
     );
     assert!(
         DeclarationNoun::new(
             &environment,
-            DeclarationId::new(DeclarationKind::KeywordAbility, "Flying"),
+            DeclarationId::new(DeclarationKind::KeywordAbility, "flying"),
         )
         .is_none(),
         "a present but disallowed declaration kind cannot become a noun"
@@ -1052,7 +1052,7 @@ fn demonstrative_references_visit_their_unified_nominal_ast_nodes() {
                 Event::DeterminedNominal,
                 Event::Determinative,
                 Event::Nominal,
-                Event::Head(DeclarationKind::Type, "Creature".to_owned(),),
+                Event::Head(DeclarationKind::Type, "creature".to_owned(),),
             ],
         );
     }
@@ -1127,10 +1127,10 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     assert_eq!(
         visitor.declaration_nouns,
         vec![
-            (DeclarationKind::Type, "Creature".to_owned()),
-            (DeclarationKind::Type, "Creature".to_owned()),
-            (DeclarationKind::Type, "Creature".to_owned()),
-            (DeclarationKind::Type, "Creature".to_owned()),
+            (DeclarationKind::Type, "creature".to_owned()),
+            (DeclarationKind::Type, "creature".to_owned()),
+            (DeclarationKind::Type, "creature".to_owned()),
+            (DeclarationKind::Type, "creature".to_owned()),
         ]
     );
     assert_eq!(
@@ -1159,11 +1159,11 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         vec![
             (
                 deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction,
-                "Destroy".to_owned()
+                "destroy".to_owned()
             ),
             (
                 deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction,
-                "Connive".to_owned()
+                "connive".to_owned()
             ),
         ]
     );
@@ -1172,11 +1172,11 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         vec![
             VerbInventoryRef::Declaration(DeclarationId::new(
                 DeclarationKind::KeywordAction,
-                "Destroy",
+                "destroy",
             )),
             VerbInventoryRef::Declaration(DeclarationId::new(
                 DeclarationKind::KeywordAction,
-                "Connive",
+                "connive",
             )),
             VerbInventoryRef::Core(CoreVerbIdentity::Deal),
             VerbInventoryRef::Core(CoreVerbIdentity::Gain),

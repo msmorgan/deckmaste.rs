@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Shieldwall",
-    spelling: "Shieldwall",
-    grammar: FixedTerm(surface: "Shieldwall"),
-)

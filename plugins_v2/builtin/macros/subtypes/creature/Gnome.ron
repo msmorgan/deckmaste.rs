@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Gnome",
-    spelling: "Gnome",
-    grammar: Noun(singular: "Gnome", plural: Unavailable),
-)
-

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GoldenRule",
-    spelling: "Golden Rule",
-    grammar: FixedTerm(surface: "Golden Rule"),
-)

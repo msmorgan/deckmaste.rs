@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Gith",
-    spelling: "Gith",
-    grammar: Noun(singular: "Gith", plural: Unavailable),
-)
-

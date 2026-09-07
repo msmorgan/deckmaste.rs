@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "elder",
+    spelling: "Elder",
+    grammar: Noun(singular: "Elder", plural: Unavailable),
+)
+

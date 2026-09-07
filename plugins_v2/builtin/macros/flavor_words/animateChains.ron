@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "animateChains",
+    spelling: "Animate Chains",
+    grammar: FixedTerm(surface: "Animate Chains"),
+)

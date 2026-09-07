@@ -1,7 +1,0 @@
-// "If <event> would happen, <replacement> instead [duration]."
-(
-    name: "ReplaceEvent",
-    kinds: [Instruction],
-    params: {"event": GameEvent, "replacement": Instruction, "duration": Duration},
-    body: Establish(Replacement(Param(event), [], None, Param(replacement), Repeatedly, None), Param(duration)),
-)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "protect",
+    spelling: "Protect",
+    grammar: FixedTerm(surface: "Protect"),
+)

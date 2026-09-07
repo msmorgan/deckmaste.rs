@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Impound",
-    spelling: "Impound",
-    grammar: FixedTerm(surface: "Impound"),
-)

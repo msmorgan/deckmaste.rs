@@ -1,0 +1,6 @@
+(
+    name: "thisSpacecraft",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Artifact, This, artifactType(label: "Spacecraft")),
+)

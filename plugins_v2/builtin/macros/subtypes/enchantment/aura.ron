@@ -1,0 +1,28 @@
+// Aura ([CR#205.3h]) — an enchantment subtype whose type rule ([CR#303.4c])
+// puts it into its owner's graveyard as a state-based action ([CR#704.5m]).
+// That is a [CR#704] game action, not an ability of any kind: [CR#704.1]
+// state-based actions "happen automatically" and "don't use the stack", and
+// [CR#704.1a] reserves the ability hierarchy for things that WATCH state
+// (triggered abilities). So the conferral is the ability-free
+// `StateBased(condition, effect)` flavor, never an `Ability` of any kind
+// ([CR#604.1] static abilities "do something all the time").
+//
+// The targeting + legal-host + enters-attached parts are the Enchant KEYWORD's
+// ([CR#702.5a]) — a genuine static ability — and stay off this declaration.
+Subtype(
+    category: Enchantment,
+    name: "aura",
+    spelling: "Aura",
+    grammar: Noun(singular: "Aura"),
+    params: [],
+    body: Subtype(
+        name: "Aura",
+        types: [Enchantment],
+        confers: [
+            StateBased(
+                condition: Not(LegallyAttached(This)),
+                effect: Move(This, Graveyard),
+            ),
+        ],
+    ),
+)

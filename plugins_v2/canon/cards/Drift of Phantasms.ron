@@ -11,9 +11,9 @@ SingleFaced(face: (
         power: Lit(value: 0),
         toughness: Lit(value: 5),
         text: [
-            Defender,
-            Flying,
-            Transmute(Mana(cost: [
+            defender,
+            flying,
+            transmute(Mana(cost: [
                 Simple(symbol: Generic(amount: 1)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
                 Simple(symbol: Specific(color: Of(color: Blue))),

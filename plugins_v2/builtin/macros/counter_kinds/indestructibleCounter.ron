@@ -1,0 +1,14 @@
+// An indestructible counter ([CR#122.1b]): its bearer gains indestructible at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+CounterKind(
+    name: "indestructibleCounter",
+    params: [],
+    spelling: "indestructible",
+    grammar: FixedTerm(surface: "indestructible"),
+    body: Counter(
+        name: "IndestructibleCounter",
+        confers: [
+            Continuous(This, GainAbility(Keyword(indestructible))),
+        ],
+    ),
+)

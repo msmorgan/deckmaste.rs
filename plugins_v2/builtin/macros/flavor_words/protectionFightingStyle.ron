@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "protectionFightingStyle",
+    spelling: "Protection Fighting Style",
+    grammar: FixedTerm(surface: "Protection Fighting Style"),
+)

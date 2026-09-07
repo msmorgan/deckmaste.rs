@@ -1,7 +1,0 @@
-Type(
-    name: "Kindred",
-    spelling: "kindred",
-    grammar: Noun(singular: "kindred", plural: Unavailable),
-    params: [],
-    body: TypeDef(name: "Kindred", permanent_type: false),
-)

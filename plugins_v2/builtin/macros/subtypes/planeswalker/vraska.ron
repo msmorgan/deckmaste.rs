@@ -1,0 +1,8 @@
+// No supported Oracle rules-text plural is attested for this proper subtype name.
+Subtype(
+    category: Planeswalker,
+    name: "vraska",
+    spelling: "Vraska",
+    grammar: Noun(singular: "Vraska", plural: Unavailable),
+)
+

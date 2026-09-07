@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ConjureElemental",
-    spelling: "Conjure Elemental",
-    grammar: FixedTerm(surface: "Conjure Elemental"),
-)

@@ -1,0 +1,7 @@
+// "you roll a die and the natural result is the highest"
+(
+    name: "youRollHighestNatural",
+    kinds: [GameEvent],
+    params: [],
+    body: RollsDice(You, One, None, HighestNatural),
+)

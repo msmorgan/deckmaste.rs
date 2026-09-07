@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "fabricatorClawArray",
+    spelling: "Fabricator Claw Array",
+    grammar: FixedTerm(surface: "Fabricator Claw Array"),
+)

@@ -1793,7 +1793,7 @@ mod tests {
         assert_eq!(left, right);
 
         let debug = format!("{right:?}");
-        assert!(!debug.contains("lexeme:creature_subtype/Spirit/singular"));
+        assert!(!debug.contains("lexeme:creature_subtype/spirit/singular"));
         assert!(!debug.contains("analysis:"));
         assert!(debug.contains("selected_lexical_claims"));
     }

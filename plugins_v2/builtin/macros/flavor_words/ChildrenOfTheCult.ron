@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ChildrenOfTheCult",
-    spelling: "Children of the Cult",
-    grammar: FixedTerm(surface: "Children of the Cult"),
-)

@@ -1,7 +1,0 @@
-// A quality noun with its domain: "a color other than blue".
-(
-    name: "QualityFrom",
-    kinds: [Predicate],
-    params: {"sort": QualitySort, "domain": ChoiceDomain},
-    body: QualityNoun(Param(sort), Param(domain)),
-)

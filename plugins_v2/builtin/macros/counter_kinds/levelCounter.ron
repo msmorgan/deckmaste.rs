@@ -1,0 +1,6 @@
+CounterKind(
+    name: "levelCounter",
+    params: [],
+    spelling: "level",
+    body: CounterFacts(label: "Level", holder: Object),
+)

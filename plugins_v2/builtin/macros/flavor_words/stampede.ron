@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "stampede",
+    spelling: "Stampede!",
+    grammar: FixedTerm(surface: "Stampede!"),
+)

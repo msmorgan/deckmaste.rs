@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "PrecombatMainPhase",
-    spelling: "precombat main phase",
-    grammar: Noun(singular: "precombat main phase"),
-    params: [],
-    body: FirstMain,
-)

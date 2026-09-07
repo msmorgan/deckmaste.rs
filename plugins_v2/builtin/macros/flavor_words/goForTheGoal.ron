@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "goForTheGoal",
+    spelling: "Go for the Goal!",
+    grammar: FixedTerm(surface: "Go for the Goal!"),
+)

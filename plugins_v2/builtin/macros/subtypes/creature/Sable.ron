@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Sable",
-    spelling: "Sable",
-    grammar: Noun(singular: "Sable", plural: Unavailable),
-)
-

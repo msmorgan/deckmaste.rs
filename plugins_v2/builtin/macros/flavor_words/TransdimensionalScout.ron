@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TransdimensionalScout",
-    spelling: "Transdimensional Scout",
-    grammar: FixedTerm(surface: "Transdimensional Scout"),
-)

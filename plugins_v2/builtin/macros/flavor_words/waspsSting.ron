@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "waspsSting",
+    spelling: "Wasp's Sting",
+    grammar: FixedTerm(surface: "Wasp's Sting"),
+)

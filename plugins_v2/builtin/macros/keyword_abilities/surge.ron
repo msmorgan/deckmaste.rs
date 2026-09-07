@@ -1,0 +1,61 @@
+KeywordAbility(
+    name: "surge",
+    params: [Cost],
+    spelling: "surge",
+    grammar: FixedKeyword(
+        surface: "surge",
+    ),
+    // "Surge [cost]" means "You may pay [cost] rather than pay this spell's mana cost
+    // as you cast this spell if you or one of your teammates has cast another spell
+    // this turn." [CR#702.117a] "You or one of your teammates" is the group
+    // `PlayerGroupWord::YourTeam` names.
+    body: Keyword(
+        keyword: "Surge",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Static(
+                spec: Conditional(
+                    spec: DeonticRule(
+                        subject: You,
+                        compulsion: Permit,
+                        deeds: [Action(label: "Cast")],
+                        role: Agent,
+                        bound: None,
+                        patient: Counterpart(patient: This),
+                        as_though: None,
+                        rider: Play(
+                            from: None,
+                            limit: None,
+                            timing: None,
+                            exclusive: false,
+                            payment: PayingInstead(cost: Param(0)),
+                        ),
+                    ),
+                    condition: Happened(
+                        subject: PlayerGroup(group: YourTeam),
+                        lookback: Mk(
+                            event: Casts(
+                                player: Gap(kind: Player),
+                                spell: Described(
+                                    determiner: A(mode: Unmarked),
+                                    predicate: And(
+                                        conjuncts: [
+                                            InZone(zone: Zone(zone: Stack, scope: Bare)),
+                                            Not(predicate: AbilityHead(class: AnyOnStack)),
+                                            OtherThan(
+                                                anchor: AsMarker(marker: Spell, subject: This),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                                from: None,
+                            ),
+                            lookback: ThisTurn,
+                        ),
+                    ),
+                    marking: AsLongAs,
+                ),
+            ),
+        ],
+    ),
+)

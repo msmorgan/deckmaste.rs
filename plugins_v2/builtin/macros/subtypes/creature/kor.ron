@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "kor",
+    spelling: "Kor",
+    grammar: Noun(singular: "Kor", plural: Unavailable),
+)
+

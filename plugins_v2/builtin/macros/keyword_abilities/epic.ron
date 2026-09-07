@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "epic",
+    params: [],
+    spelling: "epic",
+    grammar: FixedKeyword(
+        surface: "epic",
+    ),
+    // STOP. Epic is two SPELL abilities [CR#702.50a]. `Ability.category` is `none` for
+    // `Ability::Spell`, so `keywordBodyFits` refuses one in a definition (the cause
+    // Ascend, Awaken and Cipher share); the second also creates a delayed triggered
+    // ability at each of your upkeeps for the rest of the game.
+    body: Keyword(keyword: "Epic", params: [], body: []),
+)

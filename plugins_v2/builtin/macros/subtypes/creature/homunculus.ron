@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "homunculus",
+    spelling: "Homunculus",
+    grammar: Noun(singular: "Homunculus", plural: Unavailable),
+)
+

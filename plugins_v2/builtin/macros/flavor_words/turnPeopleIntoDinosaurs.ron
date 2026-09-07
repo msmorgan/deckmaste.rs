@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "turnPeopleIntoDinosaurs",
+    spelling: "Turn People into Dinosaurs",
+    grammar: FixedTerm(surface: "Turn People into Dinosaurs"),
+)

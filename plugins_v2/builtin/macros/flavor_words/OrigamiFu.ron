@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "OrigamiFu",
-    spelling: "Origami-Fu",
-    grammar: FixedTerm(surface: "Origami-Fu"),
-)

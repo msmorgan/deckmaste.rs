@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Cohort",
-    spelling: "Cohort",
-    grammar: FixedTerm(surface: "Cohort"),
-)

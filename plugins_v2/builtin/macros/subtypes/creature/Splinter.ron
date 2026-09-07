@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Splinter",
-    spelling: "Splinter",
-    grammar: Noun(singular: "Splinter", plural: Unavailable),
-)
-

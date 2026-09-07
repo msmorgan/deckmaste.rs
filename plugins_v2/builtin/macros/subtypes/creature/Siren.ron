@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Siren",
-    spelling: "Siren",
-    grammar: Noun(singular: "Siren", plural: Unavailable),
-)
-

@@ -105,13 +105,13 @@ fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
             && scanner_match.end() == 7
             && scanner_match
                 .value_label_v1()
-                .contains("DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }")
+                .contains("DeclarationIdentity { kind: KeywordAction, name: \"destroy\" }")
     }));
     assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
         scanner_match.start() == 14
             && scanner_match.end() == 21
             && scanner_match
                 .value_label_v1()
-                .contains("DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }")
+                .contains("DeclarationIdentity { kind: Subtype(Creature), name: \"spirit\" }")
     }));
 }

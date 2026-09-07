@@ -31,7 +31,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            UmbraArmor,
+            umbraArmor,
         ],
     ),
 ))

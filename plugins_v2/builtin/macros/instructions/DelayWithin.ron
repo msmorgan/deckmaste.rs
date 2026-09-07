@@ -1,7 +1,0 @@
-// "When <event> <duration>, <instruction>": a delayed trigger with a window.
-(
-    name: "DelayWithin",
-    kinds: [Instruction],
-    params: {"event": GameEvent, "duration": Duration, "instruction": Instruction},
-    body: Delay(Param(event), [], Param(duration), Param(instruction)),
-)

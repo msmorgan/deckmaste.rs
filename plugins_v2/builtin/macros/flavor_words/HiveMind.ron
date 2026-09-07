@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "HiveMind",
-    spelling: "Hive Mind",
-    grammar: FixedTerm(surface: "Hive Mind"),
-)

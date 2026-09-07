@@ -7,6 +7,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Beast")],
         power: Lit(value: 2),
         toughness: Lit(value: 3),
-        text: [Fading(Lit(value: 2))],
+        text: [fading(Lit(value: 2))],
     ),
 ))

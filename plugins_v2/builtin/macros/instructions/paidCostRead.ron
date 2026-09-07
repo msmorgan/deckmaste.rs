@@ -1,0 +1,7 @@
+// "<subject>'s <keyword> cost was paid", read back.
+(
+    name: "paidCostRead",
+    kinds: [Amount],
+    params: {"which": PaidCostName, "window": Lookback, "subject": NounPhrase},
+    body: Paid(Readback(Param(which), Param(window)), Param(subject)),
+)

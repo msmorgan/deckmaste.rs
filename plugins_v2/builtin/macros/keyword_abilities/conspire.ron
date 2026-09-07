@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "conspire",
+    params: [],
+    spelling: "conspire",
+    grammar: FixedKeyword(
+        surface: "conspire",
+    ),
+    // STOP. Conspire's additional cost is "tap two untapped creatures you control
+    // that each share a color with it" [CR#702.78a]. No `Predicate` reads "shares a
+    // color with <subject>".
+    body: Keyword(keyword: "Conspire", params: [], body: []),
+)

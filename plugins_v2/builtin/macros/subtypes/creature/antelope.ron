@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "antelope",
+    spelling: "Antelope",
+    grammar: Noun(singular: "Antelope", plural: Unavailable),
+)
+

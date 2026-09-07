@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "berserker",
+    spelling: "Berserker",
+    grammar: Noun(singular: "Berserker", plural: Unavailable),
+)
+

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Barbarian",
-    spelling: "Barbarian",
-    grammar: Noun(singular: "Barbarian", plural: Unavailable),
-)
-

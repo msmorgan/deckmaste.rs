@@ -1,0 +1,29 @@
+KeywordAbility(
+    name: "levelUp",
+    params: [Cost],
+    spelling: "level up",
+    grammar: FixedKeyword(
+        surface: "level up",
+        block_label: (surface: "LEVEL"),
+    ),
+    // "Level up [cost]" means "[Cost]: Put a level counter on this permanent. Activate
+    // only as a sorcery." [CR#702.87a]
+    body: Keyword(
+        keyword: "LevelUp",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Param(0),
+                instruction: PutCounters(
+                    amount: Lit(value: 1),
+                    kind: Printed(kind: Named(label: "Level")),
+                    on: AsMarker(marker: Permanent, subject: This),
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
+)

@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "formidable",
+    spelling: "Formidable",
+    grammar: FixedTerm(surface: "Formidable"),
+)

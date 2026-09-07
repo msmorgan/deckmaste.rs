@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Phelddagrif",
-    spelling: "Phelddagrif",
-    grammar: Noun(singular: "Phelddagrif", plural: Unavailable),
-)
-

@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Assemble",
-    spelling: "assemble",
-    grammar: Verb(
-        bare: "assemble",
-        frame_set: Transitive,
-    ),
-)

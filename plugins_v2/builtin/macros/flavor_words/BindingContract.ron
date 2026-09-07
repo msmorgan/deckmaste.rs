@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BindingContract",
-    spelling: "Binding Contract",
-    grammar: FixedTerm(surface: "Binding Contract"),
-)

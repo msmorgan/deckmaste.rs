@@ -177,7 +177,7 @@ fn counter_and_designation_terms_parse_render_visit_and_own_exactly() {
         (
             "Put a shield counter on target creature.",
             DeclarationKind::CounterKind,
-            "ShieldCounter",
+            "shieldCounter",
         ),
         (
             "Put a quest counter on target creature.",
@@ -187,7 +187,7 @@ fn counter_and_designation_terms_parse_render_visit_and_own_exactly() {
         (
             "You become the monarch.",
             DeclarationKind::Designation,
-            "Monarch",
+            "monarch",
         ),
         (
             "You become the featured game.",

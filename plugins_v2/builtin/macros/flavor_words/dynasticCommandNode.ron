@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "dynasticCommandNode",
+    spelling: "Dynastic Command Node",
+    grammar: FixedTerm(surface: "Dynastic Command Node"),
+)

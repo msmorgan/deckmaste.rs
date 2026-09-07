@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Kavu",
-    spelling: "Kavu",
-    grammar: Noun(singular: "Kavu", plural: Unavailable),
-)
-

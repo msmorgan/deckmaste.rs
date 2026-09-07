@@ -1,8 +1,0 @@
-// No supported Oracle rules-text plural is attested for this proper subtype name.
-Subtype(
-    category: Planeswalker,
-    name: "Sivitri",
-    spelling: "Sivitri",
-    grammar: Noun(singular: "Sivitri", plural: Unavailable),
-)
-

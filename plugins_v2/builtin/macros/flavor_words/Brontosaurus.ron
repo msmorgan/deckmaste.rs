@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Brontosaurus",
-    spelling: "Brontosaurus",
-    grammar: FixedTerm(surface: "Brontosaurus"),
-)

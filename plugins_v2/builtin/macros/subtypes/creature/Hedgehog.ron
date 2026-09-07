@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hedgehog",
-    spelling: "Hedgehog",
-    grammar: Noun(singular: "Hedgehog", plural: Unavailable),
-)
-

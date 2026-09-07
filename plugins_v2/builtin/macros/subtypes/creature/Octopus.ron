@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Octopus",
-    spelling: "Octopus",
-    grammar: Noun(singular: "Octopus", plural: "Octopuses"),
-)
-

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DivineIntervention",
-    spelling: "Divine Intervention",
-    grammar: FixedTerm(surface: "Divine Intervention"),
-)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "camel",
+    spelling: "Camel",
+    grammar: Noun(singular: "Camel", plural: Unavailable),
+)
+

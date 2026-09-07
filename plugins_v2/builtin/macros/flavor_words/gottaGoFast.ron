@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "gottaGoFast",
+    spelling: "Gotta Go Fast",
+    grammar: FixedTerm(surface: "Gotta Go Fast"),
+)

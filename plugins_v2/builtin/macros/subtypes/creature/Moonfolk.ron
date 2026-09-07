@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Moonfolk",
-    spelling: "Moonfolk",
-    grammar: Noun(singular: "Moonfolk", plural: Unavailable),
-)
-

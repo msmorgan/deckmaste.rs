@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Leviathan",
-    spelling: "Leviathan",
-    grammar: Noun(singular: "Leviathan"),
-)
-

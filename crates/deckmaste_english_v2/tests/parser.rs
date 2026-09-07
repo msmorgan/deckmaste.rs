@@ -1054,7 +1054,7 @@ fn creature() -> Noun {
     Noun::Declaration(
         DeclarationNoun::new(
             &environment,
-            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            DeclarationId::new(DeclarationKind::Type, "creature"),
         )
         .expect("Creature is a normalized noun declaration"),
     )
@@ -1065,7 +1065,7 @@ fn creatures() -> Noun {
     Noun::Declaration(
         DeclarationNoun::new(
             &environment,
-            DeclarationId::new(DeclarationKind::Type, "Creature"),
+            DeclarationId::new(DeclarationKind::Type, "creature"),
         )
         .expect("Creature has a normalized plural noun reading"),
     )
@@ -1163,7 +1163,7 @@ fn destroy(object: Object) -> VerbPhrase {
         &environment,
         VerbInventoryRef::Declaration(DeclarationId::new(
             DeclarationKind::KeywordAction,
-            "Destroy",
+            "destroy",
         )),
     )
     .expect("the builtin grammar declares transitive Destroy");
@@ -1180,7 +1180,7 @@ fn connive() -> VerbPhrase {
         &environment,
         VerbInventoryRef::Declaration(DeclarationId::new(
             DeclarationKind::KeywordAction,
-            "Connive",
+            "connive",
         )),
     )
     .expect("the builtin grammar declares intransitive Connive");

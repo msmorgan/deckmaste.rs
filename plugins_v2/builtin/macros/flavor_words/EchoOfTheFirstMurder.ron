@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EchoOfTheFirstMurder",
-    spelling: "Echo of the First Murder",
-    grammar: FixedTerm(surface: "Echo of the First Murder"),
-)

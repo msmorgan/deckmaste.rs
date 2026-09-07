@@ -1,7 +1,0 @@
-// "one pile": one of the piles just made.
-(
-    name: "OnePile",
-    kinds: [NounPhrase],
-    params: [],
-    body: PileOf(Counted(quantity: Exactly(n: 1)), None),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Assassin",
-    spelling: "Assassin",
-    grammar: Noun(singular: "Assassin"),
-)
-

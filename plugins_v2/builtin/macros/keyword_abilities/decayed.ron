@@ -1,0 +1,55 @@
+KeywordAbility(
+    name: "decayed",
+    params: [],
+    spelling: "decayed",
+    grammar: FixedKeyword(
+        surface: "decayed",
+    ),
+    // "Decayed" means "This creature can't block" and "When this creature attacks,
+    // sacrifice it at end of combat." [CR#702.147a]
+    body: Keyword(
+        keyword: "Decayed",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Block)],
+                    role: Agent,
+                    bound: None,
+                    patient: NoPatient,
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Delay(
+                    event: BeginningOf(quantifier: The, part: EndOfCombat, whose: NoPossessor),
+                    alternatives: [],
+                    duration: None,
+                    body: Enact(
+                        verb: Action(label: "Sacrifice"),
+                        instruction: Move(
+                            subject: AsMarker(marker: Permanent, subject: This),
+                            to: Zone(zone: Graveyard, scope: Bare),
+                            riders: [],
+                        ),
+                        agent: You,
+                    ),
+                ),
+            ),
+        ],
+    ),
+)

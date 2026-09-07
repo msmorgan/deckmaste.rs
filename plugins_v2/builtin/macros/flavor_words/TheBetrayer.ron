@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TheBetrayer",
-    spelling: "The Betrayer",
-    grammar: FixedTerm(surface: "The Betrayer"),
-)

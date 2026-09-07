@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "packTactics",
+    spelling: "Pack tactics",
+    grammar: FixedTerm(surface: "Pack tactics"),
+)

@@ -10,7 +10,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Exile(Described(
+                instruction: exile(Described(
                     determiner: Target(quantity: Range(low: 1, high: 1)),
                     predicate: HasType(type: Creature),
                 )),

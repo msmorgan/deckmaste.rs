@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BadWolf",
-    spelling: "Bad Wolf",
-    grammar: FixedTerm(surface: "Bad Wolf"),
-)

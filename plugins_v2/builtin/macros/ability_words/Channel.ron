@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Channel",
-    spelling: "Channel",
-    grammar: FixedTerm(surface: "Channel"),
-)

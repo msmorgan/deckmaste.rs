@@ -1,6 +1,0 @@
-CounterKind(
-    name: "QuestCounter",
-    params: [],
-    spelling: "quest",
-    body: CounterFacts(label: "Quest", holder: Object),
-)

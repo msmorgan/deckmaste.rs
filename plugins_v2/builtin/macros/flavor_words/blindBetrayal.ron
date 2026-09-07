@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "blindBetrayal",
+    spelling: "Blind Betrayal",
+    grammar: FixedTerm(surface: "Blind Betrayal"),
+)

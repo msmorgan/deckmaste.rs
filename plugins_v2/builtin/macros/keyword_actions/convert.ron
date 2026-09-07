@@ -1,0 +1,18 @@
+// "Convert [permanent]" [CR#701.28a]: turn it so that its other face is up,
+// following the transform rules [CR#701.27a..701.27f]. The same turn-over as
+// Transform under its own deed label, which is what distinguishes the two
+// events [CR#701.27e].
+KeywordAction(
+    name: "convert",
+    params: [Subject],
+    spelling: "convert",
+    grammar: Verb(
+        bare: "convert",
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Convert"),
+        instruction: TurnOver(subject: Param(0)),
+        agent: None,
+    ),
+)

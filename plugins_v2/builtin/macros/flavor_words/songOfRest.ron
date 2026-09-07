@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "songOfRest",
+    spelling: "Song of Rest",
+    grammar: FixedTerm(surface: "Song of Rest"),
+)

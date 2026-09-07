@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "hireAMercenary",
+    spelling: "Hire a Mercenary",
+    grammar: FixedTerm(surface: "Hire a Mercenary"),
+)

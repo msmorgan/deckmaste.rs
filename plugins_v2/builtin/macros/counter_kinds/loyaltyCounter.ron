@@ -1,0 +1,11 @@
+// Loyalty counters ([CR#122.1e]): a planeswalker's loyalty IS its number of
+// loyalty counters — read by `StatOf(_, Loyalty)`. A marker counter: it
+// confers no continuous bearing of its own (the "0 loyalty → graveyard" SBA is
+// engine-sba-breadth; placement on entry per [CR#209.1] is planeswalker work).
+CounterKind(
+    name: "loyaltyCounter",
+    params: [],
+    spelling: "loyalty",
+    grammar: FixedTerm(surface: "loyalty"),
+    body: CounterFacts(label: "Loyalty", holder: Object),
+)

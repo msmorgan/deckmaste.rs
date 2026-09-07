@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "VentureIntoTheDungeon",
-    spelling: "venture into the dungeon",
-    grammar: Verb(
-        bare: "venture into the dungeon",
-        third_person: "ventures into the dungeon",
-        frame_set: Intransitive,
-    ),
-)

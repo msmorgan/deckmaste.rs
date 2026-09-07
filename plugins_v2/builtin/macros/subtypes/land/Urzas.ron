@@ -1,8 +1,0 @@
-// No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Land,
-    name: "Urzas",
-    spelling: "Urza's",
-    grammar: Noun(singular: "Urza's", plural: Unavailable),
-)
-

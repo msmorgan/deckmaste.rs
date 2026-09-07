@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "kirin",
+    spelling: "Kirin",
+    grammar: Noun(singular: "Kirin", plural: Unavailable),
+)
+

@@ -1,7 +1,0 @@
-// "search your library and/or graveyard for a <p>"
-(
-    name: "SearchLibraryOrGraveyard",
-    kinds: [Instruction],
-    params: {"p": Predicate, "agent": Default(NounPhrase, You)},
-    body: Search(scope: SomeZones(You, [Library, Graveyard]), quantity: Exactly(n: 1), predicate: Param(p), agent: Param(agent)),
-)

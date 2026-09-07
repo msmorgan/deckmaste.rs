@@ -1,0 +1,7 @@
+// An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12].
+(
+    name: "outlaw",
+    kinds: [Predicate],
+    params: [],
+    body: Or(disjuncts: [HasSubtype(subtype: creatureType(label: "Assassin")), HasSubtype(subtype: creatureType(label: "Mercenary")), HasSubtype(subtype: creatureType(label: "Pirate")), HasSubtype(subtype: creatureType(label: "Rogue")), HasSubtype(subtype: creatureType(label: "Warlock"))]),
+)

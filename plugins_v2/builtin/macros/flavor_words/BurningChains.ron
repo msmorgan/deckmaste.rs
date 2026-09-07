@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BurningChains",
-    spelling: "Burning Chains",
-    grammar: FixedTerm(surface: "Burning Chains"),
-)

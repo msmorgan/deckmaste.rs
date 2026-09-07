@@ -1,6 +1,0 @@
-(
-    name: "Creature",
-    kinds: [Predicate],
-    params: [],
-    body: HasType(r#type: Creature),
-)

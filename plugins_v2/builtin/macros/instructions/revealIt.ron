@@ -1,0 +1,7 @@
+// "reveal it": the card a search found.
+(
+    name: "revealIt",
+    kinds: [Instruction],
+    params: [],
+    body: revealCards(cards: foundCard),
+)

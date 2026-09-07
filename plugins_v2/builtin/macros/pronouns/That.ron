@@ -1,7 +1,0 @@
-// "that <word>", e.g. `that .player`.
-(
-    name: "That",
-    kinds: [NounPhrase],
-    params: {"w": NounWord},
-    body: Pro(Word(word: Param(w)), One, Whole),
-)

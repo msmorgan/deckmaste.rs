@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "gargoyle",
+    spelling: "Gargoyle",
+    grammar: Noun(singular: "Gargoyle", plural: Unavailable),
+)
+

@@ -1,7 +1,0 @@
-// "return <subject> to the battlefield transformed under <controller>'s control"
-(
-    name: "ReturnToBattlefieldTransformed",
-    kinds: [Instruction],
-    params: {"subject": NounPhrase, "controller": NounPhrase},
-    body: ReturnTo(subject: Param(subject), destination: Battlefield, riders: [EntersTransformed, Under(controller: Param(controller))]),
-)

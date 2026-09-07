@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "incubate",
+    spelling: "incubate",
+    grammar: Verb(
+        bare: "incubate",
+        frame_set: MeasureComplement,
+    ),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "specter",
+    spelling: "Specter",
+    grammar: Noun(singular: "Specter", plural: Unavailable),
+)
+

@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "cleave",
+    params: [Cost],
+    spelling: "cleave",
+    grammar: FixedKeyword(
+        surface: "cleave",
+    ),
+    // STOP. Cleave's second ability is "change its text by removing all text found
+    // within square brackets in the spell's rules text" [CR#702.148a] — a
+    // text-changing effect [CR#612.1] over printed bracketing. No
+    // `CharacteristicEdit` edits rules text by its printed marks.
+    body: Keyword(keyword: "Cleave", params: [Cost(cost: Param(0))], body: []),
+)

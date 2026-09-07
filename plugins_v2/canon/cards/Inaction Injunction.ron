@@ -11,7 +11,7 @@ SingleFaced(face: (
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [
-                    Detain(Described(
+                    detain(Described(
                         determiner: Target(quantity: Range(low: 1, high: 1)),
                         predicate: And(conjuncts: [
                             HasType(type: Creature),

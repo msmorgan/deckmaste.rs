@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "performer",
+    spelling: "Performer",
+    grammar: Noun(singular: "Performer", plural: Unavailable),
+)
+

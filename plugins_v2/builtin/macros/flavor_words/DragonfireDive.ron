@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "DragonfireDive",
-    spelling: "Dragonfire Dive",
-    grammar: FixedTerm(surface: "Dragonfire Dive"),
-)

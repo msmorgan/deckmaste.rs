@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Hagneia",
-    spelling: "Hagneia",
-    grammar: FixedTerm(surface: "Hagneia"),
-)

@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Bloodrush",
-    spelling: "Bloodrush",
-    grammar: FixedTerm(surface: "Bloodrush"),
-)

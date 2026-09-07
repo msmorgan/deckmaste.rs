@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "noOneDies",
+    spelling: "No One Dies!",
+    grammar: FixedTerm(surface: "No One Dies!"),
+)

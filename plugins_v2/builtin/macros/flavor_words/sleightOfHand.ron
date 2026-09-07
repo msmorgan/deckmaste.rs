@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sleightOfHand",
+    spelling: "Sleight of Hand",
+    grammar: FixedTerm(surface: "Sleight of Hand"),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "kithkin",
+    spelling: "Kithkin",
+    grammar: Noun(singular: "Kithkin", plural: "Kithkin"),
+)
+

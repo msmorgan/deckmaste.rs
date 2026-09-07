@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TemporalForesight",
-    spelling: "Temporal Foresight",
-    grammar: FixedTerm(surface: "Temporal Foresight"),
-)

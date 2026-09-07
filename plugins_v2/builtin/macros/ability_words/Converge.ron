@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Converge",
-    spelling: "Converge",
-    grammar: FixedTerm(surface: "Converge"),
-)

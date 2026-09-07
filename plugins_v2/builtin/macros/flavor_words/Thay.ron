@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Thay",
-    spelling: "Thay",
-    grammar: FixedTerm(surface: "Thay"),
-)

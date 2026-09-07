@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "HypertoxicMiasma",
-    spelling: "Hypertoxic Miasma",
-    grammar: FixedTerm(surface: "Hypertoxic Miasma"),
-)

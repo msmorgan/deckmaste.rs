@@ -1,7 +1,0 @@
-// "any other target"
-(
-    name: "AnyOtherTarget",
-    kinds: [Predicate],
-    params: [],
-    body: And(conjuncts: [AnyTarget, Other]),
-)

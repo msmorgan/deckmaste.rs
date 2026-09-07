@@ -1,0 +1,11 @@
+KeywordAbility(
+    name: "wither",
+    params: [],
+    spelling: "wither",
+    grammar: FixedKeyword(
+        surface: "wither",
+    ),
+    // STOP. Wither substitutes the RESULT of damage [CR#702.80a], like infect and
+    // lifelink; see `Infect.ron`.
+    body: Keyword(keyword: "Wither", params: [], body: []),
+)

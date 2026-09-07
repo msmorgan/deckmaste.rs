@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Spell,
+    name: "omen",
+    spelling: "Omen",
+    grammar: Noun(singular: "Omen", plural: Unavailable),
+)
+

@@ -10,71 +10,71 @@ use deckmaste_construction_core::macro_def::VerbFrameSet;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
-    "Activate",
-    "Adapt",
-    "Airbend",
-    "Amass",
-    "Assemble",
-    "Attach",
-    "Behold",
-    "Blight",
-    "Bolster",
-    "Cast",
-    "Clash",
-    "Cloak",
-    "CollectEvidence",
-    "Connive",
-    "Convert",
-    "Counter",
-    "Create",
-    "Destroy",
-    "Detain",
-    "Discard",
-    "Discover",
-    "Double",
-    "Earthbend",
-    "Endure",
-    "Exchange",
-    "Exert",
-    "Exile",
-    "Explore",
-    "FaceAVillainousChoice",
-    "Fateseal",
-    "Fight",
-    "Forage",
-    "Goad",
-    "Harness",
-    "Heal",
-    "Incubate",
-    "Investigate",
-    "Learn",
-    "Manifest",
-    "ManifestDread",
-    "Meld",
-    "Mill",
-    "Monstrosity",
-    "Play",
-    "Populate",
-    "Proliferate",
-    "Recruit",
-    "Regenerate",
-    "Reveal",
-    "Sacrifice",
-    "Scry",
-    "Search",
-    "Shuffle",
-    "Support",
-    "Surveil",
-    "Suspect",
-    "Tap",
-    "TheRingTemptsYou",
-    "TimeTravel",
-    "Transform",
-    "Triple",
-    "Untap",
-    "VentureIntoTheDungeon",
-    "Vote",
-    "Waterbend",
+    "activate",
+    "adapt",
+    "airbend",
+    "amass",
+    "assemble",
+    "attach",
+    "behold",
+    "blight",
+    "bolster",
+    "cast",
+    "clash",
+    "cloak",
+    "collectEvidence",
+    "connive",
+    "convert",
+    "counter",
+    "create",
+    "destroy",
+    "detain",
+    "discard",
+    "discover",
+    "double",
+    "earthbend",
+    "endure",
+    "exchange",
+    "exert",
+    "exile",
+    "explore",
+    "faceAVillainousChoice",
+    "fateseal",
+    "fight",
+    "forage",
+    "goad",
+    "harness",
+    "heal",
+    "incubate",
+    "investigate",
+    "learn",
+    "manifest",
+    "manifestDread",
+    "meld",
+    "mill",
+    "monstrosity",
+    "play",
+    "populate",
+    "proliferate",
+    "recruit",
+    "regenerate",
+    "reveal",
+    "sacrifice",
+    "scry",
+    "search",
+    "shuffle",
+    "support",
+    "surveil",
+    "suspect",
+    "tap",
+    "theRingTemptsYou",
+    "timeTravel",
+    "transform",
+    "triple",
+    "untap",
+    "ventureIntoTheDungeon",
+    "vote",
+    "waterbend",
 ];
 
 fn action<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a NormalizedDeclaration {
@@ -151,7 +151,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         "no keyword action carries a semantic body; the family's graduation was lost"
     );
 
-    let destroy = action(&declarations, "Destroy");
+    let destroy = action(&declarations, "destroy");
     assert_eq!(
         destroy.spelling(),
         [SpellingPart::Literal("destroy".to_owned())]
@@ -172,7 +172,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     );
 
     assert_eq!(
-        surfaces(action(&declarations, "Search")),
+        surfaces(action(&declarations, "search")),
         [
             (SurfaceFeature::PLAIN, "search"),
             (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "searches"),
@@ -183,7 +183,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     );
 
     assert_eq!(
-        action(&declarations, "Explore").grammar().unwrap().recipe(),
+        action(&declarations, "explore").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
                 frames: vec![vec![], vec![CustomTailAtom::ObjectNounPhrase]],
@@ -191,7 +191,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         }
     );
 
-    let regenerate = action(&declarations, "Regenerate");
+    let regenerate = action(&declarations, "regenerate");
     assert_eq!(
         regenerate.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
@@ -207,7 +207,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         ]
     );
 
-    let scry = action(&declarations, "Scry");
+    let scry = action(&declarations, "scry");
     assert_eq!(
         scry.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
@@ -237,7 +237,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     );
 
     assert_eq!(
-        action(&declarations, "Connive").grammar().unwrap().recipe(),
+        action(&declarations, "connive").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
                 frames: vec![vec![], vec![CustomTailAtom::Amount]],
@@ -246,7 +246,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     );
 
     assert_eq!(
-        action(&declarations, "Vote").grammar().unwrap().recipe(),
+        action(&declarations, "vote").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
                 frames: vec![
@@ -261,7 +261,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         }
     );
 
-    let manifest_dread = action(&declarations, "ManifestDread");
+    let manifest_dread = action(&declarations, "manifestDread");
     assert_eq!(
         surfaces(manifest_dread),
         [
@@ -274,14 +274,14 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         ]
     );
 
-    let waterbend = action(&declarations, "Waterbend");
+    let waterbend = action(&declarations, "waterbend");
     assert_eq!(
         waterbend.grammar().unwrap().recipe(),
         &GrammarRecipe::FixedTerm
     );
     assert_eq!(surfaces(waterbend), [(SurfaceFeature::Fixed, "waterbend")]);
 
-    let ring = action(&declarations, "TheRingTemptsYou");
+    let ring = action(&declarations, "theRingTemptsYou");
     assert_eq!(
         ring.spelling(),
         [SpellingPart::Literal("the Ring tempts you".to_owned())]
@@ -303,7 +303,7 @@ fn exchange_has_every_attested_representable_tail_shape() {
         .expect("builtin-v2 declarations must load");
 
     assert_eq!(
-        action(&declarations, "Exchange")
+        action(&declarations, "exchange")
             .grammar()
             .unwrap()
             .recipe(),
@@ -334,7 +334,7 @@ fn shuffle_has_every_attested_representable_tail_shape() {
         .expect("builtin-v2 declarations must load");
 
     assert_eq!(
-        action(&declarations, "Shuffle").grammar().unwrap().recipe(),
+        action(&declarations, "shuffle").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
                 frames: vec![
@@ -358,7 +358,7 @@ fn exile_declares_its_object_resultative_frame() {
         .expect("builtin-v2 declarations must load");
 
     assert_eq!(
-        action(&declarations, "Exile").grammar().unwrap().recipe(),
+        action(&declarations, "exile").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
             frame_set: VerbFrameSet::Custom {
                 frames: vec![

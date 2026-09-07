@@ -1,0 +1,7 @@
+// "of the last chosen <quality>"
+(
+    name: "ofTheLastChosen",
+    kinds: [Predicate],
+    params: {"sort": QualitySort},
+    body: OfChosen(TheLatestChoice, Param(sort)),
+)

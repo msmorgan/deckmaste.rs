@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "mineVibranium",
+    spelling: "Mine Vibranium",
+    grammar: FixedTerm(surface: "Mine Vibranium"),
+)

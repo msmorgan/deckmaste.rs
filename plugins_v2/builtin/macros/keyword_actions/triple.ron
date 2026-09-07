@@ -1,0 +1,8 @@
+KeywordAction(
+    name: "triple",
+    spelling: "triple",
+    grammar: Verb(
+        bare: "triple",
+        frame_set: Transitive,
+    ),
+)

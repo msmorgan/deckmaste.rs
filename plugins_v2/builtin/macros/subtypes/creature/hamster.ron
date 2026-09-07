@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "hamster",
+    spelling: "Hamster",
+    grammar: Noun(singular: "Hamster"),
+)
+

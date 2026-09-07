@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Balloon",
-    spelling: "Balloon",
-    grammar: Noun(singular: "Balloon", plural: Unavailable),
-)
-

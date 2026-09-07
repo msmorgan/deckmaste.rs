@@ -1,0 +1,7 @@
+// "a card exiled with this artifact"
+(
+    name: "exiledWithThisArtifact",
+    kinds: [Predicate],
+    params: [],
+    body: ExiledWith(source: thisArtifact),
+)

@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "threshold",
+    spelling: "Threshold",
+    grammar: FixedTerm(surface: "Threshold"),
+)

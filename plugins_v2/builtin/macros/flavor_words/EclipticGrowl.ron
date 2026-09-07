@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EclipticGrowl",
-    spelling: "Ecliptic Growl",
-    grammar: FixedTerm(surface: "Ecliptic Growl"),
-)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "embiggenFist",
+    spelling: "Embiggen Fist",
+    grammar: FixedTerm(surface: "Embiggen Fist"),
+)

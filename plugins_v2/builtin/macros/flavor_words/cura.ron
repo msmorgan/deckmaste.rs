@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "cura",
+    spelling: "Cura",
+    grammar: FixedTerm(surface: "Cura"),
+)

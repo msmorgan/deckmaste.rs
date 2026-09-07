@@ -1,0 +1,7 @@
+// "they": the player most recently named.
+(
+    name: "they",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(Word(word: Player), One, Whole),
+)

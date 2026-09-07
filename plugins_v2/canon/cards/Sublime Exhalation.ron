@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Undaunted,
+            undaunted,
             Spell(
                 timing: None,
                 instruction: Enact(

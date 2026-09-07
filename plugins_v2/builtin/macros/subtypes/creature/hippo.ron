@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "hippo",
+    spelling: "Hippo",
+    grammar: Noun(singular: "Hippo", plural: Unavailable),
+)
+

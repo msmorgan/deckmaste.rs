@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Phyrexian",
-    spelling: "Phyrexian",
-    grammar: FixedTerm(surface: "Phyrexian"),
-)

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "fallenWarrior",
+    spelling: "Fallen Warrior",
+    grammar: FixedTerm(surface: "Fallen Warrior"),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hippogriff",
-    spelling: "Hippogriff",
-    grammar: Noun(singular: "Hippogriff", plural: Unavailable),
-)
-

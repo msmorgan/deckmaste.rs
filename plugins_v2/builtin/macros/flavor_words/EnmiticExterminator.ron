@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EnmiticExterminator",
-    spelling: "Enmitic Exterminator",
-    grammar: FixedTerm(surface: "Enmitic Exterminator"),
-)

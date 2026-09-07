@@ -1,0 +1,81 @@
+KeywordAbility(
+    name: "gravestorm",
+    params: [],
+    spelling: "gravestorm",
+    grammar: FixedKeyword(
+        surface: "gravestorm",
+    ),
+    // "Gravestorm" means "When you cast this spell, copy it for each permanent that was
+    // put into a graveyard from the battlefield this turn. If the spell has any
+    // targets, you may choose new targets for any of the copies." [CR#702.69a]
+    body: Keyword(
+        keyword: "Gravestorm",
+        params: [],
+        body: [
+            Triggered(
+                event: Casts(
+                    player: You,
+                    spell: AsMarker(marker: Spell, subject: This),
+                    from: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Sequentially(
+                    steps: [
+                        Copy(
+                            sort: FromStack,
+                            subject: AsMarker(marker: Spell, subject: This),
+                            times: EventTally(
+                                op: Count,
+                                subject: Described(
+                                    determiner: Bare,
+                                    predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                ),
+                                lookback: Mk(
+                                    event: ZoneChange(
+                                        subject: Gap(kind: Object),
+                                        from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                                        to: Zone(zone: Graveyard, scope: Bare),
+                                        observation: Before,
+                                    ),
+                                    lookback: ThisTurn,
+                                ),
+                            ),
+                            exceptions: [],
+                            agent: You,
+                        ),
+                        DoIf(
+                            condition: Matches(
+                                subject: AsMarker(marker: Spell, subject: This),
+                                predicate: Targets(
+                                    subject: Described(
+                                        determiner: A(mode: Unmarked),
+                                        predicate: IsSource,
+                                    ),
+                                    extent: SomeTarget,
+                                ),
+                            ),
+                            instruction: WithContinuation(
+                                policy: Optional(agent: You),
+                                body: ChooseNewTargets(
+                                    subject: Pro(
+                                        reach: Word(word: Copy),
+                                        plurality: Many,
+                                        window: Whole,
+                                    ),
+                                ),
+                                if_did: None,
+                                if_not: None,
+                            ),
+                            otherwise: None,
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)

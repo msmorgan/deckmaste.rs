@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "avatar",
+    spelling: "Avatar",
+    grammar: Noun(singular: "Avatar", plural: Unavailable),
+)
+

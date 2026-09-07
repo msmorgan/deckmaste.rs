@@ -1,0 +1,6 @@
+(
+    name: "unblocked",
+    kinds: [Predicate],
+    params: [],
+    body: Not(predicate: blocked),
+)

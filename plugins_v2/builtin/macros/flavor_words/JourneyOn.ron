@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "JourneyOn",
-    spelling: "Journey On",
-    grammar: FixedTerm(surface: "Journey On"),
-)

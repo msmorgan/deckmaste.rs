@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Inspired",
-    spelling: "Inspired",
-    grammar: FixedTerm(surface: "Inspired"),
-)

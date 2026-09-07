@@ -902,7 +902,7 @@ mod structural_trace_tests {
                         deckmaste_construction_core::macro_def::DeclarationKind::Subtype(
                             deckmaste_construction_core::macro_def::SubtypeCategory::Creature,
                         ),
-                        "Merfolk".to_owned(),
+                        "merfolk".to_owned(),
                     )],
                 ),
                 "Equipment's" => assert_eq!(
@@ -911,7 +911,7 @@ mod structural_trace_tests {
                         deckmaste_construction_core::macro_def::DeclarationKind::Subtype(
                             deckmaste_construction_core::macro_def::SubtypeCategory::Artifact,
                         ),
-                        "Equipment".to_owned(),
+                        "equipment".to_owned(),
                     )],
                 ),
                 _ => unreachable!(),
@@ -1297,7 +1297,7 @@ mod structural_trace_tests {
                 (
                     0,
                     7,
-                    "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }) }, concord_class: Other, inflectional_form: Plain, onset: Consonant }",
+                    "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"destroy\" }) }, concord_class: Other, inflectional_form: Plain, onset: Consonant }",
                 ),
                 (7, 14, "TargetingMarker(Target)"),
                 (
@@ -1308,7 +1308,7 @@ mod structural_trace_tests {
                 (
                     14,
                     21,
-                    "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Singular, onset: Consonant, possessive_ending: Other }",
+                    "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Subtype(Creature), name: \"spirit\" }, locative_temporal_license: ObjectAttachmentLicensed, relationality: QualifiedRelational, number_invariant: false }), number: Singular, onset: Consonant, possessive_ending: Other }",
                 ),
             ])
         );

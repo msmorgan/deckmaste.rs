@@ -1,6 +1,0 @@
-CounterKind(
-    name: "StorageCounter",
-    params: [],
-    spelling: "storage",
-    body: CounterFacts(label: "Storage", holder: Object),
-)

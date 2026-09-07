@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Enchantment,
+    name: "plan",
+    spelling: "Plan",
+    grammar: Noun(singular: "Plan", plural: Unavailable),
+)
+

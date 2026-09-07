@@ -1,8 +1,0 @@
-// No supported Oracle rules-text plural is attested for this proper subtype name.
-Subtype(
-    category: Planeswalker,
-    name: "Comet",
-    spelling: "Comet",
-    grammar: Noun(singular: "Comet", plural: Unavailable),
-)
-

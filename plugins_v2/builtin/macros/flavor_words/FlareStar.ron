@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FlareStar",
-    spelling: "Flare Star",
-    grammar: FixedTerm(surface: "Flare Star"),
-)

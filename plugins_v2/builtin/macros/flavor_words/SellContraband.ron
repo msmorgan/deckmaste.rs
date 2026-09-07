@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SellContraband",
-    spelling: "Sell Contraband",
-    grammar: FixedTerm(surface: "Sell Contraband"),
-)

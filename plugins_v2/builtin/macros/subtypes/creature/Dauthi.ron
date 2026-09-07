@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Dauthi",
-    spelling: "Dauthi",
-    grammar: Noun(singular: "Dauthi", plural: Unavailable),
-)
-

@@ -50,13 +50,13 @@ fn face(card: &Card) -> &deckmaste_semantics_v2::card::CardFace {
 #[test]
 fn the_plugins_macros_register_under_their_kinds() {
     let plugin = testing_plugin();
-    assert!(plugin.macros.get("NounPhrase", "AnyTarget").is_some());
+    assert!(plugin.macros.get("NounPhrase", "anyTarget").is_some());
     let nested = plugin
         .macros
-        .get("Instruction", "DealsDamageToAnyTarget")
+        .get("Instruction", "dealsDamageToAnyTarget")
         .expect("the damage macro registers at Instruction");
     assert!(
-        nested.body().contains("AnyTarget"),
+        nested.body().contains("anyTarget"),
         "the nested macro's body invokes the other macro"
     );
 }
@@ -265,10 +265,10 @@ fn a_prelude_carries_its_macros_into_the_plugin_loaded_over_it() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/testing");
     let plugin = Plugin::load_with_prelude(&prelude, root).expect("the testing plugin loads");
     assert!(
-        plugin.macros.get("Type", "Creature").is_some(),
+        plugin.macros.get("Type", "creature").is_some(),
         "a builtin declaration stays in scope under the plugin loaded over it"
     );
-    assert!(plugin.macros.get("NounPhrase", "AnyTarget").is_some());
+    assert!(plugin.macros.get("NounPhrase", "anyTarget").is_some());
 }
 
 /// A field the constructor does not declare is refused, naming both — never

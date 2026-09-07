@@ -1,0 +1,7 @@
+// "exile <subject> with N <kind> counters on it"
+(
+    name: "exileWithCounters",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "amount": Amount, "kind": CounterKind, "agent": Default(NounPhrase, None)},
+    body: Enact(verb: Action(label: "Exile"), instruction: Move(Param(subject), exileZone, [WithCounters(Param(amount), Printed(kind: Param(kind)), Fresh)]), agent: Param(agent)),
+)

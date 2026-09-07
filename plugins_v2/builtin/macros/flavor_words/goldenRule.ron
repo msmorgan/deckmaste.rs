@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "goldenRule",
+    spelling: "Golden Rule",
+    grammar: FixedTerm(surface: "Golden Rule"),
+)

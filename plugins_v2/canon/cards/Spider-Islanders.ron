@@ -15,7 +15,7 @@ SingleFaced(face: (
         power: Lit(value: 4),
         toughness: Lit(value: 3),
         text: [
-            Mayhem(Mana(cost: [
+            mayhem(Mana(cost: [
                 Simple(symbol: Generic(amount: 1)),
                 Simple(symbol: Specific(color: Of(color: Red))),
             ])),

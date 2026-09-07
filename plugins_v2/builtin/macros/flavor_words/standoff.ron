@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "standoff",
+    spelling: "Standoff",
+    grammar: FixedTerm(surface: "Standoff"),
+)

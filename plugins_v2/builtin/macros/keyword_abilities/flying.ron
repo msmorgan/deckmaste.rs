@@ -1,0 +1,45 @@
+KeywordAbility(
+    name: "flying",
+    params: [],
+    spelling: "flying",
+    grammar: FixedKeyword(
+        surface: "flying",
+    ),
+    // "This creature can't be blocked except by creatures with flying and/or
+    // reach." [CR#702.9b]
+    body: Keyword(
+        keyword: "Flying",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    compulsion: Forbid,
+                    deeds: [Core(deed: Block)],
+                    role: Patient,
+                    bound: None,
+                    patient: Counterpart(
+                        patient: Described(
+                            determiner: All,
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    Not(
+                                        predicate: Or(
+                                            disjuncts: [
+                                                HasKeyword(keyword: The(keyword: "Flying")),
+                                                HasKeyword(keyword: The(keyword: "Reach")),
+                                            ],
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                    as_though: None,
+                    rider: NoRider,
+                ),
+            ),
+        ],
+    ),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Kraken",
-    spelling: "Kraken",
-    grammar: Noun(singular: "Kraken"),
-)
-

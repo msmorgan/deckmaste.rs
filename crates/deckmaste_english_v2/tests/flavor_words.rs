@@ -83,7 +83,7 @@ fn flavor_words_cover_plain_chapter_and_mode_label_positions() {
     for document in &parsed {
         visitor.visit_oracle_text(document);
     }
-    for name in ["IntoTheTARDIS", "Brimstone", "Khans", "Dragons"] {
+    for name in ["intoTheTARDIS", "brimstone", "khans", "dragons"] {
         assert!(
             visitor
                 .0

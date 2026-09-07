@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "psionicSpells",
+    spelling: "Psionic Spells",
+    grammar: FixedTerm(surface: "Psionic Spells"),
+)

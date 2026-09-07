@@ -1,0 +1,68 @@
+KeywordAbility(
+    name: "retrace",
+    params: [],
+    spelling: "retrace",
+    grammar: FixedKeyword(
+        surface: "retrace",
+    ),
+    // "Retrace" means "You may cast this card from your graveyard by discarding a land
+    // card as an additional cost to cast it." [CR#702.81a] The additional cost rides
+    // on the permitted cast itself, as `Cost::ItsManaCost` alongside the discard.
+    body: Keyword(
+        keyword: "Retrace",
+        params: [],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action(label: "Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(patient: This),
+                    as_though: None,
+                    rider: Play(
+                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(
+                            cost: Compound(
+                                costs: [
+                                    ItsManaCost,
+                                    Perform(
+                                        instruction: Enact(
+                                            verb: Action(label: "Discard"),
+                                            instruction: Move(
+                                                subject: Described(
+                                                    determiner: A(mode: Unmarked),
+                                                    predicate: And(
+                                                        conjuncts: [
+                                                            IsCard,
+                                                            HasType(type: Land),
+                                                            InZone(
+                                                                zone: Zone(
+                                                                    zone: Hand,
+                                                                    scope: PossessedBy(
+                                                                        possessor: You,
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                        ],
+                                                    ),
+                                                ),
+                                                to: Zone(zone: Graveyard, scope: Bare),
+                                                riders: [],
+                                            ),
+                                            agent: You,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ],
+    ),
+)

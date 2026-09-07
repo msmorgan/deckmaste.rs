@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "LordOfThePyrrhianLegions",
-    spelling: "Lord of the Pyrrhian Legions",
-    grammar: FixedTerm(surface: "Lord of the Pyrrhian Legions"),
-)

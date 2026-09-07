@@ -1,0 +1,45 @@
+KeywordAbility(
+    name: "ravenous",
+    params: [],
+    spelling: "ravenous",
+    grammar: FixedKeyword(
+        surface: "ravenous",
+    ),
+    // "Ravenous" means "This permanent enters with X +1/+1 counters on it" and "When
+    // this permanent enters, if X is 5 or more, draw a card." [CR#702.156a]
+    body: Keyword(
+        keyword: "Ravenous",
+        params: [],
+        body: [
+            Static(
+                spec: EntryRider(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    rider: WithCounters(
+                        amount: Letter(letter: X),
+                        kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                        mark: Fresh,
+                    ),
+                ),
+            ),
+            Triggered(
+                event: ZoneChange(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: CompareAmt(
+                    subject: Letter(letter: X),
+                    comparator: AtLeast,
+                    bound: Lit(value: 5),
+                ),
+                instruction: Draw(amount: Lit(value: 1), agent: You),
+            ),
+        ],
+    ),
+)

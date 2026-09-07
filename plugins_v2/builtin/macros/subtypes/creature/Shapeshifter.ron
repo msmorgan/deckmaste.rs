@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Shapeshifter",
-    spelling: "Shapeshifter",
-    grammar: Noun(singular: "Shapeshifter"),
-)
-

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Prism",
-    spelling: "Prism",
-    grammar: Noun(singular: "Prism", plural: Unavailable),
-)
-

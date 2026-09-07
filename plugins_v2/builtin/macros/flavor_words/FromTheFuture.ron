@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "FromTheFuture",
-    spelling: "From the Future",
-    grammar: FixedTerm(surface: "From the Future"),
-)

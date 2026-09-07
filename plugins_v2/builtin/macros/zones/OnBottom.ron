@@ -1,7 +1,0 @@
-// "on the bottom of its owner's library"
-(
-    name: "OnBottom",
-    kinds: [ZoneExpr],
-    params: [],
-    body: Library(OneEnd(end: Bottom), None, None, Bare),
-)

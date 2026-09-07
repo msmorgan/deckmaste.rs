@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "terrorFromTheDeep",
+    spelling: "Terror from the Deep",
+    grammar: FixedTerm(surface: "Terror from the Deep"),
+)

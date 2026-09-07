@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "saproling",
+    spelling: "Saproling",
+    grammar: Noun(singular: "Saproling"),
+)
+

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "moldHarvest",
+    spelling: "Mold Harvest",
+    grammar: FixedTerm(surface: "Mold Harvest"),
+)

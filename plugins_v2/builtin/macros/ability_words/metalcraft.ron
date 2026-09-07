@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "metalcraft",
+    spelling: "Metalcraft",
+    grammar: FixedTerm(surface: "Metalcraft"),
+)

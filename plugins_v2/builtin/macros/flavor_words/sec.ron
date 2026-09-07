@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sec",
+    spelling: "Sec",
+    grammar: FixedTerm(surface: "Sec"),
+)

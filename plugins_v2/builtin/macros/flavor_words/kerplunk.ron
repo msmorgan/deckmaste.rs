@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "kerplunk",
+    spelling: "Kerplunk",
+    grammar: FixedTerm(surface: "Kerplunk"),
+)

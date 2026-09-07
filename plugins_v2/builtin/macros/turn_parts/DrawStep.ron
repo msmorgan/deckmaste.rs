@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "DrawStep",
-    spelling: "draw step",
-    grammar: Noun(singular: "draw step"),
-    params: [],
-    body: DrawStep,
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Standoff",
-    spelling: "Standoff",
-    grammar: FixedTerm(surface: "Standoff"),
-)

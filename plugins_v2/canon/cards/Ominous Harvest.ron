@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Gravestorm,
+            gravestorm,
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [

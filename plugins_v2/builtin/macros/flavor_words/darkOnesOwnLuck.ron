@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "darkOnesOwnLuck",
+    spelling: "Dark One's Own Luck",
+    grammar: FixedTerm(surface: "Dark One's Own Luck"),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Hydra",
-    spelling: "Hydra",
-    grammar: Noun(singular: "Hydra", plural: Unavailable),
-)
-

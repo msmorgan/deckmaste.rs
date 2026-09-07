@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Bird",
-    spelling: "Bird",
-    grammar: Noun(singular: "Bird"),
-)
-

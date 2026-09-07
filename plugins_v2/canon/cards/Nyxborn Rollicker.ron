@@ -8,7 +8,7 @@ SingleFaced(face: (
         power: Lit(value: 1),
         toughness: Lit(value: 1),
         text: [
-            Bestow(Mana(cost: [
+            bestow(Mana(cost: [
                 Simple(symbol: Generic(amount: 1)),
                 Simple(symbol: Specific(color: Of(color: Red))),
             ])),

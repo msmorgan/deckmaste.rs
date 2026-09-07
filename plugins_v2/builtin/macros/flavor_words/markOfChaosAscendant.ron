@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "markOfChaosAscendant",
+    spelling: "Mark of Chaos Ascendant",
+    grammar: FixedTerm(surface: "Mark of Chaos Ascendant"),
+)

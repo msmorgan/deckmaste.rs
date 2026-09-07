@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "huntForHeresy",
+    spelling: "Hunt for Heresy",
+    grammar: FixedTerm(surface: "Hunt for Heresy"),
+)

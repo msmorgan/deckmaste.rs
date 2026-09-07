@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "webSupport",
+    spelling: "Web Support",
+    grammar: FixedTerm(surface: "Web Support"),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "RapidFireBattleCannon",
-    spelling: "Rapid-fire Battle Cannon",
-    grammar: FixedTerm(surface: "Rapid-fire Battle Cannon"),
-)

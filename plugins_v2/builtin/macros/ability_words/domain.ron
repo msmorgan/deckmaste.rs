@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "domain",
+    spelling: "Domain",
+    grammar: FixedTerm(surface: "Domain"),
+)

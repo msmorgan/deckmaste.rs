@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sigilOfCorruption",
+    spelling: "Sigil of Corruption",
+    grammar: FixedTerm(surface: "Sigil of Corruption"),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "gamma",
+    spelling: "Gamma",
+    grammar: Noun(singular: "Gamma", plural: Unavailable),
+)
+

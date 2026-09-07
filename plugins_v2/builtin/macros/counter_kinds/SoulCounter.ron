@@ -1,6 +1,0 @@
-CounterKind(
-    name: "SoulCounter",
-    params: [],
-    spelling: "soul",
-    body: CounterFacts(label: "Soul", holder: Object),
-)

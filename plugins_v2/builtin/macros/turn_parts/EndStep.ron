@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "EndStep",
-    spelling: "end step",
-    grammar: Noun(singular: "end step"),
-    params: [],
-    body: EndStep,
-)

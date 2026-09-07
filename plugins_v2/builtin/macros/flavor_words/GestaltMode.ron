@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GestaltMode",
-    spelling: "Gestalt Mode",
-    grammar: FixedTerm(surface: "Gestalt Mode"),
-)

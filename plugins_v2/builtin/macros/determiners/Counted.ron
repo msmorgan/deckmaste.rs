@@ -1,7 +1,0 @@
-// "N …", "up to N …"
-(
-    name: "Counted",
-    kinds: [NounPhrase],
-    params: {"q": Quantity, "p": Predicate},
-    body: Described(Count(Param(q), None), Param(p)),
-)

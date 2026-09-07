@@ -1,0 +1,7 @@
+// "<who> reveals their hand"
+(
+    name: "revealTheirHand",
+    kinds: [Instruction],
+    params: {"agent": Default(NounPhrase, You)},
+    body: Expose(verb: Reveal, exposed: Zone(zone: handOf(player: they)), agent: Param(agent)),
+)

@@ -1,0 +1,6 @@
+(
+    name: "thisClass",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Enchantment, This, enchantmentType(label: "Class")),
+)

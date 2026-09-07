@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Mesmerize",
-    spelling: "Mesmerize",
-    grammar: FixedTerm(surface: "Mesmerize"),
-)

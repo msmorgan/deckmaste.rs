@@ -1,0 +1,7 @@
+// "that token": the token just created.
+(
+    name: "itAsToken",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(TokenBorn, One, Whole),
+)

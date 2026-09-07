@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BioPlasmicScream",
-    spelling: "Bio-Plasmic Scream",
-    grammar: FixedTerm(surface: "Bio-Plasmic Scream"),
-)

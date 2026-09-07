@@ -1,8 +1,0 @@
-// No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Enchantment,
-    name: "Rune",
-    spelling: "Rune",
-    grammar: Noun(singular: "Rune", plural: Unavailable),
-)
-

@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
         power: Lit(value: 2),
         toughness: Lit(value: 1),
-        text: [FirstStrike, Ripple(Lit(value: 4))],
+        text: [firstStrike, ripple(Lit(value: 4))],
     ),
 ))

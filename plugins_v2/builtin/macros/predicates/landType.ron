@@ -1,0 +1,6 @@
+(
+    name: "landType",
+    kinds: [Subtype],
+    params: {"label": String},
+    body: Of(Land, Param(label)),
+)

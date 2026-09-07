@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "CombatDamageStep",
-    spelling: "combat damage step",
-    grammar: Noun(singular: "combat damage step"),
-    params: [],
-    body: CombatDamage,
-)

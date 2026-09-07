@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Skrull",
-    spelling: "Skrull",
-    grammar: Noun(singular: "Skrull", plural: Unavailable),
-)
-

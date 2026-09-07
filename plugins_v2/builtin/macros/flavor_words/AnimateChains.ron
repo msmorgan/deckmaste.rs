@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AnimateChains",
-    spelling: "Animate Chains",
-    grammar: FixedTerm(surface: "Animate Chains"),
-)

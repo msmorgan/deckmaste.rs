@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Processor",
-    spelling: "Processor",
-    grammar: Noun(singular: "Processor", plural: Unavailable),
-)
-

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "siren",
+    spelling: "Siren",
+    grammar: Noun(singular: "Siren", plural: Unavailable),
+)
+

@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Celebration",
-    spelling: "Celebration",
-    grammar: FixedTerm(surface: "Celebration"),
-)

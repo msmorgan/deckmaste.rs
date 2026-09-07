@@ -1,6 +1,0 @@
-CounterKind(
-    name: "SleightCounter",
-    params: [],
-    spelling: "sleight",
-    body: CounterFacts(label: "Sleight", holder: Object),
-)

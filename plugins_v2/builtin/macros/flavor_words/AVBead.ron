@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AVBead",
-    spelling: "AV Bead",
-    grammar: FixedTerm(surface: "AV Bead"),
-)

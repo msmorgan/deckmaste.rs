@@ -1,5 +1,0 @@
-KeywordAction(
-    name: "Waterbend",
-    spelling: "waterbend",
-    grammar: FixedTerm(surface: "waterbend"),
-)

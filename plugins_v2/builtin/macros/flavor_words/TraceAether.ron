@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TraceAether",
-    spelling: "Trace Aether",
-    grammar: FixedTerm(surface: "Trace Aether"),
-)

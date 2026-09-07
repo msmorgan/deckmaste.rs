@@ -1,0 +1,6 @@
+CounterKind(
+    name: "interventionCounter",
+    params: [],
+    spelling: "intervention",
+    body: CounterFacts(label: "Intervention", holder: Object),
+)

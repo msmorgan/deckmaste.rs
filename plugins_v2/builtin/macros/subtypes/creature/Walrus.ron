@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Walrus",
-    spelling: "Walrus",
-    grammar: Noun(singular: "Walrus", plural: Unavailable),
-)
-

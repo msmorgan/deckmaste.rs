@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "setOffTraps",
+    spelling: "Set Off Traps",
+    grammar: FixedTerm(surface: "Set Off Traps"),
+)

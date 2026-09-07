@@ -7,7 +7,7 @@ SingleFaced(face: (
         text: [
             Spell(
                 timing: None,
-                instruction: Create(
+                instruction: create(
                     Lit(value: 1),
                     Written(characteristics: (characteristics: (
                         colors: [Green],

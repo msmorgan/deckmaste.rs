@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "seal",
+    spelling: "Seal",
+    grammar: Noun(singular: "Seal", plural: Unavailable),
+)
+

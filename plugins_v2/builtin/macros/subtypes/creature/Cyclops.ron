@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Cyclops",
-    spelling: "Cyclops",
-    // Supported Oracle attests neither "Cyclopes" nor "Cyclopses" as a creature-type plural.
-    grammar: Noun(singular: "Cyclops", plural: Unavailable),
-)

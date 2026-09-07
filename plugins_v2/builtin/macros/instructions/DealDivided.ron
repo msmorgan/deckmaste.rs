@@ -1,7 +1,0 @@
-// "<source> deals N damage divided as you choose among <among>"
-(
-    name: "DealDivided",
-    kinds: [Instruction],
-    params: {"source": NounPhrase, "amount": Amount, "among": NounPhrase},
-    body: Distribute(Damage(source: Param(source)), Param(amount), Param(among)),
-)

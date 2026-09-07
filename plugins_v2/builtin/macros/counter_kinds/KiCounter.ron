@@ -1,6 +1,0 @@
-CounterKind(
-    name: "KiCounter",
-    params: [],
-    spelling: "ki",
-    body: CounterFacts(label: "Ki", holder: Object),
-)

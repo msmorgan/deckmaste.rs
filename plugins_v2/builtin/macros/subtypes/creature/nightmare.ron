@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "nightmare",
+    spelling: "Nightmare",
+    grammar: Noun(singular: "Nightmare"),
+)
+

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "AnimateWalkingStatue",
-    spelling: "Animate Walking Statue",
-    grammar: FixedTerm(surface: "Animate Walking Statue"),
-)

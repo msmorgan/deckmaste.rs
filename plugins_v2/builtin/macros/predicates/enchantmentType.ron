@@ -1,0 +1,6 @@
+(
+    name: "enchantmentType",
+    kinds: [Subtype],
+    params: {"label": String},
+    body: Of(Enchantment, Param(label)),
+)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Elephant",
-    spelling: "Elephant",
-    grammar: Noun(singular: "Elephant", plural: Unavailable),
-)
-

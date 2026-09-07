@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Eye",
-    spelling: "Eye",
-    grammar: Noun(singular: "Eye", plural: Unavailable),
-)
-

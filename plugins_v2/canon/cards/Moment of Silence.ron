@@ -8,7 +8,7 @@ SingleFaced(face: (
             Spell(
                 timing: None,
                 instruction: SkipPart(
-                    part: CombatPhase,
+                    part: combatPhase,
                     count: Lit(value: 1),
                     agent: Described(
                         determiner: Target(quantity: Range(low: 1, high: 1)),

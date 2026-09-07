@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Manifest",
-    spelling: "manifest",
-    grammar: Verb(
-        bare: "manifest",
-        frame_set: Transitive,
-    ),
-)

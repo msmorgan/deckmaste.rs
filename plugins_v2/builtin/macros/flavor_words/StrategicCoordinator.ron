@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "StrategicCoordinator",
-    spelling: "Strategic Coordinator",
-    grammar: FixedTerm(surface: "Strategic Coordinator"),
-)

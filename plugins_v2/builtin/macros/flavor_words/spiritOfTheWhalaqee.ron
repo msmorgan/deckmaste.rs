@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "spiritOfTheWhalaqee",
+    spelling: "Spirit of the Whalaqee",
+    grammar: FixedTerm(surface: "Spirit of the Whalaqee"),
+)

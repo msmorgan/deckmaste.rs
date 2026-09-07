@@ -45,7 +45,11 @@ fn catalog_stem(spelling: &str) -> String {
             '\'' => {}
             character => {
                 if capitalize {
-                    stem.extend(character.to_uppercase());
+                    if stem.is_empty() {
+                        stem.extend(character.to_lowercase());
+                    } else {
+                        stem.extend(character.to_uppercase());
+                    }
                     capitalize = false;
                 } else {
                     stem.push(character);
@@ -121,50 +125,50 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
     }
 
     assert_eq!(
-        surfaces(creature_type(&declarations, "Goblin")),
+        surfaces(creature_type(&declarations, "goblin")),
         [
             (SurfaceFeature::Singular, "Goblin"),
             (SurfaceFeature::Plural, "Goblins"),
         ]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Elf")),
+        surfaces(creature_type(&declarations, "elf")),
         [
             (SurfaceFeature::Singular, "Elf"),
             (SurfaceFeature::Plural, "Elves"),
         ]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Mouse")),
+        surfaces(creature_type(&declarations, "mouse")),
         [
             (SurfaceFeature::Singular, "Mouse"),
             (SurfaceFeature::Plural, "Mice"),
         ]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Merfolk")),
+        surfaces(creature_type(&declarations, "merfolk")),
         [
             (SurfaceFeature::Singular, "Merfolk"),
             (SurfaceFeature::Plural, "Merfolk"),
         ]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "TimeLord")),
+        surfaces(creature_type(&declarations, "timeLord")),
         [
             (SurfaceFeature::Singular, "Time Lord"),
             (SurfaceFeature::Plural, "Time Lords"),
         ]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Ctan")),
+        surfaces(creature_type(&declarations, "ctan")),
         [(SurfaceFeature::Singular, "C'tan")]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Child")),
+        surfaces(creature_type(&declarations, "child")),
         [(SurfaceFeature::Singular, "Child")]
     );
     assert_eq!(
-        surfaces(creature_type(&declarations, "Leech")),
+        surfaces(creature_type(&declarations, "leech")),
         [(SurfaceFeature::Singular, "Leech")]
     );
 }

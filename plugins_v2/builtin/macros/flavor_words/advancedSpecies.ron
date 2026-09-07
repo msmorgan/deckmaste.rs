@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "advancedSpecies",
+    spelling: "Advanced Species",
+    grammar: FixedTerm(surface: "Advanced Species"),
+)

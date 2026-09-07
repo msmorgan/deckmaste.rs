@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "deserter",
+    spelling: "Deserter",
+    grammar: Noun(singular: "Deserter", plural: Unavailable),
+)
+

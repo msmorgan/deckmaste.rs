@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "devastatingCharge",
+    spelling: "Devastating Charge",
+    grammar: FixedTerm(surface: "Devastating Charge"),
+)

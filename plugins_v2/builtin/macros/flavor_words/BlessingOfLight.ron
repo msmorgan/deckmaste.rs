@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BlessingOfLight",
-    spelling: "Blessing of Light",
-    grammar: FixedTerm(surface: "Blessing of Light"),
-)

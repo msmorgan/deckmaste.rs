@@ -31,11 +31,11 @@ SingleFaced(face: (
                         ),
                         AbilityGrant(
                             subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
-                            ability: Trample,
+                            ability: trample,
                         ),
                         AbilityGrant(
                             subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
-                            ability: Annihilator(Lit(value: 2)),
+                            ability: annihilator(Lit(value: 2)),
                         ),
                     ],
                 ),

@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "stallForTime",
+    spelling: "Stall for Time",
+    grammar: FixedTerm(surface: "Stall for Time"),
+)

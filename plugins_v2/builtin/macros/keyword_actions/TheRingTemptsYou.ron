@@ -1,5 +1,0 @@
-KeywordAction(
-    name: "TheRingTemptsYou",
-    spelling: "the Ring tempts you",
-    grammar: FixedClause(surface: "the Ring tempts you"),
-)

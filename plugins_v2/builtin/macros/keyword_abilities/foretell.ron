@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "foretell",
+    params: [Cost],
+    spelling: "foretell",
+    grammar: FixedKeyword(
+        surface: "foretell",
+    ),
+    // STOP. Foretell's first half is a SPECIAL ACTION [CR#702.143a,702.143b]: paying
+    // {2} to exile a card from hand face down does not use the stack, and the entry
+    // states the rule rather than quoting an expansion. No instruction or static
+    // performs a special action (the cause Companion shares).
+    body: Keyword(keyword: "Foretell", params: [], body: []),
+)

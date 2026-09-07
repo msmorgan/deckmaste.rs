@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Scorpion",
-    spelling: "Scorpion",
-    grammar: Noun(singular: "Scorpion", plural: Unavailable),
-)
-

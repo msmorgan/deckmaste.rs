@@ -1,7 +1,0 @@
-Subtype(
-    category: Land,
-    name: "Desert",
-    spelling: "Desert",
-    grammar: Noun(singular: "Desert"),
-)
-

@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "Scry",
-    spelling: "scry",
-    grammar: Verb(
-        bare: "scry",
-        third_person: "scries",
-        frame_set: Custom(frames: [[], [Amount], [ObjectNounPhrase]]),
-    ),
-)

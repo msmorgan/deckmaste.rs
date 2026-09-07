@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "armourOfShriekingSouls",
+    spelling: "Armour of Shrieking Souls",
+    grammar: FixedTerm(surface: "Armour of Shrieking Souls"),
+)

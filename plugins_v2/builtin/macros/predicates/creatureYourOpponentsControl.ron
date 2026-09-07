@@ -1,0 +1,6 @@
+(
+    name: "creatureYourOpponentsControl",
+    kinds: [Predicate],
+    params: [],
+    body: And(conjuncts: [creature, HasPossessor(Controller, PlayerGroup(group: YourOpponents))]),
+)

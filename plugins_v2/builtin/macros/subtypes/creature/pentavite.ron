@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "pentavite",
+    spelling: "Pentavite",
+    grammar: Noun(singular: "Pentavite", plural: Unavailable),
+)
+

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Jackal",
-    spelling: "Jackal",
-    grammar: Noun(singular: "Jackal"),
-)
-

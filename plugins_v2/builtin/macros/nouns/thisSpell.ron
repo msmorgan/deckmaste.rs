@@ -1,0 +1,6 @@
+(
+    name: "thisSpell",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsMarker(Spell, This),
+)

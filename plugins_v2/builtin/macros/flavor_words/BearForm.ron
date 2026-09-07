@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BearForm",
-    spelling: "Bear Form",
-    grammar: FixedTerm(surface: "Bear Form"),
-)

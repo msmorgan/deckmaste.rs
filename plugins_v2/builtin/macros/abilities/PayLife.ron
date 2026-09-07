@@ -1,7 +1,0 @@
-// "Pay N life" as a cost.
-(
-    name: "PayLife",
-    kinds: [Cost],
-    params: {"player": NounPhrase, "amount": Nat},
-    body: Perform(instruction: ChangeLife(delta: Down(amount: Lit(value: Param(amount))), agent: Param(player))),
-)

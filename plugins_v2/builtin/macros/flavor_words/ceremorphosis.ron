@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ceremorphosis",
+    spelling: "Ceremorphosis",
+    grammar: FixedTerm(surface: "Ceremorphosis"),
+)

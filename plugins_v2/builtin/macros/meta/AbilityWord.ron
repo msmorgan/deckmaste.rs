@@ -6,6 +6,11 @@
 // meta-expansion to the produced declaration's own frame, where a real
 // invocation resolves it against its own positional argument.
 //
+// The italic label is the declaration's SPELLING, not its name: macros carry
+// Lean's camelCase names (§11.1), so the name is no longer a printable label,
+// and the spelling is what the bench writes (`abilityWord "will of the
+// council"`).
+//
 // `kinds` names the family first and the SEMANTIC kind second: the family
 // (`AbilityWord`) is the declaration's identity, which
 // `deckmaste_construction_core::macro_def::normalized_kind` reads, and
@@ -29,6 +34,6 @@
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: ItalicHead(word: AbilityWord(label: Param(name)), ability: Quote(Param(0))),
+        body: ItalicHead(word: AbilityWord(label: Param(spelling)), ability: Quote(Param(0))),
     ),
 )

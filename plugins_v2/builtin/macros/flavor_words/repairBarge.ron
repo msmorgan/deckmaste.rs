@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "repairBarge",
+    spelling: "Repair Barge",
+    grammar: FixedTerm(surface: "Repair Barge"),
+)

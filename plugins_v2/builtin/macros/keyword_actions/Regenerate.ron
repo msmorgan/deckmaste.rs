@@ -1,9 +1,0 @@
-KeywordAction(
-    name: "Regenerate",
-    spelling: "regenerate",
-    grammar: Verb(
-        bare: "regenerate",
-        participle: "regenerated",
-        frame_set: Transitive,
-    ),
-)

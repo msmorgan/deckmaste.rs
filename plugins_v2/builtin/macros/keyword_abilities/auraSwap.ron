@@ -1,0 +1,50 @@
+KeywordAbility(
+    name: "auraSwap",
+    params: [Cost],
+    spelling: "aura swap",
+    grammar: FixedKeyword(
+        surface: "aura swap",
+    ),
+    // "Aura swap [cost]" means "[Cost]: You may exchange this permanent with an
+    // Aura card in your hand." [CR#702.65a]
+    body: Keyword(
+        keyword: "AuraSwap",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Param(0),
+                instruction: WithContinuation(
+                    policy: Optional(agent: You),
+                    body: Exchange(
+                        exchanged: CardsAcross(
+                            left: AsMarker(marker: Permanent, subject: This),
+                            right: Described(
+                                determiner: A(mode: Unmarked),
+                                predicate: And(
+                                    conjuncts: [
+                                        IsCard,
+                                        HasSubtype(
+                                            subtype: Of(host: Enchantment, label: "Aura"),
+                                        ),
+                                        InZone(
+                                            zone: Zone(
+                                                zone: Hand,
+                                                scope: PossessedBy(possessor: You),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ),
+                    ),
+                    if_did: None,
+                    if_not: None,
+                ),
+                timing: None,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
+)

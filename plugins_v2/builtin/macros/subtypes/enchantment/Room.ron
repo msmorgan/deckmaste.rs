@@ -1,7 +1,0 @@
-Subtype(
-    category: Enchantment,
-    name: "Room",
-    spelling: "Room",
-    grammar: Noun(singular: "Room"),
-)
-

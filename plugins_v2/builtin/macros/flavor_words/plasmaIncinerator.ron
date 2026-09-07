@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "plasmaIncinerator",
+    spelling: "Plasma Incinerator",
+    grammar: FixedTerm(surface: "Plasma Incinerator"),
+)

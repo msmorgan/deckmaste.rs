@@ -1,0 +1,7 @@
+// "the last chosen color"
+(
+    name: "theLastChosenColor",
+    kinds: [ColorTerm],
+    params: [],
+    body: Chosen(r#ref: TheLatestChoice),
+)

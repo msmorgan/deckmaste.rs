@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "satyr",
+    spelling: "Satyr",
+    grammar: Noun(singular: "Satyr"),
+)
+

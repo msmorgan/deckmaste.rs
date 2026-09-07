@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Clown",
-    spelling: "Clown",
-    grammar: Noun(singular: "Clown", plural: Unavailable),
-)
-

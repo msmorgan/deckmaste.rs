@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "jackal",
+    spelling: "Jackal",
+    grammar: Noun(singular: "Jackal"),
+)
+

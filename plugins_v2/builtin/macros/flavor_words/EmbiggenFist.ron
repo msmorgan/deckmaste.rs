@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EmbiggenFist",
-    spelling: "Embiggen Fist",
-    grammar: FixedTerm(surface: "Embiggen Fist"),
-)

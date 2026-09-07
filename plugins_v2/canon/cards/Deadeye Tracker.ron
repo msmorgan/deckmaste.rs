@@ -24,7 +24,7 @@ SingleFaced(face: (
                     TapSymbol,
                 ]),
                 instruction: Sequentially(steps: [
-                    Exile(Described(
+                    exile(Described(
                         determiner: Target(quantity: Range(low: 2, high: 2)),
                         predicate: And(conjuncts: [
                             IsCard,
@@ -33,7 +33,7 @@ SingleFaced(face: (
                             ))),
                         ]),
                     )),
-                    Explore(AsType(type: Creature, subject: This, subtype: None)),
+                    explore(AsType(type: Creature, subject: This, subtype: None)),
                 ]),
                 timing: None,
                 limit: None,

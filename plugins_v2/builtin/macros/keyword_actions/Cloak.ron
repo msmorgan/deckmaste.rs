@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Cloak",
-    spelling: "cloak",
-    grammar: Verb(
-        bare: "cloak",
-        frame_set: Transitive,
-    ),
-)

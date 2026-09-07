@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "RapaciousHunger",
-    spelling: "Rapacious Hunger",
-    grammar: FixedTerm(surface: "Rapacious Hunger"),
-)

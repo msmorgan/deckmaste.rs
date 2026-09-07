@@ -1,6 +1,0 @@
-(
-    name: "ThisClass",
-    kinds: [NounPhrase],
-    params: [],
-    body: AsType(Enchantment, This, EnchantmentType(label: "Class")),
-)

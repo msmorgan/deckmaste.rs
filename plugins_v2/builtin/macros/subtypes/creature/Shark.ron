@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Shark",
-    spelling: "Shark",
-    grammar: Noun(singular: "Shark", plural: Unavailable),
-)
-

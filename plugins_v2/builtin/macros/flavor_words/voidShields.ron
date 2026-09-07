@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "voidShields",
+    spelling: "Void Shields",
+    grammar: FixedTerm(surface: "Void Shields"),
+)

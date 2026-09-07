@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SketchAndLore",
-    spelling: "Sketch and Lore",
-    grammar: FixedTerm(surface: "Sketch and Lore"),
-)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "mole",
+    spelling: "Mole",
+    grammar: Noun(singular: "Mole", plural: Unavailable),
+)
+

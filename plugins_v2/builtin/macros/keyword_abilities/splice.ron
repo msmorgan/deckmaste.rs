@@ -1,0 +1,19 @@
+KeywordAbility(
+    name: "splice",
+    params: [Quality, Cost],
+    spelling: "splice",
+    grammar: FixedKeyword(
+        surface: "splice",
+    ),
+    // STOP. "Splice onto [quality] [cost]" means "You may reveal this card from your
+    // hand as you cast a [quality] spell. If you do, THAT SPELL GAINS THE TEXT OF THIS
+    // CARD'S RULES TEXT and you pay [cost] as an additional cost to cast that spell."
+    // [CR#702.47a] That is a text-changing effect [CR#702.47c,612.1]; no
+    // `CharacteristicEdit` copies one object's rules text onto another —
+    // `AddedAbilities` takes written abilities, not a card's text box.
+    body: Keyword(
+        keyword: "Splice",
+        params: [Quality(predicate: Param(0)), Cost(cost: Param(1))],
+        body: [],
+    ),
+)

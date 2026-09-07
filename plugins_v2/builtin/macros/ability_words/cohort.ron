@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "cohort",
+    spelling: "Cohort",
+    grammar: FixedTerm(surface: "Cohort"),
+)

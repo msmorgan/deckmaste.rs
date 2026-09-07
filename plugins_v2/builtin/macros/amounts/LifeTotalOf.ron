@@ -1,6 +1,0 @@
-(
-    name: "LifeTotalOf",
-    kinds: [Amount],
-    params: {"player": NounPhrase},
-    body: StatOf(PlayerStat(stat: LifeTotal), Param(player)),
-)

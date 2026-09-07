@@ -1,0 +1,7 @@
+Subtype(
+    category: Artifact,
+    name: "treasure",
+    spelling: "Treasure",
+    grammar: Noun(singular: "Treasure"),
+)
+

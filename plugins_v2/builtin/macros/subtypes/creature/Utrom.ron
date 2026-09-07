@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Utrom",
-    spelling: "Utrom",
-    grammar: Noun(singular: "Utrom", plural: Unavailable),
-)
-

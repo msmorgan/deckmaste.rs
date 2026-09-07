@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Lammasu",
-    spelling: "Lammasu",
-    grammar: Noun(singular: "Lammasu", plural: Unavailable),
-)
-

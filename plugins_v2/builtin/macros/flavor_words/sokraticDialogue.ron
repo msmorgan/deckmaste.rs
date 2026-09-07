@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "sokraticDialogue",
+    spelling: "Sokratic Dialogue",
+    grammar: FixedTerm(surface: "Sokratic Dialogue"),
+)

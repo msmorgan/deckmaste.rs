@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "camarid",
+    spelling: "Camarid",
+    grammar: Noun(singular: "Camarid", plural: Unavailable),
+)
+

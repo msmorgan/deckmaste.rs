@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "ellipsisCatch",
+    spelling: "... Catch",
+    grammar: FixedTerm(surface: "... Catch", onset: Consonant),
+)

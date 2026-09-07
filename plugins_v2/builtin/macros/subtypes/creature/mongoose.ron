@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "mongoose",
+    spelling: "Mongoose",
+    grammar: Noun(singular: "Mongoose", plural: Unavailable),
+)
+

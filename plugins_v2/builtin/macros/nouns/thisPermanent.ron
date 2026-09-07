@@ -1,0 +1,6 @@
+(
+    name: "thisPermanent",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsMarker(Permanent, This),
+)

@@ -1,8 +1,0 @@
-// No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Land,
-    name: "Locus",
-    spelling: "Locus",
-    grammar: Noun(singular: "Locus", plural: Unavailable),
-)
-

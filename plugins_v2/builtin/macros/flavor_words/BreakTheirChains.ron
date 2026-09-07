@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BreakTheirChains",
-    spelling: "Break Their Chains",
-    grammar: FixedTerm(surface: "Break Their Chains"),
-)

@@ -1,7 +1,0 @@
-// "if there is a …"
-(
-    name: "Exists_",
-    kinds: [Condition],
-    params: {"p": Predicate},
-    body: Exists(subject: Bare(p: Param(p))),
-)

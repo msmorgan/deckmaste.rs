@@ -1,0 +1,8 @@
+// No supported Oracle rules-text plural is attested for this proper subtype name.
+Subtype(
+    category: Planeswalker,
+    name: "narset",
+    spelling: "Narset",
+    grammar: Noun(singular: "Narset", plural: Unavailable),
+)
+

@@ -1,8 +1,0 @@
-// Phases and steps [CR#500.1].
-TurnPart(
-    name: "EndOfCombatStep",
-    spelling: "end of combat step",
-    grammar: Noun(singular: "end of combat step"),
-    params: [],
-    body: EndOfCombat,
-)

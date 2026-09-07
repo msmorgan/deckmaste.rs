@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "finalHeaven",
+    spelling: "Final Heaven",
+    grammar: FixedTerm(surface: "Final Heaven"),
+)

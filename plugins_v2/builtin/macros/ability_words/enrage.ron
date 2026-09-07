@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "enrage",
+    spelling: "Enrage",
+    grammar: FixedTerm(surface: "Enrage"),
+)

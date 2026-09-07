@@ -1,0 +1,7 @@
+// "<subject> phases out until <event>"
+(
+    name: "phaseOutUntil",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "event": GameEvent},
+    body: HoldUntil(SetStatus(PhasedOut, Param(subject)), Param(event)),
+)

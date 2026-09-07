@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "RadarSense",
-    spelling: "Radar Sense",
-    grammar: FixedTerm(surface: "Radar Sense"),
-)

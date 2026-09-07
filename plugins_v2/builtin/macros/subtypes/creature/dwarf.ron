@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "dwarf",
+    spelling: "Dwarf",
+    grammar: Noun(singular: "Dwarf", plural: "Dwarves"),
+)
+

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "elf",
+    spelling: "Elf",
+    grammar: Noun(singular: "Elf", plural: "Elves"),
+)
+

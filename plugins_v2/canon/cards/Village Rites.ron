@@ -7,7 +7,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             Static(spec: AddedCost(
-                cost: Perform(instruction: Sacrifice(
+                cost: Perform(instruction: sacrifice(
                     Described(
                         determiner: A(mode: Unmarked),
                         predicate: And(conjuncts: [

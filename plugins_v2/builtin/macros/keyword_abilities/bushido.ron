@@ -1,0 +1,53 @@
+KeywordAbility(
+    name: "bushido",
+    params: [Amount],
+    spelling: "bushido",
+    grammar: FixedKeyword(
+        surface: "bushido",
+    ),
+    // "Bushido N" means "Whenever this creature blocks or becomes blocked, it gets
+    // +N/+N until end of turn." [CR#702.45a]
+    body: Keyword(
+        keyword: "Bushido",
+        params: [Number(amount: Param(0))],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: BlockerOf,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [
+                    Combat(
+                        relation: BlockedBy,
+                        subject: AsType(type: Creature, subject: This, subtype: None),
+                        counterpart: None,
+                    ),
+                ],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Establish(
+                    spec: Conjunction(
+                        subject: None,
+                        parts: [
+                            Modification(
+                                subject: AsType(type: Creature, subject: This, subtype: None),
+                                stat: Power,
+                                delta: Up(amount: Param(0)),
+                            ),
+                            Modification(
+                                subject: AsType(type: Creature, subject: This, subtype: None),
+                                stat: Toughness,
+                                delta: Up(amount: Param(0)),
+                            ),
+                        ],
+                    ),
+                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                ),
+            ),
+        ],
+    ),
+)

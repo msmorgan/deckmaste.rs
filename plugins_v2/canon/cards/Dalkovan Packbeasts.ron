@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Ox")],
         power: Lit(value: 0),
         toughness: Lit(value: 4),
-        text: [Vigilance, Mobilize(Lit(value: 3))],
+        text: [vigilance, mobilize(Lit(value: 3))],
     ),
 ))

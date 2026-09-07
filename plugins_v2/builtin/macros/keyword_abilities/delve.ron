@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "delve",
+    params: [],
+    spelling: "delve",
+    grammar: FixedKeyword(
+        surface: "delve",
+    ),
+    // STOP. Delve exiles a graveyard card in place of one generic mana of the total
+    // cost [CR#702.66a]; as with convoke, `Cost` has no per-symbol payment
+    // alternative.
+    body: Keyword(keyword: "Delve", params: [], body: []),
+)

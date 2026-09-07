@@ -1,7 +1,0 @@
-// "another creature you control", anchored on <n>.
-(
-    name: "OtherCreatureYouControl",
-    kinds: [Predicate],
-    params: {"n": NounPhrase},
-    body: And(conjuncts: [Creature, HasPossessor(Controller, You), OtherThan(anchor: Param(n))]),
-)

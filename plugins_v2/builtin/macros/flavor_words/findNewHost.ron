@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "findNewHost",
+    spelling: "Find New Host",
+    grammar: FixedTerm(surface: "Find New Host"),
+)

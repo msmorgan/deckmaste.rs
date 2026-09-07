@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Inquisitor",
-    spelling: "Inquisitor",
-    grammar: Noun(singular: "Inquisitor", plural: Unavailable),
-)
-

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "drix",
+    spelling: "Drix",
+    grammar: Noun(singular: "Drix", plural: Unavailable),
+)
+

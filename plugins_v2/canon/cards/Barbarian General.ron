@@ -14,6 +14,6 @@ SingleFaced(face: (
         ],
         power: Lit(value: 3),
         toughness: Lit(value: 2),
-        text: [Horsemanship],
+        text: [horsemanship],
     ),
 ))

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "TheLastCenturion",
-    spelling: "The Last Centurion",
-    grammar: FixedTerm(surface: "The Last Centurion"),
-)

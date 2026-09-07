@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "spearOfTheVoidDragon",
+    spelling: "Spear of the Void Dragon",
+    grammar: FixedTerm(surface: "Spear of the Void Dragon"),
+)

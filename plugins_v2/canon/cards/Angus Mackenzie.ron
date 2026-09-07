@@ -33,7 +33,7 @@ SingleFaced(face: (
                     ),
                     duration: Some(ThisTurn),
                 ),
-                timing: Some(BeforePart(part: CombatDamageStep, whose: None)),
+                timing: Some(BeforePart(part: combatDamageStep, whose: None)),
                 limit: None,
                 guard: None,
                 activator: None,

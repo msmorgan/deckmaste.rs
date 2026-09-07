@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Play",
-    spelling: "play",
-    grammar: Verb(
-        bare: "play",
-        frame_set: Transitive,
-    ),
-)

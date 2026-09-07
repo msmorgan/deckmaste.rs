@@ -1,0 +1,7 @@
+CounterKind(
+    name: "stunCounter",
+    params: [],
+    spelling: "stun",
+    grammar: FixedTerm(surface: "stun"),
+    body: CounterFacts(label: "Stun", holder: Object),
+)

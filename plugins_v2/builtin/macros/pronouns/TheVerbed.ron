@@ -1,7 +1,0 @@
-// "the <verb>ed <word>", e.g. "the tapped creatures".
-(
-    name: "TheVerbed",
-    kinds: [NounPhrase],
-    params: {"verb": Deed, "word": NounWord, "marking": VerbedMarking, "plurality": Plurality},
-    body: Pro(Verbed(Param(verb), Param(word), Param(marking)), Param(plurality), Whole),
-)

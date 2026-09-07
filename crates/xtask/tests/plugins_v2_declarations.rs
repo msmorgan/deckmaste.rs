@@ -133,8 +133,8 @@ fn an_ability_word_invocation_expands_at_an_ability_position() {
 
     let invoked: Ability = plugin
         .macros
-        .read_str(&format!("Threshold({ability})"))
-        .expect("`Threshold(<ability>)` resolves at an `Ability` position");
+        .read_str(&format!("threshold({ability})"))
+        .expect("`threshold(<ability>)` resolves at an `Ability` position");
     let written_out: Ability = plugin
         .macros
         .read_str(&format!(
@@ -144,7 +144,7 @@ fn an_ability_word_invocation_expands_at_an_ability_position() {
     assert_eq!(invoked, written_out);
 
     let Ability::ItalicHead { word, .. } = invoked else {
-        panic!("`Threshold(<ability>)` must expand to an italic head");
+        panic!("`threshold(<ability>)` must expand to an italic head");
     };
     assert_eq!(
         word,

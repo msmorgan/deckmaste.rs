@@ -1,0 +1,14 @@
+KeywordAbility(
+    name: "freerunning",
+    params: [Cost],
+    spelling: "freerunning",
+    grammar: FixedKeyword(
+        surface: "freerunning",
+    ),
+    // STOP. "Freerunning [cost]" is an alternative cost gated on a player having been
+    // "dealt combat damage this turn by a creature that, at the time it dealt that
+    // damage, was an Assassin creature or a commander under your control"
+    // [CR#702.173a]. There is no predicate for a commander, so the second half of the
+    // damage source's description cannot be written.
+    body: Keyword(keyword: "Freerunning", params: [Cost(cost: Param(0))], body: []),
+)

@@ -1,7 +1,0 @@
-// "the card found by a search"
-(
-    name: "FoundCard",
-    kinds: [NounPhrase],
-    params: [],
-    body: ItVerbed(verb: Action(label: "Search")),
-)

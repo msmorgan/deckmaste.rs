@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Pangolin",
-    spelling: "Pangolin",
-    grammar: Noun(singular: "Pangolin", plural: Unavailable),
-)
-

@@ -1,0 +1,14 @@
+// A lifelink counter ([CR#122.1b]): its bearer gains lifelink at layer 6
+// ([CR#613.1f]) — the FlyingCounter pattern with a different keyword.
+CounterKind(
+    name: "lifelinkCounter",
+    params: [],
+    spelling: "lifelink",
+    grammar: FixedTerm(surface: "lifelink"),
+    body: Counter(
+        name: "LifelinkCounter",
+        confers: [
+            Continuous(This, GainAbility(Keyword(lifelink))),
+        ],
+    ),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Summon",
-    spelling: "Summon",
-    grammar: FixedTerm(surface: "Summon"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BloodyMary",
-    spelling: "Bloody Mary",
-    grammar: FixedTerm(surface: "Bloody Mary"),
-)

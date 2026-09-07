@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "descend8",
+    spelling: "Descend 8",
+    grammar: FixedTerm(surface: "Descend 8"),
+)

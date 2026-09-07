@@ -1,0 +1,71 @@
+KeywordAbility(
+    name: "reconfigure",
+    params: [Cost],
+    spelling: "reconfigure",
+    grammar: FixedKeyword(
+        surface: "reconfigure",
+    ),
+    // "Reconfigure [cost]" means "[Cost]: Attach this permanent to another target
+    // creature you control. Activate only as a sorcery" and "[Cost]: Unattach this
+    // permanent. Activate only if this permanent is attached to a creature and only
+    // as a sorcery." [CR#702.151a]
+    body: Keyword(
+        keyword: "Reconfigure",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Param(0),
+                instruction: Enact(
+                    verb: Action(label: "Attach"),
+                    instruction: Attachment(
+                        r#move: Attached,
+                        subject: AsMarker(marker: Permanent, subject: This),
+                        host: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    OtherThan(
+                                        anchor: AsMarker(marker: Permanent, subject: This),
+                                    ),
+                                    HasPossessor(axis: Controller, possessor: You),
+                                ],
+                            ),
+                        ),
+                    ),
+                    agent: None,
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+            Activated(
+                cost: Param(0),
+                instruction: Enact(
+                    verb: Action(label: "Attach"),
+                    instruction: Attachment(
+                        r#move: Unattached,
+                        subject: AsMarker(marker: Permanent, subject: This),
+                        host: None,
+                    ),
+                    agent: None,
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: Matches(
+                    subject: AsMarker(marker: Permanent, subject: This),
+                    predicate: Attachment(
+                        side: Attachment,
+                        word: None,
+                        counterpart: Described(
+                            determiner: A(mode: Unmarked),
+                            predicate: HasType(type: Creature),
+                        ),
+                    ),
+                ),
+                activator: None,
+            ),
+        ],
+    ),
+)

@@ -1,6 +1,0 @@
-CounterKind(
-    name: "FloodCounter",
-    params: [],
-    spelling: "flood",
-    body: CounterFacts(label: "Flood", holder: Object),
-)

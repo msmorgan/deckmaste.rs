@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MantleOfInspiration",
-    spelling: "Mantle of Inspiration",
-    grammar: FixedTerm(surface: "Mantle of Inspiration"),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Pilot",
-    spelling: "Pilot",
-    grammar: Noun(singular: "Pilot", plural: Unavailable),
-)
-

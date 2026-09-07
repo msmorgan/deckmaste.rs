@@ -1,0 +1,7 @@
+// "distribute N <kind> counters among <among>"
+(
+    name: "distributeCounters",
+    kinds: [Instruction],
+    params: {"amount": Amount, "kind": CounterKind, "among": NounPhrase},
+    body: Distribute(Counters(kind: Param(kind)), Param(amount), Param(among)),
+)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BladeBeam",
-    spelling: "Blade Beam",
-    grammar: FixedTerm(surface: "Blade Beam"),
-)

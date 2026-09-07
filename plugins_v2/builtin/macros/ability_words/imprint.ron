@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "imprint",
+    spelling: "Imprint",
+    grammar: FixedTerm(surface: "Imprint"),
+)

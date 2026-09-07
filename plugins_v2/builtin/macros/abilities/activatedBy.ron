@@ -1,0 +1,7 @@
+// "[cost]: <instruction>. Only <who> may activate this ability."
+(
+    name: "activatedBy",
+    kinds: [Ability],
+    params: {"cost": Cost, "instruction": Instruction, "who": NounPhrase},
+    body: Activated(Param(cost), Param(instruction), None, None, None, Param(who)),
+)

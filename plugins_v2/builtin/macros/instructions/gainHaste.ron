@@ -1,0 +1,7 @@
+// "<subject> gains haste [until …]"
+(
+    name: "gainHaste",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "duration": Duration},
+    body: gain(subject: Param(subject), ability: Keyword("Haste", [], []), duration: Param(duration)),
+)

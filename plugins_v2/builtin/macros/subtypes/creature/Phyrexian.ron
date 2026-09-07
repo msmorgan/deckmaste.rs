@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Phyrexian",
-    spelling: "Phyrexian",
-    grammar: Noun(singular: "Phyrexian"),
-)
-

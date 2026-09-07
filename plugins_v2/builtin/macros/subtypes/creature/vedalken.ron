@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "vedalken",
+    spelling: "Vedalken",
+    grammar: Noun(singular: "Vedalken", plural: Unavailable),
+)
+

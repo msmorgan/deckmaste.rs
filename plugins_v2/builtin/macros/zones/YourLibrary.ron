@@ -1,6 +1,0 @@
-(
-    name: "YourLibrary",
-    kinds: [ZoneExpr],
-    params: [],
-    body: LibraryOf(player: You),
-)

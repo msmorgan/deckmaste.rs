@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "surrakar",
+    spelling: "Surrakar",
+    grammar: Noun(singular: "Surrakar", plural: Unavailable),
+)
+

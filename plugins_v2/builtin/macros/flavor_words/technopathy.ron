@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "technopathy",
+    spelling: "Technopathy",
+    grammar: FixedTerm(surface: "Technopathy"),
+)

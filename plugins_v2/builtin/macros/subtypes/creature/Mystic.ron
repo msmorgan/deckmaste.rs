@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Mystic",
-    spelling: "Mystic",
-    grammar: Noun(singular: "Mystic", plural: Unavailable),
-)
-

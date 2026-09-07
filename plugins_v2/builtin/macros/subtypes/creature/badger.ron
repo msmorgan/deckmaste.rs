@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "badger",
+    spelling: "Badger",
+    grammar: Noun(singular: "Badger", plural: Unavailable),
+)
+

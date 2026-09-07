@@ -1,0 +1,16 @@
+KeywordAbility(
+    name: "readAhead",
+    params: [],
+    spelling: "read ahead",
+    grammar: FixedKeyword(
+        surface: "read ahead",
+    ),
+    // STOP. "Read ahead" means "Chapter abilities of this Saga can't trigger the turn
+    // it entered the battlefield unless it has exactly the number of lore counters on
+    // it specified in the chapter symbol of THAT ABILITY." [CR#702.155a] The
+    // exception reads a number off the very ability the prohibition ranges over; no
+    // `Predicate` projects an ability's own chapter number, so the `unless` clause
+    // cannot be written. [CR#702.155b]'s two intrinsic abilities are a separate
+    // grant the keyword's own definition does not carry.
+    body: Keyword(keyword: "ReadAhead", params: [], body: []),
+)

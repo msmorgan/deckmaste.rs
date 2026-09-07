@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "shareIntelligence",
+    spelling: "Share Intelligence",
+    grammar: FixedTerm(surface: "Share Intelligence"),
+)

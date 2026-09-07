@@ -1,8 +1,0 @@
-KeywordAction(
-    name: "Fight",
-    spelling: "fight",
-    grammar: Verb(
-        bare: "fight",
-        frame_set: Transitive,
-    ),
-)

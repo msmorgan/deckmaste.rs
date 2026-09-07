@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EDEMyLove",
-    spelling: "ED-E My Love",
-    grammar: FixedTerm(surface: "ED-E My Love"),
-)

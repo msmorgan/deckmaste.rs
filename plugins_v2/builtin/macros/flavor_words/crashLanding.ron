@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "crashLanding",
+    spelling: "Crash Landing",
+    grammar: FixedTerm(surface: "Crash Landing"),
+)

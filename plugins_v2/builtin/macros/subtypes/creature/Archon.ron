@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Archon",
-    spelling: "Archon",
-    grammar: Noun(singular: "Archon", plural: Unavailable),
-)
-

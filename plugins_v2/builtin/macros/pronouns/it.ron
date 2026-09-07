@@ -1,0 +1,7 @@
+// "it"
+(
+    name: "it",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(Bare, One, Whole),
+)

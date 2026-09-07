@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Flurry",
-    spelling: "Flurry",
-    grammar: FixedTerm(surface: "Flurry"),
-)

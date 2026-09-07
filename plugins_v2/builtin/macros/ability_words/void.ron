@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "void",
+    spelling: "Void",
+    grammar: FixedTerm(surface: "Void"),
+)

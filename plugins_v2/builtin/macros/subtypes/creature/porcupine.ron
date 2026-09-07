@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "porcupine",
+    spelling: "Porcupine",
+    grammar: Noun(singular: "Porcupine", plural: Unavailable),
+)
+

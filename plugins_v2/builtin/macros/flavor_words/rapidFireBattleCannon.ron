@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "rapidFireBattleCannon",
+    spelling: "Rapid-fire Battle Cannon",
+    grammar: FixedTerm(surface: "Rapid-fire Battle Cannon"),
+)

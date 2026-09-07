@@ -1,0 +1,7 @@
+// "<spec> as long as <condition>"
+(
+    name: "onlyWhile",
+    kinds: [StaticSpec],
+    params: {"spec": StaticSpec, "condition": Condition},
+    body: Conditional(Param(spec), Param(condition), AsLongAs),
+)

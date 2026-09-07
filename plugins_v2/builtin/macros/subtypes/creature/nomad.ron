@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "nomad",
+    spelling: "Nomad",
+    grammar: Noun(singular: "Nomad", plural: Unavailable),
+)
+

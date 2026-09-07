@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "incarnation",
+    spelling: "Incarnation",
+    grammar: Noun(singular: "Incarnation", plural: Unavailable),
+)
+

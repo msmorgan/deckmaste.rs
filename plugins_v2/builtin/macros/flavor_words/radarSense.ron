@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "radarSense",
+    spelling: "Radar Sense",
+    grammar: FixedTerm(surface: "Radar Sense"),
+)

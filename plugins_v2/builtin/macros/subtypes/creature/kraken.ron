@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "kraken",
+    spelling: "Kraken",
+    grammar: Noun(singular: "Kraken"),
+)
+

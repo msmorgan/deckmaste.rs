@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "Sweep",
-    spelling: "Sweep",
-    grammar: FixedTerm(surface: "Sweep"),
-)

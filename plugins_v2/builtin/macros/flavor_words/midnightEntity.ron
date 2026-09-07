@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "midnightEntity",
+    spelling: "Midnight Entity",
+    grammar: FixedTerm(surface: "Midnight Entity"),
+)

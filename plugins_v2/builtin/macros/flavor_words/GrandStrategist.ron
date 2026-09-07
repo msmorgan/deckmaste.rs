@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GrandStrategist",
-    spelling: "Grand Strategist",
-    grammar: FixedTerm(surface: "Grand Strategist"),
-)

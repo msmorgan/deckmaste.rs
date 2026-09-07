@@ -1,0 +1,7 @@
+// "the last chosen player"
+(
+    name: "theLastChosenPlayer",
+    kinds: [Predicate],
+    params: [],
+    body: ChosenPlayer(r#ref: TheLatestChoice),
+)

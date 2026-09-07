@@ -1,0 +1,49 @@
+// "Detain [permanent]" [CR#701.35a]: until the next turn of the controller of
+// the detaining spell or ability, that permanent can't attack or block and its
+// activated abilities can't be activated.
+KeywordAction(
+    name: "detain",
+    params: [Subject],
+    spelling: "detain",
+    grammar: Verb(
+        bare: "detain",
+        // No Oracle or Comprehensive Rules occurrence of "detains" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        frame_set: Transitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Detain"),
+        instruction: Establish(
+        spec: Conjunction(subject: None, parts: [
+            DeonticRule(
+                subject: Param(0),
+                compulsion: Forbid,
+                deeds: [Core(deed: Attack), Core(deed: Block)],
+                role: Agent,
+                bound: None,
+                patient: NoPatient,
+                as_though: None,
+                rider: NoRider,
+            ),
+            DeonticRule(
+                subject: Described(
+                    determiner: All,
+                    predicate: And(conjuncts: [
+                        AbilityHead(class: AnyActivated),
+                        AbilityOf(source: Param(0)),
+                    ]),
+                ),
+                compulsion: Forbid,
+                deeds: [Action(label: "Activate")],
+                role: Patient,
+                bound: None,
+                patient: NoPatient,
+                as_though: None,
+                rider: NoRider,
+            ),
+        ]),
+        duration: Until(end: StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
+    ),
+        agent: None,
+    ),
+)

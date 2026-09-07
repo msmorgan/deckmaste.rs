@@ -1,0 +1,12 @@
+// A macro whose body invokes another macro: `AnyTarget` stands at the
+// recipient's noun-phrase position and expands there.
+(
+    name: "dealsDamageToAnyTarget",
+    kinds: [Instruction],
+    params: [Amount],
+    body: DealDamage(
+        source: This,
+        amount: Param(0),
+        recipient: anyTarget,
+    ),
+)

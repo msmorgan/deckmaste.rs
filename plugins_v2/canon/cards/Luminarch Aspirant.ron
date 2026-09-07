@@ -20,7 +20,7 @@ SingleFaced(face: (
             Triggered(
                 event: BeginningOf(
                     quantifier: The,
-                    part: BeginningOfCombatStep,
+                    part: beginningOfCombatStep,
                     whose: ByPlayer(player: You),
                 ),
                 alternatives: [],

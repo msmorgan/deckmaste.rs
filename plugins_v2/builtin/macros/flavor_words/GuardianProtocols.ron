@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "GuardianProtocols",
-    spelling: "Guardian Protocols",
-    grammar: FixedTerm(surface: "Guardian Protocols"),
-)

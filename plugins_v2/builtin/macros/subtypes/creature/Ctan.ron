@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Ctan",
-    spelling: "C'tan",
-    // No supported Oracle rules-text plural is attested; catalog membership cannot supply one.
-    grammar: Noun(singular: "C'tan", plural: Unavailable),
-)

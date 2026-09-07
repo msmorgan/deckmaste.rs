@@ -1,0 +1,7 @@
+// "<player>'s life total becomes <amount>"
+(
+    name: "setLife",
+    kinds: [Instruction],
+    params: {"amount": Amount, "agent": Default(NounPhrase, You)},
+    body: ChangeLife(delta: Set(amount: Param(amount)), agent: Param(agent)),
+)

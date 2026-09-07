@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "skyswarm",
+    spelling: "Skyswarm",
+    grammar: FixedTerm(surface: "Skyswarm"),
+)

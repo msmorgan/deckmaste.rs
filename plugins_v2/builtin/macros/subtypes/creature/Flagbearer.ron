@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Flagbearer",
-    spelling: "Flagbearer",
-    grammar: Noun(singular: "Flagbearer", plural: Unavailable),
-)
-

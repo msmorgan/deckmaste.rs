@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Mouse",
-    spelling: "Mouse",
-    grammar: Noun(singular: "Mouse", plural: "Mice"),
-)
-

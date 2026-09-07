@@ -1,0 +1,5 @@
+KeywordAction(
+    name: "waterbend",
+    spelling: "waterbend",
+    grammar: FixedTerm(surface: "waterbend"),
+)

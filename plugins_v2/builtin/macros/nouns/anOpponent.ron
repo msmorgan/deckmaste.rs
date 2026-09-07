@@ -1,0 +1,6 @@
+(
+    name: "anOpponent",
+    kinds: [NounPhrase],
+    params: [],
+    body: a(p: Opponent),
+)

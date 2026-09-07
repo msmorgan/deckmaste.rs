@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ConfoundingClouds",
-    spelling: "Confounding Clouds",
-    grammar: FixedTerm(surface: "Confounding Clouds"),
-)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "spirit",
+    spelling: "Spirit",
+    grammar: Noun(singular: "Spirit"),
+)
+

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "BloodChalice",
-    spelling: "Blood Chalice",
-    grammar: FixedTerm(surface: "Blood Chalice"),
-)

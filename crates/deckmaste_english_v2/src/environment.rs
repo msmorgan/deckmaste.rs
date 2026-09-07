@@ -2042,9 +2042,9 @@ mod tests {
             panic!("Equip contributes one supplemental participial-adjective reading")
         };
         assert_eq!(reading.id().kind(), DeclarationKind::KeywordAbility);
-        assert_eq!(reading.id().name(), "Equip");
+        assert_eq!(reading.id().name(), "equip");
         assert_eq!(reading.feature(), SurfaceFeature::PAST_PARTICIPLE);
-        let id = DeclarationId::new(DeclarationKind::KeywordAbility, "Equip");
+        let id = DeclarationId::new(DeclarationKind::KeywordAbility, "equip");
         assert_eq!(
             environment.surface(&id, SurfaceFeature::PAST_PARTICIPLE),
             Some("equipped")

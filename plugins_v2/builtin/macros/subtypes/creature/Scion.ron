@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Scion",
-    spelling: "Scion",
-    grammar: Noun(singular: "Scion"),
-)
-

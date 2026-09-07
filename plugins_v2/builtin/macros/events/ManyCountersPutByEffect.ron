@@ -1,7 +1,0 @@
-// "one or more counters are put on <subject> by an effect"
-(
-    name: "ManyCountersPutByEffect",
-    kinds: [GameEvent],
-    params: {"subject": NounPhrase},
-    body: CounterEvent(Put, None, Param(subject), Many, None, true),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Salamander",
-    spelling: "Salamander",
-    grammar: Noun(singular: "Salamander"),
-)
-

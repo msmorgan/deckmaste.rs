@@ -15,9 +15,10 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 fn declaration_name(head: &str) -> String {
     if head == "∞" {
-        return "Infinity".to_owned();
+        return "infinity".to_owned();
     }
-    head.split([' ', '-'])
+    let stem = head
+        .split([' ', '-'])
         .map(|word| word.replace(['\'', '!'], ""))
         .filter(|word| !word.is_empty())
         .map(|word| {
@@ -29,6 +30,13 @@ fn declaration_name(head: &str) -> String {
                 .chain(chars.flat_map(char::to_lowercase))
                 .collect::<String>()
         })
+        .collect::<String>();
+    let mut chars = stem.chars();
+    chars
+        .next()
+        .into_iter()
+        .flat_map(char::to_lowercase)
+        .chain(chars)
         .collect()
 }
 
@@ -45,115 +53,115 @@ fn ability<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a Nor
 fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static str]> {
     let mut parameterized = BTreeMap::<&str, &[&str]>::new();
     for name in [
-        "Absorb",
-        "Afflict",
-        "Afterlife",
-        "Amplify",
-        "Annihilator",
-        "Backup",
-        "Bloodthirst",
-        "Bushido",
-        "Casualty",
-        "Crew",
-        "Devour",
-        "Dredge",
-        "Fabricate",
-        "Fading",
-        "Firebending",
-        "Frenzy",
-        "Graft",
-        "Hideaway",
-        "Mobilize",
-        "Modular",
-        "Poisonous",
-        "Rampage",
-        "Renown",
-        "Ripple",
-        "Saddle",
-        "Soulshift",
-        "Teamwork",
-        "Toxic",
-        "Tribute",
-        "Vanishing",
+        "absorb",
+        "afflict",
+        "afterlife",
+        "amplify",
+        "annihilator",
+        "backup",
+        "bloodthirst",
+        "bushido",
+        "casualty",
+        "crew",
+        "devour",
+        "dredge",
+        "fabricate",
+        "fading",
+        "firebending",
+        "frenzy",
+        "graft",
+        "hideaway",
+        "mobilize",
+        "modular",
+        "poisonous",
+        "rampage",
+        "renown",
+        "ripple",
+        "saddle",
+        "soulshift",
+        "teamwork",
+        "toxic",
+        "tribute",
+        "vanishing",
     ] {
         assert_eq!(parameterized.insert(name, &["Amount"]), None);
     }
     for name in [
-        "AuraSwap",
-        "Bestow",
-        "Blitz",
-        "Buyback",
-        "Cleave",
-        "Craft",
-        "CumulativeUpkeep",
-        "Cycling",
-        "Dash",
-        "Disguise",
-        "Disturb",
-        "Echo",
-        "Embalm",
-        "Emerge",
-        "Encore",
-        "Entwine",
-        "Equip",
-        "Escalate",
-        "Escape",
-        "Eternalize",
-        "Evoke",
-        "Flashback",
-        "Foretell",
-        "Fortify",
-        "Freerunning",
-        "Harmonize",
-        "Kicker",
-        "LevelUp",
-        "Madness",
-        "Mayhem",
-        "Miracle",
-        "MoreThanMeetsTheEye",
-        "Morph",
-        "Mutate",
-        "Ninjutsu",
-        "Offspring",
-        "Outlast",
-        "Overload",
-        "Plot",
-        "Prowl",
-        "Reconfigure",
-        "Recover",
-        "Replicate",
-        "Scavenge",
-        "Sneak",
-        "Spectacle",
-        "Squad",
-        "Surge",
-        "Transfigure",
-        "Transmute",
-        "Unearth",
-        "Ward",
-        "Warp",
-        "WebSlinging",
+        "auraSwap",
+        "bestow",
+        "blitz",
+        "buyback",
+        "cleave",
+        "craft",
+        "cumulativeUpkeep",
+        "cycling",
+        "dash",
+        "disguise",
+        "disturb",
+        "echo",
+        "embalm",
+        "emerge",
+        "encore",
+        "entwine",
+        "equip",
+        "escalate",
+        "escape",
+        "eternalize",
+        "evoke",
+        "flashback",
+        "foretell",
+        "fortify",
+        "freerunning",
+        "harmonize",
+        "kicker",
+        "levelUp",
+        "madness",
+        "mayhem",
+        "miracle",
+        "moreThanMeetsTheEye",
+        "morph",
+        "mutate",
+        "ninjutsu",
+        "offspring",
+        "outlast",
+        "overload",
+        "plot",
+        "prowl",
+        "reconfigure",
+        "recover",
+        "replicate",
+        "scavenge",
+        "sneak",
+        "spectacle",
+        "squad",
+        "surge",
+        "transfigure",
+        "transmute",
+        "unearth",
+        "ward",
+        "warp",
+        "webSlinging",
     ] {
         assert_eq!(parameterized.insert(name, &["Cost"]), None);
     }
-    for name in ["Affinity", "Landwalk", "Offering", "Protection"] {
+    for name in ["affinity", "landwalk", "offering", "protection"] {
         assert_eq!(parameterized.insert(name, &["Quality"]), None);
     }
-    for name in ["Champion", "Enchant", "Gift"] {
+    for name in ["champion", "enchant", "gift"] {
         assert_eq!(parameterized.insert(name, &["Subject"]), None);
     }
-    for name in ["Awaken", "Impending", "Reinforce", "Suspend"] {
+    for name in ["awaken", "impending", "reinforce", "suspend"] {
         assert_eq!(parameterized.insert(name, &["Amount", "Cost"]), None);
     }
-    assert_eq!(parameterized.insert("Splice", &["Quality", "Cost"]), None);
+    assert_eq!(parameterized.insert("splice", &["Quality", "Cost"]), None);
     for name in [
-        "Boast", "Exhaust", "Forecast", "Infinity", "MaxSpeed", "PowerUp", "Solved", "Visit",
+        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved", "visit",
     ] {
         assert_eq!(parameterized.insert(name, &["Ability"]), None);
     }
-    assert_eq!(parameterized.insert("Companion", &["Condition"]), None);
+    assert_eq!(parameterized.insert("companion", &["Condition"]), None);
     assert_eq!(
-        parameterized.insert("Prototype", &["Cost", "Power", "Toughness"]),
+        parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
     assert_eq!(parameterized.len(), 106);
@@ -207,11 +215,11 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             .grammar()
             .expect("every keyword stub contributes grammar");
         let parameter = match name.as_str() {
-            "Affinity" => Some(FixedKeywordParameterGrammar::Quality {
+            "affinity" => Some(FixedKeywordParameterGrammar::Quality {
                 preposition: FixedLexeme("Preposition".to_owned(), "For".to_owned()),
                 nominal_number: Some(FixedKeywordNominalNumber::Plural),
             }),
-            "Protection" => Some(FixedKeywordParameterGrammar::Quality {
+            "protection" => Some(FixedKeywordParameterGrammar::Quality {
                 preposition: FixedLexeme("Preposition".to_owned(), "From".to_owned()),
                 nominal_number: None,
             }),
@@ -268,13 +276,13 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
     }
 
     for (name, surface) in [
-        ("Flying", "flying"),
-        ("DoubleStrike", "double strike"),
-        ("ForMirrodin", "for Mirrodin!"),
-        ("MoreThanMeetsTheEye", "More Than Meets the Eye"),
-        ("StartYourEngines", "start your engines!"),
-        ("WebSlinging", "web-slinging"),
-        ("Infinity", "∞"),
+        ("flying", "flying"),
+        ("doubleStrike", "double strike"),
+        ("forMirrodin", "for Mirrodin!"),
+        ("moreThanMeetsTheEye", "More Than Meets the Eye"),
+        ("startYourEngines", "start your engines!"),
+        ("webSlinging", "web-slinging"),
+        ("infinity", "∞"),
     ] {
         let declaration = ability(&declarations, name);
         assert_eq!(
@@ -290,7 +298,7 @@ fn landwalk_declares_one_bound_suffix_surface() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
-    let grammar = ability(&declarations, "Landwalk")
+    let grammar = ability(&declarations, "landwalk")
         .grammar()
         .expect("Landwalk contributes keyword grammar");
 
@@ -306,8 +314,8 @@ fn prepositional_quality_keywords_declare_their_selected_markers() {
         .expect("builtin-v2 declarations must load");
 
     for (name, member, nominal_number) in [
-        ("Affinity", "For", Some(FixedKeywordNominalNumber::Plural)),
-        ("Protection", "From", None),
+        ("affinity", "For", Some(FixedKeywordNominalNumber::Plural)),
+        ("protection", "From", None),
     ] {
         assert_eq!(
             ability(&declarations, name).grammar().unwrap().recipe(),
@@ -329,7 +337,7 @@ fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
         .expect("builtin-v2 declarations must load");
 
     for name in [
-        "Boast", "Exhaust", "Forecast", "Infinity", "MaxSpeed", "PowerUp", "Solved", "Visit",
+        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved", "visit",
     ] {
         assert_eq!(
             ability(&declarations, name).keyword_parameter_class(),
@@ -340,13 +348,13 @@ fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
         );
     }
     assert_eq!(
-        ability(&declarations, "Companion").keyword_parameter_class(),
+        ability(&declarations, "companion").keyword_parameter_class(),
         Some(KeywordParameterClass::Unsupported(
             UnsupportedKeywordParameterClass::Condition
         )),
     );
     assert_eq!(
-        ability(&declarations, "Prototype").keyword_parameter_class(),
+        ability(&declarations, "prototype").keyword_parameter_class(),
         Some(KeywordParameterClass::Unsupported(
             UnsupportedKeywordParameterClass::CostPowerToughness
         )),
@@ -359,9 +367,9 @@ fn attachment_keywords_declare_their_participial_adjective_surfaces() {
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     for (name, surface) in [
-        ("Equip", "equipped"),
-        ("Enchant", "enchanted"),
-        ("Fortify", "fortified"),
+        ("equip", "equipped"),
+        ("enchant", "enchanted"),
+        ("fortify", "fortified"),
     ] {
         let grammar = ability(&declarations, name)
             .grammar()
@@ -383,7 +391,7 @@ fn level_up_declares_its_distinct_block_label_surface() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
-    let grammar = ability(&declarations, "LevelUp")
+    let grammar = ability(&declarations, "levelUp")
         .grammar()
         .expect("Level Up contributes keyword grammar");
 

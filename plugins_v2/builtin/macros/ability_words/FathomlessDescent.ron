@@ -1,5 +1,0 @@
-AbilityWord(
-    name: "FathomlessDescent",
-    spelling: "Fathomless descent",
-    grammar: FixedTerm(surface: "Fathomless descent"),
-)

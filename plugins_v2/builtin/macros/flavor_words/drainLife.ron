@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "drainLife",
+    spelling: "Drain Life",
+    grammar: FixedTerm(surface: "Drain Life"),
+)

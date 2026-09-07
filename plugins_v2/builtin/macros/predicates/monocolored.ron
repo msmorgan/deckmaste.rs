@@ -1,0 +1,7 @@
+// "monocolored"
+(
+    name: "monocolored",
+    kinds: [Predicate],
+    params: [],
+    body: ColorCount(Eq, 1),
+)

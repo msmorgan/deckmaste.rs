@@ -1,0 +1,7 @@
+// "The next time <event> would happen, <replacement> instead [duration]."
+(
+    name: "replaceNextEvent",
+    kinds: [Instruction],
+    params: {"event": GameEvent, "replacement": Instruction, "duration": Duration},
+    body: Establish(Replacement(Param(event), [], None, Param(replacement), NextTimeOnly, None), Param(duration)),
+)

@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "bringer",
+    spelling: "Bringer",
+    grammar: Noun(singular: "Bringer", plural: Unavailable),
+)
+

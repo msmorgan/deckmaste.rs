@@ -1,7 +1,0 @@
-Subtype(
-    category: Land,
-    name: "Mountain",
-    spelling: "Mountain",
-    grammar: Noun(singular: "Mountain"),
-)
-

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "EliteTroops",
-    spelling: "Elite Troops",
-    grammar: FixedTerm(surface: "Elite Troops"),
-)

@@ -1,0 +1,50 @@
+KeywordAbility(
+    name: "bargain",
+    params: [],
+    spelling: "bargain",
+    grammar: FixedKeyword(
+        surface: "bargain",
+    ),
+    // "Bargain" means "As an additional cost to cast this spell, you may sacrifice
+    // an artifact, enchantment, or token." [CR#702.166a]
+    body: Keyword(
+        keyword: "Bargain",
+        params: [],
+        body: [
+            Static(
+                spec: AddedCost(
+                    cost: Perform(
+                        instruction: Enact(
+                            verb: Action(label: "Sacrifice"),
+                            instruction: Move(
+                                subject: Described(
+                                    determiner: A(mode: Unmarked),
+                                    // Each arm carries the battlefield the sacrifice
+                                    // presupposes: `IsToken` seeds it on its own, and
+                                    // coordinated arms must seed alike.
+                                    predicate: Or(
+                                        disjuncts: [
+                                            And(conjuncts: [
+                                                HasType(type: Artifact),
+                                                InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                            ]),
+                                            And(conjuncts: [
+                                                HasType(type: Enchantment),
+                                                InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                            ]),
+                                            IsToken,
+                                        ],
+                                    ),
+                                ),
+                                to: Zone(zone: Graveyard, scope: Bare),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                    ),
+                    offered: true,
+                ),
+            ),
+        ],
+    ),
+)

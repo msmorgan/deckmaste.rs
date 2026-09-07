@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "jast",
+    spelling: "Jast",
+    grammar: FixedTerm(surface: "Jast"),
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "doomCounter",
+    params: [],
+    spelling: "doom",
+    body: CounterFacts(label: "Doom", holder: Object),
+)

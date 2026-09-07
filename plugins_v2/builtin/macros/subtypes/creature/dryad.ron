@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "dryad",
+    spelling: "Dryad",
+    grammar: Noun(singular: "Dryad", plural: Unavailable),
+)
+

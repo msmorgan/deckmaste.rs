@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "bloodrush",
+    spelling: "Bloodrush",
+    grammar: FixedTerm(surface: "Bloodrush"),
+)

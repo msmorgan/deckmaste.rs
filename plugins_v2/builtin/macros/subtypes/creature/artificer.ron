@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "artificer",
+    spelling: "Artificer",
+    grammar: Noun(singular: "Artificer"),
+)
+

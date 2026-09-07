@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "Mardu",
-    spelling: "Mardu",
-    grammar: FixedTerm(surface: "Mardu"),
-)

@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Mount",
-    spelling: "Mount",
-    grammar: Noun(singular: "Mount"),
-)
-

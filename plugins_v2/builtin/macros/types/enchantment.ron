@@ -1,0 +1,7 @@
+Type(
+    name: "enchantment",
+    spelling: "enchantment",
+    grammar: Noun(singular: "enchantment"),
+    params: [],
+    body: TypeDef(name: "Enchantment", permanent_type: true),
+)

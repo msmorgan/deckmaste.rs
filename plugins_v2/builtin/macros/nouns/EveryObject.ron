@@ -1,7 +1,0 @@
-// "each object"
-(
-    name: "EveryObject",
-    kinds: [NounPhrase],
-    params: [],
-    body: AllOf(p: And(conjuncts: [])),
-)

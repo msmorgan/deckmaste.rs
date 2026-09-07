@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "WomanWhoWalkedTheEarth",
-    spelling: "Woman Who Walked the Earth",
-    grammar: FixedTerm(surface: "Woman Who Walked the Earth"),
-)

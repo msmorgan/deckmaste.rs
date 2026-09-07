@@ -1,0 +1,7 @@
+CounterKind(
+    name: "timeCounter",
+    params: [],
+    spelling: "time",
+    grammar: FixedTerm(surface: "time"),
+    body: CounterFacts(label: "Time", holder: Object),
+)

@@ -11,7 +11,7 @@ SingleFaced(face: (
             Spell(
                 timing: None,
                 instruction: Sequentially(steps: [
-                    Tap(Described(
+                    tap(Described(
                         determiner: Target(quantity: Range(low: 1, high: 1)),
                         predicate: HasType(type: Creature),
                     )),

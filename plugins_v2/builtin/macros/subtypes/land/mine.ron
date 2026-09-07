@@ -1,0 +1,8 @@
+// No supported Oracle rules-text or Comprehensive Rules plural is attested.
+Subtype(
+    category: Land,
+    name: "mine",
+    spelling: "Mine",
+    grammar: Noun(singular: "Mine", plural: Unavailable),
+)
+

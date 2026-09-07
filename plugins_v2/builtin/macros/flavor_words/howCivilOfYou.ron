@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "howCivilOfYou",
+    spelling: "How Civil of You",
+    grammar: FixedTerm(surface: "How Civil of You"),
+)

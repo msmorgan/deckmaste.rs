@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Samurai",
-    spelling: "Samurai",
-    grammar: Noun(singular: "Samurai", plural: "Samurai"),
-)
-

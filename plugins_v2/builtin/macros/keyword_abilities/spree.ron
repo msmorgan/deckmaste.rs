@@ -1,0 +1,16 @@
+KeywordAbility(
+    name: "spree",
+    params: [],
+    spelling: "spree",
+    grammar: FixedKeyword(
+        surface: "spree",
+    ),
+    // STOP. "Spree" means "Choose one or more modes. As an additional cost to cast this
+    // spell, pay the costs associated with those modes." [CR#702.172a]
+    // `Instruction::ChooseModes` carries the mode quantity and each mode's cost on the
+    // spell's own clause; no constructor lets a separate ability set that quantity or
+    // charge for the modes chosen there (the cause Entwine, Escalate and Tiered
+    // share). The keyword's registry row already carries `wants_modes`, which is how
+    // the workbench reads this pairing.
+    body: Keyword(keyword: "Spree", params: [], body: []),
+)

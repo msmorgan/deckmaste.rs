@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "judgmentBolt",
+    spelling: "Judgment Bolt",
+    grammar: FixedTerm(surface: "Judgment Bolt"),
+)

@@ -1,0 +1,7 @@
+// "<spec> <duration>": a clause holding for a stated duration.
+(
+    name: "establishThroughout",
+    kinds: [Instruction],
+    params: {"spec": StaticSpec, "duration": Duration},
+    body: Establish(Param(spec), Param(duration)),
+)

@@ -9,80 +9,80 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_construction_core::macro_def::read_str;
 
 const EXPECTED_NAMES: &[&str] = &[
-    "AgeCounter",
-    "ChargeCounter",
-    "DeathtouchCounter",
-    "DefenseCounter",
-    "DoubleStrikeCounter",
-    "Energy",
-    "Experience",
-    "FadeCounter",
-    "FirstStrikeCounter",
-    "FlyingCounter",
-    "HasteCounter",
-    "HexproofCounter",
-    "IndestructibleCounter",
-    "LifelinkCounter",
-    "LoreCounter",
-    "LoyaltyCounter",
-    "LuckCounter",
-    "M1M1Counter",
-    "MenaceCounter",
-    "OilCounter",
-    "P1P1Counter",
-    "Poison",
-    "ReachCounter",
-    "ShadowCounter",
-    "ShieldCounter",
-    "SporeCounter",
-    "StunCounter",
-    "TimeCounter",
-    "TrampleCounter",
-    "VerseCounter",
-    "VigilanceCounter",
+    "ageCounter",
+    "chargeCounter",
+    "deathtouchCounter",
+    "defenseCounter",
+    "doubleStrikeCounter",
+    "energy",
+    "experience",
+    "fadeCounter",
+    "firstStrikeCounter",
+    "flyingCounter",
+    "hasteCounter",
+    "hexproofCounter",
+    "indestructibleCounter",
+    "lifelinkCounter",
+    "loreCounter",
+    "loyaltyCounter",
+    "luckCounter",
+    "m1M1Counter",
+    "menaceCounter",
+    "oilCounter",
+    "p1P1Counter",
+    "poison",
+    "reachCounter",
+    "shadowCounter",
+    "shieldCounter",
+    "sporeCounter",
+    "stunCounter",
+    "timeCounter",
+    "trampleCounter",
+    "verseCounter",
+    "vigilanceCounter",
 ];
 
 const SEMANTIC_ONLY_NAMES: &[&str] = &[
-    "BloodCounter",
-    "BloodstainCounter",
-    "BountyCounter",
-    "BrickCounter",
-    "DepletionCounter",
-    "DivinityCounter",
-    "DoomCounter",
-    "DreamCounter",
-    "EggCounter",
-    "FinalityCounter",
-    "FloodCounter",
-    "FungusCounter",
-    "FuseCounter",
-    "GrowthCounter",
-    "HoneCounter",
-    "HourCounter",
-    "IceCounter",
-    "InterventionCounter",
-    "KiCounter",
-    "LevelCounter",
-    "OmenCounter",
-    "PageCounter",
-    "PlagueCounter",
-    "PlanCounter",
-    "QuestCounter",
-    "RadCounter",
-    "RevCounter",
-    "ScreamCounter",
-    "SleightCounter",
-    "SlimeCounter",
-    "SoulCounter",
-    "SpiteCounter",
-    "StashCounter",
-    "StorageCounter",
-    "StrikeCounter",
-    "StudyCounter",
-    "SuspectCounter",
-    "TideCounter",
-    "WindCounter",
-    "WishCounter",
+    "bloodCounter",
+    "bloodstainCounter",
+    "bountyCounter",
+    "brickCounter",
+    "depletionCounter",
+    "divinityCounter",
+    "doomCounter",
+    "dreamCounter",
+    "eggCounter",
+    "finalityCounter",
+    "floodCounter",
+    "fungusCounter",
+    "fuseCounter",
+    "growthCounter",
+    "honeCounter",
+    "hourCounter",
+    "iceCounter",
+    "interventionCounter",
+    "kiCounter",
+    "levelCounter",
+    "omenCounter",
+    "pageCounter",
+    "plagueCounter",
+    "planCounter",
+    "questCounter",
+    "radCounter",
+    "revCounter",
+    "screamCounter",
+    "sleightCounter",
+    "slimeCounter",
+    "soulCounter",
+    "spiteCounter",
+    "stashCounter",
+    "storageCounter",
+    "strikeCounter",
+    "studyCounter",
+    "suspectCounter",
+    "tideCounter",
+    "windCounter",
+    "wishCounter",
 ];
 
 fn counter<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a NormalizedDeclaration {
@@ -122,7 +122,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             panic!("{} has one literal spelling", declaration.identity())
         };
         assert!(!spelling.ends_with(" counter"));
-        if matches!(declaration.identity().name(), "P1P1Counter" | "M1M1Counter")
+        if matches!(declaration.identity().name(), "p1P1Counter" | "m1M1Counter")
             || SEMANTIC_ONLY_NAMES.contains(&declaration.identity().name())
         {
             assert!(declaration.grammar().is_none());
@@ -137,29 +137,29 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
     }
 
     assert_eq!(
-        counter(&declarations, "DoubleStrikeCounter").spelling(),
+        counter(&declarations, "doubleStrikeCounter").spelling(),
         [SpellingPart::Literal("double strike".to_owned())],
     );
     assert!(
-        counter(&declarations, "Energy")
+        counter(&declarations, "energy")
             .body()
             .unwrap()
             .get_ron()
             .contains("CounterFacts(label: \"Energy\", holder: Player)")
     );
     assert!(
-        counter(&declarations, "DeathtouchCounter")
+        counter(&declarations, "deathtouchCounter")
             .body()
             .unwrap()
             .get_ron()
-            .contains("GainAbility(Keyword(Deathtouch))")
+            .contains("GainAbility(Keyword(deathtouch))")
     );
     assert!(
-        counter(&declarations, "P1P1Counter")
+        counter(&declarations, "p1P1Counter")
             .body()
             .unwrap()
             .get_ron()
-            .contains("CounterCount(This, P1P1Counter)")
+            .contains("CounterCount(This, p1P1Counter)")
     );
 
     let synthetic = read_str(

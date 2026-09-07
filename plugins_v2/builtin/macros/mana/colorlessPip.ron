@@ -1,0 +1,7 @@
+// "{C}"
+(
+    name: "colorlessPip",
+    kinds: [ManaSymbol],
+    params: [],
+    body: Simple(symbol: Specific(color: Colorless)),
+)

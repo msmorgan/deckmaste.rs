@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "bringDown",
+    spelling: "Bring Down",
+    grammar: FixedTerm(surface: "Bring Down"),
+)

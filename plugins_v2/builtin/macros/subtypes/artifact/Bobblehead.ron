@@ -1,7 +1,0 @@
-Subtype(
-    category: Artifact,
-    name: "Bobblehead",
-    spelling: "Bobblehead",
-    grammar: Noun(singular: "Bobblehead"),
-)
-

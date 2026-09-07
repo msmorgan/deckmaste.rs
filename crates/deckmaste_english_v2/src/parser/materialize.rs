@@ -3833,7 +3833,7 @@ mod tests {
             &environment,
             VerbInventoryRef::Declaration(DeclarationId::new(
                 DeclarationKind::KeywordAction,
-                "Connive",
+                "connive",
             )),
         )
         .expect("the canonical environment declares intransitive Connive");
@@ -3859,7 +3859,7 @@ mod tests {
         };
         let onset = environment
             .onset(
-                &DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+                &DeclarationId::new(DeclarationKind::KeywordAction, "connive"),
                 ::deckmaste_construction_core::macro_def::SurfaceFeature::PLAIN,
             )
             .expect("the canonical Connive row carries onset");
@@ -4657,7 +4657,7 @@ mod tests {
             vec![
                 (
                     crate::parser::TextSpan { start: 0, end: 7 },
-                    "lexeme:keyword_action/Destroy/bare",
+                    "lexeme:keyword_action/destroy/bare",
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
@@ -4665,7 +4665,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },
-                    "lexeme:type/Creature/singular",
+                    "lexeme:type/creature/singular",
                 ),
                 (
                     crate::parser::TextSpan { start: 23, end: 24 },

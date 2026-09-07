@@ -1,0 +1,6 @@
+(
+    name: "attacking",
+    kinds: [Predicate],
+    params: [],
+    body: InCombat(AttackerOf, None),
+)

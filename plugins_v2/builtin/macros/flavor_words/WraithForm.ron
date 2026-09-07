@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "WraithForm",
-    spelling: "Wraith Form",
-    grammar: FixedTerm(surface: "Wraith Form"),
-)

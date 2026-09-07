@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "parade",
+    spelling: "Parade!",
+    grammar: FixedTerm(surface: "Parade!"),
+)

@@ -1,0 +1,43 @@
+KeywordAbility(
+    name: "firebending",
+    params: [Amount],
+    spelling: "firebending",
+    grammar: FixedKeyword(
+        surface: "firebending",
+    ),
+    // "Firebending N" means "Whenever this creature attacks, add N {R}. Until end of
+    // combat, you don't lose this mana as steps and phases end." [CR#702.189a]
+    body: Keyword(
+        keyword: "Firebending",
+        params: [Number(amount: Param(0))],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Sequentially(
+                    steps: [
+                        AddMana(
+                            amount: Param(0),
+                            produced: Runs(runs: [[Of(color: Red)]]),
+                            riders: [],
+                            agent: You,
+                        ),
+                        Establish(
+                            spec: ManaRetention(player: You, mana: ThisMana),
+                            duration: Until(end: EndOf(part: Combat, whose: None)),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+    ),
+)

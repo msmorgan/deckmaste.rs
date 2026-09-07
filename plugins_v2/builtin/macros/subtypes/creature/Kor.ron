@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Kor",
-    spelling: "Kor",
-    grammar: Noun(singular: "Kor", plural: Unavailable),
-)
-

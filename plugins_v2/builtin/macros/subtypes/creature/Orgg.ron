@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Orgg",
-    spelling: "Orgg",
-    grammar: Noun(singular: "Orgg", plural: Unavailable),
-)
-

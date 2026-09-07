@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "MasterTactician",
-    spelling: "Master Tactician",
-    grammar: FixedTerm(surface: "Master Tactician"),
-)

@@ -1,7 +1,0 @@
-// "the Nth spell <player> cast <period>"
-(
-    name: "NthCastBy",
-    kinds: [Predicate],
-    params: {"ordinal": Ordinal, "player": NounPhrase, "period": RankPeriod},
-    body: CastBy(Param(player), (Param(ordinal), Param(period))),
-)

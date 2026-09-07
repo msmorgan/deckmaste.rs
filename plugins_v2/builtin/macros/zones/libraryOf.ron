@@ -1,0 +1,6 @@
+(
+    name: "libraryOf",
+    kinds: [ZoneExpr],
+    params: {"player": NounPhrase},
+    body: Zone(Library, PossessedBy(possessor: Param(player))),
+)

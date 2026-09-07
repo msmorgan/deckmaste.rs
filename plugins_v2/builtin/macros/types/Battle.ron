@@ -1,7 +1,0 @@
-Type(
-    name: "Battle",
-    spelling: "battle",
-    grammar: Noun(singular: "battle"),
-    params: [],
-    body: TypeDef(name: "Battle", permanent_type: true),
-)

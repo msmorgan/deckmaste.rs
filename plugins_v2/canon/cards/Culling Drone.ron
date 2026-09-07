@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Eldrazi"), Of(host: Creature, label: "Drone")],
         power: Lit(value: 2),
         toughness: Lit(value: 2),
-        text: [Devoid, Ingest],
+        text: [devoid, ingest],
     ),
 ))

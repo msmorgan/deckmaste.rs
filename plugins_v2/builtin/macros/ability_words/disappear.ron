@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "disappear",
+    spelling: "Disappear",
+    grammar: FixedTerm(surface: "Disappear"),
+)

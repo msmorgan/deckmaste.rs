@@ -1,0 +1,8 @@
+// Phases and steps [CR#500.1].
+TurnPart(
+    name: "untapStep",
+    spelling: "untap step",
+    grammar: Noun(singular: "untap step"),
+    params: [],
+    body: UntapStep,
+)

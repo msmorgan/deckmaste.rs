@@ -1,7 +1,0 @@
-Subtype(
-    category: Creature,
-    name: "Serf",
-    spelling: "Serf",
-    grammar: Noun(singular: "Serf", plural: Unavailable),
-)
-

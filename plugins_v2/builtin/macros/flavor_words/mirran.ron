@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "mirran",
+    spelling: "Mirran",
+    grammar: FixedTerm(surface: "Mirran"),
+)

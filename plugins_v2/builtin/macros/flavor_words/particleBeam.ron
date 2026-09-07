@@ -1,0 +1,5 @@
+FlavorWord(
+    name: "particleBeam",
+    spelling: "Particle Beam",
+    grammar: FixedTerm(surface: "Particle Beam"),
+)

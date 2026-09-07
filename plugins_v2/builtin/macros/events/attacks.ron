@@ -1,0 +1,6 @@
+(
+    name: "attacks",
+    kinds: [GameEvent],
+    params: {"subject": NounPhrase},
+    body: Combat(AttackerOf, Param(subject), None),
+)

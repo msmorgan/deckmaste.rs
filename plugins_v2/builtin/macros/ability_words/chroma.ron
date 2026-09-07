@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "chroma",
+    spelling: "Chroma",
+    grammar: FixedTerm(surface: "Chroma"),
+)

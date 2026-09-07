@@ -1,0 +1,23 @@
+KeywordAbility(
+    name: "ripple",
+    params: [Amount],
+    spelling: "ripple",
+    grammar: FixedKeyword(
+        surface: "ripple",
+    ),
+    // STOP. "Ripple N" means "When you cast this spell, you may reveal the top N cards
+    // of your library… you may cast any of those cards with the same name as this
+    // spell without paying their mana costs, THEN PUT ALL REVEALED CARDS NOT CAST THIS
+    // WAY on the bottom of your library in any order." [CR#702.60a] The trigger, the
+    // reveal and the permission all write — the permission is an `Establish` of a
+    // `DeonticRule` whose patient is `SomeOf` the revealed cards `Named(SameAs(this
+    // spell))` — but the final clause has no subject. `TheRest` refuses with
+    // `[Semantics.Refusal.theRestFits (Semantics.Kind.object)]`: the partition the
+    // permission took lives inside a `StaticSpec`'s patient and never reaches the next
+    // step's bindings, so `partsTaken` is zero. Naming the complement directly is
+    // blocked too: "revealed this way" would be a `VerbedEvent` over the `Reveal` deed,
+    // whose registry row gives it an agent role and NO patient role, so
+    // `verbPatientOk` refuses every noun phrase there — the shape Protection's `Attach`
+    // row and Indestructible's `Destroy` row already carry.
+    body: Keyword(keyword: "Ripple", params: [Number(amount: Param(0))], body: []),
+)

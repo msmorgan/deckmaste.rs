@@ -1,6 +1,0 @@
-CounterKind(
-    name: "FuseCounter",
-    params: [],
-    spelling: "fuse",
-    body: CounterFacts(label: "Fuse", holder: Object),
-)

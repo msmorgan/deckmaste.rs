@@ -1,0 +1,7 @@
+Subtype(
+    category: Creature,
+    name: "primarch",
+    spelling: "Primarch",
+    grammar: Noun(singular: "Primarch", plural: Unavailable),
+)
+

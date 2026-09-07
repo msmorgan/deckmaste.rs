@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "fathomlessDescent",
+    spelling: "Fathomless descent",
+    grammar: FixedTerm(surface: "Fathomless descent"),
+)

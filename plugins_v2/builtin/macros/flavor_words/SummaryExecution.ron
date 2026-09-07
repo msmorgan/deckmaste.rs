@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "SummaryExecution",
-    spelling: "Summary Execution",
-    grammar: FixedTerm(surface: "Summary Execution"),
-)

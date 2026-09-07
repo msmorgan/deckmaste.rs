@@ -1,0 +1,10 @@
+// Harnessed is a permanent designation [CR#701.64b].
+Designation(
+    name: "harnessed",
+    params: [],
+    spelling: "harnessed",
+    grammar: FixedTerm(surface: "harnessed"),
+    body: [
+        DesignationFacts(label: "harnessed", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+    ],
+)

@@ -1,0 +1,7 @@
+// "the last chosen number"
+(
+    name: "theLastChosenNumber",
+    kinds: [Amount],
+    params: [],
+    body: ChosenNumber(r#ref: TheLatestChoice),
+)

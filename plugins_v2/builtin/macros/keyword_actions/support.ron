@@ -1,0 +1,10 @@
+KeywordAction(
+    name: "support",
+    spelling: "support",
+    grammar: Verb(
+        bare: "support",
+        // No Oracle or Comprehensive Rules occurrence of "supports" was found in the 2026-08-18 morphology audit.
+        third_person: Unavailable,
+        frame_set: MeasureComplement,
+    ),
+)

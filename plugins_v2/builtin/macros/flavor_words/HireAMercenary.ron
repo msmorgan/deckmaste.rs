@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "HireAMercenary",
-    spelling: "Hire a Mercenary",
-    grammar: FixedTerm(surface: "Hire a Mercenary"),
-)

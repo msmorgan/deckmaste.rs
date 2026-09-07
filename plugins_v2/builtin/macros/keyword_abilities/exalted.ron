@@ -1,0 +1,78 @@
+KeywordAbility(
+    name: "exalted",
+    params: [],
+    spelling: "exalted",
+    grammar: FixedKeyword(
+        surface: "exalted",
+    ),
+    // "Exalted" means "Whenever a creature you control attacks alone, that creature
+    // gets +1/+1 until end of turn." [CR#702.83a] "Attacks alone" is the
+    // intervening-if: exactly one creature is attacking [CR#702.83b,506.5].
+    body: Keyword(
+        keyword: "Exalted",
+        params: [],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: Described(
+                        determiner: A(mode: Unmarked),
+                        predicate: And(
+                            conjuncts: [
+                                HasType(type: Creature),
+                                HasPossessor(axis: Controller, possessor: You),
+                            ],
+                        ),
+                    ),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: CompareAmt(
+                    subject: CountOf(
+                        group: Described(
+                            determiner: Bare,
+                            predicate: And(
+                                conjuncts: [
+                                    HasType(type: Creature),
+                                    InCombat(relation: AttackerOf, counterpart: None),
+                                ],
+                            ),
+                        ),
+                    ),
+                    comparator: Eq,
+                    bound: Lit(value: 1),
+                ),
+                instruction: Establish(
+                    spec: Conjunction(
+                        subject: None,
+                        parts: [
+                            Modification(
+                                subject: Pro(
+                                    reach: Word(word: Type(type: Creature)),
+                                    plurality: One,
+                                    window: Whole,
+                                ),
+                                stat: Power,
+                                delta: Up(amount: Lit(value: 1)),
+                            ),
+                            Modification(
+                                subject: Pro(
+                                    reach: Word(word: Type(type: Creature)),
+                                    plurality: One,
+                                    window: Whole,
+                                ),
+                                stat: Toughness,
+                                delta: Up(amount: Lit(value: 1)),
+                            ),
+                        ],
+                    ),
+                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                ),
+            ),
+        ],
+    ),
+)
