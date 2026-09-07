@@ -2249,6 +2249,7 @@ dependencies = [
  "deckmaste_migrations",
  "deckmaste_plugin",
  "deckmaste_semantics",
+ "deckmaste_semantics_v2",
  "deckmaste_spelling",
  "libc",
  "macro_ron",

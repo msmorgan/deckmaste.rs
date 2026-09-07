@@ -1,0 +1,14 @@
+// "Lightning Bolt deals 3 damage to any target."
+SingleFaced(face: (
+    characteristics: (
+        name: "Lightning Bolt",
+        cost: [Simple(symbol: Specific(color: Of(color: Red)))],
+        types: [Instant],
+        text: [
+            Spell(
+                timing: None,
+                instruction: DealsDamageToAnyTarget(Lit(value: 3)),
+            ),
+        ],
+    ),
+))

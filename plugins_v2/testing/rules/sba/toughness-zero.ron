@@ -1,0 +1,14 @@
+// [CR#704.5f]: a creature with toughness 0 or less is put into its owner's
+// graveyard. A move, not a destroy — regeneration and indestructible cannot
+// replace this.
+[
+    SbaRule(
+        scope: HasType(type: Creature),
+        when: CompareAmt(
+            subject: StatOf(axis: Stat(stat: Toughness), subject: This),
+            comparator: AtMost,
+            bound: Lit(value: 0),
+        ),
+        then: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
+    ),
+]

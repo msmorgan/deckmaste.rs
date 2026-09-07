@@ -14,6 +14,7 @@
 use macro_ron::Kind;
 use macro_ron::KindSet;
 use macro_ron::MacroSet;
+use macro_ron::ParamTypeSet;
 use macro_ron::SupportsMacros;
 
 /// The serde name of the declaration position (`macro_ron::MacroDef`). A
@@ -83,6 +84,33 @@ pub fn kinds() -> KindSet {
     kinds
 }
 
+/// The param types a declaration's signature may name, each validated by
+/// reading the argument as the v2 type it stands for.
+///
+/// The names are the ones `plugins_v2/builtin`'s declarations already write
+/// (`params: [Cost]`, `params: [Amount, Cost]`): a keyword one-liner's typed
+/// argument vocabulary. `Power` and `Toughness` are `Amount` under two names,
+/// because a declaration says which stat its argument fills; `Quality` is a
+/// `Predicate` and `Subject` a `NounPhrase`, the two ways a declaration takes
+/// a description. `Any` and `String` come from `macro_ron` itself.
+///
+/// This is NOT Lean's `MacroParameters`, which is a proof device (§12); it is
+/// the argument vocabulary the declaration files write, and a name absent from
+/// here makes its declaration unregistrable.
+#[must_use]
+pub fn param_types() -> ParamTypeSet {
+    let mut types = ParamTypeSet::default();
+    types.add_typed::<crate::abilities::Cost>("Cost");
+    types.add_typed::<crate::abilities::Ability>("Ability");
+    types.add_typed::<crate::phrase::Amount>("Amount");
+    types.add_typed::<crate::phrase::Amount>("Power");
+    types.add_typed::<crate::phrase::Amount>("Toughness");
+    types.add_typed::<crate::phrase::Predicate>("Quality");
+    types.add_typed::<crate::phrase::NounPhrase>("Subject");
+    types.add_typed::<crate::phrase::Condition>("Condition");
+    types
+}
+
 /// The raw `ron::Options` everything is read and written with.
 ///
 /// `implicit_some` keeps `Option` fields flat and `unwrap_variant_newtypes`
@@ -101,7 +129,9 @@ pub fn raw_options() -> ::ron::Options {
 /// plugin load starts from before its `macros/` directory is folded in.
 #[must_use]
 pub fn macro_set() -> MacroSet {
-    MacroSet::new(kinds()).with_options(raw_options())
+    MacroSet::new(kinds())
+        .with_options(raw_options())
+        .with_param_types(param_types())
 }
 
 #[cfg(test)]
@@ -145,6 +175,30 @@ mod tests {
         assert!(kinds.contains(super::MACRO_KIND));
         for name in super::DECLARATION_KINDS {
             assert!(kinds.contains(name), "`{name}` must be a registered kind");
+        }
+    }
+
+    /// Every param type the builtin declarations name is registered, or the
+    /// declaration naming it is unregistrable.
+    #[test]
+    fn every_declared_param_type_is_registered() {
+        let types = super::param_types();
+        for name in [
+            "Any",
+            "String",
+            "Cost",
+            "Ability",
+            "Amount",
+            "Power",
+            "Toughness",
+            "Quality",
+            "Subject",
+            "Condition",
+        ] {
+            assert!(
+                types.contains(name),
+                "`{name}` must be a registered param type"
+            );
         }
     }
 

@@ -1,0 +1,26 @@
+// [CR#306.5b]: a planeswalker has the intrinsic ability "this permanent enters
+// with a number of loyalty counters on it equal to its printed loyalty
+// number" — a replacement effect [CR#614.1c]. The count is the printed loyalty
+// [CR#209.1,306.5a].
+[
+    ConferralRule(
+        scope: HasType(type: Planeswalker),
+        confer: Static(spec: Replacement(
+            event: ZoneChange(
+                subject: This,
+                from: None,
+                to: Zone(zone: Battlefield, scope: Bare),
+                observation: After,
+            ),
+            alternatives: [],
+            timing: None,
+            replacement: PutCounters(
+                amount: StatOf(axis: Stat(stat: Loyalty), subject: This),
+                kind: Printed(kind: Named(label: "loyalty")),
+                on: This,
+            ),
+            use: Repeatedly,
+            limit: None,
+        )),
+    ),
+]
