@@ -112,10 +112,61 @@ fn a_card_that_breaks_a_card_law_is_singled_out_and_refused_until_blessed() {
         "the lawless land is recorded as failing:\n{blessed}"
     );
     assert!(
-        blessed.contains("verdict: Fail(reason:") && blessed.contains("decide"),
-        "the recorded reason is the Lean diagnostic head:\n{blessed}"
+        blessed.contains(r#"verdict: Fail(reason: "[Semantics.Refusal.cardCost]")"#),
+        "the recorded reason is the refusal list the card earned, which is what \
+         distinguishes one broken law from another:\n{blessed}"
     );
 
     xtask::lean_check::run(&LeanCheckArgs::new(vec![plugin], false))
         .expect("a blessed failure ratchets clean on the next run");
+}
+
+/// H1: the whole command, run against a `lake` that fails without naming any
+/// card — an unknown target, a broken `Semantics/`, a toolchain that never
+/// reached the compiler. The gate must stop, not report every card sound. It
+/// did the latter until this test existed: `build` discarded `lake`'s exit
+/// status and attribution seeded every card `Pass`, so a stub printing
+/// `error: unknown target` produced "2/2 cards prove … baseline OK" and exit
+/// zero.
+#[test]
+fn a_lake_that_fails_without_naming_a_card_stops_the_gate() {
+    let _guard = GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let temp = tempfile::tempdir().expect("a scratch directory");
+    let stub = temp.path().join("lake");
+    std::fs::write(&stub, "#!/bin/sh\necho 'error: unknown target'\nexit 1\n")
+        .expect("the stub writes");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755))
+            .expect("the stub is executable");
+    }
+
+    let plugin = workspace_root().join("plugins_v2/testing");
+    let error = xtask::lean_check::run(
+        &LeanCheckArgs::new(vec![plugin], false).with_lake(stub.to_string_lossy()),
+    )
+    .expect_err("a lake failure that names no card must stop the gate");
+    let error = format!("{error:#}");
+    assert!(error.contains("gate defect"), "{error}");
+    assert!(error.contains("unknown target"), "{error}");
+}
+
+/// A failed run leaves nothing behind that poisons the next one. The stub run
+/// above emits a generated tree, clears the build artifacts and then fails; a
+/// real run afterwards must re-emit, rebuild and prove the cards again rather
+/// than trip over the wreckage.
+#[test]
+fn a_real_run_recovers_after_a_stubbed_lake_failure() {
+    if skip("a_real_run_recovers_after_a_stubbed_lake_failure") {
+        return;
+    }
+    let _guard = GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let plugin = workspace_root().join("plugins_v2/testing");
+    xtask::lean_check::run(&LeanCheckArgs::new(vec![plugin], false))
+        .expect("the real gate still runs after a stubbed failure");
 }

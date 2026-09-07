@@ -43,6 +43,10 @@ const BASELINE_VERSION: u32 = 1;
 /// The generated library's root module and directory, relative to `lean/`.
 const GENERATED_ROOT: &str = "Generated.lean";
 const GENERATED_DIR: &str = "Generated";
+/// Where `lake` puts the generated library's build output, relative to
+/// `lean/`. A run clears both, because a stale `.olean` left by an earlier
+/// successful run is exactly the false evidence [`attribute`] must not accept.
+const BUILD_DIRS: &[&str] = &[".lake/build/lib/lean", ".lake/build/ir"];
 /// The `lake` target the generated library builds under. It is deliberately
 /// absent from `lakefile.toml`'s `defaultTargets`, so `lean/scripts/build`
 /// remains the hand workbench's gate and succeeds with no `Generated/`
@@ -58,6 +62,12 @@ pub struct LeanCheckArgs {
     /// reviewing them.
     #[arg(long)]
     bless: bool,
+    /// The `lake` program to run. Not a command-line option: the gate's own
+    /// test points it at a stub that fails, so that "lake could not build the
+    /// generated library" can be shown to stop the command rather than leave
+    /// every card at its seeded verdict.
+    #[arg(skip = String::from("lake"))]
+    lake: String,
 }
 
 impl LeanCheckArgs {
@@ -65,7 +75,18 @@ impl LeanCheckArgs {
     /// integration test).
     #[must_use]
     pub fn new(plugin_dirs: Vec<PathBuf>, bless: bool) -> Self {
-        LeanCheckArgs { plugin_dirs, bless }
+        LeanCheckArgs {
+            plugin_dirs,
+            bless,
+            lake: "lake".to_owned(),
+        }
+    }
+
+    /// The same arguments, run against a different `lake` program.
+    #[must_use]
+    pub fn with_lake(mut self, lake: impl Into<String>) -> Self {
+        self.lake = lake.into();
+        self
     }
 }
 
@@ -102,21 +123,35 @@ struct PluginReport {
     /// The Lean module the plugin's cards were emitted into.
     module: String,
     verdicts: BTreeMap<String, Verdict>,
-    /// The full Lean diagnostics behind every failing verdict, for the console.
+    /// Every Lean diagnostic attributed to a card, whole: the `error:`,
+    /// `warning:` or `info:` header line and each continuation line of its
+    /// message, in the order Lean printed them. The console gets all of it;
+    /// the baseline records one line chosen from it (see [`reason_for`]).
     diagnostics: BTreeMap<String, Vec<String>>,
 }
 
-/// One parsed Lean diagnostic.
+/// How seriously Lean meant a diagnostic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Severity {
+    /// An `error:` or a `warning:` — the build treats both as failures
+    /// (`--wfail`), so both refute the card they land on.
+    Failing,
+    /// An `info:` — the guarded `#eval` naming a card's refusals. It never
+    /// decides a verdict; it supplies the reason for one.
+    Info,
+}
+
+/// One parsed Lean diagnostic, message body included.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Diagnostic {
+    severity: Severity,
     /// The path Lean reported, relative to `lean/`.
     path: String,
     line: usize,
-    /// The whole diagnostic line, for the console.
-    text: String,
-    /// The message head — the diagnostic's own first line — which is what the
-    /// baseline records.
+    /// The message head — the diagnostic's own first line.
     head: String,
+    /// The header line and every continuation line of the message, verbatim.
+    lines: Vec<String>,
 }
 
 /// # Errors
@@ -137,8 +172,8 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
     );
 
     let modules = emit(&lean_dir, &plugin_dirs)?;
-    let output = build(&lean_dir)?;
-    let mut reports = attribute(&modules, &output)?;
+    let (output, lake_succeeded) = build(&lean_dir, &args.lake)?;
+    let mut reports = attribute(&modules, &output, lake_succeeded)?;
     reports.sort_by(|a, b| a.dir.cmp(&b.dir));
 
     let mut failures = 0usize;
@@ -168,6 +203,10 @@ struct EmittedModule {
     dir: PathBuf,
     module: String,
     path: String,
+    /// The `.olean` `lake` writes when the module elaborates cleanly; its
+    /// existence is the positive evidence a plugin's cards need to report
+    /// `Pass` when Lean said nothing about them.
+    artifact: PathBuf,
     cards: Vec<lean_emit::GeneratedCard>,
 }
 
@@ -203,6 +242,10 @@ fn emit(lean_dir: &Path, plugin_dirs: &[PathBuf]) -> anyhow::Result<Vec<EmittedM
             dir: dir.clone(),
             module: module.clone(),
             path: format!("{GENERATED_DIR}/{component}.lean"),
+            artifact: lean_dir
+                .join(BUILD_DIRS[0])
+                .join(GENERATED_DIR)
+                .join(format!("{component}.olean")),
             cards: rendered.cards,
         });
     }
@@ -277,100 +320,234 @@ fn module_component(dir: &Path) -> anyhow::Result<String> {
 // The Lean build
 // ---------------------------------------------------------------------------
 
-/// Builds the generated library. A nonzero exit is expected whenever a card
-/// fails, so the output — not the status — is the verdict; only a failure to
-/// RUN `lake` is an error here.
-fn build(lean_dir: &Path) -> anyhow::Result<String> {
-    let output = Command::new("lake")
+/// Builds the generated library, returning its output and whether `lake`
+/// succeeded.
+///
+/// A nonzero exit is expected whenever a card fails, so the status alone is
+/// not the verdict — but it is load-bearing evidence, and dropping it is how a
+/// build that failed for a reason naming no card would leave every card at its
+/// seeded `Pass` ([`attribute`]).
+fn build(lean_dir: &Path, lake: &str) -> anyhow::Result<(String, bool)> {
+    let output = Command::new(lake)
         .args(["build", "--wfail", GENERATED_TARGET])
         .current_dir(lean_dir)
         .output()
-        .context("running lake (is it on PATH?)")?;
+        .with_context(|| format!("running {lake} (is it on PATH?)"))?;
     let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
     text.push_str(&String::from_utf8_lossy(&output.stderr));
-    Ok(text)
+    Ok((text, output.status.success()))
 }
 
-/// Parses `lake`'s output into diagnostics that name a generated file.
+/// Parses `lake`'s output into diagnostics that name a `.lean` file.
 ///
-/// Lean reports `error: <path>:<line>:<col>: <message>`, the message running
-/// on over following lines; lake adds its own pathless lines (`error: build
-/// failed`) which name no card and are dropped here — an unbuildable module is
-/// caught by [`attribute`], which refuses a diagnostic it cannot place.
+/// Lean reports `<severity>: <path>:<line>:<col>: <message>`, the message
+/// running on over the lines that follow. Those continuation lines carry the
+/// content — the refusal list a guarded `#eval` printed, the proposition
+/// `decide` refuted — so they are kept, up to the next diagnostic header or
+/// the next line of `lake`'s own progress and summary chatter.
+///
+/// Lake's pathless lines (`error: build failed`) name no file and are not
+/// diagnostics; the command reads lake's EXIT STATUS for that, never the
+/// absence of parsed output.
 fn diagnostics(output: &str) -> Vec<Diagnostic> {
-    let mut out = Vec::new();
+    let mut out: Vec<Diagnostic> = Vec::new();
+    let mut open: Option<usize> = None;
     for line in output.lines() {
-        let Some(rest) = line
-            .strip_prefix("error: ")
-            .or_else(|| line.strip_prefix("warning: "))
-        else {
-            continue;
-        };
-        let Some((path, rest)) = rest.split_once(".lean:") else {
-            continue;
-        };
-        let path = format!("{path}.lean");
-        let mut parts = rest.splitn(3, ':');
-        let Some(Ok(number)) = parts.next().map(str::parse::<usize>) else {
-            continue;
-        };
-        if parts
-            .next()
-            .and_then(|col| col.parse::<usize>().ok())
-            .is_none()
-        {
+        if let Some(diagnostic) = parse_header(line) {
+            out.push(diagnostic);
+            open = Some(out.len() - 1);
             continue;
         }
-        let head = parts.next().unwrap_or_default().trim().to_owned();
-        out.push(Diagnostic {
-            path,
-            line: number,
-            text: line.to_owned(),
-            head,
-        });
+        if is_header(line) || is_lake_chatter(line) {
+            open = None;
+            continue;
+        }
+        if let Some(index) = open {
+            out[index].lines.push(line.to_owned());
+        }
     }
     out
 }
 
-/// Places each diagnostic on the card whose block it landed in.
+/// The severity prefix a diagnostic header carries.
+fn severity_of(line: &str) -> Option<(Severity, &str)> {
+    if let Some(rest) = line.strip_prefix("error: ") {
+        return Some((Severity::Failing, rest));
+    }
+    if let Some(rest) = line.strip_prefix("warning: ") {
+        return Some((Severity::Failing, rest));
+    }
+    line.strip_prefix("info: ")
+        .map(|rest| (Severity::Info, rest))
+}
+
+fn is_header(line: &str) -> bool {
+    severity_of(line).is_some()
+}
+
+/// Lake's own progress and summary lines, which close whatever message was
+/// running rather than continuing it.
+fn is_lake_chatter(line: &str) -> bool {
+    line.starts_with("trace: ")
+        || line.starts_with("Some required targets")
+        || line.starts_with("Build completed")
+        || line.starts_with(['\u{2714}', '\u{2716}', '\u{26a0}', '\u{2139}'])
+}
+
+/// One header line as a diagnostic, if it names a `.lean` file and a position.
+fn parse_header(line: &str) -> Option<Diagnostic> {
+    let (severity, rest) = severity_of(line)?;
+    let (path, rest) = rest.split_once(".lean:")?;
+    let mut parts = rest.splitn(3, ':');
+    let number = parts.next()?.parse::<usize>().ok()?;
+    parts.next()?.parse::<usize>().ok()?;
+    let head = parts.next().unwrap_or_default().trim().to_owned();
+    Some(Diagnostic {
+        severity,
+        path: format!("{path}.lean"),
+        line: number,
+        head,
+        lines: vec![line.to_owned()],
+    })
+}
+
+/// The card a diagnostic's `Card.check` refusal list belongs in the baseline
+/// for, chosen from everything Lean said about that card.
+///
+/// A refuted card gets three diagnostics: the guarded `#eval`'s `info` line,
+/// which is the refusal list itself; the `#guard_msgs` mismatch; and
+/// `decide`'s own failure, whose text is the same words for every card
+/// ("Tactic decide proved that the proposition … is false"). Recording the
+/// last of those would give every refuted card in the repository one identical
+/// reason, and the ratchet's "failure changed" arm could never tell one broken
+/// law from another — so the `info` line wins whenever Lean printed one, and
+/// the first failing head is the fallback for a card that did not even
+/// elaborate.
+fn reason_for(diagnostics: &[&Diagnostic]) -> String {
+    diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.severity == Severity::Info)
+        .or_else(|| {
+            diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.severity == Severity::Failing)
+        })
+        .map_or_else(|| "no diagnostic".to_owned(), |chosen| chosen.head.clone())
+}
+
+/// Places each diagnostic on the card whose block it landed in, and refuses to
+/// report a verdict the build does not actually evidence.
+///
+/// A card is `Pass` only on POSITIVE evidence that Lean elaborated it: either
+/// its module produced a build artifact, or Lean reported a diagnostic
+/// somewhere in that module, which is proof it elaborated the module and
+/// reported per-declaration failures. Seeding `Pass` and downgrading on parsed
+/// output alone would report every card sound whenever lake failed for a
+/// reason that names no card — an unknown target, a broken `Semantics/`, an
+/// error in the generated root — which is the one way a soundness gate must
+/// never fail.
 ///
 /// # Errors
-/// If a diagnostic names a generated file but sits above its first card — the
-/// module header itself did not elaborate, which is a defect in the gate
-/// rather than a verdict about any card.
-fn attribute(modules: &[EmittedModule], output: &str) -> anyhow::Result<Vec<PluginReport>> {
+/// If lake failed with nothing attributable to a card; if a module was neither
+/// built nor diagnosed; or if a diagnostic names a `.lean` file that is not one
+/// of the emitted modules, or sits above its module's first card. Each of
+/// those is a defect in the gate or the workbench, never a verdict about a
+/// card.
+fn attribute(
+    modules: &[EmittedModule],
+    output: &str,
+    lake_succeeded: bool,
+) -> anyhow::Result<Vec<PluginReport>> {
     let parsed = diagnostics(output);
+    let tail = || output.lines().rev().take(20).collect::<Vec<_>>().join("\n");
+
+    // Every diagnostic has to land on a card. One that does not is the gate or
+    // the workbench breaking, and swallowing it is exactly how a seeded `Pass`
+    // survives a failed build.
+    let mut owners: Vec<(usize, usize)> = Vec::with_capacity(parsed.len());
+    for diagnostic in &parsed {
+        let module = modules
+            .iter()
+            .position(|module| diagnostic.path.ends_with(&module.path))
+            .with_context(|| {
+                format!(
+                    "{}:{}: {} — the diagnostic is in a file this run did not emit as a card \
+                     module (the generated root, or the workbench itself), so no card is at \
+                     fault; this is a gate defect",
+                    diagnostic.path, diagnostic.line, diagnostic.head
+                )
+            })?;
+        let card = modules[module]
+            .cards
+            .iter()
+            .rposition(|card| card.start_line <= diagnostic.line)
+            .with_context(|| {
+                format!(
+                    "{}:{}: {} — the diagnostic is above the module's first card, so the \
+                     generated header itself did not elaborate; this is a gate defect, not a \
+                     card verdict",
+                    diagnostic.path, diagnostic.line, diagnostic.head
+                )
+            })?;
+        owners.push((module, card));
+    }
+
+    // Every parsed diagnostic is attributed by now, so this asks exactly the
+    // reviewer's question: did lake's failure reach a card at all?
+    anyhow::ensure!(
+        lake_succeeded
+            || parsed
+                .iter()
+                .any(|diagnostic| diagnostic.severity == Severity::Failing),
+        "gate defect: `lake` exited nonzero but reported no error against any emitted card, so \
+         no card has a verdict. lake said:\n{}",
+        tail()
+    );
+
     let mut reports = Vec::new();
-    for module in modules {
+    for (index, module) in modules.iter().enumerate() {
+        let mut per_card: BTreeMap<usize, Vec<&Diagnostic>> = BTreeMap::new();
+        for (position, &(owning_module, card)) in owners.iter().enumerate() {
+            if owning_module == index {
+                per_card.entry(card).or_default().push(&parsed[position]);
+            }
+        }
+        let built = module.artifact.is_file();
+        anyhow::ensure!(
+            built || !per_card.is_empty(),
+            "gate defect: {} produced neither a build artifact ({}) nor a diagnostic, so nothing \
+             evidences that Lean elaborated its cards. lake said:\n{}",
+            module.module,
+            module.artifact.display(),
+            tail()
+        );
+
         let mut verdicts: BTreeMap<String, Verdict> = module
             .cards
             .iter()
             .map(|card| (card.name.clone(), Verdict::Pass))
             .collect();
         let mut collected: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for diagnostic in parsed.iter().filter(|d| d.path.ends_with(&module.path)) {
-            let owner = module
-                .cards
-                .iter()
-                .rfind(|card| card.start_line <= diagnostic.line)
-                .with_context(|| {
-                    format!(
-                        "{}:{}: {} — the diagnostic is above the module's first card, so the \
-                         generated header itself did not elaborate; this is a gate defect, not a \
-                         card verdict",
-                        diagnostic.path, diagnostic.line, diagnostic.head
-                    )
-                })?;
-            verdicts.insert(
-                owner.name.clone(),
-                Verdict::Fail {
-                    reason: diagnostic.head.clone(),
-                },
+        for (card, diagnostics) in &per_card {
+            let name = module.cards[*card].name.clone();
+            collected.insert(
+                name.clone(),
+                diagnostics
+                    .iter()
+                    .flat_map(|diagnostic| diagnostic.lines.clone())
+                    .collect(),
             );
-            collected
-                .entry(owner.name.clone())
-                .or_default()
-                .push(diagnostic.text.clone());
+            if diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == Severity::Failing)
+            {
+                verdicts.insert(
+                    name,
+                    Verdict::Fail {
+                        reason: reason_for(diagnostics),
+                    },
+                );
+            }
         }
         reports.push(PluginReport {
             dir: module.dir.clone(),
@@ -632,21 +809,52 @@ mod tests {
         assert!(module_component(Path::new("a/9lives")).is_err());
     }
 
-    /// The shape Lean reports a refuted `decide` in, taken from a real run.
+    /// Everything `lake` prints for one refuted card, verbatim from a real
+    /// run: the guarded `#eval`'s refusal list, the `#guard_msgs` mismatch and
+    /// its indented body, `decide`'s failure and its two continuation lines,
+    /// and lake's own pathless chatter around them.
+    const REFUTED: &str = "\u{2716} [23/25] Building Generated.Testing (519ms)\n\
+         trace: .> LEAN_PATH=… lean Generated/Testing.lean\n\
+         info: Generated/Testing.lean:17:0: [Semantics.Refusal.cardCost]\n\
+         error: Generated/Testing.lean:16:0: \u{274c}\u{fe0f} Docstring on `#guard_msgs` does not \
+         match generated message:\n\n- info: []\n+ info: [Semantics.Refusal.cardCost]\n\
+         error: Generated/Testing.lean:18:81: Tactic `decide` proved that the proposition\n  \
+         card_lawless_land.check = []\nis false\n\
+         error: Lean exited with code 1\n\
+         Some required targets logged failures:\n- Generated.Testing\nerror: build failed\n";
+
     #[test]
-    fn a_lean_diagnostic_is_parsed_to_its_file_line_and_head() {
-        let output = "\u{2716} [23/25] Building Generated.Testing (522ms)\n\
-             trace: .> LEAN_PATH=… lean Generated/Testing.lean\n\
-             error: Generated/Testing.lean:14:81: Tactic `decide` proved that the proposition\n  \
-             card_lawless_land.check = []\nis false\n\
-             error: Lean exited with code 1\nerror: build failed\n";
-        let parsed = diagnostics(output);
-        assert_eq!(parsed.len(), 1, "{parsed:?}");
+    fn a_lean_diagnostic_keeps_its_position_severity_and_whole_message() {
+        let parsed = diagnostics(REFUTED);
+        assert_eq!(parsed.len(), 3, "{parsed:?}");
+
+        assert_eq!(parsed[0].severity, Severity::Info);
         assert_eq!(parsed[0].path, "Generated/Testing.lean");
-        assert_eq!(parsed[0].line, 14);
+        assert_eq!(parsed[0].line, 17);
+        assert_eq!(parsed[0].head, "[Semantics.Refusal.cardCost]");
+
+        // The `#guard_msgs` body — a blank line and the diff — is message, not
+        // chatter, and the report keeps it.
+        assert_eq!(parsed[1].severity, Severity::Failing);
         assert_eq!(
-            parsed[0].head,
-            "Tactic `decide` proved that the proposition"
+            parsed[1].lines[1..],
+            ["", "- info: []", "+ info: [Semantics.Refusal.cardCost]"]
+        );
+
+        // `decide`'s proposition and verdict lines survive the same way.
+        assert_eq!(parsed[2].line, 18);
+        assert_eq!(
+            parsed[2].lines[1..],
+            ["  card_lawless_land.check = []", "is false"]
+        );
+
+        // `error: Lean exited with code 1` and `error: build failed` name no
+        // file, so they are lake's status, not diagnostics.
+        assert!(
+            parsed
+                .iter()
+                .all(|d| Path::new(&d.path).extension() == Some("lean".as_ref())),
+            "{parsed:?}"
         );
     }
 
@@ -654,15 +862,19 @@ mod tests {
     fn a_warning_is_a_diagnostic_too_because_the_build_treats_it_as_one() {
         let parsed = diagnostics("warning: Generated/Testing.lean:9:0: unused variable\n");
         assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].severity, Severity::Failing);
         assert_eq!(parsed[0].line, 9);
         assert_eq!(parsed[0].head, "unused variable");
     }
 
-    fn module(cards: &[(&str, usize)]) -> EmittedModule {
+    /// A module with an `artifact` that exists, so its cards may be reported
+    /// `Pass` on the strength of it.
+    fn module(built: &Path, cards: &[(&str, usize)]) -> EmittedModule {
         EmittedModule {
             dir: PathBuf::from("plugins_v2/testing"),
             module: "Generated.Testing".to_owned(),
             path: "Generated/Testing.lean".to_owned(),
+            artifact: built.to_path_buf(),
             cards: cards
                 .iter()
                 .map(|(name, start_line)| lean_emit::GeneratedCard {
@@ -674,19 +886,50 @@ mod tests {
         }
     }
 
+    /// A stand-in for the `.olean` lake writes when a module elaborates.
+    fn built_artifact(dir: &tempfile::TempDir) -> PathBuf {
+        let path = dir.path().join("Testing.olean");
+        fs::write(&path, b"olean").unwrap();
+        path
+    }
+
     #[test]
     fn a_diagnostic_lands_on_the_card_whose_block_it_sits_in() {
-        let modules = vec![module(&[("Alpha", 6), ("Beta", 11)])];
-        let reports = attribute(
-            &modules,
-            "error: Generated/Testing.lean:13:4: Tactic `decide` proved that the proposition\n",
-        )
-        .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let modules = vec![module(&built_artifact(&dir), &[("Alpha", 6), ("Beta", 14)])];
+        let reports = attribute(&modules, REFUTED, false).unwrap();
         assert_eq!(reports[0].verdicts["Alpha"], Verdict::Pass);
         assert_eq!(
             reports[0].verdicts["Beta"],
             Verdict::Fail {
-                reason: "Tactic `decide` proved that the proposition".to_owned()
+                // The refusal list, not `decide`'s one-size-fits-all preamble.
+                reason: "[Semantics.Refusal.cardCost]".to_owned()
+            }
+        );
+        assert_eq!(
+            reports[0].diagnostics["Beta"].len(),
+            8,
+            "the report keeps every line of all three diagnostics: {:?}",
+            reports[0].diagnostics["Beta"]
+        );
+    }
+
+    /// A card that does not even elaborate has no refusal list to record, so
+    /// the failing head is the reason.
+    #[test]
+    fn a_card_that_fails_to_elaborate_records_the_failing_head() {
+        let dir = tempfile::tempdir().unwrap();
+        let modules = vec![module(&built_artifact(&dir), &[("Alpha", 6)])];
+        let reports = attribute(
+            &modules,
+            "error: Generated/Testing.lean:8:4: unknown identifier 'Semantics.Card.nope'\n",
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            reports[0].verdicts["Alpha"],
+            Verdict::Fail {
+                reason: "unknown identifier 'Semantics.Card.nope'".to_owned()
             }
         );
     }
@@ -695,14 +938,71 @@ mod tests {
     /// as some card's failure would bless a broken emitter.
     #[test]
     fn a_diagnostic_above_the_first_card_is_a_gate_defect() {
-        let modules = vec![module(&[("Alpha", 6)])];
+        let dir = tempfile::tempdir().unwrap();
+        let modules = vec![module(&built_artifact(&dir), &[("Alpha", 6)])];
         let error = attribute(
             &modules,
             "error: Generated/Testing.lean:2:0: unknown import\n",
+            false,
         )
         .unwrap_err()
         .to_string();
         assert!(error.contains("gate defect"), "{error}");
+    }
+
+    /// The generated root, and the workbench itself, are files no card owns.
+    /// Filtering them out silently is how a broken build reports every card
+    /// sound.
+    #[test]
+    fn a_diagnostic_in_a_file_no_card_owns_is_a_gate_defect() {
+        let dir = tempfile::tempdir().unwrap();
+        let modules = vec![module(&built_artifact(&dir), &[("Alpha", 6)])];
+        for output in [
+            "error: Generated.lean:1:0: unknown module prefix 'Generated'\n",
+            "error: Semantics/Check/Card.lean:20:2: unknown identifier\n",
+        ] {
+            let error = attribute(&modules, output, false).unwrap_err().to_string();
+            assert!(error.contains("gate defect"), "{output} gave {error}");
+        }
+    }
+
+    /// H1: lake failing for a reason that names no card must stop the command.
+    /// Seeding `Pass` and downgrading only on parsed diagnostics reported every
+    /// card sound on an unknown target, a broken `Semantics/`, or a lake that
+    /// never ran the compiler at all.
+    #[test]
+    fn a_lake_failure_that_names_no_card_is_a_gate_defect() {
+        let dir = tempfile::tempdir().unwrap();
+        let modules = vec![module(&built_artifact(&dir), &[("Alpha", 6)])];
+        let error = attribute(&modules, "error: unknown target\n", false)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("gate defect"), "{error}");
+        assert!(error.contains("unknown target"), "{error}");
+
+        // The same output with lake succeeding is not a defect: nothing was
+        // reported because nothing was wrong.
+        let reports = attribute(&modules, "", true).unwrap();
+        assert_eq!(reports[0].verdicts["Alpha"], Verdict::Pass);
+    }
+
+    /// The other half of the same law: a module with no build artifact and no
+    /// diagnostic has no evidence behind it either way, even if lake claims
+    /// success.
+    #[test]
+    fn a_module_that_was_neither_built_nor_diagnosed_is_a_gate_defect() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("never-written.olean");
+        let modules = vec![module(&missing, &[("Alpha", 6)])];
+        let error = attribute(&modules, "", true).unwrap_err().to_string();
+        assert!(error.contains("gate defect"), "{error}");
+
+        // A module Lean did diagnose was elaborated, so its quiet cards pass
+        // even though the failing one cost the module its artifact.
+        let modules = vec![module(&missing, &[("Alpha", 6), ("Beta", 14)])];
+        let reports = attribute(&modules, REFUTED, false).unwrap();
+        assert_eq!(reports[0].verdicts["Alpha"], Verdict::Pass);
+        assert!(matches!(reports[0].verdicts["Beta"], Verdict::Fail { .. }));
     }
 
     fn report(verdicts: &[(&str, Verdict)]) -> PluginReport {

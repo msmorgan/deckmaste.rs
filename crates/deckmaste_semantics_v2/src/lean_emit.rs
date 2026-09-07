@@ -18,10 +18,15 @@
 //! raw constructors by design — is not the gate's device. The gate writes a
 //! plain `def` and a `theorem … := by decide`, which is the pin discipline.
 //!
-//! Everything is written fully qualified (`Semantics.Card.singleFaced`,
+//! Constructors and structure instances are written fully qualified and
+//! ascribed (`Semantics.Card.singleFaced`,
 //! `({ … } : Semantics.Characteristics)`) and every compound argument is
-//! parenthesised, so an emitted fragment elaborates in any position without
-//! depending on an `open` or on the expected type being inferable.
+//! parenthesised, so an emitted fragment needs no `open` and no surrounding
+//! precedence. The polymorphic spellings — `none`, `some x`, and the list
+//! literal `[…]` — are deliberately left unqualified and do still take their
+//! element type from the position they sit in; inside a card term that
+//! position is always a constructor argument or an ascribed structure field,
+//! so the type is fixed by the enclosing form.
 //!
 //! One wrinkle of the two derives the mirror carries: a `SupportsMacros` type
 //! lowers each struct variant through a private `__TypeVariant` helper struct
@@ -278,6 +283,15 @@ pub fn render_module(
         let term = term(*card)?;
         let _ = writeln!(source, "-- {}", comment_text(name));
         let _ = writeln!(source, "def {ident} : {LEAN_NAMESPACE}.Card :=\n  {term}");
+        // The guarded `#eval` beside the theorem is what puts the REFUSAL LIST
+        // into Lean's output. `decide`'s own failure says only that
+        // `<card>.check = []` is false, so every refuted card would otherwise
+        // carry one indistinguishable reason and the gate's baseline could not
+        // tell one broken law from another. A card that checks matches the
+        // docstring and `#guard_msgs` stays silent; a card that does not gets
+        // an `info` line naming exactly which refusals it earned.
+        let _ = writeln!(source, "/-- info: [] -/\n#guard_msgs in");
+        let _ = writeln!(source, "#eval {LEAN_NAMESPACE}.Card.check {ident}");
         let _ = writeln!(
             source,
             "theorem {ident}_ok : {LEAN_NAMESPACE}.Card.check {ident} = [] := by decide\n"
@@ -920,6 +934,13 @@ mod tests {
             "theorem card_grizzly_bears_ok : Semantics.Card.check card_grizzly_bears = [] := by \
              decide"
         ));
+        assert!(
+            module.source.contains(
+                "/-- info: [] -/\n#guard_msgs in\n#eval Semantics.Card.check card_grizzly_bears\n"
+            ),
+            "the guarded eval that names the refusals sits in the card's block:\n{}",
+            module.source
+        );
         let [entry] = module.cards.as_slice() else {
             panic!("one card, one entry");
         };

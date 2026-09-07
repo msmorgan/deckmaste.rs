@@ -21,10 +21,22 @@ records the frozen Idris reference and migration history.
 card in each `plugins_v2/` plugin as a fully expanded Lean term, writes them as
 `Generated/<Plugin>.lean` with a `Generated.lean` root, builds them with
 `lake build --wfail Generated`, and reads the per-card verdict off the
-diagnostics. Each card becomes a `def` and a
+diagnostics. Each card becomes a `def`, a `#guard_msgs`-guarded
+`#eval Card.check <card>`, and a
 `theorem <card>_ok : Card.check <card> = [] := by decide`, so the kernel proves
-the same obligation the pin suites do. Verdicts ratchet against each plugin's
-`lean-check-baseline.ron`; `--bless` rewrites it after review.
+the same obligation the pin suites do. The guarded `#eval` is silent for a card
+that checks and prints the exact refusal list for one that does not — `decide`'s
+own message names no refusal, so without it every refuted card would carry the
+same reason. Verdicts ratchet against each plugin's `lean-check-baseline.ron`;
+`--bless` rewrites it after review.
+
+A card is reported sound only on positive evidence that Lean elaborated it: the
+module's `.olean`, or a diagnostic Lean reported inside that module. `lake`'s
+exit status is read, every diagnostic must land on a card, and each run deletes
+the generated build artifacts first. A build that fails without naming a card,
+a diagnostic in `Generated.lean` or in `Semantics/`, and a module that was
+neither built nor diagnosed are each reported as a gate defect that stops the
+command, never as a verdict.
 
 The generated tree is untracked and gitignored — it is rebuilt from the plugins
 on every run, and nothing generated is committed. Its `Generated` library is

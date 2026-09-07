@@ -43,7 +43,8 @@ the Idris CI job stays.
 ## Landing record
 
 Change: `vzozuwxqpzkp` (`lean-check: the xtask gate, ratchet, and fixtures`),
-plus the docs/CI commit above it.
+plus the docs/CI commit above it and the review-round commit
+`lean-check: the verdict rests on lake's status, not on silence`.
 
 ### PROVE
 
@@ -59,6 +60,24 @@ plus the docs/CI commit above it.
   returns `.cardCost`, `decide` refutes the theorem, and the gate attributes
   the diagnostic to that card alone while its neighbour "Lawful Land" still
   proves.
+- **A verdict rests on positive evidence.** A card is `Pass` only when Lean is
+  shown to have elaborated it: either its module produced the `.olean` `lake`
+  writes, or Lean reported a diagnostic somewhere in that module (proof it
+  elaborated the module and reported per-declaration failures). Beyond that,
+  `lake`'s exit status is read, every parsed diagnostic must land on a card,
+  and each generated build artifact is deleted before the run so a previous
+  run's `.olean` can never stand in for this one's. A `lake` that fails without
+  naming a card, a diagnostic in `Generated.lean` or in `Semantics/`, and a
+  module that was neither built nor diagnosed are each a **gate defect** that
+  stops the command — never a verdict about a card. See the STOP below for what
+  this replaced.
+- **A refuted card's reason names the law it broke.** Each card's block carries
+  a `#guard_msgs`-guarded `#eval Semantics.Card.check <card>` beside its
+  theorem. A card that checks matches the docstring and stays silent; a card
+  that does not gets an `info` line carrying the exact refusal list, and that
+  list — not `decide`'s card-independent preamble — is what the baseline
+  records. "Lawless Land" ratchets as
+  `Fail(reason: "[Semantics.Refusal.cardCost]")`.
 - **No silent loss.** Nothing was retired. The Idris gate, its emitter, its
   baselines and its CI step are untouched and still cover the 80 v1
   `plugins/canon` cards; no card lost a checker.
@@ -118,34 +137,74 @@ plus the docs/CI commit above it.
      other plugin's declarations resolve against (§15).
   6. **The CI `lean` job gained a Rust toolchain and cache** (mirroring the
      `idris` job) and its `timeout-minutes` rose from 15 to 30, because the job
-     now carries a Rust compile as well as the Lean build.
-  7. **Four tracked documents pointed at
+     now carries a Rust compile as well as the Lean build. It runs
+     `cargo xtask lean-check` and then `cargo test -p xtask --test lean_check`:
+     the gate's FAILURE paths — a card that breaks a Lean law, a `lake` that
+     fails without naming a card — live in tests that need a Lean toolchain, so
+     they run nowhere else (the Rust jobs have no elan, and the integration
+     test skips itself without `lake`).
+  7. **`LeanCheckArgs` carries the `lake` program as a non-CLI field**
+     (`#[arg(skip)]`, set through `LeanCheckArgs::with_lake`). It adds no
+     command-line surface; it exists so the gate's own test can point the
+     command at a stub that fails, which is the only way to show that a failed
+     build stops the command rather than leaving every card at its seeded
+     verdict.
+  8. **Four tracked documents pointed at
      `docs/tickets/planned/lean-card-soundness-gate.md`** and asserted the gate
      was not implemented: `docs/guided_tour.md`, `docs/keyword-policy.md`,
      `docs/decisions/lean-is-the-workbench.md` and
      `docs/decisions/semantics-v2.md` §9. All four were corrected to the landed
      state and the `done/` path.
-- **STOPs:** none. The one the brief anticipated — lake refusing a `lean_lib`
-  whose root is absent — did not occur; it was probed before any code was
-  written and `lake build --wfail` succeeded with `Generated/` missing.
+- **STOPs.** The one the brief anticipated — lake refusing a `lean_lib` whose
+  root is absent — did not occur; it was probed before any code was written and
+  `lake build --wfail` succeeded with `Generated/` missing.
+
+  One STOP was raised by review and fixed in this workspace:
+
+  **H1 — the gate could report every card sound on a build that never ran.**
+  As first landed, `build` discarded `lake`'s exit status and `attribute`
+  seeded every card `Pass`, downgrading only on a parsed
+  `error: <path>.lean:<line>:<col>:` line whose path matched an emitted
+  module. So any failure that named no card — an unknown target, an error in
+  the generated root, a broken `Semantics/`, a toolchain that never reached the
+  compiler — left every card at `Pass` and the command exited zero.
+  Demonstrated with a stub `lake` printing `error: unknown target` and exiting
+  1: "2/2 cards prove … baseline OK", exit 0. That is the one way a soundness
+  gate must never fail, and it was a defect in the gate's own shape, not a
+  missing case: absence of evidence was being read as evidence.
+
+  Fixed by making the verdict rest on positive evidence (above) and proved by
+  five new unit tests plus an end-to-end test that runs the command against a
+  stub `lake`. The same stub through the CLI now gives:
+  `Error: gate defect: `lake` exited nonzero but reported no error against any
+  emitted card, so no card has a verdict.`
 - **Glossary gaps:** none. The landing introduced no term
   `docs/contexts/oracle-english/CONTEXT.md` or
   `docs/contexts/game-model/CONTEXT.md` does not already define.
 
 ### Assurance counts
 
-Restored 0, re-spelled 1, ignored 0, added 24, removed 0.
+Restored 0, re-spelled 2, ignored 0, added 31, removed 0.
 
 - Re-spelled: `lean_drift.rs`'s `the_name_mapping_is_the_documented_one` —
   same assertions and same subject, now spelled against the crate's
-  `rust_variant`/`rust_field`.
-- Added: 12 unit tests in `deckmaste_semantics_v2::lean_emit` (each numeric,
-  option, list, string, struct and enum case, the three named escapes, the
-  ident allocator, the module shape), 1 in `lean_drift.rs` (the round trip
-  over every Lean name), 9 in `xtask::lean_check` (diagnostic parsing,
-  attribution, the gate-defect refusal, the baseline format, and every
-  direction of the ratchet), and 2 xtask integration tests that really invoke
-  `lake`.
+  `rust_variant`/`rust_field`. And `lean_check`'s
+  `a_lean_diagnostic_is_parsed_to_its_file_line_and_head`, now
+  `..._keeps_its_position_severity_and_whole_message`: same subject and same
+  real-run output, asserting the whole message rather than only its head, since
+  the head is no longer all the parser keeps.
+- Added, first round (24): 12 unit tests in
+  `deckmaste_semantics_v2::lean_emit` (each numeric, option, list, string,
+  struct and enum case, the three named escapes, the ident allocator, the
+  module shape), 1 in `lean_drift.rs` (the round trip over every Lean name),
+  9 in `xtask::lean_check` (diagnostic parsing, attribution, the gate-defect
+  refusal, the baseline format, and every direction of the ratchet), and 2
+  xtask integration tests that really invoke `lake`.
+- Added, review round (7): 5 unit tests in `xtask::lean_check` — a lake
+  failure naming no card, a module neither built nor diagnosed, a diagnostic in
+  a file no card owns, a card that fails to elaborate (the fallback reason),
+  and the guarded eval's refusal list becoming the reason — and 2 integration
+  tests, the stub-`lake` end-to-end refusal and a real run recovering after it.
 - No test was deleted, `#[ignore]`d, or weakened to a `matches!`.
 
 ### REPORT
@@ -153,19 +212,24 @@ Restored 0, re-spelled 1, ignored 0, added 24, removed 0.
 - **Gate line** (`cargo xtask gate --changed`):
   `cargo test -p deckmaste_semantics_v2 -p xtask` — green:
   25 + 4 + 6 (semantics_v2 lib, `lean_drift`, `reader`) and
-  488 + 13 + 1 + 1 + 2 + 2 (xtask lib, bin, `english_v2_determinism`,
+  492 + 13 + 1 + 1 + 4 + 2 (xtask lib, bin, `english_v2_determinism`,
   `flavor_words`, `lean_check`, `plugins_v2_declarations`), 1 pre-existing
   ignored.
 - `cargo fmt --all`, and
   `cargo clippy -p deckmaste_semantics_v2 -p xtask --all-targets -- -D warnings`
   clean.
-- `lean/scripts/build`: 77 jobs, successful.
+- `lean/scripts/build`: 77 jobs, successful — checked both with `lean/Generated/`
+  absent and with it present.
 - `cargo xtask cite check --list-noncompliant`: 0 non-compliant.
-  `cargo xtask cite check`: 15,087 citations, 0 stale. One citation site added
+  `cargo xtask cite check`: 15,088 citations, 0 stale. One citation site added
   (`[CR#107.1]` in `lean_emit`'s `int_literal`), audited against the rule text.
 - **Performance advisory.** `lean-check` wall time on `plugins_v2/testing`
-  (2 cards), measured on `vzozuwxqpzkp`: 0.2 s with the generated library's
-  oleans warm, 0.7 s with them removed and rebuilt, against a warm
-  `Semantics`. Host load average 4.71, 24 cores, `lake`'s own worker count.
-  The per-run floor is the `lake build` invocation, not the emission; emission
-  of both cards is under a millisecond.
+  (2 cards), measured on the review-round tip: **0.2 s**, three runs, host load
+  average 1.76 on 24 cores, `lake`'s own worker count. Every run now deletes
+  the generated library's build artifacts first (so a stale `.olean` cannot
+  stand in as evidence), which means 0.2 s is the FULL cost — emit, a from-
+  scratch `lake` build of the generated module against a warm `Semantics`,
+  attribution and the ratchet. The guarded `#eval` added beside each theorem
+  did not move that number at this size; on a corpus it costs one extra
+  interpreted evaluation of `Card.check` per card, and `plugins-v2-canon`
+  should re-measure. Emission itself is under a millisecond for both cards.
