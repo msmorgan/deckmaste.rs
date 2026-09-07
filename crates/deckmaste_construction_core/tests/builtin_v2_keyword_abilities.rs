@@ -185,9 +185,15 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         expected.keys().collect::<Vec<_>>()
     );
     for (name, declaration) in &actual {
-        assert!(
-            !declaration.is_graduated(),
-            "{name} must remain a nursery declaration"
+        // Re-spelled by `semantics-v2-macro-bodies-keyword-abilities`, which
+        // gives each keyword ability its own definition as the declaration's
+        // body: the family is no longer a grammar-only nursery. What the
+        // assertion protects is unchanged — a body never lands without the
+        // signature that reads it, which is exactly what graduation means.
+        assert_eq!(
+            declaration.is_graduated(),
+            declaration.body().is_some(),
+            "{name}: a body and a signature land together"
         );
         assert_eq!(
             declaration
@@ -243,7 +249,17 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
                 "{name}",
             );
         } else {
-            assert!(declaration.params().is_none(), "{name}");
+            // Re-spelled with the assertion above: a body may not land without
+            // a signature (`ValidationError::BodyWithoutSignature`), so a
+            // paramless keyword carrying its definition writes `params: []`
+            // where a nursery record wrote nothing. Either reads as "this
+            // keyword takes no argument".
+            assert!(
+                declaration
+                    .params()
+                    .map_or(true, |params| params.is_empty()),
+                "{name}"
+            );
         }
         let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
             panic!("keyword {name} declares compiler-owned layout in its spelling")
