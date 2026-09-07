@@ -13,6 +13,7 @@ use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::card::Card;
 use deckmaste_semantics_v2::events::ReplUse;
 use deckmaste_semantics_v2::phrase::Amount;
+use deckmaste_semantics_v2::phrase::ColorTerm;
 use deckmaste_semantics_v2::phrase::DetPhrase;
 use deckmaste_semantics_v2::phrase::GameEvent;
 use deckmaste_semantics_v2::phrase::NounPhrase;
@@ -24,8 +25,11 @@ use deckmaste_semantics_v2::phrase::ZoneScope;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::Color;
+use deckmaste_semantics_v2::words::ColorOrColorless;
 use deckmaste_semantics_v2::words::CounterKind;
+use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
+use deckmaste_semantics_v2::words::SimpleManaSymbol;
 use deckmaste_semantics_v2::words::Stat;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
@@ -312,4 +316,93 @@ fn a_declared_field_still_reads() {
     macros
         .read_str::<Instruction>("RerollStored(quantity: Range(low: 1), whose: You, agent: You)")
         .expect("the declared spelling reads");
+}
+
+/// The chain of one-field constructors between a mana-symbol position and a
+/// written colour, spelled out.
+fn green_symbol() -> ManaSymbol {
+    ManaSymbol::Simple {
+        symbol: SimpleManaSymbol::Specific {
+            color: ColorOrColorless::Of {
+                color: Color::Green,
+            },
+        },
+    }
+}
+
+/// A constructor that carries only its payload may be left unwritten: `Green`
+/// at a mana-symbol position is the whole chain, one hop at a time.
+#[test]
+fn a_bare_colour_reads_as_a_mana_symbol() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let symbol: ManaSymbol = macros
+        .read_str("Green")
+        .expect("a bare colour reads at a mana-symbol position");
+    assert_eq!(symbol, green_symbol());
+}
+
+/// The same elision one link down, and at the other type that injects a colour.
+#[test]
+fn a_bare_colour_reads_at_every_link_of_the_chain() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let simple: SimpleManaSymbol = macros.read_str("Green").expect("at SimpleManaSymbol");
+    assert_eq!(
+        simple,
+        SimpleManaSymbol::Specific {
+            color: ColorOrColorless::Of {
+                color: Color::Green
+            }
+        }
+    );
+    let term: ColorTerm = macros.read_str("Green").expect("at ColorTerm");
+    assert_eq!(
+        term,
+        ColorTerm::Lit {
+            color: Color::Green
+        }
+    );
+}
+
+/// The injection adds a spelling; it does not retire the written-out one the
+/// binder names give.
+#[test]
+fn the_written_out_chain_still_reads() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let symbol: ManaSymbol = macros
+        .read_str("Simple(symbol: Specific(color: Of(color: Green)))")
+        .expect("the fully written chain reads");
+    assert_eq!(symbol, green_symbol());
+}
+
+/// Native dispatch wins: an identifier the position's own grammar claims is
+/// never routed to the embedded type.
+#[test]
+fn a_native_constructor_is_not_routed() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let symbol: ManaSymbol = macros.read_str("Snow").expect("`Snow` is ManaSymbol's own");
+    assert_eq!(symbol, ManaSymbol::Snow);
+}
+
+/// An identifier no link of the chain claims is refused, not silently dropped.
+#[test]
+fn an_identifier_no_link_of_the_chain_claims_is_refused() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let error = macros
+        .read_str::<ManaSymbol>("Vigilance")
+        .expect_err("`Vigilance` names no mana symbol and no colour");
+    let message = error.to_string();
+    assert!(
+        message.contains("Vigilance"),
+        "the refusal names the identifier it could not place: {message}"
+    );
+}
+
+/// The writer elides exactly what the reader supplies, so a card file spells
+/// the colour and nothing else.
+#[test]
+fn an_injection_writes_bare() {
+    let text = deckmaste_semantics_v2::ron::raw_options()
+        .to_string(&green_symbol())
+        .expect("a mana symbol writes");
+    assert_eq!(text, "Green");
 }

@@ -73,10 +73,17 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// A color, written or "the chosen color".
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ColorTerm {
-    Lit { color: Color },
-    Chosen { r#ref: ChoiceRef },
+    /// Carries only the written colour, so a bare `Green` reads here
+    /// [CR#105.1].
+    #[macro_ron(embed)]
+    Lit {
+        color: Color,
+    },
+    Chosen {
+        r#ref: ChoiceRef,
+    },
 }
 
 /// The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a

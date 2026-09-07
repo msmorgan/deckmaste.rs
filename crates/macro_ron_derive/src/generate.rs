@@ -59,11 +59,14 @@ pub fn supports_macros(input: &Input) -> Result<TokenStream> {
 /// Whether the variant keeps its name in `OWN_VARIANTS`: a `flatten`
 /// variant's name is erased entirely (the payload's names surface instead),
 /// and a *newtype* embed is name-erased (always written bare). A *tuple*
-/// embed keeps its tag; `expanded` and `literal` variants are ordinary.
+/// embed keeps its tag; so does a *struct* embed, whose binder name is the
+/// contract with the Lean constructor and which a document may still spell
+/// out (`Simple(symbol: …)`) even though it is always written bare.
+/// `expanded` and `literal` variants are ordinary.
 fn is_named(v: &Variant) -> bool {
     match v.marker {
         Some(Marker::Flatten) => false,
-        Some(Marker::Embed) => matches!(v.shape, Shape::Tuple(_)),
+        Some(Marker::Embed) => !matches!(v.shape, Shape::Newtype(_)),
         _ => true,
     }
 }
@@ -146,11 +149,21 @@ fn newtype_construct(ty: &Ident, v_ident: &Ident, boxed: bool) -> TokenStream {
 
 /// The constructor mapping a deserialized embed payload into the embed
 /// variant: `T::Ref` for a newtype embed, a closure filling every defaulted
-/// field with its default for a tuple embed. Boxed payloads re-box.
+/// field with its default for a tuple embed, a closure binding the one field
+/// for a struct embed. Boxed payloads re-box.
 fn embed_construct(ty: &Ident, v: &Variant) -> TokenStream {
     let v_ident = &v.ident;
     match &v.shape {
         Shape::Newtype(f) => newtype_construct(ty, v_ident, peeled(&f.ty).1),
+        Shape::Struct(fields) => {
+            let name = fields[0].ident.as_ref().expect("struct fields are named");
+            let payload = if peeled(&fields[0].ty).1 {
+                quote!(::std::boxed::Box::new(__payload))
+            } else {
+                quote!(__payload)
+            };
+            quote!(|__payload| #ty::#v_ident { #name: #payload })
+        }
         Shape::Tuple(fields) => {
             let args = fields.iter().map(|f| match &f.default {
                 Some(default) => quote!(#default),
@@ -159,8 +172,8 @@ fn embed_construct(ty: &Ident, v: &Variant) -> TokenStream {
             });
             quote!(|__payload| #ty::#v_ident(#(#args),*))
         }
-        Shape::Unit | Shape::Struct(_) => {
-            unreachable!("embed is a newtype or tuple (validated in parse())")
+        Shape::Unit => {
+            unreachable!("embed is not a unit variant (validated in parse())")
         }
     }
 }
@@ -773,6 +786,22 @@ fn gen_serialize(input: &Input) -> TokenStream {
                 });
                 // … and the ordinary tagged tuple arm otherwise.
                 arms.push(tuple_arm(ty, &ty_name, index, v_ident, &name, fields.len()));
+            }
+            // A struct embed writes bare like the newtype one, but names the
+            // constructor it elides: `serialize_newtype_struct` carries
+            // `Type.Variant`, which RON's `UNWRAP_NEWTYPES` drops (leaving
+            // `Green`) while a structural consumer — `deckmaste_semantics_v2`'s
+            // Lean emitter, which must name every constructor — reads it off
+            // and restores the application. `.` is a legal RON raw-identifier
+            // character, so the name still validates when the extension is off.
+            (Some(Marker::Embed), Shape::Struct(fields)) => {
+                let field = fields[0].ident.as_ref().expect("struct fields are named");
+                let qualified = format!("{ty_name}.{name}");
+                arms.push(quote! {
+                    #ty::#v_ident { #field } => ::serde::Serializer::serialize_newtype_struct(
+                        serializer, #qualified, #field,
+                    ),
+                });
             }
             (_, Shape::Unit) => arms.push(quote! {
                 #ty::#v_ident => ::serde::Serializer::serialize_unit_variant(

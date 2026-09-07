@@ -36,6 +36,11 @@
 //! Both spell one Lean constructor applied to its fields in declaration order,
 //! so the renderer unwraps the helper rather than emitting it as a structure
 //! the Lean side does not have.
+//!
+//! The other wrinkle is the injection: a `#[macro_ron(embed)]` variant writes
+//! its payload bare in RON, through a newtype struct named `Type.Variant`
+//! that ron's `unwrap_newtypes` drops. Lean has no such elision, so
+//! `serialize_newtype_struct` reads that name and restores the application.
 
 use std::cell::Cell;
 use std::collections::BTreeMap;
@@ -489,9 +494,18 @@ impl ser::Serializer for LeanSerializer<'_> {
 
     fn serialize_newtype_struct<T: Serialize + ?Sized>(
         self,
-        _: &'static str,
+        name: &'static str,
         value: &T,
     ) -> Result<String, EmitError> {
+        // An injection (`#[macro_ron(embed)]`) elides its constructor in the
+        // RON dialect — `Green`, not `Simple(symbol: …)` — by writing the
+        // payload through a newtype struct named `Type.Variant`, which ron's
+        // `unwrap_newtypes` drops. Lean names every constructor, so the head
+        // is restored here.
+        if let Some((type_name, variant)) = name.split_once('.') {
+            let rendered = value.serialize(LeanSerializer::plain())?;
+            return Ok(application(constructor(type_name, variant), &[rendered]));
+        }
         value.serialize(LeanSerializer::plain())
     }
 

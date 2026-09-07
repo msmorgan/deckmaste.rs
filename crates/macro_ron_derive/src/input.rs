@@ -19,7 +19,9 @@ pub enum Marker {
     /// Untagged embed of another type. A newtype embed (`Ref(Reference)`)
     /// is name-erased (always written bare); a tuple embed (`By(Reference,
     /// PlayerAction)`) keeps its tag and writes bare only when every
-    /// defaulted field equals its default.
+    /// defaulted field equals its default; a STRUCT embed of exactly one
+    /// field (`Simple { symbol: SimpleManaSymbol }`) keeps its tag on read
+    /// and always writes bare.
     ///
     /// Defaulted fields of a tuple embed must implement `PartialEq` (the
     /// generated bare-write guard compares them against their defaults); a
@@ -94,8 +96,8 @@ impl Input {
 
 impl Variant {
     /// The embedded payload field of an `embed` variant: the single field
-    /// without a `default`. Only meaningful on variants `parse()` validated
-    /// as embeds.
+    /// without a `default` (a struct embed's one field). Only meaningful on
+    /// variants `parse()` validated as embeds.
     pub fn embed_payload(&self) -> &Field {
         match &self.shape {
             Shape::Newtype(f) => f,
@@ -103,7 +105,12 @@ impl Variant {
                 .iter()
                 .find(|f| f.default.is_none())
                 .expect("embed_payload: embed tuple needs one non-defaulted field; was this Input produced by parse()?"),
-            _ => unreachable!("embed_payload: embed is newtype or tuple (validated in parse())"),
+            Shape::Struct(fs) => fs
+                .first()
+                .expect("embed_payload: embed struct has exactly one field; was this Input produced by parse()?"),
+            Shape::Unit => {
+                unreachable!("embed_payload: embed is not a unit variant (validated in parse())")
+            }
         }
     }
 }
@@ -176,6 +183,19 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
             shape,
             flatten_exclude,
         });
+    }
+    // One embed per enum: two untagged fall-throughs at one position would
+    // race for the same identifier, and `Input::embed` would silently pick
+    // the first. The reader's unambiguity is this check.
+    if let Some(second) = variants
+        .iter()
+        .filter(|v| v.marker == Some(Marker::Embed))
+        .nth(1)
+    {
+        return Err(Error::new(
+            second.ident.span(),
+            "an enum carries at most one `embed` variant              (two untagged fall-throughs would race for the same identifier)",
+        ));
     }
     Ok(Input {
         ident: input.ident.clone(),
@@ -292,10 +312,30 @@ fn validate(ident: &Ident, marker: Option<Marker>, shape: &Shape) -> Result<()> 
                     ));
                 }
             }
-            _ => {
+            // A struct embed carries a binder name (`Simple { symbol: … }`,
+            // mirroring the Lean constructor's own field), so the injection
+            // rule reaches the mirror's struct variants and not only v1's
+            // newtypes. Exactly one field: two fields carry information the
+            // payload cannot, so eliding the constructor would lose it.
+            Shape::Struct(fs) => {
+                if fs.len() != 1 {
+                    return Err(Error::new(
+                        ident.span(),
+                        "a struct embed needs exactly one field (the payload)",
+                    ));
+                }
+                if fs[0].default.is_some() {
+                    return Err(Error::new(
+                        ident.span(),
+                        "#[macro_ron(default = ...)] is not used on struct variants \
+                         (forward #[serde(default = ...)] instead)",
+                    ));
+                }
+            }
+            Shape::Unit => {
                 return Err(Error::new(
                     ident.span(),
-                    "embed marker requires a newtype or tuple variant",
+                    "embed marker requires a newtype, tuple, or one-field struct variant",
                 ));
             }
         },

@@ -591,7 +591,10 @@ pub enum ItalicWord {
     FlavorWord { label: FlavorWordLabel },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// The five colours [CR#105.1]. The bottom of the mana injection chain: a bare
+/// `Green` at a `ColorTerm`, `ColorOrColorless`, `SimpleManaSymbol` or
+/// `ManaSymbol` position reads through the embeds below.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Color {
     White,
     Blue,
@@ -600,20 +603,34 @@ pub enum Color {
     Green,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ColorOrColorless {
     Colorless,
-    Of { color: Color },
+    /// Carries only its colour, so a bare `Green` reads here [CR#106.1b].
+    #[macro_ron(embed)]
+    Of {
+        color: Color,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum SimpleManaSymbol {
-    Generic { amount: u32 },
-    Specific { color: ColorOrColorless },
+    Generic {
+        amount: u32,
+    },
+    /// Carries only its mana type, so a bare `Colorless`/`Green` reads here
+    /// [CR#107.4].
+    #[macro_ron(embed)]
+    Specific {
+        color: ColorOrColorless,
+    },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ManaSymbol {
+    /// Carries only the simple symbol, so `Generic(2)` and a bare `Green`
+    /// both read at a mana-cost position [CR#107.4].
+    #[macro_ron(embed)]
     Simple {
         symbol: SimpleManaSymbol,
     },

@@ -81,6 +81,15 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::abilities::TokenSpec::kind());
     // `lean/Semantics/Words.lean`
     kinds.add(crate::words::Window::kind());
+    // The mana injection chain (§11.1): each of these carries an
+    // `#[macro_ron(embed)]` constructor, and the untagged fall-through is a
+    // per-kind fact, so the reader needs every link registered or a bare
+    // `Green` stops one hop short.
+    kinds.add(crate::words::ManaSymbol::kind());
+    kinds.add(crate::words::SimpleManaSymbol::kind());
+    kinds.add(crate::words::ColorOrColorless::kind());
+    kinds.add(crate::phrase::ColorTerm::kind());
+    kinds.add(crate::words::Color::kind());
     // A word type, not a `semantic_expression`, but macroable all the same:
     // `plugins_v2`'s turn-part declarations register at this very name, so the
     // kind must be the derived one that carries the type's dispatch set. A
@@ -159,6 +168,11 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::TurnPart>("TurnPart");
     types.add_typed::<crate::words::Disclosure>("Disclosure");
     types.add_typed::<crate::phrase::Ballot>("Ballot");
+    types.add_typed::<crate::words::ManaSymbol>("ManaSymbol");
+    types.add_typed::<crate::words::SimpleManaSymbol>("SimpleManaSymbol");
+    types.add_typed::<crate::words::ColorOrColorless>("ColorOrColorless");
+    types.add_typed::<crate::phrase::ColorTerm>("ColorTerm");
+    types.add_typed::<crate::words::Color>("Color");
     // Not a `SupportsMacros` kind (it has no macro dispatch of its own —
     // `plugins_v2` spells a subtype with the native `Of`/`Spell` constructor,
     // never a bare declared-subtype macro name), but a real v2 syntax type a
@@ -179,11 +193,18 @@ pub fn param_types() -> ParamTypeSet {
 /// lets a struct-carrying variant read flat (`HasType(type: Creature)` rather
 /// than `HasType((type: Creature))`) — which is what makes a mirrored
 /// constructor spell like its Lean original.
+///
+/// `unwrap_newtypes` is what makes an injection WRITE bare: a
+/// `#[macro_ron(embed)]` struct variant serializes its payload through a
+/// newtype struct named `Type.Variant`, which this extension drops, so
+/// `ManaSymbol::Simple { … }` writes `Green`. The mirror declares no newtype
+/// structs of its own, so the extension reaches nothing else.
 #[must_use]
 pub fn raw_options() -> ::ron::Options {
     ::ron::Options::default().with_default_extension(
         ::ron::extensions::Extensions::IMPLICIT_SOME
-            | ::ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES,
+            | ::ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES
+            | ::ron::extensions::Extensions::UNWRAP_NEWTYPES,
     )
 }
 
