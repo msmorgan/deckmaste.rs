@@ -294,6 +294,7 @@ fn overlay() -> Vec<Row> {
             label: "Equip",
             extra: &[Shape::CompoundQuality],
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -610,6 +611,7 @@ fn overlay() -> Vec<Row> {
             label: "Escape",
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -944,6 +946,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Embalm",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -963,6 +966,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Eternalize",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {

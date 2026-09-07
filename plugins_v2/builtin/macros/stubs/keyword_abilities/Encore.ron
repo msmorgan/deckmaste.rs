@@ -5,4 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "encore",
     ),
+    // STOP. "Encore [cost]" creates, for EACH opponent, a copy "that attacks that
+    // opponent this turn if able" [CR#702.141a]. Nothing binds the per-opponent
+    // iteration so that the copy's own added ability can name "that opponent";
+    // `CreateObject`'s count takes an amount, not a distributive subject.
+    body: Keyword(keyword: "Encore", params: [Cost(cost: Param(0))], body: []),
 )

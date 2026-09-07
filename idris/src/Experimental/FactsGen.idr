@@ -23,7 +23,7 @@ keywordFacts =
   , { word := "Lifelink", paramShapes := [NoParam], counterEligible := True, regime := Just AtResolution } defaultKeywordFacts
   , { word := "Ward", paramShapes := [CostParam], paidCost := True, bodied := True } defaultKeywordFacts
   , { word := "Protection", paramShapes := [QualityParam] } defaultKeywordFacts
-  , { word := "Enchant", paramShapes := [SubjectParam] } defaultKeywordFacts
+  , { word := "Enchant", paramShapes := [QualityParam] } defaultKeywordFacts
   , { word := "Equip", paramShapes := [CostParam, CompoundParam QualityHead], paidCost := True } defaultKeywordFacts
   , { word := "Suspend", paramShapes := [CompoundParam NumberHead], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Ascend", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts

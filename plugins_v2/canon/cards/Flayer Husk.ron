@@ -24,11 +24,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            Keyword(
-                keyword: "Equip",
-                params: [Cost(cost: Mana(cost: [Simple(symbol: Generic(amount: 2))]))],
-                body: [],
-            ),
+            Equip(Mana(cost: [Simple(symbol: Generic(amount: 2))])),
         ],
     ),
 ))

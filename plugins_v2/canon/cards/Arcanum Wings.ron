@@ -10,11 +10,7 @@ SingleFaced(face: (
         types: [Enchantment],
         subtypes: [Of(host: Enchantment, label: "Aura")],
         text: [
-            Keyword(
-                keyword: "Enchant",
-                params: [Subject(predicate: HasType(type: Creature))],
-                body: [],
-            ),
+            Enchant(HasType(type: Creature)),
             Static(
                 spec: AbilityGrant(
                     subject: AttachHost(word: Enchanted, head: Type(type: Creature)),

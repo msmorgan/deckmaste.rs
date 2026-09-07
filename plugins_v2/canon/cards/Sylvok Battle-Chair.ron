@@ -33,15 +33,11 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            Keyword(
-                keyword: "Equip",
-                params: [Cost(cost: Mana(cost: [
-                    Simple(symbol: Generic(amount: 5)),
-                    Simple(symbol: Specific(color: Of(color: Green))),
-                    Simple(symbol: Specific(color: Of(color: Green))),
-                ]))],
-                body: [],
-            ),
+            Equip(Mana(cost: [
+                Simple(symbol: Generic(amount: 5)),
+                Simple(symbol: Specific(color: Of(color: Green))),
+                Simple(symbol: Specific(color: Of(color: Green))),
+            ])),
         ],
     ),
 ))

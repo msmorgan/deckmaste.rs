@@ -5,4 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "emerge",
     ),
+    // STOP. "Emerge [cost]" is an alternative cost plus "its total cost is reduced by
+    // an amount of generic mana equal to the sacrificed creature's mana value"
+    // [CR#702.119a]. Nothing links the second static back to the creature the first
+    // one's cost sacrificed: `Predicate::ExiledWith` is the only linked reference,
+    // and a `Reach::Stamped` pronoun cannot read out of a sibling ability's cost.
+    body: Keyword(keyword: "Emerge", params: [Cost(cost: Param(0))], body: []),
 )

@@ -1,9 +1,18 @@
 KeywordAbility(
     name: "Enchant",
-    params: [Subject],
+    params: [Quality],
     spelling: "enchant",
     grammar: FixedKeyword(
         surface: "enchant",
         participial_adjective: (surface: "enchanted",),
+    ),
+    // Settled empty. "Enchant is a static ability, written 'Enchant [object or
+    // player]'"; the entry states how the ability restricts an Aura's target and
+    // host [CR#702.5a] rather than quoting an expansion, so there is no definition
+    // to write.
+    body: Keyword(
+        keyword: "Enchant",
+        params: [Quality(predicate: Param(0))],
+        body: [],
     ),
 )

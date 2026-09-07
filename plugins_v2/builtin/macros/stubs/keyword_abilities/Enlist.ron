@@ -1,7 +1,13 @@
 KeywordAbility(
     name: "Enlist",
+    params: [],
     spelling: "enlist",
     grammar: FixedKeyword(
         surface: "enlist",
     ),
+    // STOP. Enlist's static half is an optional cost to ATTACK [CR#702.154a,508.1g] —
+    // "as this creature attacks, you may tap up to one untapped creature you
+    // control". No `StaticSpec` attaches a cost to the attack declaration; `Cost`
+    // reaches activation, casting and play, never declaring an attacker.
+    body: Keyword(keyword: "Enlist", params: [], body: []),
 )

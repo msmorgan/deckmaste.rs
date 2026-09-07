@@ -5,4 +5,30 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "escape",
     ),
+    // "Escape [cost]" means "You may cast this card from your graveyard by paying
+    // [cost] rather than paying its mana cost." [CR#702.138a]
+    body: Keyword(
+        keyword: "Escape",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Static(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action(label: "Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(patient: This),
+                    as_though: None,
+                    rider: Play(
+                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(cost: Param(0)),
+                    ),
+                ),
+            ),
+        ],
+    ),
 )

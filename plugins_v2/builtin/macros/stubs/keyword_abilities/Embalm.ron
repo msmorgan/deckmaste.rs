@@ -5,4 +5,58 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "embalm",
     ),
+    // "Embalm [cost]" means "[Cost], Exile this card from your graveyard: Create a
+    // token that's a copy of this card, except it's white, it has no mana cost, and
+    // it's a Zombie in addition to its other types. Activate only as a sorcery."
+    // [CR#702.128a]
+    body: Keyword(
+        keyword: "Embalm",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Compound(
+                    costs: [
+                        Param(0),
+                        Perform(
+                            instruction: Enact(
+                                verb: Action(label: "Exile"),
+                                instruction: Move(
+                                    subject: This,
+                                    to: Zone(zone: Exile, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: You,
+                            ),
+                        ),
+                    ],
+                ),
+                instruction: CreateObject(
+                    count: Lit(value: 1),
+                    spec: Token(
+                        spec: CopyOf(
+                            source: This,
+                            exceptions: [
+                                Edits(
+                                    edits: [
+                                        Colors(op: Sets, colors: r#Some(colors: [White])),
+                                        ManaCost(cost: None),
+                                        TypeLine(
+                                            op: Adds,
+                                            changes: (subtypes: [Of(host: Creature, label: "Zombie")]),
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        riders: [],
+                    ),
+                    agent: You,
+                ),
+                timing: AsSorcery,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
 )

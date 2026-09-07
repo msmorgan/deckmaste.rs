@@ -1,0 +1,16 @@
+// "Eternalize {4}{U}{U}" [CR#702.129a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Proven Combatant",
+        cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
+        power: Lit(value: 1),
+        toughness: Lit(value: 1),
+        text: [Eternalize(Mana(cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ]))],
+    ),
+))
