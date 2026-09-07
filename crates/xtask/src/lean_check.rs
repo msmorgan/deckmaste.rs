@@ -8,19 +8,19 @@
 //! (`docs/decisions/semantics-v2.md` §13). This command writes the emitted
 //! terms as untracked Lean under `lean/Generated/`, builds them with `lake`,
 //! attributes each diagnostic back to the card whose block it landed in, and
-//! ratchets the verdicts against a per-plugin baseline.
+//! fails the run if any card did not prove.
 //!
-//! There is no gap concept. The v2 mirror is total — every card the reader
-//! loads emits — so a card is either proved or a gate failure, never an
-//! unmapped shape. That is the substantive difference from the Idris gate this
-//! replaces, whose partial emitter needed a third verdict.
+//! There is no gap concept and no ratchet: the emitter is total, so a card
+//! that fails `Card.check` is never committed, and every card the reader
+//! loads either proves or fails the gate outright. That is the substantive
+//! difference from the Idris gate this replaces, whose partial emitter needed
+//! a third verdict and whose baseline could record a gap.
 //!
 //! `Macros.lean` plays no part: the emitted term is post-expansion, so it is
 //! raw constructors, and the `spelled` elaborator (which refuses raw
 //! constructors by design) is the hand bench's law, not the gate's.
 
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -33,12 +33,6 @@ use deckmaste_semantics_v2::card::Card;
 use deckmaste_semantics_v2::lean_emit;
 use deckmaste_semantics_v2::reader::CARDS_DIR;
 use deckmaste_semantics_v2::reader::Plugin;
-use serde::Deserialize;
-use serde::Serialize;
-
-/// The per-plugin verdict ratchet.
-const BASELINE_FILE: &str = "lean-check-baseline.ron";
-const BASELINE_VERSION: u32 = 1;
 
 /// The generated library's root module and directory, relative to `lean/`.
 const GENERATED_ROOT: &str = "Generated.lean";
@@ -58,10 +52,6 @@ pub struct LeanCheckArgs {
     /// The plugin directories to check. Defaults to every plugin under
     /// `plugins_v2/` that has a `cards/` directory.
     plugin_dirs: Vec<PathBuf>,
-    /// Rewrite each plugin's baseline from this run's verdicts, after
-    /// reviewing them.
-    #[arg(long)]
-    bless: bool,
     /// The `lake` program to run. Not a command-line option: the gate's own
     /// test points it at a stub that fails, so that "lake could not build the
     /// generated library" can be shown to stop the command rather than leave
@@ -74,10 +64,9 @@ impl LeanCheckArgs {
     /// The gate's arguments, for callers that drive it directly (its own
     /// integration test).
     #[must_use]
-    pub fn new(plugin_dirs: Vec<PathBuf>, bless: bool) -> Self {
+    pub fn new(plugin_dirs: Vec<PathBuf>) -> Self {
         LeanCheckArgs {
             plugin_dirs,
-            bless,
             lake: "lake".to_owned(),
         }
     }
@@ -91,29 +80,13 @@ impl LeanCheckArgs {
 }
 
 /// What the kernel concluded about one card.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
     /// `Card.check` is provably empty.
     Pass,
     /// The emitted term did not build, or `decide` refuted the theorem. The
     /// reason is the head of the Lean diagnostic.
     Fail { reason: String },
-}
-
-/// One plugin's ratchet: a verdict per card, keyed by the name the reader
-/// loaded it under.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct Baseline {
-    version: u32,
-    cards: Vec<BaselineEntry>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct BaselineEntry {
-    card: String,
-    verdict: Verdict,
 }
 
 /// One plugin's run: where it lives and what each of its cards proved.
@@ -126,7 +99,8 @@ struct PluginReport {
     /// Every Lean diagnostic attributed to a card, whole: the `error:`,
     /// `warning:` or `info:` header line and each continuation line of its
     /// message, in the order Lean printed them. The console gets all of it;
-    /// the baseline records one line chosen from it (see [`reason_for`]).
+    /// a failing verdict's own `reason` is one line chosen from it (see
+    /// [`reason_for`]).
     diagnostics: BTreeMap<String, Vec<String>>,
 }
 
@@ -156,8 +130,7 @@ struct Diagnostic {
 
 /// # Errors
 /// If a plugin fails to load or emit, if `lake` cannot be run, or if any
-/// plugin's verdicts differ from its baseline (in either direction) without
-/// `--bless`.
+/// card failed to prove `Card.check = []`.
 pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
     let started = Instant::now();
     let lean_dir = lean_root()?;
@@ -179,10 +152,7 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
     let mut failures = 0usize;
     for report in &reports {
         print_report(report);
-        if let Err(error) = ratchet(report, args.bless) {
-            eprintln!("{error:#}");
-            failures += 1;
-        }
+        failures += failing_count(report);
     }
     println!(
         "\nlean-check: {} plugin(s), {} card(s), {:.1}s",
@@ -190,7 +160,10 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
         reports.iter().map(|r| r.verdicts.len()).sum::<usize>(),
         started.elapsed().as_secs_f64()
     );
-    anyhow::ensure!(failures == 0, "{failures} plugin(s) off their baseline");
+    anyhow::ensure!(
+        failures == 0,
+        "{failures} card(s) did not prove `Card.check = []`"
+    );
     Ok(())
 }
 
@@ -411,17 +384,17 @@ fn parse_header(line: &str) -> Option<Diagnostic> {
     })
 }
 
-/// The card a diagnostic's `Card.check` refusal list belongs in the baseline
-/// for, chosen from everything Lean said about that card.
+/// The reason a refuted card's verdict records, chosen from everything Lean
+/// said about that card.
 ///
 /// A refuted card gets three diagnostics: the guarded `#eval`'s `info` line,
 /// which is the refusal list itself; the `#guard_msgs` mismatch; and
 /// `decide`'s own failure, whose text is the same words for every card
 /// ("Tactic decide proved that the proposition … is false"). Recording the
-/// last of those would give every refuted card in the repository one identical
-/// reason, and the ratchet's "failure changed" arm could never tell one broken
-/// law from another — so the `info` line wins whenever Lean printed one, and
-/// the first failing head is the fallback for a card that did not even
+/// last of those would give every refuted card in the repository one
+/// identical reason, telling one broken law from another only by re-reading
+/// the console output — so the `info` line wins whenever Lean printed one,
+/// and the first failing head is the fallback for a card that did not even
 /// elaborate.
 fn reason_for(diagnostics: &[&Diagnostic]) -> String {
     diagnostics
@@ -560,7 +533,7 @@ fn attribute(
 }
 
 // ---------------------------------------------------------------------------
-// The ratchet
+// Reporting
 // ---------------------------------------------------------------------------
 
 fn print_report(report: &PluginReport) {
@@ -583,168 +556,14 @@ fn print_report(report: &PluginReport) {
     }
 }
 
-/// Compares a plugin's verdicts with its baseline and, with `bless`, rewrites
-/// it. The ratchet is add-only in both directions: a lost pass and a resolved
-/// failure both stop the command, one as a regression and one as an
-/// improvement that wants review.
-fn ratchet(report: &PluginReport, bless: bool) -> anyhow::Result<()> {
-    let path = report.dir.join(BASELINE_FILE);
-    let current = Baseline {
-        version: BASELINE_VERSION,
-        cards: report
-            .verdicts
-            .iter()
-            .map(|(card, verdict)| BaselineEntry {
-                card: card.clone(),
-                verdict: verdict.clone(),
-            })
-            .collect(),
-    };
-    if bless {
-        let text = render_baseline(&current)?;
-        fs::write(&path, text).with_context(|| format!("writing {}", path.display()))?;
-        let failures = current
-            .cards
-            .iter()
-            .filter(|entry| entry.verdict != Verdict::Pass)
-            .count();
-        println!(
-            "blessed {}: {} card(s), {failures} recorded failure(s)",
-            path.display(),
-            current.cards.len()
-        );
-        return Ok(());
-    }
-
-    let baseline = read_baseline(&path)?;
-    let recorded: BTreeMap<&str, &Verdict> = baseline
-        .cards
-        .iter()
-        .map(|entry| (entry.card.as_str(), &entry.verdict))
-        .collect();
-    let mut regressions = Vec::new();
-    let mut improvements = Vec::new();
-    for (card, verdict) in &report.verdicts {
-        match (recorded.get(card.as_str()), verdict) {
-            (Some(Verdict::Pass), Verdict::Fail { reason }) => {
-                regressions.push(format!("lost pass: {card}: {reason}"));
-            }
-            (Some(Verdict::Fail { .. }), Verdict::Pass) => {
-                improvements.push(format!("recorded failure now passes: {card}"));
-            }
-            (Some(Verdict::Fail { reason: was }), Verdict::Fail { reason: now }) if was != now => {
-                regressions.push(format!("failure changed: {card}: {was} -> {now}"));
-            }
-            (Some(Verdict::Pass), Verdict::Pass)
-            | (Some(Verdict::Fail { .. }), Verdict::Fail { .. }) => {}
-            (None, Verdict::Pass) => improvements.push(format!("card not in baseline: {card}")),
-            (None, Verdict::Fail { reason }) => {
-                regressions.push(format!(
-                    "card not in baseline, and failing: {card}: {reason}"
-                ));
-            }
-        }
-    }
-    let present: BTreeSet<&str> = report.verdicts.keys().map(String::as_str).collect();
-    for entry in &baseline.cards {
-        if !present.contains(entry.card.as_str()) {
-            regressions.push(format!("card disappeared: {}", entry.card));
-        }
-    }
-
-    for line in &regressions {
-        eprintln!("{}: REGRESSION: {line}", report.dir.display());
-    }
-    for line in &improvements {
-        println!("{}: improvement: {line}", report.dir.display());
-    }
-    anyhow::ensure!(
-        regressions.is_empty() && improvements.is_empty(),
-        "{}: {} regression(s) and {} improvement(s) against {}; fix the failures or review the \
-         improvements and re-run with --bless",
-        report.dir.display(),
-        regressions.len(),
-        improvements.len(),
-        path.display()
-    );
-    println!(
-        "{}: baseline OK ({} card(s))",
-        report.dir.display(),
-        baseline.cards.len()
-    );
-    Ok(())
-}
-
-fn read_baseline(path: &Path) -> anyhow::Result<Baseline> {
-    let text = fs::read_to_string(path).with_context(|| {
-        format!(
-            "reading {} — run `cargo xtask lean-check <plugin> --bless` first",
-            path.display()
-        )
-    })?;
-    parse_baseline_text(&text).with_context(|| format!("reading {}", path.display()))
-}
-
-fn parse_baseline_text(text: &str) -> anyhow::Result<Baseline> {
-    let baseline: Baseline = ron::from_str(text).context("parsing baseline RON")?;
-    anyhow::ensure!(
-        baseline.version == BASELINE_VERSION,
-        "unsupported baseline version {}; expected {BASELINE_VERSION}",
-        baseline.version
-    );
-    let mut seen = BTreeSet::new();
-    for entry in &baseline.cards {
-        anyhow::ensure!(
-            !entry.card.trim().is_empty(),
-            "a baseline card name must not be empty"
-        );
-        anyhow::ensure!(
-            seen.insert(entry.card.as_str()),
-            "duplicate baseline card: {}",
-            entry.card
-        );
-        if let Verdict::Fail { reason } = &entry.verdict {
-            anyhow::ensure!(
-                !reason.trim().is_empty(),
-                "the recorded failure for {} must name a reason",
-                entry.card
-            );
-        }
-    }
-    anyhow::ensure!(
-        render_baseline(&baseline)? == text,
-        "baseline is not in canonical deterministic format; regenerate it with --bless"
-    );
-    Ok(baseline)
-}
-
-fn render_baseline(baseline: &Baseline) -> anyhow::Result<String> {
-    use std::fmt::Write as _;
-
-    let mut cards = baseline.cards.clone();
-    cards.sort_by(|a, b| a.card.cmp(&b.card));
-    let mut out = String::from(
-        "// Generated by `cargo xtask lean-check <plugin> --bless`; do not edit.\n(\n",
-    );
-    let _ = writeln!(out, "    version: {},", baseline.version);
-    out.push_str("    cards: [\n");
-    for entry in cards {
-        let card = ron::to_string(&entry.card)?;
-        match entry.verdict {
-            Verdict::Pass => {
-                let _ = writeln!(out, "        (card: {card}, verdict: Pass),");
-            }
-            Verdict::Fail { reason } => {
-                let reason = ron::to_string(&reason)?;
-                out.push_str("        (\n");
-                let _ = writeln!(out, "            card: {card},");
-                let _ = writeln!(out, "            verdict: Fail(reason: {reason}),");
-                out.push_str("        ),\n");
-            }
-        }
-    }
-    out.push_str("    ],\n)\n");
-    Ok(out)
+/// How many of a plugin's cards did not prove `Card.check = []`. The gate
+/// fails iff this is nonzero for any plugin.
+fn failing_count(report: &PluginReport) -> usize {
+    report
+        .verdicts
+        .values()
+        .filter(|verdict| **verdict != Verdict::Pass)
+        .count()
 }
 
 // ---------------------------------------------------------------------------
@@ -774,8 +593,7 @@ fn lean_root() -> anyhow::Result<PathBuf> {
 }
 
 /// Every plugin under `plugins_v2/` that has cards. A plugin with only
-/// declarations (`plugins_v2/builtin`) has nothing for the gate to prove and
-/// owns no baseline.
+/// declarations (`plugins_v2/builtin`) has nothing for the gate to prove.
 fn default_plugin_dirs(workspace: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let root = workspace.join("plugins_v2");
     anyhow::ensure!(root.is_dir(), "expected {}", root.display());
@@ -1023,112 +841,26 @@ mod tests {
         }
     }
 
+    /// The new contract has no ratchet: a report is clean iff every card
+    /// proved, and any failing card — no matter how many, or whether it
+    /// failed before — fails the gate.
     #[test]
-    fn the_baseline_format_is_sorted_canonical_ron_and_round_trips() {
-        let baseline = Baseline {
-            version: BASELINE_VERSION,
-            cards: vec![
-                BaselineEntry {
-                    card: "Beta".into(),
-                    verdict: failing("decide refuted it"),
-                },
-                BaselineEntry {
-                    card: "Alpha".into(),
-                    verdict: Verdict::Pass,
-                },
-            ],
-        };
-        let text = render_baseline(&baseline).unwrap();
+    fn a_report_fails_iff_any_card_did_not_prove() {
+        let all_passing = report(&[("Alpha", Verdict::Pass), ("Beta", Verdict::Pass)]);
         assert_eq!(
-            text,
-            r#"// Generated by `cargo xtask lean-check <plugin> --bless`; do not edit.
-(
-    version: 1,
-    cards: [
-        (card: "Alpha", verdict: Pass),
-        (
-            card: "Beta",
-            verdict: Fail(reason: "decide refuted it"),
-        ),
-    ],
-)
-"#
+            failing_count(&all_passing),
+            0,
+            "an all-passing report is clean"
         );
-        let parsed = parse_baseline_text(&text).unwrap();
-        assert_eq!(parsed.cards.len(), 2);
-        assert_eq!(parsed.cards[0].card, "Alpha");
-    }
 
-    #[test]
-    fn a_noncanonical_baseline_is_refused() {
-        let text = "(version: 1, cards: [(card: \"A\", verdict: Pass)])";
-        let error = parse_baseline_text(text).unwrap_err().to_string();
-        assert!(error.contains("canonical"), "{error}");
-    }
+        let one_failing = report(&[("Alpha", Verdict::Pass), ("Beta", failing("known"))]);
+        assert_eq!(
+            failing_count(&one_failing),
+            1,
+            "a report with a failing card is not clean, regardless of any prior run"
+        );
 
-    /// The ratchet is add-only in both directions, so every kind of difference
-    /// stops the command; only an unchanged plugin is silent.
-    #[test]
-    fn the_ratchet_refuses_every_difference_and_accepts_an_unchanged_plugin() {
-        let baseline = render_baseline(&Baseline {
-            version: BASELINE_VERSION,
-            cards: vec![
-                BaselineEntry {
-                    card: "Alpha".into(),
-                    verdict: Verdict::Pass,
-                },
-                BaselineEntry {
-                    card: "Beta".into(),
-                    verdict: failing("known"),
-                },
-            ],
-        })
-        .unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join(BASELINE_FILE), &baseline).unwrap();
-
-        let mut unchanged = report(&[("Alpha", Verdict::Pass), ("Beta", failing("known"))]);
-        unchanged.dir = dir.path().to_path_buf();
-        ratchet(&unchanged, false).expect("an unchanged plugin passes");
-
-        for (name, verdicts) in [
-            (
-                "a lost pass",
-                vec![("Alpha", failing("new")), ("Beta", failing("known"))],
-            ),
-            (
-                "a resolved failure",
-                vec![("Alpha", Verdict::Pass), ("Beta", Verdict::Pass)],
-            ),
-            (
-                "a changed reason",
-                vec![("Alpha", Verdict::Pass), ("Beta", failing("different"))],
-            ),
-            (
-                "a card missing from the baseline",
-                vec![
-                    ("Alpha", Verdict::Pass),
-                    ("Beta", failing("known")),
-                    ("Gamma", Verdict::Pass),
-                ],
-            ),
-            ("a card that disappeared", vec![("Alpha", Verdict::Pass)]),
-        ] {
-            let mut changed = report(&verdicts);
-            changed.dir = dir.path().to_path_buf();
-            assert!(
-                ratchet(&changed, false).is_err(),
-                "the ratchet accepted {name}"
-            );
-        }
-    }
-
-    #[test]
-    fn blessing_writes_the_runs_verdicts() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut blessed = report(&[("Alpha", Verdict::Pass), ("Beta", failing("known"))]);
-        blessed.dir = dir.path().to_path_buf();
-        ratchet(&blessed, true).expect("blessing writes a fresh baseline");
-        ratchet(&blessed, false).expect("the blessed baseline then matches");
+        let all_failing = report(&[("Alpha", failing("a")), ("Beta", failing("b"))]);
+        assert_eq!(failing_count(&all_failing), 2);
     }
 }

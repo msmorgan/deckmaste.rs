@@ -170,9 +170,9 @@ jobs:
       - name: build Lean model and proof suite
         run: lean/scripts/build
       # The card soundness gate: every `plugins_v2` card is re-emitted as a
-      # Lean term and `Card.check` proved empty by `decide`, ratcheted against
-      # each plugin's `lean-check-baseline.ron`. The generated Lean is
-      # untracked and rebuilt here from the plugins as committed.
+      # Lean term and `Card.check` proved empty by `decide`; the gate fails
+      # outright if any card does not prove. The generated Lean is untracked
+      # and rebuilt here from the plugins as committed.
       - name: card soundness gate
         run: cargo xtask lean-check
       # The gate's own tests are the only place its FAILURE paths run: a card

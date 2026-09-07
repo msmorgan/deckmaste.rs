@@ -27,8 +27,8 @@ diagnostics. Each card becomes a `def`, a `#guard_msgs`-guarded
 the same obligation the pin suites do. The guarded `#eval` is silent for a card
 that checks and prints the exact refusal list for one that does not — `decide`'s
 own message names no refusal, so without it every refuted card would carry the
-same reason. Verdicts ratchet against each plugin's `lean-check-baseline.ron`;
-`--bless` rewrites it after review.
+same reason. There is no ratchet or baseline: the gate fails outright if any
+card does not prove `Card.check = []`.
 
 A card is reported sound only on positive evidence that Lean elaborated it: the
 module's `.olean`, or a diagnostic Lean reported inside that module. `lake`'s
