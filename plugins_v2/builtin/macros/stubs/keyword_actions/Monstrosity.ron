@@ -28,7 +28,6 @@ KeywordAction(
             GainDesignation(
                 subject: AsMarker(marker: Permanent, subject: This),
                 designation: "monstrous",
-                conferral: ByDeed(deed: Action(label: "Monstrosity")),
                 duration: None,
             ),
         ]),

@@ -21,7 +21,6 @@ KeywordAction(
         instruction: GainDesignation(
             subject: Param(0),
             designation: "harnessed",
-            conferral: ByDeed(deed: Action(label: "Harness")),
             duration: None,
         ),
         otherwise: None,

@@ -16,7 +16,6 @@ KeywordAction(
         instruction: GainDesignation(
         subject: Param(0),
         designation: "suspected",
-        conferral: ByDeed(deed: Action(label: "Suspect")),
         duration: None,
     ),
         agent: Param(1),
