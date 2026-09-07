@@ -1,5 +1,6 @@
-//! The drift test: `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card}.lean`
-//! against the six Rust modules that mirror them.
+//! The drift test:
+//! `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card,Rules}.lean`
+//! against the seven Rust modules that mirror them.
 //!
 //! Lean is the specification (`docs/decisions/semantics-v2.md` §10), so this
 //! fails on any difference in EITHER direction: a declaration, constructor or
@@ -60,6 +61,11 @@ const PAIRS: &[(&str, &str, &str)] = &[
         "Card",
         include_str!("../../../lean/Semantics/Card.lean"),
         include_str!("../src/card.rs"),
+    ),
+    (
+        "Rules",
+        include_str!("../../../lean/Semantics/Rules.lean"),
+        include_str!("../src/rules.rs"),
     ),
 ];
 

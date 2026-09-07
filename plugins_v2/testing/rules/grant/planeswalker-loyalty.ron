@@ -16,7 +16,7 @@
             timing: None,
             replacement: PutCounters(
                 amount: StatOf(axis: Stat(stat: Loyalty), subject: This),
-                kind: Printed(kind: Named(label: "loyalty")),
+                kind: Printed(kind: Named(label: "Loyalty")),
                 on: This,
             ),
             use: Repeatedly,

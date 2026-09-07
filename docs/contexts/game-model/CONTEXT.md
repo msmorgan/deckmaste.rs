@@ -26,6 +26,11 @@ not a Card ([CR#108.2b]).
 A marker used to represent a Permanent that is not represented by a card
 ([CR#111.1]). A Token is an Object but never a Card ([CR#108.2b]).
 
+**Predefined Token**:
+A Token whose characteristics the rules themselves define, listed by name in
+[CR#111.10] — Treasure, Food, Clue and the rest. An Effect creates one by that
+name and may still modify or add to the defined characteristics.
+
 **Emblem**:
 A marker in the command zone representing an Object that has one or more
 Abilities and usually no other characteristics ([CR#114.1]).
@@ -238,6 +243,13 @@ Having 0 or less life, for example, causes a Player to lose the game
 ([CR#704.5a]); an exemption limited to that cause does not exempt the Player
 from losing for other reasons.
 
+**Rules Table** (project term):
+A set of rules-defined rows a plugin authors as data — State-Based Actions,
+Conferrals, Damage Results — each row scoped by a Predicate over the Objects or
+Players it applies to, evaluated generically rather than recognized by name.
+_Avoid_: Registry for a Rules Table; a registry declares a namespace's members,
+a Rules Table states what the rules do to what it scopes.
+
 **Priority**:
 The system determining which Player may cast spells, activate abilities, and
 take Special Actions at a given time ([CR#117.1]).
@@ -287,6 +299,13 @@ mana ([CR#109.2c]). Source is not an intrinsic Object class.
 Harm an Object deals to a battle, creature, planeswalker, or Player
 ([CR#120.1]). The Object that deals it is the Source of that Damage, and Damage
 cannot be dealt to any other Object ([CR#120.1a]).
+
+**Damage Result**:
+One of the outcomes Damage has, chosen by whether its recipient is a Player or
+a Permanent and by the characteristics of its Source and recipient
+([CR#120.3]). One Damage event may have several results at once — a Source with
+lifelink adds life gain to whatever else the Damage does ([CR#120.3f]) — so a
+result is additive, not a replacement of the Damage.
 
 **Marked Damage**:
 Damage retained on a Permanent until it is removed, including if the Permanent

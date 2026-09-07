@@ -138,12 +138,17 @@ fn a_vanilla_card_leaves_its_absent_characteristics_absent() {
     assert!(face.choices.is_empty());
 }
 
-/// A token is the characteristics an effect writes, qualities included
-/// [CR#111.3].
+/// A catalog entry is the name an effect creates the token by [CR#111.10] and
+/// the characteristics that effect writes, qualities included [CR#111.3].
 #[test]
-fn a_token_reads_as_the_bundle_an_effect_writes() {
+fn a_token_reads_as_a_named_catalog_entry() {
     let plugin = testing_plugin();
-    let token = plugin.tokens.get("Soldier").expect("indexed");
+    let entry = plugin
+        .tokens
+        .iter()
+        .find(|entry| entry.name == "Soldier")
+        .expect("the catalog names the file's stem");
+    let token = &entry.token;
     assert_eq!(token.characteristics.colors, vec![Color::White]);
     assert_eq!(token.characteristics.types, vec![CardType::Creature]);
     assert_eq!(token.characteristics.power, Some(Amount::Lit { value: 1 }));
@@ -222,7 +227,7 @@ fn the_three_rules_tables_load() {
             },
             kind: CounterKindSource::Printed {
                 kind: CounterKind::Named {
-                    label: "loyalty".to_string(),
+                    label: "Loyalty".to_string(),
                 },
             },
             on: NounPhrase::This,
@@ -234,6 +239,15 @@ fn the_three_rules_tables_load() {
         damage.recipient,
         Predicate::HasType {
             r#type: CardType::Planeswalker
+        }
+    );
+    // The counter is a registry key: the Lean checker refuses a label the
+    // counter facts do not declare, and requires its declared holder to be the
+    // kind the recipient binds.
+    assert_eq!(
+        damage.remove,
+        CounterKind::Named {
+            label: "Loyalty".to_string(),
         }
     );
 }

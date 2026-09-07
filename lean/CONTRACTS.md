@@ -650,6 +650,29 @@ Losing counters captures its player before checking the amount, then uses the
 shared removal instruction and removed-counter outcome. Cost symbols, draw,
 Room operations, and exchange remain unchanged in this pass.
 
+## Rules tables
+
+A rules table's row supplies its own subject: the scope predicate binds `this`,
+so the row's condition, effect and conferred ability are checked in the empty
+binding context, exactly as a printed face's text is. The scope is not a
+targeting device — a state-based action does not use the stack [CR#704.1] — so
+the state-based row carries the same `nontarget` refusal a static ability
+carries.
+
+Two representation boundaries are named rather than hidden. A conferral confers
+an `Ability`, not a separate property type: the grantability read is the one
+`CopyExcept.ability` uses, so a spell ability is refused for a conferral for the
+same reason it is refused for a grant. A damage result names a `CounterKind`,
+and the counter registry's declared holder is what fixes the recipient's kind;
+there is no second registry lookup.
+
+The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
+grammar projects no marked damage and has no "since state-based actions were
+last checked" lookback. `Stat` likewise has no `defense` axis, so a battle's
+printed defense [CR#310.4b] cannot be read; the battle rows here read defense
+counters instead [CR#310.4c], which is what the rules define the battlefield
+value as.
+
 ## Shared event patterns and static applicability
 
 `GameEvent.zoneChange` names the subject, optional origin, optional destination,

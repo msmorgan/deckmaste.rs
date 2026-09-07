@@ -47,8 +47,8 @@ refuses raw constructors by design — is the hand bench's law, not the gate's.
 
 ## Syntax and macros
 
-The six syntax layers are `Words`, `Events`, `Phrase`, `Triggers`, `Abilities`,
-and `Card`. A constructor earns its place through an obligation or structural
+The seven syntax layers are `Words`, `Events`, `Phrase`, `Triggers`,
+`Abilities`, `Card`, and `Rules`. A constructor earns its place through an obligation or structural
 distinction its expansion would not carry. Common phrasings live in `Macros`:
 for example, "permanent", "colorless", "historic", "spell", "attacking", and
 "regenerates" expand into shared predicates and events.
@@ -70,6 +70,22 @@ conferrers feed the checker tables. `Characteristics` is flat and follows
 `*`, with a characteristic-defining ability supplying its value. `CardFace`
 adds what a printed face carries; `CharacteristicBundle` describes what an
 effect writes, including token qualities [CR#111.3].
+
+## Rules tables
+
+`Rules.lean` is the rules-as-data a plugin authors beside its cards: an
+`SbaRule` [CR#704.1], a `ConferralRule` [CR#306.5b], a `DamageResultRule`
+[CR#120.3], and a `PredefinedToken` catalog entry [CR#111.10]. Each row is
+scoped by a `Predicate` instead of printed on a face, and `Check/Rules`
+checks it with the same functions a card's text obeys — the row's own
+obligations are only what the scope adds: the kind it may bind, that a
+state-based action's effect is untargeted, that a conferred ability is one an
+effect could grant, and that a damage result's counter is a declared one whose
+holder is the kind the recipient binds. A conferral is an ordinary `Ability`
+and a catalog entry an ordinary `CharacteristicBundle`, checked through
+`TokenSpec.written`; neither is a twin type. The pins are `Proofs/Rules`, whose
+bench items are the rows `plugins/builtin/rules` and `plugins/builtin/tokens`
+write.
 
 ## Registry facts
 

@@ -22,6 +22,7 @@ import Semantics.Proofs.Mana
 import Semantics.Proofs.Numbers
 import Semantics.Proofs.NounWords
 import Semantics.Proofs.Piles
+import Semantics.Proofs.Rules
 import Semantics.Proofs.Static
 import Semantics.Proofs.Tables
 import Semantics.Proofs.Trigger

@@ -78,10 +78,11 @@ pub const UNRAWABLE: &[&str] = &["crate", "self", "Self", "super"];
 
 /// The words Lean's own grammar reserves, so the mirrored declaration spells
 /// them with a trailing underscore (`from_`, `while_`). The list is the exact
-/// set the six syntax files use; the drift test's round trip over every Lean
+/// set the seven syntax files use; the drift test's round trip over every Lean
 /// name is what keeps it from going stale.
 pub const LEAN_ESCAPED: &[&str] = &[
-    "as", "by", "class", "end", "exists", "from", "repeat", "return", "unless", "until", "while",
+    "as", "by", "class", "end", "exists", "from", "repeat", "return", "then", "unless", "until",
+    "while",
 ];
 
 /// A Lean constructor name as its Rust variant: the same word, dropping Lean's

@@ -242,6 +242,9 @@ inductive Refusal where
   | notWordHeaded
   | emblemAbilities
   | chapterDefaults
+  /- rules tables -/
+  /-- A predefined token is named, because an effect creates it by that name [CR#111.10]. -/
+  | tokenNamed
   /- card frame laws -/
   | cardLine
   | cardText

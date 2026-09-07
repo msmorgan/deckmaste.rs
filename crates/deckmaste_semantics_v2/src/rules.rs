@@ -1,45 +1,42 @@
-//! The three rules tables a plugin's `rules/` directory carries: state-based
-//! actions, conferrals, and damage results.
-//!
-//! These have **no Lean declaration yet** — the workbench models a card, not
-//! the rules-as-data tables the engine sweeps. `lean-rules-tables` adds them;
-//! until it does, each type here is the minimal record of exactly the fields
-//! today's `plugins/builtin/rules/*.ron` files carry, retyped onto the v2
-//! grammar. Nothing is invented: no `when` on a conferral, no count on a
-//! damage result, no fields a file does not write. When the Lean lands, these
-//! join the mirror and the drift test, and any difference between the Lean
-//! shape and this one is resolved in the Lean's favour.
-//!
-//! Two field TYPES are narrower than v1's, and deliberately so — both are
-//! `lean-rules-tables`'s to widen or confirm, not this crate's:
-//!
-//! - [`ConferralRule::confer`] is an [`Ability`], where v1 wrote a `Property`
-//!   (an ability, a continuous effect, a state-based or a turn-based one). The
-//!   builtin table writes an ability and v2 has no `Property`, so the wider
-//!   type would be invented here rather than mirrored.
-//! - [`DamageResultRule::remove`] is a [`CounterKind`], where v1 wrote a
-//!   `CounterRef` — an identity resolved against the plugin's declared counter
-//!   registry. v2 has no such registry type, so a named counter is carried as
-//!   the label `CounterKind::Named` holds and the binding to a declaration is
-//!   not made here.
+//! The rules-as-data tables a plugin authors beside its cards: state-based
+//! actions, conferrals, damage results, and the predefined-token catalog.
+//! Mirrors `lean/Semantics/Rules.lean`.
 //!
 //! They are ordinary semantics-language RON, read through the same expander as
-//! cards and tokens (`docs/decisions/semantics-v2.md` §11).
+//! cards and tokens (`docs/decisions/semantics-v2.md` §11), and the Lean
+//! `Semantics.Check.Rules` is what checks them — this crate refuses nothing.
+//!
+//! Two field types the crate ticket left narrower than v1's are confirmed here
+//! rather than widened, each because the Lean shape it mirrors already covers
+//! the meaning:
+//!
+//! - [`ConferralRule::confer`] is an [`Ability`], where v1 wrote a `Property`.
+//!   Every conferral the rules define gives an ability — a planeswalker's
+//!   entry replacement [CR#306.5b], a basic land type's mana ability
+//!   [CR#305.6] — and `Ability` already spans the static, activated, triggered
+//!   and keyword forms a `Property` split apart, so a second type would be a
+//!   twin of `Ability::Static` rather than a wider one.
+//! - [`DamageResultRule::remove`] is a [`CounterKind`], where v1 wrote a
+//!   `CounterRef` resolved against a declared counter registry. `CounterKind`
+//!   IS that key: the Lean checker reads `Named`'s label against the generated
+//!   counter facts, refusing an undeclared label and requiring the counter's
+//!   declared holder to be the kind the recipient binds.
 
 use macro_ron::Expand;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::abilities::Ability;
+use crate::abilities::CharacteristicBundle;
 use crate::abilities::Instruction;
 use crate::phrase::Condition;
 use crate::phrase::Predicate;
 use crate::words::CounterKind;
 
 /// A rules-defined state-based action ([CR#704.1]), authored under
-/// `rules/sba/`. Read it as: *for every object matching `scope`, with the
-/// discourse bound to that object, if `when` holds the engine performs
-/// `then`*.
+/// `rules/sba/`. Read it as: *for every object or player matching `scope`,
+/// with the discourse bound to that object, if `when` holds the engine
+/// performs `then`*.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct SbaRule {
     pub scope: Predicate,
@@ -69,8 +66,20 @@ pub struct DamageResultRule {
     pub remove: CounterKind,
 }
 
+/// One entry of the predefined-token catalog ([CR#111.10]), authored under
+/// `tokens/`: the name an effect creating the token writes ("create a Treasure
+/// token") and the characteristics the rules define it with. The name is the
+/// file's stem; the characteristics are the file's contents, which is the same
+/// [`CharacteristicBundle`] a written token spec carries [CR#111.3].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+pub struct PredefinedToken {
+    pub name: String,
+    pub token: CharacteristicBundle,
+}
+
 /// The three tables a plugin's `rules/` directory defines, concatenated across
-/// its files.
+/// its files. The predefined-token catalog is separate, because its entries
+/// are named and a plugin writes them under `tokens/`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RulesTables {
     /// `rules/sba/` — evaluated globally by the engine's state-based-action

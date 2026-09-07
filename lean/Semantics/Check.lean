@@ -1,4 +1,5 @@
 import Semantics.Check.Card
+import Semantics.Check.Rules
 
 /-!
 # Semantics.Check

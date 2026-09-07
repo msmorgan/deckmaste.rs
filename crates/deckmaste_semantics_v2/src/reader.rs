@@ -30,6 +30,7 @@ use crate::abilities::CharacteristicBundle;
 use crate::card::Card;
 use crate::rules::ConferralRule;
 use crate::rules::DamageResultRule;
+use crate::rules::PredefinedToken;
 use crate::rules::RulesTables;
 use crate::rules::SbaRule;
 
@@ -84,10 +85,11 @@ pub struct Plugin {
     pub declarations: BTreeMap<(Ident, Ident), Declaration>,
     /// The cards under `cards/`, keyed by file stem.
     pub cards: BTreeMap<String, Card>,
-    /// The tokens under `tokens/`, keyed by file stem. A token is the
-    /// characteristics an effect writes, qualities included [CR#111.3] — Lean
-    /// `CharacteristicBundle`.
-    pub tokens: BTreeMap<String, CharacteristicBundle>,
+    /// The predefined-token catalog under `tokens/` [CR#111.10], in file-stem
+    /// order: each entry is the name an effect creates the token by and the
+    /// characteristics it writes, qualities included [CR#111.3] — Lean
+    /// `PredefinedToken`.
+    pub tokens: Vec<PredefinedToken>,
     /// The three rules tables under `rules/`.
     pub rules: RulesTables,
 }
@@ -143,7 +145,10 @@ impl Plugin {
     fn load_onto(mut macros: MacroSet, root: PathBuf) -> Result<Self, LoadError> {
         let declarations = read_macros(&mut macros, &root)?;
         let cards = read_values(&macros, &root.join(CARDS_DIR))?;
-        let tokens = read_values(&macros, &root.join(TOKENS_DIR))?;
+        let tokens = read_values::<CharacteristicBundle>(&macros, &root.join(TOKENS_DIR))?
+            .into_iter()
+            .map(|(name, token)| PredefinedToken { name, token })
+            .collect();
         let rules = RulesTables {
             sba: read_table::<SbaRule>(&macros, &root.join(RULES_DIR).join("sba"))?,
             conferral: read_table::<ConferralRule>(&macros, &root.join(RULES_DIR).join("grant"))?,
