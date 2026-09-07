@@ -13,10 +13,25 @@ and pin suites with warnings treated as failures. For the
 semantics inner loop, run `lake build Semantics` from this directory.
 
 Lean is the active workbench. The [succession decision](../docs/decisions/lean-is-the-workbench.md)
-records the frozen Idris reference and migration history. Rust card re-emission
-into Lean remains tracked by
-[lean-card-soundness-gate](../docs/tickets/planned/lean-card-soundness-gate.md);
-a successful workbench build does not claim that gate is implemented.
+records the frozen Idris reference and migration history.
+
+## The card soundness gate
+
+`cargo xtask lean-check` is the gate over real card data: it re-emits every
+card in each `plugins_v2/` plugin as a fully expanded Lean term, writes them as
+`Generated/<Plugin>.lean` with a `Generated.lean` root, builds them with
+`lake build --wfail Generated`, and reads the per-card verdict off the
+diagnostics. Each card becomes a `def` and a
+`theorem <card>_ok : Card.check <card> = [] := by decide`, so the kernel proves
+the same obligation the pin suites do. Verdicts ratchet against each plugin's
+`lean-check-baseline.ron`; `--bless` rewrites it after review.
+
+The generated tree is untracked and gitignored — it is rebuilt from the plugins
+on every run, and nothing generated is committed. Its `Generated` library is
+deliberately outside `lakefile.toml`'s `defaultTargets`, so `./scripts/build`
+is unchanged and succeeds whether or not `Generated/` is present. The emitted
+term is post-expansion, so `Macros.lean` plays no part and `spelled` — which
+refuses raw constructors by design — is the hand bench's law, not the gate's.
 
 ## Syntax and macros
 

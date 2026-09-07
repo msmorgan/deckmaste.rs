@@ -42,12 +42,14 @@ workbench terms supplied to them.
 ## Card-gate succession
 
 [Idris is a soundness gate](idris-is-a-soundness-gate.md) is superseded for
-workbench choice and new modeling work. Its existing Rust-to-Idris emitter
-remains a legacy check until
-[lean-card-soundness-gate](../tickets/planned/lean-card-soundness-gate.md)
-lands. That ticket replaces the executable card-validation boundary; this
-ADR does not claim it has already landed. Translation gaps must remain
-visible, and validation examines the expanded semantic data.
+workbench choice and new modeling work. The executable card-validation boundary
+moved with
+[lean-card-soundness-gate](../tickets/done/lean-card-soundness-gate.md)
+(2026-09-06): `cargo xtask lean-check` emits each expanded `plugins_v2/` card as
+a Lean term and proves `Card.check = []` by `decide`, ratcheted per plugin. The
+Rust-to-Idris emitter remains the legacy check for the v1 `plugins/canon`
+corpus, which has no v2 counterpart until `plugins-v2-canon`; it retires with
+that corpus. Validation examines the expanded semantic data on both sides.
 
 Historical ADRs retain their original arguments and evidence paths. A dated
 note points readers to the current Lean workbench without silently rewriting

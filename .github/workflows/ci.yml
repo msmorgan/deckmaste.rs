@@ -145,9 +145,13 @@ jobs:
   lean:
     name: Lean workbench
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The card soundness gate builds xtask and the semantics mirror on top of
+    # the workbench build, so this job carries a Rust compile as well.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: install elan and the pinned Lean toolchain
         shell: bash
         run: |
@@ -165,6 +169,12 @@ jobs:
             lean-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean/lean-toolchain', 'lean/lake-manifest.json') }}-
       - name: build Lean model and proof suite
         run: lean/scripts/build
+      # The card soundness gate: every `plugins_v2` card is re-emitted as a
+      # Lean term and `Card.check` proved empty by `decide`, ratcheted against
+      # each plugin's `lean-check-baseline.ron`. The generated Lean is
+      # untracked and rebuilt here from the plugins as committed.
+      - name: card soundness gate
+        run: cargo xtask lean-check
 
   idris:
     name: Idris mirror

@@ -575,7 +575,11 @@ fn render_baseline(baseline: &Baseline) -> anyhow::Result<String> {
 // ---------------------------------------------------------------------------
 
 fn workspace_root() -> anyhow::Result<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(2)
+        .context("xtask sits two directories below the workspace root")?
+        .to_path_buf();
     anyhow::ensure!(
         dir.is_dir(),
         "expected a workspace root at {}",

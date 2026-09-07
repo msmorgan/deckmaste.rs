@@ -196,8 +196,10 @@ parity (§14).
   scope calculus becomes core-only normal form (see §1 above); §17's
   trajectory is realized by this contract; §9's lowering contract carries
   over to `deckmaste_lowering_v2` unchanged.
-- [idris-is-a-soundness-gate](idris-is-a-soundness-gate.md): superseded by
-  the Lean gate of §13 once `lean-card-soundness-gate` lands.
+- [idris-is-a-soundness-gate](idris-is-a-soundness-gate.md): superseded for
+  `plugins_v2/` by the Lean gate of §13, which `lean-card-soundness-gate`
+  landed (2026-09-06); v1 canon stays on the Idris gate until
+  `plugins-v2-canon`.
 - [english-v2-rewrite](english-v2-rewrite.md): its cutover and §14's are
   coordinated by `semantics-v1-cutover`; `macro_ron` is retained by both.
 - [workbench-ron-shaped-and-label-rulings](workbench-ron-shaped-and-label-rulings.md):

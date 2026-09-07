@@ -318,11 +318,13 @@ checker-column overlays. A missing declaration or required overlay is a
 visible generation gap; `cargo xtask facts check` detects stale generated data.
 
 `lean/scripts/build` checks the syntax, laws, card bench and exact-result proof
-pins. It is the active workbench gate. The separate
-[lean-card-soundness-gate](tickets/planned/lean-card-soundness-gate.md) ticket
-replaces the legacy Rust-to-Idris card emitter with Rust-to-Lean re-emission.
-Until that lands, the workbench build does not claim to validate every loaded
-Rust card. [Lean is the workbench](decisions/lean-is-the-workbench.md) records
+pins. It is the active workbench gate. Card data is checked beside it by
+`cargo xtask lean-check`
+([lean-card-soundness-gate](tickets/done/lean-card-soundness-gate.md)), which
+re-emits every `plugins_v2/` card as a Lean term and proves `Card.check = []`;
+the workbench build itself still makes no claim about loaded card data. The v1
+`plugins/canon` corpus stays on the Rust-to-Idris emitter until it has a v2
+counterpart. [Lean is the workbench](decisions/lean-is-the-workbench.md) records
 the succession; the handwritten Idris model is reference only.
 
 ---
