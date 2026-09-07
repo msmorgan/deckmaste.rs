@@ -112,6 +112,23 @@ pub enum LoadError {
         path: PathBuf,
         source: macro_ron::InsertError,
     },
+    /// A declaration's name equals a native constructor of one of the kinds
+    /// it registers under: the native reading always wins over a same-named
+    /// macro (`macro_ron`'s `EnumIntercept` tries the position's own
+    /// variants before the macro namespace), so the declaration would
+    /// silently register and never be reachable
+    /// (`semantics-spelling-lowering.md` §6's collision diagnostic is the v1
+    /// precedent). Refused at load, naming both the declaration and the
+    /// kind, rather than left to shadow silently.
+    #[error(
+        "declaration `{name}` in `{path}` collides with the native `{kind}` constructor of the \
+         same name; it can never be invoked at a `{kind}` position — rename the declaration"
+    )]
+    NativeCollision {
+        path: PathBuf,
+        kind: Ident,
+        name: Ident,
+    },
 }
 
 impl Plugin {
@@ -184,6 +201,10 @@ fn read_macros(
         let source = read(&path)?;
         pending.push((path, source));
     }
+    // The native dispatch set every registered kind's own Rust type carries
+    // — a fresh registry, not `macros`'s (which has no public accessor for
+    // it): see `NativeCollision`.
+    let native_kinds = crate::ron::kinds();
     while !pending.is_empty() {
         let attempted = pending.len();
         let mut failures = Vec::new();
@@ -191,6 +212,47 @@ fn read_macros(
             match macros.read_str::<MacroDef<OpaqueMetadata>>(&source) {
                 Ok(read) => {
                     let definition = read.erase_metadata();
+                    // Two ways a same-named collision is harmless, so this
+                    // check only refuses the third:
+                    //  - IDENTITY: the body's own outermost identifier is the
+                    //    declaration's own name, so reading it natively or
+                    //    through the macro produces the same value. This is
+                    //    how a `Subtype`/`CounterKind`/`TurnPart` declaration
+                    //    attaches spelling metadata to its own native
+                    //    constructor's name by design
+                    //    (`a_turn_part_declaration_may_name_its_own_
+                    //    constructor`; `macro_ron::MacroSet::check_cycles`
+                    //    grants the same declaration the matching exemption
+                    //    from being read as a self-cycle).
+                    //  - BODYLESS: a meta-macro (`KeywordAction`, …) whose
+                    //    `body` argument was omitted defaults to `()`
+                    //    (`Default(Any, ())`), which is not identifier-led
+                    //    (`body_head` reads `None`) and was never invocable
+                    //    for real value in the first place — nothing is
+                    //    silently shadowed because nothing meaningful was
+                    //    ever reachable through it.
+                    // A declaration whose body is a DIFFERENT, non-empty
+                    // construction under the colliding name gets no such
+                    // pass: it registers but can never be invoked
+                    // (`Shuffle`'s original body, before this crate's fix —
+                    // `semantics-v2-macro-bodies-keyword-actions`'s STOP 1),
+                    // so the reader refuses it here.
+                    let body_head = definition.body_head(macros);
+                    let harmless = body_head.is_none() || body_head == Some(definition.name);
+                    if !harmless {
+                        for &kind in &definition.kinds {
+                            if native_kinds
+                                .get(kind.as_str())
+                                .is_some_and(|k| k.variants().contains(&definition.name.as_str()))
+                            {
+                                return Err(LoadError::NativeCollision {
+                                    path,
+                                    kind,
+                                    name: definition.name,
+                                });
+                            }
+                        }
+                    }
                     for &kind in &definition.kinds {
                         declarations.insert(
                             (kind, definition.name),
@@ -321,4 +383,111 @@ pub fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, LoadError> {
     }
     files.sort();
     Ok(files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LoadError;
+    use super::MACROS_DIR;
+    use super::Plugin;
+
+    /// A plugin whose only content is the given `macros/*.ron` files, under a
+    /// scratch directory this call owns and removes on drop.
+    struct TempPlugin(std::path::PathBuf);
+
+    impl TempPlugin {
+        fn new(name: &str, macros: &[(&str, &str)]) -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "deckmaste_semantics_v2-reader-test-{name}-{:?}",
+                std::thread::current().id()
+            ));
+            let dir = root.join(MACROS_DIR);
+            std::fs::create_dir_all(&dir).expect("the scratch macros/ dir is creatable");
+            for (file, source) in macros {
+                std::fs::write(dir.join(file), source).expect("the scratch file is writable");
+            }
+            TempPlugin(root)
+        }
+    }
+
+    impl Drop for TempPlugin {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    /// A declaration whose name equals a native `Instruction` variant, and
+    /// whose body does NOT reconstruct that same variant, registers but can
+    /// never be invoked (native dispatch always wins) — the reader refuses
+    /// it, naming both the declaration and the colliding kind.
+    #[test]
+    fn a_non_identity_native_collision_is_refused() {
+        let plugin = TempPlugin::new(
+            "collision",
+            &[(
+                "Collides.ron",
+                r#"(
+                    name: "Draw",
+                    kinds: [Instruction],
+                    params: [],
+                    body: Shuffle(agent: You),
+                )"#,
+            )],
+        );
+        match Plugin::load(&plugin.0) {
+            Err(LoadError::NativeCollision { kind, name, .. }) => {
+                assert_eq!(kind.as_str(), "Instruction");
+                assert_eq!(name.as_str(), "Draw");
+            }
+            Ok(_) => panic!("a name/native collision must be refused, not loaded"),
+            Err(other) => panic!("expected a `NativeCollision`, got: {other}"),
+        }
+    }
+
+    /// An IDENTITY declaration — its body's outermost identifier is its own
+    /// name — is exempt: reading it natively or through the macro produces
+    /// the same value, which is exactly how a `TurnPart`/`Subtype`/
+    /// `CounterKind` declaration attaches spelling metadata to its own
+    /// native constructor's name (`plugins_v2_declarations`'s
+    /// `a_turn_part_declaration_may_name_its_own_constructor`).
+    #[test]
+    fn an_identity_native_collision_is_exempt() {
+        let plugin = TempPlugin::new(
+            "identity",
+            &[(
+                "Identity.ron",
+                r#"(
+                    name: "Draw",
+                    kinds: [Instruction],
+                    params: [],
+                    body: Draw(amount: Lit(value: 1), agent: You),
+                )"#,
+            )],
+        );
+        Plugin::load(&plugin.0).expect("an identity declaration must load, not be refused");
+    }
+
+    /// A BODYLESS declaration (body `()`, a meta-macro's omitted-argument
+    /// default) whose name equals a native variant is also exempt: nothing
+    /// meaningful was ever reachable through it, so nothing is shadowed —
+    /// exactly the shape `plugins_v2/builtin/macros/stubs/keyword_actions/
+    /// {Exchange,Search,Vote}.ron` are in today (bodyless keyword actions
+    /// whose declared name equals a native `Instruction` variant), which
+    /// must keep loading unaltered.
+    #[test]
+    fn a_bodyless_native_collision_is_exempt() {
+        let plugin = TempPlugin::new(
+            "bodyless",
+            &[(
+                "Bodyless.ron",
+                r#"(
+                    name: "Draw",
+                    kinds: [Instruction],
+                    params: [],
+                    body: (),
+                )"#,
+            )],
+        );
+        Plugin::load(&plugin.0).expect("a bodyless declaration must load, not be refused");
+    }
 }
