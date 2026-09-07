@@ -1590,7 +1590,10 @@ fn added_diff_lines(diff: &str) -> BTreeSet<(String, usize)> {
     let mut new_line = 0;
     for line in diff.lines() {
         if let Some(path) = line.strip_prefix("+++ ") {
-            let path = path.split_whitespace().next().unwrap_or(path);
+            // A unified diff separates the path from an optional timestamp with a
+            // TAB, so only a TAB ends the path: a plain space is part of it
+            // (`plugins_v2/canon/cards/Luminarch Aspirant.ron`).
+            let path = path.split('\t').next().unwrap_or(path);
             file = Some(path.strip_prefix("b/").unwrap_or(path).to_string());
             continue;
         }
@@ -2160,6 +2163,23 @@ const CR_FIXTURE: &str = "rule 100.1";
                 .filter(|citation| citation.site.file == absolute)
                 .count(),
             1
+        );
+    }
+
+    /// A card file's name carries spaces, and the citation audit must still
+    /// reach the lines it added.
+    #[test]
+    fn added_diff_lines_keeps_a_path_containing_spaces() {
+        let diff = concat!(
+            "diff --git a/cards/Luminarch Aspirant.ron b/cards/Luminarch Aspirant.ron\n",
+            "--- /dev/null\n",
+            "+++ b/cards/Luminarch Aspirant.ron\n",
+            "@@ -0,0 +1,1 @@\n",
+            "+// [CR#506.1]\n",
+        );
+        assert_eq!(
+            added_diff_lines(diff),
+            BTreeSet::from([("cards/Luminarch Aspirant.ron".into(), 1)])
         );
     }
 

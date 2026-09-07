@@ -1,9 +1,8 @@
-// STOP: `lean/Semantics/Words.lean`'s `TurnPart` names `beginningPhase` but has no
-// `endingPhase` constructor for the ending phase named at [CR#500.1]. Left bodyless
-// pending that gap.
+// Phases and steps [CR#500.1].
 TurnPart(
     name: "EndingPhase",
     spelling: "ending phase",
     grammar: Noun(singular: "ending phase"),
     params: [],
+    body: EndingPhase,
 )

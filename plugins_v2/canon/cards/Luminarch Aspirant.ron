@@ -1,0 +1,46 @@
+// "At the beginning of combat on your turn, put a +1/+1 counter on target
+// creature you control." — the beginning of combat step is the combat phase's
+// own first step [CR#506.1], and the header's possessor is the player whose
+// turn part it is.
+SingleFaced(face: (
+    characteristics: (
+        name: "Luminarch Aspirant",
+        cost: [
+            Simple(symbol: Generic(amount: 1)),
+            Simple(symbol: Specific(color: Of(color: White))),
+        ],
+        types: [Creature],
+        subtypes: [
+            Of(host: Creature, label: "Human"),
+            Of(host: Creature, label: "Cleric"),
+        ],
+        power: Lit(value: 1),
+        toughness: Lit(value: 1),
+        text: [
+            Triggered(
+                event: BeginningOf(
+                    quantifier: The,
+                    part: BeginningOfCombatStep,
+                    whose: ByPlayer(player: You),
+                ),
+                alternatives: [],
+                while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: PutCounters(
+                    amount: Lit(value: 1),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            HasPossessor(axis: Controller, possessor: You),
+                        ]),
+                    ),
+                ),
+            ),
+        ],
+    ),
+))

@@ -404,6 +404,51 @@ theorem badPluralPartPossessor :
         (draw (.lit 1) (agent := .you))) = [.windowOk] := by
   decide
 
+/-- "At the beginning of combat on your turn, draw a card." The beginning of combat step is
+its own part of the combat phase [CR#506.1]. -/
+theorem okBeginningOfCombatPossessor :
+    Ability.check []
+      (at_ (.beginningOf .the .beginningOfCombat (.byPlayer .you)) (draw (.lit 1) (agent := .you)))
+      = [] := by
+  decide
+
+/-- "At the beginning of combat on all players' turns, draw a card." [CR#102.1] -/
+theorem badBeginningOfCombatPlural :
+    Ability.check []
+      (at_ (.beginningOf .the .beginningOfCombat (.byPlayer (allOf .anyPlayer)))
+        (draw (.lit 1) (agent := .you))) = [.windowOk] := by
+  decide
+
+/-- "{2}: Draw a card. Activate only during each player's ending phase." The ending phase is the
+last of the turn's five phases [CR#500.1]. -/
+theorem okEndingPhaseWindow :
+    Ability.check []
+      (act (.mana [generic 2]) (draw (.lit 1) (agent := .you))
+        (some (.duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
+  decide
+
+/-- "{2}: Draw a card. Activate only during all players' ending phase." [CR#102.1] -/
+theorem badEndingPhaseWindow :
+    Ability.check []
+      (act (.mana [generic 2]) (draw (.lit 1) (agent := .you))
+        (some (.duringPart .endingPhase (some (allOf .anyPlayer))))) = [.windowOk] := by
+  decide
+
+/-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/
+theorem okAdditionalEndingPhase :
+    Instruction.check []
+      (Primitives.Instruction.addPart .endingPhase (some .postcombatMain) (.lit 1) none
+        (agent := none)) = [] := by
+  decide
+
+/-- "After this turn, there is an additional ending phase." A turn is not one of its own parts
+[CR#500.1], so it anchors nothing. -/
+theorem badAdditionalEndingPhaseAfterTurn :
+    Instruction.check []
+      (Primitives.Instruction.addPart .endingPhase (some .turn) (.lit 1) none (agent := none))
+      = [.windowOk] := by
+  decide
+
 /-- "creature that could block each attacking creature" -/
 theorem okCouldBlockAttacker :
     Predicate.check .object [] (.inCombat .couldBlock (some (allOf (.and [creature, attacking]))))

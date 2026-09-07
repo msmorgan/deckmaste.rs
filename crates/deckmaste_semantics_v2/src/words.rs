@@ -869,12 +869,16 @@ pub enum TurnPart {
     MainPhase,
     FirstMain,
     Combat,
+    /// The combat phase's own first step [CR#506.1], which the phase around it is not.
+    BeginningOfCombat,
     DeclareAttackers,
     DeclareBlockers,
     FirstStrikeCombatDamage,
     CombatDamage,
     EndOfCombat,
     PostcombatMain,
+    /// The turn's fifth phase [CR#500.1], the one holding the end and cleanup steps.
+    EndingPhase,
     EndStep,
     Cleanup,
 }

@@ -559,8 +559,13 @@ inductive ColorSpec where
 /-- Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of [CR#510.4]. -/
 inductive TurnPart where
   | turn | beginningPhase | untapStep | upkeep | drawStep | mainPhase | firstMain | combat
+  /-- The combat phase's own first step [CR#506.1], which the phase around it is not. -/
+  | beginningOfCombat
   | declareAttackers | declareBlockers | firstStrikeCombatDamage | combatDamage | endOfCombat
-  | postcombatMain | endStep | cleanup
+  | postcombatMain
+  /-- The turn's fifth phase [CR#500.1], the one holding the end and cleanup steps. -/
+  | endingPhase
+  | endStep | cleanup
   deriving DecidableEq, Repr
 
 inductive RankPeriod where
