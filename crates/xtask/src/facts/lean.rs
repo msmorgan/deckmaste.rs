@@ -487,7 +487,7 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
 }
 
 pub(super) fn render(root: &Path) -> anyhow::Result<String> {
-    let declarations = macro_def::read_builtin_v2(root.join("plugins/builtin_v2"))?;
+    let declarations = macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let designations = designations(&declarations)?;
     let identities: BTreeSet<_> = declarations
         .iter()
@@ -582,7 +582,7 @@ mod tests {
     fn fixture() -> tempfile::TempDir {
         let temp = tempfile::tempdir().unwrap();
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let source = root.join("plugins/builtin_v2/macros/stubs");
+        let source = root.join("plugins_v2/builtin/macros/stubs");
         let destination = temp.path().join("plugins/builtin_v2/macros/stubs");
         copy_tree(&source, &destination);
         temp

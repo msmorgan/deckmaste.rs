@@ -137,7 +137,7 @@ fn builtin_v2_readers(metadata: &Metadata) -> anyhow::Result<BTreeSet<String>> {
             continue;
         }
         for source_root in [crate_root.join("src"), crate_root.join("tests")] {
-            if source_root.is_dir() && source_root_mentions(&source_root, "builtin_v2")? {
+            if source_root.is_dir() && source_root_mentions(&source_root, BUILTIN_V2_NEEDLES)? {
                 readers.insert(package.name.clone());
                 break;
             }
@@ -146,20 +146,20 @@ fn builtin_v2_readers(metadata: &Metadata) -> anyhow::Result<BTreeSet<String>> {
     Ok(readers)
 }
 
-fn source_root_mentions(root: &Path, needle: &str) -> anyhow::Result<bool> {
+fn source_root_mentions(root: &Path, needles: &[&str]) -> anyhow::Result<bool> {
     for entry in fs::read_dir(root).with_context(|| format!("reading {}", root.display()))? {
         let entry = entry.with_context(|| format!("reading {}", root.display()))?;
         let path = entry.path();
         if path.is_dir() {
-            if source_root_mentions(&path, needle)? {
+            if source_root_mentions(&path, needles)? {
                 return Ok(true);
             }
-        } else if path.extension().is_some_and(|extension| extension == "rs")
-            && fs::read_to_string(&path)
-                .with_context(|| format!("reading {}", path.display()))?
-                .contains(needle)
-        {
-            return Ok(true);
+        } else if path.extension().is_some_and(|extension| extension == "rs") {
+            let source =
+                fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+            if needles.iter().any(|needle| source.contains(needle)) {
+                return Ok(true);
+            }
         }
     }
     Ok(false)
@@ -218,9 +218,15 @@ fn closure_for_paths(
     reverse_dependency_closure(metadata, &roots)
 }
 
+/// The builtin declaration tree, at its `plugins_v2/builtin` home and at the
+/// `plugins/builtin_v2` symlink still standing in the old place.
 fn is_builtin_v2_path(path: &Path) -> bool {
-    path.starts_with("plugins/builtin_v2")
+    path.starts_with("plugins_v2/builtin") || path.starts_with("plugins/builtin_v2")
 }
+
+/// What a crate's sources say when they read the builtin declarations, under
+/// either spelling of the path.
+const BUILTIN_V2_NEEDLES: &[&str] = &["builtin_v2", "plugins_v2/builtin"];
 
 fn owner_for_path<'a>(metadata: &'a Metadata, path: &Path) -> Option<&'a Package> {
     let path = metadata.workspace_root.join(path);

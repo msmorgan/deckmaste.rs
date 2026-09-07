@@ -59,10 +59,10 @@ fn repo_root(args: &PathArgs) -> PathBuf {
         .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
-const KEYWORD_STUBS: &str = "plugins/builtin_v2/macros/stubs/keyword_abilities";
-const ACTION_STUBS: &str = "plugins/builtin_v2/macros/stubs/keyword_actions";
-const COUNTER_STUBS: &str = "plugins/builtin_v2/macros/stubs/counter_kinds";
-const DESIGNATION_STUBS: &str = "plugins/builtin_v2/macros/stubs/designations";
+const KEYWORD_STUBS: &str = "plugins_v2/builtin/macros/stubs/keyword_abilities";
+const ACTION_STUBS: &str = "plugins_v2/builtin/macros/stubs/keyword_actions";
+const COUNTER_STUBS: &str = "plugins_v2/builtin/macros/stubs/counter_kinds";
+const DESIGNATION_STUBS: &str = "plugins_v2/builtin/macros/stubs/designations";
 const WORDS: &str = "idris/src/Experimental/Words.idr";
 const GENERATED: &str = "idris/src/Experimental/FactsGen.idr";
 

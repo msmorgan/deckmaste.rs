@@ -30,15 +30,15 @@ fn macro_options() -> ron::Options {
 }
 
 const DECLARATION_META_MACROS: &[&str] = &[
-    include_str!("../../../plugins/builtin_v2/macros/meta/AbilityWord.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/CounterKind.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/Designation.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/FlavorWord.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAbility.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/KeywordAction.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/Subtype.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/TurnPart.ron"),
-    include_str!("../../../plugins/builtin_v2/macros/meta/Type.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/AbilityWord.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/CounterKind.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/Designation.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/FlavorWord.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAbility.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAction.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/Subtype.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/TurnPart.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/Type.ron"),
 ];
 
 fn declaration_reader() -> Result<macro_ron::MacroSet, String> {
@@ -1234,7 +1234,7 @@ pub enum ValidationError {
         spelling_head: String,
         grammar_head: String,
     },
-    #[error("builtin_v2 root must be an existing directory named `builtin_v2`")]
+    #[error("builtin_v2 root must be an existing directory named `builtin` or `builtin_v2`")]
     InvalidBuiltinRoot,
     #[error("`{relative}` is not a recognized builtin_v2 nursery declaration location")]
     UnexpectedBuiltinLocation { relative: PathBuf },
@@ -1648,7 +1648,9 @@ fn read_sources_mapped(
 /// Reads the committed builtin-v2 nursery through the ordinary macro reader.
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
-/// named `builtin_v2`, and only `.ron` files below `macros/stubs` are read.
+/// named `builtin` (its home since the `plugins_v2/` move) or `builtin_v2`
+/// (the symlink left at the old path), and only `.ron` files below
+/// `macros/stubs` are read.
 /// The path fixes each file's declaration kind, subtype category, and name.
 ///
 /// # Errors
@@ -1656,7 +1658,11 @@ fn read_sources_mapped(
 /// source error, path/content mismatch, or duplicate identity.
 pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclaration>, ReadError> {
     let root = root.as_ref();
-    if root.file_name().and_then(|name| name.to_str()) != Some("builtin_v2") || !root.is_dir() {
+    let named = root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == "builtin" || name == "builtin_v2");
+    if !named || !root.is_dir() {
         return Err(validation_error_at(
             root,
             SourcePosition { line: 1, column: 1 },
