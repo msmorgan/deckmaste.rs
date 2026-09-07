@@ -1073,7 +1073,7 @@ fn normalization_keeps_category_safe_identities_and_surface_ambiguity() {
 }
 
 fn write_builtin(root: &Path, relative: &str, source: &str) {
-    let path = root.join("macros").join("stubs").join(relative);
+    let path = root.join("macros").join(relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, source).unwrap();
 }
@@ -1192,7 +1192,7 @@ fn builtin_reader_authenticates_every_final_path_family() {
         ),
     ] {
         write_builtin(&root, relative, source);
-        let expected_path = root.join("macros/stubs").join(relative);
+        let expected_path = root.join("macros").join(relative);
         let declaration = read_builtin_v2(&root)
             .unwrap()
             .into_iter()
@@ -1503,7 +1503,7 @@ fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
         let root = temporary.path().join("builtin");
         fs::create_dir(&root).unwrap();
         write_builtin(&root, relative, source);
-        let path = root.join("macros/stubs").join(relative);
+        let path = root.join("macros").join(relative);
         let error = read_builtin_v2(&root).unwrap_err();
         assert_located(&error, &path);
     }

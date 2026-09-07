@@ -157,7 +157,7 @@ fn an_ability_word_invocation_expands_at_an_ability_position() {
 fn a_keyword_action_invocation_expands_at_an_instruction_position() {
     let dir = temp_plugin(&[
         (
-            "macros/stubs/keyword_actions/DrawFor.ron",
+            "macros/keyword_actions/DrawFor.ron",
             r#"KeywordAction(
                 name: "DrawFor",
                 params: [Amount],
@@ -223,13 +223,13 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
 /// kinds, and the exemption reads the kind's dispatch set — which a
 /// hand-built `Kind::new("TurnPart")` does not carry, so `Upkeep` → `Upkeep`
 /// was refused as a self-reference at register time. The bodies are written
-/// here rather than in `plugins_v2/builtin/macros/stubs/turn_parts/`, which is
+/// here rather than in `plugins_v2/builtin/macros/turn_parts/`, which is
 /// another ticket's to fill in.
 #[test]
 fn a_turn_part_declaration_may_name_its_own_constructor() {
     let dir = temp_plugin(&[
         (
-            "macros/stubs/turn_parts/Upkeep.ron",
+            "macros/turn_parts/Upkeep.ron",
             r#"TurnPart(
                 name: "Upkeep",
                 spelling: "upkeep",
@@ -239,7 +239,7 @@ fn a_turn_part_declaration_may_name_its_own_constructor() {
             )"#,
         ),
         (
-            "macros/stubs/turn_parts/UpkeepStep.ron",
+            "macros/turn_parts/UpkeepStep.ron",
             r#"TurnPart(
                 name: "UpkeepStep",
                 spelling: "upkeep step",

@@ -7,7 +7,7 @@
 //! `lean/Semantics/Check/Facts.lean` tabulates and the `Check/` laws read.
 //! They are not syntax: no card writes one, so no type here is a macro
 //! position and none derives `SupportsMacros` or `Expand`. A declaration body
-//! that carries them (`plugins_v2/builtin/macros/stubs/designations`,
+//! that carries them (`plugins_v2/builtin/macros/designations`,
 //! `.../counter_kinds`) is read as these types through
 //! [`crate::ron::raw_options`].
 //!

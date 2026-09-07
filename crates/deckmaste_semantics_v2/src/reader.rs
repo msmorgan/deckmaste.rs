@@ -470,7 +470,7 @@ mod tests {
     /// A BODYLESS declaration (body `()`, a meta-macro's omitted-argument
     /// default) whose name equals a native variant is also exempt: nothing
     /// meaningful was ever reachable through it, so nothing is shadowed —
-    /// exactly the shape `plugins_v2/builtin/macros/stubs/keyword_actions/
+    /// exactly the shape `plugins_v2/builtin/macros/keyword_actions/
     /// {Exchange,Search,Vote}.ron` are in today (bodyless keyword actions
     /// whose declared name equals a native `Instruction` variant), which
     /// must keep loading unaltered.

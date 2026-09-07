@@ -174,7 +174,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
         );
 
         let directory = workspace_root
-            .join("plugins_v2/builtin/macros/stubs/subtypes")
+            .join("plugins_v2/builtin/macros/subtypes")
             .join(spec.directory);
         let authored_files = fs::read_dir(&directory)
             .unwrap_or_else(|error| panic!("reading {}: {error}", directory.display()))
@@ -240,7 +240,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
     }
     assert_eq!(total, 138);
 
-    let subtype_root = workspace_root.join("plugins_v2/builtin/macros/stubs/subtypes");
+    let subtype_root = workspace_root.join("plugins_v2/builtin/macros/subtypes");
     assert!(
         !subtype_root.join("planar").exists(),
         "planar subtypes are a named model gap, not covered inventory"

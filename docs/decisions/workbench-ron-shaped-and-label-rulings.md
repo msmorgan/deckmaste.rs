@@ -47,7 +47,7 @@ names and the printed ones the corpus attests. A label outside the tables is
 refused, and the refusal names the label and the table rather than failing as
 a bare `So False`.
 
-Rows are **derived from the RON stubs** (`plugins/builtin_v2/macros/stubs/…`,
+Rows are **derived from the RON stubs** (`plugins_v2/builtin/macros/…`,
 fields `params`, `spelling`, `grammar`, `body`) wherever the stub determines
 the column — `bodied`, `paidCost`, `regime`, and the admitted parameter shapes
 as a **list** read off `params`. A column that exists only for an Idris gate is

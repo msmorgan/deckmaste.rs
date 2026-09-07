@@ -230,7 +230,7 @@ fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
         assert_eq!(
             declaration.provenance().path(),
             workspace_root
-                .join("plugins_v2/builtin/macros/stubs/types")
+                .join("plugins_v2/builtin/macros/types")
                 .join(format!("{}.ron", expected.name))
         );
     }

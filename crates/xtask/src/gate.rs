@@ -461,9 +461,7 @@ mod tests {
     fn builtin_declaration_path_starts_from_each_reader() {
         let packages = closure_for_paths(
             &metadata(),
-            &[PathBuf::from(
-                "plugins_v2/builtin/macros/stubs/types/Foo.ron",
-            )],
+            &[PathBuf::from("plugins_v2/builtin/macros/types/Foo.ron")],
             &BTreeSet::from([
                 "deckmaste_construction_core".to_owned(),
                 "deckmaste_english_v2".to_owned(),

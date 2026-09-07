@@ -246,7 +246,7 @@ rendering but is not selectable as a semantic spelling frame.
 The Stage 5 parser may be brought up corpus-first with handwritten
 definitions, but this does not create a second authority or a closed official
 vocabulary. Bootstrap records live at their final
-`plugins/builtin_v2/macros/stubs/...` addresses and use consumer-owned
+`plugins/builtin_v2/macros/...` addresses and use consumer-owned
 macro-definition metadata. A narrow builtin-only provider normalizes those
 records into the same immutable inventory used by the parser. There is no
 generated stub manifest and no later content migration. These handwritten
@@ -330,7 +330,7 @@ category brings its declarations under this same rule.
 
 ## Nursery records and catalog integrity
 
-`plugins/builtin_v2/macros/stubs` is the nursery and future address of these
+`plugins/builtin_v2/macros` is the nursery and future address of these
 macros, not a parallel registry. A stub carries the literal head shape and the
 grammar contribution now; graduation adds positional parameter types, extends
 `spelling` with `Param(n)` holes, and adds the semantic body in place.

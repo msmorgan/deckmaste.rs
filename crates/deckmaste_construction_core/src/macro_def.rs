@@ -1664,11 +1664,16 @@ fn read_sources_mapped(
     Ok(declarations)
 }
 
+/// The declaration meta-macros' directory under `macros/`: definitions the
+/// family files invoke, not declarations of their own.
+const META_DIR: &str = "meta";
+
 /// Reads the committed builtin-v2 nursery through the ordinary macro reader.
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
-/// named `builtin` (its home under `plugins_v2/`), and only `.ron` files
-/// below `macros/stubs` are read.
+/// named `builtin` (its home under `plugins_v2/`), and only `.ron` files in
+/// the family directories below `macros/` are read — `macros/meta/` holds the
+/// declaration meta-macros the families invoke, which are not declarations.
 /// The path fixes each file's declaration kind, subtype category, and name.
 ///
 /// # Errors
@@ -1688,8 +1693,12 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
         ));
     }
 
-    let nursery = root.join("macros").join("stubs");
-    let paths = ron_files_recursive(&nursery)?;
+    let nursery = root.join("macros");
+    let meta = nursery.join(META_DIR);
+    let paths: Vec<PathBuf> = ron_files_recursive(&nursery)?
+        .into_iter()
+        .filter(|path| !path.starts_with(&meta))
+        .collect();
     let mut sources = Vec::with_capacity(paths.len());
     for path in paths {
         let source = std::fs::read_to_string(&path).map_err(|source| ReadError::Io {

@@ -68,7 +68,7 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
         .collect::<BTreeMap<_, _>>();
     assert_eq!(expected.len(), 324, "canonical creature-type count changed");
 
-    let directory = workspace_root.join("plugins_v2/builtin/macros/stubs/subtypes/creature");
+    let directory = workspace_root.join("plugins_v2/builtin/macros/subtypes/creature");
     let authored_files = fs::read_dir(&directory)
         .expect("creature-type nursery must exist")
         .map(|entry| {
