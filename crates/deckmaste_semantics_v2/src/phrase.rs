@@ -882,7 +882,9 @@ pub enum IgnoredOutcomes {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// Macroable: Vote's `ballot` parameter (`params: [Ballot]`) needs a
+/// registered kind to name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Ballot {
     ByLabel { options: Vec<VoteLabel> },
     ByCandidate { candidates: NounPhrase },

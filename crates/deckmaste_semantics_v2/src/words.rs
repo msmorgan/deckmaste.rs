@@ -340,7 +340,9 @@ pub enum ChoiceRef {
     TheLatestChoice,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// Macroable: Vote's `disclosure` parameter (`params: [Disclosure]`) needs a
+/// registered kind to name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Disclosure {
     Openly,
     Secretly,

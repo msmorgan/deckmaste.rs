@@ -610,8 +610,13 @@ impl ser::SerializeTuple for SeqEmitter {
         ser::SerializeSeq::serialize_element(self, value)
     }
 
+    /// A Rust tuple is Lean's `Prod` (nested right-associatively for more
+    /// than two elements), spelled `(a, b)`, never a list — `Vec<(Option
+    /// Cost, Instruction)>`'s `Instruction::ChooseModes.modes` field
+    /// (Vote's `chooseModes`) is the case that exposed this: emitting `[a,
+    /// b]` here type-mismatches Lean's `Prod` expectation.
     fn end(self) -> Result<String, EmitError> {
-        ser::SerializeSeq::end(self)
+        Ok(format!("({})", self.items.join(", ")))
     }
 }
 
@@ -805,6 +810,25 @@ mod tests {
         assert_eq!(
             term(&vec![vec![ColorOrColorless::Colorless]]).unwrap(),
             "[[Semantics.ColorOrColorless.colorless]]"
+        );
+    }
+
+    /// A Rust tuple is Lean's `Prod`, spelled `(a, b)` — never a list. The
+    /// distinction is load-bearing: `Instruction::ChooseModes.modes` is a
+    /// `Vec<(Option<Cost>, Instruction)>`, and emitting `[a, b]` for its
+    /// elements type-mismatches Lean's `Prod` expectation (found via `Face A
+    /// Villainous Choice`'s canon card, the first to invoke `chooseModes`
+    /// through a real card).
+    #[test]
+    fn a_tuple_is_a_lean_pair_not_a_list() {
+        assert_eq!(term(&(1u32, true)).unwrap(), "(1, true)");
+        assert_eq!(
+            term(&(Option::<u32>::None, CardType::Creature)).unwrap(),
+            "(none, Semantics.CardType.creature)"
+        );
+        assert_eq!(
+            term(&vec![(Option::<u32>::None, CardType::Creature)]).unwrap(),
+            "[(none, Semantics.CardType.creature)]"
         );
     }
 

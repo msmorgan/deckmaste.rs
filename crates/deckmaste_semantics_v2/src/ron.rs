@@ -89,6 +89,10 @@ pub fn kinds() -> KindSet {
     // declaration named `Upkeep` whose body is `Upkeep` as a self-reference
     // rather than as the identity macro it is.
     kinds.add(crate::words::TurnPart::kind());
+    // Not `semantic_expression`s either, but Vote's declaration signature
+    // (`params: [Disclosure, Ballot]`) needs a registered kind to name each.
+    kinds.add(crate::words::Disclosure::kind());
+    kinds.add(crate::phrase::Ballot::kind());
     // `Delta` is generic in Lean (`Delta (α : Type)`) and generic in Rust, and
     // `#[derive(SupportsMacros)]` rejects generics — so its kind is
     // hand-built and carries no dispatch set. Registration is what a macro of
@@ -153,12 +157,19 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::TokenSpec>("TokenSpec");
     types.add_typed::<crate::words::Window>("Window");
     types.add_typed::<crate::words::TurnPart>("TurnPart");
+    types.add_typed::<crate::words::Disclosure>("Disclosure");
+    types.add_typed::<crate::phrase::Ballot>("Ballot");
     // Not a `SupportsMacros` kind (it has no macro dispatch of its own —
     // `plugins_v2` spells a subtype with the native `Of`/`Spell` constructor,
     // never a bare declared-subtype macro name), but a real v2 syntax type a
     // declaration's signature needs to name: Amass's amassed subtype
     // [CR#701.47a].
     types.add_typed::<crate::words::Subtype>("Subtype");
+    // Likewise no dispatch set of its own (`plugins_v2` never writes a bare
+    // `SearchScope` macro), but Search's declaration signature
+    // (`search (scope : SearchScope) (quantity : Quantity) …`) needs to name
+    // it [CR#701.23a].
+    types.add_typed::<crate::phrase::SearchScope>("SearchScope");
     types
 }
 
