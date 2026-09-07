@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
+needs: [english-v2-grammar-family-breadth]
 ---
 # Integrate the Target Verb without game-semantic Subject filtering
 
@@ -14,7 +14,7 @@ resolution is not available to English. The Target Noun and the two projections
 of the single invariant Targeting Marker remain distinct lexical homographs.
 
 Declare the ordinary verb forms through the shared frame/morphology inventory
-and apply the same case, agreement, dependency and evidenced-selection rules
+and apply the same case, agreement and dependency rules
 as other verbs. Preserve the declared imperative restriction only if it has
 independent grammatical distribution evidence; do not substitute a guard naming
 the verb, its game meaning or a construction. The reviewed scope relation does
@@ -29,16 +29,16 @@ must expose the object-gap relative in `Spells you cast`, the subject-gap
 relative `that target enchanted player`, and the shared cost-comparison frame.
 Its full identity is in the register.
 
-Known design risk: both marker and finite-verb readings may remain grammatical
-after the general replacements. If they survive, STOP with the two checked
-ASTs and the exact missing decision; seek a grammatical/ambiguity ruling rather
-than restoring the semantic whitelist, adding a dominance edge, treating a
-non-scope rivalry as scope, or declaring a wrong selection covered. This ticket
-cannot close merely on unchanged coverage while the Target Verb is withheld.
-It is a separate integration gate so that risk neither hides nor restarts the
-whole grammar review. Source evidence: style-guide §6 “Describing objects,
+If both marker and finite-verb readings survive grammatical constraints,
+retain both as successful ambiguity under
+[the accepted decision](../../decisions/english-lexical-analysis.md#chart-admission-and-ambiguity).
+Assert their distinct lexical analyses and bracketings; a scope equivalence
+claim is unnecessary. Optional preference cannot remove either primary reading.
+A wrong additional reading is still a defect, and unchanged coverage while the
+Target Verb is withheld does not complete this ticket. Preserve both roundtrip
+laws for these witnesses. Source evidence: style-guide §6 “Describing objects,
 players, and targets”; the glossary owns the three lexical distinctions.
 
-Standard constraints apply. Production correspondence and the applicable
+Standard constraints apply. The accepted lexical-analysis decision and the applicable
 [obligations](../../english-grammar-migration-obligations.md) are part of this
 ticket; re-spell existing tests by their independently justified outcomes.

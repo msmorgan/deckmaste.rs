@@ -1,11 +1,10 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
+needs: [english-v2-grammar-family-breadth]
 ---
 # Migrate preposition distribution and complement licensing together
 
-The first shared interface is supplied by `english-v2-grammar-family-breadth`.
-Complete the acceptance below against those interfaces; other families need
-not finish their inventories before this work begins.
+Complete this family on the shared breadth interfaces under
+[the lexical-analysis contract](../../decisions/english-lexical-analysis.md).
 
 Replace the preposition class/nominal-license table as one change. A declared
 preposition row states grammatical attachment distribution and Complement
@@ -24,22 +23,26 @@ fused per-preposition wrappers as their consumers migrate. Clause uses are
 supplied by subordination and comparative uses by the measure ticket; do not
 force every homographic use into NP-taking PP syntax.
 
-Implement general declared-role preemption on arbitrary frame sequences,
-using the first eligible PP on the right periphery, opaque marked-role edges
-and transparent fixed markers. Extend `RolePreference`/`FrameScope.projectHost`
-and their contextual witnesses before relying on the larger domain. Keep
-later same-marker postmodifiers and PPs inside non-final conjuncts.
+Distinguish declared frame roles from free attachments on arbitrary frame
+sequences through lexical frame and grammatical constraints. Preserve opaque
+marked-role boundaries, transparent fixed markers, later same-marker
+postmodifiers and PPs inside non-final conjuncts. Review the contextual evidence
+in `RolePreference`/`FrameScope.projectHost`; its first-eligible-PP preemption is
+not authority to discard another grammatical reading. Any preference remains
+optional metadata over the complete admitted alternatives.
 
 Acceptance includes a head licensing interior+relational without surface,
 `on the beginning of your upkeep` excluded by the declared distribution,
 `in addition to its other types`, `Under your control, draw a card.`, and
 `without`/`by` with ordinary and nonfinite Complements. Retain `Search your
-library for a card.` as a selected frame role, not packed scope. Re-measure the
+library for a card.` with its selected frame role represented distinctly from
+free attachment; do not require uniqueness without a grammatical exclusion. Re-measure the
 thirteen with-attachment cases and Vicious Rivalry from the register; their
-complete alternatives are packed by the scope ticket. Widening may not silently
-ship a newly wrong selection or be narrowed again to hide a tie. Style-guide
+complete alternatives use the shared packed forest. Widening may not silently
+admit an invalid reading or be narrowed again to hide valid ambiguity. Style-guide
 source map: §§6, 9, 11 and 12 in the whole-grammar design.
 
-Standard constraints apply. Production correspondence and the applicable
-[obligations](../../english-grammar-migration-obligations.md) are part of this
-ticket; re-spell existing tests by their independently justified outcomes.
+Preserve the applicable [inherited witnesses](../../english-grammar-migration-obligations.md)
+and check this family's structures under both roundtrip laws. Standard constraints
+apply as amended by the lexical-analysis decision; targeted Lean changes belong
+here only when needed to settle a changed grammatical constraint.

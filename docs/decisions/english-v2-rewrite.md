@@ -1,5 +1,14 @@
 # English v2 rewrite
 
+## Current production direction
+
+The accepted [independent lexical-analysis decision](english-lexical-analysis.md)
+(2026-09-07) governs new English work. It retains bidirectional construction
+declarations and replaces construction-directed morphology, eager AST admission,
+hard-error ties and the single-class packing requirement. Its ambiguous
+roundtrip and reporting contracts supersede conflicting passages below; earlier
+sections retain their historical rationale and unaffected source/crate policy.
+
 ## Decision
 
 The English construction stack is replaced by a fresh implementation in which

@@ -7,6 +7,10 @@ grammar are both in scope. The failure frontier resumes driving work only for
 the subsequent long tail. The [wayfinder](../english-grammar-wayfinder.md)
 records the work sequence and disposition of earlier tickets.
 
+The [2026-09-07 lexical-analysis decision](english-lexical-analysis.md)
+supersedes the production machinery and selection prescriptions below. The
+independent NLP scope and bounded formal-model contract remain in force.
+
 ## The workbench's contract
 
 `English` is a standalone NLP grammar for parsing and bracketing Oracle
@@ -104,28 +108,16 @@ not English obligations. Investigate grammatical representation choices against
 concrete interactions before presenting any residual decision to the user.
 
 
-## Production migration design (2026-09-05)
+## Current production migration (2026-09-07)
 
-The [production correspondence](../english-grammar-design.md#production-correspondence)
-now records machinery decisions and the thirteen implementation units. Keep
-the existing Earley engine, generated construction ASTs/builders/renderers/
-visitors, immutable provider environment and source-claim machinery. Compile
-lexeme-owned frame schemas into finite environment-owned rules instead of
-maintaining a codec for each realizable tail. The compiled-consumer ticket
-checks this engineering choice before its production activation.
+Use [independent lexical analysis and retained readings](english-lexical-analysis.md).
+Keep bidirectional construction declarations; adapt scanning and grammatical
+admission to lexical analyses and sufficient grammatical summaries. The primary
+result retains all admitted readings across scope classes. Preference is an
+optional view, and both ambiguous roundtrip laws apply.
 
-The reviewed candidate contract governs the migrated selection pipeline:
-feature/dependency admission, evidenced role/identity preference, then exact
-scope classes. It supersedes the old global structural-specificity arbitration
-when that migration lands; until then the old path is transitional and may not
-silently select newly wrong analyses. Keep the hoisted AST with derived sites
-and add correlated complete assignments and anchorings, tested against actual
-complete alternatives. No first-class alternative-subtree AST or Semantics
-consumer is scheduled.
-
-The [reconciliation table](../english-grammar-design.md#reconciled-inherited-prescriptions)
-resolves obsolete ticket mechanisms under the accepted top-down/NLP-only scope.
-It explicitly withdraws the proposed game-defined Target Verb Subject filter.
-A surviving marker/verb ambiguity remains a concrete integration gate; this
-design makes no claim that scope packing solves it. The completed review is
-not reopened for speculative formal artifacts.
+The earlier hoisted-representative/assignment-row mandate and hard integration
+stop for surviving Target Verb ambiguity are superseded. Preserve their named
+linguistic distinctions and regression witnesses. The formal lexical/ambiguity
+ticket accompanies the first Rust interfaces; other proof gaps retain their
+owners without becoming blanket prerequisites to production experimentation.

@@ -1,11 +1,10 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
+needs: [english-v2-grammar-family-breadth]
 ---
 # Migrate documents, keyword hosts and printed templates
 
-The first shared interface is supplied by `english-v2-grammar-family-breadth`.
-Complete the acceptance below against those interfaces; other families need
-not finish their inventories before this work begins.
+Complete this family on the shared breadth interfaces under
+[the lexical-analysis contract](../../decisions/english-lexical-analysis.md).
 
 Replace game-semantic envelopes/cost categories with flat typed document,
 paragraph, sentence, modal, keyword and cost collections as in
@@ -22,8 +21,8 @@ inline clause/fragment Parentheticals, comma/semicolon keyword lines, granted
 lines mixing keywords and quotations, named/batch/parameterized/bound keyword
 surfaces, and textual labels/chapters/levels/classes/cases/rooms/die tables/
 stations/modal weights. Preserve exact bars, dashes, ranges, symbols and separate
-text boxes; do not validate physical layout or game legality. Extend the Lean
-surface/collection witnesses for forms beyond its checked fragment.
+text boxes; do not validate physical layout or game legality. Use targeted Lean
+surface/collection witnesses for changed boundary or collection constraints.
 
 Delete `KeywordSubjectModifier`'s five-member enumeration. Keyword hosts take
 the same nominal/reference stages, postmodifiers, participles and relatives as
@@ -31,7 +30,8 @@ ordinary hosts, with only declaration-backed host distribution. Verify
 `Enchant creature with flying`, `... without flying`, `... without a counter
 on it`, stacked modifiers and subject-gap relatives. Replace the inherited
 vacuous F7 `VerbLexeme` assertion with exact membership of the irregular verb
-inventory actually supplied. Preserve bound-keyword casing and quality ownership.
+inventory actually supplied. Preserve bound-keyword casing, lexical identity
+and provenance through exact rendering and traversal.
 
 Acceptance includes multi-sentence trigger-shaped paragraphs, ordinary and
 activated modal bodies, empty permitted text collections, exact singleton and
@@ -41,6 +41,7 @@ and level-range `1-9 |` witness in the register. Document parenthetical/quotatio
 boundaries expose grammatical context hooks for the later ellipsis ticket;
 they do not consume Semantics. Source evidence: style-guide §§2–3, 8, 14–15.
 
-Standard constraints apply. Production correspondence and the applicable
-[obligations](../../english-grammar-migration-obligations.md) are part of this
-ticket; re-spell existing tests by their independently justified outcomes.
+Preserve the applicable [inherited witnesses](../../english-grammar-migration-obligations.md)
+and check this family's structures under both roundtrip laws. Standard constraints
+apply as amended by the lexical-analysis decision; targeted Lean changes belong
+here only when needed to settle a changed grammatical constraint.

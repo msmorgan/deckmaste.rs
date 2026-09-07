@@ -1,109 +1,74 @@
-# English grammar workbench and migration
+# English grammar rewrite
 
-Direction: [English grammar design in Lean](decisions/english-lean-design-workbench.md).
-The independent NLP grammar review is complete. Its
-[production correspondence](english-grammar-design.md#production-correspondence)
-pins migration inside `english_v2`, retaining the Earley engine and declaration
-compiler with the named extensions. English and Semantics remain separate
-projects with no interaction. Lean execution or production consumption is not
-required.
+Current authority: [independent lexical analysis and retained readings](decisions/english-lexical-analysis.md).
+Keep bidirectional construction declarations; separate declared morphology from
+construction-directed scanning and grammatical admission from full AST products.
+The primary parse result retains all grammatical readings. English and Semantics
+remain independent projects. The `needs:` graph is the scheduling authority.
 
-## Sequence
+## Upcoming work
 
-The ticket `needs:` graph is the scheduling authority. This map explains the
-work; it is not a second status board. The earlier model, composition, document,
-selection and review tickets remain historical evidence.
+| Ticket | Deliverable |
+|---|---|
+| [english-v2-lexical-analysis](tickets/planned/english-v2-lexical-analysis.md) | Independent analyses from declared vocabulary/default morphology/explicit replacing overrides; token/source contract and early supported-corpus word inventory. |
+| [english-lean-lexical-ambiguity](tickets/planned/english-lean-lexical-ambiguity.md) | Connect lexical forms to admission, retain readings across classes, and challenge correlated alternatives and relational roundtripping. Runs alongside lexical/Rust work. |
+| [english-v2-feature-chart-integration](tickets/planned/english-v2-feature-chart-integration.md) | Adapt the existing engine/compiler to grammatical summaries, packed alternatives and on-demand AST extraction; exercise both roundtrip laws and actual all-readings consumers. |
+| [english-v2-grammar-family-breadth](tickets/planned/english-v2-grammar-family-breadth.md) | Consumed positive/exclusion and cross-family witnesses for every planned family through the new interfaces. |
+| [english-v2-grammar-migration-close](tickets/planned/english-v2-grammar-migration-close.md) | Consolidate the replaced paths, reconcile evidence and owners, and make the revisable long-tail handoff judgment. |
+| [english-v2-stage-5-grammar-buildout-14-10](tickets/planned/english-v2-stage-5-grammar-buildout-14-10.md) | Eventual supported-corpus completion through coherent residual work. The handoff is not completion of this umbrella. |
 
-The 2026-09-06 delivery decision is to establish breadth across the planned
-grammar before finishing individual family inventories.
-`english-v2-grammar-family-breadth` supplies the first consumed shared shape,
-positive/exclusion witnesses and cross-family compositions for every family.
-It depends on the reviewed design and frame compiler, rather than completion
-of the active verb-frame ticket. The active claim retains all of its remaining
-acceptance; other agents' WIP claims are unchanged.
+[english-v2-grammar-lexical-source](tickets/planned/english-v2-grammar-lexical-source.md)
+completes the vocabulary/source inventory after lexical analysis, independently
+of the grammar-family schedule. [english-lean-proof-gaps](tickets/planned/english-lean-proof-gaps.md)
+retains the remaining model repairs after accounting for the focused Lean work.
+Neither inventory exhaustion nor every formal residual blocks the breadth
+experiment. Concrete missing interfaces are repaired where they are needed.
 
-The family completion tickets then consume these interfaces independently.
-Their existing consolidation, removal, source and correspondence requirements
-remain in force. `english-lean-proof-gaps` remains the next formal-model task
-and a required migration-close dependency; it is not a blanket prerequisite
-for trying every production family.
+## Family completion
 
-| Implementation ticket | Replacement unit | Shared interface consumed |
-|---|---|---|
-| `english-v2-grammar-frame-compiler` | Runtime declared frame rules and generated checked sequence | Reviewed migration design |
-| `english-v2-type-line-construction` | Open Type order metadata, declarations and Type Line consumer | Declared order and flat collection |
-| `english-v2-lexeme-owned-verb-frames` | Lexical predicates, grammatical relations, agreement, copular and passive frames | Declared complete/gapped frames |
-| `english-v2-adjective-inventory` | Nominal features, adjective ownership, productive polarity/type modifiers | Shared NP/Nominal and adjective distribution |
-| `english-v2-subordinate-clause` | Shared dependent-clause bodies and selected forms | Clause/VP form and voice |
-| `english-v2-remaining-prepositions` | PP distribution, independent licenses and selected-role preemption | Nominal and dependent-clause complements |
-| `english-v2-relative-clause` | Extraction, relative forms and finite/wh clause Complements | Category/relation Gaps and clause boundaries |
-| `english-v2-scope-device-cross-host-gates` | Coordination, evidenced selection and correlated scope alternatives | Stable hosts, boundaries and complete alternatives |
-| `english-v2-grammar-measure-phrases` | Measures, arithmetic, comparison, degree and distribution | Nominal features and declared frame Complements |
-| `english-v2-grammar-document` | Textual collections, costs, keyword hosts, reminders and templates | Shared body, nominal hosts and textual boundaries |
-| `english-v2-grammar-context-ellipsis` | Recoverability, gapping and shared dependents | Body context hooks and VP form/voice summaries |
-| `english-v2-grammar-lexical-source` | Lexical populations and source-recipe enforcement | Declaration recipes and actual consumers |
-| `english-v2-target-verb-subject-selection` | Target Verb, marker rivalry and Infectious Curse | Shared frames, relatives and explicit rivalry decision |
+These tickets consume breadth. They retain linguistic requirements, authentic
+witnesses and consolidation work; they do not prescribe the old scanner,
+hoisted-AST representation or uniqueness policy.
 
-`english-v2-grammar-migration-close` depends on the breadth milestone, proof-gap
-corrections and every full implementation ticket. It validates the agreed
-design and decides whether to resume `english-v2-stage-5-grammar-buildout-14-10`
-from representative residuals. Breadth alone does not establish long-tail
-readiness. A demonstrated general omission gets a named migration task and an
-added closure dependency.
+| Ticket | Responsibility |
+|---|---|
+| `english-v2-lexeme-owned-verb-frames` | Lexical predicates, shared relations, agreement, copular/passive frames and remaining codec replacement. |
+| `english-v2-adjective-inventory` | Nominal/countability features and adjective/participle distribution. |
+| `english-v2-subordinate-clause` | Shared dependent clauses and selected forms. |
+| `english-v2-remaining-prepositions` | PP distributions, grammatical Complement selection and attachment alternatives. |
+| `english-v2-relative-clause` | Relative forms, extraction, category/relation gaps and boundaries. |
+| `english-v2-scope-device-cross-host-gates` | Coordination and exact correlated readings across hosts; optional preference explanations. |
+| `english-v2-grammar-measure-phrases` | Measures, arithmetic, comparison, degree and distribution. |
+| `english-v2-grammar-document` | Textual/cost/keyword collections, reminders, quotations and templates. |
+| `english-v2-grammar-context-ellipsis` | Recoverability and shared/omitted dependents in real document contexts. |
+| `english-v2-type-line-construction` | Open Type ordering, Type Line declarations and consumer. |
+| `english-v2-target-verb-subject-selection` | Target Verb/marker/Noun distinctions and Infectious Curse; retain multiple readings where grammatical. |
 
-Establish and exercise shared interfaces before completing every lexical form
-or rare surface in their owners. The first implementations must be real
-production consumers under the existing parser and generated-builder contract.
-Cross-family examples expose interface defects early; corpus subsets identify
-missing shared structure and verify repairs. Independent graph branches may
-still touch the same `constructions!` source, so claimants coordinate edits
-through the normal workspace lifecycle.
+## Salvage and ticket disposition
 
-## Obligations and retired tickets
+The reviewed [family/source map](english-grammar-design.md#whole-intended-grammar-and-source-map)
+and [obligation register](english-grammar-migration-obligations.md) remain the
+starting evidence. Existing frame-compiler landings are reusable capability,
+not proof that the new lexical/admission interface exists. Archived Rust work
+is unfinished and does not establish production breadth. Restored Lean witnesses
+retain their stated limits, including the still-admitted crossed word forms.
 
-The [obligation register](english-grammar-migration-obligations.md) preserves
-all named re-coverage identities, the eleven passive-temporal misselections,
-Class C/D, wrapper-overlap and frame-boundary challenges, and every historical
-fog row. Its final table maps the ten merged ticket identities to their live
-replacements. The other eight inherited tickets were rewritten around these
-replacement units; five new tickets cover previously missing owners.
+Three new tickets introduce lexical analysis, chart integration and focused
+Lean changes. Existing breadth, frame/scope/source/Target Verb, model residual
+and closure tickets are refocused. The register records eighteen retired
+legacy tickets, their retained witnesses and replacement owners. Retirements
+are cancellations/merges, not falsely completed implementations. Other legacy
+instrumentation and semantic-consumer tickets remain outside this parser's
+readiness graph; they do not authorize game-semantic admission constraints.
 
-The cost-family merge has two responsibilities: document cost collections in
-`english-v2-grammar-document`, ordinary cost comparisons in
-`english-v2-grammar-measure-phrases`. Their shared interfaces are established
-in the breadth milestone and checked together at closure. Keyword-subject
-modifiers consume the shared nominal/relative interface in document hosts. Type-line
-schema, declaration and consumer now land together, resolving the prior STOP.
-Historical semantic/legacy macro tickets are not prerequisites for NLP forms.
-
-WIP tickets and claims were excluded from the reorganization. In particular,
-`english-v2-keyword-action-verb-inflections` remains with its owner. Inspect its
-integrated outcome at the frame/morphology slice; do not duplicate or edit its
-WIP. Done-ticket bodies retain historical evidence and are not reopened.
-
-## Limits and review discipline
-
-`Analysis.Reading` is the formal entry point: composition, features and
-extraction checks before selection. Bounded formal extensions belong to the
-slice that needs them. Compiler fixtures and Rust structural tests establish
-production correspondence; resemblance to Lean is not a Rust proof.
-
-Keep the hoisted representative and derived metadata. Complete correlated site
-assignments and frame anchorings must recover exactly the admitted alternatives
-on the finite migration witnesses. A first-class AST node containing alternative
-subtrees is not scheduled. This is the disposition of the former re-layering
-investigation, whose historical link is retained below.
-
-Two engineering costs need measurement: runtime frame preparation and growth of
-complete scope-assignment rows. The Target Verb has a separate known design
-risk: its marker/verb rivalry may remain grammatical. A surviving non-scope tie
-requires a concrete ruling; a game-defined Subject whitelist is not permitted.
-These limits do not reopen the completed whole-grammar review.
+WIP tickets and claims are untouched. In particular,
+`english-v2-keyword-action-verb-inflections` remains with its owner. Assess its
+integrated morphology data against the shared lexical interface; do not create
+a second implementation of its active work or edit its claim. Done-ticket
+bodies remain historical landing evidence.
 
 ## The former re-layering wayfinder
 
-The production decision is recorded in
-[admission, selection and retained alternatives](english-grammar-design.md#admission-selection-and-retained-alternatives).
-It retains the derived AST strategy while adding the information needed by the
-actual interaction witnesses. Historical references to this anchor resolve
-here; they do not prescribe the former Group R schedule.
+The [current reading contract](decisions/english-lexical-analysis.md#chart-admission-and-ambiguity)
+supersedes the former Group R/hoisted-representative schedule. Local scope
+classes may organize readings; all valid classes coexist in the primary result.

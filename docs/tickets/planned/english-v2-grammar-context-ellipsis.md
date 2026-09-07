@@ -1,11 +1,10 @@
 ---
-needs: [english-v2-grammar-migration-design, english-v2-grammar-family-breadth]
+needs: [english-v2-grammar-family-breadth]
 ---
 # Implement grammatical recoverability, gapping and shared dependents
 
-The first shared interface is supplied by `english-v2-grammar-family-breadth`.
-Complete the acceptance below against those interfaces; other families need
-not finish their inventories before this work begins.
+Complete this family on the shared breadth interfaces under
+[the lexical-analysis contract](../../decisions/english-lexical-analysis.md).
 
 Thread grammatical recoverability through the migrated paragraph/body
 constructors. Earlier overt VP form/voice summaries are available to later
@@ -15,12 +14,14 @@ Keep this context separate from external card-name `ParseContext` and from
 all Game Model state. Do not recursively embed an antecedent tree in an
 omission or add an unconstrained optional predicate.
 
-Extend the checked `EllipsisInteractions` fragment for intra-sentence
+Use the checked `EllipsisInteractions` fragment to refine intra-sentence
 recoverability, nominal ellipsis and omitted destinations. Distinguish a
 preceding-context omission from explicit shared Gaps discharged by following
 material. Implement gapped repeated frame portions, right-node raising/shared
 heads, shared determiners/prepositions and their exact retained alternatives
-through the existing scope device, not a second packing mechanism.
+through the shared feature-aware packed forest. Preserve grammatical feature
+correlations and alternative structures without requiring the old hoisted AST
+or redundant ownership bookkeeping.
 
 Acceptance owns the three retired destination identities: Cavalier of Thorns,
 Animal Magnetism and Genesis Ultimatum, preserving their distinct destination
@@ -28,12 +29,13 @@ NPs. Include `If you can't, ...`, `If you don't, ...`, `Do this.`, grammatical
 resubjected sequencing, former/latter anaphoric forms, nominal omission,
 shared heads and mismatched-gap exclusions. Preserve Browbeat and Renegade
 Doppelganger context examples from the review, wrong-form/voice/future/quoted
-antecedent negatives, and the nested-scope distinction. Extend formal
-witnesses before relying on each new omission distribution; no proof of game
+antecedent negatives, and the nested-scope distinction. Extend targeted formal
+witnesses where they resolve an omission-distribution question; no proof of game
 reference resolution or complete discourse adequacy is requested.
 Source evidence: style-guide §5 “Names, self-reference, pronouns, and anaphora”
 and §10 “Logic, choice, and coordination”.
 
-Standard constraints apply. Production correspondence and the applicable
-[obligations](../../english-grammar-migration-obligations.md) are part of this
-ticket; re-spell existing tests by their independently justified outcomes.
+Preserve the applicable [inherited witnesses](../../english-grammar-migration-obligations.md)
+and check this family's structures under both roundtrip laws. Standard constraints
+apply as amended by the lexical-analysis decision; targeted Lean changes belong
+here only when needed to settle a changed grammatical constraint.

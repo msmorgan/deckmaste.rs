@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-lean-lexical-ambiguity]
 ---
 # Close the vacuous and unanchored obligations in the English grammar model
 
@@ -13,13 +13,22 @@ to close with real model content, not a statement to narrow. The
 [decision](../../decisions/english-lean-design-workbench.md) still govern;
 Lean proofs establish properties of this model only.
 
+The [lexical/ambiguity ticket](english-lean-lexical-ambiguity.md) owns the new
+admission interface, all-readings contract and non-Cartesian grammatical
+witness. Record the exact obligations it actually discharges here; do not
+repeat that implementation or assume every old gap disappeared. This residual
+work is required for honest model claims, but is not a blanket prerequisite
+to production breadth or its long-tail handoff.
+
 Required:
 
 1. **Tense.** The design map's row 1 lists clause tense and the glossary
    makes Tense distinct from Finiteness and Inflectional Form, but the model
-   has no `Tense` and no limitation names its absence. Either add the
-   judgment with an inhabitant and an exclusion, or record in the design
-   document the decision that Oracle English needs none and why.
+   has no `Tense` and no limitation names its absence. Add or connect the
+   grammatical judgment with an inhabitant and exclusion, preserving distinct
+   Tense, Finiteness and Inflectional Form. Any narrower model scope must be
+   stated honestly; declaring Oracle clauses tense-neutral to avoid the work
+   is not an accepted decision.
 2. **Flat coordination is missing, not optional.** Every coordinate
    production is binary, so an Oxford-comma list ("A, B, and C") has no
    derivation at all: no witness realizes a comma list, and the only
@@ -35,9 +44,11 @@ Required:
    three-child node no production can build.
 3. **Genitive countability.** `DeterminerUse.genitive` leaves `use`
    unconstrained, so `genitive_preserves_countability` and its negation
-   share a proof. Give the constructor a premise (the possessor's nominal
-   use determines the head's), rename the theorem to what it proves, and add
-   a genitive `Derives`/`Realizes` witness; there is none today.
+   share a proof. Investigate and express the head/Determiner
+   countability constraint, rename the theorem to what it proves, and add a
+   genitive `Derives`/`Realizes` witness. The earlier prescribed premise that
+   a possessor determines the possessed head's countability is withdrawn;
+   preserve the head's declared uses with actual grammatical evidence.
 4. **Joint-alternative law.** `Scope.joint` is inhabited only over
    `Bool × Bool`; the nested-mobile witness that landed for it packs the full
    four-reading Cartesian product, the case where per-mobile projection is
@@ -58,14 +69,15 @@ Required:
    delete the three theorems and record source normalization as a
    production-only obligation.
 
-In scope with the above, no separate tickets: `Analysis.no_feature_bypass`
+Residual audit, accounting for repairs already landed by the lexical/ambiguity ticket: `Analysis.no_feature_bypass`
 never uses its packing hypothesis; five packing witnesses use a `Unit` key so
 their packing half is inert, and `anchor_shape_separate` /
 `same_surface_separate` pin the key to the discriminating field; `Analysis.key`
 has no proved lexeme/host/anchor invariant while the equal-text ruling is proved
 only for `GrammaticalScope`; the superseded `Claims`/`Policy` layer is never
 instantiated on syntax; `FrameScope` (model) imports `FrameInteractions`
-(witnesses); `chapter` and `dieDashRow` are one rule twice and force a tie;
+(witnesses); `chapter` and `dieDashRow` are one rule twice and create duplicate
+derivations, a defect distinct from valid ambiguity;
 `attributive`, `bareMass`, `Placement.before` and `ScopeMove.auxiliary` have no
 witness; `SharingInteractions` states no exclusion. Naming: `Complement`,
 `quantity`/`quantify`, three unrelated public `Reading` types, and the
@@ -73,7 +85,9 @@ selection/packing vocabulary missing from the Oracle English glossary — amend
 the glossary through the domain-modeling skill, never rename an entry to fit
 an identifier.
 
-Acceptance: each of the six items resolved by model change with a witness
-that inspects structure, or by a recorded design decision; no theorem
+Acceptance: every numbered item and every item in the residual audit has a
+named disposition: repaired with structural evidence, superseded by a justified
+current decision, or transferred to an explicit live owner with its obligation
+intact. Transferred work is not reported as a repaired model claim; no theorem
 removed without its replacement named; `english/scripts/build` green and the
 axiom audit unchanged. Standard constraints apply.

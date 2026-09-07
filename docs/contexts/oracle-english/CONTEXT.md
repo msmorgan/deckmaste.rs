@@ -41,6 +41,24 @@ object has [CR#105.2a..105.2c], and neither *multicolored* nor *colorless* is
 itself a Color [CR#105.4].
 _Avoid_: Color for the lexical Category
 
+**Part of Speech**:
+A lexical Category distinguished by grammatical distribution, such as noun,
+verb or adjective.
+
+**Lexical Analysis**:
+An identification of an expression as a Word Form of a Lexeme, together with
+its lexical Category and applicable grammatical features.
+
+**Feature Bundle**:
+A correlated collection of grammatical feature values describing one analysis.
+
+**Reading**:
+A grammatical analysis of an expression, preserving its lexical identities,
+constituent structure and grammatical distinctions.
+
+**Ambiguity**:
+The availability of more than one Reading of the same expression.
+
 **Realization**:
 The relationship by which an abstract grammatical value is expressed in a
 surface form.

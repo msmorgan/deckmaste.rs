@@ -1,34 +1,33 @@
 ---
-needs: [english-v2-grammar-family-breadth, english-lean-proof-gaps, english-v2-grammar-frame-compiler, english-v2-lexeme-owned-verb-frames, english-v2-adjective-inventory, english-v2-subordinate-clause, english-v2-remaining-prepositions, english-v2-scope-device-cross-host-gates, english-v2-relative-clause, english-v2-grammar-measure-phrases, english-v2-grammar-document, english-v2-grammar-context-ellipsis, english-v2-type-line-construction, english-v2-grammar-lexical-source, english-v2-target-verb-subject-selection]
+needs: [english-v2-grammar-family-breadth]
 ---
-# Validate the migrated grammar and resume long-tail work
+# Consolidate the replacement and assess the long-tail handoff
 
-Close the production migration under the [Lean design decision](../../decisions/english-lean-design-workbench.md).
-Its direct dependencies retain the full migration implementation and proof
-obligations in the
-[wayfinder](../../english-grammar-wayfinder.md). Check every row of the
-[obligation register](../../english-grammar-migration-obligations.md), including
-formerly covered wrong analyses and the separately gated Target Verb rivalry.
+Assess the shared production grammar under
+[the accepted decision](../../decisions/english-lexical-analysis.md#iteration-and-evidence).
+Breadth and its integrated lexical/admission/ambiguity contracts are required;
+finishing every family inventory and all independent Lean proof repairs is not.
+The [wayfinder](../../english-grammar-wayfinder.md) lists their continuing owners.
 
-Check the resulting Rust grammar against the reviewed formal model and its
-named structural witnesses. Run the production structural/coverage checks and
-the changed dependency closure as required by the landing contract. Preserve
-and account for every routed regression obligation. Identify superseded
-constructions, adapters, tail codecs and structural-specificity arbitration still present and finish their replacement. Verify
-that scoped alternatives reconstruct the exact retained readings on the named
-finite witnesses, including correlated sites and frame anchorings. No task is
-complete just because coverage stayed constant while its feature was withheld.
+Consolidate superseded scanning, eager AST admission, destructive selection,
+codecs and adapters on the replaced paths. Check the actual emitted consumers,
+both roundtrip laws and lexical/structural traversal. Every retained reading
+must be grammatical; a correct reading beside a wrong one is still a defect.
+Run the standard refreshed final corpus accounting and report no/one/multiple
+readings and performance separately from optional preference.
 
-Assess representative remaining failures and record whether the existing
-long-tail loop is useful again. This is a revisable engineering judgment, not
-a proof that no general grammar is missing. A demonstrated missing foundational
-capability gets a design/migration ticket and an added dependency here; a local
-residue gets an owner in the refreshed tail register. Classify cases that were
-previously reported as covered but selected the wrong structure too.
+Reconcile [the obligation register](../../english-grammar-migration-obligations.md):
+each row has evidence of its implemented outcome or a live completion owner,
+including wrong-analysis retirements and re-coverage owed. Inspect representative
+residuals grouped by grammatical/lexical cause, rather than assuming distinct
+sentences imply exceptional grammar. Record whether coherent long-tail work is
+now productive, and which general omissions still need shared design changes.
 
-Acceptance: the agreed migration is implemented and validated, the obligation
-register has no silently lost entries, and the wayfinder records the return to
-the long-tail phase with named limitations. No minimum coverage gain, global
-uniqueness theorem, or exhaustive classification of all failures is required
-to resume. The tail umbrella retains the eventual corpus-completion target.
+Acceptance: the replaced paths are consolidated, losses and invalid analyses
+are accounted for, every residual obligation has an owner, and the wayfinder
+records the revisable handoff decision with measured limitations. If shared
+interfaces remain unusable, report the concrete blocker and route its repair;
+this ticket does not close merely because downstream tickets exist. No fixed
+coverage percentage, uniqueness theorem or exhaustive residual census is
+required. Completing this ticket does not complete the overall English effort.
 Standard constraints apply.
