@@ -236,3 +236,18 @@ converter that reserialises a sub-value can trust it, and the census names
 every position worth converting. The cheap oracle the fourth landing leaned on
 is confirmed still cheap — `lean-check` warm is 0.8 s and `lean/Generated`
 byte-identity is a `diff -r`.
+
+## Ruling (coordinator, 2026-09-07)
+
+Load-and-reserialise was the means, not the end, and it contradicts the
+macro-only rule because reading expands. Retired for cards and bodies. The
+end stands: every card and family body spells bare embeds, bare numerals,
+and positional one-field applications wherever the reader reads them back
+unambiguously. The tool is a source-to-source converter that walks each
+file's value type-directed (the schema walk the third and fourth dialect
+landings built) and reserialises only macro-free sub-values through the
+writer, leaving macro invocations, comments, and layout of everything else
+untouched. Positional writing applies to one-field constructor and macro
+applications (`colorIs(Red)`, `hasType(Creature)`), never to multi-field
+ones, so no binder name the Lean contract relies on disappears from a
+multi-field site. Scratchpad only, deleted after. Oracles unchanged.
