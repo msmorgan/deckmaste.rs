@@ -254,6 +254,62 @@ is hand-authored RON first; translation from `deckmaste_english_v2`'s
 `OracleText` is a later crate (`semantics-v2-english-translation`), with
 RON as the cached form of that translation.
 
+The builtin macro families live at `plugins_v2/builtin/macros/<family>/`,
+alongside `macros/meta/`, whose declaration meta-macros the family files
+invoke. They were under `macros/stubs/` while they were bodyless; they are
+declarations now, and `read_builtin_v2` reads the family directories and
+skips `meta/`.
+
+### 11.1 What a card may write
+
+The dialect is what the Lean bench writes, spelled in RON. Four rulings
+(2026-09-07, `plugins-v2-dialect`), each a reader rule rather than a
+per-type convenience:
+
+- **Unknown fields are refused.** A named argument a constructor does not
+  declare is an error naming both, never a skipped key. serde's default —
+  ignore what you do not recognize — read a misspelling as an omission, so
+  Fading and Impending wrote `amount:` at a `quantity` field and got a
+  count-less removal, and `conferral:` arguments left over from a retired
+  signature passed unnoticed. `MacroSet::denying_unknown_fields` turns the
+  check on; v2's macro set does.
+- **A constructor that carries only its payload may be left unwritten.** A
+  constructor with exactly one field whose type is another syntax type is an
+  INJECTION: it adds no information, so the reader supplies it. `Green` at a
+  mana-symbol position is `Simple(symbol: Specific(color: Of(color: Green)))`,
+  one hop at a time. This is v1's `#[macro_ron(embed)]` rule (see
+  `deckmaste_semantics`'s `mana.rs` for why an untagged fall-through rather
+  than `serde(untagged)`), generalized three ways the mirror needs: the
+  constructor may be a struct variant with a binder name, a type may carry
+  more than one injection, and the fall-through is a source rewrite over a
+  shape registry rather than a `visit_newtype_struct` hop, so a plain
+  `#[derive(Deserialize)]` type takes part. Native dispatch always wins: an
+  identifier the position's own grammar or macro namespace claims is never
+  routed. Where two injections both accept a spelling the reader refuses it,
+  naming both constructors — it does not guess.
+- **A constructor may be applied positionally.** Arguments in the
+  constructor's declared binder order, which is what Lean writes:
+  `Simple(Specific(Of(Green)))`. The order comes from the shape registry the
+  `#[derive(Syntax)]` derive builds from the mirror itself, so the binder
+  names stay the contract with Lean and the mirror keeps its struct fields.
+  Trailing named arguments after positional ones — Lean's
+  `exile x (agent := .you)` — are NOT part of the dialect: RON has no mixed
+  application form, and ron's own value scanner refuses `C(a, b: c)` before
+  any reader hook runs. Write the wholly named form when a binder must be
+  skipped.
+- **A numeral reads at its leaf.** Lean marks `Amount.lit` and
+  `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
+  two `#[macro_ron(numeral)]`. A bare numeral reads at a position's own
+  numeral leaf, or through an injection to a type that has one, so
+  `[2, Green, Blue]` is a mana cost and `power: 3` is an amount.
+
+The shape registry (`macro_ron::ShapeSet`) is built by `#[derive(Syntax)]`,
+whose `register` walks every type its fields name: registering the roots
+registers the mirror's whole reachable graph, so the registry cannot fall
+behind the syntax. It carries no policy of its own — which constructors are
+injections and which are numeral leaves is declared on the mirror, beside the
+Lean constructor each one mirrors.
+
 ## 12. Macro system
 
 `macro_ron` is unchanged: a dumb expander whose `MacroDef<Metadata>` carries
@@ -263,6 +319,16 @@ exist only to disambiguate same-name macros at different usage sites; Lean's
 invoke other macros up to the expander's depth limit; there is no
 self-recursion. §7's discipline (no default arguments, one macro per phrase
 shape, term-for-term expansion) is unchanged.
+
+`macro_ron` gains the reader rules §11.1 records — the unknown-field refusal,
+injections, positional application, numeral leaves — all off by default and
+all consumer-declared: a `MacroSet` with no shapes registered and no
+`denying_unknown_fields` reads exactly as it did before. What a macro's own
+BODY may write is what a card may write, because a body is read at the
+position it expands to and goes through the same reader. A macro's own
+argument list is unaffected: a signature is positional or named as it always
+was, and `read_args` checks argument names against the signature rather than
+against a constructor's binders.
 
 ## 13. Gate and bench
 
