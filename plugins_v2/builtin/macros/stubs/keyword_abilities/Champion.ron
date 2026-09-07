@@ -1,100 +1,17 @@
 KeywordAbility(
     name: "Champion",
-    // `Quality`, not `Subject`: the printed argument ("an Elemental") is woven into
-    // "another [object] you control", so the slot is a predicate. The macro-parameter
-    // kind `Subject` is a `NounPhrase`; `KeywordParam::Subject` still carries the
-    // predicate the registry shape names.
-    params: [Quality],
+    params: [Subject],
     spelling: "champion",
     grammar: FixedKeyword(
         surface: "champion",
     ),
-    // "Champion an [object]" means "When this permanent enters, sacrifice it unless
-    // you exile another [object] you control" and "When this permanent leaves the
-    // battlefield, return the exiled card to the battlefield under its owner's
-    // control." [CR#702.72a]
-    body: Keyword(
-        keyword: "Champion",
-        params: [Quality(predicate: Param(0))],
-        body: [
-            Triggered(
-                event: ZoneChange(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    from: None,
-                    to: Zone(zone: Battlefield, scope: Bare),
-                    observation: After,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: WithContinuation(
-                    policy: Optional(agent: You),
-                    body: Enact(
-                        verb: Action(label: "Exile"),
-                        instruction: Move(
-                            subject: Described(
-                                determiner: A(mode: Unmarked),
-                                predicate: And(
-                                    conjuncts: [
-                                        Param(0),
-                                        HasPossessor(axis: Controller, possessor: You),
-                                        OtherThan(
-                                            anchor: AsMarker(marker: Permanent, subject: This),
-                                        ),
-                                    ],
-                                ),
-                            ),
-                            to: Zone(zone: Exile, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: You,
-                    ),
-                    if_did: None,
-                    if_not: Enact(
-                        verb: Action(label: "Sacrifice"),
-                        instruction: Move(
-                            subject: AsMarker(marker: Permanent, subject: This),
-                            to: Zone(zone: Graveyard, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: You,
-                    ),
-                ),
-            ),
-            Triggered(
-                event: ZoneChange(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
-                    to: None,
-                    observation: Before,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: Move(
-                    // "the exiled card": a linked reference to the ability above
-                    // [CR#607.2a], not an anaphor reaching into another ability.
-                    subject: Described(
-                        determiner: The,
-                        predicate: ExiledWith(source: This),
-                    ),
-                    to: Zone(zone: Battlefield, scope: Bare),
-                    riders: [
-                        Under(
-                            controller: PossessorOf(
-                                axis: Owner,
-                                subject: Pro(reach: Bare, plurality: One, window: Top(depth: 1)),
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-        ],
-    ),
+    // STOP. "Champion an [object]" means "When this permanent enters, sacrifice it
+    // unless you exile another [object] you control" and "When this permanent leaves
+    // the battlefield, return the exiled card to the battlefield under its owner's
+    // control" [CR#702.72a]. The definition weaves the argument into a larger
+    // description, so it must reach a PREDICATE position; the declaration's `Subject`
+    // kind is a `NounPhrase` (english_v2 parses "Enchant creature you control" through
+    // it) and `KeywordParam::Subject` carries a `Predicate`. Nothing converts one to
+    // the other, so the argument cannot be forwarded into the body.
+    body: Keyword(keyword: "Champion", params: [], body: []),
 )

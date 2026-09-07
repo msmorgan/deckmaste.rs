@@ -1,6 +1,6 @@
 KeywordAbility(
     name: "Forecast",
-    params: [],
+    params: [Ability],
     spelling: "forecast",
     grammar: FixedKeyword(
         surface: "forecast",

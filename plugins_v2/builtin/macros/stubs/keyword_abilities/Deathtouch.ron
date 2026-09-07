@@ -5,8 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "deathtouch",
     ),
-    // STOP. "Deathtouch is a static ability" [CR#702.2a] and the entry states the
+    // Settled empty. "Deathtouch is a static ability" [CR#702.2a] and the entry states the
     // state-based destruction and lethal-damage rules [CR#702.2b,702.2c] rather than
     // quoting an expansion, so there is no definition to write.
+    // The entry defines only how the game treats the keyword (ruling 2026-09-07).
     body: Keyword(keyword: "Deathtouch", params: [], body: []),
 )

@@ -23,7 +23,7 @@ keywordFacts =
   , { word := "Lifelink", paramShapes := [NoParam], counterEligible := True, regime := Just AtResolution } defaultKeywordFacts
   , { word := "Ward", paramShapes := [CostParam], paidCost := True, bodied := True } defaultKeywordFacts
   , { word := "Protection", paramShapes := [QualityParam] } defaultKeywordFacts
-  , { word := "Enchant", paramShapes := [QualityParam] } defaultKeywordFacts
+  , { word := "Enchant", paramShapes := [SubjectParam] } defaultKeywordFacts
   , { word := "Equip", paramShapes := [CostParam, CompoundParam QualityHead], paidCost := True } defaultKeywordFacts
   , { word := "Suspend", paramShapes := [CompoundParam NumberHead], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Ascend", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
@@ -49,7 +49,7 @@ keywordFacts =
   , { word := "Warp", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Afterlife", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Boast", paramShapes := [AbilityParam] } defaultKeywordFacts
-  , { word := "Exhaust", paramShapes := [NoParam] } defaultKeywordFacts
+  , { word := "Exhaust", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "PowerUp", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "Affinity", paramShapes := [QualityParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Annihilator", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
@@ -77,7 +77,7 @@ keywordFacts =
   , { word := "Escalate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Fuse", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Escape", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Foretell", paramShapes := [NoParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Foretell", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Bestow", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Disguise", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Mutate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
@@ -115,7 +115,7 @@ keywordFacts =
   , { word := "Bargain", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "BattleCry", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Bloodthirst", paramShapes := [NumberParam] } defaultKeywordFacts
-  , { word := "Champion", paramShapes := [QualityParam] } defaultKeywordFacts
+  , { word := "Champion", paramShapes := [SubjectParam] } defaultKeywordFacts
   , { word := "Cipher", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Compleated", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Conspire", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
@@ -137,7 +137,7 @@ keywordFacts =
   , { word := "Firebending", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Flanking", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "ForMirrodin", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
-  , { word := "Forecast", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
+  , { word := "Forecast", paramShapes := [AbilityParam], onSpellCard := True } defaultKeywordFacts
   , { word := "Fortify", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Frenzy", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Graft", paramShapes := [NumberParam] } defaultKeywordFacts

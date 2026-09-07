@@ -5,8 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "trample",
     ),
-    // STOP. "Trample is a static ability that modifies the rules for assigning an
+    // Settled empty. "Trample is a static ability that modifies the rules for assigning an
     // attacking creature's combat damage" [CR#702.19a]; the entry states the
     // assignment order [CR#702.19b] rather than quoting an expansion.
+    // The entry defines only how the game treats the keyword (ruling 2026-09-07).
     body: Keyword(keyword: "Trample", params: [], body: []),
 )

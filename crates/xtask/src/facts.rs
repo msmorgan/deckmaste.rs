@@ -902,7 +902,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Champion",
-            definition: &[Category::Triggered, Category::Triggered],
             ..D
         },
         Row {

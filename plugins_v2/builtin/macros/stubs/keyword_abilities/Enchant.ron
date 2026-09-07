@@ -1,6 +1,6 @@
 KeywordAbility(
     name: "Enchant",
-    params: [Quality],
+    params: [Subject],
     spelling: "enchant",
     grammar: FixedKeyword(
         surface: "enchant",
@@ -12,7 +12,7 @@ KeywordAbility(
     // to write.
     body: Keyword(
         keyword: "Enchant",
-        params: [Quality(predicate: Param(0))],
+        params: [],
         body: [],
     ),
 )

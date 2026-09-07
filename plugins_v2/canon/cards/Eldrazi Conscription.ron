@@ -10,7 +10,11 @@ SingleFaced(face: (
             Of(host: Enchantment, label: "Aura"),
         ],
         text: [
-            Enchant(HasType(type: Creature)),
+            Keyword(
+                keyword: "Enchant",
+                params: [Subject(predicate: HasType(type: Creature))],
+                body: [],
+            ),
             Static(
                 spec: Conjunction(
                     subject: None,

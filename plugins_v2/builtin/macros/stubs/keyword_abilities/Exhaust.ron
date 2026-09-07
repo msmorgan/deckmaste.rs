@@ -1,6 +1,6 @@
 KeywordAbility(
     name: "Exhaust",
-    params: [],
+    params: [Ability],
     spelling: "exhaust",
     grammar: FixedKeyword(
         surface: "exhaust",
