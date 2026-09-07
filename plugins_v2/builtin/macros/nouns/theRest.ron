@@ -1,0 +1,7 @@
+// "the rest": what a partition left over.
+(
+    name: "theRest",
+    kinds: [NounPhrase],
+    params: {"kind": Kind},
+    body: TheRest(Param(kind), Many),
+)

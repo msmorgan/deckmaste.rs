@@ -1,0 +1,7 @@
+// "<quantity> of <group>": a counted slice of a named group.
+(
+    name: "someOf",
+    kinds: [NounPhrase],
+    params: {"quantity": Quantity, "group": NounPhrase},
+    body: SomeOf(Counted(Param(quantity)), None, Param(group)),
+)

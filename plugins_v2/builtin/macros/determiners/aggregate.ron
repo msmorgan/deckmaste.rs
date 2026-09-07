@@ -1,0 +1,7 @@
+// "the greatest/least/total <axis> among <p>".
+(
+    name: "aggregate",
+    kinds: [Amount],
+    params: {"op": AggregateOp, "axis": ProjAxis, "p": Predicate},
+    body: Aggregate(Param(op), Param(axis), bare(p: Param(p))),
+)

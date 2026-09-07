@@ -1,0 +1,8 @@
+// A bare keyword ability: the name alone, with no parameters and no
+// expansion written out [CR#702.1].
+(
+    name: "keyword",
+    kinds: [Ability],
+    params: {"label": KeywordLabel},
+    body: Keyword(Param(label), [], []),
+)

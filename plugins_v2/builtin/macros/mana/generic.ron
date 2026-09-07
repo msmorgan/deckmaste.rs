@@ -1,0 +1,7 @@
+// "{N}": a numerical, generic mana symbol [CR#107.4b].
+(
+    name: "generic",
+    kinds: [ManaSymbol],
+    params: {"amount": Nat},
+    body: Simple(Generic(Param(amount))),
+)

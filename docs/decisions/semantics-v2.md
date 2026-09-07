@@ -390,7 +390,7 @@ against a constructor's binders.
 ### 12.1 The helper macro layer
 
 `lean/Semantics/Macros.lean`'s 409 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 279 of them are declarations under
+writes over the constructor basis. 306 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `counters`, `instructions`, `events`,
@@ -403,29 +403,21 @@ element type, v1's convention (`Abilities` for `Vec<Ability>`); a Lean
 signature writes. `lean-macros-from-ron` generates `Macros.lean` from these
 and around the rest.
 
-The other 130 stay Lean-only, in seven buckets. The first is a STOP, not a
-classification: it wants a ruling.
+The 29 that were blocked because their name is a constructor of their own kind
+are unblocked by §11's case rule and 27 of them ported here: Lean's `.draw` /
+`draw` distinction is now RON's `Draw` / `draw`, so an alias macro is an
+ordinary declaration. The other two of the 29, `shuffle` and `vote`, are the
+next bucket — their keyword-action declarations already own the identity, with
+an identity body that is exactly what the Lean macro expands to.
 
-- **Its name is a constructor of its own kind (29).** Lean's leading dot
-  separates `.draw` from `draw`; RON has no such mark, and native dispatch
-  takes the name, so the declaration would load (the identity exemption in
-  `deckmaste_semantics_v2::reader` covers it — its body's head is its own
-  name) and never be invocable. These are the macros that ARE a constructor
-  with defaults filled in: `activated`, `aggregate`, `castBy`, `choose`,
-  `chosenNumber`, `chosenPlayer`, `countOf`, `counterEvent`, `delay`, `doIf`,
-  `draw`, `flipCoins`, `flipsCoin`, `generic`, `happened`, `happenedTo`,
-  `keyword`, `library`, `move`, `ofChosen`, `removeCounters`, `rollDice`,
-  `shiftResult`, `shuffle`, `someOf`, `theRest`, `tokensCreated`, `triggered`,
-  `vote`. Until a ruling gives the dialect a mark of its own, §11.1's
-  macro-only card refusal (Lean's `Authoring.Form.onlyMacros`) cannot be
-  turned on: a card that may write only macros needs a macro for every
-  constructor, and these are the ones with no reachable spelling.
-- **A spelled declaration already owns the identity (15).** The keyword
+The other 103 stay Lean-only, in six buckets.
+
+- **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,
   `exile`, `fight`, `flying`, `flyingCounter`, `levelUp`, `mill`,
-  `proliferate`, `regenerate`, `sacrifice`, `tap`, `transform`, `untap`. A
-  ported body that calls one of these calls the DECLARATION, under its
-  declaration's positional signature.
+  `proliferate`, `regenerate`, `sacrifice`, `shuffle`, `tap`, `transform`,
+  `untap`, `vote`. A ported body that calls one of these calls the
+  DECLARATION, under its declaration's positional signature.
 - **It calls a `Primitives.*` helper (28).** `Semantics.Macros.Primitives`
   holds hand-written macros beside the constructor wrappers
   `declare_semantic_primitives` generates; a wrapper is the constructor and
@@ -448,7 +440,9 @@ classification: it wants a ruling.
   `scaledMana`. These are routed to
   `semantics-v2-macro-capture-and-plurality`.
 - **It calls one of the above (28).** A macro that does not port takes its
-  callers with it: `after`, `at_`, `bushido`, `bushidoExpansion`,
+  callers with it. Some of these were blocked only by the 27 that have now
+  ported and are available to a later port; the bucket is not re-derived here,
+  because deciding it needs the converter this landing did not run: `after`, `at_`, `bushido`, `bushidoExpansion`,
   `cumulativeUpkeep`, `cycling`, `cyclingExpansion`, `fateseal`, `forEach`,
   `fullParty`, `fullPartyOf`, `get`, `getsBase`, `getsPt`, `levelBand`,
   `loseAllCounters`, `party`, `partySize`, `partySizeOf`, `prototypeAlt`,
@@ -459,6 +453,12 @@ classification: it wants a ruling.
   `partyRoles`, `stat`.
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
+
+A binder Lean declares `Option T` with a `:= none` default takes the param
+type `Any`, not `T`: a param type validates the DEFAULT as well as the
+argument, and `None` is not a `T`. Four ported declarations carried
+`Default(NounPhrase, None)` and so could never be invoked without passing the
+binder they defaulted; `every_ported_alias_expands` is what caught it.
 
 Every mirror type a ported signature names is a registered param type
 (`deckmaste_semantics_v2::ron::param_types`), and every position a ported

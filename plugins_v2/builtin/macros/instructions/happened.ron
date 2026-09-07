@@ -1,0 +1,7 @@
+// "<who> <event> <lookback>" as a condition.
+(
+    name: "happened",
+    kinds: [Condition],
+    params: {"event": GameEvent, "who": NounPhrase, "lookback": Lookback},
+    body: Happened(Param(who), Mk(Param(event), Param(lookback))),
+)

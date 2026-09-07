@@ -1,0 +1,7 @@
+// "if <condition>, <instruction>", with no else branch.
+(
+    name: "doIf",
+    kinds: [Instruction],
+    params: {"condition": Condition, "instruction": Instruction},
+    body: DoIf(Param(condition), Param(instruction), None),
+)

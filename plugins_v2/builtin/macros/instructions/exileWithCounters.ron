@@ -2,6 +2,6 @@
 (
     name: "exileWithCounters",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "amount": Amount, "kind": CounterKind, "agent": Default(NounPhrase, None)},
+    params: {"subject": NounPhrase, "amount": Amount, "kind": CounterKind, "agent": Default(Any, None)},
     body: Enact(verb: Action(label: "Exile"), instruction: Move(Param(subject), exileZone, [WithCounters(Param(amount), Printed(kind: Param(kind)), Fresh)]), agent: Param(agent)),
 )

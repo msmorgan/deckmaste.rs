@@ -1,0 +1,7 @@
+// "<event> <lookback>" as a predicate of what it happened to.
+(
+    name: "happenedTo",
+    kinds: [Predicate],
+    params: {"event": GameEvent, "lookback": Lookback},
+    body: HappenedTo(Mk(Param(event), Param(lookback))),
+)

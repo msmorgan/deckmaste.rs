@@ -1,0 +1,7 @@
+// "<agent> draws <amount> card(s)" [CR#121.1].
+(
+    name: "draw",
+    kinds: [Instruction],
+    params: {"amount": Amount, "agent": Default(NounPhrase, You)},
+    body: Draw(Param(amount), Param(agent)),
+)

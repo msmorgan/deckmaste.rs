@@ -1,0 +1,7 @@
+// "<agent> flips <count> coin(s)" [CR#705.1].
+(
+    name: "flipCoins",
+    kinds: [Instruction],
+    params: {"count": Nat, "agent": Default(NounPhrase, You)},
+    body: FlipCoins(Count(Lit(Param(count))), Param(agent)),
+)

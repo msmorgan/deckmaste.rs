@@ -1,0 +1,7 @@
+// "the number of <p>": how many the predicate describes.
+(
+    name: "countOf",
+    kinds: [Amount],
+    params: {"p": Predicate},
+    body: CountOf(bare(p: Param(p))),
+)

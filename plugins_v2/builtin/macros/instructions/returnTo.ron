@@ -2,6 +2,6 @@
 (
     name: "returnTo",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "destination": ZoneExpr, "riders": TokenRiders, "agent": Default(NounPhrase, None)},
+    params: {"subject": NounPhrase, "destination": ZoneExpr, "riders": TokenRiders, "agent": Default(Any, None)},
     body: Enact(verb: Core(deed: Return), instruction: Move(Param(subject), Param(destination), Param(riders)), agent: Param(agent)),
 )

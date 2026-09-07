@@ -1,0 +1,8 @@
+// "that result is increased/decreased by <amount>": a modifier to a die
+// roll, whose direction rides on the amount [CR#706.2].
+(
+    name: "shiftResult",
+    kinds: [Instruction],
+    params: {"amount": Amount},
+    body: ShiftResult(None, Param(amount)),
+)

@@ -1,0 +1,7 @@
+// "<player> flips a coin" as an event, with no call [CR#705.1].
+(
+    name: "flipsCoin",
+    kinds: [GameEvent],
+    params: {"player": NounPhrase},
+    body: FlipsCoin(Param(player), None),
+)

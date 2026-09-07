@@ -1,0 +1,7 @@
+// "<cost>: <instruction>" [CR#602.1].
+(
+    name: "activated",
+    kinds: [Ability],
+    params: {"cost": Cost, "instruction": Instruction},
+    body: Activated(Param(cost), Param(instruction), None, None, None, None),
+)

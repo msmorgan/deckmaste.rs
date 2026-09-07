@@ -1,0 +1,7 @@
+// "of the chosen <sort>": bearing the quality the choice named.
+(
+    name: "ofChosen",
+    kinds: [Predicate],
+    params: {"sort": QualitySort},
+    body: OfChosen(TheChoice, Param(sort)),
+)

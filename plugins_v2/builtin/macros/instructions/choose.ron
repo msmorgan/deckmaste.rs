@@ -1,0 +1,8 @@
+// "choose <subject>", openly and by the resolving spell's controller
+// unless the caller says otherwise.
+(
+    name: "choose",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "disclosure": Default(Disclosure, Openly), "agent": Default(Any, None)},
+    body: Choose(None, Param(subject), Param(disclosure), None, Param(agent)),
+)

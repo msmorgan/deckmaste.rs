@@ -1,0 +1,7 @@
+// "When/Whenever/At <event>, <instruction>" [CR#603.1].
+(
+    name: "triggered",
+    kinds: [Ability],
+    params: {"event": GameEvent, "instruction": Instruction},
+    body: Triggered(Param(event), [], None, [], None, None, None, Param(instruction)),
+)

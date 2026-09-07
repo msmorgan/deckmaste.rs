@@ -1,0 +1,7 @@
+// "library" [CR#401.1], with no possessor of its own.
+(
+    name: "library",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Zone(Library, Bare),
+)

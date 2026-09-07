@@ -129,3 +129,54 @@ fn every_nullary_helper_expands() {
         "only {expanded} expanded; the scan lost the declarations it reads"
     );
 }
+
+/// Every helper ported from a `Primitives.*` alias, invoked with arguments at
+/// its own kind.
+///
+/// [`every_nullary_helper_expands`] covers the argument-less half; these take
+/// arguments, so nothing else in the corpus reaches them until a card writes
+/// one. A macro that loads but cannot be invoked is the defect shape
+/// `semantics-v2-macro-bodies-keyword-actions` recorded, so each is written
+/// here exactly as a card would write it.
+#[test]
+fn every_ported_alias_expands() {
+    use deckmaste_semantics_v2::abilities::{Ability, Instruction};
+    use deckmaste_semantics_v2::phrase::{Amount, Condition, GameEvent, NounPhrase, Predicate};
+    use deckmaste_semantics_v2::words::ManaSymbol;
+    let builtin = Plugin::load(plugins_root().join("builtin")).expect("the builtin reads");
+    macro_rules! reads {
+        ($($ty:ty : $source:literal),* $(,)?) => {
+            $(builtin
+                .macros
+                .read_str::<$ty>($source)
+                .map(drop)
+                .unwrap_or_else(|error| panic!("{}: {error}", $source));)*
+        };
+    }
+    reads! {
+        Amount: "countOf(p: AnyPlayer)",
+        Amount: "aggregate(op: Sum, axis: Stat(stat: Power), p: AnyPlayer)",
+        Predicate: "ofChosen(sort: Color)",
+        Predicate: "castBy(player: You)",
+        NounPhrase: "theRest(kind: Object)",
+        NounPhrase: "someOf(quantity: Range(low: 1, high: 1), group: You)",
+        ManaSymbol: "generic(amount: 2)",
+        Instruction: "move(subject: You, destination: graveyard)",
+        Instruction: "draw(amount: Lit(value: 1))",
+        Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle(agent: You))",
+        Instruction: "choose(subject: You)",
+        Instruction: "rollDice(count: 1, sides: 20)",
+        Instruction: "flipCoins(count: 1)",
+        GameEvent: "flipsCoin(player: You)",
+        Condition: "happened(event: FlipsCoin(player: You, call: None), who: You, lookback: ThisTurn)",
+        Predicate: "happenedTo(event: FlipsCoin(player: You, call: None), lookback: ThisTurn)",
+        Instruction: "shiftResult(amount: Lit(value: 1))",
+        Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
+        Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(label: \"charge\")), from_: You)",
+        GameEvent: "counterEvent(move: Put, kind: Named(label: \"charge\"), batch: One, subject: You)",
+        GameEvent: "tokensCreated(tokens: You)",
+        Ability: "keyword(label: \"Flying\")",
+        Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
+        Ability: "activated(cost: TapSymbol, instruction: Shuffle(agent: You))",
+    }
+}

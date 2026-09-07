@@ -1,0 +1,7 @@
+// "<tokens> are created" [CR#111.1], by no named agent.
+(
+    name: "tokensCreated",
+    kinds: [GameEvent],
+    params: {"tokens": NounPhrase},
+    body: TokensCreated(Param(tokens), false, None, None),
+)

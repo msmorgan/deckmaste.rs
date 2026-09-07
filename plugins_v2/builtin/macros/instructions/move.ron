@@ -1,0 +1,8 @@
+// "put <subject> into <destination>": the untagged move, which is no
+// destruction and no keyword action of its own [CR#701.8b].
+(
+    name: "move",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "destination": ZoneExpr},
+    body: Move(Param(subject), Param(destination), []),
+)
