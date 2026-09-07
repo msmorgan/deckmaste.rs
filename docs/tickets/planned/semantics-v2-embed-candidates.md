@@ -75,3 +75,81 @@ landing's ruling names it, but NO canon card reaches it: `ColorTerm` is
 reached only from `ManaTypeTerm::OfColor` and `Devotion`, which no canon card
 writes. The second landing flagged it for veto and nothing has claimed it
 since.
+
+## What the writer shows (`plugins-v2-cosmetic-conversion`, 2026-09-07)
+
+The cosmetic conversion did not run — see that ticket's STOP — but its first
+step built the evidence this table was waiting for: the dialect's WRITER, run
+over all 120 cards and pinned lossless by
+`deckmaste_semantics_v2::tests::corpus::every_card_writes_and_reads_back_to_the_same_value`.
+Two censuses, and they answer different questions. Measured on
+`moxlqulsykty`.
+
+### What a card FILE writes today
+
+Every one-field constructor application in the 118 canon + 2 testing card
+sources, by how often it is written. This is what an embed would remove from a
+file, so it is the actionable half.
+
+| Constructor | Payload | Written | Cards | Example |
+| --- | --- | --- | --- | --- |
+| `ManaSymbol::Simple { symbol }` | constructor | 298 | 120 | `Abbey Gargoyles` |
+| `Amount::Lit { value }` | numeral | 237 | 106 | `Abbey Gargoyles` |
+| `ColorOrColorless::Of { color }` | constructor | 170 | 113 | `Abbey Gargoyles` |
+| `SimpleManaSymbol::Specific { color }` | constructor | 170 | 113 | `Abbey Gargoyles` |
+| `SimpleManaSymbol::Generic { amount }` | numeral | 128 | 100 | `Abbey Gargoyles` |
+| `Card::SingleFaced { face }` | struct | 119 | 119 | `Abbey Gargoyles` |
+| `NounPhrase::Target { quantity }` | constructor | 23 | 19 | `Burst of Energy` |
+| `Subtype::Type { type }` | constructor | 18 | 8 | `Arcanum Wings` |
+| `PossessedBy { possessor }` | constructor | 9 | 9 | `Dangerous Wager` |
+| `A { mode }` | constructor | 8 | 7 | `Cirdan the Shipwright` |
+| `Core { deed }` | constructor | 5 | 5 | `Capsize` |
+| `Action { label }` | string | 4 | 4 | `Glimpse of Freedom` |
+| `Printed { name }` | string | 3 | 1 | `Graf Rats` |
+| `ByPlayer { player }` | constructor | 2 | 2 | `Graf Rats` |
+| six more at 1 each | — | 6 | — | `ByCandidate`, `ByKeyword`, `DefendingPlayer`, `OneZone`, `Printed(kind:)`, `Zones` |
+
+1,200 one-field constructor applications across 20 distinct constructors.
+**1,003 of them — 84% — are the five positions ALREADY marked**: the mana
+chain and the two numeral leaves. The writer elides every one, so the cosmetic
+conversion alone removes five sixths of the written-out one-field constructors
+in the corpus without a single new ruling. That is the size of the prize the
+marking decision is being measured against, and it argues for running the
+conversion before marking anything further.
+
+Of the remaining 197, `SingleFaced` is 119 and cannot be an injection as the
+mechanism stands (struct payload), which leaves 78 writes across 14
+constructors as the whole realistic gain from every further marking combined.
+`Target(quantity:)` at 23 is the largest, and the earlier table's rank order
+(`HasType`, `And`, `Mana`, `Static`, `InZone`, `Sequentially`) does NOT survive
+into the source census, because the fourth landing's substitution turned each
+of those into a MACRO invocation: `hasType(type: Creature)` 26,
+`mana(cost: […])` 34, `and(conjuncts: […])` 23, `static(spec: …)` 14,
+`inZone(zone: …)` 13, `up(amount: …)` 15, `sequentially(steps: […])` 11 — 176
+named one-field macro invocations in total, across 24 macros. So each of those
+rows is now the choice §11.1 already framed: an embed there buys a second
+spelling for something the alias macro already spells. **The cheaper win at
+those positions is positional application of the MACRO — `hasType(Creature)`,
+`mana([2, White])` — which the reader already accepts and which needs no
+marking at all.**
+
+### What the WRITER writes
+
+The same scan over the writer's output, which is the expanded constructor
+basis rather than a card file: 1,336 one-field applications across 89 distinct
+constructors. The rank order there is `SingleFaced` 119, `Action(label:)` 89,
+`HasType` 88, `And` 86, `Up` 74, `Static` 66, `Mana` 65, `A(mode:)` 40,
+`Core(deed:)` 36, `Sequentially` 36, `Target` 35, `InZone` 33 — which is the
+census the earlier table reports, and it is NOT evidence about card files. It
+is evidence about what a Lean-facing dump costs, and none of these positions
+suffers in a card while the macro layer stands between the card and the basis.
+Read the first table for the marking decision and this one only for the
+constructor-basis view.
+
+### Still to decide
+
+Everything in "Also decide" above, unchanged: `ColorTerm::Lit` still has no
+canon card reaching it, and the source census confirms it: `Lit(color:)` is
+written 0 times across the 120 card files. The writer's output cannot settle
+it either way, because the mark it is being questioned for is what elides it
+there.
