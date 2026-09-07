@@ -6,10 +6,14 @@
 //! (`docs/decisions/semantics-v2.md` §12); they are not Lean's
 //! `MacroParameters` classes, which are a proof device.
 //!
-//! Which enums are kinds is Lean's own answer: the types its
+//! Which enums are kinds is mostly Lean's own answer: the types its
 //! `attribute [semantic_expression]` lines name, in
-//! `lean/Semantics/{Words,Phrase,Triggers,Abilities}.lean`. A macro may stand
-//! at exactly those positions.
+//! `lean/Semantics/{Words,Phrase,Triggers,Abilities}.lean`. `TurnPart` is
+//! macroable beyond that list, because a whole declaration family registers
+//! at its name and its declarations are turn parts; every such type derives
+//! `SupportsMacros`, and a unit test holds the derive-to-kind mapping total.
+//! Alongside them are the declaration positions in [`DECLARATION_KINDS`],
+//! which are loader tags rather than syntax types.
 
 use macro_ron::Kind;
 use macro_ron::KindSet;
