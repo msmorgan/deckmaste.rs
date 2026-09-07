@@ -9,7 +9,10 @@ import English.Interactions
 import English.DocumentCollections
 import English.ScopeInteractions
 import English.FrameInteractions
+import English.FrameDeclarations
+import English.CaseInteractions
 import English.AgreementInteractions
+import English.WordFormInteractions
 import English.EllipsisInteractions
 
 import English.FrameScope

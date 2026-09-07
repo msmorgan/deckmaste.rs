@@ -45,7 +45,7 @@ theorem both_checked :
       [wide,adjectives,creatures,Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
         Dependencies.exposed,Dependencies.childrenExposed]
   · refine ⟨⟨both_admitted.2,?_⟩,?_⟩
-    · simp [raised,gapped,creatures,Features.Conforms,Features.ChildrenConform,Features.Local,
+    · simp [raised,gapped,creatures,Features.Conforms,Features.Local,
         Features.containsTarget]
     · simp [raised,gapped,creatures,Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
         Dependencies.exposed]

@@ -327,6 +327,10 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Production lexicon (.coordinate .or_ (.nounPhrase left) (.nounPhrase right))
         [.nounPhrase left, .nounPhrase right] (.nounPhrase right)
 
+  | mixedAndOr {left right : Agreement} : left ≠ right →
+      Production lexicon (.coordinate .andOr (.nounPhrase left) (.nounPhrase right))
+        [.nounPhrase left, .nounPhrase right] (.nounPhrase right)
+
 inductive RelativeForm where
   | that_ | zero | fronted | supplementary
   deriving DecidableEq
@@ -386,9 +390,9 @@ def subjectAgreement {Lexeme : Type} (position : SubjectPosition) : Syntax Lexem
   | .node .barePlural _ => some ⟨.third, .plural⟩
   | .node (.coordinate .and_ (.nounPhrase left) (.nounPhrase right)) _ =>
       some (left.additive right)
-  | .node (.coordinate .or_ (.nounPhrase left) (.nounPhrase right)) _ =>
+  | .node (.coordinate .or_ (.nounPhrase left) (.nounPhrase right)) _
+  | .node (.coordinate .andOr (.nounPhrase left) (.nounPhrase right)) _ =>
       some (match position with | .beforeVerb => right | .afterVerb => left)
-  | .node (.coordinate .andOr (.nounPhrase left) _) _ => some left
   | .node (.adjunct _ _ _) [head, _] => subjectAgreement position head
   | _ => none
 

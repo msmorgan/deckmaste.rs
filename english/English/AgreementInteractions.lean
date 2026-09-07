@@ -119,4 +119,62 @@ theorem wrong_proximity_rejected :
     | finite _ _ _ agreement => cases agreement
   exact impossible
 
+def andOr (left right : Agreement) (different : left ≠ right) :
+    Witness Lexeme lexicon (.nounPhrase right) :=
+  ⟨.node (.coordinate .andOr (.nounPhrase left) (.nounPhrase right))
+     [(pronoun left).tree, (pronoun right).tree],
+   (pronoun left).surface ++ (["and/or"] : Surface) ++ (pronoun right).surface,
+   .node (.mixedAndOr different)
+     (.cons (pronoun left).derives (.cons (pronoun right).derives .nil)),
+   .node (.cons (pronoun left).realizes (.cons (pronoun right).realizes .nil)) .coordinate⟩
+
+def andOrClause (left right : Agreement) (different : left ≠ right)
+    (concord : right.concord = .other) : Witness Lexeme lexicon (.clause .finite) :=
+  ⟨.node (.finite right .plain) [(andOr left right different).tree, attack.tree],
+   (andOr left right different).surface ++ attack.surface,
+   .finite (andOr left right different).derives attack.derives (.verb ⟨rfl, rfl, concord⟩) rfl,
+   .node (.cons (andOr left right different).realizes (.cons attack.realizes .nil)) .finite⟩
+
+theorem andOr_plural_text : Written lexicon
+    (andOrClause ⟨.third, .singular⟩ ⟨.third, .plural⟩ (by decide) rfl).tree
+    (.clause .finite) "it and/or they attack" :=
+  ⟨_, ⟨(andOrClause _ _ _ _).derives, (andOrClause _ _ _ _).realizes⟩,
+    .cons (.cons (.cons .single))⟩
+
+theorem andOr_addressee_text : Written lexicon
+    (andOrClause ⟨.third, .plural⟩ ⟨.second, .singular⟩ (by decide) rfl).tree
+    (.clause .finite) "they and/or you attack" :=
+  ⟨_, ⟨(andOrClause _ _ _ _).derives, (andOrClause _ _ _ _).realizes⟩,
+    .cons (.cons (.cons .single))⟩
+
+theorem andOr_proximity_depends_on_position :
+    subjectAgreement .beforeVerb
+      (andOr ⟨.second, .singular⟩ ⟨.third, .plural⟩ (by decide)).tree =
+        some ⟨.third, .plural⟩ ∧
+    subjectAgreement .afterVerb
+      (andOr ⟨.second, .singular⟩ ⟨.third, .plural⟩ (by decide)).tree =
+        some ⟨.second, .singular⟩ := ⟨rfl, rfl⟩
+
+theorem andOr_singular_final_conjunct :
+    subjectAgreement .beforeVerb
+      (andOr ⟨.third, .plural⟩ ⟨.third, .singular⟩ (by decide)).tree =
+        some ⟨.third, .singular⟩ := rfl
+
+theorem andOr_wrong_proximity_rejected :
+    FiniteLicense lexicon attack.tree ⟨.second, .singular⟩ ∧
+    ¬ Derives lexicon
+      (.node (.finite ⟨.second, .singular⟩ .plain)
+        [(andOr ⟨.second, .singular⟩ ⟨.third, .plural⟩ (by decide)).tree, attack.tree])
+      (.clause .finite) := by
+  refine ⟨.verb ⟨rfl, rfl, rfl⟩, ?_⟩
+  have impossible {gaps : List Category}
+      (h : Judges lexicon
+        (.node (.finite ⟨.second, .singular⟩ .plain)
+          [(andOr ⟨.second, .singular⟩ ⟨.third, .plural⟩ (by decide)).tree, attack.tree])
+        (.clause .finite) gaps) : False := by
+    cases h with
+    | node production _ => cases production
+    | finite _ _ _ agreement => cases agreement
+  exact impossible
+
 end English.AgreementInteractions

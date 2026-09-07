@@ -1,4 +1,4 @@
-import English.Grammar
+import English.CaseConstraints
 
 /-! Feature judgments refine category composition before preference or scope packing. -/
 namespace English.Features
@@ -13,6 +13,7 @@ structure Declarations (L : Type) where
   nounUse : L → Countability → Prop
   determinerUse : L → Countability → Prop
   temporalNoun : L → Prop
+  nominalCase : L → Case := fun _ => .nominativeOrAccusative
 
 inductive NominalUse (features : Declarations L) : Syntax L → Countability → Prop where
   | noun {head : L} {number : Number} {use : Countability} : features.nounUse head use →
@@ -69,7 +70,20 @@ inductive Temporal (features : Declarations L) : Syntax L → Prop where
       Temporal features (.node (.coordinate c category) [a,b])
 
 /-- These checks complement category/number checking; none consult a spelling or card identity. -/
-def Local (features : Declarations L) : Syntax L → Prop
+def Local (features : Declarations L) (tree : Syntax L)
+    (gapCase : Case := .nominativeOrAccusative) : Prop :=
+  match tree with
+  | .word head (.nounPhrase _) | .identity head (.nounPhrase _) =>
+      (features.nominalCase head).Argument
+  | .node (.finite _ _ _) [subject, _] =>
+      (subject.nominalCase features.nominalCase gapCase).Allows .nominative
+  | .node (.preposition _ category) [complement] =>
+      CaseAt features.nominalCase .complement category complement gapCase
+  | .node (.verb _ _ frame _) children => FrameCases features.nominalCase children frame gapCase
+  | .node (.coordinate _ (.nounPhrase _) (.nounPhrase _)) [left, right]
+  | .sharedCoordination _ (.nounPhrase _) left right =>
+      ((left.nominalCase features.nominalCase gapCase).common
+        (right.nominalCase features.nominalCase gapCase)).Argument
   | .node (.determine _) [det,head] =>
       ∃ use, NominalUse features head use ∧ DeterminerUse features det use
   | .node .barePlural [head] => NominalUse features head .count
@@ -81,18 +95,30 @@ def Local (features : Declarations L) : Syntax L → Prop
   | _ => True
 
 mutual
-  def Conforms (features : Declarations L) (tree : Syntax L) : Prop :=
-    Local features tree ∧ match tree with
+  def Conforms (features : Declarations L) (tree : Syntax L)
+      (gapCase : Case := .nominativeOrAccusative) : Prop :=
+    Local features tree gapCase ∧ match tree with
+      | .relativeForm _ a b _ [front] =>
+          Conforms features a gapCase ∧
+          Conforms features b (front.nominalCase features.nominalCase gapCase) ∧
+          ChildrenConform features [front] gapCase
       | .relativeForm _ a b _ front =>
-          Conforms features a ∧ Conforms features b ∧ ChildrenConform features front
+          Conforms features a gapCase ∧ Conforms features b ∧
+          ChildrenConform features front gapCase
       | .modify a b | .sharedCoordination _ _ a b =>
-          Conforms features a ∧ Conforms features b
-      | .node _ children => ChildrenConform features children
-      | .frameCoordination _ a b => ChildrenConform features a ∧ ChildrenConform features b
+          Conforms features a gapCase ∧ Conforms features b gapCase
+      | .node (.rightNodeRaising _ _) [body, head] =>
+          Conforms features body (head.nominalCase features.nominalCase gapCase) ∧
+          Conforms features head gapCase
+      | .node _ children => ChildrenConform features children gapCase
+      | .frameCoordination _ a b =>
+          ChildrenConform features a gapCase ∧ ChildrenConform features b gapCase
       | _ => True
-  def ChildrenConform (features : Declarations L) : List (Syntax L) → Prop
+  def ChildrenConform (features : Declarations L) (children : List (Syntax L))
+      (gapCase : Case := .nominativeOrAccusative) : Prop :=
+    match children with
     | [] => True
-    | a :: rest => Conforms features a ∧ ChildrenConform features rest
+    | a :: rest => Conforms features a gapCase ∧ ChildrenConform features rest gapCase
 end
 
 /-- The reviewed grammar uses this intersection, not raw category derivation, for candidates. -/

@@ -76,7 +76,8 @@ theorem zero_relative_admitted : Admitted lexicon features dependencies
     .zeroRelative (.noun (Or.inl ⟨rfl,rfl,rfl⟩)) object_form⟩,?features⟩,?safe⟩
   case features =>
     simp [Features.Conforms, Features.ChildrenConform, Features.Local, creatures,
-      objectBody,you,controlGap]
+      objectBody, you, controlGap, Syntax.nominalCase, FrameCases, CaseAt, object,
+      features, Relation.casePosition, Case.Allows, Case.Argument]
   case safe =>
     exact ⟨⟨plural,.object,by decide,rfl⟩,⟨⟨trivial,trivial⟩,object_body_safe,trivial⟩⟩
 
@@ -89,7 +90,8 @@ theorem which_relative_admitted : Admitted lexicon features dependencies
       (.word (Or.inr (Or.inl ⟨rfl,rfl,rfl⟩))) object_form⟩,?features⟩,?safe⟩
   case features =>
     simp [Features.Conforms,Features.ChildrenConform,Features.Local,creatures,
-      objectBody,you,controlGap,which]
+      objectBody, you, controlGap, which, Syntax.nominalCase, FrameCases, CaseAt, object,
+      features, Relation.casePosition, Case.Allows, Case.Argument]
   case safe =>
     exact ⟨⟨.nounPhrase plural,.object,.pronoun rfl,rfl⟩,
       ⟨⟨trivial,trivial⟩,object_body_safe,⟨⟨trivial,trivial⟩,trivial⟩⟩⟩

@@ -21,6 +21,19 @@ and realization together with lexical-feature and dependency constraints.
 `Analysis.Selected` and `Analysis.package` operate on those checked readings.
 The lower-level fragment modules retain their individual proof contracts.
 
+`FrameDeclarations` checks optional positions and retained passive Objects against
+the ordinary frame judgments. `CaseInteractions` connects declared nominal Case
+to the existing feature-admission judgment, including coordination and bound
+gaps. This covers the represented Subject, Object and prepositional Complement
+fragment: Complement positions use accusative, and genitive-host and
+head-specific predicative Case selection remain outside these checks.
+
+`WordFormInteractions` preserves the lexical Agreement requirements for *was*
+and *were* alongside concrete counterexamples: the current `Admissible` judgment
+still admits crossed spellings rejected by that lexical license. These theorems
+expose the missing connection between a selected Word Form and its finite host;
+they do not claim that the model already enforces it.
+
 See the [design](../docs/english-grammar-design.md),
 [review](../docs/english-grammar-review.md), and
 [decision](../docs/decisions/english-lean-design-workbench.md).

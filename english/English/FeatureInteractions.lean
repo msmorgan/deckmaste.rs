@@ -107,7 +107,8 @@ theorem passive_temporal : Admitted lexicon features passiveTemporal
     (.cons (.verb (lexicon := lexicon) ⟨rfl,rfl,rfl,rfl⟩ .nil) (.cons turnD .nil)),
     .node (.cons (.node .nil (.verb (v := ["destroyed"]) ⟨rfl,rfl,rfl⟩))
       (.cons turnR .nil)) .adjunct⟩,
-    ⟨.determine (.noun rfl),⟨⟨trivial,trivial⟩,⟨turnC,trivial⟩⟩⟩⟩
+    ⟨.determine (.noun rfl),
+      ⟨⟨by simp [Local, destroyed, FrameCases], trivial⟩, ⟨turnC, trivial⟩⟩⟩⟩
 
 theorem ordinary_np_not_temporal : ¬ Temporal features muchDamage := by
   intro h

@@ -24,7 +24,10 @@ private theorem left_checked : Dependencies.Admitted lexicon features dependenci
   refine ⟨⟨⟨left.derives,left.realizes⟩,?features⟩,?safe⟩
   case features =>
     simp [left,cluster,FrameScope.pairs,pair,creatures,artifacts,
-      Features.Conforms,Features.ChildrenConform,Features.Local,noun_use]
+      Features.Conforms, Features.ChildrenConform, Features.Local, noun_use,
+      FrameCases, CaseAt, Syntax.nominalCase, markedFrame, nominalCategory,
+      RolePreference.object, role,
+      Relation.casePosition, Case.Allows, Case.Argument, Case.common]
   case safe =>
     simp [left,cluster,FrameScope.pairs,pair,creatures,artifacts,
       Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
@@ -35,7 +38,10 @@ private theorem right_checked : Dependencies.Admitted lexicon features dependenc
   refine ⟨⟨⟨right.derives,right.realizes⟩,?features⟩,?safe⟩
   case features =>
     simp [right,cluster,FrameScope.pairs,pair,creatures,artifacts,
-      Features.Conforms,Features.ChildrenConform,Features.Local,noun_use]
+      Features.Conforms, Features.ChildrenConform, Features.Local, noun_use,
+      FrameCases, CaseAt, Syntax.nominalCase, markedFrame, nominalCategory,
+      RolePreference.object, role,
+      Relation.casePosition, Case.Allows, Case.Argument, Case.common]
   case safe =>
     simp [right,cluster,FrameScope.pairs,pair,creatures,artifacts,
       Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
@@ -83,7 +89,10 @@ def lexicon : Lexicon Bool where
   word head category := head = true ∧ category = .nounPhrase agreement
   wordForm head category surface :=
     head = true ∧ category = .nounPhrase agreement ∧ surface = (["Echo"] : Surface)
-def features : Features.Declarations Bool := ⟨fun _ _ ↦ False,fun _ _ ↦ False,fun _ ↦ False⟩
+def features : Features.Declarations Bool where
+  nounUse _ _ := False
+  determinerUse _ _ := False
+  temporalNoun _ := False
 def dependencies : Dependencies.Declarations Bool := ⟨fun _ ↦ False,fun _ ↦ False⟩
 def identity : Reading lexicon features dependencies (.nounPhrase agreement) ["Echo"] :=
   ⟨.identity false (.nounPhrase agreement),
