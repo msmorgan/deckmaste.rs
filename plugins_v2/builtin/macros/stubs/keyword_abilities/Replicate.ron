@@ -5,4 +5,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "replicate",
     ),
+    // STOP. "Replicate [cost]" means "As an additional cost to cast this spell, you
+    // may pay [cost] ANY NUMBER OF TIMES" and "When you cast this spell, if a
+    // replicate cost was paid for it, copy it for each time its replicate cost was
+    // paid…" [CR#702.56a] `StaticSpec::AddedCost` carries a cost and an `offered`
+    // flag and no repetition count, so "any number of times" cannot be written (the
+    // multiplier Escalate is also missing; Squad has the same shape).
+    body: Keyword(keyword: "Replicate", params: [Cost(cost: Param(0))], body: []),
 )

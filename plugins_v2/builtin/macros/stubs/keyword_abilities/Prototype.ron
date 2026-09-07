@@ -5,4 +5,13 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "prototype",
     ),
+    // STOP. "Prototype is a static ability that appears on prototype cards that have
+    // a secondary set of power, toughness, and mana cost characteristics"
+    // [CR#702.160a]; the entry states that a player who casts such a spell may cast
+    // it prototyped and how the alternative characteristics are then used
+    // [CR#718.1..718.3], rather than quoting an expansion. The workbench already
+    // spells that as the `Card::Prototype` wrapper, so the keyword carries no
+    // registry row at all — `crates/xtask/src/facts.rs` excludes it by name, and
+    // `keywordDefinition "Prototype"` is therefore empty for every category.
+    body: Keyword(keyword: "Prototype", params: [], body: []),
 )

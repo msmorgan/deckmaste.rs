@@ -1,7 +1,72 @@
 KeywordAbility(
     name: "Provoke",
+    params: [],
     spelling: "provoke",
     grammar: FixedKeyword(
         surface: "provoke",
+    ),
+    // "Provoke" means "Whenever this creature attacks, you may choose to have target
+    // creature defending player controls block this creature this combat if able. If
+    // you do, untap that creature." [CR#702.39a]
+    body: Keyword(
+        keyword: "Provoke",
+        params: [],
+        body: [
+            Triggered(
+                event: Combat(
+                    relation: AttackerOf,
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    counterpart: None,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: WithContinuation(
+                    policy: Optional(agent: You),
+                    body: Establish(
+                        spec: DeonticRule(
+                            subject: Described(
+                                determiner: Target(quantity: Range(low: 1, high: 1)),
+                                predicate: And(
+                                    conjuncts: [
+                                        HasType(type: Creature),
+                                        HasPossessor(
+                                            axis: Controller,
+                                            possessor: CombatPlayer(role: Defending),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            compulsion: Require,
+                            deeds: [Core(deed: Block)],
+                            role: Agent,
+                            bound: None,
+                            patient: Counterpart(
+                                patient: AsType(type: Creature, subject: This, subtype: None),
+                            ),
+                            as_though: None,
+                            rider: NoRider,
+                        ),
+                        duration: Until(end: EndOf(part: Combat, whose: None)),
+                    ),
+                    if_did: Enact(
+                        verb: Action(label: "Untap"),
+                        instruction: SetStatus(
+                            status: Untapped,
+                            subject: Pro(
+                                reach: Word(word: Type(type: Creature)),
+                                plurality: One,
+                                window: Whole,
+                            ),
+                        ),
+                        agent: None,
+                    ),
+                    if_not: None,
+                ),
+            ),
+        ],
     ),
 )

@@ -1,0 +1,55 @@
+// "Flash / Ravenous / When this creature enters, target creature attacks target
+// opponent this turn if able." [CR#702.156a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ravener",
+        cost: [
+            Variable,
+            Simple(symbol: Specific(color: Of(color: Green))),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Tyranid")],
+        power: Lit(value: 0),
+        toughness: Lit(value: 0),
+        text: [
+            Flash,
+            Ravenous,
+            Triggered(
+                event: ZoneChange(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [],
+                r#while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Establish(
+                    spec: DeonticRule(
+                        subject: Described(
+                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            predicate: HasType(type: Creature),
+                        ),
+                        compulsion: Require,
+                        deeds: [Core(deed: Attack)],
+                        role: Agent,
+                        bound: None,
+                        patient: DefendingPlayer(
+                            patient: Described(
+                                determiner: Target(quantity: Range(low: 1, high: 1)),
+                                predicate: Opponent,
+                            ),
+                        ),
+                        as_though: None,
+                        rider: NoRider,
+                    ),
+                    duration: ThisTurn,
+                ),
+            ),
+        ],
+    ),
+))

@@ -5,4 +5,42 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "reinforce",
     ),
+    // "Reinforce N—[cost]" means "[Cost], Discard this card: Put N +1/+1 counters on
+    // target creature." [CR#702.77a]
+    body: Keyword(
+        keyword: "Reinforce",
+        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        body: [
+            Activated(
+                cost: Compound(
+                    costs: [
+                        Param(1),
+                        Perform(
+                            instruction: Enact(
+                                verb: Action(label: "Discard"),
+                                instruction: Move(
+                                    subject: This,
+                                    to: Zone(zone: Graveyard, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: You,
+                            ),
+                        ),
+                    ],
+                ),
+                instruction: PutCounters(
+                    amount: Param(0),
+                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    on: Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: HasType(type: Creature),
+                    ),
+                ),
+                timing: None,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
 )
