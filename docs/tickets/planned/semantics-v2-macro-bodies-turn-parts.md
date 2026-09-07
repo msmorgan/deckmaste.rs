@@ -8,3 +8,7 @@ phrase shape, invoking other macros where the CR definition does. The Lean
 gate checks each body as it lands; Lean `Macros.lean` is the reference for
 shapes already modelled there. Mechanical per declaration once the family's
 shape is settled: terra tier. Standard constraints apply.
+
+`TurnPart` is a closed enum in Lean; each body is the constructor the
+printed word denotes (`Upkeep` and `UpkeepStep` both `Upkeep`), `params:
+[]`. The body is the printed-word to constructor map, nothing more.

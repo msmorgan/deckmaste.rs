@@ -8,3 +8,9 @@ phrase shape, invoking other macros where the CR definition does. The Lean
 gate checks each body as it lands; Lean `Macros.lean` is the reference for
 shapes already modelled there. Mechanical per declaration once the family's
 shape is settled: terra tier. Standard constraints apply.
+
+Lean is the spec for each body: translate the matching `semantic_macro` in
+`lean/Semantics/Macros.lean` positionally, agent explicit (no default slot;
+callers write `You`). Port the v1 declaration's doc comment, CR citations,
+and rationale from `plugins/builtin/macros/action/<Name>.ron` where one
+exists; any v1 action meaning Lean cannot express is a STOP, not a body.
