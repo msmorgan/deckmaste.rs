@@ -1,5 +1,9 @@
+// "<agent> searches <scope> for <predicate>" [CR#701.23a]. The raw
+// `Instruction::search` constructor already is the act, so no `Enact` deed
+// wrapper; `scope` is a `SearchScope` and the count a `Quantity`.
 KeywordAction(
     name: "Search",
+    params: [SearchScope, Quantity, Quality, Subject],
     spelling: "search",
     grammar: Verb(
         bare: "search",
@@ -12,5 +16,11 @@ KeywordAction(
                 [ObjectNounPhrase, Lex("Preposition", "For"), ObjectNounPhrase],
             ],
         ),
+    ),
+    body: Search(
+        scope: Param(0),
+        quantity: Param(1),
+        predicate: Param(2),
+        agent: Param(3),
     ),
 )

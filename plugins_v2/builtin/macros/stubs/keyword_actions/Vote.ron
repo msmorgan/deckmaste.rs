@@ -1,5 +1,9 @@
+// "<voters> vote for <ballot>" [CR#701.38a]. Lean `vote`; its basis
+// constructor already is the act, so no `Enact` deed wrapper. `first` stays
+// `None` — this declaration is the plain `vote`, not `voteStartingWith`.
 KeywordAction(
     name: "Vote",
+    params: [Disclosure, Ballot, Subject],
     spelling: "vote",
     grammar: Verb(
         bare: "vote",
@@ -10,5 +14,11 @@ KeywordAction(
                 [Lex("Preposition", "For"), ObjectNounPhrase],
             ],
         ),
+    ),
+    body: Vote(
+        first: None,
+        disclosure: Param(0),
+        ballot: Param(1),
+        agent: Param(2),
     ),
 )

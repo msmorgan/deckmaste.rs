@@ -1,23 +1,19 @@
 // "<agent> creates N <token>" [CR#701.7a]: the creating spell or ability
-// defines the token's characteristics [CR#111.3,111.4]. Lean `create`.
-//
-// STOP (updated by `semantics-v2-macro-param-kinds`): the token argument
-// needs a `TokenSpec` (or `CharacteristicBundle`) param type.
-// `deckmaste_semantics_v2::ron::param_types()` now has one (`TokenSpec`,
-// this ticket's crate fix), but `deckmaste_construction_core::macro_def::
-// ParameterType` — the SAME closed eight-name enum, mirrored independently
-// on the english_v2/typed side that reads every `plugins_v2` declaration's
-// `params:` field too (§11: neither crate depends on the other for the
-// shared declaration file, so BOTH readers must accept a param type before
-// any declaration can use it) — has no `TokenSpec` variant and was out of
-// this ticket's authorized file scope. A one-sided fix is unusable
-// (`both_readers_accept_every_builtin_declaration` fails from the
-// construction_core side alone). Left bodyless pending that companion fix.
+// defines the token's characteristics [CR#111.3,111.4]. Lean `create`, with
+// the token argument typed `TokenSpec` rather than Lean's own
+// `CharacteristicBundle` (the raw instruction's `spec` field wants the
+// wider type; a caller writes `Written(characteristics: (...))`).
 KeywordAction(
     name: "Create",
+    params: [Amount, TokenSpec, Subject],
     spelling: "create",
     grammar: Verb(
         bare: "create",
         frame_set: Transitive,
+    ),
+    body: CreateObject(
+        count: Param(0),
+        spec: Token(spec: Param(1), riders: []),
+        agent: Param(2),
     ),
 )

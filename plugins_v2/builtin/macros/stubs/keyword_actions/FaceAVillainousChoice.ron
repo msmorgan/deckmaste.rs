@@ -1,30 +1,29 @@
 // "<agent> faces a villainous choice — <A>, or <B>" [CR#701.55a]: "means
 // '<agent> chooses <A> or <B>. Then all actions in the chosen option are
-// performed.'" No dedicated Lean `semantic_macro` exists for this shape yet
-// (absent from `lean/Semantics/Macros.lean`); the general
+// performed.'" No dedicated Lean `semantic_macro` exists for this shape
+// (absent from `lean/Semantics/Macros.lean`); this is the general
 // `Instruction::ChooseModes` core constructor Lean's own `chooseModes`
-// wraps is the intended shape (`quantity := exactly 1`, no costs, two
-// modes), per `lean/Semantics/Check/Facts.lean`'s "Face A Villainous Choice"
-// row.
-//
-// STOP (updated by `semantics-v2-macro-param-kinds`): the two options are
-// `Instruction`s. `deckmaste_semantics_v2::ron::param_types()` now has that
-// param type (this ticket's crate fix), but `deckmaste_construction_core::
-// macro_def::ParameterType` — the SAME closed eight-name enum, mirrored
-// independently on the english_v2/typed side that reads every `plugins_v2`
-// declaration's `params:` field too (§11: neither crate depends on the
-// other for the shared declaration file, so BOTH readers must accept a
-// param type before any declaration can use it) — has no `Instruction`
-// variant and was out of this ticket's authorized file scope. A one-sided
-// fix is unusable (`both_readers_accept_every_builtin_declaration` fails
-// from the construction_core side alone). Left bodyless pending that
-// companion fix.
+// wraps (`quantity := exactly 1`, no costs, two modes), per
+// `lean/Semantics/Check/Facts.lean`'s "Face A Villainous Choice" row, which
+// requires an `Enact` agent (`agentRole := playerAgent`).
 KeywordAction(
     name: "FaceAVillainousChoice",
+    params: [Instruction, Instruction, Subject],
     spelling: "face a villainous choice",
     grammar: Verb(
         bare: "face a villainous choice",
         third_person: "faces a villainous choice",
         frame_set: Intransitive,
+    ),
+    body: Enact(
+        verb: Action(label: "Face A Villainous Choice"),
+        instruction: ChooseModes(
+            quantity: Range(low: 1, high: 1),
+            modes: [
+                (None, Param(0)),
+                (None, Param(1)),
+            ],
+        ),
+        agent: Param(2),
     ),
 )

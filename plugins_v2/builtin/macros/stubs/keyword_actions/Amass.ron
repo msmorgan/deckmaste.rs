@@ -1,30 +1,78 @@
 // "Amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't
 // control an Army, create a 0/0 black <subtype> Army creature token. Choose
 // an Army you control. Put N +1/+1 counters on it. It's a <subtype> in
-// addition to its other types." Lean `amass`.
-//
-// STOP (updated by `semantics-v2-macro-param-kinds`): the amassed subtype
-// is spliced into a `Vec<Subtype>` position (the token's own subtypes,
-// twice), which no `String` value can fill — it needs a `Subtype`-typed
-// param. `deckmaste_semantics_v2::ron::param_types()` now has one (this
-// ticket's crate fix), but `deckmaste_construction_core::macro_def::
-// ParameterType` — the SAME closed eight-name enum, mirrored independently
-// on the english_v2/typed side that reads every `plugins_v2` declaration's
-// `params:` field too (`docs/decisions/semantics-v2.md` §11: neither crate
-// depends on the other for the shared declaration file, so BOTH readers
-// must accept a param type before any declaration can use it) — has no
-// `Subtype` variant and was out of this ticket's authorized file scope
-// (`crates/deckmaste_semantics_v2/src/{ron.rs,reader.rs}` and its tests,
-// plus the xtask drift test, per the dispatching brief). A one-sided fix is
-// unusable: `both_readers_accept_every_builtin_declaration` fails on
-// `UnknownParameterType { name: "Subtype" }` from the construction_core
-// side alone. Left bodyless pending that companion fix.
+// addition to its other types." Lean `amass`, with the amassed subtype
+// typed `Subtype` rather than Lean's own `String` (it is spliced into a
+// `Vec<Subtype>` position twice, which no `String` value can fill).
 KeywordAction(
     name: "Amass",
+    params: [Subtype, Amount],
     spelling: "amass",
     grammar: Verb(
         bare: "amass",
         third_person: "amasses",
         frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
+    body: Sequentially(steps: [
+        DoIf(
+            condition: Not(condition: Exists(subject: Described(
+                determiner: Bare,
+                predicate: And(conjuncts: [
+                    HasSubtype(subtype: Of(host: Creature, label: "Army")),
+                    HasType(type: Creature),
+                    HasPossessor(axis: Controller, possessor: You),
+                ]),
+            ))),
+            instruction: CreateObject(
+                count: Lit(value: 1),
+                spec: Token(
+                    spec: Written(characteristics: (characteristics: (
+                        colors: [Black],
+                        types: [Creature],
+                        subtypes: [Param(0), Of(host: Creature, label: "Army")],
+                        power: Lit(value: 0),
+                        toughness: Lit(value: 0),
+                    ))),
+                    riders: [],
+                ),
+                agent: You,
+            ),
+            otherwise: None,
+        ),
+        Choose(
+            first: None,
+            chosen: Described(
+                determiner: A(mode: Unmarked),
+                predicate: And(conjuncts: [
+                    HasSubtype(subtype: Of(host: Creature, label: "Army")),
+                    HasType(type: Creature),
+                    HasPossessor(axis: Controller, possessor: You),
+                ]),
+            ),
+            disclosure: Openly,
+            when: None,
+            agent: None,
+        ),
+        PutCounters(
+            amount: Param(1),
+            kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+            on: Pro(reach: Word(word: Type(type: Creature)), plurality: One, window: Whole),
+        ),
+        DoIf(
+            condition: Not(condition: Matches(
+                subject: Pro(reach: Bare, plurality: One, window: Whole),
+                predicate: HasSubtype(subtype: Param(0)),
+            )),
+            instruction: Establish(
+                spec: CharacteristicChange(
+                    subject: Pro(reach: Bare, plurality: One, window: Whole),
+                    edits: [
+                        TypeLine(op: Adds, changes: (subtypes: [Param(0)])),
+                    ],
+                ),
+                duration: None,
+            ),
+            otherwise: None,
+        ),
+    ]),
 )
