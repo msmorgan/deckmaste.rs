@@ -1496,7 +1496,6 @@ fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
             "subtypes/unknown/Thing.ron",
             r#"Subtype(category:Creature,name:"Thing",spelling:"Thing")"#,
         ),
-        ("mystery/Scry.ron", DESTROY),
         ("keyword_actions/Scry.ron", "KeywordAction(name: \"Scry\""),
     ] {
         let temporary = tempfile::tempdir().unwrap();
@@ -1509,17 +1508,25 @@ fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
     }
 }
 
+/// A directory of the nursery that is not one of the nine spelled families
+/// belongs to another consumer — the declaration meta-macros, or the helper
+/// macros a card writes — and this reader passes over it. Inside a family the
+/// location check is unchanged: an unplaceable path there is still refused
+/// (`builtin_reader_rejects_malformed_and_nonfinal_locations` above).
 #[test]
-fn unknown_builtin_nursery_locations_fail_closed() {
+fn a_nursery_directory_outside_the_nine_families_is_not_read() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(&root, "mystery/Scry.ron", DESTROY);
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::UnexpectedBuiltinLocation { .. })
-    ));
+    write_builtin(&root, "meta/Helper.ron", DESTROY);
+    write_builtin(&root, "keyword_actions/Destroy.ron", DESTROY);
+    let declarations = read_builtin_v2(&root).expect("the nine families read on their own");
+    let names: Vec<&str> = declarations
+        .iter()
+        .map(|declaration| declaration.identity.name.as_str())
+        .collect();
+    assert_eq!(names, ["Destroy"]);
 }
 
 #[test]

@@ -1664,17 +1664,32 @@ fn read_sources_mapped(
     Ok(declarations)
 }
 
-/// The declaration meta-macros' directory under `macros/`: definitions the
-/// family files invoke, not declarations of their own.
-const META_DIR: &str = "meta";
+/// The nine spelled declaration families, each a directory under `macros/`.
+/// The reader takes these by name and ignores everything else there — the
+/// declaration meta-macros in `macros/meta/`, and the helper macros that share
+/// the nursery without being declarations of any construction.
+/// [`expected_builtin_identity`] maps the same nine onto their kinds.
+const BUILTIN_FAMILIES: [&str; 9] = [
+    "ability_words",
+    "counter_kinds",
+    "designations",
+    "flavor_words",
+    "keyword_abilities",
+    "keyword_actions",
+    "subtypes",
+    "turn_parts",
+    "types",
+];
 
 /// Reads the committed builtin-v2 nursery through the ordinary macro reader.
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
-/// named `builtin` (its home under `plugins_v2/`), and only `.ron` files in
-/// the family directories below `macros/` are read — `macros/meta/` holds the
-/// declaration meta-macros the families invoke, which are not declarations.
-/// The path fixes each file's declaration kind, subtype category, and name.
+/// named `builtin` (its home under `plugins_v2/`), and only `.ron` files below
+/// the nine [`BUILTIN_FAMILIES`] directories of `macros/` are read. Every other
+/// directory there is another consumer's — `macros/meta/` holds the declaration
+/// meta-macros the families invoke, and the helper macros a card writes are
+/// not declarations of a construction at all. The path fixes each file's
+/// declaration kind, subtype category, and name.
 ///
 /// # Errors
 /// On an invalid root, unreadable directory/file, unrecognized nursery path,
@@ -1694,11 +1709,10 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
     }
 
     let nursery = root.join("macros");
-    let meta = nursery.join(META_DIR);
-    let paths: Vec<PathBuf> = ron_files_recursive(&nursery)?
-        .into_iter()
-        .filter(|path| !path.starts_with(&meta))
-        .collect();
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for family in BUILTIN_FAMILIES {
+        paths.extend(ron_files_recursive(&nursery.join(family))?);
+    }
     let mut sources = Vec::with_capacity(paths.len());
     for path in paths {
         let source = std::fs::read_to_string(&path).map_err(|source| ReadError::Io {
