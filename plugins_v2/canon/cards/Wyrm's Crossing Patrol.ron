@@ -1,0 +1,12 @@
+// "Myriad" [CR#702.116a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Wyrm's Crossing Patrol",
+        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
+        power: Lit(value: 1),
+        toughness: Lit(value: 1),
+        text: [Myriad],
+    ),
+))

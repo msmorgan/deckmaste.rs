@@ -5,4 +5,68 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ninjutsu",
     ),
+    // "Ninjutsu [cost]" means "[Cost], Reveal this card from your hand, Return an
+    // unblocked attacking creature you control to its owner's hand: Put this card
+    // onto the battlefield from your hand tapped and attacking." [CR#702.49a]
+    body: Keyword(
+        keyword: "Ninjutsu",
+        params: [Cost(cost: Param(0))],
+        body: [
+            Activated(
+                cost: Compound(
+                    costs: [
+                        Param(0),
+                        Perform(
+                            instruction: Expose(
+                                verb: Reveal,
+                                exposed: Cards(cards: This),
+                                agent: You,
+                            ),
+                        ),
+                        Perform(
+                            instruction: Enact(
+                                verb: Core(deed: Return),
+                                instruction: Move(
+                                    subject: Described(
+                                        determiner: A(mode: Unmarked),
+                                        predicate: And(
+                                            conjuncts: [
+                                                HasType(type: Creature),
+                                                InCombat(
+                                                    relation: AttackerOf,
+                                                    counterpart: None,
+                                                ),
+                                                Not(
+                                                    predicate: InCombat(
+                                                        relation: BlockedBy,
+                                                        counterpart: None,
+                                                    ),
+                                                ),
+                                                HasPossessor(
+                                                    axis: Controller,
+                                                    possessor: You,
+                                                ),
+                                            ],
+                                        ),
+                                    ),
+                                    to: Zone(zone: Hand, scope: Bare),
+                                    riders: [],
+                                ),
+                                agent: You,
+                            ),
+                        ),
+                    ],
+                ),
+                instruction: Move(
+                    subject: This,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    riders: [EntersAs(status: Tapped), EntersAttacking(defender: None)],
+                ),
+                timing: None,
+                limit: None,
+                guard: None,
+                activator: None,
+            ),
+        ],
+    ),
 )

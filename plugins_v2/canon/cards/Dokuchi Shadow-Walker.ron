@@ -1,0 +1,21 @@
+// "Ninjutsu {3}{B}" [CR#702.49a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Dokuchi Shadow-Walker",
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Ogre"), Of(host: Creature, label: "Ninja")],
+        power: Lit(value: 5),
+        toughness: Lit(value: 5),
+        text: [
+            Ninjutsu(Mana(cost: [
+                Simple(symbol: Generic(amount: 3)),
+                Simple(symbol: Specific(color: Of(color: Black))),
+            ])),
+        ],
+    ),
+))

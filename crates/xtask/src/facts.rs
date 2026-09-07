@@ -420,6 +420,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Ninjutsu",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1164,6 +1165,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Outlast",
             paid_cost: true,
+            definition: &[Category::Activated],
             ..D
         },
         Row {
