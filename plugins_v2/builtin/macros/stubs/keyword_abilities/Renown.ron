@@ -39,7 +39,6 @@ KeywordAbility(
                         GainDesignation(
                             subject: AsType(type: Creature, subject: This, subtype: None),
                             designation: "renowned",
-                            conferral: ByKeyword(keyword: "Renown"),
                             duration: None,
                         ),
                     ],
