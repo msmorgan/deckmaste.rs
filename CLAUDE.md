@@ -180,6 +180,12 @@ verbatim: no parity copying into v1, no new v1 registries.
 - Symbol questions (where defined, who calls it, what variants, what signature) →
   rust-analyzer LSP first, grep second. The LSP tool is deferred — subagents must load
   it explicitly (ToolSearch `select:LSP`) before use.
+- Lean work (writing or editing `.lean`, closing proofs, debugging a build):
+  before the first edit, search the available skills (`lean4:*`) and load the
+  Lean LSP MCP tools (ToolSearch `select:mcp__lean-lsp__…`), and use them for
+  goals/diagnostics instead of `lake env lean` scratch compiles. Subagent
+  briefs must say this explicitly — deferred tools are invisible until loaded,
+  and an agent that never calls ToolSearch never sees them.
 - Current code shape: `cargo xtask map enums` regenerates the Rust taxonomy.
   For Lean constructor lookup, use the Lean LSP and `lean/Semantics/Words.lean`
   or `lean/Semantics/Abilities.lean` directly until `cargo xtask map lean` exists.
