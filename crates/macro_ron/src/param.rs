@@ -336,6 +336,11 @@ impl ParamTypeSet {
     pub fn contains(&self, name: &str) -> bool {
         self.validators.contains_key(name)
     }
+
+    /// Every registered param type name, in no particular order.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.validators.keys().map(AsRef::as_ref)
+    }
 }
 
 impl Default for ParamTypeSet {
