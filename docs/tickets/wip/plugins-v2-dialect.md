@@ -855,3 +855,281 @@ sites to the new `semantics-v2-embed-candidates`.
   rest listed in ADR §12.1; the alias bucket in §12.1 is deleted once they
   port, and the record states the corrected count.
 - Part 5 then proceeds as ruled after the second landing.
+
+## Landing record (fourth landing, 2026-09-07)
+
+The third rulings' three items land: the case rename (step 1), the
+`Primitives.*` alias port (step 2), and part 5 — the macro-only card refusal
+and the conversion of `plugins_v2/canon`, `plugins_v2/testing` and the family
+bodies onto it. Part 5's COSMETIC half (injections written bare, applications
+positional, numerals bare) does NOT land; see `## Handoff (fourth landing)`.
+
+Measured on `pwstowtunqku` (`docs: the case rule, the alias layer…`), `nproc`
+24, load average 2.23.
+
+### PROVE
+
+**No silent loss.** Nothing stopped being covered. `cargo xtask lean-check`
+proves `plugins_v2/canon` 118/118 and `plugins_v2/testing` 2/2 before and
+after every step. `cargo xtask facts check` reports both generated files up to
+date and byte-identical — neither was regenerated this landing.
+
+The landing's oracle is stronger than a count, and it is the reason a 4,055-file
+diff can be believed: **`lean/Generated/{Canon,Testing}.lean` — the 267,615
+bytes `lean-check` emits for the whole corpus — is byte-identical to the
+pre-landing baseline after every step.** A rename that mis-resolved one
+identifier, a conversion that put the wrong macro in a constructor's place, an
+alias whose body was not the identity it claims: each would move those bytes.
+None did.
+
+Tests that changed subject are re-spelled, never deleted:
+
+| Subject | Here |
+| --- | --- |
+| ~470 literals across 32 test files that name a declaration — nursery inventories, `DeclarationId::new` lookups, `lexeme:<family>/<Name>/<form>` trace identities | re-spelled to the camelCase name, same assertion, same outcome. A spelling, surface, keyword label, card name or `vocab:`/`core-verb:`/`form:`/`codec:`/`structural:` trace segment is NOT a declaration name and none was touched |
+| `declaration_name`/`catalog_stem` in four tests, which build a declaration name from a catalog surface | re-spelled to emit camelCase, which is what the surface's declaration is now named |
+| `xtask`'s flavor-word stub GENERATOR (`english_v2/flavor_words.rs`), which emitted `AerialBlast.ron` against the committed `aerialBlast.ron` | re-spelled with its six unit-test expectations |
+| `testing_plugin()` in `tests/reader.rs`, which loaded the testing plugin in isolation | re-spelled to load it over the builtin prelude, which is how every consumer loads it: a macro-only card's macros live in the builtin |
+| two `xtask` temp-plugin card fixtures writing `Spell(…)`/`Draw(…)` raw | re-spelled as `spell(…)`/`draw(…)`, the macros that stand for them |
+
+Three negative assertions deserve naming, because re-spelling is what keeps
+them honest: `designations … name() != "planarController"`,
+`DeclarationNoun::new(…, KeywordAbility, "flying").is_none()`, and
+`CR_TYPES_OUTSIDE_MODELED_TYPE_LINE` would each have passed trivially against
+a PascalCase name no declaration bears any more. All three now name a real
+declaration.
+
+**Structural laws.** The Lean build ends in success with no warnings (80
+jobs). `cargo test -p deckmaste_semantics_v2 --test lean_drift` green
+throughout: no mirror type, variant, field or binder changed — the landing
+renames declaration files, adds declaration files, and adds one carve-out
+function to `ron.rs`, and the drift scan reads none of them. The emitter stays
+total and every emitted card still proves.
+
+**No word-naming.** No guard added here names a lexeme, construction, verb,
+noun, preposition, or card identity. The case rule reads a name's first
+character; the macro-only refusal reads a declared kind list
+(`ron::EXPRESSION_KINDS`, which mirrors Lean's `semantic_expression`
+attribute) and each kind's own declared dispatch set; the carve-outs read
+whether a kind is in that list. `xtask`'s `label_of`/`name_of` capitalise a
+character. The one place a name is written out is
+`HAND_BUILT_NATIVE`/`LITERAL_LEAVES` in `ron.rs`, and what those name is a
+TYPE's variants, not a word.
+
+### DISCLOSE
+
+**Step 1's report: does anything key a lookup on a declaration name's case?**
+The ruling makes the rename conditional on this, so it was checked before
+anything moved.
+
+- `deckmaste_construction_core`: **no.** `expected_builtin_identity`
+  (`macro_def.rs:2858`) compares the declaration's name to its FILE STEM,
+  which is case-preserving rather than case-keyed, and the family match is on
+  the path's first component. `is_bare_ident` is case-agnostic. Nothing
+  derives a spelling, a grammar plan or a noun class from a name.
+- `deckmaste_english_v2`: **no.** `Environment::declaration(kind, name)` is an
+  exact-string map, but every production caller passes a name read off the
+  declarations themselves (`id.name()`); every literal declaration name in the
+  crate is inside `#[cfg(test)]` or `tests/`. The rename therefore changes
+  what a structural trace PRINTS (`lexeme:type/creature/singular`) and nothing
+  it decides.
+- `xtask` **does** — outside the two crates the ruling names, and it is
+  reported rather than treated as a veto. The facts generator matches a
+  declaration name against PascalCase overlay tables in five places
+  (`keyword_rows` twice, `subtype_rows`, `stub_shape`'s file lookup,
+  `counter_stub_spellings`' P1P1/M1M1 skip, `DESIGNATION_MAP`). Each now
+  capitalises at that boundary through new `label_of`/`name_of` helpers, and
+  `Facts.lean` and `FactsGen.idr` are byte-identical. `run_labels`' own
+  comparisons already normalised case and needed nothing.
+
+**The rename.** 1,811 builtin declarations and 2 testing macros, file stem and
+`name:` field. The rule is exactly "lowercase the first character": `Flying` →
+`flying`, `CollectEvidence` → `collectEvidence`, `P1P1Counter` →
+`p1P1Counter`, `NCR` → `nCR`. No new collision: 13 names are shared across
+families (`Creature` as a `Type` and a `Subtype`, and so on) and were already
+distinct `(kind, name)` pairs; lowercasing is injective on the rest.
+
+Invocations moved with them: 119 identifiers in declaration bodies, 146 in
+cards and tables. 35 of those stand at a name that is ALSO a mirror
+constructor somewhere, and each was resolved by a type-directed walk of the
+mirror schema rather than by its spelling — `Exile` at an `Instruction`
+position is the keyword action, `Exile` at `Zone(zone: …)` is the zone.
+
+One semantic label moved and it is the landing's one deliberate content
+change: an ability word's italic label was `Param(name)` and is now
+`Param(spelling)`. A camelCase name is not a printable label; the spelling is,
+and it is what the bench writes (`abilityWord "will of the council"`). No
+canon card's emitted label changed — the three ability words canon writes
+spell their name — so the byte-identity above still holds.
+
+**Step 2, the alias port.** The 29 macros §12.1 listed as blocked because
+their name is a constructor of their own kind are unblocked by the case rule.
+27 land as declarations under their Lean section's family; the other two,
+`shuffle` and `vote`, are already owned by their keyword-action declarations
+with an identity body, so they move to that bucket instead. The Lean-only
+count is 130 → 103, and 279 → 306 phrasings are declarations. §12.1 records
+both.
+
+The port found a latent defect the pin `every_ported_alias_expands` is there
+to keep found: **a param type validates the DEFAULT as well as the argument,
+so four ported declarations carrying `Default(NounPhrase, None)` could never
+be invoked without passing the binder they defaulted** (`choose`,
+`exileWithCounters`, `meldInto`, `returnTo`). A binder Lean declares
+`Option T := none` takes the param type `Any`.
+
+**Step 3, the macro-only rule.** §11.1 records it. The mechanism is not new
+code: `macro_ron::MacroSet::read_str_restricted` is v1's spec-§4 restricted
+read, opt-in at the entry, with the per-argument provenance that stops a card
+laundering a constructor through a macro's argument. What is new is which
+kinds restrict — `ron::EXPRESSION_KINDS`, the seventeen types Lean tags
+`semantic_expression` — and the carve-outs that keep the rule exactly Lean's:
+every other registered kind marks its own variants natively spellable, the two
+`semantic_literal` leaves stay written-out-able, and three hand-built kinds
+(`Subtype`, `CounterKind`, `HeaderPossessor`) carry no dispatch set to read
+variants off, so `ron.rs` names theirs.
+
+**The alias layer (245 declarations).** Lean's `declare_semantic_primitives`
+mints a `semantic_macro` alias for every constructor of every
+`semantic_expression` type; without that layer the macro-only rule has no
+satisfiable target, because 34 of the 68 raw constructors canon wrote had no
+macro of any name. 245 identity aliases are the RON half. They are generated,
+uniform, one file each, and covered as a class: `every_builtin_declaration_reads`
+loads all of them and `every_nullary_helper_expands` invokes 124 (up from 96).
+A `Condition` alias lives under a new `macros/conditions/` family, because
+`Predicate` and `Condition` share `Not`, `And` and `Or` and one file holds one
+macro.
+
+**The conversion.** 528 constructor occurrences across 118 canon cards and 2
+testing cards became macro invocations, and 45 argument lists were re-spelled
+against the phrasing macro's own narrower signature (`Keyword(keyword: "Flying",
+params: [], body: [])` → `keyword(label: "Flying")`). It is an IDENTIFIER
+REWRITE driven by the same type-directed walk, not a load-and-reserialise, and
+that is better than the ruling asked for on the point the ruling was about:
+**every comment survives verbatim, leading and interior alike, because no line
+is rewritten that does not carry a converted identifier.** The interior-comment
+count the ruling asked for is 0 — canon carries its comments in each file's
+leading block — and the count is a census, not a claim that none was lost.
+
+Eleven sites needed a judgement rather than a substitution, and each is named:
+
+- Six invocations whose card wrote a field the phrasing macro does not take
+  moved to the richer phrasing that does: `keywordSubject` ×3 (`Boar Umbra`,
+  `Eldrazi Conscription`, `Supreme Exemplar`), `keywordNumber` (`Damocles
+  Base, Sword of Kang`), `triggeredOr` (`Cirdan the Shipwright`),
+  `activatedOnlyDuring` (`Angus Mackenzie`).
+- `Graf Rats` and `Storm Fleet Spy` each carried a `Triggered` with an
+  intervening condition; both are `triggeredIf`, and `Storm Fleet Spy`'s
+  condition unwrapped from `Happened(subject:, lookback: Mk(event:, lookback:))`
+  to `happened(event:, who:, lookback:)`.
+- `Mystic Visionary` wrote `CountOf(group: Described(Bare, P))`, which is
+  exactly what Lean's `countOf p` means; it reads `countOf(p: P)`.
+- Two `NounPhrase::Pro` sites have no alias — Lean tags `pro`
+  `internal_expansion` — and became the pronoun macros that mean them:
+  `they` (`Ominous Harvest`) and `themVerbed(verb: …)` (`Graf Rats`).
+- `Storm Fleet Spy` writes a GAP outright, and `NounPhrase::Gap` is
+  `internal_expansion` too. `gap` is minted as the landing's one deviation
+  from Lean's tagging, with the reason in its own doc comment: a card with no
+  way to write what it means is worse than a deviation, and the phrasing macro
+  that would spell the gap belongs to
+  `semantics-v2-macro-capture-and-plurality`.
+
+**Deviations and additions.**
+
+- The 27 ported aliases are placed by their LEAN SECTION, not by their kind:
+  `countOf` and `aggregate` return an `Amount` but sit in `determiners/`,
+  which is the section `Macros.lean` declares them in and the rule §12.1
+  already states for the 279. The brief said "the family their kind belongs
+  to"; the ADR and the landed tree say the section, and 27 of 29 agree either
+  way.
+- `cargo xtask cite bless` was RUN and kept this time, where previous landings
+  discarded it: `library`'s `[CR#401.1]` is genuinely new to the lock. It also
+  pruned the same two now-uncited lock entries
+  `facts-generator-sheds-v1` recorded as a prune-only diff.
+- `macros/conditions/` is a new family directory. `read_builtin_v2` reads its
+  nine spelled families by name and ignores it, as it ignores the other
+  helper families.
+- Not done: part 5's cosmetic half, and the 103 Lean-only macros (§12.1).
+- One pre-existing clippy warning is left as found:
+  `builtin_v2_keyword_abilities.rs`'s `.map_or(true, …)`, on a line this
+  landing did not write.
+
+**STOPs.** None. The two shapes that would have been one — a macro whose
+camelCase name collides with another macro, and a canon card that stops
+proving — did not occur; the collision census found 0 new collisions and
+`lean-check` stayed 118/118 through every step.
+
+**Glossary.** No term this landing needed is missing from
+`docs/contexts/game-model/CONTEXT.md`. "Alias macro", "phrasing macro",
+"restricted author vocabulary" and "carve-out" are plugin-format and reader
+vocabulary, defined in `semantics-v2.md` §§11.1 and 12.1 and beside the code
+that reads them.
+
+**Assurance counts.** Restored 0, re-spelled ~470 literals across 32 files
+plus the five subjects tabled above, retired 0, ignored-with-blocker 0, added
+5 (`a_camel_case_declaration_does_not_collide_with_its_constructor`,
+`every_ported_alias_expands`,
+`a_card_writes_a_macro_where_the_basis_has_a_constructor`,
+`a_raw_constructor_in_a_card_is_refused_by_name`,
+`a_word_types_constructor_still_reads_under_restriction`), removed 0.
+
+### REPORT
+
+- `cargo xtask lean-check`: `plugins_v2/canon` 118/118, `plugins_v2/testing`
+  2/2, 0.4 s warm. `lean/Generated` byte-identical to the pre-landing
+  baseline, 267,615 B.
+- `lean/scripts/build`: success, 80 jobs, no warnings.
+- `cargo xtask facts check`: both generated files up to date; neither
+  regenerated this landing.
+- `cargo test -p deckmaste_semantics_v2 --test corpus`: `plugins_v2/builtin`
+  2,414 declarations across 31 kinds (2,141 before this landing, +273); 124
+  nullary declarations expand (96 before); `plugins_v2/canon` 118 cards;
+  `plugins_v2/testing` 2 cards, 1 token, 1 sba / 1 conferral / 1 damage row.
+- `cargo xtask cite check --list-noncompliant`: 0. `cargo xtask cite check`:
+  15,740 citations, 0 stale (15,725 before). `jj diff --git | cargo xtask cite
+  audit --diff` was read at each commit; the 15 new sites are the ported
+  aliases' doc comments and each was read against its rule.
+- `cargo xtask gate --changed` closure, run green in 124 s (107
+  `test result: ok` lines, 0 failures):
+  `cargo test -p macro_ron_derive -p macro_ron -p deckmaste_construction_core
+  -p deckmaste_construction -p deckmaste_english_v2 -p deckmaste_semantics
+  -p deckmaste_lowering -p deckmaste_plugin -p deckmaste_engine
+  -p deckmaste_legacy_render -p deckmaste_migrations -p deckmaste_noncanon
+  -p deckmaste_semantics_v2 -p deckmaste_spelling -p deckmaste_tui
+  -p deckmaste -p xtask`.
+- `cargo fmt --all` clean; clippy clean on `macro_ron`,
+  `deckmaste_semantics_v2` and `xtask`.
+- Diff: 4,055 files changed, 22,197 insertions, 19,774 deletions — 1,813 file
+  renames, 246 new declarations, and 412/794 lines over the 118 canon cards.
+
+## Handoff (fourth landing)
+
+Steps 1, 2 and 3 of the fourth brief are landed and green; the workspace is
+parked with `@` empty and NOT integrated.
+
+**Next: part 5's cosmetic half.** The dialect the first three landings built —
+injections written bare, applications positional where unambiguous, numerals
+bare — is what a card does NOT yet write. `Abbey Gargoyles` still spells its
+cost `[Simple(symbol: Generic(amount: 2)), Simple(symbol: Specific(color:
+Of(color: White))), …]` where the writer would give `[2, White, White, White]`.
+This landing left it because the substitution half is the semantic half and
+the two want different tools: substitution is an identifier rewrite that keeps
+every comment, while the cosmetic pass is a load-and-reserialise that keeps
+none, so it needs the leading-comment splice the second rulings describe.
+When it runs: `cargo xtask facts check` must stay byte-identical, `lean-check`
+118/118, and `lean/Generated` byte-identical — that last is the oracle this
+landing leaned on and it is cheap.
+
+**Then: the 103 Lean-only macros**, §12.1's six buckets. The 28-macro cascade
+bucket in particular is not re-derived: some of its members were blocked only
+by the 27 that ported here, and deciding which needs the Lean→RON converter
+the third landing built and deleted.
+
+Also open, each already routed:
+
+- `semantics-v2-embed-candidates` carries the injection marking, with a note
+  on what this landing's conversion did and did not show.
+- `semantics-v2-macro-capture-and-plurality` carries the 23 computing macros
+  and now also the phrasing macro that should spell `Storm Fleet Spy`'s gap,
+  so `gap` can retire.
+- `lean-macros-from-ron` generates `Macros.lean` from these declarations and
+  is now an identity on names.

@@ -44,6 +44,30 @@ makes a bare `Creature` a predicate and spends `Predicate`'s only embed slot,
 which `And`, `InZone` and a dozen other one-field constructors also want.
 Rank them before marking.
 
+## What the fourth landing's conversion showed
+
+The conversion landed (`plugins-v2-dialect`, fourth landing) as a macro
+substitution, not a reserialise: every constructor a card wrote became the
+macro of that name, and nothing was elided. So the census above still stands
+unchanged as the evidence — no position was measured twice — and the
+conversion adds one observation rather than a new table:
+
+- A card now writes `mana(cost: […])`, `singleFaced(face: (…))`,
+  `hasType(type: Creature)` and `target(quantity: …)` as MACROS. An injection
+  would elide the same constructors a second way, so each row above is now a
+  choice between the alias macro that already covers it and an embed that
+  removes the write entirely. Decide the pair, not the constructor alone: an
+  embed at a position whose alias macro is already the spelling a card writes
+  buys nothing but a second spelling.
+- The one-embed-per-enum ranking is unchanged, and so is the pair of
+  positions the mechanism cannot reach (`SingleFaced`'s struct payload and
+  `Cost::Mana`'s `Vec`).
+
+The COSMETIC half of the conversion — injections written bare, applications
+positional, numerals bare — did not run; it is `plugins-v2-dialect`'s handoff,
+and it is the pass that would show a position suffering. Re-read this table
+against it when that pass lands.
+
 ## Also decide
 
 Whether `ColorTerm::Lit` keeps its mark. It was marked because the second

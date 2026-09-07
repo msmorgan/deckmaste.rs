@@ -342,6 +342,25 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   capture at that position does not go through ron's own `RawValue`, whose
   `Deserialize` re-parses what it captured and refuses anything that is not a
   standalone value — a fused argument list is not one.
+- **A card may write only macros.** At a `semantic_expression` kind — the
+  seventeen `crate::ron::EXPRESSION_KINDS` mirror Lean's own attribute — a
+  constructor's name has no native candidacy in a CARD, and the macro of that
+  name stands in its place: `keyword(label: "Flying")`, never
+  `Keyword(keyword: "Flying", …)`. This is Lean's `Authoring.Form.onlyMacros`,
+  which refuses a `.raw` constructor of a `semantic_expression` type and admits
+  a macro call, a literal leaf, or a parameter. The mechanism is v1's
+  restricted read (`macro_ron::MacroSet::read_str_restricted`, spec §4): the
+  restriction is opt-in at the ENTRY, and only the card containers read that
+  way, so a macro's own body — the basis those macros are written over — keeps
+  every constructor. An argument keeps the restriction of the text it was
+  written in, so a card cannot launder a constructor through a macro's
+  argument. Two carve-outs keep the rule Lean's rather than wider: every
+  non-expression registered kind marks its own variants natively spellable (a
+  colour, a subtype, a turn part, the mana chain), and the two literal leaves
+  (`Amount::Lit`, `SimpleManaSymbol::Generic`) stay written-out-able, which is
+  what `semantic_literal` buys in Lean. A hand-built kind carries no dispatch
+  set to read variants off, so `Subtype`, `CounterKind` and `HeaderPossessor`
+  name theirs in `ron.rs`.
 - **A numeral reads at its leaf.** Lean marks `Amount.lit` and
   `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
   two `#[macro_ron(literal)]`, the marker v1 already uses for `StatValue`'s
@@ -459,6 +478,22 @@ type `Any`, not `T`: a param type validates the DEFAULT as well as the
 argument, and `None` is not a `T`. Four ported declarations carried
 `Default(NounPhrase, None)` and so could never be invoked without passing the
 binder they defaulted; `every_ported_alias_expands` is what caught it.
+
+Beside the ported phrasings is the ALIAS layer: one identity macro per
+constructor of a `semantic_expression` type, `draw(amount: …, agent: …)` for
+`Draw`, which is what `declare_semantic_primitives` generates in Lean and what
+makes §11.1's macro-only rule satisfiable — a card that may write only macros
+needs a macro for every constructor. 245 of them are declarations; the rest of
+the basis is already covered by a phrasing macro of the same name (the 27
+above among them, whose narrower signature is the one a card writes), and Lean
+tags `NounPhrase.pro`, `NounPhrase.gap`, `Amount.parameter` and each type's
+`withBindings`/`inCaller` `internal_expansion`, so it mints no alias for them
+either. `gap` is the one exception this landing made: `Storm Fleet Spy` writes
+a gap outright, and a card with no way to write what it means is worse than a
+deviation from the tag. A `Condition` alias lives under `macros/conditions/`,
+which is a family Lean's `Macros.lean` has no section for — `Predicate` and
+`Condition` share three constructor names (`Not`, `And`, `Or`) and one file
+holds one macro.
 
 Every mirror type a ported signature names is a registered param type
 (`deckmaste_semantics_v2::ron::param_types`), and every position a ported
