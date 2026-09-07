@@ -132,8 +132,33 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::phrase::Amount>("Power");
     types.add_typed::<crate::phrase::Amount>("Toughness");
     types.add_typed::<crate::phrase::Predicate>("Quality");
+    types.add_typed::<crate::phrase::Predicate>("Predicate");
     types.add_typed::<crate::phrase::NounPhrase>("Subject");
+    types.add_typed::<crate::phrase::NounPhrase>("NounPhrase");
     types.add_typed::<crate::phrase::Condition>("Condition");
+    // Every remaining `SupportsMacros` kind, under its own name: §12 "every
+    // `SupportsMacros` kind is a parameter type," mirroring how `kinds()`
+    // above is total over the same derive (`every_supports_macros_type_is_a_kind`).
+    // A body needing a `Subtype`, `ZoneExpr`, `Quantity`, `TokenSpec`, or
+    // `Instruction` argument (Amass, Create, Meld, Search, Face A Villainous
+    // Choice) had no way to declare it before this.
+    types.add_typed::<crate::phrase::GameEvent>("GameEvent");
+    types.add_typed::<crate::phrase::Quantity>("Quantity");
+    types.add_typed::<crate::phrase::ZoneExpr>("ZoneExpr");
+    types.add_typed::<crate::triggers::Duration>("Duration");
+    types.add_typed::<crate::triggers::Timing>("Timing");
+    types.add_typed::<crate::triggers::UsageLimit>("UsageLimit");
+    types.add_typed::<crate::abilities::Instruction>("Instruction");
+    types.add_typed::<crate::abilities::StaticSpec>("StaticSpec");
+    types.add_typed::<crate::abilities::TokenSpec>("TokenSpec");
+    types.add_typed::<crate::words::Window>("Window");
+    types.add_typed::<crate::words::TurnPart>("TurnPart");
+    // Not a `SupportsMacros` kind (it has no macro dispatch of its own —
+    // `plugins_v2` spells a subtype with the native `Of`/`Spell` constructor,
+    // never a bare declared-subtype macro name), but a real v2 syntax type a
+    // declaration's signature needs to name: Amass's amassed subtype
+    // [CR#701.47a].
+    types.add_typed::<crate::words::Subtype>("Subtype");
     types
 }
 
@@ -163,6 +188,7 @@ pub fn macro_set() -> MacroSet {
 #[cfg(test)]
 mod tests {
     use super::kinds;
+    use super::param_types;
 
     /// Every enum Lean marks `semantic_expression` is a registered kind: that
     /// list is what "a macro may occupy it" means (§12).
@@ -290,6 +316,23 @@ mod tests {
         ] {
             assert!(
                 types.contains(name),
+                "`{name}` must be a registered param type"
+            );
+        }
+    }
+
+    /// Every `SupportsMacros` type this crate declares is also a registered
+    /// param type: §12 "every `SupportsMacros` kind is a parameter type,"
+    /// the same totality [`every_supports_macros_type_is_a_kind`] proves for
+    /// `kinds()`. A type absent here makes a declaration needing it as an
+    /// argument unregistrable (the crate gap `Amass`, `Create`, `Meld`,
+    /// `Search` and `Face A Villainous Choice` hit).
+    #[test]
+    fn every_supports_macros_type_is_a_param_type() {
+        let types = param_types();
+        for name in supports_macros_types() {
+            assert!(
+                types.contains(&name),
                 "`{name}` must be a registered param type"
             );
         }
