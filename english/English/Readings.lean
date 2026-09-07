@@ -110,6 +110,11 @@ structure Preference (environment : LexicalEnvironment L) (context : List Catego
   admitted : ∀ {a b}, prefers a b →
     readings environment context category surface a ∧ readings environment context category surface b
 
+/-- Preference cannot revoke admission. This is a projection of the structure's own field, which
+is the design contract rather than a defect: the field is what makes the contract unstateable
+otherwise. The inhabitant that gives it content is `AmbiguityWitnesses.nounPreference` with
+`AmbiguityWitnesses.preferred_and_nonpreferred_remain`, over the genuinely ambiguous surface
+"I saw her duck". -/
 theorem preference_retains_both {environment : LexicalEnvironment L} {context : List Category}
     {category : Category} {surface : Surface} (preference : Preference environment context category surface)
     {a b : Reading L} (preferred : preference.prefers a b) :

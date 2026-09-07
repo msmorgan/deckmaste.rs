@@ -36,7 +36,7 @@ private theorem outer_move (inner : Syntax Lexeme) :
   .direct (.postmodifier .and_ (.verbPhrase .plain) attack attack (during inner) rfl)
 
 private theorem inner_move : ScopeStep (outerWide innerWide) (outerWide innerNarrow) :=
-  .node (.adjunct (.verbPhrase .plain) .prepositionPhrase) [SelectionWitnesses.CrossHost.pair
+  .node (.adjunct (.verbPhrase .plain) .prepositionPhrase) [PreferenceWitnesses.CrossHost.pair
     attack attack] []
     (.node (.preposition Composition.Lexeme.during (.nounPhrase plural)) [] []
       (.direct (.postmodifier .and_ (.nounPhrase plural) creatures artifacts withTurns rfl)))
@@ -77,12 +77,12 @@ theorem quoted_scope_related (tree : SchemaWitness lexicon (.verbPhrase .plain) 
 key; `scopeClass` does separate classes (`homographs_separate`, `association_separate` below), and
 the four readings are retained here because they are scope-related, not by default. -/
 theorem nested_alternatives_packed :
-    ∃ p : Selection.Package (SchemaWitness lexicon (.verbPhrase .plain) nestedSurface)
+    ∃ p : Preference.Package (SchemaWitness lexicon (.verbPhrase .plain) nestedSurface)
         (Quotient (scopeSetoid lexicon (.verbPhrase .plain) nestedSurface)),
-      Selection.Packs (fun t ↦ t.val ∈ alternatives) scopeClass p ∧
+      Preference.Packs (fun t ↦ t.val ∈ alternatives) scopeClass p ∧
       ∀ t, p.readings t ↔ t.val ∈ alternatives :=
   ⟨package (fun t ↦ t.val ∈ alternatives) wideReading,
-    Selection.packing_exists _ _ _ ⟨wideReading, by simp [alternatives, wideReading], rfl⟩,
+    Preference.packing_exists _ _ _ ⟨wideReading, by simp [alternatives, wideReading], rfl⟩,
     nested_package_exact⟩
 
 private def quotedWide : SchemaWitness lexicon (.document .quotedText) quotedSurface :=
@@ -96,13 +96,13 @@ private def quotedAlternatives
 lifting the class through a quotation retains every reading under a key that distinguishes
 classes, not under a key that cannot distinguish anything. -/
 theorem quoted_alternatives_packed :
-    ∃ p : Selection.Package (SchemaWitness lexicon (.document .quotedText) quotedSurface)
+    ∃ p : Preference.Package (SchemaWitness lexicon (.document .quotedText) quotedSurface)
         (Quotient (scopeSetoid lexicon (.document .quotedText) quotedSurface)),
-      Selection.Packs quotedAlternatives scopeClass p ∧
+      Preference.Packs quotedAlternatives scopeClass p ∧
       ∀ a, ∀ member : a ∈ alternatives,
         p.readings ⟨quotedTree a, quoted_admitted (alternatives_admitted member)⟩ := by
   refine ⟨package quotedAlternatives quotedWide,
-    Selection.packing_exists _ _ _
+    Preference.packing_exists _ _ _
       ⟨quotedWide, ⟨_, by simp [alternatives, wideReading], rfl⟩, rfl⟩, ?_⟩
   intro a member
   refine (package_exact _ _ _).mpr ⟨⟨a, member, rfl⟩, ?_⟩
@@ -110,8 +110,8 @@ theorem quoted_alternatives_packed :
 
 /-- Homographic noun lexemes cannot collapse merely because their text is identical. -/
 theorem homographs_separate :
-    scopeClass ⟨.noun false .plural, SelectionWitnesses.homographs_admitted false⟩ ≠
-      scopeClass ⟨.noun true .plural, SelectionWitnesses.homographs_admitted true⟩ := by
+    scopeClass ⟨.noun false .plural, PreferenceWitnesses.homographs_admitted false⟩ ≠
+      scopeClass ⟨.noun true .plural, PreferenceWitnesses.homographs_admitted true⟩ := by
   intro same
   have leaves := related_preserves_lexemes ((same_class_iff _ _).mp same)
   cases leaves
@@ -119,7 +119,7 @@ theorem homographs_separate :
 private theorem pair_valid {a b : Syntax Lexeme} {as bs : Surface}
     (ha : Admissible lexicon a (.verbPhrase .plain) as)
     (hb : Admissible lexicon b (.verbPhrase .plain) bs) :
-    Admissible lexicon (SelectionWitnesses.CrossHost.pair a b) (.verbPhrase .plain)
+    Admissible lexicon (PreferenceWitnesses.CrossHost.pair a b) (.verbPhrase .plain)
       (as ++ (["and"] : Surface) ++ bs) :=
   ⟨.node (.coordinate rfl) (.cons ha.1 (.cons hb.1 .nil)),
    .node (.cons ha.2 (.cons hb.2 .nil)) .coordinate⟩
@@ -127,10 +127,10 @@ private theorem pair_valid {a b : Syntax Lexeme} {as bs : Surface}
 /-- Both association trees are grammatical, but scope does not reassociate their hosts. -/
 theorem association_separate :
     ∃ a b : SchemaWitness lexicon (.verbPhrase .plain) ["attack", "and", "attack", "and", "attack"],
-      a.val = SelectionWitnesses.CrossHost.pair
-        (SelectionWitnesses.CrossHost.pair attack attack) attack ∧
-      b.val = SelectionWitnesses.CrossHost.pair attack
-        (SelectionWitnesses.CrossHost.pair attack attack) ∧ scopeClass a ≠ scopeClass b := by
+      a.val = PreferenceWitnesses.CrossHost.pair
+        (PreferenceWitnesses.CrossHost.pair attack attack) attack ∧
+      b.val = PreferenceWitnesses.CrossHost.pair attack
+        (PreferenceWitnesses.CrossHost.pair attack attack) ∧ scopeClass a ≠ scopeClass b := by
   have av : Admissible lexicon attack (.verbPhrase .plain) ["attack"] :=
     ⟨attack_derives, attack_surface⟩
   refine ⟨⟨_, pair_valid (pair_valid av av) av⟩,
@@ -140,7 +140,7 @@ theorem association_separate :
   cases hosts
 
 namespace CrossHost
-open SelectionWitnesses.CrossHost
+open PreferenceWitnesses.CrossHost
 
 /-- The `ScopeMove.auxiliary` constructor's first inhabitant. `outside` and `inside` are the two
 trees it relates: the temporal adjunct outside the auxiliary, and inside it. -/

@@ -96,10 +96,10 @@ def destroyObjects : Syntax Lexeme := .node (.verb .destroy .plain objectFrame) 
 
 theorem coordinated_complement : Derives lexicon destroyObjects (.verbPhrase .plain) :=
   .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩
-    (.argument (complement := ⟨.object, .nounPhrase plural⟩) (.closedNode (.coordinate rfl) (.cons
+    (.argument (slot := ⟨.object, .nounPhrase plural⟩) (.closedNode (.coordinate rfl) (.cons
       creatures_derives (.cons artifacts_derives .nil))) .nil)
 
-/-- The identical NP tree fills Subject, Object and a preposition's Complement. -/
+/-- The identical NP tree fills Subject, Object and a preposition’s Complement. -/
 theorem noun_phrase_relations :
     Derives lexicon (.node (.finite plural .plain) [creatures, attack]) (.clause .finite) ∧
     Derives lexicon (.node (.verb .destroy .plain objectFrame) [creatures]) (.verbPhrase .plain) ∧
@@ -107,7 +107,7 @@ theorem noun_phrase_relations :
       .prepositionPhrase :=
   ⟨.finite creatures_derives attack_derives (.verb (Or.inl ⟨rfl, .other rfl⟩)) rfl,
    .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩ 
-     (.argument (complement := ⟨.object, .nounPhrase plural⟩) creatures_derives .nil),
+     (.argument (slot := ⟨.object, .nounPhrase plural⟩) creatures_derives .nil),
    .node (.preposition ⟨Or.inr rfl, rfl⟩) (.cons creatures_derives .nil)⟩
 
 theorem creatures_surface : Realizes lexicon creatures (["creatures"] : Surface) :=
@@ -231,7 +231,7 @@ theorem perfect_active_twin :
 theorem fixed_marker_frame :
     JudgeFrame lexicon [.marker .to, creatures]
       [.fixed .to, .argument ⟨.complement, .nounPhrase plural⟩] [] :=
-  .fixed (.argument (complement := ⟨.complement, .nounPhrase plural⟩) creatures_derives .nil)
+  .fixed (.argument (slot := ⟨.complement, .nounPhrase plural⟩) creatures_derives .nil)
 
 theorem wrong_fixed_marker :
     ¬ JudgeFrame lexicon [.marker .during] [.fixed .to] [] := by

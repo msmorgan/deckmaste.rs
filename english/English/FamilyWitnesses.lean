@@ -271,8 +271,8 @@ theorem serial_anchor_shapes :
     FrameScope.projectAnchors pairTwo = .group [.leaf 0, .leaf 1] := ⟨rfl, rfl, rfl⟩
 
 theorem serial_anchor_shape_separate (survivors : Scope.AnchorPattern → Prop)
-    (p : Selection.Package Scope.AnchorPattern Scope.Anchors)
-    (packed : Selection.Packs survivors Scope.AnchorPattern.anchors p)
+    (p : Preference.Package Scope.AnchorPattern Scope.Anchors)
+    (packed : Preference.Packs survivors Scope.AnchorPattern.anchors p)
     (flatSites nestedSites : List (List Nat)) :
     ∃ x y : Reading Lexeme, Derives grammar x (.nounPhrase plural) ∧
       Derives grammar y (.nounPhrase plural) ∧

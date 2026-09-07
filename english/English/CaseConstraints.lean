@@ -87,12 +87,12 @@ def FrameCases {L : Type} (wordCase : L → Case)
   | [], [] => True
   | [.frameCoordination _ left right], _ :: _ =>
       FrameCases wordCase left frame gapCase ∧ FrameCases wordCase right frame gapCase
-  | head :: rest, .argument complement :: tail =>
-      CaseAt wordCase complement.relation complement.category head gapCase ∧
+  | head :: rest, .argument slot :: tail =>
+      CaseAt wordCase slot.relation slot.category head gapCase ∧
         FrameCases wordCase rest tail gapCase
   | _ :: rest, .fixed _ :: tail => FrameCases wordCase rest tail gapCase
-  | _ :: head :: rest, .marked _ complement :: tail =>
-      CaseAt wordCase complement.relation complement.category head gapCase ∧
+  | _ :: head :: rest, .marked _ slot :: tail =>
+      CaseAt wordCase slot.relation slot.category head gapCase ∧
         FrameCases wordCase rest tail gapCase
   | _, _ => False
 termination_by sizeOf children

@@ -1,7 +1,13 @@
 import English.Lexical
 
 /-! V3 surface recognition preserves the selected lexical casing. Document boundaries require
-initial capitalization; they do not rewrite the lexical analysis beneath them. -/
+initial capitalization; they do not rewrite the lexical analysis beneath them.
+
+`English.Linearizes` / `English.DocumentLinearizes` in `English/Grammar.lean` are the parallel
+schema-level copies of these relations. They diverge in exactly one place — the schema copy
+rewrites sentence and cost-action case, this one requires it — so a `Spells` claim proved
+against the schema copy is weaker than it reads. Any new constructor must be added to **both**
+copies or the v3 model silently loses it. -/
 namespace English.Reading
 
 inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Prop where

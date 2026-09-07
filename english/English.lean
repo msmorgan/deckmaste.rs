@@ -2,8 +2,8 @@ import English.Grammar
 import English.Witnesses
 import English.Composition
 import English.Documents
-import English.Selection
-import English.SelectionWitnesses
+import English.Preference
+import English.PreferenceWitnesses
 import English.Scope
 import English.Interactions
 import English.DocumentCollections

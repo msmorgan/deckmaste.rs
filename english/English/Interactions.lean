@@ -1,9 +1,9 @@
-import English.SelectionWitnesses
+import English.PreferenceWitnesses
 import English.Documents
 
 /-! Synthetic interaction witnesses for nested scope and document embedding. -/
 
-open English English.Selection English.SelectionWitnesses
+open English English.Preference English.PreferenceWitnesses
 namespace English.Interactions.NestedScope
 open Composition
 def pairNP (a b : Syntax Lexeme) :=
@@ -87,7 +87,7 @@ end English.Interactions.NestedScope
 
 namespace English.Interactions.NestedScope
 
-open Selection SelectionWitnesses Composition
+open Preference PreferenceWitnesses Composition
 
 def alternatives : List (Syntax Lexeme) :=
   [outerWide innerWide, outerWide innerNarrow, outerNarrow innerWide, outerNarrow innerNarrow]
@@ -179,7 +179,7 @@ def gainNested : Witness Lexeme lexicon (.verbPhrase .plain) :=
   ⟨.node (.verb .gain .plain quotedFrame) [nestedQuote.tree],
    (["gain"] : Surface) ++ [nestedQuote.surface].flatten,
    .verb ⟨rfl, rfl, Or.inr ⟨rfl, Or.inr rfl⟩⟩
-     (.argument (complement := ⟨.object, .document .quotedText⟩) nestedQuote.derives .nil),
+     (.argument (slot := ⟨.object, .document .quotedText⟩) nestedQuote.derives .nil),
    .node (.cons nestedQuote.realizes .nil)
      (.verb (lexicon := lexicon) (head := .gain) (form := .plain)
        (v := ["gain"]) ⟨rfl, Or.inr ⟨rfl, rfl⟩⟩)⟩

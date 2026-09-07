@@ -88,9 +88,9 @@ def WordForm.HasDeclaration {L : Type} (environment : LexicalEnvironment L) (wor
 
 /-- Erase only the chosen marker spelling when checking the declaration's lexical frame identity. -/
 def FrameItem.lexemes {L : Type} : FrameItem (WordForm L) → FrameItem L
-  | .argument complement => .argument complement
+  | .argument slot => .argument slot
   | .fixed marker => .fixed marker.lexeme
-  | .marked marker complement => .marked marker.lexeme complement
+  | .marked marker slot => .marked marker.lexeme slot
 
 namespace Lexical
 variable {L : Type}

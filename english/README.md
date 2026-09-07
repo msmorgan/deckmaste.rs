@@ -10,6 +10,15 @@ Run the complete grammar and witness gate from the repository root:
 english/scripts/build
 ```
 
+Audit the transitive axiom dependencies of every compiled `English.` theorem
+(private and generated names included) against the permitted set `propext`,
+`Classical.choice`, `Quot.sound`; a `sorry` anywhere in the closure fails it as
+`sorryAx`:
+
+```sh
+english/scripts/axioms
+```
+
 The project has its own toolchain, manifest and artifacts, with no package
 dependencies. `English.lean` imports every checked module. The current authority
 is [independent lexical analysis and retained readings](../docs/decisions/english-lexical-analysis.md);
@@ -63,7 +72,7 @@ information that Rust must preserve without choosing chart keys or node layout.
 `Reading.readings` is the set of all admitted values, across lexical and
 structural ambiguity classes. `Reading.Preference` annotates two members of
 that set and cannot revoke either's admission. `duplicate_derivations` checks
-that two proofs of one value do not create two Readings. No selection or scope
+that two proofs of one value do not create two Readings. No preference or scope
 quotient is part of v3 admission.
 
 `AnalysisRoundtrip` and `ValueRoundtrip` state obligations on independently
@@ -73,6 +82,29 @@ value law retains the exact structure, lexical identities, features and spelling
 The laws are statements, not the definitions of those operations or additional
 claims of implementation correctness. The workbench's proof evidence concerns
 the grammar structure and its permitted and excluded compositions.
+
+Exactly one public `Reading` concept remains: `Reading L`, the abbreviation for
+`Syntax (WordForm L)`. Two things look like a second one and are not.
+`namespace English.Reading` in `English/SurfaceRelations.lean` hosts the v3
+surface relations `Reading.Linearizes`, `Reading.Realizes` and
+`Reading.DocumentLinearizes` — relations *about* Readings, not carriers of one.
+And `Syntax L` at a bare Lexeme type is the same type former as `Reading L` at
+`WordForm L`; a `Syntax Lexeme` in a schema-level witness module is a
+schema-level constituent tree, not a Reading, because its lexical occurrences
+carry no `WordForm`. The former second and third carriers are now
+`GrammaticalScope.SchemaWitness` and `Scope.AnchorPattern`.
+
+`English.Linearizes` / `English.DocumentLinearizes` (`English/Grammar.lean`) and
+`Reading.Linearizes` / `Reading.DocumentLinearizes`
+(`English/SurfaceRelations.lean`) are two parallel copies of one relation. They
+diverge in one place: the schema copy **rewrites** sentence and cost-action case
+(`first.capitalize :: tail`), the v3 copy **requires** it
+(`first.capitalize = first`), because v3 realization never rewrites the lexical
+analysis beneath a document boundary. Every `Spells` theorem in `Documents` and
+`DocumentCollections` is proved against the rewriting copy and is therefore
+weaker than it reads; `FamilyWitnesses.document_admitted` carries the
+document-surface claim under the v3 relation. Any new constructor must be added
+to both copies or the v3 model silently loses it.
 
 Declared spelling variants and initial capitalization live in the value.
 Document realization checks required initial capitalization instead of silently
@@ -124,7 +156,7 @@ Old witness modules continue to prove precisely those lower-level contracts.
 crossed-form counterexamples now prove rejection, with the same valid English
 sentences retained alongside them.
 
-`Selection` and `RolePreference` retain optional preference-view algebra;
+`Preference` and `RolePreference` retain optional preference-view algebra;
 `Scope`, `GrammaticalScope` and `FrameScope` retain local scope and projection
 laws. A selected view or one scope class is never the complete v3 reading set.
 The anchor abstraction is now projected, not cardinality-only:
@@ -136,16 +168,38 @@ boundary laws name are inhabited by derivable trees:
 `Scope.flat` and the nested binary bracketing of the same coordinands onto
 `Scope.nested`, and `FamilyWitnesses.serial_anchor_count_coarser` exhibits two
 derivable trees the cardinality alone would merge.
+`Preference.Claims`/`Preference.Policy` are the structural-specificity algebra
+that `docs/decisions/english-lexical-analysis.md` supersedes *as admission* and
+preserves *as an optional, non-destructive preference*. They are instantiated on
+real syntax by `FrameInteractions.framePolicy`, whose claims read declared
+features only — declared marked roles (`RolePreference.roleCount`) and declared
+lexical-identity anchors (`RolePreference.identityCount`) — and whose comparison
+region is the ordered lexical-identity sequence.
+`FrameInteractions.frame_policy_selects_marked` selects the marked-frame
+analysis of one surface; `frame_policy_does_not_revoke_admission` shows the
+analysis it does not select stays admitted; and
+`role_blind_policy_selects_postmodifier` is the weakened-premise contrast —
+suppress the frame-role claim and the other analysis is selected too.
+
+`FrameScope.Related` retains lexical identities
+(`FrameScope.related_preserves_lexemes`) and anchor cardinality
+(`FrameScope.related_preserves_anchors`) but **not** host structure, and cannot:
+`Step.determiner`, `Step.sharedHead` and `Step.boundary` are host-restructuring
+moves by construction. `FrameScope.step_can_change_hosts` exhibits the failure
+rather than asserting it. The host invariant belongs to the attachment relation:
+`GrammaticalScope.related_preserves_hosts`, over `ScopeRelated`.
+
 Those modules are outside the admission import closure. Their former carrier
 names are now `Scope.AnchorPattern` and `GrammaticalScope.SchemaWitness`, leaving
 one public `Reading` concept. The obsolete `Analysis.Selected`, global
 identity preference and selected-class packaging interface have been retired.
 
-The [v3 proof-audit ticket](../docs/tickets/planned/english-v3-lean-proof-audit.md)
-owns the remaining inherited audit obligations: flat serial-comma versus
-nested coordination, fuller tense propagation, head-owned genitive countability,
-extraction/anchor projection strength, ordinary-word payload boundaries, and
-additional adjective, placement, sharing and auxiliary cases. The
+The [v3 proof-audit ticket](../docs/tickets/wip/english-v3-lean-proof-audit.md)
+has discharged the inherited audit obligations — flat serial-comma versus
+nested coordination, tense/finiteness/word-form separation, head-owned genitive
+countability, extraction/anchor projection strength, ordinary-word payload
+boundaries, and the adjective, placement, sharing and auxiliary cases — and its
+landing record carries the per-item disposition table. The
 [source obligation register](../docs/english-grammar-migration-obligations.md)
 continues to route richer linguistic elaborations and production correspondence.
 This landing claims connected families and the named proofs, not an exhaustive

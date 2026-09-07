@@ -10,7 +10,7 @@ correlated combinations survive. Nothing here reads a spelling: the discriminati
 Relation declared by the verb's frame. -/
 namespace English.JointInteractions
 
-open FrameInteractions RolePreference Selection Scope
+open FrameInteractions RolePreference Preference Scope
 
 /-- Countability declarations for the `put` fixture; both nouns are count nouns. -/
 def features : Features.Declarations Lexeme where
@@ -61,11 +61,11 @@ theorem conjunct_judges (marked : Bool) :
     Judges lexicon (conjunct marked) (.verbPhrase .plain) [nominalCategory] := by
   cases marked
   · exact .verb ⟨rfl, rfl, rfl, Or.inr rfl⟩
-      (.argument (complement := ⟨.object, nominalCategory⟩) .gap
-        (.marked (marker := Lexeme.on) (complement := role) artifacts.derives .nil))
+      (.argument (slot := ⟨.object, nominalCategory⟩) .gap
+        (.marked (marker := Lexeme.on) (slot := role) artifacts.derives .nil))
   · exact .verb ⟨rfl, rfl, rfl, Or.inr rfl⟩
-      (.argument (complement := ⟨.object, nominalCategory⟩) creatures.derives
-        (.marked (marker := Lexeme.on) (complement := role) .gap .nil))
+      (.argument (slot := ⟨.object, nominalCategory⟩) creatures.derives
+        (.marked (marker := Lexeme.on) (slot := role) .gap .nil))
 
 theorem body_judges (left right : Bool) :
     Judges lexicon (body left right) (.verbPhrase .plain) [nominalCategory] :=

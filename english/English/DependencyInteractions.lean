@@ -57,7 +57,7 @@ def objectBody : Syntax Lexeme := .node (.finite second .plain) [you,controlGap]
 
 theorem object_body : Judges lexicon objectBody (.clause .finite) [.nounPhrase plural] :=
   .finite (.word .pronoun (Or.inl ⟨rfl,rfl⟩))
-    (.verb ⟨rfl,rfl,Or.inl ⟨rfl,rfl⟩⟩ (.argument (complement := ⟨.object,.nounPhrase plural⟩)
+    (.verb ⟨rfl,rfl,Or.inl ⟨rfl,rfl⟩⟩ (.argument (slot := ⟨.object,.nounPhrase plural⟩)
       .gap .nil)) (.verb ⟨rfl,Or.inr ⟨Or.inl rfl,rfl⟩⟩) rfl
 
 theorem object_form : Realizes lexicon objectBody ["you","control"] :=
@@ -140,8 +140,8 @@ theorem pied_piping :
   have body : Judges lexicon destinationBody (.clause .finite) [.prepositionPhrase] :=
     .finite (.word .pronoun (Or.inl ⟨rfl,rfl⟩))
       (.verb ⟨rfl,rfl,Or.inr (Or.inr ⟨rfl,rfl⟩)⟩
-        (.argument (complement := ⟨.object,.nounPhrase plural⟩) obj
-          (.argument (complement := ⟨.complement,.prepositionPhrase⟩) .gap .nil)))
+        (.argument (slot := ⟨.object,.nounPhrase plural⟩) obj
+          (.argument (slot := ⟨.complement,.prepositionPhrase⟩) .gap .nil)))
       (.verb ⟨rfl,Or.inr ⟨Or.inr rfl,rfl⟩⟩) rfl
   exact ⟨.frontedRelative (Or.inl rfl) (.noun (Or.inl ⟨Or.inl rfl,rfl⟩)) front body,
     ⟨.prepositionPhrase,.complement,.preposition (.pronoun rfl),rfl⟩⟩

@@ -133,6 +133,18 @@ theorem related_preserves_anchors {lexicon : Lexicon L} {category : Category} {s
   | symm _ ih => exact ih.symm
   | trans _ _ ih₁ ih₂ => exact ih₁.trans ih₂
 
+/-- The host invariant belongs to `ScopeStep`, not to `Step`. `Step.determiner`,
+`Step.sharedHead` and `Step.boundary` are host-restructuring moves by construction — a
+determiner distributed across two conjuncts, a head raised out of a coordination, and a
+regrouped frame boundary each rewrite the ordered host — so no analogue of
+`GrammaticalScope.related_preserves_hosts` holds over `Related`. This exhibits the failure
+rather than asserting it: the distribution step changes the host at every instance.
+`Related` retains `related_preserves_lexemes` and `related_preserves_anchors`; the host
+invariant is `GrammaticalScope.related_preserves_hosts` over `ScopeRelated`. -/
+theorem step_can_change_hosts (det a b : Syntax L) :
+    ∃ x y : Syntax L, Step x y ∧ hostStructure x ≠ hostStructure y :=
+  ⟨_,_,.determiner det a b, by simp [hostStructure, hostChildren, hostNode, group]⟩
+
 def serial (c : Coordinator) (cat : Category) (children : List (Syntax L)) : Syntax L :=
   .node (.serialCoordinate c cat) children
 
@@ -252,8 +264,8 @@ theorem projectAnchors_flat_ne_nested {lexicon : Lexicon L} {category : Category
 projections are the two shapes it names. -/
 theorem anchor_shape_separate {lexicon : Lexicon L} {category : Category}
     (survivors : Scope.AnchorPattern → Prop)
-    (p : Selection.Package Scope.AnchorPattern Scope.Anchors)
-    (packed : Selection.Packs survivors Scope.AnchorPattern.anchors p)
+    (p : Preference.Package Scope.AnchorPattern Scope.Anchors)
+    (packed : Preference.Packs survivors Scope.AnchorPattern.anchors p)
     {flatTree nestedTree : Syntax L}
     (flatDerives : Derives lexicon flatTree category)
     (nestedDerives : Derives lexicon nestedTree category)
@@ -316,19 +328,19 @@ theorem actual_nonfinal_boundary (c : Coordinator) (cat : Category) (a b : Synta
     (rest : List Nat) :
     (0 :: rest) ∉ (projectHost (group c cat a b)).sites := Scope.nonfinal_boundary _ _ _ _
 
-theorem actual_role_boundary (marker : L) (role : Complement) (a : Syntax L)
+theorem actual_role_boundary (marker : L) (role : FrameSlot) (a : Syntax L)
     (index : Nat) (rest : List Nat) :
     (index :: rest) ∉ (frameHost [.marker marker,a] [.marked marker role]).sites :=
   Scope.role_edge_opaque _ _ _
 
-theorem fixed_marker_transparent (marker : L) (complement : Complement) (a : Syntax L) :
-    frameHost [.marker marker,a] [.fixed marker,.argument complement] =
-      frameHost [a] [.argument complement] := rfl
+theorem fixed_marker_transparent (marker : L) (slot : FrameSlot) (a : Syntax L) :
+    frameHost [.marker marker,a] [.fixed marker,.argument slot] =
+      frameHost [a] [.argument slot] := rfl
 
-theorem fixed_coordination_transparent (marker : L) (complement : Complement)
+theorem fixed_coordination_transparent (marker : L) (slot : FrameSlot)
     (c : Coordinator) (cat : Category) (a b : Syntax L) :
     [1] ∈ (frameHost [.marker marker,group c cat a b]
-      [.fixed marker,.argument complement]).sites := by
+      [.fixed marker,.argument slot]).sites := by
   have root : [] ∈ (projectHost b).sites := by
     cases projectHost b <;> simp [Scope.Host.sites]
   simpa [frameHost,group,projectHost,Scope.Host.sites] using root

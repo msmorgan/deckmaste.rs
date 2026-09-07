@@ -1,4 +1,4 @@
-import English.Selection
+import English.Preference
 
 /-!
 Scope-boundary abstraction. A production adapter must preserve ordered anchors and distinguish
@@ -7,7 +7,7 @@ transparent hosts from opaque declared-role edges. This is not a second grammati
 
 namespace English.Scope
 
-open Selection
+open Preference
 
 /-- Only the right-periphery distinctions needed for these boundary laws. -/
 inductive Host where

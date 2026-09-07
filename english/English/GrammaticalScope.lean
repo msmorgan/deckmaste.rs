@@ -1,4 +1,4 @@
-import English.Selection
+import English.Preference
 
 namespace English.GrammaticalScope
 variable {L : Type}
@@ -184,7 +184,7 @@ theorem map_related {lexicon : Lexicon L} {category output : Category}
 def package {lexicon : Lexicon L} {category : Category} {surface : Surface}
     (survivors : SchemaWitness lexicon category surface → Prop)
     (representative : SchemaWitness lexicon category surface) :=
-  Selection.pack survivors scopeClass (scopeClass representative)
+  Preference.pack survivors scopeClass (scopeClass representative)
 
 theorem package_exact {lexicon : Lexicon L} {category : Category} {surface : Surface}
     (survivors : SchemaWitness lexicon category surface → Prop)

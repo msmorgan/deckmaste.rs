@@ -33,10 +33,10 @@ mutual
   def frameExposed (trees : List (Syntax L)) (frame : List (FrameItem L)) : List GapUse :=
     match trees,frame with
     | [.frameCoordination _ a b],frame => frameExposed a frame ++ frameExposed b frame
-    | a :: rest,.argument complement :: frame =>
-        exposed a complement.relation ++ frameExposed rest frame
-    | .marker _ :: a :: rest,.marked _ complement :: frame =>
-        exposed a complement.relation ++ frameExposed rest frame
+    | a :: rest,.argument slot :: frame =>
+        exposed a slot.relation ++ frameExposed rest frame
+    | .marker _ :: a :: rest,.marked _ slot :: frame =>
+        exposed a slot.relation ++ frameExposed rest frame
     | .marker _ :: rest,.fixed _ :: frame => frameExposed rest frame
     | _,_ => []
 end

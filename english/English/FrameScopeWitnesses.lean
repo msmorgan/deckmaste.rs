@@ -15,10 +15,10 @@ def cluster (a b d e : Witness Lexeme lexicon nominalCategory) :
    (["put"] : Surface) ++ a.surface ++ (["on"] : Surface) ++ b.surface ++ (["and"] : Surface) ++
      d.surface ++ (["on"] : Surface) ++ e.surface,
    .verb ⟨rfl,rfl,rfl,Or.inr rfl⟩ (.coordinate
-     (.argument (complement := ⟨.object,nominalCategory⟩) a.derives
-       (.marked (complement := role) b.derives .nil))
-     (.argument (complement := ⟨.object,nominalCategory⟩) d.derives
-       (.marked (complement := role) e.derives .nil))),
+     (.argument (slot := ⟨.object,nominalCategory⟩) a.derives
+       (.marked (slot := role) b.derives .nil))
+     (.argument (slot := ⟨.object,nominalCategory⟩) d.derives
+       (.marked (slot := role) e.derives .nil))),
    by
      have h := Realizes.node (.cons (Realizes.frameCoordination (coordinator := .and_)
        (.cons a.realizes (.cons (.marker (Or.inl ⟨rfl,rfl⟩)) (.cons b.realizes .nil)))
@@ -56,9 +56,9 @@ theorem related : Related leftReading rightReading :=
       creatures.tree artifacts.tree creatures.tree artifacts.tree)))
 
 theorem both_packed :
-    (Selection.pack (fun a ↦ a = leftReading ∨ a = rightReading) key (key leftReading)).readings
+    (Preference.pack (fun a ↦ a = leftReading ∨ a = rightReading) key (key leftReading)).readings
       leftReading ∧
-    (Selection.pack (fun a ↦ a = leftReading ∨ a = rightReading) key (key leftReading)).readings
+    (Preference.pack (fun a ↦ a = leftReading ∨ a = rightReading) key (key leftReading)).readings
       rightReading :=
   ⟨⟨Or.inl rfl,rfl⟩,⟨Or.inr rfl,(key_exact _ _).mpr (.symm related)⟩⟩
 

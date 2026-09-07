@@ -54,6 +54,8 @@ theorem type_line_requires_types :
     ¬ DocumentProduction .subtypedLine [.document .supertypes, .document .subtypes]
       (.document .typeLine) := by intro h; cases h
 
+/-- `Documents.type_line_order` states the same exclusion in that fixture namespace; see the note
+there. -/
 theorem type_line_order :
     ¬ DocumentProduction .subtypedLine [.document .subtypes, .document .types, .document .supertypes]
       (.document .typeLine) := by intro h; cases h

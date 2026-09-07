@@ -1,8 +1,8 @@
 import English.Grammar
 
-/-! Selection over independent admissibility, followed by exact scope-class packing. -/
+/-! Preference over independent admissibility, followed by exact scope-class packing. -/
 
-namespace English.Selection
+namespace English.Preference
 
 variable {A K : Type}
 
@@ -206,4 +206,4 @@ theorem packed_admissible {L : Type} {lexicon : Lexicon L} {category : Category}
   selected_sound (admitted := fun t ↦ Admissible lexicon t category surface)
     ((packed.2 tree).mp member).1
 
-end English.Selection
+end English.Preference

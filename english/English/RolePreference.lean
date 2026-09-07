@@ -5,11 +5,11 @@ namespace English.RolePreference
 variable {L : Type}
 def object (agreement : Agreement) : FrameItem L := .argument ⟨.object, .nounPhrase agreement⟩
 def selectedTree (head marker : L) (form : InflectionalForm) (voice : Voice)
-    (agreement : Agreement) (role : Complement) (obj value : Syntax L) : Syntax L :=
+    (agreement : Agreement) (role : FrameSlot) (obj value : Syntax L) : Syntax L :=
   .node (.verb head form [object agreement, .marked marker role] voice)
     [obj,.marker marker,value]
 def postmodifierTree (head marker : L) (form : InflectionalForm) (voice : Voice)
-    (agreement : Agreement) (role : Complement) (obj value : Syntax L) : Syntax L :=
+    (agreement : Agreement) (role : FrameSlot) (obj value : Syntax L) : Syntax L :=
   .node (.verb head form [object agreement] voice)
     [.node (.adjunct (.nounPhrase agreement) .prepositionPhrase)
       [obj,.node (.preposition marker role.category) [value]]]
@@ -30,17 +30,17 @@ mutual
     | _ :: rest => lastPostmodifiers rest
 end
 
-def matchesRole (marker : L) (role : Complement) : Syntax L → Prop
+def matchesRole (marker : L) (role : FrameSlot) : Syntax L → Prop
   | .node (.preposition head category) [_] => head = marker ∧ category = role.category
   | _ => False
 
 /-- The immediately following candidate cannot skip an earlier eligible occurrence. -/
-def FirstRole (marker : L) (role : Complement) (obj : Syntax L) : Prop :=
+def FirstRole (marker : L) (role : FrameSlot) (obj : Syntax L) : Prop :=
   ∀ candidate ∈ postmodifiers obj, ¬ matchesRole marker role candidate
 
 inductive RoleStep (lexicon : Lexicon L) : Syntax L → Syntax L → Prop where
   | immediate {head marker : L} {form : InflectionalForm} {voice : Voice}
-      {agreement : Agreement} {role : Complement} {obj value : Syntax L} :
+      {agreement : Agreement} {role : FrameSlot} {obj value : Syntax L} :
       lexicon.verb head form voice [object agreement, .marked marker role] →
       lexicon.verb head form voice [object agreement] →
       lexicon.preposition marker role.category →
@@ -56,14 +56,14 @@ theorem role_step_derives {lexicon : Lexicon L} {better worse : Syntax L}
   cases step with
   | @immediate head marker form voice agreement role obj value selected base prep _ objD valueD =>
     exact ⟨_,_, .verb selected
-      (.argument (complement := ⟨.object, .nounPhrase agreement⟩) objD
+      (.argument (slot := ⟨.object, .nounPhrase agreement⟩) objD
         (.marked valueD .nil)),
-      .verb base (.argument (complement := ⟨.object, .nounPhrase agreement⟩)
+      .verb base (.argument (slot := ⟨.object, .nounPhrase agreement⟩)
         (.node (context := []) (.adjunct .nounPhrase)
           (.cons objD (.cons (.node (.preposition prep) (.cons valueD .nil)) .nil))) .nil)⟩
 theorem immediate_same_surface {lexicon : Lexicon L}
     {head marker : L} {form : InflectionalForm} {voice : Voice}
-    {agreement : Agreement} {role : Complement} {obj value : Syntax L}
+    {agreement : Agreement} {role : FrameSlot} {obj value : Syntax L}
     {v m os vs : Surface}
     (verbForm : lexicon.verbForm head form v) (markerForm : lexicon.markerForm marker m)
     (objectForm : Realizes lexicon obj os) (valueForm : Realizes lexicon value vs) :
@@ -94,7 +94,7 @@ theorem occurrence_order (category : Category) (obj first second : Syntax L) :
       postmodifiers obj ++ [first, second] := by
   simp [postmodifiers, List.append_assoc]
 
-theorem role_candidate_cannot_skip {marker : L} {role : Complement} {obj first : Syntax L}
+theorem role_candidate_cannot_skip {marker : L} {role : FrameSlot} {obj first : Syntax L}
     {category : Category} (eligible : matchesRole marker role first) :
     ¬ FirstRole marker role (.node (.adjunct category .prepositionPhrase) [obj, first]) := by
   intro h
@@ -117,6 +117,22 @@ mutual
   def roleChildren : List (Syntax L) → Nat
     | [] => 0
     | first :: rest => roleCount first + roleChildren rest
+end
+
+mutual
+  /-- Declared lexical-identity anchors a tree binds. This is the second structural-specificity
+  claim the preference layer reads; like `roleCount` it consults a declared constructor, never a
+  spelling or a card identity. -/
+  def identityCount : Syntax L → Nat
+    | .identity _ _ => 1
+    | .node _ children => identityChildren children
+    | .relativeForm _ a b _ front => identityCount a + identityCount b + identityChildren front
+    | .modify a b | .sharedCoordination _ _ a b => identityCount a + identityCount b
+    | .frameCoordination _ a b => identityChildren a + identityChildren b
+    | _ => 0
+  def identityChildren : List (Syntax L) → Nat
+    | [] => 0
+    | first :: rest => identityCount first + identityChildren rest
 end
 
 private theorem roleChildren_append (a b : List (Syntax L)) :
@@ -178,7 +194,7 @@ theorem role_worse_excluded {lexicon : Lexicon L} {category : Category} {surface
 theorem selected_exists {lexicon : Lexicon L} {category : Category} {surface : Surface}
     (candidates : List (GrammaticalScope.SchemaWitness lexicon category surface))
     (inhabited : ∃ tree, tree ∈ candidates) : ∃ tree, Selected candidates tree := by
-  obtain ⟨tree, member, _, maximal⟩ := Selection.admitted_maximum (fun _ ↦ True)
+  obtain ⟨tree, member, _, maximal⟩ := Preference.admitted_maximum (fun _ ↦ True)
     (fun tree : GrammaticalScope.SchemaWitness lexicon category surface ↦ roleCount tree.val)
     candidates (by obtain ⟨t, h⟩ := inhabited; exact ⟨t, h, trivial⟩)
   refine ⟨tree, member, ?_⟩

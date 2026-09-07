@@ -231,7 +231,7 @@ def gain (keyword : Witness Lexeme lexicon (.keywordPhrase)) :
   ⟨.node (.verb .gain .plain keywordFrame) [keyword.tree], 
    (["gain"] : Surface) ++ [keyword.surface].flatten,
    .verb ⟨rfl, rfl, Or.inr ⟨rfl, Or.inl rfl⟩⟩
-     (.argument (complement := ⟨.object, .keywordPhrase⟩) keyword.derives .nil),
+     (.argument (slot := ⟨.object, .keywordPhrase⟩) keyword.derives .nil),
    .node (.cons keyword.realizes .nil) (.verb (lexicon := lexicon) (head := .gain) (form := .plain)
       (v := ["gain"]) ⟨rfl, Or.inr ⟨rfl, rfl⟩⟩)⟩
 
@@ -244,7 +244,7 @@ def gainQuoted : Witness Lexeme lexicon (.verbPhrase .plain) :=
   ⟨.node (.verb .gain .plain quotedFrame) [quoted.tree],
    (["gain"] : Surface) ++ [quoted.surface].flatten,
    .verb ⟨rfl, rfl, Or.inr ⟨rfl, Or.inr rfl⟩⟩
-     (.argument (complement := ⟨.object, .document .quotedText⟩) quoted.derives .nil),
+     (.argument (slot := ⟨.object, .document .quotedText⟩) quoted.derives .nil),
    .node (.cons quoted.realizes .nil)
      (.verb (lexicon := lexicon) (head := .gain) (form := .plain)
        (v := ["gain"]) ⟨rfl, Or.inr ⟨rfl, rfl⟩⟩)⟩
@@ -401,6 +401,9 @@ theorem nested_reminder_rejected (content : Syntax Lexeme)
     cases free
 
 
+/-- `NotationWitnesses.type_line_order` states the same exclusion in that fixture namespace.
+The duplication is deliberate: each module states the type-line ordering rule its own witnesses
+depend on, and neither imports the other. -/
 theorem type_line_order : ¬ DocumentProduction .subtypedLine
     [.document .subtypes, .document .types, .document .supertypes] (.document .typeLine) := by
   intro derivation

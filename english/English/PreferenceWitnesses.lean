@@ -1,12 +1,12 @@
-import English.Selection
+import English.Preference
 import English.Witnesses
 import English.Composition
 
-/-! Inhabited grammar fragments and counterexamples delimiting the selection laws. -/
+/-! Inhabited grammar fragments and counterexamples delimiting the preference laws. -/
 
-namespace English.SelectionWitnesses
+namespace English.PreferenceWitnesses
 
-open Selection
+open Preference
 
 variable {L : Type}
 
@@ -209,4 +209,4 @@ theorem measure_postmodifier_excluded (number : Number) (placement : Placement) 
   intro h
   cases h
 
-end English.SelectionWitnesses
+end English.PreferenceWitnesses

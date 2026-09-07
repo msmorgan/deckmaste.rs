@@ -71,16 +71,19 @@ inductive Relation where
   | subject | object | complement
   deriving DecidableEq
 
-/-- A relation is attached to a selected category, not used as a category itself. -/
-structure Complement where
+/-- One position in a Verb Frame: the grammatical Relation the position bears, paired with the
+constituent Category that fills it. A relation is attached to a selected category, not used as a
+category itself. The Relation may be `.subject`, so this is not a Complement in the glossary's
+sense (a dependent selected by its head) — it is the slot descriptor a frame is a list of. -/
+structure FrameSlot where
   relation : Relation
   category : Category
   deriving DecidableEq
 
 inductive FrameItem (Lexeme : Type) where
-  | argument (complement : Complement)
+  | argument (slot : FrameSlot)
   | fixed (marker : Lexeme)
-  | marked (marker : Lexeme) (complement : Complement)
+  | marked (marker : Lexeme) (slot : FrameSlot)
 
 inductive Coordinator where
   | and_ | or_ | andOr
@@ -569,11 +572,11 @@ mutual
       List Category → List (Syntax Lexeme) → List (FrameItem Lexeme) → List Category → Prop where
     | nil {context : List Category} : JudgeFrameIn lexicon context [] [] []
     | argument {context : List Category} {head : Syntax Lexeme} {tail : List (Syntax Lexeme)}
-        {complement : Complement}
+        {slot : FrameSlot}
         {frame : List (FrameItem Lexeme)} {headGaps tailGaps : List Category} :
-        JudgesIn lexicon context head complement.category headGaps →
+        JudgesIn lexicon context head slot.category headGaps →
         JudgeFrameIn lexicon context tail frame tailGaps →
-        JudgeFrameIn lexicon context (head :: tail) (.argument complement :: frame) (headGaps ++
+        JudgeFrameIn lexicon context (head :: tail) (.argument slot :: frame) (headGaps ++
           tailGaps)
     | fixed {context : List Category} {marker : Lexeme} {tail : List (Syntax Lexeme)}
         {frame : List (FrameItem Lexeme)}
@@ -581,11 +584,11 @@ mutual
         JudgeFrameIn lexicon context (.marker marker :: tail) (.fixed marker :: frame) gaps
     | marked {context : List Category} {marker : Lexeme} {head : Syntax Lexeme}
         {tail : List (Syntax Lexeme)}
-        {complement : Complement} {frame : List (FrameItem Lexeme)}
+        {slot : FrameSlot} {frame : List (FrameItem Lexeme)}
         {headGaps tailGaps : List Category} :
-        JudgesIn lexicon context head complement.category headGaps →
+        JudgesIn lexicon context head slot.category headGaps →
         JudgeFrameIn lexicon context tail frame tailGaps →
-        JudgeFrameIn lexicon context (.marker marker :: head :: tail) (.marked marker complement
+        JudgeFrameIn lexicon context (.marker marker :: head :: tail) (.marked marker slot
           :: frame)
           (headGaps ++ tailGaps)
     | coordinate {context : List Category} {coordinator : Coordinator}
@@ -639,7 +642,16 @@ abbrev DerivesIn {L : Type} (lexicon : Lexicon L) (context : List Category)
 abbrev Derives {Lexeme : Type} (lexicon : Lexicon Lexeme) (tree : Syntax Lexeme)
     (category : Category) : Prop := Judges lexicon tree category []
 
-/-- Punctuation, capitalization and line boundaries are owned by document productions. -/
+/-- Punctuation, capitalization and line boundaries are owned by document productions.
+
+This is the schema-level copy. It **rewrites** case (`first.capitalize`), where the v3 copy
+`English.Reading.DocumentLinearizes` **requires** it (`first.capitalize = first`), because v3
+realization never rewrites the lexical analysis beneath a document boundary. The two relations
+are otherwise parallel, so a `Spells` claim stated over this copy is weaker than it
+reads; `FamilyWitnesses.document_admitted` carries the v3-relation document-surface claim.
+
+Any new `Linearizes` or `DocumentLinearizes` constructor must be added to **both** copies —
+here and in `English/SurfaceRelations.lean` — or the v3 model silently loses it. -/
 inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Prop where
   | sentence {first : Atom} {tail : Surface} : DocumentLinearizes .sentence
       [first :: tail] (Surface.finishSentence (first.capitalize :: tail))

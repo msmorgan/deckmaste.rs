@@ -24,6 +24,12 @@ A lexical or syntactic unit functioning as a part of a larger expression.
 A grammar rule by which a Category is formed from an ordered pattern of other
 Categories or terminals.
 
+**Derivation** (project term):
+A proof that a Constituent is formed by a sequence of Productions. Two
+Derivations of the same Reading are the same Reading; they are not an
+Ambiguity.
+_Avoid_: Reading for the proof rather than the analysis
+
 **Lexeme**:
 An abstract lexical item underlying its inflected Word Forms.
 
@@ -32,6 +38,10 @@ The conventional citation form used to identify a Lexeme.
 
 **Word Form**:
 An inflected surface form of a Lexeme.
+
+**Spelling Variant** (project term):
+One of two or more declared Word Forms of a Lexeme for the same Feature Bundle,
+each of which is retained as a distinct grammatical value.
 
 **Color Word** (project term):
 One of the eight Word Forms *white*, *blue*, *black*, *red*, *green*,
@@ -53,12 +63,21 @@ its lexical Category and applicable grammatical features.
 The declared vocabulary and grammatical properties available for analyzing an
 expression.
 
+**Provenance** (project term):
+The declaration or catalog a Lexical Analysis came from. Provenance is part of a
+Word Form's identity and is independent of its position in the source.
+
 **Morphology**:
 The formation of a Lexeme’s Word Forms and the grammatical distinctions they
 express.
 
 **Capitalization**:
 The use of uppercase and lowercase letters in a written expression.
+
+**Word Payload** (project term):
+The characters a lexical Word Form owns. A Word Payload is nonempty and contains
+no source whitespace and no quotation delimiter; separators and delimiters
+belong to the surrounding Realization, not to the word.
 
 **Feature Bundle**:
 A correlated collection of grammatical feature values describing one analysis.
@@ -70,12 +89,42 @@ constituent structure and grammatical distinctions.
 **Ambiguity**:
 The availability of more than one Reading of the same expression.
 
+**Admission** (project term):
+The relation by which the grammar accepts a Reading of a given expression at a
+given Category, combining constituent derivation, feature conformance,
+dependency safety and Realization. An admitted Reading is retained regardless of
+Preference.
+_Avoid_: Selection, Parsing for this relation
+
+**Preference** (project term):
+An optional, non-destructive ranking annotated over already-admitted Readings. A
+Preference can order alternatives and name a representative; it can neither add
+a Reading nor revoke one.
+_Avoid_: Selection, Disambiguation for this annotation
+
+**Packing** (project term):
+Grouping Readings that every possible parent treats alike, so that the group can
+be carried as one item without constructing a product of its members. Packing
+preserves every distinction that can affect a parent's admissibility and keeps
+correlated alternatives correlated.
+_Avoid_: Merging, Collapsing, which suggest losing a distinction
+
+**Scope Class** (project term):
+An equivalence class of admitted Readings related by licensed scope alternations,
+which retain the same lexical identities and the same host structure. Membership
+in one Scope Class is not uniqueness of interpretation.
+
 **Realization**:
 The relationship by which an abstract grammatical value is expressed in a
 surface form.
 
 **Linearization**:
 The ordering of a Construction's constituents into a surface sequence.
+
+**Atom** (project term):
+One annotated unit of a surface, carrying whether it is an ordinary word, an
+opening or closing delimiter, a symbol, or a line boundary. The annotation is
+structural metadata, never inferred from the spelling.
 
 **Document**:
 Structured rules text for one text box or independently named face portion,
@@ -84,6 +133,13 @@ including its sentences, keyword lines, and editorial boundaries.
 **Keyword Line**:
 A line formed from one or more keyword-ability surfaces with their prescribed
 parameters and associated reminder text.
+
+**Type Line**:
+The Document portion listing a card face's supertypes, card types and subtypes,
+supertypes printed before card types [CR#205.1,205.4a], written with a long dash
+before the subtypes as each card type's subtype rule prescribes [CR#302.3].
+_Avoid_: Type Line as a Game Model concept — the Game Model glossary's Card Type
+entry reserves it for the printed line
 
 **Notation**:
 A conventional written representation using symbols, numerals, or other
@@ -200,6 +256,12 @@ An ordered lexical schema describing the complements and fixed markers a verb
 licenses.
 _Avoid_: Verb Phrase for the schema; Verb Frame for an instantiated phrase
 
+**Frame Slot** (project term):
+One position in a Verb Frame: the grammatical relation the position bears —
+Subject, Object or Complement — paired with the Category that fills it. A Frame
+Slot whose relation is Subject is not a Complement.
+_Avoid_: Complement for the slot descriptor
+
 **Nominal**:
 An intermediate nominal constituent headed by a noun or noun-like element.
 
@@ -250,6 +312,9 @@ end of turn*.
 **Modifier**:
 A dependent that attributes or restricts the interpretation of its head.
 
+**Premodifier**:
+A Modifier that precedes its head in the linear order.
+
 **Postmodifier**:
 A Modifier that follows its head in the linear order.
 
@@ -261,6 +326,15 @@ One of the units joined in a Coordination.
 
 **Coordinator**:
 The marker that links Conjuncts, such as *and* or *or*.
+
+**Anchor** (project term):
+An ordered position at which a Coordination or a coordinated frame segment joins
+its parts. The ordered arrangement of a Reading's Anchors, including group arity,
+is part of its structural identity.
+
+**Serial Comma**:
+The comma written before the Coordinator of a flat Coordination of three or more
+Conjuncts. Its presence marks the Coordination as flat rather than nested.
 
 **Gap**:
 An unpronounced syntactic position related to an overt or understood element

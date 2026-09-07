@@ -156,7 +156,7 @@ theorem target_action_admitted : Reading.Admitted environment [] targetingAction
     ⟨target_verb_licensed, ⟨_, rfl⟩, declaration .targetVerb, rfl,
       Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))⟩
   refine ⟨⟨.node .imperative (.cons (.verb frame
-    (.argument (complement := ⟨.object, .nounPhrase plural⟩) objects_derives .nil)) .nil), ?_, ?_, ?_⟩,
+    (.argument (slot := ⟨.object, .nounPhrase plural⟩) objects_derives .nil)) .nil), ?_, ?_, ?_⟩,
     .node (.cons (.node (.cons objects_realizes .nil)
       (.verb (lexicon := grammar) ⟨target_verb_licensed, ⟨_, rfl⟩, rfl⟩)) .nil) .imperative⟩
   · simp [targetingAction, targetFrame, objects, Features.Conforms, Features.ChildrenConform,
@@ -174,7 +174,7 @@ theorem target_relative_admitted : Reading.Admitted environment [] targetingRela
       (.verbPhrase .plain) :=
     .verb ⟨target_finite_licensed, ⟨_, rfl⟩, declaration .targetVerb, rfl,
       Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl⟩))⟩
-      (.argument (complement := ⟨.object, .nounPhrase plural⟩) objects_derives .nil)
+      (.argument (slot := ⟨.object, .nounPhrase plural⟩) objects_derives .nil)
   have body : Judges grammar targetingBody (.clause .finite) [.nounPhrase plural] :=
     .finite .gap predicate (.verb ⟨target_finite_licensed, .present, rfl⟩) rfl
   refine ⟨⟨.relative noun_derives body, ?_, ?_, ?_⟩,

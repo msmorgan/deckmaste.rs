@@ -15,11 +15,30 @@ No declaration is retained merely as an API compatibility requirement.
 
 ## Proof accounting
 
-There were 344 named source theorems; there are now 472. Of the old
-theorems, 301 are retained without a proof-text change, 33 are re-spelled or
-replaced, and 10 are retired. Restored: 0; ignored: 0. There are 148 new theorem
-names (including replacement names). This new-name count overlaps the old
-replacement count; it is not an additive measure of new grammar coverage.
+There were 344 named source theorems; the v3 grammar-model landing brought that
+to 472. Of the old theorems, 301 are retained without a proof-text change, 33
+are re-spelled or replaced, and 10 are retired. Restored: 0; ignored: 0. There
+are 148 new theorem names (including replacement names). This new-name count
+overlaps the old replacement count; it is not an additive measure of new grammar
+coverage.
+
+**Proof audit (`english-v3-lean-proof-audit`).** There are now **573** named
+source theorems in **43** modules. The census is the source-token count
+`grep -ohE '\btheorem [A-Za-z_]' English/*.lean | wc -l`, which reproduces the
+472 figure above on the tree that recorded it. Against that tree the audit adds
+**101** new theorem names, re-spells **7**, retires **0**, restores **0** and
+ignores **0**. Exactly one theorem name disappears —
+`FeatureInteractions.genitive_preserves_countability`, replaced by
+`genitive_determiner_is_transparent`, whose row below names the replacement.
+Three non-theorem declarations are retired with their replacements named:
+the `Features.DeterminerUse.genitive` constructor (replaced by
+`Features.Transparent`), the `DocumentProduction.body` constructor (replaced by
+`ParagraphProduction.body`) and `BoundaryInteractions.wordPayload` (replaced by
+`Atom.WellFormed`). Three renames carry through the tree: `English.Selection` →
+`English.Preference`, `English.SelectionWitnesses` →
+`English.PreferenceWitnesses`, and `English.Complement` → `English.FrameSlot`.
+The compiled axiom audit is now a command, `english/scripts/axioms`: **2,681**
+compiled `English.` theorems checked, **0** disallowed axiom uses.
 
 Old theorems re-spelled under the same name:
 
@@ -56,10 +75,10 @@ linguistic regression is assigned away to make the build pass.
 
 The generic grammar, feature, dependency and document schemas remain inputs to
 v3 admission. Their older witness contracts remain bounded schema evidence.
-`Selection` and `RolePreference` are optional preference-view algebra;
+`Preference` and `RolePreference` are optional preference-view algebra;
 `Scope`, `GrammaticalScope` and `FrameScope` describe local relationships and
 projections. None of those five modules is imported by the v3 admission closure.
-Their selection or single-class packaging operations do not define the full
+Their preference or single-class packaging operations do not define the full
 reading set. See [README.md](README.md) for the current entry points and limits.
 
 ### AgreementInteractions.lean
@@ -675,7 +694,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.FiniteForm` | Kept. |
 | `English.Category` | Kept. |
 | `English.Relation` | Kept. |
-| `English.Complement` | Kept. |
+| `English.Complement` | Kept; renamed to `English.FrameSlot`. The glossary’s Complement is a dependent selected by its head, and this type pairs a Relation (which may be `.subject`) with a Category — it is the slot descriptor a Verb Frame is a list of. The `FrameItem.argument`/`.marked` field is renamed `slot` to match. |
 | `English.FrameItem` | Kept. |
 | `English.Coordinator` | Kept. |
 | `English.Coordinator.surface` | Kept. |
@@ -858,68 +877,76 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 
 ### Selection.lean
 
+The module and namespace are now `English.Preference`
+(`English/Preference.lean`): the Game Model owns *Selection* for a set of
+Objects and/or Players, and this algebra is the Oracle English *Preference*
+view. Every row below keeps its content under the new namespace.
+
 | Old declaration | Disposition |
 |---|---|
-| `English.Selection.Claims` | Kept. |
-| `English.Selection.Claims.rank` | Kept. |
-| `English.Selection.Policy` | Kept. |
-| `English.Selection.Prefers` | Kept. |
-| `English.Selection.Selected` | Kept. |
-| `English.Selection.selected_sound` | Kept. |
-| `English.Selection.selected_enumeration` | Kept. |
-| `English.Selection.selected_permutation` | Kept. |
-| `English.Selection.frame_role_preempts` | Kept. |
-| `English.Selection.identity_preempts` | Kept. |
-| `English.Selection.preference_decreases` | Kept. |
-| `English.Selection.preference_asymmetric` | Kept. |
-| `English.Selection.preference_transitive` | Kept. |
-| `English.Selection.PreferenceChain` | Kept. |
-| `English.Selection.no_preference_cycle` | Kept. |
-| `English.Selection.admitted_maximum` | Kept. |
-| `English.Selection.selected_exists` | Kept. |
-| `English.Selection.Package` | Kept. |
-| `English.Selection.Packs` | Kept. |
-| `English.Selection.pack` | Kept. |
-| `English.Selection.packing_exists` | Kept. |
-| `English.Selection.packing_exact` | Kept. |
-| `English.Selection.packing_unique` | Kept. |
-| `English.Selection.packing_enumeration` | Kept. |
-| `English.Selection.different_classes_separate` | Kept. |
-| `English.Selection.unpack_exact` | Kept. |
-| `English.Selection.packed_admissible` | Kept. |
+| `English.Selection.Claims` | Kept; renamed to `English.Preference.Claims` with the module/namespace rename. |
+| `English.Selection.Claims.rank` | Kept; renamed to `English.Preference.Claims.rank` with the module/namespace rename. |
+| `English.Selection.Policy` | Kept; renamed to `English.Preference.Policy` with the module/namespace rename. |
+| `English.Selection.Prefers` | Kept; renamed to `English.Preference.Prefers` with the module/namespace rename. |
+| `English.Selection.Selected` | Kept; renamed to `English.Preference.Selected` with the module/namespace rename. |
+| `English.Selection.selected_sound` | Kept; renamed to `English.Preference.selected_sound` with the module/namespace rename. |
+| `English.Selection.selected_enumeration` | Kept; renamed to `English.Preference.selected_enumeration` with the module/namespace rename. |
+| `English.Selection.selected_permutation` | Kept; renamed to `English.Preference.selected_permutation` with the module/namespace rename. |
+| `English.Selection.frame_role_preempts` | Kept; renamed to `English.Preference.frame_role_preempts` with the module/namespace rename. |
+| `English.Selection.identity_preempts` | Kept; renamed to `English.Preference.identity_preempts` with the module/namespace rename. |
+| `English.Selection.preference_decreases` | Kept; renamed to `English.Preference.preference_decreases` with the module/namespace rename. |
+| `English.Selection.preference_asymmetric` | Kept; renamed to `English.Preference.preference_asymmetric` with the module/namespace rename. |
+| `English.Selection.preference_transitive` | Kept; renamed to `English.Preference.preference_transitive` with the module/namespace rename. |
+| `English.Selection.PreferenceChain` | Kept; renamed to `English.Preference.PreferenceChain` with the module/namespace rename. |
+| `English.Selection.no_preference_cycle` | Kept; renamed to `English.Preference.no_preference_cycle` with the module/namespace rename. |
+| `English.Selection.admitted_maximum` | Kept; renamed to `English.Preference.admitted_maximum` with the module/namespace rename. |
+| `English.Selection.selected_exists` | Kept; renamed to `English.Preference.selected_exists` with the module/namespace rename. |
+| `English.Selection.Package` | Kept; renamed to `English.Preference.Package` with the module/namespace rename. |
+| `English.Selection.Packs` | Kept; renamed to `English.Preference.Packs` with the module/namespace rename. |
+| `English.Selection.pack` | Kept; renamed to `English.Preference.pack` with the module/namespace rename. |
+| `English.Selection.packing_exists` | Kept; renamed to `English.Preference.packing_exists` with the module/namespace rename. |
+| `English.Selection.packing_exact` | Kept; renamed to `English.Preference.packing_exact` with the module/namespace rename. |
+| `English.Selection.packing_unique` | Kept; renamed to `English.Preference.packing_unique` with the module/namespace rename. |
+| `English.Selection.packing_enumeration` | Kept; renamed to `English.Preference.packing_enumeration` with the module/namespace rename. |
+| `English.Selection.different_classes_separate` | Kept; renamed to `English.Preference.different_classes_separate` with the module/namespace rename. |
+| `English.Selection.unpack_exact` | Kept; renamed to `English.Preference.unpack_exact` with the module/namespace rename. |
+| `English.Selection.packed_admissible` | Kept; renamed to `English.Preference.packed_admissible` with the module/namespace rename. |
 
 ### SelectionWitnesses.lean
 
+The module and namespace are now `English.PreferenceWitnesses`
+(`English/PreferenceWitnesses.lean`), following the `English.Preference` rename.
+
 | Old declaration | Disposition |
 |---|---|
-| `English.SelectionWitnesses.neutral` | Kept. |
-| `English.SelectionWitnesses.neutral_selected` | Kept. |
-| `English.SelectionWitnesses.ModifierScope` | Kept. |
-| `English.SelectionWitnesses.modifier_scope_preserves` | Kept. |
-| `English.SelectionWitnesses.modifier_scope_unique` | Kept; the `Unit` key is deliberate and documented — the survivors are one scope class, so every projection of them is constant. |
-| `English.SelectionWitnesses.acyclic_tie` | Kept, statement unchanged; its acyclicity conjunct is over the empty `neutral` preference, now stated as such by `English.SelectionWitnesses.neutral_prefers_nothing`, and re-spelled over an inhabited preference as `English.FrameInteractions.role_acyclic_tie`. |
-| `English.SelectionWitnesses.modifier_package_retains_both` | Kept; `Unit` key deliberate and documented (single scope class). |
-| `English.SelectionWitnesses.homographs` | Kept. |
-| `English.SelectionWitnesses.homographs_admitted` | Kept. |
-| `English.SelectionWitnesses.same_surface_separate` | Kept. |
-| `English.SelectionWitnesses.CrossHost.pair` | Kept. |
-| `English.SelectionWitnesses.CrossHost.auxiliary` | Kept. |
-| `English.SelectionWitnesses.CrossHost.adjunct` | Kept. |
-| `English.SelectionWitnesses.CrossHost.outside` | Kept. |
-| `English.SelectionWitnesses.CrossHost.inside` | Kept. |
-| `English.SelectionWitnesses.CrossHost.finalConjunct` | Kept. |
-| `English.SelectionWitnesses.CrossHost.surface` | Kept. |
-| `English.SelectionWitnesses.CrossHost.alternatives` | Kept. |
-| `English.SelectionWitnesses.CrossHost.pair_admitted` | Kept. |
-| `English.SelectionWitnesses.CrossHost.auxiliary_admitted` | Kept. |
-| `English.SelectionWitnesses.CrossHost.adjunct_admitted` | Kept. |
-| `English.SelectionWitnesses.CrossHost.cross_host_admitted` | Kept. |
-| `English.SelectionWitnesses.CrossHost.cross_host_scope` | Kept; `Unit` key deliberate and documented (single scope class). |
-| `English.SelectionWitnesses.declaredPrinciples` | Kept. |
-| `English.SelectionWitnesses.ordered_principles_winner` | Kept. |
-| `English.SelectionWitnesses.inadmissible_cannot_suppress` | Kept. |
-| `English.SelectionWitnesses.qualification_sites_excluded` | Kept. |
-| `English.SelectionWitnesses.measure_postmodifier_excluded` | Kept. |
+| `English.SelectionWitnesses.neutral` | Kept; renamed to `English.PreferenceWitnesses.neutral` with the module/namespace rename. |
+| `English.SelectionWitnesses.neutral_selected` | Kept; renamed to `English.PreferenceWitnesses.neutral_selected` with the module/namespace rename. |
+| `English.SelectionWitnesses.ModifierScope` | Kept; renamed to `English.PreferenceWitnesses.ModifierScope` with the module/namespace rename. |
+| `English.SelectionWitnesses.modifier_scope_preserves` | Kept; renamed to `English.PreferenceWitnesses.modifier_scope_preserves` with the module/namespace rename. |
+| `English.SelectionWitnesses.modifier_scope_unique` | Kept; renamed to `English.PreferenceWitnesses.modifier_scope_unique` with the module/namespace rename. The `Unit` key is deliberate and documented — the survivors are one scope class, so every projection of them is constant. |
+| `English.SelectionWitnesses.acyclic_tie` | Kept; renamed to `English.PreferenceWitnesses.acyclic_tie` with the module/namespace rename, statement unchanged; its acyclicity conjunct is over the empty `neutral` preference, now stated as such by `English.PreferenceWitnesses.neutral_prefers_nothing`, and re-spelled over an inhabited preference as `English.FrameInteractions.role_acyclic_tie`. |
+| `English.SelectionWitnesses.modifier_package_retains_both` | Kept; renamed to `English.PreferenceWitnesses.modifier_package_retains_both` with the module/namespace rename. `Unit` key deliberate and documented (single scope class). |
+| `English.SelectionWitnesses.homographs` | Kept; renamed to `English.PreferenceWitnesses.homographs` with the module/namespace rename. |
+| `English.SelectionWitnesses.homographs_admitted` | Kept; renamed to `English.PreferenceWitnesses.homographs_admitted` with the module/namespace rename. |
+| `English.SelectionWitnesses.same_surface_separate` | Kept; renamed to `English.PreferenceWitnesses.same_surface_separate` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.pair` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.pair` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.auxiliary` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.auxiliary` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.adjunct` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.adjunct` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.outside` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.outside` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.inside` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.inside` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.finalConjunct` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.finalConjunct` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.surface` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.surface` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.alternatives` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.alternatives` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.pair_admitted` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.pair_admitted` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.auxiliary_admitted` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.auxiliary_admitted` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.adjunct_admitted` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.adjunct_admitted` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.cross_host_admitted` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.cross_host_admitted` with the module/namespace rename. |
+| `English.SelectionWitnesses.CrossHost.cross_host_scope` | Kept; renamed to `English.PreferenceWitnesses.CrossHost.cross_host_scope` with the module/namespace rename. `Unit` key deliberate and documented (single scope class). |
+| `English.SelectionWitnesses.declaredPrinciples` | Kept; renamed to `English.PreferenceWitnesses.declaredPrinciples` with the module/namespace rename. |
+| `English.SelectionWitnesses.ordered_principles_winner` | Kept; renamed to `English.PreferenceWitnesses.ordered_principles_winner` with the module/namespace rename. |
+| `English.SelectionWitnesses.inadmissible_cannot_suppress` | Kept; renamed to `English.PreferenceWitnesses.inadmissible_cannot_suppress` with the module/namespace rename. |
+| `English.SelectionWitnesses.qualification_sites_excluded` | Kept; renamed to `English.PreferenceWitnesses.qualification_sites_excluded` with the module/namespace rename. |
+| `English.SelectionWitnesses.measure_postmodifier_excluded` | Kept; renamed to `English.PreferenceWitnesses.measure_postmodifier_excluded` with the module/namespace rename. |
 
 ### SharingInteractions.lean
 

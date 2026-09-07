@@ -124,7 +124,7 @@ theorem at_sentence_end : Written lexicon sentence (.document .sentence)
   have npD : Derives lexicon np (.nounPhrase plural) := .node .barePlural (.cons nominalD .nil)
   have predicateD : Derives lexicon predicate (.verbPhrase .plain) :=
     .verb ⟨rfl,rfl,Or.inl ⟨rfl,rfl⟩⟩
-      (.argument (complement := ⟨.object,.nounPhrase plural⟩) npD .nil)
+      (.argument (slot := ⟨.object,.nounPhrase plural⟩) npD .nil)
   have clauseD : Derives lexicon clause (.clause .finite) :=
     .finite (.word .pronoun (Or.inl ⟨rfl,rfl⟩)) predicateD
       (.verb ⟨rfl,Or.inr ⟨Or.inl rfl,rfl⟩⟩) rfl

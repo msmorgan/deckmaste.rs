@@ -49,16 +49,16 @@ theorem noun_reading_derives : Derives grammar nounReading (.clause .finite) :=
   .finite subject_derives
     (.verb ⟨saw_licensed, ⟨_, rfl⟩, declaration .see, rfl,
       Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl, Or.inl rfl⟩)))⟩
-      (.argument (complement := ⟨.object, .nounPhrase singular⟩) her_duck_derives .nil))
+      (.argument (slot := ⟨.object, .nounPhrase singular⟩) her_duck_derives .nil))
     (.verb ⟨saw_licensed, .past, rfl⟩) rfl
 
 theorem verb_reading_derives : Derives grammar verbReading (.clause .finite) :=
   .finite subject_derives
     (.verb ⟨saw_licensed, ⟨_, rfl⟩, declaration .see, rfl,
       Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl, Or.inr rfl⟩)))⟩
-      (.argument (complement := ⟨.object, .nounPhrase singular⟩)
+      (.argument (slot := ⟨.object, .nounPhrase singular⟩)
         (.word (lexicon := grammar) .pronoun ⟨object_licensed, Or.inl ⟨_, rfl⟩⟩)
-        (.argument (complement := ⟨.complement, .verbPhrase .plain⟩) ducking_derives .nil)))
+        (.argument (slot := ⟨.complement, .verbPhrase .plain⟩) ducking_derives .nil)))
     (.verb ⟨saw_licensed, .past, rfl⟩) rfl
 
 theorem noun_reading_realizes : Reading.Realizes grammar nounReading ["I", "saw", "her", "duck"] :=

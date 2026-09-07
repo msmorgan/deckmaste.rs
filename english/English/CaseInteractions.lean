@@ -28,7 +28,7 @@ def features : Features.Declarations Lexeme where
     | .him | .them => .accusative
     | _ => .nominativeOrAccusative
 
-def object (features : Agreement) : Complement := ⟨.object, .nounPhrase features⟩
+def object (features : Agreement) : FrameSlot := ⟨.object, .nounPhrase features⟩
 
 def seeText (form : InflectionalForm) : Surface :=
   if form = .plain then ["see"] else ["sees"]
@@ -59,7 +59,7 @@ def see (form : InflectionalForm) (licensed : form = .plain ∨ form = .thirdSin
   ⟨.node (.verb .see form [.argument (object (agreement head))]) [(pronoun head nominal).tree],
    seeText form ++ (pronoun head nominal).surface,
    .verb ⟨rfl, licensed, rfl, agreement head, rfl⟩
-     (.argument (lexicon := lexicon) (complement := object (agreement head))
+     (.argument (lexicon := lexicon) (slot := object (agreement head))
        (headGaps := []) (tailGaps := []) (pronoun head nominal).derives .nil),
    .node (.cons (pronoun head nominal).realizes .nil)
      (.verb (v := seeText form) ⟨rfl, licensed, rfl⟩)⟩
@@ -98,7 +98,7 @@ def raisedSee (head : Lexeme) (licensed : head ∈ pronouns) :
    (["see"] : Surface) ++ (pronoun head licensed).surface,
    .rightNodeRaising
      (.verb ⟨rfl, Or.inl rfl, rfl, agreement head, rfl⟩
-       (.argument (lexicon := lexicon) (complement := object (agreement head))
+       (.argument (lexicon := lexicon) (slot := object (agreement head))
          (headGaps := [.nounPhrase (agreement head)]) (tailGaps := []) .gap .nil))
      (pronoun head licensed).derives,
    .node (.cons (.node (.cons .gap .nil)

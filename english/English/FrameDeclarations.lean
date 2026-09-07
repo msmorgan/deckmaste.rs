@@ -41,7 +41,7 @@ inductive Lexeme where
 
 def plural : Agreement := ⟨.third, .plural⟩
 def nominalCategory := Category.nounPhrase plural
-def role : Complement := ⟨.complement, nominalCategory⟩
+def role : FrameSlot := ⟨.complement, nominalCategory⟩
 
 def object : FrameItem Lexeme := .argument ⟨.object, nominalCategory⟩
 def recipient : FrameItem Lexeme := .marked .to role
@@ -76,14 +76,14 @@ theorem artifacts_derives : Derives lexicon artifacts nominalCategory :=
 theorem optional_absent : Derives lexicon
     (.node (.verb .give .plain [object]) [creatures]) (.verbPhrase .plain) :=
   .verb ⟨rfl, Or.inl ⟨rfl, rfl, Or.inl (.required (.absent .nil))⟩⟩
-    (.argument (complement := ⟨.object, nominalCategory⟩) creatures_derives .nil)
+    (.argument (slot := ⟨.object, nominalCategory⟩) creatures_derives .nil)
 
 theorem optional_present : Derives lexicon
     (.node (.verb .give .plain [object, recipient]) [creatures, .marker .to, artifacts])
     (.verbPhrase .plain) :=
   .verb ⟨rfl, Or.inl ⟨rfl, rfl, Or.inl (.required (.present .nil))⟩⟩
-    (.argument (complement := ⟨.object, nominalCategory⟩) creatures_derives
-      (.marked (marker := Lexeme.to) (complement := role) artifacts_derives .nil))
+    (.argument (slot := ⟨.object, nominalCategory⟩) creatures_derives
+      (.marked (marker := Lexeme.to) (slot := role) artifacts_derives .nil))
 
 theorem optional_does_not_drop_required : ¬ Expands optionalRecipient [] := by
   intro h
@@ -111,11 +111,11 @@ theorem multiple_complement_orders :
       (.node (.verb .give .plain [object, object]) [creatures, artifacts])
       (.verbPhrase .plain) :=
   ⟨.verb ⟨rfl, Or.inl ⟨rfl, rfl, Or.inl (.required (.present .nil))⟩⟩
-     (.argument (complement := ⟨.object, nominalCategory⟩) artifacts_derives
-       (.marked (marker := Lexeme.to) (complement := role) creatures_derives .nil)),
+     (.argument (slot := ⟨.object, nominalCategory⟩) artifacts_derives
+       (.marked (marker := Lexeme.to) (slot := role) creatures_derives .nil)),
    .verb ⟨rfl, Or.inl ⟨rfl, rfl, Or.inr rfl⟩⟩
-     (.argument (complement := ⟨.object, nominalCategory⟩) creatures_derives
-       (.argument (complement := ⟨.object, nominalCategory⟩) artifacts_derives .nil))⟩
+     (.argument (slot := ⟨.object, nominalCategory⟩) creatures_derives
+       (.argument (slot := ⟨.object, nominalCategory⟩) artifacts_derives .nil))⟩
 
 def retainedObject : Syntax Lexeme :=
   .node (.verb .give .pastParticiple [object] .passive) [creatures]
@@ -123,7 +123,7 @@ def retainedObject : Syntax Lexeme :=
 theorem passive_retains_declared_object :
     Derives lexicon retainedObject (.verbPhrase .pastParticiple .passive) :=
   .verb ⟨rfl, Or.inr ⟨rfl, rfl, rfl⟩⟩
-    (.argument (complement := ⟨.object, nominalCategory⟩) creatures_derives .nil)
+    (.argument (slot := ⟨.object, nominalCategory⟩) creatures_derives .nil)
 
 theorem retained_object_surface : Realizes lexicon retainedObject ["given", "creatures"] :=
   .node (.cons (.node (.cons (.noun (lexicon := lexicon)

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Audit the transitive axiom dependencies of every compiled English theorem.
+cd "$(dirname "$0")/.." || exit 1
+lake build --wfail || exit 1
+exec lake env lean --run scripts/Axioms.lean "$@"
