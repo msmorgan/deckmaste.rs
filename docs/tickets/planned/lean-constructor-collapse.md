@@ -1,70 +1,72 @@
 ---
-needs: []
+needs: [semantics-v2-parity]
 ---
-**Collapse the constructors the 2026-09-06 load-bearing audit found, restore
-two laws the Idris port dropped, and record the inert-vocabulary ruling.**
-One round, before `semantics-v2-crate` mirrors these types into Rust. The
-audit classified every constructor of the six syntax layers on four checks:
-a distinct `Check/*` read, a card or pin witness, macro-expressibility, and a
-twin. Standard constraints apply; every affected pin is re-spelled, never
-deleted.
+# Simplify the shared Lean/Rust syntax after parity
 
-Collapse (each has a byte-identical or absent checker read; file refs are
-where the shared arm lives):
+Use the completed lowering and parity work to remove genuine redundancies in
+Lean and its Rust mirror. This is follow-up cleanup, not a prerequisite for
+building semantics v2 or retiring v1 (user decision, 2026-09-06). Lean remains
+the specification; change both representations and their consumers together.
+Standard constraints apply.
 
-- `CharacteristicStat` duplicates `Words.Stat`; the axis is `_` at all 47
-  sites (`Check/AbilityRules.lean`, `Check/Abilities.lean`). Add `defense` to
-  `Stat`, retype `CharacteristicEdit.stat`, delete the type.
-- `StatusCat` and `Status.category`: zero uses outside their declaration;
-  `Status.clash` enumerates pairs directly. Delete, unless the status-clash
-  law below wants the category back.
-- `OutcomeVerb`: `Instruction.conclude` never projects it; `CoreDeed.winGame`
-  and `loseGame` are read. Make `conclude` take a `CoreDeed`, delete the type.
-- `Card.split` and `Card.modalDfc` have the same checker body. Either one is a
-  macro over the other or the law separating the frames is missing; decide.
-- `Lookback`: seven constructors, 38 witnesses, `LookbackClause.window` is
-  defined and never called, `PaidFacet.readback` discards it. Give it a law
-  or shrink it; `thisCombat` has no witness either way.
-- `ManaUnit` belongs in `Macros.lean`: no constructor field mentions it and
-  `scaledMana` eliminates it immediately.
-- Pairs with one shared arm: `drawGame`/`restartGame`; `Predicate.wasCast` vs
-  `castBy none`; `Repetition.again`/`againExcludingChosen`;
-  `ProducedMana.asPrintedCost`/`lastNoted` and `couldProduce`/`amongColorsOf`;
-  `RollWatch.anyResult` vs `Option RollWatch`; `TokenRider.entersMelded`'s
-  unread `into`; `LoyaltyCost.{up,down,zero}` as `Delta Nat`.
-- Unused, no witness and no read: `ChoiceDomain.nonbasicTypesOnly`,
-  `Condition.gameIs`, `Condition.flipFace` (twin of `Predicate.coinCameUp`
-  through `Condition.matches`), `Causing.anEffect`, `Repetition.untilCond`,
-  `SpecialAction.{putCompanionIntoHand,foretell,unlockDoor}`,
-  `SubtypeScope.nonbasicOnly`, `HiddenSort.choices`, `ColorFreedom.eachColor`,
-  `LockState.unlocked`. `TurnPart.firstStrikeCombatDamage` is corpus-attested
-  [CR#510.4] and wants a witness instead.
+A shared checker arm, an unread payload, or absence from the bench does not
+establish semantic equivalence. Engine-facing vocabulary can carry meaning
+without a distinct admission law. A family fold must retain every meaningful
+discriminator and payload; a macro replacement must express the same meaning
+and preserve reference scope. There is no constructor-count target.
 
-Checker gaps found on the way, fix rather than remove:
+## Candidates
 
-- `Predicate.hasSupertype` is read only in the 13-way arm at
-  `Check/PhraseRules.lean` and absent from `writtenTypes`, `seedType`,
-  `hasHead`, so "legendary" contributes nothing to type-line reasoning.
-- `Quantity.upToOf` binds no shortfall outcome while `Amount.upTo` binds
-  `outcomeB .ceilingShortfall` (`Check/Phrase.lean`).
-- Two Idris laws did not survive the port: the status-clash family
-  (`sameStatusVal`, `statusClash`, `statusWordOk`, `statusMarkable` in
-  `idris/src/Experimental/Words.idr`) and the face laws on `FaceSide`
-  (`boxSuitsType`, `cardBoxOk`, `cardCostOk` in `Experimental/Card.idr`).
-  Restore each as a Lean law with its pins, or record in the landing why the
-  Lean shape makes it unnecessary.
-- `SharedLineHalf.name` is subject to no law while a face's name is.
+Recheck these against the then-current model and lowering before changing them:
 
-Ruling to record in `docs/decisions/lean-is-the-workbench.md` (user,
-2026-09-06): the 35 `Words.lean` and `Events.lean` enums no checker function
-reads (`Disclosure`, `CoinFace`, `Arrangement`, `RoundMode`, `Parity`,
-`ArithOp`, `SpecialAction`, `PayTimes`, …) are engine-facing vocabulary the
-semantics layer carries opaquely. They were carried vocabulary in Idris too:
-of the 35, three were read by an Idris law, seven only by their own derived
-`Eq`, and eight by nothing. They owe no law and are not twins to prune; the
-as-written rule keeps each printed word its own constructor. Four have no
-introducing ticket (`LibraryEnd`, `CombatRole`, `ScaleFactor`,
-`OutcomeVerb`); give each a doc comment naming its printed word.
+- Remove `StatusCat` and `Status.category` if still unused and derivable from
+  `Status`; preserve the existing status laws.
+- Move `ManaUnit` to the macro-authoring layer if `scaledMana` still eliminates
+  it and no semantic field carries it. Follow its actual consumers in Rust.
+- Consider representing `Predicate.wasCast` through a cast predicate with an
+  optional caster. Today `castBy` requires a `NounPhrase`; `castBy none` is not
+  an existing expansion. Preserve rank, introductions, and source distinctions.
+- Check whether `RollWatch.anyResult` duplicates an enclosing optional value.
+  Fold only if omission and an explicit unrestricted watch have the same
+  meaning in their consumers.
+- Consider sharing the stat axis vocabulary. `CharacteristicStat` has defense
+  but no mana value; `Stat` has mana value but no defense. Any consolidation
+  must preserve which axes each operation admits.
+- Consider a family representation for related outcomes, mana queries, or card
+  forms only when the implemented consumers show a real simplification. Keep
+  distinct outcomes, source queries, and frame kinds as explicit data. Replacing
+  `OutcomeVerb` with unrestricted `CoreDeed` is not a mechanical deduplication.
 
-Also fold in `workbench-last-shapes` if its five shapes are cheap here;
-otherwise leave it.
+A candidate may be retained with a brief explanation. Prefer a small justified
+change to relocating variants into new enums without simplifying consumers.
+
+## Preserved scope and corrections to the earlier audit
+
+Preserve draw versus restart, split versus modal DFC, the distinct produced-mana
+queries, repetition excluding previous choices, lookback windows, and meld
+destinations unless a replacement explicitly retains their meaning. Do not
+prune Special Action or other vocabulary solely because it lacks a witness or
+checker read. Cost symbols and `LoyaltyCost`, including `downX`, remain deferred.
+`workbench-last-shapes` remains separate.
+
+The earlier audit's alleged missing status and face laws already exist as
+`Status.clash`, `Status.word`, `Status.markable`, `boxSuitsTypes`, `cardBoxOk`,
+and `cardCostOk`. `SharedLineHalf.name` is a required `String`; `gameIs` and
+`untilCond` have checker reads. Absence of `hasSupertype` from card-type
+inference and the differing introductions of `Quantity.upToOf` and `Amount.upTo`
+are not by themselves demonstrated defects. Any actual correctness defect
+needs a concrete witness and should be fixed when found, without waiting for
+this cleanup.
+
+## Completion
+
+For each selected change, record the redundancy removed and demonstrate the
+preserved meaning with positive and negative witnesses. Update the Lean syntax,
+checker and pins, Rust types and drift mapping, reader/emitter, affected RON
+macro bodies and cards, and lowering together. Use the active crate and plugin
+paths if cutover has already renamed them.
+
+Run the Lean gate, representation drift checks, emitted-card gate, affected
+Rust test closure, and the parity/regression checks exercising the changed
+constructs. Preserve existing coverage and report the dispositions of the
+remaining candidates. Constructor reduction alone is not completion evidence.

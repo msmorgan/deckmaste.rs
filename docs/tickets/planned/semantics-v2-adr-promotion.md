@@ -1,11 +1,14 @@
 ---
-needs: [lean-constructor-collapse]
+needs: []
 ---
 **Promote `docs/decisions/semantics-v2.md` from draft by amending it with how
 the layer lands as Rust.** Decisions settled with the user on 2026-09-06;
 the ADR records them, it does not reopen them. Also update
 `docs/decisions/README.md`, the `## Crate fates` section of `CLAUDE.md`, and
 the workbench-succession banner in the ADR.
+
+Constructor cleanup is deferred until after `semantics-v2-parity`; promotion
+and implementation proceed from the current Lean model.
 
 Sections to add:
 
@@ -15,6 +18,12 @@ Sections to add:
   change is a Rust change, never the reverse. The crate does no law checking;
   the Lean gate is the only checker, and `deckmaste_lowering_v2` may fail to
   lower a card that breaks a law without going out of its way to validate.
+- **Constructor economy.** Record the user ruling that engine-facing vocabulary
+  may be carried opaquely without a distinct checker law. Identical validation
+  and absence from the bench do not establish redundancy. Preserve distinct
+  meanings in syntax or in explicit family payloads; spelling-only alternatives
+  with the same meaning belong in macros. `lean-constructor-collapse` applies
+  this policy after parity through coordinated Lean/Rust changes.
 - **Plugin format.** `plugins_v2/` is the v2 format; `plugins/builtin_v2`
   moves to `plugins_v2/builtin` (symlink left behind until english_v2 and
   xtask paths move). One declaration file per macro carries `name`, `params`,

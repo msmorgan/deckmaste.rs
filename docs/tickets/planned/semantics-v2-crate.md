@@ -7,8 +7,9 @@ promoted `semantics-v2.md`; standard constraints apply. Design-bearing:
 sol or Opus tier.
 
 - Types mirror `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card}.lean`
-  constructor-for-constructor and field-for-field, post
-  `lean-constructor-collapse`. Settle §3's joined-kind payload here. A drift
+  constructor-for-constructor and field-for-field from the current model.
+  `lean-constructor-collapse` is follow-up work after parity, not a prerequisite.
+  Settle §3's joined-kind payload here. A drift
   test compares Rust constructor and field names against the Lean
   declarations and fails on any difference; the emitter in
   `lean-card-soundness-gate` later builds on the same mapping.
