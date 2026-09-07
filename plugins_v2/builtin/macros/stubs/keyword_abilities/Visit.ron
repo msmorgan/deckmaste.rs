@@ -10,6 +10,6 @@ KeywordAbility(
     // [CR#702.159a] `KeywordParam` has no `Ability` variant to forward the
     // declaration's argument with (the cause Boast, Gift, Infinity, Max Speed,
     // Power-Up and Solved share), and nothing reads an Attraction's lit-up numbers
-    // [CR#717.2a].
+    // [CR#717.1,701.52a].
     body: Keyword(keyword: "Visit", params: [], body: []),
 )
