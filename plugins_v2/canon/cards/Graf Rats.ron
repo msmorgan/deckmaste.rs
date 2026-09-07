@@ -1,0 +1,58 @@
+// "At the beginning of combat on your turn, if you both own and control this
+// creature and a creature named Midnight Scavengers, exile them, then meld
+// them into Chittering Host." [CR#701.42a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Graf Rats",
+        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: Black)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Rat")],
+        power: Lit(value: 2),
+        toughness: Lit(value: 1),
+        text: [
+            Triggered(
+                event: BeginningOf(quantifier: The, part: Combat, whose: ByPlayer(player: You)),
+                alternatives: [],
+                while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: And(conjuncts: [
+                    Matches(
+                        subject: AsType(type: Creature, subject: This, subtype: None),
+                        predicate: And(conjuncts: [
+                            HasPossessor(axis: Owner, possessor: You),
+                            HasPossessor(axis: Controller, possessor: You),
+                        ]),
+                    ),
+                    Exists(subject: Described(
+                        determiner: Bare,
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            Named(source: Printed(name: "Midnight Scavengers")),
+                            HasPossessor(axis: Owner, possessor: You),
+                            HasPossessor(axis: Controller, possessor: You),
+                        ]),
+                    )),
+                ]),
+                instruction: Sequentially(steps: [
+                    Exile(Described(
+                        determiner: All,
+                        predicate: And(conjuncts: [
+                            HasType(type: Creature),
+                            HasPossessor(axis: Controller, possessor: You),
+                            Or(disjuncts: [
+                                Named(source: Printed(name: "Graf Rats")),
+                                Named(source: Printed(name: "Midnight Scavengers")),
+                            ]),
+                        ]),
+                    )),
+                    Meld(
+                        Pro(reach: Stamped(verb: Action(label: "Exile")), plurality: Many, window: Whole),
+                        "Chittering Host",
+                    ),
+                ]),
+            ),
+        ],
+    ),
+))

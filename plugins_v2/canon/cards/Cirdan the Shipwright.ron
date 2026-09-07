@@ -1,0 +1,56 @@
+// "Vigilance. Secret council — Whenever Círdan enters or attacks, each
+// player secretly votes for a player, then those votes are revealed. Each
+// player draws a card for each vote they received. Each player who received
+// no votes may put a permanent card from their hand onto the battlefield."
+// [CR#701.38a]. This card exercises only the vote clause: the per-vote
+// reward and no-votes clauses need a vote-count `Amount` this ticket does
+// not add and are left unmodeled.
+SingleFaced(face: (
+    characteristics: (
+        name: "Cirdan the Shipwright",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+            Simple(symbol: Specific(color: Of(color: Blue))),
+        ],
+        types: [Creature],
+        subtypes: [
+            Of(host: Creature, label: "Elf"),
+            Of(host: Creature, label: "Noble"),
+        ],
+        power: Lit(value: 3),
+        toughness: Lit(value: 4),
+        text: [
+            Keyword(keyword: "Vigilance", params: [], body: None),
+            Triggered(
+                event: ZoneChange(
+                    subject: AsType(type: Creature, subject: This, subtype: None),
+                    from: None,
+                    to: Zone(zone: Battlefield, scope: Bare),
+                    observation: After,
+                ),
+                alternatives: [
+                    Combat(
+                        relation: AttackerOf,
+                        subject: AsType(type: Creature, subject: This, subtype: None),
+                        counterpart: None,
+                    ),
+                ],
+                while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: Vote(
+                    first: None,
+                    disclosure: Secretly,
+                    ballot: ByCandidate(candidates: Described(
+                        determiner: A(mode: Unmarked),
+                        predicate: AnyPlayer,
+                    )),
+                    agent: Described(determiner: Each, predicate: AnyPlayer),
+                ),
+            ),
+        ],
+    ),
+))

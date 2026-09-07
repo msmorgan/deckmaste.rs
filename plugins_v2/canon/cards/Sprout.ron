@@ -1,0 +1,24 @@
+// "Create a 1/1 green Saproling creature token." [CR#701.7a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Sprout",
+        cost: [Simple(symbol: Specific(color: Of(color: Green)))],
+        types: [Instant],
+        text: [
+            Spell(
+                timing: None,
+                instruction: Create(
+                    Lit(value: 1),
+                    Written(characteristics: (characteristics: (
+                        colors: [Green],
+                        types: [Creature],
+                        subtypes: [Of(host: Creature, label: "Saproling")],
+                        power: Lit(value: 1),
+                        toughness: Lit(value: 1),
+                    ))),
+                    You,
+                ),
+            ),
+        ],
+    ),
+))

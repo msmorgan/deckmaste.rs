@@ -1,0 +1,62 @@
+// "Flying, deathtouch. Whenever Damocles Base deals combat damage to a
+// player, that player faces a villainous choice — They sacrifice a
+// nontoken creature of their choice, or they lose 2 life and you draw two
+// cards. Crew 3" [CR#701.55a]. The two "that player" references after the
+// trigger are modeled as a fresh target, matching this corpus's existing
+// `nivMizzetGuildpactTrigger` precedent for a trigger's own participant.
+SingleFaced(face: (
+    characteristics: (
+        name: "Damocles Base, Sword of Kang",
+        supertypes: [Legendary],
+        cost: [
+            Simple(symbol: Generic(amount: 4)),
+            Simple(symbol: Specific(color: Of(color: Black))),
+        ],
+        types: [Artifact],
+        subtypes: [Of(host: Artifact, label: "Vehicle")],
+        power: Lit(value: 5),
+        toughness: Lit(value: 5),
+        text: [
+            Keyword(keyword: "Flying", params: [], body: None),
+            Keyword(keyword: "Deathtouch", params: [], body: None),
+            Triggered(
+                event: Damage(
+                    kind: CombatOnly,
+                    source: AsType(type: Creature, subject: This, subtype: None),
+                    patient: Described(determiner: A(mode: Unmarked), predicate: AnyPlayer),
+                ),
+                alternatives: [],
+                while: None,
+                joins: [],
+                timing: None,
+                limit: None,
+                intervening: None,
+                instruction: FaceAVillainousChoice(
+                    Sacrifice(
+                        Described(
+                            determiner: A(mode: Unmarked),
+                            predicate: And(conjuncts: [
+                                HasType(type: Creature),
+                                Not(predicate: IsToken),
+                                HasPossessor(
+                                    axis: Controller,
+                                    possessor: Described(determiner: Target(quantity: Range(low: 1, high: 1)), predicate: AnyPlayer),
+                                ),
+                            ]),
+                        ),
+                        Described(determiner: Target(quantity: Range(low: 1, high: 1)), predicate: AnyPlayer),
+                    ),
+                    Sequentially(steps: [
+                        ChangeLife(
+                            delta: Down(amount: Lit(value: 2)),
+                            agent: Described(determiner: Target(quantity: Range(low: 1, high: 1)), predicate: AnyPlayer),
+                        ),
+                        Draw(amount: Lit(value: 2), agent: You),
+                    ]),
+                    Described(determiner: Target(quantity: Range(low: 1, high: 1)), predicate: AnyPlayer),
+                ),
+            ),
+            Keyword(keyword: "Crew", params: [Number(amount: Lit(value: 3))], body: None),
+        ],
+    ),
+))
