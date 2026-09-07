@@ -5,5 +5,5 @@
     name: "gameBecomes",
     kinds: [GameEvent],
     params: {"designation": Any},
-    body: GameBecomes(designation: Param(designation)),
+    body: GameBecomes(Param(designation)),
 )

@@ -5,5 +5,5 @@
     name: "perform",
     kinds: [Cost],
     params: {"instruction": Instruction},
-    body: Perform(instruction: Param(instruction)),
+    body: Perform(Param(instruction)),
 )

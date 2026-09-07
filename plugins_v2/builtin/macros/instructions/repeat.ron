@@ -5,5 +5,5 @@
     name: "repeat",
     kinds: [Instruction],
     params: {"repetition": Any},
-    body: Repeat(repetition: Param(repetition)),
+    body: Repeat(Param(repetition)),
 )

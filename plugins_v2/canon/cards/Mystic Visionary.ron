@@ -10,10 +10,10 @@
 // count of distinct colors, and `ManaValueSpent`, but no per-color amount.
 // Never approximated; Threshold is a same-family, precedented substitute —
 // see `lean/Semantics/Cards/Static.lean`'s `nimbleMongoose`.)
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Mystic Visionary",
-        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: White)))],
+        cost: [1, White],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
         text: [
@@ -25,16 +25,16 @@ SingleFaced(face: (
                             ability: keyword(label: "Flying"),
                         ),
                         condition: compareAmt(
-                            subject: countOf(p: inZone(zone: zone(zone: Graveyard, scope: PossessedBy(possessor: you)))),
+                            subject: countOf(p: inZone(zone: zone(zone: Graveyard, scope: PossessedBy(you)))),
                             comparator: AtLeast,
-                            bound: Lit(value: 7),
+                            bound: 7,
                         ),
                         marking: AsLongAs,
                     ),
                 )
             ),
         ],
-        power: Lit(value: 2),
-        toughness: Lit(value: 1),
+        power: 2,
+        toughness: 1,
     ),
 ))

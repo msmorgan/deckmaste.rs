@@ -3,5 +3,5 @@
     name: "shortOfCeiling",
     kinds: [Amount],
     params: [],
-    body: TheOutcome(sort: CeilingShortfall),
+    body: TheOutcome(CeilingShortfall),
 )

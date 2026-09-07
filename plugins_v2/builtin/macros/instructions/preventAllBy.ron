@@ -3,5 +3,5 @@
     name: "preventAllBy",
     kinds: [Instruction],
     params: {"kind": DamageKind, "source": NounPhrase, "scope": DamageScope, "duration": Duration},
-    body: Establish(DamageRule(Param(kind), DealtBy(source: Param(source)), Param(scope), Prevent(All, None), Repeatedly), Param(duration)),
+    body: Establish(DamageRule(Param(kind), DealtBy(Param(source)), Param(scope), Prevent(All, None), Repeatedly), Param(duration)),
 )

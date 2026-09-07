@@ -1,21 +1,21 @@
 // "When this creature dies, draw a card. / Encore {5}{U}{U}" [CR#702.141a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Trove Tracker",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            2,
+            Blue,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: Zones(zones: [zone(zone: Battlefield, scope: Bare)]), to: zone(zone: Graveyard, scope: Bare), observation: Before, ), instruction: draw(amount: Lit(value: 1), agent: you)),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: Zones([zone(zone: Battlefield, scope: Bare)]), to: zone(zone: Graveyard, scope: Bare), observation: Before, ), instruction: draw(amount: 1, agent: you)),
             encore(mana(cost: [
-                Simple(symbol: Generic(amount: 5)),
-                Simple(symbol: Specific(color: Of(color: Blue))),
-                Simple(symbol: Specific(color: Of(color: Blue))),
+                5,
+                Blue,
+                Blue,
             ])),
         ],
     ),

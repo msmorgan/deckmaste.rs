@@ -3,5 +3,5 @@
     name: "aAtRandom",
     kinds: [NounPhrase],
     params: {"p": Predicate},
-    body: Described(A(mode: AtRandom), Param(p)),
+    body: Described(A(AtRandom), Param(p)),
 )

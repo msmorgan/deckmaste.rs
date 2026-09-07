@@ -1,22 +1,22 @@
 // "Flying / {2}{G}{U}: Adapt 1." [CR#701.46a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Aeromunculus",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Green))),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            1,
+            Green,
+            Blue,
         ],
         types: [Creature],
         subtypes: [
             Of(host: Creature, label: "Homunculus"),
             Of(host: Creature, label: "Mutant"),
         ],
-        power: Lit(value: 2),
-        toughness: Lit(value: 3),
+        power: 2,
+        toughness: 3,
         text: [
             keyword(label: "Flying"),
-            activated(cost: mana(cost: [ Simple(symbol: Generic(amount: 2)), Simple(symbol: Specific(color: Of(color: Green))), Simple(symbol: Specific(color: Of(color: Blue))), ]), instruction: adapt(Lit(value: 1))),
+            activated(cost: mana(cost: [ 2, Green, Blue, ]), instruction: adapt(1)),
         ],
     ),
 ))

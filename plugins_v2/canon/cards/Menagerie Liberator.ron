@@ -1,15 +1,15 @@
 // "Trample / Melee" [CR#702.121a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Menagerie Liberator",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Green))),
+            3,
+            Green,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 2),
+        power: 3,
+        toughness: 2,
         text: [trample, melee],
     ),
 ))

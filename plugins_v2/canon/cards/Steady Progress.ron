@@ -1,10 +1,10 @@
 // "Proliferate. Draw a card." [CR#701.34a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Steady Progress",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            2,
+            Blue,
         ],
         types: [Instant],
         text: [
@@ -12,7 +12,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: sequentially(steps: [
                     proliferate,
-                    draw(amount: Lit(value: 1), agent: you),
+                    draw(amount: 1, agent: you),
                 ]),
             ),
         ],

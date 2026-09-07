@@ -2,5 +2,5 @@
     name: "faceDown",
     kinds: [Predicate],
     params: [],
-    body: HasStatus(status: FaceDown),
+    body: HasStatus(FaceDown),
 )

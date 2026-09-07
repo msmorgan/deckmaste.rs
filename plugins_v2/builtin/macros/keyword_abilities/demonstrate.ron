@@ -32,7 +32,7 @@ KeywordAbility(
                             Copy(
                                 sort: FromStack,
                                 subject: AsMarker(marker: Spell, subject: This),
-                                times: Lit(value: 1),
+                                times: 1,
                                 exceptions: [],
                                 agent: You,
                             ),
@@ -65,7 +65,7 @@ KeywordAbility(
                             Copy(
                                 sort: FromStack,
                                 subject: AsMarker(marker: Spell, subject: This),
-                                times: Lit(value: 1),
+                                times: 1,
                                 exceptions: [],
                                 agent: Described(
                                     determiner: The,

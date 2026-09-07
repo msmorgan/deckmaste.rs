@@ -5,5 +5,5 @@
     name: "forAsLongAs",
     kinds: [Duration],
     params: {"condition": Condition},
-    body: ForAsLongAs(condition: Param(condition)),
+    body: ForAsLongAs(Param(condition)),
 )

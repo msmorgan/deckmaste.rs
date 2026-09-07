@@ -5,5 +5,5 @@
     name: "inZone",
     kinds: [Predicate],
     params: {"zone": ZoneExpr},
-    body: InZone(zone: Param(zone)),
+    body: InZone(Param(zone)),
 )

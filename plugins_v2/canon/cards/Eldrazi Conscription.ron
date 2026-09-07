@@ -1,9 +1,9 @@
 // "Enchant creature / Enchanted creature gets +10/+10 and has trample and
 // annihilator 2." [CR#702.5a,702.19a,702.86a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Eldrazi Conscription",
-        cost: [Simple(symbol: Generic(amount: 8))],
+        cost: [8],
         types: [Kindred, Enchantment],
         subtypes: [
             Of(host: Creature, label: "Eldrazi"),
@@ -16,22 +16,22 @@ SingleFaced(face: (
                     subject: None,
                     parts: [
                         modification(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: Lit(value: 10)),
+                            delta: up(amount: 10),
                         ),
                         modification(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: Lit(value: 10)),
+                            delta: up(amount: 10),
                         ),
                         abilityGrant(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
                             ability: trample,
                         ),
                         abilityGrant(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
-                            ability: annihilator(Lit(value: 2)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
+                            ability: annihilator(2),
                         ),
                     ],
                 ),

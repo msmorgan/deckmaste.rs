@@ -3,5 +3,5 @@
     name: "those",
     kinds: [NounPhrase],
     params: {"w": NounWord},
-    body: Pro(Word(word: Param(w)), Many, Whole),
+    body: Pro(Word(Param(w)), Many, Whole),
 )

@@ -3,5 +3,5 @@
     name: "permanent",
     kinds: [Predicate],
     params: [],
-    body: InZone(zone: battlefield),
+    body: InZone(battlefield),
 )

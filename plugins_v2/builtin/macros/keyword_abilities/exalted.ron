@@ -44,7 +44,7 @@ KeywordAbility(
                         ),
                     ),
                     comparator: Eq,
-                    bound: Lit(value: 1),
+                    bound: 1,
                 ),
                 instruction: Establish(
                     spec: Conjunction(
@@ -57,7 +57,7 @@ KeywordAbility(
                                     window: Whole,
                                 ),
                                 stat: Power,
-                                delta: Up(amount: Lit(value: 1)),
+                                delta: Up(amount: 1),
                             ),
                             Modification(
                                 subject: Pro(
@@ -66,7 +66,7 @@ KeywordAbility(
                                     window: Whole,
                                 ),
                                 stat: Toughness,
-                                delta: Up(amount: Lit(value: 1)),
+                                delta: Up(amount: 1),
                             ),
                         ],
                     ),

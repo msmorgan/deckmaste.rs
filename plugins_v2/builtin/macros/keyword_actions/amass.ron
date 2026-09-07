@@ -24,14 +24,14 @@ KeywordAction(
                 ]),
             ))),
             instruction: CreateObject(
-                count: Lit(value: 1),
+                count: 1,
                 spec: Token(
                     spec: Written(characteristics: (characteristics: (
                         colors: [Black],
                         types: [Creature],
                         subtypes: [Param(0), Of(host: Creature, label: "Army")],
-                        power: Lit(value: 0),
-                        toughness: Lit(value: 0),
+                        power: 0,
+                        toughness: 0,
                     ))),
                     riders: [],
                 ),

@@ -1,15 +1,15 @@
 // "Mentor" [CR#702.134a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Blade Instructor",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            2,
+            White,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 1),
+        power: 3,
+        toughness: 1,
         text: [mentor],
     ),
 ))

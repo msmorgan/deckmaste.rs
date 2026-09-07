@@ -5,11 +5,11 @@
     kinds: [NounPhrase],
     params: [],
     body: Described(
-        determiner: Target(quantity: Range(low: 1, high: 1)),
-        predicate: Or(disjuncts: [
-            HasType(type: Creature),
-            HasType(type: Planeswalker),
-            HasType(type: Battle),
+        determiner: Target(Range(low: 1, high: 1)),
+        predicate: Or([
+            HasType(Creature),
+            HasType(Planeswalker),
+            HasType(Battle),
             AnyPlayer,
         ]),
     ),

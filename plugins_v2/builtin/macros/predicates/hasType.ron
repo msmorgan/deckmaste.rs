@@ -5,5 +5,5 @@
     name: "hasType",
     kinds: [Predicate],
     params: {"type": Any},
-    body: HasType(r#type: Param(type)),
+    body: HasType(Param(type)),
 )

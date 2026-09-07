@@ -3,5 +3,5 @@
     name: "onlyUnless",
     kinds: [StaticSpec],
     params: {"spec": StaticSpec, "condition": Condition},
-    body: Conditional(Param(spec), Not(condition: Param(condition)), Unless),
+    body: Conditional(Param(spec), Not(Param(condition)), Unless),
 )

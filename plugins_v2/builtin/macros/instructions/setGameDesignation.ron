@@ -5,5 +5,5 @@
     name: "setGameDesignation",
     kinds: [Instruction],
     params: {"designation": Any},
-    body: SetGameDesignation(designation: Param(designation)),
+    body: SetGameDesignation(Param(designation)),
 )

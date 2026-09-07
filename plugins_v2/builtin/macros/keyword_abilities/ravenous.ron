@@ -36,9 +36,9 @@ KeywordAbility(
                 intervening: CompareAmt(
                     subject: Letter(letter: X),
                     comparator: AtLeast,
-                    bound: Lit(value: 5),
+                    bound: 5,
                 ),
-                instruction: Draw(amount: Lit(value: 1), agent: You),
+                instruction: Draw(amount: 1, agent: You),
             ),
         ],
     ),

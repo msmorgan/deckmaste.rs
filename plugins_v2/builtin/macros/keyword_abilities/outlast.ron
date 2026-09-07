@@ -14,7 +14,7 @@ KeywordAbility(
             Activated(
                 cost: Compound(costs: [Param(0), TapSymbol]),
                 instruction: PutCounters(
-                    amount: Lit(value: 1),
+                    amount: 1,
                     kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
                     on: AsType(type: Creature, subject: This, subtype: None),
                 ),

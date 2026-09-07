@@ -3,5 +3,5 @@
     name: "preventNext",
     kinds: [Instruction],
     params: {"kind": DamageKind, "scope": DamageScope, "amount": Amount, "duration": Duration},
-    body: Establish(DamageRule(Param(kind), Unattributed, Param(scope), Prevent(Shield(amount: Param(amount)), None), Repeatedly), Param(duration)),
+    body: Establish(DamageRule(Param(kind), Unattributed, Param(scope), Prevent(Shield(Param(amount)), None), Repeatedly), Param(duration)),
 )

@@ -3,5 +3,5 @@
     name: "beginningOfPossessed",
     kinds: [GameEvent],
     params: {"quantifier": PartQuant, "part": TurnPart, "possessor": NounPhrase},
-    body: BeginningOf(Param(quantifier), Param(part), ByPlayer(player: Param(possessor))),
+    body: BeginningOf(Param(quantifier), Param(part), ByPlayer(Param(possessor))),
 )

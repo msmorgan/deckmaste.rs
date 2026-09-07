@@ -5,5 +5,5 @@
     name: "triggers",
     kinds: [GameEvent],
     params: {"ability": Subject},
-    body: Triggers(ability: Param(ability)),
+    body: Triggers(Param(ability)),
 )

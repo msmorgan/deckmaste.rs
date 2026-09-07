@@ -1,15 +1,15 @@
 // "All Sliver creatures have absorb 1." [CR#702.64a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Lymph Sliver",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            4,
+            White,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Sliver")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
+        power: 3,
+        toughness: 3,
         text: [
             static(
                 spec: abilityGrant(
@@ -22,7 +22,7 @@ SingleFaced(face: (
                             ],
                         ),
                     ),
-                    ability: absorb(Lit(value: 1)),
+                    ability: absorb(1),
                 ),
             ),
         ],

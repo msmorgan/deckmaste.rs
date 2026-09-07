@@ -3,5 +3,5 @@
     name: "comparesOwnStat",
     kinds: [Predicate],
     params: {"stat": Stat, "domain": Predicate, "comparator": Comparator, "bound": Amount},
-    body: CompareOver(Param(domain), StatOf(Stat(stat: Param(stat)), Pro(Bare, One, Top(depth: 1))), Param(comparator), Param(bound)),
+    body: CompareOver(Param(domain), StatOf(Stat(Param(stat)), Pro(Bare, One, Top(1))), Param(comparator), Param(bound)),
 )

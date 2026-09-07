@@ -1,16 +1,16 @@
 // "Mill two cards. Draw a card." The bare imperative mills your own library
 // [CR#701.17a], so both the miller and the library's owner are you.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Mental Note",
-        cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
+        cost: [Blue],
         types: [Instant],
         text: [
             spell(
                 timing: None,
                 instruction: sequentially(steps: [
-                    mill(Lit(value: 2), you, you),
-                    draw(amount: Lit(value: 1), agent: you),
+                    mill(2, you, you),
+                    draw(amount: 1, agent: you),
                 ]),
             ),
         ],

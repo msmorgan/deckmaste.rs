@@ -5,5 +5,5 @@
     name: "abilityOf",
     kinds: [Predicate],
     params: {"source": Subject},
-    body: AbilityOf(source: Param(source)),
+    body: AbilityOf(Param(source)),
 )

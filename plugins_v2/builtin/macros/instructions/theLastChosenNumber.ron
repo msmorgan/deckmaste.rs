@@ -3,5 +3,5 @@
     name: "theLastChosenNumber",
     kinds: [Amount],
     params: [],
-    body: ChosenNumber(r#ref: TheLatestChoice),
+    body: ChosenNumber(TheLatestChoice),
 )

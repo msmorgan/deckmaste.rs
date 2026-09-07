@@ -3,5 +3,5 @@
     name: "historic",
     kinds: [Predicate],
     params: [],
-    body: Or(disjuncts: [HasType(r#type: Artifact), HasSupertype(supertype: Legendary), HasSubtype(subtype: Of(Enchantment, "Saga"))]),
+    body: Or([HasType(Artifact), HasSupertype(Legendary), HasSubtype(Of(Enchantment, "Saga"))]),
 )

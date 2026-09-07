@@ -5,5 +5,5 @@
     name: "or",
     kinds: [Cost],
     params: {"costs": Default(Any, [])},
-    body: Or(costs: Param(costs)),
+    body: Or(Param(costs)),
 )

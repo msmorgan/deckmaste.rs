@@ -3,5 +3,5 @@
     name: "forbidAttack",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "duration": Duration},
-    body: Establish(DeonticRule(Param(subject), Forbid, [Core(deed: Attack)], Agent, None, NoPatient, None, NoRider), Param(duration)),
+    body: Establish(DeonticRule(Param(subject), Forbid, [Core(Attack)], Agent, None, NoPatient, None, NoRider), Param(duration)),
 )

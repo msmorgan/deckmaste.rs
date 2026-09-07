@@ -28,7 +28,7 @@ KeywordAbility(
                     instruction: Move(
                         subject: LibrarySlice(
                             end: Top,
-                            amount: Lit(value: 1),
+                            amount: 1,
                             whose: Pro(reach: Word(word: Player), plurality: One, window: Whole),
                         ),
                         to: Zone(zone: Exile, scope: Bare),

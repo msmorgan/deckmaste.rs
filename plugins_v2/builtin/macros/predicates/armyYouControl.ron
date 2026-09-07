@@ -3,5 +3,5 @@
     name: "armyYouControl",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [HasSubtype(subtype: creatureType(label: "Army")), creature, HasPossessor(Controller, You)]),
+    body: And([HasSubtype(creatureType(label: "Army")), creature, HasPossessor(Controller, You)]),
 )

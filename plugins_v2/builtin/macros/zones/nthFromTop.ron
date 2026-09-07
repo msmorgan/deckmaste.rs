@@ -3,5 +3,5 @@
     name: "nthFromTop",
     kinds: [ZoneExpr],
     params: {"ordinal": Ordinal},
-    body: Library(OneEnd(end: Top), None, Param(ordinal), Bare),
+    body: Library(OneEnd(Top), None, Param(ordinal), Bare),
 )

@@ -33,7 +33,7 @@ KeywordAbility(
                                 delta: Up(
                                     amount: Arith(
                                         op: Times,
-                                        left: Lit(value: 1),
+                                        left: 1,
                                         right: EventTally(
                                             op: Count,
                                             subject: Described(
@@ -61,7 +61,7 @@ KeywordAbility(
                                 delta: Up(
                                     amount: Arith(
                                         op: Times,
-                                        left: Lit(value: 1),
+                                        left: 1,
                                         right: EventTally(
                                             op: Count,
                                             subject: Described(

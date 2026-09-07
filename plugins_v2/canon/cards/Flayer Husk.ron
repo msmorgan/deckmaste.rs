@@ -1,8 +1,8 @@
 // "Living weapon / Equipped creature gets +1/+1. / Equip {2}" [CR#702.92a,702.6a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Flayer Husk",
-        cost: [Simple(symbol: Generic(amount: 1))],
+        cost: [1],
         types: [Artifact],
         subtypes: [Of(host: Artifact, label: "Equipment")],
         text: [
@@ -12,19 +12,19 @@ SingleFaced(face: (
                     subject: None,
                     parts: [
                         modification(
-                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
+                            subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: Lit(value: 1)),
+                            delta: up(amount: 1),
                         ),
                         modification(
-                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
+                            subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: Lit(value: 1)),
+                            delta: up(amount: 1),
                         ),
                     ],
                 ),
             ),
-            equip(mana(cost: [Simple(symbol: Generic(amount: 2))])),
+            equip(mana(cost: [2])),
         ],
     ),
 ))

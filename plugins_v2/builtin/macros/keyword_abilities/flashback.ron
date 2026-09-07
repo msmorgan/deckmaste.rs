@@ -61,7 +61,7 @@ KeywordAbility(
                             subject: AsMarker(marker: Spell, subject: This),
                         ),
                         comparator: AtLeast,
-                        bound: Lit(value: 1),
+                        bound: 1,
                     ),
                     marking: AsLongAs,
                 ),

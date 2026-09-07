@@ -35,14 +35,14 @@ KeywordAbility(
                 instruction: WithContinuation(
                     policy: Optional(agent: You),
                     body: Pay(
-                        cost: Mana(cost: [Hybrid(left: Specific(color: Of(color: White)), right: Black)]),
+                        cost: Mana(cost: [Hybrid(left: White, right: Black)]),
                         times: Once,
                         agent: You,
                     ),
                     if_did: Sequentially(
                         steps: [
                             ChangeLife(
-                                delta: Down(amount: Lit(value: 1)),
+                                delta: Down(amount: 1),
                                 agent: Described(determiner: Each, predicate: Opponent),
                             ),
                             ChangeLife(delta: Up(amount: ThatMuch), agent: You),

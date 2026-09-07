@@ -3,5 +3,5 @@
     name: "themVerbed",
     kinds: [NounPhrase],
     params: {"verb": Deed},
-    body: Pro(Stamped(verb: Param(verb)), Many, Whole),
+    body: Pro(Stamped(Param(verb)), Many, Whole),
 )

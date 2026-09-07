@@ -1,15 +1,15 @@
 // "As an additional cost to cast this spell, sacrifice a creature. Draw two
 // cards." The sacrifice is performed as a cost [CR#701.21a,601.2f].
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Village Rites",
-        cost: [Simple(symbol: Specific(color: Of(color: Black)))],
+        cost: [Black],
         types: [Instant],
         text: [
             static(spec: addedCost(
                 cost: perform(instruction: sacrifice(
                     described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: and(conjuncts: [
                             hasType(type: Creature),
                             inZone(zone: zone(zone: Battlefield, scope: Bare)),
@@ -22,7 +22,7 @@ SingleFaced(face: (
             )),
             spell(
                 timing: None,
-                instruction: draw(amount: Lit(value: 2), agent: you),
+                instruction: draw(amount: 2, agent: you),
             ),
         ],
     ),

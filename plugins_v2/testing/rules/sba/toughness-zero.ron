@@ -3,11 +3,11 @@
 // replace this.
 [
     SbaRule(
-        scope: HasType(type: Creature),
+        scope: HasType(Creature),
         when: CompareAmt(
-            subject: StatOf(axis: Stat(stat: Toughness), subject: This),
+            subject: StatOf(axis: Stat(Toughness), subject: This),
             comparator: AtMost,
-            bound: Lit(value: 0),
+            bound: 0,
         ),
         then: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
     ),

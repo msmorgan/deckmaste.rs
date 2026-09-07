@@ -3,5 +3,5 @@
     name: "onBottomIn",
     kinds: [ZoneExpr],
     params: {"arrangement": Arrangement},
-    body: Library(OneEnd(end: Bottom), Param(arrangement), None, Bare),
+    body: Library(OneEnd(Bottom), Param(arrangement), None, Bare),
 )

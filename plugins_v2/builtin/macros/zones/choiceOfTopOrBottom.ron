@@ -3,5 +3,5 @@
     name: "choiceOfTopOrBottom",
     kinds: [ZoneExpr],
     params: {"chooser": NounPhrase},
-    body: Library(EitherEnd(chooser: Param(chooser)), None, None, Bare),
+    body: Library(EitherEnd(Param(chooser)), None, None, Bare),
 )

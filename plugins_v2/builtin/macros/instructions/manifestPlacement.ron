@@ -5,5 +5,5 @@
     name: "manifestPlacement",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Enact(verb: Action(label: "Manifest"), instruction: Move(Param(subject), battlefield, []), agent: None),
+    body: Enact(verb: Action("Manifest"), instruction: Move(Param(subject), battlefield, []), agent: None),
 )

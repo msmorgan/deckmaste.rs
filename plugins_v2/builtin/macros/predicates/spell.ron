@@ -3,5 +3,5 @@
     name: "spell",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [InZone(zone: stack), Not(predicate: AbilityHead(class: AnyOnStack))]),
+    body: And([InZone(stack), Not(AbilityHead(AnyOnStack))]),
 )

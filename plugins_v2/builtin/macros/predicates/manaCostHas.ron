@@ -5,5 +5,5 @@
     name: "manaCostHas",
     kinds: [Predicate],
     params: {"symbol": ManaSymbol},
-    body: ManaCostHas(symbol: Param(symbol)),
+    body: ManaCostHas(Param(symbol)),
 )

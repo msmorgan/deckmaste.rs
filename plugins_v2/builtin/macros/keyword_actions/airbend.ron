@@ -33,7 +33,7 @@ KeywordAction(
                     limit: None,
                     timing: None,
                     exclusive: false,
-                    payment: PayingInstead(cost: Mana(cost: [Simple(symbol: Generic(amount: 2))])),
+                    payment: PayingInstead(cost: Mana(cost: [2])),
                 ),
             ),
             duration: ForAsLongAs(condition: Matches(

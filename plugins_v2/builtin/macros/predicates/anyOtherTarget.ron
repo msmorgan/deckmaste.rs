@@ -3,5 +3,5 @@
     name: "anyOtherTarget",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [anyTarget, Other]),
+    body: And([anyTarget, Other]),
 )

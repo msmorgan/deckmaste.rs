@@ -1,12 +1,12 @@
 // "Bargain / This spell costs {1} less to cast if it's bargained. / Counter target
 // spell." [CR#702.166a,702.166b,701.6a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Ice Out",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Blue))),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            1,
+            Blue,
+            Blue,
         ],
         types: [Instant],
         text: [
@@ -15,15 +15,15 @@ SingleFaced(face: (
                 spec: conditional(
                     spec: costShift(
                         subject: this,
-                        shift: Less(amount: Lit(value: 1), floor: None),
+                        shift: Less(amount: 1, floor: None),
                     ),
                     condition: compareAmt(
                         subject: paid(
-                            facet: Readback(which: ByKeyword(keyword: "Bargain"), lookback: None),
+                            facet: Readback(which: ByKeyword("Bargain"), lookback: None),
                             subject: asMarker(marker: Spell, subject: this),
                         ),
                         comparator: AtLeast,
-                        bound: Lit(value: 1),
+                        bound: 1,
                     ),
                     marking: AsLongAs,
                 ),
@@ -31,7 +31,7 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: counter(described(
-                    determiner: Target(quantity: range(low: 1, high: 1)),
+                    determiner: Target(range(low: 1, high: 1)),
                     predicate: and(conjuncts: [
                         inZone(zone: zone(zone: Stack, scope: Bare)),
                         not(predicate: abilityHead(class: AnyOnStack)),

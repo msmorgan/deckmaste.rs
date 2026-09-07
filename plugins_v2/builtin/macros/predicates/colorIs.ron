@@ -5,5 +5,5 @@
     name: "colorIs",
     kinds: [Predicate],
     params: {"color": Color},
-    body: ColorIs(color: Param(color)),
+    body: ColorIs(Param(color)),
 )

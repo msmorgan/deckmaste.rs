@@ -20,7 +20,7 @@ KeywordAction(
                 on: Param(0),
             )),
             (None, CreateObject(
-                count: Lit(value: 1),
+                count: 1,
                 spec: Token(
                     spec: Written(characteristics: (characteristics: (
                         colors: [White],

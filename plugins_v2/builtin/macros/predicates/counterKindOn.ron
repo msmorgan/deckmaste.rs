@@ -5,5 +5,5 @@
     name: "counterKindOn",
     kinds: [Predicate],
     params: {"subject": Subject},
-    body: CounterKindOn(subject: Param(subject)),
+    body: CounterKindOn(Param(subject)),
 )

@@ -5,5 +5,5 @@
     name: "chooseNewTargets",
     kinds: [Instruction],
     params: {"subject": Subject},
-    body: ChooseNewTargets(subject: Param(subject)),
+    body: ChooseNewTargets(Param(subject)),
 )

@@ -3,5 +3,5 @@
     name: "otherCreatureYouControl",
     kinds: [Predicate],
     params: {"n": NounPhrase},
-    body: And(conjuncts: [creature, HasPossessor(Controller, You), OtherThan(anchor: Param(n))]),
+    body: And([creature, HasPossessor(Controller, You), OtherThan(Param(n))]),
 )

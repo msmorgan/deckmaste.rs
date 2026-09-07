@@ -15,7 +15,7 @@ KeywordAbility(
             Activated(
                 cost: Param(0),
                 instruction: PutCounters(
-                    amount: Lit(value: 1),
+                    amount: 1,
                     kind: Printed(kind: Named(label: "Level")),
                     on: AsMarker(marker: Permanent, subject: This),
                 ),

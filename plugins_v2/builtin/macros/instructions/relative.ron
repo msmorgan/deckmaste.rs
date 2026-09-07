@@ -3,5 +3,5 @@
     name: "relative",
     kinds: [NounPhrase],
     params: {"kind": Kind},
-    body: Gap(kind: Param(kind)),
+    body: Gap(Param(kind)),
 )

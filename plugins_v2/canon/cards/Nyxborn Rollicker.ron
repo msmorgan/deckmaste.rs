@@ -1,30 +1,30 @@
 // "Bestow {1}{R} / Enchanted creature gets +1/+1." [CR#702.103a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Nyxborn Rollicker",
-        cost: [Simple(symbol: Specific(color: Of(color: Red)))],
+        cost: [Red],
         types: [Enchantment, Creature],
         subtypes: [Of(host: Creature, label: "Satyr")],
-        power: Lit(value: 1),
-        toughness: Lit(value: 1),
+        power: 1,
+        toughness: 1,
         text: [
             bestow(mana(cost: [
-                Simple(symbol: Generic(amount: 1)),
-                Simple(symbol: Specific(color: Of(color: Red))),
+                1,
+                Red,
             ])),
             static(
                 spec: conjunction(
                     subject: None,
                     parts: [
                         modification(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: Lit(value: 1)),
+                            delta: up(amount: 1),
                         ),
                         modification(
-                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
+                            subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: Lit(value: 1)),
+                            delta: up(amount: 1),
                         ),
                     ],
                 ),

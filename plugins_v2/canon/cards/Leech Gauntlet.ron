@@ -1,27 +1,27 @@
 // "Lifelink / Equipped creature has lifelink. / Reconfigure {4}" [CR#702.151a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Leech Gauntlet",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            1,
+            Black,
         ],
         types: [Artifact, Creature],
         subtypes: [
             Of(host: Artifact, label: "Equipment"),
             Of(host: Creature, label: "Leech"),
         ],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [
             lifelink,
             static(
                 spec: abilityGrant(
-                    subject: attachHost(word: Equipped, head: Type(type: Creature)),
+                    subject: attachHost(word: Equipped, head: Type(Creature)),
                     ability: lifelink,
                 ),
             ),
-            reconfigure(mana(cost: [Simple(symbol: Generic(amount: 4))])),
+            reconfigure(mana(cost: [4])),
         ],
     ),
 ))

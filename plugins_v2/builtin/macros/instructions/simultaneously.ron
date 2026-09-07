@@ -5,5 +5,5 @@
     name: "simultaneously",
     kinds: [Instruction],
     params: {"steps": Default(Any, [])},
-    body: Simultaneously(steps: Param(steps)),
+    body: Simultaneously(Param(steps)),
 )

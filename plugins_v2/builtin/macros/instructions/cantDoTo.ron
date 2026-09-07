@@ -3,5 +3,5 @@
     name: "cantDoTo",
     kinds: [StaticSpec],
     params: {"deed": Deed, "who": NounPhrase, "what": NounPhrase},
-    body: DeonticRule(Param(who), Forbid, [Param(deed)], Agent, None, Counterpart(patient: Param(what)), None, NoRider),
+    body: DeonticRule(Param(who), Forbid, [Param(deed)], Agent, None, Counterpart(Param(what)), None, NoRider),
 )

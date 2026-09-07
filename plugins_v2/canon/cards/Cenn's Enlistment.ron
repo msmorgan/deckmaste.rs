@@ -1,17 +1,17 @@
 // "Create two 1/1 white Kithkin Soldier creature tokens. / Retrace" [CR#702.81a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Cenn's Enlistment",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            3,
+            White,
         ],
         types: [Sorcery],
         text: [
             spell(
                 timing: None,
                 instruction: createObject(
-                    count: Lit(value: 2),
+                    count: 2,
                     spec: Token(
                         spec: written(
                             characteristics: (
@@ -22,8 +22,8 @@ SingleFaced(face: (
                                         Of(host: Creature, label: "Kithkin"),
                                         Of(host: Creature, label: "Soldier"),
                                     ],
-                                    power: Lit(value: 1),
-                                    toughness: Lit(value: 1),
+                                    power: 1,
+                                    toughness: 1,
                                 ),
                             ),
                         ),

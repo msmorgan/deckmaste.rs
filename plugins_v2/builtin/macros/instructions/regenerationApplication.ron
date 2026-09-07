@@ -4,5 +4,5 @@
     name: "regenerationApplication",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Enact(verb: Action(label: "Regenerate"), instruction: Sequentially(steps: [ClearDamage(subject: Param(subject)), Enact(Action(label: "Tap"), SetStatus(Tapped, Param(subject)), PossessorOf(Controller, Param(subject))), DoIf(Or(disjuncts: [Matches(Param(subject), InCombat(AttackerOf, None)), Matches(Param(subject), InCombat(BlockerOf, None))]), Combat(Param(subject), Participation(state: OutsideCombat)), None)]), agent: None),
+    body: Enact(verb: Action("Regenerate"), instruction: Sequentially([ClearDamage(Param(subject)), Enact(Action("Tap"), SetStatus(Tapped, Param(subject)), PossessorOf(Controller, Param(subject))), DoIf(Or([Matches(Param(subject), InCombat(AttackerOf, None)), Matches(Param(subject), InCombat(BlockerOf, None))]), Combat(Param(subject), Participation(OutsideCombat)), None)]), agent: None),
 )

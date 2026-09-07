@@ -5,5 +5,5 @@
     name: "revealChoices",
     kinds: [Instruction],
     params: {"sort": Any},
-    body: RevealChoices(sort: Param(sort)),
+    body: RevealChoices(Param(sort)),
 )

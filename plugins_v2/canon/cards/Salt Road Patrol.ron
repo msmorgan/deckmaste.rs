@@ -1,19 +1,19 @@
 // "Outlast {1}{W}" [CR#702.107a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Salt Road Patrol",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            3,
+            White,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Scout")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 5),
+        power: 2,
+        toughness: 5,
         text: [
             outlast(mana(cost: [
-                Simple(symbol: Generic(amount: 1)),
-                Simple(symbol: Specific(color: Of(color: White))),
+                1,
+                White,
             ])),
         ],
     ),

@@ -5,5 +5,5 @@
     name: "upTo",
     kinds: [Amount],
     params: {"bound": Amount},
-    body: UpTo(bound: Param(bound)),
+    body: UpTo(Param(bound)),
 )

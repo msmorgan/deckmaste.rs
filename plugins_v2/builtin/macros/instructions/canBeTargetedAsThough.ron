@@ -3,5 +3,5 @@
     name: "canBeTargetedAsThough",
     kinds: [StaticSpec],
     params: {"what": NounPhrase, "by_": NounPhrase, "p": Predicate},
-    body: DeonticRule(Param(what), Permit, [Core(deed: Target)], Patient, None, TargetedBy(patient: Param(by_)), Of(predicate: Param(p)), NoRider),
+    body: DeonticRule(Param(what), Permit, [Core(Target)], Patient, None, TargetedBy(Param(by_)), Of(Param(p)), NoRider),
 )

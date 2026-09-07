@@ -5,5 +5,5 @@
     name: "applyResultsTable",
     kinds: [Instruction],
     params: {"rows": Default(Any, [])},
-    body: ApplyResultsTable(rows: Param(rows)),
+    body: ApplyResultsTable(Param(rows)),
 )

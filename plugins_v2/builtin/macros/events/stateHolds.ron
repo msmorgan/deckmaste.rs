@@ -5,5 +5,5 @@
     name: "stateHolds",
     kinds: [GameEvent],
     params: {"condition": Condition},
-    body: StateHolds(condition: Param(condition)),
+    body: StateHolds(Param(condition)),
 )

@@ -24,8 +24,8 @@ KeywordAction(
                 ),
                 edits: [
                     TypeLine(op: Adds, changes: (types: [Creature])),
-                    Stat(op: Sets, axis: Power, amount: Lit(value: 0)),
-                    Stat(op: Sets, axis: Toughness, amount: Lit(value: 0)),
+                    Stat(op: Sets, axis: Power, amount: 0),
+                    Stat(op: Sets, axis: Toughness, amount: 0),
                     AddedAbilities(abilities: [Keyword(keyword: "Haste", params: [], body: [])]),
                 ],
             ),

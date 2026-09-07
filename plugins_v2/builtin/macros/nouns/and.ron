@@ -5,5 +5,5 @@
     name: "and",
     kinds: [NounPhrase],
     params: {"phrases": Default(Any, [])},
-    body: And(phrases: Param(phrases)),
+    body: And(Param(phrases)),
 )

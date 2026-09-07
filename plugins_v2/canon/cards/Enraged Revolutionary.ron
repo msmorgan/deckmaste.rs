@@ -1,15 +1,15 @@
 // "Dethrone" [CR#702.105a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Enraged Revolutionary",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            2,
+            Red,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 1),
+        power: 2,
+        toughness: 1,
         text: [dethrone],
     ),
 ))

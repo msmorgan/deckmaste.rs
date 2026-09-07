@@ -5,5 +5,5 @@
     name: "ignoreOutcomes",
     kinds: [Instruction],
     params: {"which": Any},
-    body: IgnoreOutcomes(which: Param(which)),
+    body: IgnoreOutcomes(Param(which)),
 )

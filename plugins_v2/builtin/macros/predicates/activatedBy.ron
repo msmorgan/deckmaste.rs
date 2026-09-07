@@ -5,5 +5,5 @@
     name: "activatedBy",
     kinds: [Predicate],
     params: {"activator": Subject},
-    body: ActivatedBy(activator: Param(activator)),
+    body: ActivatedBy(Param(activator)),
 )

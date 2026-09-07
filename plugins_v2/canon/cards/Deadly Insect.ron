@@ -1,15 +1,15 @@
 // "Shroud" [CR#702.18a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Deadly Insect",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Green))),
+            4,
+            Green,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Insect")],
-        power: Lit(value: 6),
-        toughness: Lit(value: 1),
+        power: 6,
+        toughness: 1,
         text: [shroud],
     ),
 ))

@@ -28,7 +28,7 @@ KeywordAbility(
                         ),
                     ],
                 ),
-                instruction: Draw(amount: Lit(value: 1), agent: You),
+                instruction: Draw(amount: 1, agent: You),
                 timing: None,
                 limit: None,
                 guard: None,

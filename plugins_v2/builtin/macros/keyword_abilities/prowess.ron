@@ -38,12 +38,12 @@ KeywordAbility(
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Power,
-                                delta: Up(amount: Lit(value: 1)),
+                                delta: Up(amount: 1),
                             ),
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Toughness,
-                                delta: Up(amount: Lit(value: 1)),
+                                delta: Up(amount: 1),
                             ),
                         ],
                     ),

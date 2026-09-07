@@ -1,16 +1,16 @@
 // "At the beginning of combat on your turn, if you both own and control this
 // creature and a creature named Midnight Scavengers, exile them, then meld
 // them into Chittering Host." [CR#701.42a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Graf Rats",
-        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: Black)))],
+        cost: [1, Black],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Rat")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 1),
+        power: 2,
+        toughness: 1,
         text: [
-            triggeredIf(event: beginningOf(quantifier: The, part: Combat, whose: ByPlayer(player: you)), condition: and(conjuncts: [
+            triggeredIf(event: beginningOf(quantifier: The, part: Combat, whose: ByPlayer(you)), condition: and(conjuncts: [
                     matches(
                         subject: asType(type: Creature, subject: this, subtype: None),
                         predicate: and(conjuncts: [
@@ -22,7 +22,7 @@ SingleFaced(face: (
                         determiner: Bare,
                         predicate: and(conjuncts: [
                             hasType(type: Creature),
-                            named(source: Printed(name: "Midnight Scavengers")),
+                            named(source: Printed("Midnight Scavengers")),
                             hasPossessor(axis: Owner, possessor: you),
                             hasPossessor(axis: Controller, possessor: you),
                         ]),
@@ -34,13 +34,13 @@ SingleFaced(face: (
                             hasType(type: Creature),
                             hasPossessor(axis: Controller, possessor: you),
                             or(disjuncts: [
-                                named(source: Printed(name: "Graf Rats")),
-                                named(source: Printed(name: "Midnight Scavengers")),
+                                named(source: Printed("Graf Rats")),
+                                named(source: Printed("Midnight Scavengers")),
                             ]),
                         ]),
                     )),
                     meld(
-                        themVerbed(verb: Action(label: "Exile")),
+                        themVerbed(verb: Action("Exile")),
                         "Chittering Host",
                     ),
                 ])),

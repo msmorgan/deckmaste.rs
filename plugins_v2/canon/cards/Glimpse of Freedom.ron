@@ -1,23 +1,23 @@
 // "Draw a card. / Escape—{2}{U}, Exile five other cards from your graveyard."
 // [CR#702.138a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Glimpse of Freedom",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            1,
+            Blue,
         ],
         types: [Instant],
         text: [
-            spell(timing: None, instruction: draw(amount: Lit(value: 1), agent: you)),
+            spell(timing: None, instruction: draw(amount: 1, agent: you)),
             escape(compound(costs: [
                 mana(cost: [
-                    Simple(symbol: Generic(amount: 2)),
-                    Simple(symbol: Specific(color: Of(color: Blue))),
+                    2,
+                    Blue,
                 ]),
                 perform(instruction: enact(
-                    verb: Action(label: "Exile"),
-                    instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and(conjuncts: [ isCard, inZone(zone: zone(zone: Graveyard, scope: PossessedBy(possessor: you))), otherThan(anchor: this), ]), ), destination: zone(zone: Exile, scope: Bare)),
+                    verb: Action("Exile"),
+                    instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and(conjuncts: [ isCard, inZone(zone: zone(zone: Graveyard, scope: PossessedBy(you))), otherThan(anchor: this), ]), ), destination: zone(zone: Exile, scope: Bare)),
                     agent: you,
                 )),
             ])),

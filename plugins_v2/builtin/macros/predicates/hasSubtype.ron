@@ -5,5 +5,5 @@
     name: "hasSubtype",
     kinds: [Predicate],
     params: {"subtype": Subtype},
-    body: HasSubtype(subtype: Param(subtype)),
+    body: HasSubtype(Param(subtype)),
 )

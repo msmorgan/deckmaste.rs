@@ -1,15 +1,15 @@
 // "Menace" [CR#702.111b]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Boggart Brute",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            2,
+            Red,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Goblin"), Of(host: Creature, label: "Warrior")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 2),
+        power: 3,
+        toughness: 2,
         text: [menace],
     ),
 ))

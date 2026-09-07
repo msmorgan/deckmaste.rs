@@ -5,5 +5,5 @@
     name: "lit",
     kinds: [Amount],
     params: {"value": Any},
-    body: Lit(value: Param(value)),
+    body: Lit(Param(value)),
 )

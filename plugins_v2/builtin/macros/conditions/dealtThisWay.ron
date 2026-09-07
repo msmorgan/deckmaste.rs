@@ -5,5 +5,5 @@
     name: "dealtThisWay",
     kinds: [Condition],
     params: {"predicate": Quality},
-    body: DealtThisWay(predicate: Param(predicate)),
+    body: DealtThisWay(Param(predicate)),
 )

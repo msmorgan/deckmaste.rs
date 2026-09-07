@@ -3,5 +3,5 @@
     name: "returnToBattlefieldWithCounters",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "who": NounPhrase, "amount": Amount, "kind": CounterKind},
-    body: Move(Param(subject), battlefield, [Under(controller: Param(who)), WithCounters(Param(amount), Printed(kind: Param(kind)), Fresh)]),
+    body: Move(Param(subject), battlefield, [Under(Param(who)), WithCounters(Param(amount), Printed(Param(kind)), Fresh)]),
 )

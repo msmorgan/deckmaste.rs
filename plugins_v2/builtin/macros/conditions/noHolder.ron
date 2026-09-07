@@ -5,5 +5,5 @@
     name: "noHolder",
     kinds: [Condition],
     params: {"designation": Any},
-    body: NoHolder(designation: Param(designation)),
+    body: NoHolder(Param(designation)),
 )

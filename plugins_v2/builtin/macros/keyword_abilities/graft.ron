@@ -52,7 +52,7 @@ KeywordAbility(
                 instruction: WithContinuation(
                     policy: Optional(agent: You),
                     body: MoveCounters(
-                        amount: Lit(value: 1),
+                        amount: 1,
                         kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
                         source: AsMarker(marker: Permanent, subject: This),
                         destination: Pro(

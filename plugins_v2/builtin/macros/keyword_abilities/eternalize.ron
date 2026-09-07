@@ -31,7 +31,7 @@ KeywordAbility(
                     ],
                 ),
                 instruction: CreateObject(
-                    count: Lit(value: 1),
+                    count: 1,
                     spec: Token(
                         spec: CopyOf(
                             source: This,
@@ -39,8 +39,8 @@ KeywordAbility(
                                 Edits(
                                     edits: [
                                         Colors(op: Sets, colors: r#Some(colors: [Black])),
-                                        Stat(op: Sets, axis: Power, amount: Lit(value: 4)),
-                                        Stat(op: Sets, axis: Toughness, amount: Lit(value: 4)),
+                                        Stat(op: Sets, axis: Power, amount: 4),
+                                        Stat(op: Sets, axis: Toughness, amount: 4),
                                         ManaCost(cost: None),
                                         TypeLine(
                                             op: Adds,

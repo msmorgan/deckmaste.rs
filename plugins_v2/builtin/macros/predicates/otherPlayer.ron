@@ -3,5 +3,5 @@
     name: "otherPlayer",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [AnyPlayer, OtherThan(anchor: You)]),
+    body: And([AnyPlayer, OtherThan(You)]),
 )

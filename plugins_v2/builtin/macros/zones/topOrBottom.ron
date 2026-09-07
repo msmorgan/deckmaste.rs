@@ -3,5 +3,5 @@
     name: "topOrBottom",
     kinds: [ZoneExpr],
     params: [],
-    body: Library(EitherEnd(chooser: None), None, None, Bare),
+    body: Library(EitherEnd(None), None, None, Bare),
 )

@@ -5,5 +5,5 @@
     name: "coinCameUp",
     kinds: [Predicate],
     params: {"face": Any},
-    body: CoinCameUp(face: Param(face)),
+    body: CoinCameUp(Param(face)),
 )

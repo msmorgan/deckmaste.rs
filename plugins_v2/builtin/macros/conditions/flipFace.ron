@@ -5,5 +5,5 @@
     name: "flipFace",
     kinds: [Condition],
     params: {"face": Any},
-    body: FlipFace(face: Param(face)),
+    body: FlipFace(Param(face)),
 )

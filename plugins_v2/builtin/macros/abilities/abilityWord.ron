@@ -3,5 +3,5 @@
     name: "abilityWord",
     kinds: [Ability],
     params: {"word": AbilityWordLabel, "ability": Ability},
-    body: ItalicHead(AbilityWord(label: Param(word)), Param(ability)),
+    body: ItalicHead(AbilityWord(Param(word)), Param(ability)),
 )

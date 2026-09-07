@@ -31,7 +31,7 @@ KeywordAbility(
                     ],
                 ),
                 instruction: CreateObject(
-                    count: Lit(value: 1),
+                    count: 1,
                     spec: Token(
                         spec: CopyOf(
                             source: This,

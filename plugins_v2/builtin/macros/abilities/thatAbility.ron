@@ -5,5 +5,5 @@
     name: "thatAbility",
     kinds: [Ability],
     params: {"ref": Any},
-    body: ThatAbility(r#ref: Param(ref)),
+    body: ThatAbility(Param(ref)),
 )

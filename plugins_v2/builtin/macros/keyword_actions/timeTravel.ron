@@ -44,7 +44,7 @@ KeywordAction(
                 quantity: Range(low: 1, high: 1),
                 modes: [
                     (None, PutCounters(
-                        amount: Lit(value: 1),
+                        amount: 1,
                         kind: Printed(kind: Named(label: "Time")),
                         on: Pro(reach: Bare, plurality: One, window: Whole),
                     )),

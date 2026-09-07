@@ -5,5 +5,5 @@
     name: "not",
     kinds: [Predicate],
     params: {"predicate": Quality},
-    body: Not(predicate: Param(predicate)),
+    body: Not(Param(predicate)),
 )

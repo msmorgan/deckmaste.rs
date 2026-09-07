@@ -5,5 +5,5 @@
     name: "paysLife",
     kinds: [GameEvent],
     params: {"player": Subject},
-    body: PaysLife(player: Param(player)),
+    body: PaysLife(Param(player)),
 )

@@ -1,12 +1,12 @@
 // "Affinity for artifacts" [CR#702.41a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Frogmite",
-        cost: [Simple(symbol: Generic(amount: 4))],
+        cost: [4],
         types: [Artifact, Creature],
         subtypes: [Of(host: Creature, label: "Frog")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [affinity(hasType(type: Artifact))],
     ),
 ))

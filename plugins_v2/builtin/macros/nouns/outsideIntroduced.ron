@@ -5,5 +5,5 @@
     name: "outsideIntroduced",
     kinds: [Window],
     params: {"pattern": Default(Any, [])},
-    body: OutsideIntroduced(pattern: Param(pattern)),
+    body: OutsideIntroduced(Param(pattern)),
 )

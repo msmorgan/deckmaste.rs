@@ -1,12 +1,12 @@
 // "Fading 2" [CR#702.32a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Skyshroud Ridgeback",
-        cost: [Simple(symbol: Specific(color: Of(color: Green)))],
+        cost: [Green],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Beast")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 3),
-        text: [fading(Lit(value: 2))],
+        power: 2,
+        toughness: 3,
+        text: [fading(2)],
     ),
 ))

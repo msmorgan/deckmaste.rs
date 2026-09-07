@@ -5,5 +5,5 @@
     name: "losesGame",
     kinds: [GameEvent],
     params: {"player": Subject},
-    body: LosesGame(player: Param(player)),
+    body: LosesGame(Param(player)),
 )

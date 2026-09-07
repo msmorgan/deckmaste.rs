@@ -1,11 +1,11 @@
 // "Goad all creatures you don't control." [CR#701.15a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Disrupt Decorum",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Red))),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            2,
+            Red,
+            Red,
         ],
         types: [Sorcery],
         text: [

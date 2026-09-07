@@ -3,5 +3,5 @@
     name: "keywordQualityCosting",
     kinds: [Ability],
     params: {"label": KeywordLabel, "quality": Predicate, "cost": Cost},
-    body: Keyword(Param(label), [Quality(predicate: Param(quality)), Cost(cost: Param(cost))], []),
+    body: Keyword(Param(label), [Quality(Param(quality)), Cost(Param(cost))], []),
 )

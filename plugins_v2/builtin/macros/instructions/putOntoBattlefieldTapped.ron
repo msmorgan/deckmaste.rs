@@ -2,5 +2,5 @@
     name: "putOntoBattlefieldTapped",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Move(Param(subject), battlefield, [EntersAs(status: Tapped)]),
+    body: Move(Param(subject), battlefield, [EntersAs(Tapped)]),
 )

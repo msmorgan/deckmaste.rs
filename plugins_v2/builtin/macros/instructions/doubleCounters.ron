@@ -5,5 +5,5 @@
     name: "doubleCounters",
     kinds: [Instruction],
     params: {"on": Subject},
-    body: DoubleCounters(on: Param(on)),
+    body: DoubleCounters(Param(on)),
 )

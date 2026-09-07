@@ -5,5 +5,5 @@
     name: "ptSwitch",
     kinds: [StaticSpec],
     params: {"subject": Subject},
-    body: PtSwitch(subject: Param(subject)),
+    body: PtSwitch(Param(subject)),
 )

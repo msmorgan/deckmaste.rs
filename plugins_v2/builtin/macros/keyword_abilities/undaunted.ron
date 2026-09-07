@@ -17,7 +17,7 @@ KeywordAbility(
                     shift: Less(
                         amount: Arith(
                             op: Times,
-                            left: Lit(value: 1),
+                            left: 1,
                             right: CountOf(
                                 group: Described(determiner: Bare, predicate: Opponent),
                             ),

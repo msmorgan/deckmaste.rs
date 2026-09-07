@@ -27,7 +27,7 @@ KeywordAbility(
                 instruction: Sequentially(
                     steps: [
                         PutCounters(
-                            amount: Lit(value: 1),
+                            amount: 1,
                             kind: Printed(kind: Named(label: "Age")),
                             on: AsMarker(marker: Permanent, subject: This),
                         ),
@@ -38,7 +38,7 @@ KeywordAbility(
                                     cost: Param(0),
                                     amount: Arith(
                                         op: Times,
-                                        left: Lit(value: 1),
+                                        left: 1,
                                         right: StatOf(
                                             axis: Counter(kind: Named(label: "Age")),
                                             subject: AsMarker(marker: Permanent, subject: This),

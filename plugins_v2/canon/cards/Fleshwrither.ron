@@ -1,21 +1,21 @@
 // "Transfigure {1}{B}{B}" [CR#702.71a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Fleshwrither",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Black))),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            2,
+            Black,
+            Black,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Horror")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
+        power: 3,
+        toughness: 3,
         text: [
             transfigure(mana(cost: [
-                Simple(symbol: Generic(amount: 1)),
-                Simple(symbol: Specific(color: Of(color: Black))),
-                Simple(symbol: Specific(color: Of(color: Black))),
+                1,
+                Black,
+                Black,
             ])),
         ],
     ),

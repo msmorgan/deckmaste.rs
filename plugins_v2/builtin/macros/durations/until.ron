@@ -5,5 +5,5 @@
     name: "until",
     kinds: [Duration],
     params: {"end": Any},
-    body: Until(end: Param(end)),
+    body: Until(Param(end)),
 )

@@ -3,5 +3,5 @@
     name: "dealDivided",
     kinds: [Instruction],
     params: {"source": NounPhrase, "amount": Amount, "among": NounPhrase},
-    body: Distribute(Damage(source: Param(source)), Param(amount), Param(among)),
+    body: Distribute(Damage(Param(source)), Param(amount), Param(among)),
 )

@@ -1,11 +1,11 @@
 // "Discard your hand, then draw two cards." Your hand is every card in it, so
 // the discarded phrase is the whole-hand description [CR#701.9a].
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Dangerous Wager",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            1,
+            Red,
         ],
         types: [Instant],
         text: [
@@ -17,12 +17,12 @@ SingleFaced(face: (
                             determiner: All,
                             predicate: and(conjuncts: [
                                 isCard,
-                                inZone(zone: zone(zone: Hand, scope: PossessedBy(possessor: you))),
+                                inZone(zone: zone(zone: Hand, scope: PossessedBy(you))),
                             ]),
                         ),
                         you,
                     ),
-                    draw(amount: Lit(value: 2), agent: you),
+                    draw(amount: 2, agent: you),
                 ]),
             ),
         ],

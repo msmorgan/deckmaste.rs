@@ -3,5 +3,5 @@
     name: "coloredManaSpentToCast",
     kinds: [Condition],
     params: {"spell": NounPhrase},
-    body: CompareAmt(colorsSpentToCast(spell: Param(spell)), AtLeast, Lit(value: 1)),
+    body: CompareAmt(colorsSpentToCast(spell: Param(spell)), AtLeast, 1),
 )

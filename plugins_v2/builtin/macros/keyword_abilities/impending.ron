@@ -49,7 +49,7 @@ KeywordAbility(
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
-                        bound: Lit(value: 1),
+                        bound: 1,
                     ),
                     marking: AsLongAs,
                 ),
@@ -68,7 +68,7 @@ KeywordAbility(
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
-                        bound: Lit(value: 1),
+                        bound: 1,
                     ),
                             Matches(
                                 subject: AsMarker(marker: Permanent, subject: This),
@@ -94,7 +94,7 @@ KeywordAbility(
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
-                        bound: Lit(value: 1),
+                        bound: 1,
                     ),
                         Matches(
                             subject: AsMarker(marker: Permanent, subject: This),

@@ -5,5 +5,5 @@
     name: "hasCounters",
     kinds: [Predicate],
     params: {"kind": Default(Any, None)},
-    body: HasCounters(kind: Param(kind)),
+    body: HasCounters(Param(kind)),
 )

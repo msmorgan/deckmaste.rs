@@ -5,5 +5,5 @@
     name: "or",
     kinds: [Condition],
     params: {"disjuncts": Default(Any, [])},
-    body: Or(disjuncts: Param(disjuncts)),
+    body: Or(Param(disjuncts)),
 )

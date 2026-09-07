@@ -2,5 +2,5 @@
     name: "graveyardOf",
     kinds: [ZoneExpr],
     params: {"player": NounPhrase},
-    body: Zone(Graveyard, PossessedBy(possessor: Param(player))),
+    body: Zone(Graveyard, PossessedBy(Param(player))),
 )

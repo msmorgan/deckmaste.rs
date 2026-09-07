@@ -1,17 +1,17 @@
 // "Create two 1/1 red Goblin creature tokens. / Storm" [CR#702.40a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Empty the Warrens",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            3,
+            Red,
         ],
         types: [Sorcery],
         text: [
             spell(
                 timing: None,
                 instruction: createObject(
-                    count: Lit(value: 2),
+                    count: 2,
                     spec: Token(
                         spec: written(
                             characteristics: (
@@ -19,8 +19,8 @@ SingleFaced(face: (
                                     colors: [Red],
                                     types: [Creature],
                                     subtypes: [Of(host: Creature, label: "Goblin")],
-                                    power: Lit(value: 1),
-                                    toughness: Lit(value: 1),
+                                    power: 1,
+                                    toughness: 1,
                                 ),
                             ),
                         ),

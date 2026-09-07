@@ -1,15 +1,15 @@
 // "Dredge 3" [CR#702.52a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Greater Mossdog",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Green))),
+            3,
+            Green,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Plant"), Of(host: Creature, label: "Dog")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
-        text: [dredge(Lit(value: 3))],
+        power: 3,
+        toughness: 3,
+        text: [dredge(3)],
     ),
 ))

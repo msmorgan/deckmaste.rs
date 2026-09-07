@@ -1,10 +1,10 @@
 // "Horsemanship" [CR#702.31b]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Barbarian General",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            4,
+            Red,
         ],
         types: [Creature],
         subtypes: [
@@ -12,8 +12,8 @@ SingleFaced(face: (
             Of(host: Creature, label: "Barbarian"),
             Of(host: Creature, label: "Soldier"),
         ],
-        power: Lit(value: 3),
-        toughness: Lit(value: 2),
+        power: 3,
+        toughness: 2,
         text: [horsemanship],
     ),
 ))

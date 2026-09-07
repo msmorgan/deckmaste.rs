@@ -5,5 +5,5 @@
     name: "permanentCard",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [IsCard, Or(disjuncts: [HasType(r#type: Artifact), HasType(r#type: Battle), HasType(r#type: Creature), HasType(r#type: Enchantment), HasType(r#type: Land), HasType(r#type: Planeswalker)])]),
+    body: And([IsCard, Or([HasType(Artifact), HasType(Battle), HasType(Creature), HasType(Enchantment), HasType(Land), HasType(Planeswalker)])]),
 )

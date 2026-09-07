@@ -5,5 +5,5 @@
     name: "votesFor",
     kinds: [Amount],
     params: {"label": Any},
-    body: VotesFor(label: Param(label)),
+    body: VotesFor(Param(label)),
 )

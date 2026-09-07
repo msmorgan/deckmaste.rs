@@ -6,15 +6,15 @@ Split(
         characteristics: (
             name: "Farm",
             cost: [
-                Simple(symbol: Generic(amount: 2)),
-                Simple(symbol: Specific(color: Of(color: White))),
+                2,
+                White,
             ],
             types: [Instant],
             text: [
                 spell(
                     timing: None,
                     instruction: destroy(described(
-                        determiner: Target(quantity: range(low: 1, high: 1)),
+                        determiner: Target(range(low: 1, high: 1)),
                         predicate: and(conjuncts: [
                             hasType(type: Creature),
                             or(disjuncts: [
@@ -31,8 +31,8 @@ Split(
         characteristics: (
             name: "Market",
             cost: [
-                Simple(symbol: Generic(amount: 2)),
-                Simple(symbol: Specific(color: Of(color: Blue))),
+                2,
+                Blue,
             ],
             types: [Sorcery],
             text: [
@@ -40,13 +40,13 @@ Split(
                 spell(
                     timing: None,
                     instruction: sequentially(steps: [
-                        draw(amount: Lit(value: 2), agent: you),
+                        draw(amount: 2, agent: you),
                         discard(
                             described(
                                 determiner: Count(quantity: range(low: 2, high: 2), mode: None),
                                 predicate: and(conjuncts: [
                                     isCard,
-                                    inZone(zone: zone(zone: Hand, scope: PossessedBy(possessor: you))),
+                                    inZone(zone: zone(zone: Hand, scope: PossessedBy(you))),
                                 ]),
                             ),
                             you,

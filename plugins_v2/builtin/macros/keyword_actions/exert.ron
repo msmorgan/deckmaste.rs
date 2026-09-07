@@ -13,7 +13,7 @@ KeywordAction(
     ),
     body: Enact(
         verb: Action(label: "Exert"),
-        instruction: SkipUntap(subject: Param(0), steps: Lit(value: 1)),
+        instruction: SkipUntap(subject: Param(0), steps: 1),
         agent: None,
     ),
 )

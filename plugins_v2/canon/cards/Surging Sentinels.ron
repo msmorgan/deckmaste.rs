@@ -1,15 +1,15 @@
 // "First strike / Ripple 4" [CR#702.60a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Surging Sentinels",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            2,
+            White,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 1),
-        text: [firstStrike, ripple(Lit(value: 4))],
+        power: 2,
+        toughness: 1,
+        text: [firstStrike, ripple(4)],
     ),
 ))

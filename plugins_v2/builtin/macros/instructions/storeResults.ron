@@ -5,5 +5,5 @@
     name: "storeResults",
     kinds: [Instruction],
     params: {"on": Subject},
-    body: StoreResults(on: Param(on)),
+    body: StoreResults(Param(on)),
 )

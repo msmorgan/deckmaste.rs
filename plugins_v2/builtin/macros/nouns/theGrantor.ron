@@ -5,5 +5,5 @@
     name: "theGrantor",
     kinds: [NounPhrase],
     params: {"marker": Any},
-    body: TheGrantor(marker: Param(marker)),
+    body: TheGrantor(Param(marker)),
 )

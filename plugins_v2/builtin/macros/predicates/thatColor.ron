@@ -3,5 +3,5 @@
     name: "thatColor",
     kinds: [ColorTerm],
     params: [],
-    body: Chosen(r#ref: TheChoice),
+    body: Chosen(TheChoice),
 )

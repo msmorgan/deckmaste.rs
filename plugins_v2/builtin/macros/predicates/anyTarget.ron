@@ -3,5 +3,5 @@
     name: "anyTarget",
     kinds: [Predicate],
     params: [],
-    body: Or(disjuncts: [HasType(r#type: Creature), HasType(r#type: Planeswalker), HasType(r#type: Battle), AnyPlayer]),
+    body: Or([HasType(Creature), HasType(Planeswalker), HasType(Battle), AnyPlayer]),
 )

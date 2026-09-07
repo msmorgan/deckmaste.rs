@@ -5,5 +5,5 @@
     name: "hasStatus",
     kinds: [Predicate],
     params: {"status": Any},
-    body: HasStatus(status: Param(status)),
+    body: HasStatus(Param(status)),
 )

@@ -5,5 +5,5 @@
     name: "or",
     kinds: [NounPhrase],
     params: {"phrases": Default(Any, [])},
-    body: Or(phrases: Param(phrases)),
+    body: Or(Param(phrases)),
 )

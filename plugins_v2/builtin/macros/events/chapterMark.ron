@@ -5,5 +5,5 @@
     name: "chapterMark",
     kinds: [GameEvent],
     params: {"chapters": Default(Any, [])},
-    body: ChapterMark(chapters: Param(chapters)),
+    body: ChapterMark(Param(chapters)),
 )

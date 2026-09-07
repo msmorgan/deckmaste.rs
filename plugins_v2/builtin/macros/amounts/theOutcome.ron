@@ -5,5 +5,5 @@
     name: "theOutcome",
     kinds: [Amount],
     params: {"sort": Any},
-    body: TheOutcome(sort: Param(sort)),
+    body: TheOutcome(Param(sort)),
 )

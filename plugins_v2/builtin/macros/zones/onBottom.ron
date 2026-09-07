@@ -3,5 +3,5 @@
     name: "onBottom",
     kinds: [ZoneExpr],
     params: [],
-    body: Library(OneEnd(end: Bottom), None, None, Bare),
+    body: Library(OneEnd(Bottom), None, None, Bare),
 )

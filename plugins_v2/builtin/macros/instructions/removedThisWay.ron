@@ -3,5 +3,5 @@
     name: "removedThisWay",
     kinds: [Amount],
     params: [],
-    body: TheOutcome(sort: CountersRemoved),
+    body: TheOutcome(CountersRemoved),
 )

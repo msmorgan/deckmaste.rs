@@ -5,5 +5,5 @@
     name: "not",
     kinds: [Condition],
     params: {"condition": Condition},
-    body: Not(condition: Param(condition)),
+    body: Not(Param(condition)),
 )

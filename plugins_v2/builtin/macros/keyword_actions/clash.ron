@@ -19,7 +19,7 @@ KeywordAction(
         instruction: Sequentially(steps: [
         Expose(
             verb: Reveal,
-            exposed: Cards(cards: LibrarySlice(end: Top, amount: Lit(value: 1), whose: Param(0))),
+            exposed: Cards(cards: LibrarySlice(end: Top, amount: 1, whose: Param(0))),
             agent: Param(0),
         ),
         WithContinuation(

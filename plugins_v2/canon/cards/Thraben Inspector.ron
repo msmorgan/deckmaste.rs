@@ -1,15 +1,15 @@
 // "When this creature enters, investigate." [CR#701.16a,111.10f]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Thraben Inspector",
-        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        cost: [White],
         types: [Creature],
         subtypes: [
             Of(host: Creature, label: "Human"),
             Of(host: Creature, label: "Soldier"),
         ],
-        power: Lit(value: 1),
-        toughness: Lit(value: 2),
+        power: 1,
+        toughness: 2,
         text: [
             triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: investigate(you)),
         ],

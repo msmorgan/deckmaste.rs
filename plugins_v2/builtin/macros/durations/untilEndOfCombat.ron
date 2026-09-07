@@ -2,5 +2,5 @@
     name: "untilEndOfCombat",
     kinds: [Duration],
     params: [],
-    body: Until(end: EndOf(Combat, None)),
+    body: Until(EndOf(Combat, None)),
 )

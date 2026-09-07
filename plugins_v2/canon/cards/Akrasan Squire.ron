@@ -1,12 +1,12 @@
 // "Exalted" [CR#702.83a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Akrasan Squire",
-        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        cost: [White],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
-        power: Lit(value: 1),
-        toughness: Lit(value: 1),
+        power: 1,
+        toughness: 1,
         text: [exalted],
     ),
 ))

@@ -3,5 +3,5 @@
     name: "mayBlockAdditional",
     kinds: [StaticSpec],
     params: {"subject": NounPhrase, "quantity": Quantity},
-    body: DeonticRule(Param(subject), Permit, [Core(deed: Block)], Agent, Additional(quantity: Param(quantity)), Counterpart(patient: allOf(p: creature)), None, NoRider),
+    body: DeonticRule(Param(subject), Permit, [Core(Block)], Agent, Additional(Param(quantity)), Counterpart(allOf(p: creature)), None, NoRider),
 )

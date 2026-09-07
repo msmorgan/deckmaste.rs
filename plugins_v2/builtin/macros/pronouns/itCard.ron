@@ -3,5 +3,5 @@
     name: "itCard",
     kinds: [NounPhrase],
     params: [],
-    body: Pro(AtSlot(slot: Card), One, Whole),
+    body: Pro(AtSlot(Card), One, Whole),
 )

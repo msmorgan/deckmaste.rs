@@ -3,5 +3,5 @@
     name: "everyObject",
     kinds: [NounPhrase],
     params: [],
-    body: allOf(p: And(conjuncts: [])),
+    body: allOf(p: And([])),
 )

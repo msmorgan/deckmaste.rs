@@ -5,5 +5,5 @@
     name: "abilityHead",
     kinds: [Predicate],
     params: {"class": Any},
-    body: AbilityHead(class: Param(class)),
+    body: AbilityHead(Param(class)),
 )

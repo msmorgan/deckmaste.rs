@@ -2,5 +2,5 @@
     name: "tokenOnTheBattlefield",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [IsToken, permanent]),
+    body: And([IsToken, permanent]),
 )

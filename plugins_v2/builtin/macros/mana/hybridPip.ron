@@ -3,5 +3,5 @@
     name: "hybridPip",
     kinds: [ManaSymbol],
     params: {"left": Color, "right": Color},
-    body: Hybrid(Specific(color: Of(color: Param(left))), Param(right)),
+    body: Hybrid(Specific(Of(Param(left))), Param(right)),
 )

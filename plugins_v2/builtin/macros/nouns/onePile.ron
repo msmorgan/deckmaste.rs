@@ -3,5 +3,5 @@
     name: "onePile",
     kinds: [NounPhrase],
     params: [],
-    body: PileOf(Counted(quantity: exactly(n: 1)), None),
+    body: PileOf(Counted(exactly(n: 1)), None),
 )

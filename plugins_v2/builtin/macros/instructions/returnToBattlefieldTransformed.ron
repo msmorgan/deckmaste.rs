@@ -3,5 +3,5 @@
     name: "returnToBattlefieldTransformed",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "controller": NounPhrase},
-    body: returnTo(subject: Param(subject), destination: battlefield, riders: [EntersTransformed, Under(controller: Param(controller))]),
+    body: returnTo(subject: Param(subject), destination: battlefield, riders: [EntersTransformed, Under(Param(controller))]),
 )

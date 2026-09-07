@@ -4,18 +4,18 @@
 // `Ability` position: the meta names `Ability` as the semantic kind beside the
 // `AbilityWord` family, so the declaration registers there and expands to the
 // `ItalicHead` its body builds.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Eumidian Terrabotanist",
-        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: Green)))],
+        cost: [1, Green],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Insect"), Of(host: Creature, label: "Druid")],
         text: [
             landfall(
-                triggered(event: zoneChange( subject: described( determiner: A(mode: Unmarked), predicate: and(conjuncts: [ hasType(type: Land), hasPossessor(axis: Controller, possessor: you), ]), ), to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: changeLife(delta: up(amount: Lit(value: 1)), agent: you))
+                triggered(event: zoneChange( subject: described( determiner: A(Unmarked), predicate: and(conjuncts: [ hasType(type: Land), hasPossessor(axis: Controller, possessor: you), ]), ), to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: changeLife(delta: up(amount: 1), agent: you))
             ),
         ],
-        power: Lit(value: 2),
-        toughness: Lit(value: 3),
+        power: 2,
+        toughness: 3,
     ),
 ))

@@ -5,5 +5,5 @@
     name: "eachOf",
     kinds: [NounPhrase],
     params: {"group": Subject},
-    body: EachOf(group: Param(group)),
+    body: EachOf(Param(group)),
 )

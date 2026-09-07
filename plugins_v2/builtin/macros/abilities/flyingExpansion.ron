@@ -4,5 +4,5 @@
     name: "flyingExpansion",
     kinds: [Ability],
     params: [],
-    body: Static(spec: deontic(subject: thisCreature, compulsion: Forbid, deeds: [Core(deed: Block)], role: Patient, patient: Counterpart(patient: allOf(p: And(conjuncts: [creature, Not(predicate: Or(disjuncts: [HasKeyword(keyword: The(keyword: "Flying")), HasKeyword(keyword: The(keyword: "Reach"))]))]))))),
+    body: Static(deontic(subject: thisCreature, compulsion: Forbid, deeds: [Core(Block)], role: Patient, patient: Counterpart(allOf(p: And([creature, Not(Or([HasKeyword(The("Flying")), HasKeyword(The("Reach"))]))]))))),
 )

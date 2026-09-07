@@ -1,12 +1,12 @@
 // A vanilla creature: no text, so the mirror's defaults carry every absent
 // characteristic.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Grizzly Bears",
-        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: Green)))],
+        cost: [1, Green],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Bear")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
     ),
 ))

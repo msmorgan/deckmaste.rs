@@ -3,5 +3,5 @@
     name: "bottomCard",
     kinds: [NounPhrase],
     params: [],
-    body: LibrarySlice(Bottom, Lit(value: 1), You),
+    body: LibrarySlice(Bottom, 1, You),
 )

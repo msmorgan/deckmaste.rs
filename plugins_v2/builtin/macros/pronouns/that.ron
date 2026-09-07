@@ -3,5 +3,5 @@
     name: "that",
     kinds: [NounPhrase],
     params: {"w": NounWord},
-    body: Pro(Word(word: Param(w)), One, Whole),
+    body: Pro(Word(Param(w)), One, Whole),
 )

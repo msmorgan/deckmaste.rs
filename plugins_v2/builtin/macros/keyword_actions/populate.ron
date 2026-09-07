@@ -30,7 +30,7 @@ KeywordAction(
             agent: You,
         ),
         CreateObject(
-            count: Lit(value: 1),
+            count: 1,
             spec: Token(
                 spec: CopyOf(
                     source: Pro(reach: Word(word: Token), plurality: One, window: Whole),

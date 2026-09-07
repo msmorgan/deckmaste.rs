@@ -18,7 +18,7 @@ KeywordAbility(
                     compulsion: Forbid,
                     deeds: [Core(deed: Block)],
                     role: Patient,
-                    bound: MoreThan(amount: Lit(value: 1)),
+                    bound: MoreThan(amount: 1),
                     patient: Counterpart(
                         patient: Described(determiner: All, predicate: HasType(type: Creature)),
                     ),

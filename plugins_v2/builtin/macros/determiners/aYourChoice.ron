@@ -3,5 +3,5 @@
     name: "aYourChoice",
     kinds: [NounPhrase],
     params: {"p": Predicate},
-    body: Described(A(mode: YourChoice), Param(p)),
+    body: Described(A(YourChoice), Param(p)),
 )

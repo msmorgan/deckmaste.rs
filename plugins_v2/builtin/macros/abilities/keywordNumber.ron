@@ -3,5 +3,5 @@
     name: "keywordNumber",
     kinds: [Ability],
     params: {"label": KeywordLabel, "amount": Amount},
-    body: Keyword(Param(label), [Number(amount: Param(amount))], []),
+    body: Keyword(Param(label), [Number(Param(amount))], []),
 )

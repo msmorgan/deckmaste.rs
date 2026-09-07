@@ -5,5 +5,5 @@
     name: "gameIs",
     kinds: [Condition],
     params: {"designation": Any},
-    body: GameIs(designation: Param(designation)),
+    body: GameIs(Param(designation)),
 )

@@ -5,5 +5,5 @@
     name: "exists",
     kinds: [Condition],
     params: {"subject": Subject},
-    body: Exists(subject: Param(subject)),
+    body: Exists(Param(subject)),
 )

@@ -40,7 +40,7 @@ KeywordAbility(
                             body: WithContinuation(
                                 policy: Optional(agent: You),
                                 body: CreateObject(
-                                    count: Lit(value: 1),
+                                    count: 1,
                                     spec: Token(
                                         spec: CopyOf(
                                             source: AsType(
@@ -99,7 +99,7 @@ KeywordAbility(
                                     ),
                                 ),
                                 comparator: AtLeast,
-                                bound: Lit(value: 1),
+                                bound: 1,
                             ),
                             instruction: Delay(
                                 event: BeginningOf(

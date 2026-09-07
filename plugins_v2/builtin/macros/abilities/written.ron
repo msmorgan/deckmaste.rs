@@ -5,5 +5,5 @@
     name: "written",
     kinds: [TokenSpec],
     params: {"characteristics": CharacteristicBundle},
-    body: Written(characteristics: Param(characteristics)),
+    body: Written(Param(characteristics)),
 )

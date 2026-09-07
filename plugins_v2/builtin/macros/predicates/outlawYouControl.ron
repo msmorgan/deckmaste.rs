@@ -2,5 +2,5 @@
     name: "outlawYouControl",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [outlaw, HasPossessor(Controller, You)]),
+    body: And([outlaw, HasPossessor(Controller, You)]),
 )

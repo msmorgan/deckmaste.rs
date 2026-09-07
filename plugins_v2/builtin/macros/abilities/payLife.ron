@@ -3,5 +3,5 @@
     name: "payLife",
     kinds: [Cost],
     params: {"player": NounPhrase, "amount": Nat},
-    body: Perform(instruction: ChangeLife(delta: Down(amount: Lit(value: Param(amount))), agent: Param(player))),
+    body: Perform(ChangeLife(delta: Down(amount: Lit(Param(amount))), agent: Param(player))),
 )

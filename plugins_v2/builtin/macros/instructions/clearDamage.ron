@@ -5,5 +5,5 @@
     name: "clearDamage",
     kinds: [Instruction],
     params: {"subject": Subject},
-    body: ClearDamage(subject: Param(subject)),
+    body: ClearDamage(Param(subject)),
 )

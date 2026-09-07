@@ -3,5 +3,5 @@
     name: "cantMoreThan",
     kinds: [StaticSpec],
     params: {"player": NounPhrase, "deed": Deed, "bound": Nat, "p": Predicate},
-    body: DeonticRule(Param(player), Forbid, [Param(deed)], Agent, MoreThan(amount: Lit(value: Param(bound))), Counterpart(patient: allOf(p: Param(p))), None, NoRider),
+    body: DeonticRule(Param(player), Forbid, [Param(deed)], Agent, MoreThan(Lit(Param(bound))), Counterpart(allOf(p: Param(p))), None, NoRider),
 )

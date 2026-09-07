@@ -5,5 +5,5 @@
     name: "inPile",
     kinds: [Predicate],
     params: {"pile": Subject},
-    body: InPile(pile: Param(pile)),
+    body: InPile(Param(pile)),
 )

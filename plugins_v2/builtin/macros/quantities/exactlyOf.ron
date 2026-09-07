@@ -5,5 +5,5 @@
     name: "exactlyOf",
     kinds: [Quantity],
     params: {"amount": Amount},
-    body: ExactlyOf(amount: Param(amount)),
+    body: ExactlyOf(Param(amount)),
 )

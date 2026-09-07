@@ -5,5 +5,5 @@
     name: "upToOf",
     kinds: [Quantity],
     params: {"amount": Amount},
-    body: UpToOf(amount: Param(amount)),
+    body: UpToOf(Param(amount)),
 )

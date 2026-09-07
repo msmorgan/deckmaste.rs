@@ -1,24 +1,24 @@
 // "{G}{W}{U}, {T}: Prevent all combat damage that would be dealt this turn.
 // Activate only before the combat damage step." [CR#506.1]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Angus Mackenzie",
         cost: [
-            Simple(symbol: Specific(color: Of(color: Green))),
-            Simple(symbol: Specific(color: Of(color: White))),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            Green,
+            White,
+            Blue,
         ],
         supertypes: [Legendary],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Cleric")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [
             activatedOnlyDuring(cost: compound(costs: [
                     mana(cost: [
-                        Simple(symbol: Specific(color: Of(color: Green))),
-                        Simple(symbol: Specific(color: Of(color: White))),
-                        Simple(symbol: Specific(color: Of(color: Blue))),
+                        Green,
+                        White,
+                        Blue,
                     ]),
                     tapSymbol,
                 ]), instruction: establish(

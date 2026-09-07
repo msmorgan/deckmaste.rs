@@ -3,5 +3,5 @@
     name: "youRollResultIn",
     kinds: [GameEvent],
     params: {"quantity": Quantity},
-    body: RollsDice(You, One, None, ResultIn(quantity: Param(quantity))),
+    body: RollsDice(You, One, None, ResultIn(Param(quantity))),
 )

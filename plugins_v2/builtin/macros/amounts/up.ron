@@ -5,5 +5,5 @@
     name: "up",
     kinds: [Delta],
     params: {"amount": Any},
-    body: Up(amount: Param(amount)),
+    body: Up(Param(amount)),
 )

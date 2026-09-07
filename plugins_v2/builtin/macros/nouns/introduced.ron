@@ -5,5 +5,5 @@
     name: "introduced",
     kinds: [Window],
     params: {"pattern": Default(Any, [])},
-    body: Introduced(pattern: Param(pattern)),
+    body: Introduced(Param(pattern)),
 )

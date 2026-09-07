@@ -2,5 +2,5 @@
     name: "nontoken",
     kinds: [Predicate],
     params: [],
-    body: Not(predicate: IsToken),
+    body: Not(IsToken),
 )

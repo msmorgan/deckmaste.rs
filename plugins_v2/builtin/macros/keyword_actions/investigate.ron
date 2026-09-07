@@ -13,21 +13,21 @@ KeywordAction(
     body: Enact(
         verb: Action(label: "Investigate"),
         instruction: CreateObject(
-        count: Lit(value: 1),
+        count: 1,
         spec: Token(
             spec: Written(characteristics: (characteristics: (
                 types: [Artifact],
                 subtypes: [Of(host: Artifact, label: "Clue")],
                 text: [Activated(
                     cost: Compound(costs: [
-                        Mana(cost: [Simple(symbol: Generic(amount: 2))]),
+                        Mana(cost: [2]),
                         Perform(instruction: Enact(
                             verb: Action(label: "Sacrifice"),
                             instruction: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
                             agent: You,
                         )),
                     ]),
-                    instruction: Draw(amount: Lit(value: 1), agent: You),
+                    instruction: Draw(amount: 1, agent: You),
                     timing: None,
                     limit: None,
                     guard: None,

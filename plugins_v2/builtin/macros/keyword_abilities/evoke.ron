@@ -48,7 +48,7 @@ KeywordAbility(
                         subject: AsMarker(marker: Permanent, subject: This),
                     ),
                     comparator: AtLeast,
-                    bound: Lit(value: 1),
+                    bound: 1,
                 ),
                 instruction: Enact(
                     verb: Action(label: "Sacrifice"),

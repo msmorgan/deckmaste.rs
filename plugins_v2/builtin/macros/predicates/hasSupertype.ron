@@ -5,5 +5,5 @@
     name: "hasSupertype",
     kinds: [Predicate],
     params: {"supertype": Any},
-    body: HasSupertype(supertype: Param(supertype)),
+    body: HasSupertype(Param(supertype)),
 )

@@ -3,5 +3,5 @@
     name: "exists_",
     kinds: [Condition],
     params: {"p": Predicate},
-    body: Exists(subject: bare(p: Param(p))),
+    body: Exists(bare(p: Param(p))),
 )

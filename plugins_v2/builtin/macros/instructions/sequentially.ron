@@ -5,5 +5,5 @@
     name: "sequentially",
     kinds: [Instruction],
     params: {"steps": Default(Any, [])},
-    body: Sequentially(steps: Param(steps)),
+    body: Sequentially(Param(steps)),
 )

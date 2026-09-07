@@ -1,21 +1,21 @@
 // "Flash / Ravenous / When this creature enters, target creature attacks target
 // opponent this turn if able." [CR#702.156a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Ravener",
         cost: [
             Variable,
-            Simple(symbol: Specific(color: Of(color: Green))),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            Green,
+            Blue,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Tyranid")],
-        power: Lit(value: 0),
-        toughness: Lit(value: 0),
+        power: 0,
+        toughness: 0,
         text: [
             flash,
             ravenous,
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: establish( spec: deonticRule( subject: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: hasType(type: Creature), ), compulsion: Require, deeds: [Core(deed: Attack)], role: Agent, bound: None, patient: DefendingPlayer( patient: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: opponent, ), ), as_though: None, rider: NoRider, ), duration: thisTurn, )),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: establish( spec: deonticRule( subject: described( determiner: Target(range(low: 1, high: 1)), predicate: hasType(type: Creature), ), compulsion: Require, deeds: [Core(Attack)], role: Agent, bound: None, patient: DefendingPlayer(described( determiner: Target(range(low: 1, high: 1)), predicate: opponent, )), as_though: None, rider: NoRider, ), duration: thisTurn, )),
         ],
     ),
 ))

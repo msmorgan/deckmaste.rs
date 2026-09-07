@@ -3,5 +3,5 @@
     name: "itIsntA",
     kinds: [Condition],
     params: {"p": Predicate},
-    body: Not(condition: itsA(p: Param(p))),
+    body: Not(itsA(p: Param(p))),
 )

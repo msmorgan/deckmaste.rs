@@ -5,5 +5,5 @@
     name: "and",
     kinds: [Predicate],
     params: {"conjuncts": Default(Any, [])},
-    body: And(conjuncts: Param(conjuncts)),
+    body: And(Param(conjuncts)),
 )

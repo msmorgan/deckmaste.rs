@@ -2,5 +2,5 @@
     name: "onTop",
     kinds: [ZoneExpr],
     params: [],
-    body: Library(OneEnd(end: Top), None, None, Bare),
+    body: Library(OneEnd(Top), None, None, Bare),
 )

@@ -3,5 +3,5 @@
     name: "mayVoteAdditional",
     kinds: [StaticSpec],
     params: {"who": NounPhrase, "quantity": Quantity},
-    body: DeonticRule(Param(who), Permit, [Action(label: "Vote")], Agent, Additional(quantity: Param(quantity)), NoPatient, None, NoRider),
+    body: DeonticRule(Param(who), Permit, [Action("Vote")], Agent, Additional(Param(quantity)), NoPatient, None, NoRider),
 )

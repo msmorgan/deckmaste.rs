@@ -3,5 +3,5 @@
     name: "canDoAsThough",
     kinds: [StaticSpec],
     params: {"n": NounPhrase, "deed": Deed, "p": Predicate},
-    body: DeonticRule(Param(n), Permit, [Param(deed)], Agent, None, NoPatient, Of(predicate: Param(p)), NoRider),
+    body: DeonticRule(Param(n), Permit, [Param(deed)], Agent, None, NoPatient, Of(Param(p)), NoRider),
 )

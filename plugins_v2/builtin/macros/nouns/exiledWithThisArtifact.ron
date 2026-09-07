@@ -3,5 +3,5 @@
     name: "exiledWithThisArtifact",
     kinds: [Predicate],
     params: [],
-    body: ExiledWith(source: thisArtifact),
+    body: ExiledWith(thisArtifact),
 )

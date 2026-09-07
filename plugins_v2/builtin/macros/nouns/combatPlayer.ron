@@ -5,5 +5,5 @@
     name: "combatPlayer",
     kinds: [NounPhrase],
     params: {"role": Any},
-    body: CombatPlayer(role: Param(role)),
+    body: CombatPlayer(Param(role)),
 )

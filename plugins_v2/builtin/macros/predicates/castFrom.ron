@@ -5,5 +5,5 @@
     name: "castFrom",
     kinds: [Predicate],
     params: {"zone": ZoneExpr},
-    body: CastFrom(zone: Param(zone)),
+    body: CastFrom(Param(zone)),
 )

@@ -5,5 +5,5 @@
     name: "duringNextTurnOf",
     kinds: [Duration],
     params: {"player": Subject},
-    body: DuringNextTurnOf(player: Param(player)),
+    body: DuringNextTurnOf(Param(player)),
 )

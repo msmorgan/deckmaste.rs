@@ -20,7 +20,7 @@ KeywordAction(
             verb: Reveal,
             exposed: Cards(cards: LibrarySlice(
                 end: Top,
-                amount: Lit(value: 1),
+                amount: 1,
                 whose: PossessorOf(axis: Controller, subject: Param(0)),
             )),
             agent: PossessorOf(axis: Controller, subject: Param(0)),
@@ -37,7 +37,7 @@ KeywordAction(
             ),
             otherwise: Sequentially(steps: [
                 PutCounters(
-                    amount: Lit(value: 1),
+                    amount: 1,
                     kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
                     on: Param(0),
                 ),

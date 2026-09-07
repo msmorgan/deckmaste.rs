@@ -5,5 +5,5 @@
     name: "currentFace",
     kinds: [Predicate],
     params: {"side": Any},
-    body: CurrentFace(side: Param(side)),
+    body: CurrentFace(Param(side)),
 )

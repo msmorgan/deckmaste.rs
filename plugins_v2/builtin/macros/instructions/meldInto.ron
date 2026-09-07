@@ -3,5 +3,5 @@
     name: "meldInto",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "into": String, "agent": Default(Any, None)},
-    body: Enact(verb: Action(label: "Meld"), instruction: Move(Param(subject), battlefield, [EntersMelded(into: Param(into))]), agent: Param(agent)),
+    body: Enact(verb: Action("Meld"), instruction: Move(Param(subject), battlefield, [EntersMelded(Param(into))]), agent: Param(agent)),
 )

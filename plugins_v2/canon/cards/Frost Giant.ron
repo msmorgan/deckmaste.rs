@@ -1,17 +1,17 @@
 // "Rampage 2" [CR#702.23a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Frost Giant",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Red))),
-            Simple(symbol: Specific(color: Of(color: Red))),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            3,
+            Red,
+            Red,
+            Red,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Giant")],
-        power: Lit(value: 4),
-        toughness: Lit(value: 4),
-        text: [rampage(Lit(value: 2))],
+        power: 4,
+        toughness: 4,
+        text: [rampage(2)],
     ),
 ))

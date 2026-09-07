@@ -3,5 +3,5 @@
     name: "thereIsNo",
     kinds: [Condition],
     params: {"designation": DesignationLabel},
-    body: NoHolder(designation: Param(designation)),
+    body: NoHolder(Param(designation)),
 )

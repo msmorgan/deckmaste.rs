@@ -3,5 +3,5 @@
     name: "they",
     kinds: [NounPhrase],
     params: [],
-    body: Pro(Word(word: Player), One, Whole),
+    body: Pro(Word(Player), One, Whole),
 )

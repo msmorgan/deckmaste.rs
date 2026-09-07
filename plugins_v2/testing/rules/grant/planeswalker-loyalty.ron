@@ -4,8 +4,8 @@
 // [CR#209.1,306.5a].
 [
     ConferralRule(
-        scope: HasType(type: Planeswalker),
-        confer: Static(spec: Replacement(
+        scope: HasType(Planeswalker),
+        confer: Static(Replacement(
             event: ZoneChange(
                 subject: This,
                 from: None,
@@ -15,8 +15,8 @@
             alternatives: [],
             timing: None,
             replacement: PutCounters(
-                amount: StatOf(axis: Stat(stat: Loyalty), subject: This),
-                kind: Printed(kind: Named(label: "Loyalty")),
+                amount: StatOf(axis: Stat(Loyalty), subject: This),
+                kind: Printed(Named("Loyalty")),
                 on: This,
             ),
             use: Repeatedly,

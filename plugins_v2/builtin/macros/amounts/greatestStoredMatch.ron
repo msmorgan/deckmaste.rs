@@ -5,5 +5,5 @@
     name: "greatestStoredMatch",
     kinds: [Amount],
     params: {"subject": Subject},
-    body: GreatestStoredMatch(subject: Param(subject)),
+    body: GreatestStoredMatch(Param(subject)),
 )

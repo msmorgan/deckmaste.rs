@@ -1,18 +1,18 @@
 // "Search your library for a card, put that card into your hand, then
 // shuffle." [CR#701.23a]: the raw `Instruction::search` constructor already
 // carries the whole procedure.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Demonic Tutor",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            1,
+            Black,
         ],
         types: [Sorcery],
         text: [
             spell(
                 timing: None,
-                instruction: search(OneZone(zone: zone(zone: Library, scope: PossessedBy(possessor: you))), range(low: 1, high: 1), and(conjuncts: []), you),
+                instruction: search(OneZone(zone(zone: Library, scope: PossessedBy(you))), range(low: 1, high: 1), and(conjuncts: []), you),
             ),
         ],
     ),

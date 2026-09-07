@@ -5,5 +5,5 @@
     name: "loyaltySymbol",
     kinds: [Cost],
     params: {"loyalty": Any},
-    body: LoyaltySymbol(loyalty: Param(loyalty)),
+    body: LoyaltySymbol(Param(loyalty)),
 )

@@ -27,7 +27,7 @@ KeywordAbility(
                     steps: [
                         AddMana(
                             amount: Param(0),
-                            produced: Runs(runs: [[Of(color: Red)]]),
+                            produced: Runs(runs: [[Red]]),
                             riders: [],
                             agent: You,
                         ),

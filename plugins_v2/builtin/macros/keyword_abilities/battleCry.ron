@@ -42,7 +42,7 @@ KeywordAbility(
                             ),
                         ),
                         stat: Power,
-                        delta: Up(amount: Lit(value: 1)),
+                        delta: Up(amount: 1),
                     ),
                     duration: Until(end: EndOf(part: Turn, whose: None)),
                 ),

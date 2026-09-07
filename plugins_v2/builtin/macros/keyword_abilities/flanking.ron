@@ -45,7 +45,7 @@ KeywordAbility(
                                     window: Whole,
                                 ),
                                 stat: Power,
-                                delta: Down(amount: Lit(value: 1)),
+                                delta: Down(amount: 1),
                             ),
                             Modification(
                                 subject: Pro(
@@ -54,7 +54,7 @@ KeywordAbility(
                                     window: Whole,
                                 ),
                                 stat: Toughness,
-                                delta: Down(amount: Lit(value: 1)),
+                                delta: Down(amount: 1),
                             ),
                         ],
                     ),

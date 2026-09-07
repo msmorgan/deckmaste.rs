@@ -3,5 +3,5 @@
     name: "keywordSubject",
     kinds: [Ability],
     params: {"label": KeywordLabel, "subject": Predicate},
-    body: Keyword(Param(label), [Subject(predicate: Param(subject))], []),
+    body: Keyword(Param(label), [Subject(Param(subject))], []),
 )

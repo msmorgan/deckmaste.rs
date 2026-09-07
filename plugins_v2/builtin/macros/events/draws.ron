@@ -5,5 +5,5 @@
     name: "draws",
     kinds: [GameEvent],
     params: {"player": Subject},
-    body: Draws(player: Param(player)),
+    body: Draws(Param(player)),
 )

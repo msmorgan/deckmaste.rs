@@ -21,7 +21,7 @@ KeywordAction(
                         InZone(zone: Zone(zone: Battlefield, scope: Bare)),
                         HasCounters(kind: None),
                     ]),
-                    Compare(axes: [AnyCounter(kind: Player)], comparator: AtLeast, bound: Lit(value: 1)),
+                    Compare(axes: [AnyCounter(kind: Player)], comparator: AtLeast, bound: 1),
                 ]),
             ),
             disclosure: Openly,
@@ -29,7 +29,7 @@ KeywordAction(
             agent: None,
         ),
         PutCounters(
-            amount: Lit(value: 1),
+            amount: 1,
             kind: Own,
             on: EachOf(group: Pro(reach: Word(word: Join), plurality: Many, window: Whole)),
         ),

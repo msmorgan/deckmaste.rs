@@ -4,23 +4,23 @@
 // cards. Crew 3" [CR#701.55a]. The two "that player" references after the
 // trigger are modeled as a fresh target, matching this corpus's existing
 // `nivMizzetGuildpactTrigger` precedent for a trigger's own participant.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Damocles Base, Sword of Kang",
         supertypes: [Legendary],
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            4,
+            Black,
         ],
         types: [Artifact],
         subtypes: [Of(host: Artifact, label: "Vehicle")],
-        power: Lit(value: 5),
-        toughness: Lit(value: 5),
+        power: 5,
+        toughness: 5,
         text: [
             keyword(label: "Flying"),
             keyword(label: "Deathtouch"),
-            triggered(event: damage( kind: CombatOnly, source: asType(type: Creature, subject: this, subtype: None), patient: described(determiner: A(mode: Unmarked), predicate: anyPlayer), ), instruction: faceAVillainousChoice( sacrifice( described( determiner: A(mode: Unmarked), predicate: and(conjuncts: [ hasType(type: Creature), not(predicate: isToken), hasPossessor( axis: Controller, possessor: described(determiner: Target(quantity: range(low: 1, high: 1)), predicate: anyPlayer), ), ]), ), described(determiner: Target(quantity: range(low: 1, high: 1)), predicate: anyPlayer), ), sequentially(steps: [ changeLife( delta: down(amount: Lit(value: 2)), agent: described(determiner: Target(quantity: range(low: 1, high: 1)), predicate: anyPlayer), ), draw(amount: Lit(value: 2), agent: you), ]), described(determiner: Target(quantity: range(low: 1, high: 1)), predicate: anyPlayer), )),
-            keywordNumber(label: "Crew", amount: Lit(value: 3)),
+            triggered(event: damage( kind: CombatOnly, source: asType(type: Creature, subject: this, subtype: None), patient: described(determiner: A(Unmarked), predicate: anyPlayer), ), instruction: faceAVillainousChoice( sacrifice( described( determiner: A(Unmarked), predicate: and(conjuncts: [ hasType(type: Creature), not(predicate: isToken), hasPossessor( axis: Controller, possessor: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), ]), ), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), sequentially(steps: [ changeLife( delta: down(amount: 2), agent: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), draw(amount: 2, agent: you), ]), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), )),
+            keywordNumber(label: "Crew", amount: 3),
         ],
     ),
 ))

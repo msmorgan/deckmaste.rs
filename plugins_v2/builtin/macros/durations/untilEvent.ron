@@ -5,5 +5,5 @@
     name: "untilEvent",
     kinds: [Duration],
     params: {"event": GameEvent},
-    body: UntilEvent(event: Param(event)),
+    body: UntilEvent(Param(event)),
 )

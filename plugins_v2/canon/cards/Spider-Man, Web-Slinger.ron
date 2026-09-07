@@ -1,10 +1,10 @@
 // "Web-slinging {W}" [CR#702.188a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Spider-Man, Web-Slinger",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            2,
+            White,
         ],
         supertypes: [Legendary],
         types: [Creature],
@@ -13,8 +13,8 @@ SingleFaced(face: (
             Of(host: Creature, label: "Human"),
             Of(host: Creature, label: "Hero"),
         ],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
-        text: [webSlinging(mana(cost: [Simple(symbol: Specific(color: Of(color: White)))]))],
+        power: 3,
+        toughness: 3,
+        text: [webSlinging(mana(cost: [White]))],
     ),
 ))

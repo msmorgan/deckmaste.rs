@@ -3,5 +3,5 @@
     name: "outlaw",
     kinds: [Predicate],
     params: [],
-    body: Or(disjuncts: [HasSubtype(subtype: creatureType(label: "Assassin")), HasSubtype(subtype: creatureType(label: "Mercenary")), HasSubtype(subtype: creatureType(label: "Pirate")), HasSubtype(subtype: creatureType(label: "Rogue")), HasSubtype(subtype: creatureType(label: "Warlock"))]),
+    body: Or([HasSubtype(creatureType(label: "Assassin")), HasSubtype(creatureType(label: "Mercenary")), HasSubtype(creatureType(label: "Pirate")), HasSubtype(creatureType(label: "Rogue")), HasSubtype(creatureType(label: "Warlock"))]),
 )

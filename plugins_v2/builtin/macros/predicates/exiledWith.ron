@@ -5,5 +5,5 @@
     name: "exiledWith",
     kinds: [Predicate],
     params: {"source": Subject},
-    body: ExiledWith(source: Param(source)),
+    body: ExiledWith(Param(source)),
 )

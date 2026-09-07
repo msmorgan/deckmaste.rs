@@ -5,5 +5,5 @@
     name: "otherThan",
     kinds: [Predicate],
     params: {"anchor": Subject},
-    body: OtherThan(anchor: Param(anchor)),
+    body: OtherThan(Param(anchor)),
 )

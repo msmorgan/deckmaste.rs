@@ -3,10 +3,10 @@
 //
 // `Raid(<ability>)` is the ability word's own declaration invoked at this
 // `Ability` position; it expands to the `ItalicHead` its body builds.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Storm Fleet Spy",
-        cost: [Simple(symbol: Generic(amount: 2)), Simple(symbol: Specific(color: Of(color: Blue)))],
+        cost: [2, Blue],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
         text: [
@@ -22,11 +22,11 @@ SingleFaced(face: (
                         who: you,
                         lookback: ThisTurn,
                     ),
-                    instruction: draw(amount: Lit(value: 1), agent: you),
+                    instruction: draw(amount: 1, agent: you),
                 )
             ),
         ],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
     ),
 ))

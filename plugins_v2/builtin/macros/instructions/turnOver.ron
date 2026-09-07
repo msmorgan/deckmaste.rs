@@ -5,5 +5,5 @@
     name: "turnOver",
     kinds: [Instruction],
     params: {"subject": Subject},
-    body: TurnOver(subject: Param(subject)),
+    body: TurnOver(Param(subject)),
 )

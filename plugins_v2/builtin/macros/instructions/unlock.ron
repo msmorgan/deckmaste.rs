@@ -5,5 +5,5 @@
     name: "unlock",
     kinds: [Instruction],
     params: {"door": Any},
-    body: Unlock(door: Param(door)),
+    body: Unlock(Param(door)),
 )

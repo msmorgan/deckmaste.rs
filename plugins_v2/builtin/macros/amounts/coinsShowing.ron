@@ -5,5 +5,5 @@
     name: "coinsShowing",
     kinds: [Amount],
     params: {"face": Any},
-    body: CoinsShowing(face: Param(face)),
+    body: CoinsShowing(Param(face)),
 )

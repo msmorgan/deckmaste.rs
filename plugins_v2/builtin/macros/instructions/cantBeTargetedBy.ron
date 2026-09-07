@@ -3,5 +3,5 @@
     name: "cantBeTargetedBy",
     kinds: [StaticSpec],
     params: {"what": NounPhrase, "by_": NounPhrase},
-    body: DeonticRule(Param(what), Forbid, [Core(deed: Target)], Patient, None, TargetedBy(patient: Param(by_)), None, NoRider),
+    body: DeonticRule(Param(what), Forbid, [Core(Target)], Patient, None, TargetedBy(Param(by_)), None, NoRider),
 )

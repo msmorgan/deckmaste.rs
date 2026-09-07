@@ -1,8 +1,8 @@
 // "Populate." [CR#701.36a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Wake the Reflections",
-        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        cost: [White],
         types: [Sorcery],
         text: [
             spell(timing: None, instruction: populate),

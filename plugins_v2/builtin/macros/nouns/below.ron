@@ -5,5 +5,5 @@
     name: "below",
     kinds: [Window],
     params: {"depth": Nat},
-    body: Below(depth: Param(depth)),
+    body: Below(Param(depth)),
 )

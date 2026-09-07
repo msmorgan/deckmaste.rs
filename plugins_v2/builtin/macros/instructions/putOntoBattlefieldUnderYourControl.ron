@@ -3,5 +3,5 @@
     name: "putOntoBattlefieldUnderYourControl",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Move(Param(subject), battlefield, [Under(controller: You)]),
+    body: Move(Param(subject), battlefield, [Under(You)]),
 )

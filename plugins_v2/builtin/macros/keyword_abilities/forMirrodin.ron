@@ -31,7 +31,7 @@ KeywordAbility(
                 instruction: Sequentially(
                     steps: [
                         CreateObject(
-                            count: Lit(value: 1),
+                            count: 1,
                             spec: Token(
                                 spec: Written(
                                     characteristics: (
@@ -39,8 +39,8 @@ KeywordAbility(
                                             colors: [Red],
                                             types: [Creature],
                                             subtypes: [Of(host: Creature, label: "Rebel")],
-                                            power: Lit(value: 2),
-                                            toughness: Lit(value: 2),
+                                            power: 2,
+                                            toughness: 2,
                                         ),
                                     ),
                                 ),

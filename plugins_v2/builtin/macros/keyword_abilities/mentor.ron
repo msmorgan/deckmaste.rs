@@ -25,7 +25,7 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: PutCounters(
-                    amount: Lit(value: 1),
+                    amount: 1,
                     kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
                     on: Described(
                         determiner: Target(quantity: Range(low: 1, high: 1)),

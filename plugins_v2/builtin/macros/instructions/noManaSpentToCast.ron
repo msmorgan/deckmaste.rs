@@ -3,5 +3,5 @@
     name: "noManaSpentToCast",
     kinds: [Condition],
     params: {"spell": NounPhrase},
-    body: CompareAmt(manaValueSpentToCast(spell: Param(spell)), Eq, Lit(value: 0)),
+    body: CompareAmt(manaValueSpentToCast(spell: Param(spell)), Eq, 0),
 )

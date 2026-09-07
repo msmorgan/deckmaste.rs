@@ -5,21 +5,21 @@
 // [CR#701.38a]. This card exercises only the vote clause: the per-vote
 // reward and no-votes clauses need a vote-count `Amount` this ticket does
 // not add and are left unmodeled.
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Cirdan the Shipwright",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Green))),
-            Simple(symbol: Specific(color: Of(color: Blue))),
+            3,
+            Green,
+            Blue,
         ],
         types: [Creature],
         subtypes: [
             Of(host: Creature, label: "Elf"),
             Of(host: Creature, label: "Noble"),
         ],
-        power: Lit(value: 3),
-        toughness: Lit(value: 4),
+        power: 3,
+        toughness: 4,
         text: [
             keyword(label: "Vigilance"),
             triggeredOr(event: zoneChange(
@@ -33,7 +33,7 @@ SingleFaced(face: (
                         subject: asType(type: Creature, subject: this, subtype: None),
                         counterpart: None,
                     ),
-                ], instruction: vote(Secretly, ByCandidate(candidates: described( determiner: A(mode: Unmarked), predicate: anyPlayer, )), described(determiner: Each, predicate: anyPlayer))),
+                ], instruction: vote(Secretly, ByCandidate(described( determiner: A(Unmarked), predicate: anyPlayer, )), described(determiner: Each, predicate: anyPlayer))),
         ],
     ),
 ))

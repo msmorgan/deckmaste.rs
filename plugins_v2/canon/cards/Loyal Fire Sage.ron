@@ -1,10 +1,10 @@
 // "Firebending 1 / {5}: Create a 1/1 white Ally creature token." [CR#702.189a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Loyal Fire Sage",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            2,
+            Red,
         ],
         types: [Creature],
         subtypes: [
@@ -12,11 +12,11 @@ SingleFaced(face: (
             Of(host: Creature, label: "Cleric"),
             Of(host: Creature, label: "Ally"),
         ],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
+        power: 3,
+        toughness: 3,
         text: [
-            firebending(Lit(value: 1)),
-            activated(cost: mana(cost: [Simple(symbol: Generic(amount: 5))]), instruction: createObject( count: Lit(value: 1), spec: Token( spec: written( characteristics: ( characteristics: ( colors: [White], types: [Creature], subtypes: [Of(host: Creature, label: "Ally")], power: Lit(value: 1), toughness: Lit(value: 1), ), ), ), riders: [], ), agent: you, )),
+            firebending(1),
+            activated(cost: mana(cost: [5]), instruction: createObject( count: 1, spec: Token( spec: written( characteristics: ( characteristics: ( colors: [White], types: [Creature], subtypes: [Of(host: Creature, label: "Ally")], power: 1, toughness: 1, ), ), ), riders: [], ), agent: you, )),
         ],
     ),
 ))

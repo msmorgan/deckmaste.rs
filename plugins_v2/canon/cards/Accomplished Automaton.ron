@@ -1,12 +1,12 @@
 // "Fabricate 1" [CR#702.123a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Accomplished Automaton",
-        cost: [Simple(symbol: Generic(amount: 7))],
+        cost: [7],
         types: [Artifact, Creature],
         subtypes: [Of(host: Creature, label: "Construct")],
-        power: Lit(value: 5),
-        toughness: Lit(value: 7),
-        text: [fabricate(Lit(value: 1))],
+        power: 5,
+        toughness: 7,
+        text: [fabricate(1)],
     ),
 ))

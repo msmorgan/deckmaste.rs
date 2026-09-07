@@ -3,5 +3,5 @@
     name: "maySpendAsThough",
     kinds: [StaticSpec],
     params: {"who": NounPhrase, "what": ColorOrColorless, "as_": ManaMatch, "purpose": SpendPurpose},
-    body: DeonticRule(Param(who), Permit, [Core(deed: Spend)], Agent, None, NoPatient, Mana(Param(what), Param(as_), Param(purpose)), NoRider),
+    body: DeonticRule(Param(who), Permit, [Core(Spend)], Agent, None, NoPatient, Mana(Param(what), Param(as_), Param(purpose)), NoRider),
 )

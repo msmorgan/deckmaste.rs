@@ -5,5 +5,5 @@
     name: "letter",
     kinds: [Amount],
     params: {"letter": Any},
-    body: Letter(letter: Param(letter)),
+    body: Letter(Param(letter)),
 )

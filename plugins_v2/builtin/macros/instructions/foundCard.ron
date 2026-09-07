@@ -3,5 +3,5 @@
     name: "foundCard",
     kinds: [NounPhrase],
     params: [],
-    body: itVerbed(verb: Action(label: "Search")),
+    body: itVerbed(verb: Action("Search")),
 )

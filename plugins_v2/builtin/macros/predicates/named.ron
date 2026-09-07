@@ -5,5 +5,5 @@
     name: "named",
     kinds: [Predicate],
     params: {"source": Any},
-    body: Named(source: Param(source)),
+    body: Named(Param(source)),
 )

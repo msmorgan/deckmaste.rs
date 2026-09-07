@@ -1,11 +1,11 @@
 // "Demonstrate / Mill five cards, then return a creature card from your graveyard
 // to the battlefield." [CR#702.144a,701.17a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Incarnation Technique",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            4,
+            Black,
         ],
         types: [Sorcery],
         text: [
@@ -13,10 +13,10 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: sequentially(steps: [
-                    mill(Lit(value: 5), you, you),
+                    mill(5, you, you),
                     enact(
-                        verb: Core(deed: Return),
-                        instruction: move(subject: described( determiner: A(mode: Unmarked), predicate: and( conjuncts: [ hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(possessor: you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare)),
+                        verb: Core(Return),
+                        instruction: move(subject: described( determiner: A(Unmarked), predicate: and( conjuncts: [ hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare)),
                         agent: you,
                     ),
                 ]),

@@ -4,7 +4,7 @@
         colors: [White],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Soldier")],
-        power: Lit(value: 1),
-        toughness: Lit(value: 1),
+        power: 1,
+        toughness: 1,
     ),
 )

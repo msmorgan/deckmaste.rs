@@ -5,5 +5,5 @@
     name: "static",
     kinds: [Ability],
     params: {"spec": StaticSpec},
-    body: Static(spec: Param(spec)),
+    body: Static(Param(spec)),
 )

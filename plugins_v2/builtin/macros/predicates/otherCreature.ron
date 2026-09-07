@@ -3,5 +3,5 @@
     name: "otherCreature",
     kinds: [Predicate],
     params: {"n": NounPhrase},
-    body: And(conjuncts: [creature, OtherThan(anchor: Param(n))]),
+    body: And([creature, OtherThan(Param(n))]),
 )

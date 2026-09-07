@@ -5,5 +5,5 @@
     name: "set",
     kinds: [Delta],
     params: {"amount": Any},
-    body: Set(amount: Param(amount)),
+    body: Set(Param(amount)),
 )

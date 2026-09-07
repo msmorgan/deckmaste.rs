@@ -5,5 +5,5 @@
     name: "top",
     kinds: [Window],
     params: {"depth": Nat},
-    body: Top(depth: Param(depth)),
+    body: Top(Param(depth)),
 )

@@ -1,17 +1,17 @@
 // "{5}{R}{R}: Monstrosity 3." [CR#701.37a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Gluttonous Cyclops",
         cost: [
-            Simple(symbol: Generic(amount: 5)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            5,
+            Red,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Cyclops")],
-        power: Lit(value: 5),
-        toughness: Lit(value: 4),
+        power: 5,
+        toughness: 4,
         text: [
-            activated(cost: mana(cost: [ Simple(symbol: Generic(amount: 5)), Simple(symbol: Specific(color: Of(color: Red))), Simple(symbol: Specific(color: Of(color: Red))), ]), instruction: monstrosity(Lit(value: 3))),
+            activated(cost: mana(cost: [ 5, Red, Red, ]), instruction: monstrosity(3)),
         ],
     ),
 ))

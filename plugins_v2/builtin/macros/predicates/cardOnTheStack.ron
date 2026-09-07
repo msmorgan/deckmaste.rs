@@ -2,5 +2,5 @@
     name: "cardOnTheStack",
     kinds: [Predicate],
     params: [],
-    body: And(conjuncts: [IsCard, spell]),
+    body: And([IsCard, spell]),
 )

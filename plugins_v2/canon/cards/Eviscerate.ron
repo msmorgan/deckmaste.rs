@@ -1,18 +1,18 @@
 // "Destroy target creature." The bare-imperative destroy: the effect performs
 // it, so the deed names no agent [CR#701.8a].
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Eviscerate",
         cost: [
-            Simple(symbol: Generic(amount: 3)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            3,
+            Black,
         ],
         types: [Sorcery],
         text: [
             spell(
                 timing: None,
                 instruction: destroy(described(
-                    determiner: Target(quantity: range(low: 1, high: 1)),
+                    determiner: Target(range(low: 1, high: 1)),
                     predicate: hasType(type: Creature),
                 )),
             ),

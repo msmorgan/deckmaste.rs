@@ -34,6 +34,6 @@
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: ItalicHead(word: AbilityWord(label: Param(spelling)), ability: Quote(Param(0))),
+        body: ItalicHead(word: AbilityWord(Param(spelling)), ability: Quote(Param(0))),
     ),
 )

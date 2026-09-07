@@ -1,18 +1,18 @@
 // "When this creature enters, destroy target artifact. / Evoke {R}" [CR#702.74a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Ingot Chewer",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Red))),
+            4,
+            Red,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Elemental")],
-        power: Lit(value: 3),
-        toughness: Lit(value: 3),
+        power: 3,
+        toughness: 3,
         text: [
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: destroy(described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: hasType(type: Artifact), ))),
-            evoke(mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: destroy(described( determiner: Target(range(low: 1, high: 1)), predicate: hasType(type: Artifact), ))),
+            evoke(mana(cost: [Red])),
         ],
     ),
 ))

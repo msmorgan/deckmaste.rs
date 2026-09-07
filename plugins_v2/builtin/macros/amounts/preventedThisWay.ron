@@ -3,5 +3,5 @@
     name: "preventedThisWay",
     kinds: [Amount],
     params: [],
-    body: TheOutcome(sort: DamagePrevented),
+    body: TheOutcome(DamagePrevented),
 )

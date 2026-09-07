@@ -32,7 +32,7 @@ KeywordAbility(
                 instruction: Sequentially(
                     steps: [
                         CreateObject(
-                            count: Lit(value: 1),
+                            count: 1,
                             spec: Token(
                                 spec: Written(
                                     characteristics: (
@@ -43,8 +43,8 @@ KeywordAbility(
                                                 Of(host: Creature, label: "Phyrexian"),
                                                 Of(host: Creature, label: "Germ"),
                                             ],
-                                            power: Lit(value: 0),
-                                            toughness: Lit(value: 0),
+                                            power: 0,
+                                            toughness: 0,
                                         ),
                                     ),
                                 ),

@@ -5,5 +5,5 @@
     name: "mana",
     kinds: [Cost],
     params: {"cost": Any},
-    body: Mana(cost: Param(cost)),
+    body: Mana(Param(cost)),
 )

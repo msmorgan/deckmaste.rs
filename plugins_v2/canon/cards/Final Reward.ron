@@ -1,17 +1,17 @@
 // "Exile target creature." [CR#701.13a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Final Reward",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Black))),
+            4,
+            Black,
         ],
         types: [Instant],
         text: [
             spell(
                 timing: None,
                 instruction: exile(described(
-                    determiner: Target(quantity: range(low: 1, high: 1)),
+                    determiner: Target(range(low: 1, high: 1)),
                     predicate: hasType(type: Creature),
                 )),
             ),

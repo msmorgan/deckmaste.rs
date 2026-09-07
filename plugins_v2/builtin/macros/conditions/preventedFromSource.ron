@@ -5,5 +5,5 @@
     name: "preventedFromSource",
     kinds: [Condition],
     params: {"predicate": Quality},
-    body: PreventedFromSource(predicate: Param(predicate)),
+    body: PreventedFromSource(Param(predicate)),
 )

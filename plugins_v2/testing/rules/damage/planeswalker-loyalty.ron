@@ -2,5 +2,5 @@
 // counters to be removed from it. A damage result, applied at deal time, in
 // addition to any intrinsic result [CR#120.3].
 [
-    DamageResultRule(recipient: HasType(type: Planeswalker), remove: Named(label: "Loyalty")),
+    DamageResultRule(recipient: HasType(Planeswalker), remove: Named("Loyalty")),
 ]

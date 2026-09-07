@@ -5,5 +5,5 @@
     name: "playerGroup",
     kinds: [NounPhrase],
     params: {"group": Any},
-    body: PlayerGroup(group: Param(group)),
+    body: PlayerGroup(Param(group)),
 )

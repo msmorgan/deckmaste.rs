@@ -1,19 +1,19 @@
 // "Scavenge {5}{G}" [CR#702.97a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Drudge Beetle",
         cost: [
-            Simple(symbol: Generic(amount: 1)),
-            Simple(symbol: Specific(color: Of(color: Green))),
+            1,
+            Green,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Insect")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [
             scavenge(mana(cost: [
-                Simple(symbol: Generic(amount: 5)),
-                Simple(symbol: Specific(color: Of(color: Green))),
+                5,
+                Green,
             ])),
         ],
     ),

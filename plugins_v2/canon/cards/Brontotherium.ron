@@ -1,16 +1,16 @@
 // "Trample / Provoke" [CR#702.39a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Brontotherium",
         cost: [
-            Simple(symbol: Generic(amount: 4)),
-            Simple(symbol: Specific(color: Of(color: Green))),
-            Simple(symbol: Specific(color: Of(color: Green))),
+            4,
+            Green,
+            Green,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Beast")],
-        power: Lit(value: 5),
-        toughness: Lit(value: 3),
+        power: 5,
+        toughness: 3,
         text: [trample, provoke],
     ),
 ))

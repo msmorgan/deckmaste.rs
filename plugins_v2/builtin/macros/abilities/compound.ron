@@ -5,5 +5,5 @@
     name: "compound",
     kinds: [Cost],
     params: {"costs": Default(Any, [])},
-    body: Compound(costs: Param(costs)),
+    body: Compound(Param(costs)),
 )

@@ -1,20 +1,20 @@
 // "Flying / Reinforce 2—{2}{W}" [CR#702.77a]
-SingleFaced(face: (
+SingleFaced((
     characteristics: (
         name: "Burrenton Bombardier",
         cost: [
-            Simple(symbol: Generic(amount: 2)),
-            Simple(symbol: Specific(color: Of(color: White))),
+            2,
+            White,
         ],
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Kithkin"), Of(host: Creature, label: "Soldier")],
-        power: Lit(value: 2),
-        toughness: Lit(value: 2),
+        power: 2,
+        toughness: 2,
         text: [
             flying,
-            reinforce(Lit(value: 2), mana(cost: [
-                Simple(symbol: Generic(amount: 2)),
-                Simple(symbol: Specific(color: Of(color: White))),
+            reinforce(2, mana(cost: [
+                2,
+                White,
             ])),
         ],
     ),

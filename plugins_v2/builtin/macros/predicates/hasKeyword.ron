@@ -5,5 +5,5 @@
     name: "hasKeyword",
     kinds: [Predicate],
     params: {"keyword": Any},
-    body: HasKeyword(keyword: Param(keyword)),
+    body: HasKeyword(Param(keyword)),
 )

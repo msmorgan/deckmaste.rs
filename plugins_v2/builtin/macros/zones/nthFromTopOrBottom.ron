@@ -3,5 +3,5 @@
     name: "nthFromTopOrBottom",
     kinds: [ZoneExpr],
     params: {"ordinal": Ordinal},
-    body: Library(EitherEnd(chooser: None), None, Param(ordinal), Bare),
+    body: Library(EitherEnd(None), None, Param(ordinal), Bare),
 )

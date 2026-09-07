@@ -5,5 +5,5 @@
     name: "resolvedPermanent",
     kinds: [NounPhrase],
     params: {"spell": Subject},
-    body: ResolvedPermanent(spell: Param(spell)),
+    body: ResolvedPermanent(Param(spell)),
 )

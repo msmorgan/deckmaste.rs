@@ -3,5 +3,5 @@
     name: "timesPaid",
     kinds: [Amount],
     params: {"which": PaidCostName, "subject": NounPhrase},
-    body: Paid(TimesPaid(which: Param(which)), Param(subject)),
+    body: Paid(TimesPaid(Param(which)), Param(subject)),
 )

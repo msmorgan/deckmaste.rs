@@ -5,5 +5,5 @@
     name: "choseExtreme",
     kinds: [Predicate],
     params: {"op": AggregateOp},
-    body: ChoseExtreme(op: Param(op)),
+    body: ChoseExtreme(Param(op)),
 )
