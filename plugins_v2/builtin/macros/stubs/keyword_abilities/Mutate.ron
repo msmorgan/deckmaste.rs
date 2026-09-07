@@ -5,4 +5,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "mutate",
     ),
+    // STOP. "Mutate [cost]" means "You may pay [cost] rather than pay this spell's
+    // mana cost. If you do, it becomes a mutating creature spell and TARGETS a
+    // non-Human creature with the same owner as this spell." [CR#702.140a] Nothing
+    // gives a spell already on the stack a target: `Predicate::Targets` reads a
+    // spell's targets and `ChooseNewTargets` re-chooses them, but no constructor adds
+    // one. No predicate or designation names a mutating creature spell either.
+    body: Keyword(keyword: "Mutate", params: [Cost(cost: Param(0))], body: []),
 )

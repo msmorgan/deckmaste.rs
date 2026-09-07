@@ -5,4 +5,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "morph",
     ),
+    // STOP. "Morph [cost]" means "You may cast this card as a 2/2 face-down creature
+    // with no text, no name, no subtypes, and no mana cost by paying {3} rather than
+    // paying its mana cost." [CR#702.37a] `PlayPayment` has no clause substituting
+    // the cast object's characteristics, so the face-down 2/2 the permitted cast
+    // produces cannot be written — the cause Disguise, which is morph with ward,
+    // already carries.
+    body: Keyword(keyword: "Morph", params: [Cost(cost: Param(0))], body: []),
 )

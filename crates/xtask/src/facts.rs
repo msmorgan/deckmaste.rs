@@ -523,6 +523,7 @@ fn overlay() -> Vec<Row> {
             label: "Madness",
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -569,6 +570,7 @@ fn overlay() -> Vec<Row> {
             label: "Mayhem",
             on_spell_card: true,
             paid_cost: true,
+            definition: &[Category::Static],
             ..D
         },
         Row {

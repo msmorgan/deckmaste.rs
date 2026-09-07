@@ -1,0 +1,22 @@
+// "Trample / Madness {2}{G}" [CR#702.35a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Arrogant Wurm",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Green))),
+            Simple(symbol: Specific(color: Of(color: Green))),
+        ],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Wurm")],
+        power: Lit(value: 4),
+        toughness: Lit(value: 4),
+        text: [
+            Trample,
+            Madness(Mana(cost: [
+                Simple(symbol: Generic(amount: 2)),
+                Simple(symbol: Specific(color: Of(color: Green))),
+            ])),
+        ],
+    ),
+))

@@ -5,4 +5,14 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "More Than Meets the Eye",
     ),
+    // STOP. "More Than Meets the Eye [cost]" means "You may cast this card CONVERTED
+    // by paying [cost] rather than its mana cost." [CR#702.162a] Casting a card
+    // converted casts its other face [CR#701.28a]; `PlayPayment` has no clause
+    // substituting the cast object's characteristics, so nothing says which face the
+    // permitted cast produces (the cause Disguise and Morph share).
+    body: Keyword(
+        keyword: "MoreThanMeetsTheEye",
+        params: [Cost(cost: Param(0))],
+        body: [],
+    ),
 )

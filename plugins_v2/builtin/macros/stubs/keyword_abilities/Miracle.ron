@@ -5,4 +5,13 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "miracle",
     ),
+    // STOP. "Miracle [cost]" means "You may reveal this card from your hand AS YOU
+    // DRAW IT if it's the first card you've drawn this turn. When you reveal this
+    // card this way, you may cast it by paying [cost] rather than its mana cost."
+    // [CR#702.94a] The first half is a permission exercised inside the draw itself.
+    // `StaticSpec::DeonticRule` carries no timing at all — only `DeonticRider::Play`
+    // has a `PlayTiming`, and that governs playing a card, not revealing one — and
+    // writing the reveal as a `Replacement` of the draw would make miracle a
+    // replacement effect, which it is not.
+    body: Keyword(keyword: "Miracle", params: [Cost(cost: Param(0))], body: []),
 )

@@ -1,0 +1,24 @@
+// "Mayhem {1}{R}" [CR#702.187b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Spider-Islanders",
+        cost: [
+            Simple(symbol: Generic(amount: 3)),
+            Simple(symbol: Specific(color: Of(color: Red))),
+        ],
+        types: [Creature],
+        subtypes: [
+            Of(host: Creature, label: "Spider"),
+            Of(host: Creature, label: "Horror"),
+            Of(host: Creature, label: "Citizen"),
+        ],
+        power: Lit(value: 4),
+        toughness: Lit(value: 3),
+        text: [
+            Mayhem(Mana(cost: [
+                Simple(symbol: Generic(amount: 1)),
+                Simple(symbol: Specific(color: Of(color: Red))),
+            ])),
+        ],
+    ),
+))
