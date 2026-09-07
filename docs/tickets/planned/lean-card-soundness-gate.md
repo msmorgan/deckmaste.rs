@@ -1,12 +1,13 @@
 ---
-needs: [ci-lean-gate]
+needs: [ci-lean-gate, semantics-v2-crate]
 ---
-**Deferred by the user (2026-09-06): `semantics_v2` must exist before this
-emitter is implemented.** Completing `ci-lean-gate` alone does not make this
-work ready. The emitter must consume the actual v2 card representation and
-macro expansions. Do not build an adapter from the current expanded RON or
-invent a Lean/Rust crosswalk to work around the missing prerequisite. This
-ticket remains unimplemented; the existing Idris gate stays in place meanwhile.
+**Deferred by the user (2026-09-06) until `semantics-v2-crate` lands:** the
+emitter consumes the actual v2 card representation and macro expansions,
+emitting fully expanded terms as untracked generated Lean (`Macros.lean`
+plays no part in the gate). Do not build an adapter from the current
+expanded RON or invent a Lean/Rust crosswalk; the existing Idris gate stays
+in place meanwhile. Chain and rulings: the promoted
+`docs/decisions/semantics-v2.md`.
 
 **The Lean workbench, not the Idris mirror, is the soundness gate for card
 data.** Today `cargo xtask idris-check <plugin>` re-emits every expanded
