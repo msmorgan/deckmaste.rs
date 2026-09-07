@@ -66,5 +66,13 @@ Sections to add:
   registries and already feed `Facts.lean`; v1's registries under
   `plugins/builtin/macros` are frozen until deletion.
 
+- **Inert vocabulary** (ruling, user 2026-09-06; mirror it into
+  `lean-is-the-workbench.md`). The `Words.lean` and `Events.lean` enums no
+  checker function reads (`Disclosure`, `CoinFace`, `RoundMode`, `Parity`,
+  `ArithOp`, `SpecialAction`, …, 35 today) are engine-facing vocabulary the
+  semantics layer carries opaquely. They were carried vocabulary in Idris
+  too. They owe no admission law and are not twins to prune; the as-written
+  rule keeps each printed word its own constructor.
+
 Leave §3's joined-kind payload flagged open; it is a design item for
 `semantics-v2-crate`, not a blocker on promotion.
