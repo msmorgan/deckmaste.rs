@@ -1,5 +1,5 @@
 // "Exalted" [CR#702.83a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Akrasan Squire",
         cost: [White],

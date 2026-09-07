@@ -1,5 +1,5 @@
 // "Trample / Melee" [CR#702.121a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Menagerie Liberator",
         cost: [

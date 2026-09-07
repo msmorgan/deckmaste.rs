@@ -1,5 +1,5 @@
 // "Flying, protection from red" [CR#702.16a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Abbey Gargoyles",
         cost: [

@@ -1,5 +1,5 @@
 // "Dredge 3" [CR#702.52a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Greater Mossdog",
         cost: [

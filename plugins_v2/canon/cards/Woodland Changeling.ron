@@ -1,5 +1,5 @@
 // "Changeling" [CR#702.73a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Woodland Changeling",
         cost: [

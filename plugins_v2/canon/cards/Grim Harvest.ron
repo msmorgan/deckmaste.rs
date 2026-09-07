@@ -1,6 +1,6 @@
 // "Return target creature card from your graveyard to your hand. / Recover {2}{B}"
 // [CR#702.59a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Grim Harvest",
         cost: [

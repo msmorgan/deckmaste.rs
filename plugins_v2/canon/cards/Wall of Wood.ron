@@ -1,5 +1,5 @@
 // "Defender" [CR#702.3b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Wall of Wood",
         cost: [Green],

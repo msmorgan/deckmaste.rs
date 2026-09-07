@@ -1,5 +1,5 @@
 // "Shroud" [CR#702.18a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Deadly Insect",
         cost: [

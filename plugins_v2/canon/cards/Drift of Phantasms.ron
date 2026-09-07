@@ -1,5 +1,5 @@
 // "Defender / Flying / Transmute {1}{U}{U}" [CR#702.53a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Drift of Phantasms",
         cost: [

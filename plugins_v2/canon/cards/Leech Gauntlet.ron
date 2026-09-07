@@ -1,5 +1,5 @@
 // "Lifelink / Equipped creature has lifelink. / Reconfigure {4}" [CR#702.151a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Leech Gauntlet",
         cost: [

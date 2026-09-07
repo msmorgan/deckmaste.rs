@@ -1,5 +1,5 @@
 // "Menace" [CR#702.111b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Boggart Brute",
         cost: [

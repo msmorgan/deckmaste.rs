@@ -1,5 +1,5 @@
 // "Tap target creature. Draw a card." [CR#701.26a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Pressure Point",
         cost: [

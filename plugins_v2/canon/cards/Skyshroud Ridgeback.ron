@@ -1,5 +1,5 @@
 // "Fading 2" [CR#702.32a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Skyshroud Ridgeback",
         cost: [Green],

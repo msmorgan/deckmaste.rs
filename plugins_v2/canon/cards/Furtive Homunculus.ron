@@ -1,5 +1,5 @@
 // "Skulk" [CR#702.118b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Furtive Homunculus",
         cost: [

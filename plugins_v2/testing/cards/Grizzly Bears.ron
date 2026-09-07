@@ -1,6 +1,6 @@
 // A vanilla creature: no text, so the mirror's defaults carry every absent
 // characteristic.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Grizzly Bears",
         cost: [1, Green],

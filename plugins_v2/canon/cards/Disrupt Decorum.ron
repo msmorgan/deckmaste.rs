@@ -1,5 +1,5 @@
 // "Goad all creatures you don't control." [CR#701.15a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Disrupt Decorum",
         cost: [

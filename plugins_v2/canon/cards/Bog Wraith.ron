@@ -1,5 +1,5 @@
 // "Swampwalk" [CR#702.14c]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Bog Wraith",
         cost: [

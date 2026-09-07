@@ -1,7 +1,7 @@
 // "Search your library for a card, put that card into your hand, then
 // shuffle." [CR#701.23a]: the raw `Instruction::search` constructor already
 // carries the whole procedure.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Demonic Tutor",
         cost: [

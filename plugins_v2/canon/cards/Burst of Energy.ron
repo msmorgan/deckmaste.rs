@@ -1,5 +1,5 @@
 // "Untap target permanent." [CR#701.26b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Burst of Energy",
         cost: [White],

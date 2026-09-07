@@ -1,5 +1,5 @@
 // "Gravestorm / Target player draws a card and loses 1 life." [CR#702.69a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Ominous Harvest",
         cost: [

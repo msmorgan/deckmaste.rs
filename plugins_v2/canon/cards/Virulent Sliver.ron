@@ -1,5 +1,5 @@
 // "All Sliver creatures have poisonous 1." [CR#702.70a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Virulent Sliver",
         cost: [Green],

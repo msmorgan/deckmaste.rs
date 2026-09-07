@@ -1,5 +1,5 @@
 // "Persist" [CR#702.79a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Putrid Goblin",
         cost: [

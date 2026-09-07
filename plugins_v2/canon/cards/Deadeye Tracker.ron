@@ -1,6 +1,6 @@
 // "{1}{B}, {T}: Exile two target cards from an opponent's graveyard. This
 // creature explores." [CR#701.13a,701.44a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Deadeye Tracker",
         cost: [

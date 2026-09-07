@@ -1,5 +1,5 @@
 // "Flying / {2}{G}{U}: Adapt 1." [CR#701.46a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Aeromunculus",
         cost: [

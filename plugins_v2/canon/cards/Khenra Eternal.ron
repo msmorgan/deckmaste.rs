@@ -1,5 +1,5 @@
 // "Afflict 1" [CR#702.130a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Khenra Eternal",
         cost: [

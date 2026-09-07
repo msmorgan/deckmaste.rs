@@ -4,7 +4,7 @@
 // cards. Crew 3" [CR#701.55a]. The two "that player" references after the
 // trigger are modeled as a fresh target, matching this corpus's existing
 // `nivMizzetGuildpactTrigger` precedent for a trigger's own participant.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Damocles Base, Sword of Kang",
         supertypes: [Legendary],

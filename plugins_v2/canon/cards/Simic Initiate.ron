@@ -1,5 +1,5 @@
 // "Graft 1" [CR#702.58a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Simic Initiate",
         cost: [Green],

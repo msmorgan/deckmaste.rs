@@ -1,5 +1,5 @@
 // "Ninjutsu {3}{B}" [CR#702.49a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Dokuchi Shadow-Walker",
         cost: [

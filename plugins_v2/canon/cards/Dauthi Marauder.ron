@@ -1,5 +1,5 @@
 // "Shadow" [CR#702.28b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Dauthi Marauder",
         cost: [

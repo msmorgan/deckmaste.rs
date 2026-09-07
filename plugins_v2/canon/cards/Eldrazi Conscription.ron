@@ -1,6 +1,6 @@
 // "Enchant creature / Enchanted creature gets +10/+10 and has trample and
 // annihilator 2." [CR#702.5a,702.19a,702.86a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Eldrazi Conscription",
         cost: [8],

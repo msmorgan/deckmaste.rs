@@ -1,6 +1,6 @@
 // "Enchant creature / Enchanted creature has flying. / Aura swap {2}{U}"
 // [CR#702.5a,702.9b,702.65a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Arcanum Wings",
         cost: [

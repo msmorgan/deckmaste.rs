@@ -1,5 +1,5 @@
 // "Populate." [CR#701.36a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Wake the Reflections",
         cost: [White],

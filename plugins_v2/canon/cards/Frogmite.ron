@@ -1,5 +1,5 @@
 // "Affinity for artifacts" [CR#702.41a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Frogmite",
         cost: [4],

@@ -1,5 +1,5 @@
 // "Horsemanship" [CR#702.31b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Barbarian General",
         cost: [

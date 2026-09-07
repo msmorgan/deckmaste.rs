@@ -1,5 +1,5 @@
 // "Bestow {1}{R} / Enchanted creature gets +1/+1." [CR#702.103a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Nyxborn Rollicker",
         cost: [Red],

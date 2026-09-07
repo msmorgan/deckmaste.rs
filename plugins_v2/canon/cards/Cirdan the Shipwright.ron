@@ -5,7 +5,7 @@
 // [CR#701.38a]. This card exercises only the vote clause: the per-vote
 // reward and no-votes clauses need a vote-count `Amount` this ticket does
 // not add and are left unmodeled.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Cirdan the Shipwright",
         cost: [

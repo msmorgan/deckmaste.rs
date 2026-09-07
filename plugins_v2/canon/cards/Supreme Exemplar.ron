@@ -1,5 +1,5 @@
 // "Flying / Champion an Elemental" [CR#702.9b,702.72a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Supreme Exemplar",
         cost: [

@@ -1,5 +1,5 @@
 // "Evolve" [CR#702.100a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Adaptive Snapjaw",
         cost: [

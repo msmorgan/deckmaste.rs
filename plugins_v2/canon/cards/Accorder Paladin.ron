@@ -1,5 +1,5 @@
 // "Battle cry" [CR#702.91a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Accorder Paladin",
         cost: [

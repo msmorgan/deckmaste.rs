@@ -10,7 +10,7 @@
 // count of distinct colors, and `ManaValueSpent`, but no per-color amount.
 // Never approximated; Threshold is a same-family, precedented substitute —
 // see `lean/Semantics/Cards/Static.lean`'s `nimbleMongoose`.)
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Mystic Visionary",
         cost: [1, White],

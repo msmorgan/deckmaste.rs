@@ -1,5 +1,5 @@
 // "Create a 1/1 green Saproling creature token." [CR#701.7a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Sprout",
         cost: [Green],

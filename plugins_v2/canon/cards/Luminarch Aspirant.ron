@@ -2,7 +2,7 @@
 // creature you control." — the beginning of combat step is the combat phase's
 // own first step [CR#506.1], and the header's possessor is the player whose
 // turn part it is.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Luminarch Aspirant",
         cost: [

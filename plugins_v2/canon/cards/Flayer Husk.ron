@@ -1,5 +1,5 @@
 // "Living weapon / Equipped creature gets +1/+1. / Equip {2}" [CR#702.92a,702.6a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Flayer Husk",
         cost: [1],

@@ -1,5 +1,5 @@
 // "Outlast {1}{W}" [CR#702.107a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Salt Road Patrol",
         cost: [

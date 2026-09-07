@@ -1,5 +1,5 @@
 // "Transfigure {1}{B}{B}" [CR#702.71a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Fleshwrither",
         cost: [

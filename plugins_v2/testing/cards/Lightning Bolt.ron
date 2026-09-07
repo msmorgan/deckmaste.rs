@@ -1,5 +1,5 @@
 // "Lightning Bolt deals 3 damage to any target."
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Lightning Bolt",
         cost: [Red],

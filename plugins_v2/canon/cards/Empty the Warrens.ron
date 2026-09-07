@@ -1,5 +1,5 @@
 // "Create two 1/1 red Goblin creature tokens. / Storm" [CR#702.40a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Empty the Warrens",
         cost: [

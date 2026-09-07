@@ -1,5 +1,5 @@
 // "Extort" [CR#702.101a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Syndic of Tithes",
         cost: [

@@ -1,5 +1,5 @@
 // "Split second / Destroy target artifact or enchantment." [CR#702.61a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Krosan Grip",
         cost: [

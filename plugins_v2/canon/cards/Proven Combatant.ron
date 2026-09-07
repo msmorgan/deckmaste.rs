@@ -1,5 +1,5 @@
 // "Eternalize {4}{U}{U}" [CR#702.129a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Proven Combatant",
         cost: [Blue],

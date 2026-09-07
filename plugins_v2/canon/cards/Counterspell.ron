@@ -1,7 +1,7 @@
 // "Counter target spell." A spell is an object on the stack that is not an
 // ability [CR#112.1,113.1]; countering moves it to its owner's graveyard
 // [CR#701.6a].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Counterspell",
         cost: [

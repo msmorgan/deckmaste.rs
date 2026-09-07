@@ -1,6 +1,6 @@
 // "Players skip their upkeep steps." — a continuous rule exempting every
 // player from the untap/upkeep pair's second step [CR#500.1].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Eon Hub",
         cost: [5],

@@ -1,5 +1,5 @@
 // "Flying / Training" [CR#702.149a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Gryff Rider",
         cost: [

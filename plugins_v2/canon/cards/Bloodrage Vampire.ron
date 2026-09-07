@@ -1,5 +1,5 @@
 // "Bloodthirst 1" [CR#702.54a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Bloodrage Vampire",
         cost: [

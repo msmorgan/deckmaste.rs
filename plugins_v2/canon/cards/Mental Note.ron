@@ -1,6 +1,6 @@
 // "Mill two cards. Draw a card." The bare imperative mills your own library
 // [CR#701.17a], so both the miller and the library's owner are you.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Mental Note",
         cost: [Blue],

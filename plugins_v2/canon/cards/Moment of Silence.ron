@@ -1,5 +1,5 @@
 // "Target player skips their next combat phase this turn." [CR#500.11]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Moment of Silence",
         cost: [White],

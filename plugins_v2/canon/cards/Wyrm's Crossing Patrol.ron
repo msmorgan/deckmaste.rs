@@ -1,5 +1,5 @@
 // "Myriad" [CR#702.116a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Wyrm's Crossing Patrol",
         cost: [White],

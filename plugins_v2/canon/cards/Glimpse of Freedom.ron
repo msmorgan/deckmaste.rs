@@ -1,6 +1,6 @@
 // "Draw a card. / Escape—{2}{U}, Exile five other cards from your graveyard."
 // [CR#702.138a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Glimpse of Freedom",
         cost: [

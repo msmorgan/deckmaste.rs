@@ -1,5 +1,5 @@
 // "Enchant creature / Enchanted creature gets +3/+3. / Umbra armor" [CR#702.89a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Boar Umbra",
         cost: [

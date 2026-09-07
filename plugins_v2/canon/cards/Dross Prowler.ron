@@ -1,5 +1,5 @@
 // "Fear" [CR#702.36b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Dross Prowler",
         cost: [

@@ -1,5 +1,5 @@
 // "When this creature enters, investigate." [CR#701.16a,111.10f]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Thraben Inspector",
         cost: [White],

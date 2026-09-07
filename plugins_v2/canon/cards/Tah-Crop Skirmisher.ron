@@ -1,5 +1,5 @@
 // "Embalm {3}{U}" [CR#702.128a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Tah-Crop Skirmisher",
         cost: [

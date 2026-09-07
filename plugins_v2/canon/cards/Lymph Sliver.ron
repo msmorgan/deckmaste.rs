@@ -1,5 +1,5 @@
 // "All Sliver creatures have absorb 1." [CR#702.64a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Lymph Sliver",
         cost: [

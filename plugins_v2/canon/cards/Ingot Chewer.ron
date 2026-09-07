@@ -1,5 +1,5 @@
 // "When this creature enters, destroy target artifact. / Evoke {R}" [CR#702.74a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Ingot Chewer",
         cost: [

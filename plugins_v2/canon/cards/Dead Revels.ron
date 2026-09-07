@@ -1,6 +1,6 @@
 // "Spectacle {1}{B} / Return up to two target creature cards from your graveyard to
 // your hand." [CR#702.137a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Dead Revels",
         cost: [

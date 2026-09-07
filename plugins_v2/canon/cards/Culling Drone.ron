@@ -1,5 +1,5 @@
 // "Devoid / Ingest" [CR#702.114a,702.115a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Culling Drone",
         cost: [

@@ -1,6 +1,6 @@
 // "Discard your hand, then draw two cards." Your hand is every card in it, so
 // the discarded phrase is the whole-hand description [CR#701.9a].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Dangerous Wager",
         cost: [

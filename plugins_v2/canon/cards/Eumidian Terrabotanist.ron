@@ -4,7 +4,7 @@
 // `Ability` position: the meta names `Ability` as the semantic kind beside the
 // `AbilityWord` family, so the declaration registers there and expands to the
 // `ItalicHead` its body builds.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Eumidian Terrabotanist",
         cost: [1, Green],

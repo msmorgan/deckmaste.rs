@@ -1,5 +1,5 @@
 // "Exile target creature." [CR#701.13a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Final Reward",
         cost: [

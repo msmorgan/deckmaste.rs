@@ -1,5 +1,5 @@
 // "Flanking" [CR#702.25a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Benalish Cavalry",
         cost: [

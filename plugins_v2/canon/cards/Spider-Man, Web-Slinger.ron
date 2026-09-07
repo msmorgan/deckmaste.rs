@@ -1,5 +1,5 @@
 // "Web-slinging {W}" [CR#702.188a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Spider-Man, Web-Slinger",
         cost: [

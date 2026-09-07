@@ -1,5 +1,5 @@
 // "Cycling {2}" [CR#702.29a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Barkhide Mauler",
         cost: [

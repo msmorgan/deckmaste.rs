@@ -1,5 +1,5 @@
 // "Undaunted / Destroy all creatures." [CR#702.125a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Sublime Exhalation",
         cost: [

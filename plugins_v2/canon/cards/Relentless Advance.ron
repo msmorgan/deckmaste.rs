@@ -1,5 +1,5 @@
 // "Amass Zombies 3." [CR#701.47a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Relentless Advance",
         cost: [

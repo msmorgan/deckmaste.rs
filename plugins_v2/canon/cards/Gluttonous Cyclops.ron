@@ -1,5 +1,5 @@
 // "{5}{R}{R}: Monstrosity 3." [CR#701.37a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Gluttonous Cyclops",
         cost: [

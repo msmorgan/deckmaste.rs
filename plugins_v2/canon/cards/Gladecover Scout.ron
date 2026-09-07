@@ -1,5 +1,5 @@
 // "Hexproof" [CR#702.11b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Gladecover Scout",
         cost: [Green],

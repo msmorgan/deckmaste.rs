@@ -1,6 +1,6 @@
 // "Destroy target creature." The bare-imperative destroy: the effect performs
 // it, so the deed names no agent [CR#701.8a].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Eviscerate",
         cost: [

@@ -1,6 +1,6 @@
 // "As an additional cost to cast this spell, sacrifice a creature. Draw two
 // cards." The sacrifice is performed as a cost [CR#701.21a,601.2f].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Village Rites",
         cost: [Black],

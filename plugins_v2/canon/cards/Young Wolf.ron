@@ -1,5 +1,5 @@
 // "Undying" [CR#702.93a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Young Wolf",
         cost: [Green],

@@ -1,5 +1,5 @@
 // "Modular 1" [CR#702.43a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Arcbound Worker",
         cost: [1],

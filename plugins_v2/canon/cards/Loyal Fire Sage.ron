@@ -1,5 +1,5 @@
 // "Firebending 1 / {5}: Create a 1/1 white Ally creature token." [CR#702.189a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Loyal Fire Sage",
         cost: [

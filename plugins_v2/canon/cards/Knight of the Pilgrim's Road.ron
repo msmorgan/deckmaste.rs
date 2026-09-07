@@ -1,5 +1,5 @@
 // "Renown 1" [CR#702.112a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Knight of the Pilgrim's Road",
         cost: [

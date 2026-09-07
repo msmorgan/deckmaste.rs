@@ -1,5 +1,5 @@
 // "Detain target creature an opponent controls. Draw a card." [CR#701.35a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Inaction Injunction",
         cost: [

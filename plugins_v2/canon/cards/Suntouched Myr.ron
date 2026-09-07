@@ -1,5 +1,5 @@
 // "Sunburst" [CR#702.44a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Suntouched Myr",
         cost: [3],

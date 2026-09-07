@@ -1,5 +1,5 @@
 // "Dethrone" [CR#702.105a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Enraged Revolutionary",
         cost: [

@@ -1,6 +1,6 @@
 // "For Mirrodin! / Equipped creature gets +4/+4 and has trample. / Equip {5}{G}{G}"
 // [CR#702.163a,702.19a,702.6a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Sylvok Battle-Chair",
         cost: [

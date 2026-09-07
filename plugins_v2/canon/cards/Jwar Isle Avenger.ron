@@ -1,5 +1,5 @@
 // "Surge {2}{U} / Flying" [CR#702.117a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Jwar Isle Avenger",
         cost: [

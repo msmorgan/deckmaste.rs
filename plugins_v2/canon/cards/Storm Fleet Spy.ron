@@ -3,7 +3,7 @@
 //
 // `Raid(<ability>)` is the ability word's own declaration invoked at this
 // `Ability` position; it expands to the `ItalicHead` its body builds.
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Storm Fleet Spy",
         cost: [2, Blue],

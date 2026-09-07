@@ -1,5 +1,5 @@
 // "Haste / Prowess" [CR#702.108a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Monastery Swiftspear",
         cost: [Red],

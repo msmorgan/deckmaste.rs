@@ -1,5 +1,5 @@
 // "Scavenge {5}{G}" [CR#702.97a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Drudge Beetle",
         cost: [

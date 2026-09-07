@@ -1,5 +1,5 @@
 // "Bolster 3." [CR#701.39a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Cached Defenses",
         cost: [

@@ -1,5 +1,5 @@
 // "Flying / Reinforce 2—{2}{W}" [CR#702.77a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Burrenton Bombardier",
         cost: [

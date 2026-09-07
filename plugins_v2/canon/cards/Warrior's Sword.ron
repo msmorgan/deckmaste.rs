@@ -1,6 +1,6 @@
 // "Job select / Equipped creature gets +3/+2 and is a Warrior in addition to its
 // other types. / Equip {5}" [CR#702.182a,702.6a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Warrior's Sword",
         cost: [

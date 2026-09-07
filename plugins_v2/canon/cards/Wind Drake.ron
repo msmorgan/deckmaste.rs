@@ -1,6 +1,6 @@
 // "Flying" — the bare keyword, invoking the declaration that carries flying's
 // own definition [CR#702.9b].
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Wind Drake",
         cost: [

@@ -1,6 +1,6 @@
 // "Bargain / This spell costs {1} less to cast if it's bargained. / Counter target
 // spell." [CR#702.166a,702.166b,701.6a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Ice Out",
         cost: [

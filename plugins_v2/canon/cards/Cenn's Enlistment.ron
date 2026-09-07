@@ -1,5 +1,5 @@
 // "Create two 1/1 white Kithkin Soldier creature tokens. / Retrace" [CR#702.81a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Cenn's Enlistment",
         cost: [

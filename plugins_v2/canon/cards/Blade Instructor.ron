@@ -1,5 +1,5 @@
 // "Mentor" [CR#702.134a]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Blade Instructor",
         cost: [

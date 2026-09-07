@@ -1,5 +1,5 @@
 // "Mayhem {1}{R}" [CR#702.187b]
-SingleFaced((
+SingleFaced(face: (
     characteristics: (
         name: "Spider-Islanders",
         cost: [
