@@ -852,7 +852,14 @@ pub enum ColorSpec {
 }
 
 /// Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of [CR#510.4].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+///
+/// Macroable because `plugins_v2`'s turn-part declarations register here: the
+/// family's name coincides with this type, so a declaration of kind `TurnPart`
+/// stands wherever a card writes one. The derive is what supplies the kind its
+/// dispatch set, which the identity-macro exemption in `macro_ron`'s cycle
+/// check reads (a declaration named `Upkeep` whose body is `Upkeep` is free
+/// vocabulary, not a self-reference).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum TurnPart {
     Turn,
     BeginningPhase,

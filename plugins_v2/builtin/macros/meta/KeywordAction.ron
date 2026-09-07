@@ -1,3 +1,6 @@
+// `kinds` names the family first and the semantic kind second: `KeywordAction`
+// is the declaration's identity, `Instruction` the position its body occupies,
+// so a keyword action resolves where a card writes an instruction.
 (
     name: "KeywordAction",
     kinds: [Macro],
@@ -10,7 +13,7 @@
     },
     body: (
         name: Param(name),
-        kinds: [KeywordAction],
+        kinds: [KeywordAction, Instruction],
         params: Param(params),
         metadata: (
             spelling: Param(spelling),

@@ -1,3 +1,6 @@
+// `kinds` names the family first and the semantic kind second: `KeywordAbility`
+// is the declaration's identity, `Ability` the position its body occupies, so
+// a keyword ability resolves where a card writes an ability.
 (
     name: "KeywordAbility",
     kinds: [Macro],
@@ -10,7 +13,7 @@
     },
     body: (
         name: Param(name),
-        kinds: [KeywordAbility],
+        kinds: [KeywordAbility, Ability],
         params: Param(params),
         metadata: (
             spelling: Param(spelling),

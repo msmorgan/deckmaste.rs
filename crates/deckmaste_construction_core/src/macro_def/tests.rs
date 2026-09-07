@@ -194,7 +194,15 @@ fn nursery_and_graduated_sources_use_the_ordinary_macro_reader() {
         SCRY,
     ] {
         let definition: macro_ron::MacroDef<Metadata> = reader.read_str(source).unwrap();
-        assert_eq!(definition.kinds.len(), 1, "{source}");
+        // The family kind leads, and it is the meta-macro the source invokes.
+        // A meta may name a semantic kind after it (`KeywordAction` also
+        // registers at `Instruction`); the family is what this crate reads.
+        let family = source.split('(').next().unwrap().trim();
+        assert_eq!(
+            definition.kinds.first().map(macro_ron::Ident::as_str),
+            Some(family),
+            "{source}"
+        );
         assert!(!definition.metadata().spelling.is_empty(), "{source}");
         assert_eq!(
             matches!(&definition.params, macro_ron::Params::Positional(params) if params.is_empty()),
@@ -330,7 +338,16 @@ fn third_person_override_carries_a_pronoun_shift_through_the_whole_surface() {
 fn graduated_declaration_expands_and_normalizes() {
     let reader = declaration_reader().unwrap();
     let definition: macro_ron::MacroDef<Metadata> = reader.read_str(SCRY).unwrap();
-    assert_eq!(definition.kinds, [macro_ron::Ident::from("KeywordAction")]);
+    // The family kind leads; `Instruction` is the semantic position the body
+    // occupies, which `deckmaste_semantics_v2` registers the declaration at so
+    // `Scry(<amount>)` resolves where a card writes an instruction.
+    assert_eq!(
+        definition.kinds,
+        [
+            macro_ron::Ident::from("KeywordAction"),
+            macro_ron::Ident::from("Instruction"),
+        ]
+    );
     assert!(matches!(
         &definition.params,
         macro_ron::Params::Positional(params) if params.len() == 1

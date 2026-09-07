@@ -1,10 +1,9 @@
 // "Landfall — Whenever a land you control enters, you gain 1 life."
 //
-// `Adamant(<ability>)`/`Landfall(<ability>)`-style macro invocation is not
-// reachable at this `Ability` position (see the STOP note in
-// `plugins_v2/builtin/macros/meta/AbilityWord.ron`), so this spells the
-// exact shape that declaration's body constructs directly: `ItalicHead`
-// wrapping the ability word's own printed label.
+// `Landfall(<ability>)` is the ability word's own declaration invoked at this
+// `Ability` position: the meta names `Ability` as the semantic kind beside the
+// `AbilityWord` family, so the declaration registers there and expands to the
+// `ItalicHead` its body builds.
 SingleFaced(face: (
     characteristics: (
         name: "Eumidian Terrabotanist",
@@ -12,9 +11,8 @@ SingleFaced(face: (
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Insect"), Of(host: Creature, label: "Druid")],
         text: [
-            ItalicHead(
-                word: AbilityWord(label: "Landfall"),
-                ability: Triggered(
+            Landfall(
+                Triggered(
                     event: ZoneChange(
                         subject: Described(
                             determiner: A(mode: Unmarked),
@@ -29,7 +27,7 @@ SingleFaced(face: (
                     alternatives: [],
                     joins: [],
                     instruction: ChangeLife(delta: Up(amount: Lit(value: 1)), agent: You),
-                ),
+                )
             ),
         ],
         power: Lit(value: 2),

@@ -21,14 +21,20 @@ use macro_ron::SupportsMacros;
 /// meta-macro declares `kinds: [Macro]` and expands to a definition.
 pub const MACRO_KIND: &str = "Macro";
 
-/// The kinds the declaration meta-macros in `plugins_v2/<plugin>/macros/meta/`
-/// produce. Three of them — `Subtype`, `CounterKind`, `TurnPart` — carry the
-/// serde name of a v2 syntax type, so a declaration registered under one is
-/// invocable by its bare name wherever a card writes that type. `Type` does
-/// NOT: v2's card-type position is `CardType`, so a `Type` declaration is a
-/// loader tag until a ticket reconciles the two names. The remaining five are
-/// name-erasing loader tags that open no card position at all, exactly as v1's
-/// `TypeDef` and `Counter` do.
+/// The FAMILY kind each declaration meta-macro in
+/// `plugins_v2/<plugin>/macros/meta/` names first. A meta may name a second,
+/// SEMANTIC kind after it (`KeywordAction` → `Instruction`, `KeywordAbility`
+/// and `AbilityWord` → `Ability`), which is what makes the declaration
+/// invocable at the position its body occupies; the family kind is the
+/// declaration's identity and is what `deckmaste_construction_core` reads.
+///
+/// Three families — `Subtype`, `CounterKind`, `TurnPart` — carry the serde
+/// name of a v2 syntax type, so they need no second kind: a declaration
+/// registered under one is already invocable by its bare name wherever a card
+/// writes that type. `Type` does NOT: v2's card-type position is `CardType`,
+/// so a `Type` declaration is a loader tag until a ticket reconciles the two
+/// names. The remaining families are name-erasing loader tags that open no
+/// card position at all, exactly as v1's `TypeDef` and `Counter` do.
 pub const DECLARATION_KINDS: &[&str] = &[
     "AbilityWord",
     "CounterKind",
@@ -71,6 +77,14 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::abilities::TokenSpec::kind());
     // `lean/Semantics/Words.lean`
     kinds.add(crate::words::Window::kind());
+    // A word type, not a `semantic_expression`, but macroable all the same:
+    // `plugins_v2`'s turn-part declarations register at this very name, so the
+    // kind must be the derived one that carries the type's dispatch set. A
+    // hand-built `Kind::new("TurnPart")` registers the same position with an
+    // empty variant list, and `macro_ron`'s cycle check then reads a
+    // declaration named `Upkeep` whose body is `Upkeep` as a self-reference
+    // rather than as the identity macro it is.
+    kinds.add(crate::words::TurnPart::kind());
     // `Delta` is generic in Lean (`Delta (α : Type)`) and generic in Rust, and
     // `#[derive(SupportsMacros)]` rejects generics — so its kind is
     // hand-built and carries no dispatch set. Registration is what a macro of
@@ -82,7 +96,12 @@ pub fn kinds() -> KindSet {
     // produces register.
     kinds.add(Kind::new(MACRO_KIND));
     for name in DECLARATION_KINDS {
-        kinds.add(Kind::new(name));
+        // A family whose name coincides with a syntax type is already
+        // registered above, from the type's own derive; re-adding it would
+        // replace that kind with a variant-less hand-built one.
+        if !kinds.contains(name) {
+            kinds.add(Kind::new(name));
+        }
     }
     kinds
 }
@@ -169,6 +188,73 @@ mod tests {
         }
     }
 
+    /// The names of the types this crate derives `SupportsMacros` on, read
+    /// from its own sources.
+    ///
+    /// The mapping "one kind per `SupportsMacros` enum"
+    /// (`docs/decisions/semantics-v2.md` §12) has to stay total as the mirror
+    /// grows, and a hand-maintained list beside [`kinds`] would only restate
+    /// it. The derive attribute is the fact, so the test reads the fact.
+    fn supports_macros_types() -> Vec<String> {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&src)
+            .expect("the crate's own `src` is readable")
+            .map(|entry| entry.expect("a readable directory entry").path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+            .collect();
+        files.sort();
+        let mut names = Vec::new();
+        for file in files {
+            let text = std::fs::read_to_string(&file).expect("a readable source file");
+            let mut lines = text.lines();
+            while let Some(line) = lines.next() {
+                let trimmed = line.trim_start();
+                if !trimmed.starts_with("#[derive(") || !trimmed.contains("SupportsMacros") {
+                    continue;
+                }
+                let declaration = lines
+                    .by_ref()
+                    .find(|line| {
+                        let trimmed = line.trim_start();
+                        trimmed.starts_with("pub enum ") || trimmed.starts_with("pub struct ")
+                    })
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "a `SupportsMacros` derive in {} names no type",
+                            file.display()
+                        )
+                    });
+                let name = declaration
+                    .trim_start()
+                    .trim_start_matches("pub enum ")
+                    .trim_start_matches("pub struct ")
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .next()
+                    .expect("a type name follows `pub enum`/`pub struct`");
+                names.push(name.to_owned());
+            }
+        }
+        names
+    }
+
+    /// Every `SupportsMacros` type this crate declares is a registered kind:
+    /// that is what "kinds are one per `SupportsMacros` enum" (§12) means, and
+    /// a type that derives the trait without being registered is a position
+    /// macros silently cannot occupy.
+    #[test]
+    fn every_supports_macros_type_is_a_kind() {
+        let kinds = kinds();
+        let types = supports_macros_types();
+        assert!(
+            types.len() >= 17,
+            "only {} `SupportsMacros` derives found; the scan lost the sources it reads",
+            types.len()
+        );
+        for name in &types {
+            assert!(kinds.contains(name), "`{name}` must be a registered kind");
+        }
+    }
+
     /// Every declaration kind the meta-macros produce is registered, or a
     /// `plugins_v2` declaration of that class fails to load with
     /// `UnknownKind`.
@@ -210,7 +296,13 @@ mod tests {
     #[test]
     fn derived_kinds_carry_their_dispatch_set() {
         let kinds = kinds();
-        for name in ["Instruction", "Predicate", "NounPhrase", "Ability"] {
+        for name in [
+            "Instruction",
+            "Predicate",
+            "NounPhrase",
+            "Ability",
+            "TurnPart",
+        ] {
             let kind = kinds.get(name).expect("registered above");
             assert!(
                 !kind.variants().is_empty(),

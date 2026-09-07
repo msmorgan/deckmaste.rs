@@ -1,8 +1,9 @@
 // "Threshold — This creature has flying as long as there are seven or more
-// cards in your graveyard." See the STOP note in
-// `plugins_v2/builtin/macros/meta/AbilityWord.ron`: `Threshold(<ability>)`
-// macro-call syntax is not reachable at this `Ability` position, so this
-// spells the `ItalicHead` shape the declaration's body constructs directly.
+// cards in your graveyard."
+//
+// `Threshold(<ability>)` is the ability word's own declaration invoked at this
+// `Ability` position; it expands to the `ItalicHead` its body builds.
+//
 // (Substituted for Adamant: every real Adamant card's condition is "N mana
 // of the SAME color spent to cast", which needs a `PaidFacet` this crate
 // does not yet model — `words.rs`'s `PaidFacet` has `ColorsSpent`, the
@@ -16,9 +17,8 @@ SingleFaced(face: (
         types: [Creature],
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
         text: [
-            ItalicHead(
-                word: AbilityWord(label: "Threshold"),
-                ability: Static(
+            Threshold(
+                Static(
                     spec: Conditional(
                         spec: AbilityGrant(
                             subject: AsType(type: Creature, subject: This, subtype: None),
@@ -34,7 +34,7 @@ SingleFaced(face: (
                         ),
                         marking: AsLongAs,
                     ),
-                ),
+                )
             ),
         ],
         power: Lit(value: 2),

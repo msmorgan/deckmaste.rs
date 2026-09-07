@@ -1888,12 +1888,20 @@ fn validate_fixed_keyword_parameter_grammar(
     ))
 }
 
+/// The declaration's family kind: the FIRST kind its meta-macro names.
+///
+/// A meta may name further kinds after it — the semantic position the body
+/// occupies, so `Threshold(<ability>)` resolves where a card writes an ability
+/// — and those belong to `deckmaste_semantics_v2`, which registers the
+/// declaration at each. This crate reads only the family, which is the
+/// declaration's identity; a kind it does not know is not its business, so the
+/// tail is ignored rather than refused.
 fn normalized_kind(
     path: &Path,
     source_map: &ValidationSourceMap,
     definition: &macro_ron::MacroDef<Metadata>,
 ) -> Result<DeclarationKind, ReadError> {
-    let [kind] = definition.kinds.as_slice() else {
+    let Some(kind) = definition.kinds.first() else {
         return Err(validation_error_at(
             path,
             source_map.declaration,

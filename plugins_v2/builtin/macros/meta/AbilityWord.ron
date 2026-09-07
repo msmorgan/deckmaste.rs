@@ -6,16 +6,13 @@
 // meta-expansion to the produced declaration's own frame, where a real
 // invocation resolves it against its own positional argument.
 //
-// `kinds` stays `[AbilityWord]` only, matching every sibling declaration
-// family: `deckmaste_construction_core::macro_def::normalized_kind` requires
-// exactly one kind per declaration (`let [kind] = definition.kinds.as_slice()
-// else { ... InvalidDeclarationKind }`), so a second kind here breaks the
-// english_v2/semantics_v2 shared-contract drift test. This means the
-// produced macro cannot be invoked as `Adamant(<ability>)` at a card's
-// `Ability` position — confirmed empirically (`InvalidDeclarationKind`) —
-// exactly the "name-erasing loader tag" behavior `ron.rs`'s
-// `DECLARATION_KINDS` doc comment already ascribes to this family. Widening
-// that is a `deckmaste_construction_core` change outside this ticket.
+// `kinds` names the family first and the SEMANTIC kind second: the family
+// (`AbilityWord`) is the declaration's identity, which
+// `deckmaste_construction_core::macro_def::normalized_kind` reads, and
+// `Ability` is the position this body occupies, which is what makes
+// `Threshold(<ability>)` resolve where a card writes an ability. Both are
+// registered kinds in `deckmaste_semantics_v2::ron::kinds`, so the produced
+// declaration registers under each.
 (
     name: "AbilityWord",
     kinds: [Macro],
@@ -26,7 +23,7 @@
     },
     body: (
         name: Param(name),
-        kinds: [AbilityWord],
+        kinds: [AbilityWord, Ability],
         params: [Ability],
         metadata: (
             spelling: Param(spelling),
