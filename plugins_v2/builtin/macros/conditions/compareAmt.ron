@@ -1,0 +1,9 @@
+// `Condition.CompareAmt` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "compareAmt",
+    kinds: [Condition],
+    params: {"subject": Amount, "comparator": Comparator, "bound": Amount},
+    body: CompareAmt(subject: Param(subject), comparator: Param(comparator), bound: Param(bound)),
+)

@@ -6,23 +6,23 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: Black)))],
         types: [Instant],
         text: [
-            Static(spec: AddedCost(
-                cost: Perform(instruction: sacrifice(
-                    Described(
+            static(spec: addedCost(
+                cost: perform(instruction: sacrifice(
+                    described(
                         determiner: A(mode: Unmarked),
-                        predicate: And(conjuncts: [
-                            HasType(type: Creature),
-                            InZone(zone: Zone(zone: Battlefield, scope: Bare)),
-                            HasPossessor(axis: Controller, possessor: You),
+                        predicate: and(conjuncts: [
+                            hasType(type: Creature),
+                            inZone(zone: zone(zone: Battlefield, scope: Bare)),
+                            hasPossessor(axis: Controller, possessor: you),
                         ]),
                     ),
-                    You,
+                    you,
                 )),
                 offered: false,
             )),
-            Spell(
+            spell(
                 timing: None,
-                instruction: Draw(amount: Lit(value: 2), agent: You),
+                instruction: draw(amount: Lit(value: 2), agent: you),
             ),
         ],
     ),

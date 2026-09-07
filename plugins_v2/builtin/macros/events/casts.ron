@@ -1,0 +1,9 @@
+// `GameEvent.Casts` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "casts",
+    kinds: [GameEvent],
+    params: {"player": Subject, "spell": Default(Any, None), "from": Default(Any, None)},
+    body: Casts(player: Param(player), spell: Param(spell), r#from: Param(from)),
+)

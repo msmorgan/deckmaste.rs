@@ -1,0 +1,9 @@
+// `Instruction.MoveCounters` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "moveCounters",
+    kinds: [Instruction],
+    params: {"amount": Amount, "kind": Default(Any, None), "source": Subject, "destination": Subject},
+    body: MoveCounters(amount: Param(amount), kind: Param(kind), source: Param(source), destination: Param(destination)),
+)

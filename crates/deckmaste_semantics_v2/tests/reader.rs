@@ -34,9 +34,15 @@ use deckmaste_semantics_v2::words::Stat;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
 
+/// The testing plugin over the builtin prelude, which is how every consumer
+/// loads it: since §11.1's macro-only rule a card's constructors are written
+/// as the macros `plugins_v2/builtin` declares, so the testing cards no longer
+/// read in isolation.
 fn testing_plugin() -> Plugin {
+    let builtin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
+    let prelude = Plugin::load(builtin).expect("the builtin declarations load");
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/testing");
-    Plugin::load(root).expect("the testing plugin loads")
+    Plugin::load_with_prelude(&prelude, root).expect("the testing plugin loads")
 }
 
 fn face(card: &Card) -> &deckmaste_semantics_v2::card::CardFace {
@@ -551,4 +557,66 @@ fn a_one_field_argument_may_be_a_named_application() {
         .read_str("CountOf(group: Pro(Bare, One, Whole))")
         .expect("the named form reads");
     assert_eq!(named, positional);
+}
+
+/// A card may write only macros (§11.1, Lean's `Authoring.Form.onlyMacros`):
+/// at a `semantic_expression` kind a constructor's own name has no native
+/// candidacy, and the macro of that name stands in its place.
+#[test]
+fn a_card_writes_a_macro_where_the_basis_has_a_constructor() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let ability: deckmaste_semantics_v2::abilities::Ability = builtin
+        .macros
+        .read_str_restricted(r#"keyword(label: "Flying")"#)
+        .expect("the macro reads under restriction");
+    assert_eq!(
+        ability,
+        deckmaste_semantics_v2::abilities::Ability::Keyword {
+            keyword: "Flying".to_owned(),
+            params: vec![],
+            body: vec![],
+        }
+    );
+}
+
+/// The refusal half: the constructor the macro stands for is not author
+/// vocabulary, and the message names it and the kind it belongs to.
+#[test]
+fn a_raw_constructor_in_a_card_is_refused_by_name() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let error = builtin
+        .macros
+        .read_str_restricted::<deckmaste_semantics_v2::abilities::Ability>(
+            r#"Keyword(keyword: "Flying", params: [], body: [])"#,
+        )
+        .expect_err("a raw constructor is not author vocabulary");
+    let message = error.to_string();
+    assert!(
+        message.contains("Keyword") && message.contains("Ability"),
+        "the refusal must name the constructor and its kind: {message}"
+    );
+}
+
+/// Only a `semantic_expression` kind restricts. A word type registered as a
+/// kind for its own macro dispatch — a colour, a subtype, a turn part — keeps
+/// every constructor it always had, which is what Lean's `onlyMacros` does.
+#[test]
+fn a_word_types_constructor_still_reads_under_restriction() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let colour: Color = builtin
+        .macros
+        .read_str_restricted("White")
+        .expect("a colour is not a semantic expression");
+    assert_eq!(colour, Color::White);
+    let subtype: Subtype = builtin
+        .macros
+        .read_str_restricted(r#"Of(host: Creature, label: "Goblin")"#)
+        .expect("a subtype is not a semantic expression");
+    assert!(matches!(subtype, Subtype::Of { .. }));
 }

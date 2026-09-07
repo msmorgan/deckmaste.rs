@@ -9,20 +9,20 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
+                instruction: sequentially(steps: [
                     discard(
-                        Described(
+                        described(
                             determiner: All,
-                            predicate: And(conjuncts: [
-                                IsCard,
-                                InZone(zone: Zone(zone: Hand, scope: PossessedBy(possessor: You))),
+                            predicate: and(conjuncts: [
+                                isCard,
+                                inZone(zone: zone(zone: Hand, scope: PossessedBy(possessor: you))),
                             ]),
                         ),
-                        You,
+                        you,
                     ),
-                    Draw(amount: Lit(value: 2), agent: You),
+                    draw(amount: Lit(value: 2), agent: you),
                 ]),
             ),
         ],

@@ -1,0 +1,9 @@
+// `NounPhrase.NamesAgree` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "namesAgree",
+    kinds: [NounPhrase],
+    params: {"agreement": Any, "group": Subject},
+    body: NamesAgree(agreement: Param(agreement), group: Param(group)),
+)

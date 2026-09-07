@@ -1,0 +1,9 @@
+// `Amount.AggregateOver` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "aggregateOver",
+    kinds: [Amount],
+    params: {"op": AggregateOp, "domain": Quality, "body": Amount},
+    body: AggregateOver(op: Param(op), domain: Param(domain), body: Param(body)),
+)

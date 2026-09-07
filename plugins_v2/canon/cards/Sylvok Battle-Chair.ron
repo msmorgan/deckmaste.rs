@@ -12,28 +12,28 @@ SingleFaced(face: (
         subtypes: [Of(host: Artifact, label: "Equipment")],
         text: [
             forMirrodin,
-            Static(
-                spec: Conjunction(
+            static(
+                spec: conjunction(
                     subject: None,
                     parts: [
-                        Modification(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             stat: Power,
-                            delta: Up(amount: Lit(value: 4)),
+                            delta: up(amount: Lit(value: 4)),
                         ),
-                        Modification(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             stat: Toughness,
-                            delta: Up(amount: Lit(value: 4)),
+                            delta: up(amount: Lit(value: 4)),
                         ),
-                        AbilityGrant(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        abilityGrant(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             ability: trample,
                         ),
                     ],
                 ),
             ),
-            equip(Mana(cost: [
+            equip(mana(cost: [
                 Simple(symbol: Generic(amount: 5)),
                 Simple(symbol: Specific(color: Of(color: Green))),
                 Simple(symbol: Specific(color: Of(color: Green))),

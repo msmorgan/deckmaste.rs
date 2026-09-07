@@ -1,0 +1,9 @@
+// `Instruction.AddMana` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "addMana",
+    kinds: [Instruction],
+    params: {"amount": Amount, "produced": Any, "riders": Default(Any, []), "agent": Subject},
+    body: AddMana(amount: Param(amount), produced: Param(produced), riders: Param(riders), agent: Param(agent)),
+)

@@ -1,0 +1,9 @@
+// `StaticSpec.AbilityGrant` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "abilityGrant",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "ability": Ability},
+    body: AbilityGrant(subject: Param(subject), ability: Param(ability)),
+)

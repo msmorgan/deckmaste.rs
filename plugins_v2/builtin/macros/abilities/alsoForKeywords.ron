@@ -1,0 +1,9 @@
+// `Ability.AlsoForKeywords` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "alsoForKeywords",
+    kinds: [Ability],
+    params: {"ability": Ability, "keywords": Default(Any, [])},
+    body: AlsoForKeywords(ability: Param(ability), keywords: Param(keywords)),
+)

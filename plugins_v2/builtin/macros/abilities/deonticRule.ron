@@ -1,0 +1,9 @@
+// `StaticSpec.DeonticRule` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "deonticRule",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "compulsion": Compulsion, "deeds": Any, "role": Role, "bound": Default(Any, None), "patient": DeonticPatient, "as_though": Default(Any, None), "rider": DeonticRider},
+    body: DeonticRule(subject: Param(subject), compulsion: Param(compulsion), deeds: Param(deeds), role: Param(role), bound: Param(bound), patient: Param(patient), as_though: Param(as_though), rider: Param(rider)),
+)

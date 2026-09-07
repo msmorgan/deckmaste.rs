@@ -8,8 +8,8 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(timing: None, instruction: Draw(amount: Lit(value: 1), agent: You)),
-            flashback(Mana(cost: [
+            spell(timing: None, instruction: draw(amount: Lit(value: 1), agent: you)),
+            flashback(mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),

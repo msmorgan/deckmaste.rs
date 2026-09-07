@@ -1,0 +1,9 @@
+// `StaticSpec.PtDefinition` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "ptDefinition",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "slots": Any, "amount": Amount},
+    body: PtDefinition(subject: Param(subject), slots: Param(slots), amount: Param(amount)),
+)

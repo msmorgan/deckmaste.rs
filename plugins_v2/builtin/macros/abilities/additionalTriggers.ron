@@ -1,0 +1,9 @@
+// `StaticSpec.AdditionalTriggers` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "additionalTriggers",
+    kinds: [StaticSpec],
+    params: {"event": GameEvent, "quantity": Quantity},
+    body: AdditionalTriggers(event: Param(event), quantity: Param(quantity)),
+)

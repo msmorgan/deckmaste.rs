@@ -1,0 +1,9 @@
+// `Cost.Scaled` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "scaled",
+    kinds: [Cost],
+    params: {"cost": Cost, "amount": Amount},
+    body: Scaled(cost: Param(cost), amount: Param(amount)),
+)

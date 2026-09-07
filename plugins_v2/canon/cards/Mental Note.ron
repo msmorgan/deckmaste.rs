@@ -6,11 +6,11 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
-                    mill(Lit(value: 2), You, You),
-                    Draw(amount: Lit(value: 1), agent: You),
+                instruction: sequentially(steps: [
+                    mill(Lit(value: 2), you, you),
+                    draw(amount: Lit(value: 1), agent: you),
                 ]),
             ),
         ],

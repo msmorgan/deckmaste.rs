@@ -10,49 +10,40 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 1),
         text: [
-            Triggered(
-                event: BeginningOf(quantifier: The, part: Combat, whose: ByPlayer(player: You)),
-                alternatives: [],
-                while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: And(conjuncts: [
-                    Matches(
-                        subject: AsType(type: Creature, subject: This, subtype: None),
-                        predicate: And(conjuncts: [
-                            HasPossessor(axis: Owner, possessor: You),
-                            HasPossessor(axis: Controller, possessor: You),
+            triggeredIf(event: beginningOf(quantifier: The, part: Combat, whose: ByPlayer(player: you)), condition: and(conjuncts: [
+                    matches(
+                        subject: asType(type: Creature, subject: this, subtype: None),
+                        predicate: and(conjuncts: [
+                            hasPossessor(axis: Owner, possessor: you),
+                            hasPossessor(axis: Controller, possessor: you),
                         ]),
                     ),
-                    Exists(subject: Described(
+                    exists(subject: described(
                         determiner: Bare,
-                        predicate: And(conjuncts: [
-                            HasType(type: Creature),
-                            Named(source: Printed(name: "Midnight Scavengers")),
-                            HasPossessor(axis: Owner, possessor: You),
-                            HasPossessor(axis: Controller, possessor: You),
+                        predicate: and(conjuncts: [
+                            hasType(type: Creature),
+                            named(source: Printed(name: "Midnight Scavengers")),
+                            hasPossessor(axis: Owner, possessor: you),
+                            hasPossessor(axis: Controller, possessor: you),
                         ]),
                     )),
-                ]),
-                instruction: Sequentially(steps: [
-                    exile(Described(
+                ]), instruction: sequentially(steps: [
+                    exile(described(
                         determiner: All,
-                        predicate: And(conjuncts: [
-                            HasType(type: Creature),
-                            HasPossessor(axis: Controller, possessor: You),
-                            Or(disjuncts: [
-                                Named(source: Printed(name: "Graf Rats")),
-                                Named(source: Printed(name: "Midnight Scavengers")),
+                        predicate: and(conjuncts: [
+                            hasType(type: Creature),
+                            hasPossessor(axis: Controller, possessor: you),
+                            or(disjuncts: [
+                                named(source: Printed(name: "Graf Rats")),
+                                named(source: Printed(name: "Midnight Scavengers")),
                             ]),
                         ]),
                     )),
                     meld(
-                        Pro(reach: Stamped(verb: Action(label: "Exile")), plurality: Many, window: Whole),
+                        themVerbed(verb: Action(label: "Exile")),
                         "Chittering Host",
                     ),
-                ]),
-            ),
+                ])),
         ],
     ),
 ))

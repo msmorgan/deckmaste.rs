@@ -16,31 +16,7 @@ SingleFaced(face: (
         toughness: Lit(value: 3),
         text: [
             firebending(Lit(value: 1)),
-            Activated(
-                cost: Mana(cost: [Simple(symbol: Generic(amount: 5))]),
-                instruction: CreateObject(
-                    count: Lit(value: 1),
-                    spec: Token(
-                        spec: Written(
-                            characteristics: (
-                                characteristics: (
-                                    colors: [White],
-                                    types: [Creature],
-                                    subtypes: [Of(host: Creature, label: "Ally")],
-                                    power: Lit(value: 1),
-                                    toughness: Lit(value: 1),
-                                ),
-                            ),
-                        ),
-                        riders: [],
-                    ),
-                    agent: You,
-                ),
-                timing: None,
-                limit: None,
-                guard: None,
-                activator: None,
-            ),
+            activated(cost: mana(cost: [Simple(symbol: Generic(amount: 5))]), instruction: createObject( count: Lit(value: 1), spec: Token( spec: written( characteristics: ( characteristics: ( colors: [White], types: [Creature], subtypes: [Of(host: Creature, label: "Ally")], power: Lit(value: 1), toughness: Lit(value: 1), ), ), ), riders: [], ), agent: you, )),
         ],
     ),
 ))

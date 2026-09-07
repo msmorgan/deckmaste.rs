@@ -15,19 +15,8 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 3),
         text: [
-            Keyword(keyword: "Flying", params: [], body: []),
-            Activated(
-                cost: Mana(cost: [
-                    Simple(symbol: Generic(amount: 2)),
-                    Simple(symbol: Specific(color: Of(color: Green))),
-                    Simple(symbol: Specific(color: Of(color: Blue))),
-                ]),
-                instruction: adapt(Lit(value: 1)),
-                timing: None,
-                limit: None,
-                guard: None,
-                activator: None,
-            ),
+            keyword(label: "Flying"),
+            activated(cost: mana(cost: [ Simple(symbol: Generic(amount: 2)), Simple(symbol: Specific(color: Of(color: Green))), Simple(symbol: Specific(color: Of(color: Blue))), ]), instruction: adapt(Lit(value: 1))),
         ],
     ),
 ))

@@ -5,7 +5,7 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: White)))],
         types: [Sorcery],
         text: [
-            Spell(timing: None, instruction: populate),
+            spell(timing: None, instruction: populate),
         ],
     ),
 ))

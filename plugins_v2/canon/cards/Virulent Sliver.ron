@@ -8,14 +8,14 @@ SingleFaced(face: (
         power: Lit(value: 1),
         toughness: Lit(value: 1),
         text: [
-            Static(
-                spec: AbilityGrant(
-                    subject: Described(
+            static(
+                spec: abilityGrant(
+                    subject: described(
                         determiner: All,
-                        predicate: And(
+                        predicate: and(
                             conjuncts: [
-                                HasSubtype(subtype: Of(host: Creature, label: "Sliver")),
-                                HasType(type: Creature),
+                                hasSubtype(subtype: Of(host: Creature, label: "Sliver")),
+                                hasType(type: Creature),
                             ],
                         ),
                     ),

@@ -1,0 +1,9 @@
+// `GameEvent.TappedForMana` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "tappedForMana",
+    kinds: [GameEvent],
+    params: {"player": Default(Any, None), "source": Subject, "type": Default(Any, None)},
+    body: TappedForMana(player: Param(player), source: Param(source), r#type: Param(type)),
+)

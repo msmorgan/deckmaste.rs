@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 3),
         text: [
-            surge(Mana(cost: [
+            surge(mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),

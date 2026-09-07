@@ -9,19 +9,13 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             gravestorm,
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
-                    Draw(
-                        amount: Lit(value: 1),
-                        agent: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
-                            predicate: AnyPlayer,
-                        ),
-                    ),
-                    ChangeLife(
-                        delta: Down(amount: Lit(value: 1)),
-                        agent: Pro(reach: Word(word: Player), plurality: One, window: Whole),
+                instruction: sequentially(steps: [
+                    draw(amount: Lit(value: 1), agent: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: anyPlayer, )),
+                    changeLife(
+                        delta: down(amount: Lit(value: 1)),
+                        agent: they,
                     ),
                 ]),
             ),

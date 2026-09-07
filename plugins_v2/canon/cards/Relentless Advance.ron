@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
                 instruction: amass(Of(host: Creature, label: "Zombie"), Lit(value: 3)),
             ),

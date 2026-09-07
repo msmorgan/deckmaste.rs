@@ -1,0 +1,9 @@
+// `Amount.StatOf` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "statOf",
+    kinds: [Amount],
+    params: {"axis": ProjAxis, "subject": Subject},
+    body: StatOf(axis: Param(axis), subject: Param(subject)),
+)

@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(timing: None, instruction: bolster(Lit(value: 3))),
+            spell(timing: None, instruction: bolster(Lit(value: 3))),
         ],
     ),
 ))

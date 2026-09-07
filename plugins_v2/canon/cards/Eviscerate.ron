@@ -9,11 +9,11 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: destroy(Described(
-                    determiner: Target(quantity: Range(low: 1, high: 1)),
-                    predicate: HasType(type: Creature),
+                instruction: destroy(described(
+                    determiner: Target(quantity: range(low: 1, high: 1)),
+                    predicate: hasType(type: Creature),
                 )),
             ),
         ],

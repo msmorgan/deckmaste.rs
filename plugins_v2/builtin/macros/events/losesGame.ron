@@ -1,0 +1,9 @@
+// `GameEvent.LosesGame` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "losesGame",
+    kinds: [GameEvent],
+    params: {"player": Subject},
+    body: LosesGame(player: Param(player)),
+)

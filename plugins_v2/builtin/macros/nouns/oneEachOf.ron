@@ -1,0 +1,9 @@
+// `NounPhrase.OneEachOf` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "oneEachOf",
+    kinds: [NounPhrase],
+    params: {"roles": Default(Any, []), "pool": Subject},
+    body: OneEachOf(roles: Param(roles), pool: Param(pool)),
+)

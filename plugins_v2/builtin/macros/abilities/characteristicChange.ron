@@ -1,0 +1,9 @@
+// `StaticSpec.CharacteristicChange` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "characteristicChange",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "edits": Default(Any, [])},
+    body: CharacteristicChange(subject: Param(subject), edits: Param(edits)),
+)

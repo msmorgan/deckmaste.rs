@@ -5,14 +5,14 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: White)))],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: SkipPart(
+                instruction: skipPart(
                     part: combatPhase,
                     count: Lit(value: 1),
-                    agent: Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
-                        predicate: AnyPlayer,
+                    agent: described(
+                        determiner: Target(quantity: range(low: 1, high: 1)),
+                        predicate: anyPlayer,
                     ),
                 ),
             ),

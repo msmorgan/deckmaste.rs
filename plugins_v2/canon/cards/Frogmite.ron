@@ -7,6 +7,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Frog")],
         power: Lit(value: 2),
         toughness: Lit(value: 2),
-        text: [affinity(HasType(type: Artifact))],
+        text: [affinity(hasType(type: Artifact))],
     ),
 ))

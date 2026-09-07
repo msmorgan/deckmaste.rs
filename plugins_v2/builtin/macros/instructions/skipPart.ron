@@ -1,0 +1,9 @@
+// `Instruction.SkipPart` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "skipPart",
+    kinds: [Instruction],
+    params: {"part": TurnPart, "count": Amount, "agent": Subject},
+    body: SkipPart(part: Param(part), count: Param(count), agent: Param(agent)),
+)

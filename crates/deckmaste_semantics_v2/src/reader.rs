@@ -161,7 +161,7 @@ impl Plugin {
 
     fn load_onto(mut macros: MacroSet, root: PathBuf) -> Result<Self, LoadError> {
         let declarations = read_macros(&mut macros, &root)?;
-        let cards = read_values(&macros, &root.join(CARDS_DIR))?;
+        let cards = read_values_restricted(&macros, &root.join(CARDS_DIR))?;
         let tokens = read_values::<CharacteristicBundle>(&macros, &root.join(TOKENS_DIR))?
             .into_iter()
             .map(|(name, token)| PredefinedToken { name, token })
@@ -293,15 +293,41 @@ fn read_values<T: serde::de::DeserializeOwned>(
     macros: &MacroSet,
     dir: &Path,
 ) -> Result<BTreeMap<String, T>, LoadError> {
+    read_values_with(macros, dir, false)
+}
+
+/// As [`read_values`], but the file's own text is RESTRICTED author
+/// vocabulary (`macro_ron::MacroSet::read_str_restricted`): at every
+/// `semantic_expression` kind the constructor names lose native candidacy and
+/// must route through a macro, which is Lean's `Authoring.Form.onlyMacros`
+/// over a card (`docs/decisions/semantics-v2.md` §11.1). Macro bodies reached
+/// by expansion stay free — they are the basis those macros are written over.
+/// Which kinds restrict is `crate::ron::EXPRESSION_KINDS`; every other
+/// registered kind carves its own variants back in.
+fn read_values_restricted<T: serde::de::DeserializeOwned>(
+    macros: &MacroSet,
+    dir: &Path,
+) -> Result<BTreeMap<String, T>, LoadError> {
+    read_values_with(macros, dir, true)
+}
+
+fn read_values_with<T: serde::de::DeserializeOwned>(
+    macros: &MacroSet,
+    dir: &Path,
+    restricted: bool,
+) -> Result<BTreeMap<String, T>, LoadError> {
     let mut out = BTreeMap::new();
     for path in ron_files_recursive(dir)? {
         let source = read(&path)?;
-        let value = macros
-            .read_str::<T>(&source)
-            .map_err(|source| LoadError::Ron {
-                path: path.clone(),
-                source: Box::new(source),
-            })?;
+        let read_one = if restricted {
+            MacroSet::read_str_restricted::<T>
+        } else {
+            MacroSet::read_str::<T>
+        };
+        let value = read_one(macros, &source).map_err(|source| LoadError::Ron {
+            path: path.clone(),
+            source: Box::new(source),
+        })?;
         let stem = path
             .file_stem()
             .and_then(|s| s.to_str())

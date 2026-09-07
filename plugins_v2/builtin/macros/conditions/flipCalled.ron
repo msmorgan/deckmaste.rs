@@ -1,0 +1,9 @@
+// `Condition.FlipCalled` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "flipCalled",
+    kinds: [Condition],
+    params: {"caller": Subject, "call": Any},
+    body: FlipCalled(caller: Param(caller), call: Param(call)),
+)

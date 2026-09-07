@@ -1,0 +1,9 @@
+// `StaticSpec.DamageRule` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "damageRule",
+    kinds: [StaticSpec],
+    params: {"kind": DamageKind, "source": Any, "scope": DamageScope, "op": Any, "use": Any},
+    body: DamageRule(kind: Param(kind), source: Param(source), scope: Param(scope), op: Param(op), r#use: Param(use)),
+)

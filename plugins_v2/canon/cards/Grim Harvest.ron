@@ -9,33 +9,15 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Enact(
+                instruction: enact(
                     verb: Core(deed: Return),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
-                            predicate: And(
-                                conjuncts: [
-                                    IsCard,
-                                    HasType(type: Creature),
-                                    InZone(
-                                        zone: Zone(
-                                            zone: Graveyard,
-                                            scope: PossessedBy(possessor: You),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                        to: Zone(zone: Hand, scope: Bare),
-                        riders: [],
-                    ),
+                    instruction: move(subject: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: and( conjuncts: [ isCard, hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(possessor: you), ), ), ], ), ), destination: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),
-            recover(Mana(cost: [
+            recover(mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Black))),
             ])),

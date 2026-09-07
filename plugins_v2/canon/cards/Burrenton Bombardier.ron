@@ -12,7 +12,7 @@ SingleFaced(face: (
         toughness: Lit(value: 2),
         text: [
             flying,
-            reinforce(Lit(value: 2), Mana(cost: [
+            reinforce(Lit(value: 2), mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: White))),
             ])),

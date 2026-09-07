@@ -1,0 +1,9 @@
+// `GameEvent.Attachment` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "attachment",
+    kinds: [GameEvent],
+    params: {"move": Any, "subject": Subject, "host": Subject},
+    body: Attachment(r#move: Param(move), subject: Param(subject), host: Param(host)),
+)

@@ -9,13 +9,13 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: goad(Described(
+                instruction: goad(described(
                     determiner: All,
-                    predicate: And(conjuncts: [
-                        HasType(type: Creature),
-                        Not(predicate: HasPossessor(axis: Controller, possessor: You)),
+                    predicate: and(conjuncts: [
+                        hasType(type: Creature),
+                        not(predicate: hasPossessor(axis: Controller, possessor: you)),
                     ]),
                 )),
             ),

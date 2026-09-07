@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 2),
         text: [
-            Keyword(keyword: "FirstStrike", params: [], body: []),
+            keyword(label: "FirstStrike"),
             bushido(Lit(value: 1)),
         ],
     ),

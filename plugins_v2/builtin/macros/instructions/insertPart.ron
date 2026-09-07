@@ -1,0 +1,9 @@
+// `Instruction.InsertPart` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "insertPart",
+    kinds: [Instruction],
+    params: {"part": TurnPart, "anchor": Default(Any, None), "count": Amount, "followed_by": Default(Any, None), "agent": Default(Any, None)},
+    body: InsertPart(part: Param(part), anchor: Param(anchor), count: Param(count), followed_by: Param(followed_by), agent: Param(agent)),
+)

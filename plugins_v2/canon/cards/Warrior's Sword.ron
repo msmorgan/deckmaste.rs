@@ -11,22 +11,22 @@ SingleFaced(face: (
         subtypes: [Of(host: Artifact, label: "Equipment")],
         text: [
             jobSelect,
-            Static(
-                spec: Conjunction(
+            static(
+                spec: conjunction(
                     subject: None,
                     parts: [
-                        Modification(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             stat: Power,
-                            delta: Up(amount: Lit(value: 3)),
+                            delta: up(amount: Lit(value: 3)),
                         ),
-                        Modification(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             stat: Toughness,
-                            delta: Up(amount: Lit(value: 2)),
+                            delta: up(amount: Lit(value: 2)),
                         ),
-                        CharacteristicChange(
-                            subject: AttachHost(word: Equipped, head: Type(type: Creature)),
+                        characteristicChange(
+                            subject: attachHost(word: Equipped, head: Type(type: Creature)),
                             edits: [
                                 TypeLine(
                                     op: Adds,
@@ -37,7 +37,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            equip(Mana(cost: [Simple(symbol: Generic(amount: 5))])),
+            equip(mana(cost: [Simple(symbol: Generic(amount: 5))])),
         ],
     ),
 ))

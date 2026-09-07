@@ -10,18 +10,14 @@ SingleFaced(face: (
         types: [Enchantment],
         subtypes: [Of(host: Enchantment, label: "Aura")],
         text: [
-            Keyword(
-                keyword: "Enchant",
-                params: [Subject(predicate: HasType(type: Creature))],
-                body: [],
-            ),
-            Static(
-                spec: AbilityGrant(
-                    subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+            keywordSubject(label: "Enchant", subject: hasType(type: Creature)),
+            static(
+                spec: abilityGrant(
+                    subject: attachHost(word: Enchanted, head: Type(type: Creature)),
                     ability: flying,
                 ),
             ),
-            auraSwap(Mana(cost: [
+            auraSwap(mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
             ])),

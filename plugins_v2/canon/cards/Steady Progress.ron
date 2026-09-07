@@ -8,11 +8,11 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
+                instruction: sequentially(steps: [
                     proliferate,
-                    Draw(amount: Lit(value: 1), agent: You),
+                    draw(amount: Lit(value: 1), agent: you),
                 ]),
             ),
         ],

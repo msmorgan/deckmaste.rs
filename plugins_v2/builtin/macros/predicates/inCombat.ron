@@ -1,0 +1,9 @@
+// `Predicate.InCombat` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "inCombat",
+    kinds: [Predicate],
+    params: {"relation": Any, "counterpart": Default(Any, None)},
+    body: InCombat(relation: Param(relation), counterpart: Param(counterpart)),
+)

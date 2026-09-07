@@ -1,0 +1,9 @@
+// `Instruction.ChangeLife` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "changeLife",
+    kinds: [Instruction],
+    params: {"delta": Delta, "agent": Subject},
+    body: ChangeLife(delta: Param(delta), agent: Param(agent)),
+)

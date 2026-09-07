@@ -1,0 +1,9 @@
+// `GameEvent.Combat` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "combat",
+    kinds: [GameEvent],
+    params: {"relation": Any, "subject": Subject, "counterpart": Default(Any, None)},
+    body: Combat(relation: Param(relation), subject: Param(subject), counterpart: Param(counterpart)),
+)

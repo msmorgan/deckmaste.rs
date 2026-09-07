@@ -18,17 +18,14 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
         text: [
             threshold(
-                Static(
-                    spec: Conditional(
-                        spec: AbilityGrant(
-                            subject: AsType(type: Creature, subject: This, subtype: None),
-                            ability: Keyword(keyword: "Flying", params: [], body: []),
+                static(
+                    spec: conditional(
+                        spec: abilityGrant(
+                            subject: asType(type: Creature, subject: this, subtype: None),
+                            ability: keyword(label: "Flying"),
                         ),
-                        condition: CompareAmt(
-                            subject: CountOf(group: Described(
-                                determiner: Bare,
-                                predicate: InZone(zone: Zone(zone: Graveyard, scope: PossessedBy(possessor: You))),
-                            )),
+                        condition: compareAmt(
+                            subject: countOf(p: inZone(zone: zone(zone: Graveyard, scope: PossessedBy(possessor: you)))),
                             comparator: AtLeast,
                             bound: Lit(value: 7),
                         ),

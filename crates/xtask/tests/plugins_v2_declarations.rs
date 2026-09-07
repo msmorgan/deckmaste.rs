@@ -179,7 +179,7 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
                     name: "Drawing Spell",
                     cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
                     types: [Instant],
-                    text: [Spell(timing: None, instruction: DrawFor(Lit(value: 2)))],
+                    text: [spell(timing: None, instruction: DrawFor(Lit(value: 2)))],
                 ),
             ))"#,
         ),
@@ -213,7 +213,7 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
                     name: "Drawing Spell",
                     cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
                     types: [Instant],
-                    text: [Spell(timing: None, instruction: Draw(amount: Lit(value: 2), agent: You))],
+                    text: [spell(timing: None, instruction: Draw(amount: Lit(value: 2), agent: You))],
                 ),
             ))"#,
         )
@@ -262,9 +262,9 @@ fn a_turn_part_declaration_may_name_its_own_constructor() {
                     name: "Upkeep Spell",
                     cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
                     types: [Instant],
-                    text: [Spell(
-                        timing: DuringPart(part: UpkeepStep, whose: None),
-                        instruction: Draw(amount: Lit(value: 1), agent: You),
+                    text: [spell(
+                        timing: duringPart(part: UpkeepStep, whose: None),
+                        instruction: draw(amount: Lit(value: 1), agent: you),
                     )],
                 ),
             ))"#,

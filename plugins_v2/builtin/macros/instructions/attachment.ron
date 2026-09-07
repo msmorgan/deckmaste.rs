@@ -1,0 +1,9 @@
+// `Instruction.Attachment` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "attachment",
+    kinds: [Instruction],
+    params: {"move": Any, "subject": Subject, "host": Default(Any, None)},
+    body: Attachment(r#move: Param(move), subject: Param(subject), host: Param(host)),
+)

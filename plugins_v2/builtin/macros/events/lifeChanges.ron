@@ -1,0 +1,9 @@
+// `GameEvent.LifeChanges` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "lifeChanges",
+    kinds: [GameEvent],
+    params: {"player": Subject, "move": Any},
+    body: LifeChanges(player: Param(player), r#move: Param(move)),
+)

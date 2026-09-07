@@ -1,0 +1,9 @@
+// `Duration.DuringNextTurnOf` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "duringNextTurnOf",
+    kinds: [Duration],
+    params: {"player": Subject},
+    body: DuringNextTurnOf(player: Param(player)),
+)

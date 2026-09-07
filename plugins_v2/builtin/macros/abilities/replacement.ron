@@ -1,0 +1,9 @@
+// `StaticSpec.Replacement` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "replacement",
+    kinds: [StaticSpec],
+    params: {"event": GameEvent, "alternatives": Default(Any, []), "timing": Default(Any, None), "replacement": Instruction, "use": Any, "limit": Default(Any, None)},
+    body: Replacement(event: Param(event), alternatives: Param(alternatives), timing: Param(timing), replacement: Param(replacement), r#use: Param(use), limit: Param(limit)),
+)

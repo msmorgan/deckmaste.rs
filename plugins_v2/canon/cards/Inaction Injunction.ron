@@ -8,20 +8,20 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
-                    detain(Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
-                        predicate: And(conjuncts: [
-                            HasType(type: Creature),
-                            HasPossessor(
+                instruction: sequentially(steps: [
+                    detain(described(
+                        determiner: Target(quantity: range(low: 1, high: 1)),
+                        predicate: and(conjuncts: [
+                            hasType(type: Creature),
+                            hasPossessor(
                                 axis: Controller,
-                                possessor: Described(determiner: A(mode: Unmarked), predicate: Opponent),
+                                possessor: described(determiner: A(mode: Unmarked), predicate: opponent),
                             ),
                         ]),
                     )),
-                    Draw(amount: Lit(value: 1), agent: You),
+                    draw(amount: Lit(value: 1), agent: you),
                 ]),
             ),
         ],

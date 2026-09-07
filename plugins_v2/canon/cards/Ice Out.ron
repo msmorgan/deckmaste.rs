@@ -11,16 +11,16 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             bargain,
-            Static(
-                spec: Conditional(
-                    spec: CostShift(
-                        subject: This,
+            static(
+                spec: conditional(
+                    spec: costShift(
+                        subject: this,
                         shift: Less(amount: Lit(value: 1), floor: None),
                     ),
-                    condition: CompareAmt(
-                        subject: Paid(
+                    condition: compareAmt(
+                        subject: paid(
                             facet: Readback(which: ByKeyword(keyword: "Bargain"), lookback: None),
-                            subject: AsMarker(marker: Spell, subject: This),
+                            subject: asMarker(marker: Spell, subject: this),
                         ),
                         comparator: AtLeast,
                         bound: Lit(value: 1),
@@ -28,13 +28,13 @@ SingleFaced(face: (
                     marking: AsLongAs,
                 ),
             ),
-            Spell(
+            spell(
                 timing: None,
-                instruction: counter(Described(
-                    determiner: Target(quantity: Range(low: 1, high: 1)),
-                    predicate: And(conjuncts: [
-                        InZone(zone: Zone(zone: Stack, scope: Bare)),
-                        Not(predicate: AbilityHead(class: AnyOnStack)),
+                instruction: counter(described(
+                    determiner: Target(quantity: range(low: 1, high: 1)),
+                    predicate: and(conjuncts: [
+                        inZone(zone: zone(zone: Stack, scope: Bare)),
+                        not(predicate: abilityHead(class: AnyOnStack)),
                     ]),
                 )),
             ),

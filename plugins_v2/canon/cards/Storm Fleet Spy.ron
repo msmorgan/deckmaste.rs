@@ -11,22 +11,18 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
         text: [
             raid(
-                Triggered(
-                    event: ZoneChange(
-                        subject: AsType(type: Creature, subject: This, subtype: None),
-                        to: Zone(zone: Battlefield, scope: Bare),
+                triggeredIf(
+                    event: zoneChange(
+                        subject: asType(type: Creature, subject: this, subtype: None),
+                        to: zone(zone: Battlefield, scope: Bare),
                         observation: After,
                     ),
-                    alternatives: [],
-                    joins: [],
-                    intervening: Happened(
-                        subject: You,
-                        lookback: Mk(
-                            event: Combat(relation: AttackerOf, subject: Gap(kind: Player), counterpart: None),
-                            lookback: ThisTurn,
-                        ),
+                    condition: happened(
+                        event: combat(relation: AttackerOf, subject: gap(kind: Player), counterpart: None),
+                        who: you,
+                        lookback: ThisTurn,
                     ),
-                    instruction: Draw(amount: Lit(value: 1), agent: You),
+                    instruction: draw(amount: Lit(value: 1), agent: you),
                 )
             ),
         ],

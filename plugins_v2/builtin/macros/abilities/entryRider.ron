@@ -1,0 +1,9 @@
+// `StaticSpec.EntryRider` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "entryRider",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "rider": Any},
+    body: EntryRider(subject: Param(subject), rider: Param(rider)),
+)

@@ -11,18 +11,7 @@ SingleFaced(face: (
         power: Lit(value: 5),
         toughness: Lit(value: 4),
         text: [
-            Activated(
-                cost: Mana(cost: [
-                    Simple(symbol: Generic(amount: 5)),
-                    Simple(symbol: Specific(color: Of(color: Red))),
-                    Simple(symbol: Specific(color: Of(color: Red))),
-                ]),
-                instruction: monstrosity(Lit(value: 3)),
-                timing: None,
-                limit: None,
-                guard: None,
-                activator: None,
-            ),
+            activated(cost: mana(cost: [ Simple(symbol: Generic(amount: 5)), Simple(symbol: Specific(color: Of(color: Red))), Simple(symbol: Specific(color: Of(color: Red))), ]), instruction: monstrosity(Lit(value: 3))),
         ],
     ),
 ))

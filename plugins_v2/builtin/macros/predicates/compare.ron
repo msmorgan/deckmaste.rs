@@ -1,0 +1,9 @@
+// `Predicate.Compare` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "compare",
+    kinds: [Predicate],
+    params: {"axes": Default(Any, []), "comparator": Comparator, "bound": Amount},
+    body: Compare(axes: Param(axes), comparator: Param(comparator), bound: Param(bound)),
+)

@@ -14,30 +14,23 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 2),
         text: [
-            Activated(
-                cost: Compound(costs: [
-                    Mana(cost: [
+            activatedOnlyDuring(cost: compound(costs: [
+                    mana(cost: [
                         Simple(symbol: Specific(color: Of(color: Green))),
                         Simple(symbol: Specific(color: Of(color: White))),
                         Simple(symbol: Specific(color: Of(color: Blue))),
                     ]),
-                    TapSymbol,
-                ]),
-                instruction: Establish(
-                    spec: DamageRule(
+                    tapSymbol,
+                ]), instruction: establish(
+                    spec: damageRule(
                         kind: CombatOnly,
                         source: Unattributed,
                         scope: Everywhere,
                         op: Prevent(cut: All, also: None),
                         r#use: Repeatedly,
                     ),
-                    duration: Some(ThisTurn),
-                ),
-                timing: Some(BeforePart(part: combatDamageStep, whose: None)),
-                limit: None,
-                guard: None,
-                activator: None,
-            ),
+                    duration: Some(thisTurn),
+                ), timing: beforePart(part: combatDamageStep, whose: None)),
         ],
     ),
 ))

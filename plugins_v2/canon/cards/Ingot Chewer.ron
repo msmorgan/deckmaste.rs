@@ -11,25 +11,8 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 3),
         text: [
-            Triggered(
-                event: ZoneChange(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    from: None,
-                    to: Zone(zone: Battlefield, scope: Bare),
-                    observation: After,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: destroy(Described(
-                    determiner: Target(quantity: Range(low: 1, high: 1)),
-                    predicate: HasType(type: Artifact),
-                )),
-            ),
-            evoke(Mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: destroy(described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: hasType(type: Artifact), ))),
+            evoke(mana(cost: [Simple(symbol: Specific(color: Of(color: Red)))])),
         ],
     ),
 ))

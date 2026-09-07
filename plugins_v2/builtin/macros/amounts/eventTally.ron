@@ -1,0 +1,9 @@
+// `Amount.EventTally` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "eventTally",
+    kinds: [Amount],
+    params: {"op": Any, "subject": Subject, "lookback": Any},
+    body: EventTally(op: Param(op), subject: Param(subject), lookback: Param(lookback)),
+)

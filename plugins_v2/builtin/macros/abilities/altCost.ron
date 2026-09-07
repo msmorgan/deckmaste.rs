@@ -1,0 +1,9 @@
+// `StaticSpec.AltCost` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "altCost",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "cost": Default(Any, None)},
+    body: AltCost(subject: Param(subject), cost: Param(cost)),
+)

@@ -1,0 +1,12 @@
+// A GAP: the unnamed participant a phrase leaves open ("a player attacked" —
+// which player is not said). Lean tags `NounPhrase.gap` `internal_expansion`,
+// so `declare_semantic_primitives` mints no alias for it; a card that writes a
+// gap outright needs one, and `Storm Fleet Spy` does. A phrasing macro that
+// spells the gap for its position would be better and is
+// `semantics-v2-macro-capture-and-plurality`'s.
+(
+    name: "gap",
+    kinds: [NounPhrase],
+    params: {"kind": Kind},
+    body: Gap(kind: Param(kind)),
+)

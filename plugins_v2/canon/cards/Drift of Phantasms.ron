@@ -13,7 +13,7 @@ SingleFaced(face: (
         text: [
             defender,
             flying,
-            transmute(Mana(cost: [
+            transmute(mana(cost: [
                 Simple(symbol: Generic(amount: 1)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
                 Simple(symbol: Specific(color: Of(color: Blue))),

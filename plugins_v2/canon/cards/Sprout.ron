@@ -5,18 +5,18 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: Green)))],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
                 instruction: create(
                     Lit(value: 1),
-                    Written(characteristics: (characteristics: (
+                    written(characteristics: (characteristics: (
                         colors: [Green],
                         types: [Creature],
                         subtypes: [Of(host: Creature, label: "Saproling")],
                         power: Lit(value: 1),
                         toughness: Lit(value: 1),
                     ))),
-                    You,
+                    you,
                 ),
             ),
         ],

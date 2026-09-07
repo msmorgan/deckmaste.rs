@@ -1,0 +1,9 @@
+// `Instruction.TriggerThisWay` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "triggerThisWay",
+    kinds: [Instruction],
+    params: {"body": Instruction, "event": GameEvent, "trigger": Instruction},
+    body: TriggerThisWay(body: Param(body), event: Param(event), trigger: Param(trigger)),
+)

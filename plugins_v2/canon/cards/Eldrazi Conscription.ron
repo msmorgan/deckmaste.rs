@@ -10,31 +10,27 @@ SingleFaced(face: (
             Of(host: Enchantment, label: "Aura"),
         ],
         text: [
-            Keyword(
-                keyword: "Enchant",
-                params: [Subject(predicate: HasType(type: Creature))],
-                body: [],
-            ),
-            Static(
-                spec: Conjunction(
+            keywordSubject(label: "Enchant", subject: hasType(type: Creature)),
+            static(
+                spec: conjunction(
                     subject: None,
                     parts: [
-                        Modification(
-                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
                             stat: Power,
-                            delta: Up(amount: Lit(value: 10)),
+                            delta: up(amount: Lit(value: 10)),
                         ),
-                        Modification(
-                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                        modification(
+                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
                             stat: Toughness,
-                            delta: Up(amount: Lit(value: 10)),
+                            delta: up(amount: Lit(value: 10)),
                         ),
-                        AbilityGrant(
-                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                        abilityGrant(
+                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
                             ability: trample,
                         ),
-                        AbilityGrant(
-                            subject: AttachHost(word: Enchanted, head: Type(type: Creature)),
+                        abilityGrant(
+                            subject: attachHost(word: Enchanted, head: Type(type: Creature)),
                             ability: annihilator(Lit(value: 2)),
                         ),
                     ],

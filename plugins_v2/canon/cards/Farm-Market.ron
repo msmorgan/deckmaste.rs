@@ -11,15 +11,15 @@ Split(
             ],
             types: [Instant],
             text: [
-                Spell(
+                spell(
                     timing: None,
-                    instruction: destroy(Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
-                        predicate: And(conjuncts: [
-                            HasType(type: Creature),
-                            Or(disjuncts: [
-                                InCombat(relation: AttackerOf, counterpart: None),
-                                InCombat(relation: BlockerOf, counterpart: None),
+                    instruction: destroy(described(
+                        determiner: Target(quantity: range(low: 1, high: 1)),
+                        predicate: and(conjuncts: [
+                            hasType(type: Creature),
+                            or(disjuncts: [
+                                inCombat(relation: AttackerOf, counterpart: None),
+                                inCombat(relation: BlockerOf, counterpart: None),
                             ]),
                         ]),
                     )),
@@ -37,19 +37,19 @@ Split(
             types: [Sorcery],
             text: [
                 aftermath,
-                Spell(
+                spell(
                     timing: None,
-                    instruction: Sequentially(steps: [
-                        Draw(amount: Lit(value: 2), agent: You),
+                    instruction: sequentially(steps: [
+                        draw(amount: Lit(value: 2), agent: you),
                         discard(
-                            Described(
-                                determiner: Count(quantity: Range(low: 2, high: 2), mode: None),
-                                predicate: And(conjuncts: [
-                                    IsCard,
-                                    InZone(zone: Zone(zone: Hand, scope: PossessedBy(possessor: You))),
+                            described(
+                                determiner: Count(quantity: range(low: 2, high: 2), mode: None),
+                                predicate: and(conjuncts: [
+                                    isCard,
+                                    inZone(zone: zone(zone: Hand, scope: PossessedBy(possessor: you))),
                                 ]),
                             ),
-                            You,
+                            you,
                         ),
                     ]),
                 ),

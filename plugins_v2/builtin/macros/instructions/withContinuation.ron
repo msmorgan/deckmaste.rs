@@ -1,0 +1,9 @@
+// `Instruction.WithContinuation` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "withContinuation",
+    kinds: [Instruction],
+    params: {"policy": Any, "body": Instruction, "if_did": Default(Any, None), "if_not": Default(Any, None)},
+    body: WithContinuation(policy: Param(policy), body: Param(body), if_did: Param(if_did), if_not: Param(if_not)),
+)

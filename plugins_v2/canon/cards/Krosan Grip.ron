@@ -9,23 +9,11 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             splitSecond,
-            Spell(
+            spell(
                 timing: None,
-                instruction: Enact(
+                instruction: enact(
                     verb: Action(label: "Destroy"),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
-                            predicate: Or(
-                                disjuncts: [
-                                    HasType(type: Artifact),
-                                    HasType(type: Enchantment),
-                                ],
-                            ),
-                        ),
-                        to: Zone(zone: Graveyard, scope: Bare),
-                        riders: [],
-                    ),
+                    instruction: move(subject: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: or( disjuncts: [ hasType(type: Artifact), hasType(type: Enchantment), ], ), ), destination: zone(zone: Graveyard, scope: Bare)),
                     agent: None,
                 ),
             ),

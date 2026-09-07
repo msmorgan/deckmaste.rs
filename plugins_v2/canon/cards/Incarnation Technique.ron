@@ -10,31 +10,14 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             demonstrate,
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
-                    mill(Lit(value: 5), You, You),
-                    Enact(
+                instruction: sequentially(steps: [
+                    mill(Lit(value: 5), you, you),
+                    enact(
                         verb: Core(deed: Return),
-                        instruction: Move(
-                            subject: Described(
-                                determiner: A(mode: Unmarked),
-                                predicate: And(
-                                    conjuncts: [
-                                        HasType(type: Creature),
-                                        InZone(
-                                            zone: Zone(
-                                                zone: Graveyard,
-                                                scope: PossessedBy(possessor: You),
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                            ),
-                            to: Zone(zone: Battlefield, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: You,
+                        instruction: move(subject: described( determiner: A(mode: Unmarked), predicate: and( conjuncts: [ hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(possessor: you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare)),
+                        agent: you,
                     ),
                 ]),
             ),

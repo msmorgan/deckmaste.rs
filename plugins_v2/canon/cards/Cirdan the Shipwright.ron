@@ -21,36 +21,19 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 4),
         text: [
-            Keyword(keyword: "Vigilance", params: [], body: []),
-            Triggered(
-                event: ZoneChange(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
+            keyword(label: "Vigilance"),
+            triggeredOr(event: zoneChange(
+                    subject: asType(type: Creature, subject: this, subtype: None),
                     from: None,
-                    to: Zone(zone: Battlefield, scope: Bare),
+                    to: zone(zone: Battlefield, scope: Bare),
                     observation: After,
-                ),
-                alternatives: [
-                    Combat(
+                ), alternatives: [
+                    combat(
                         relation: AttackerOf,
-                        subject: AsType(type: Creature, subject: This, subtype: None),
+                        subject: asType(type: Creature, subject: this, subtype: None),
                         counterpart: None,
                     ),
-                ],
-                while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: Vote(
-                    first: None,
-                    disclosure: Secretly,
-                    ballot: ByCandidate(candidates: Described(
-                        determiner: A(mode: Unmarked),
-                        predicate: AnyPlayer,
-                    )),
-                    agent: Described(determiner: Each, predicate: AnyPlayer),
-                ),
-            ),
+                ], instruction: vote(Secretly, ByCandidate(candidates: described( determiner: A(mode: Unmarked), predicate: anyPlayer, )), described(determiner: Each, predicate: anyPlayer))),
         ],
     ),
 ))

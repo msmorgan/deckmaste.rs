@@ -8,14 +8,14 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Sequentially(steps: [
-                    tap(Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
-                        predicate: HasType(type: Creature),
+                instruction: sequentially(steps: [
+                    tap(described(
+                        determiner: Target(quantity: range(low: 1, high: 1)),
+                        predicate: hasType(type: Creature),
                     )),
-                    Draw(amount: Lit(value: 1), agent: You),
+                    draw(amount: Lit(value: 1), agent: you),
                 ]),
             ),
         ],

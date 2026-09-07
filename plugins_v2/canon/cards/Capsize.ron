@@ -9,19 +9,12 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            buyback(Mana(cost: [Simple(symbol: Generic(amount: 3))])),
-            Spell(
+            buyback(mana(cost: [Simple(symbol: Generic(amount: 3))])),
+            spell(
                 timing: None,
-                instruction: Enact(
+                instruction: enact(
                     verb: Core(deed: Return),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
-                            predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
-                        ),
-                        to: Zone(zone: Hand, scope: Bare),
-                        riders: [],
-                    ),
+                    instruction: move(subject: described( determiner: Target(quantity: range(low: 1, high: 1)), predicate: inZone(zone: zone(zone: Battlefield, scope: Bare)), ), destination: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),

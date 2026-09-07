@@ -5,7 +5,7 @@ SingleFaced(face: (
         cost: [Simple(symbol: Specific(color: Of(color: Red)))],
         types: [Instant],
         text: [
-            Spell(
+            spell(
                 timing: None,
                 instruction: dealsDamageToAnyTarget(Lit(value: 3)),
             ),

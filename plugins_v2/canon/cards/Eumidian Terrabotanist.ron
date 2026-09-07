@@ -12,22 +12,7 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Insect"), Of(host: Creature, label: "Druid")],
         text: [
             landfall(
-                Triggered(
-                    event: ZoneChange(
-                        subject: Described(
-                            determiner: A(mode: Unmarked),
-                            predicate: And(conjuncts: [
-                                HasType(type: Land),
-                                HasPossessor(axis: Controller, possessor: You),
-                            ]),
-                        ),
-                        to: Zone(zone: Battlefield, scope: Bare),
-                        observation: After,
-                    ),
-                    alternatives: [],
-                    joins: [],
-                    instruction: ChangeLife(delta: Up(amount: Lit(value: 1)), agent: You),
-                )
+                triggered(event: zoneChange( subject: described( determiner: A(mode: Unmarked), predicate: and(conjuncts: [ hasType(type: Land), hasPossessor(axis: Controller, possessor: you), ]), ), to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: changeLife(delta: up(amount: Lit(value: 1)), agent: you))
             ),
         ],
         power: Lit(value: 2),

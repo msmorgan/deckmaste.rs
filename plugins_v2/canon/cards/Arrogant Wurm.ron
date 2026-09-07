@@ -13,7 +13,7 @@ SingleFaced(face: (
         toughness: Lit(value: 4),
         text: [
             trample,
-            madness(Mana(cost: [
+            madness(mana(cost: [
                 Simple(symbol: Generic(amount: 2)),
                 Simple(symbol: Specific(color: Of(color: Green))),
             ])),

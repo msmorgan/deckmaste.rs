@@ -10,14 +10,9 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: Search(
-                    scope: OneZone(zone: Zone(zone: Library, scope: PossessedBy(possessor: You))),
-                    quantity: Range(low: 1, high: 1),
-                    predicate: And(conjuncts: []),
-                    agent: You,
-                ),
+                instruction: search(OneZone(zone: zone(zone: Library, scope: PossessedBy(possessor: you))), range(low: 1, high: 1), and(conjuncts: []), you),
             ),
         ],
     ),

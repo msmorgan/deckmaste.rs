@@ -15,6 +15,6 @@ SingleFaced(face: (
         ],
         power: Lit(value: 3),
         toughness: Lit(value: 3),
-        text: [webSlinging(Mana(cost: [Simple(symbol: Specific(color: Of(color: White)))]))],
+        text: [webSlinging(mana(cost: [Simple(symbol: Specific(color: Of(color: White)))]))],
     ),
 ))

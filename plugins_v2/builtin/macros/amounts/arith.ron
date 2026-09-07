@@ -1,0 +1,9 @@
+// `Amount.Arith` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "arith",
+    kinds: [Amount],
+    params: {"op": Any, "left": Amount, "right": Amount},
+    body: Arith(op: Param(op), left: Param(left), right: Param(right)),
+)

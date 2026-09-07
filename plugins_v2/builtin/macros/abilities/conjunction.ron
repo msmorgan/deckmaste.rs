@@ -1,0 +1,9 @@
+// `StaticSpec.Conjunction` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "conjunction",
+    kinds: [StaticSpec],
+    params: {"subject": Default(Any, None), "parts": Default(Any, [])},
+    body: Conjunction(subject: Param(subject), parts: Param(parts)),
+)

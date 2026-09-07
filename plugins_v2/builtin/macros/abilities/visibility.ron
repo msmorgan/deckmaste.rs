@@ -1,0 +1,9 @@
+// `StaticSpec.Visibility` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "visibility",
+    kinds: [StaticSpec],
+    params: {"verb": Any, "player": Subject, "what": Any},
+    body: Visibility(verb: Param(verb), player: Param(player), what: Param(what)),
+)

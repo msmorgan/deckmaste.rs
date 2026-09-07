@@ -9,18 +9,11 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             undaunted,
-            Spell(
+            spell(
                 timing: None,
-                instruction: Enact(
+                instruction: enact(
                     verb: Action(label: "Destroy"),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: All,
-                            predicate: HasType(type: Creature),
-                        ),
-                        to: Zone(zone: Graveyard, scope: Bare),
-                        riders: [],
-                    ),
+                    instruction: move(subject: described( determiner: All, predicate: hasType(type: Creature), ), destination: zone(zone: Graveyard, scope: Bare)),
                     agent: None,
                 ),
             ),

@@ -8,12 +8,12 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            Spell(
+            spell(
                 timing: None,
-                instruction: CreateObject(
+                instruction: createObject(
                     count: Lit(value: 2),
                     spec: Token(
-                        spec: Written(
+                        spec: written(
                             characteristics: (
                                 characteristics: (
                                     colors: [White],
@@ -29,7 +29,7 @@ SingleFaced(face: (
                         ),
                         riders: [],
                     ),
-                    agent: You,
+                    agent: you,
                 ),
             ),
             retrace,

@@ -1,0 +1,9 @@
+// `Condition.VoteLead` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "voteLead",
+    kinds: [Condition],
+    params: {"label": Any, "or_tied": Any},
+    body: VoteLead(label: Param(label), or_tied: Param(or_tied)),
+)

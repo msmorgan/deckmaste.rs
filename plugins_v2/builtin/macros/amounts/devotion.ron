@@ -1,0 +1,9 @@
+// `Amount.Devotion` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "devotion",
+    kinds: [Amount],
+    params: {"player": Subject, "color": ColorTerm, "second": Default(Any, None)},
+    body: Devotion(player: Param(player), color: Param(color), second: Param(second)),
+)

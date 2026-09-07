@@ -9,27 +9,16 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            Spell(timing: None, instruction: Draw(amount: Lit(value: 1), agent: You)),
-            escape(Compound(costs: [
-                Mana(cost: [
+            spell(timing: None, instruction: draw(amount: Lit(value: 1), agent: you)),
+            escape(compound(costs: [
+                mana(cost: [
                     Simple(symbol: Generic(amount: 2)),
                     Simple(symbol: Specific(color: Of(color: Blue))),
                 ]),
-                Perform(instruction: Enact(
+                perform(instruction: enact(
                     verb: Action(label: "Exile"),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: Count(quantity: Range(low: 5, high: 5), mode: None),
-                            predicate: And(conjuncts: [
-                                IsCard,
-                                InZone(zone: Zone(zone: Graveyard, scope: PossessedBy(possessor: You))),
-                                OtherThan(anchor: This),
-                            ]),
-                        ),
-                        to: Zone(zone: Exile, scope: Bare),
-                        riders: [],
-                    ),
-                    agent: You,
+                    instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and(conjuncts: [ isCard, inZone(zone: zone(zone: Graveyard, scope: PossessedBy(possessor: you))), otherThan(anchor: this), ]), ), destination: zone(zone: Exile, scope: Bare)),
+                    agent: you,
                 )),
             ])),
         ],

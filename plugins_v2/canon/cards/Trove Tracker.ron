@@ -11,22 +11,8 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 2),
         text: [
-            Triggered(
-                event: ZoneChange(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
-                    to: Zone(zone: Graveyard, scope: Bare),
-                    observation: Before,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: Draw(amount: Lit(value: 1), agent: You),
-            ),
-            encore(Mana(cost: [
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: Zones(zones: [zone(zone: Battlefield, scope: Bare)]), to: zone(zone: Graveyard, scope: Bare), observation: Before, ), instruction: draw(amount: Lit(value: 1), agent: you)),
+            encore(mana(cost: [
                 Simple(symbol: Generic(amount: 5)),
                 Simple(symbol: Specific(color: Of(color: Blue))),
                 Simple(symbol: Specific(color: Of(color: Blue))),

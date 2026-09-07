@@ -6,11 +6,11 @@ SingleFaced(face: (
         cost: [Simple(symbol: Generic(amount: 5))],
         types: [Artifact],
         text: [
-            Static(
-                spec: PartSkip(
-                    player: Described(
+            static(
+                spec: partSkip(
+                    player: described(
                         determiner: Each,
-                        predicate: AnyPlayer,
+                        predicate: anyPlayer,
                     ),
                     part: upkeepStep,
                 ),

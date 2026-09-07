@@ -130,7 +130,84 @@ pub fn kinds() -> KindSet {
             kinds.add(Kind::new(name));
         }
     }
-    kinds
+    carve_out_the_non_expression_kinds(&kinds)
+}
+
+/// The types Lean tags `semantic_expression` — the ones whose constructors a
+/// card may not write (§11.1's macro-only rule, Lean's
+/// `Authoring.Form.onlyMacros`).
+///
+/// Every OTHER registered kind is a word type or a loader tag, and its
+/// variants stay natively spellable: `White` at a `Color` position is the
+/// colour, not a macro that has gone missing, exactly as Lean's `onlyMacros`
+/// only refuses a `semantic_expression` constructor.
+pub const EXPRESSION_KINDS: &[&str] = &[
+    "Ability",
+    "Amount",
+    "Condition",
+    "Cost",
+    "Delta",
+    "Duration",
+    "GameEvent",
+    "Instruction",
+    "NounPhrase",
+    "Predicate",
+    "Quantity",
+    "StaticSpec",
+    "Timing",
+    "TokenSpec",
+    "UsageLimit",
+    "Window",
+    "ZoneExpr",
+];
+
+/// The variants of a HAND-BUILT kind that stay natively spellable under a
+/// restricted read.
+///
+/// A kind registered from `#[derive(SupportsMacros)]` carries its own dispatch
+/// set, so the carve-out below reads the variants off the kind. A hand-built
+/// kind carries none — `Subtype` and `CounterKind` are registered because a
+/// declaration family bears their name, not because the type derives — so the
+/// variant names are written here. Both are word types, not
+/// `semantic_expression`s, so a card writes them as it always did.
+const HAND_BUILT_NATIVE: &[(&str, &[&str])] = &[
+    ("Subtype", &["Of", "Spell"]),
+    ("CounterKind", &["Boost", "Keyword", "Named"]),
+    ("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"]),
+];
+
+/// The literal leaves (§11.1): Lean tags these `semantic_literal`, and
+/// `onlyMacros` admits a literal where it refuses a constructor. A card writes
+/// the numeral, but the written-out form stays legal at the leaf.
+const LITERAL_LEAVES: &[(&str, &str)] = &[("Amount", "Lit"), ("SimpleManaSymbol", "Generic")];
+
+/// Marks every non-`semantic_expression` kind's variants natively spellable,
+/// so a restricted read ([`macro_ron::MacroSet::read_str_restricted`], which
+/// is how a card is read) suppresses exactly the constructors Lean's
+/// `onlyMacros` refuses and no others.
+fn carve_out_the_non_expression_kinds(kinds: &KindSet) -> KindSet {
+    let mut out = KindSet::new();
+    for kind in kinds.iter().cloned() {
+        let variants = kind.variants();
+        let name = kind.name().to_owned();
+        let kind = if EXPRESSION_KINDS.contains(&name.as_str()) {
+            let leaves: Vec<&'static str> = LITERAL_LEAVES
+                .iter()
+                .filter(|(kind, _)| *kind == name)
+                .map(|(_, variant)| *variant)
+                .collect();
+            kind.natively_spellable(leaves)
+        } else {
+            let hand_built = HAND_BUILT_NATIVE
+                .iter()
+                .filter(|(kind, _)| *kind == name)
+                .flat_map(|(_, variants)| variants.iter().copied());
+            kind.natively_spellable(variants.iter().copied())
+                .natively_spellable(hand_built)
+        };
+        out.add(kind);
+    }
+    out
 }
 
 /// The param types a declaration's signature may name, each validated by
