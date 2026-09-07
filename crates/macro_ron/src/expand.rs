@@ -376,6 +376,112 @@ fn declared(ctx: Ctx<'_, '_>, owner: Ident, fields: &'static [&'static str]) -> 
         .then_some(Declared { owner, fields })
 }
 
+/// Captures the next value's source text through ron's raw-value channel.
+///
+/// [`RawValue`]'s own `Deserialize` re-parses what it captured and refuses
+/// anything that is not a standalone value — which an argument list
+/// (`group: x`, fused into its variant's parens by `unwrap_variant_newtypes`)
+/// is not. This visitor takes the text ron hands it and asks no more of it.
+struct RawText;
+
+impl<'de> DeserializeSeed<'de> for RawText {
+    type Value = &'de str;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_newtype_struct(RAW_VALUE_TOKEN, self)
+    }
+}
+
+impl<'de> Visitor<'de> for RawText {
+    type Value = &'de str;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("borrowed RON source")
+    }
+
+    fn visit_borrowed_str<E: serde::de::Error>(self, source: &'de str) -> Result<Self::Value, E> {
+        Ok(source)
+    }
+
+    fn visit_newtype_struct<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        de.deserialize_str(self)
+    }
+}
+
+/// Whether an argument list's text opens with a binder — `group: …` — rather
+/// than with a value. The one classification a one-field struct variant needs
+/// (see [`one_field_variant`]); comments and a raw-identifier binder
+/// (`r#while:`) both occur in the corpus, so both are scanned past.
+fn opens_with_binder(args: &str) -> bool {
+    let rest = skip_trivia(args);
+    let rest = rest.strip_prefix("r#").unwrap_or(rest);
+    let ident: &str = rest
+        .split_once(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .map_or(rest, |(head, _)| head);
+    !ident.is_empty() && skip_trivia(&rest[ident.len()..]).starts_with(':')
+}
+
+/// `text` with its leading whitespace and comments removed.
+fn skip_trivia(text: &str) -> &str {
+    let mut rest = text.trim_start();
+    loop {
+        rest = if let Some(line) = rest.strip_prefix("//") {
+            match line.find('\n') {
+                Some(end) => &line[end + 1..],
+                None => "",
+            }
+        } else if let Some(block) = rest.strip_prefix("/*") {
+            match block.find("*/") {
+                Some(end) => &block[end + 2..],
+                None => "",
+            }
+        } else {
+            return rest;
+        }
+        .trim_start();
+    }
+}
+
+/// Reads a struct variant of exactly ONE field, whose written form ron cannot
+/// classify for itself.
+///
+/// Above one field ron's own lookahead decides: `deserialize_any` inside the
+/// variant's parens sees a binder or a comma and hands `visit_map` or
+/// `visit_seq` to the constructor's visitor. At exactly one field there is
+/// nothing to see — `(x)` is `StructType::NewtypeTuple`, which clears the
+/// newtype flag and reads `x` as a bare value, discarding the identifier
+/// before any visitor of ours is reached (ron 0.12 `src/de/mod.rs`,
+/// `check_struct_type` and `handle_any_struct`).
+///
+/// So the form is classified here instead, from the argument list's own text.
+/// `macro_ron`'s value capture takes the list — the deserializer sits INSIDE the
+/// variant's parens, so what comes back is `group: x` or `x` — and the
+/// argument list is handed straight back to ron in the parentheses it was
+/// written in, read as the named struct when it is binder-led and as a
+/// one-element tuple when it is not. Nothing is rewritten: the only text this
+/// makes is the pair of parentheses the capture left behind.
+fn one_field_variant<'de, D: Deserializer<'de>, V: Visitor<'de>>(
+    de: D,
+    ctx: Ctx<'de, '_>,
+    fields: &'static [&'static str],
+    visitor: V,
+) -> Result<V::Value, D::Error> {
+    let args = RawText.deserialize(de)?;
+    // An empty list is the named form with every field defaulted: `C()` reads
+    // as the zero-entry map it always did, never as a missing argument.
+    let named = skip_trivia(args).is_empty() || opens_with_binder(args);
+    let source = ctx.read.splice(format!("({args})"));
+    let mut de = ron_deserializer(source, ctx.read.macros.options()).map_err(D::Error::custom)?;
+    let value = if named {
+        de.deserialize_struct("", fields, visitor)
+    } else {
+        de.deserialize_tuple(1, visitor)
+    }
+    .map_err(|e| D::Error::custom(de.span_error(e)))?;
+    de.end().map_err(|e| D::Error::custom(de.span_error(e)))?;
+    Ok(value)
+}
+
 /// A native ron deserializer over `source`, reading the same dialect as the
 /// document — [`MacroSet`]'s options, threaded to every re-read.
 fn ron_deserializer<'de>(
@@ -1575,7 +1681,10 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         name: &'static str,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
-        if name == RAW_VALUE_TOKEN && self.intercept != Intercept::Skip && self.ctx.frame.is_some()
+        // `Full` only: a raw capture of newtype-variant content
+        // (`SkipStructs`) is a fused argument list, not a whole value, and
+        // has no holes of its own to resolve.
+        if name == RAW_VALUE_TOKEN && self.intercept == Intercept::Full && self.ctx.frame.is_some()
         {
             let source = <&RawValue>::deserialize(self.de)?.get_ron();
             // A whole-value hole (`body: Param(b)`) resolves if the frame
@@ -1600,6 +1709,13 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             return reread(resolved, self.ctx, Intercept::Skip, |de| {
                 de.deserialize_newtype_struct(name, visitor)
             });
+        }
+        // A raw capture that got past the branch above is text, not a
+        // position: its visitor wants `visit_borrowed_str`, which `Wrap` does
+        // not forward, and outside a frame there is nothing to substitute into
+        // it anyway. It goes to the inner deserializer bare.
+        if name == RAW_VALUE_TOKEN {
+            return self.de.deserialize_newtype_struct(name, visitor);
         }
         if self.intercept != Intercept::Skip && self.ctx.frame.is_some() {
             return self.via_capture(None, move |de| de.deserialize_newtype_struct(name, visitor));
@@ -1668,6 +1784,7 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         };
         if !interceptable {
             let variant = self.owner;
+            let ctx = self.ctx;
             let owner = variant.unwrap_or_else(|| name.into());
             let wrapped = self.wrap_struct(owner, fields, visitor);
             // Positional application (`MacroSet::reading_positional_arguments`):
@@ -1680,15 +1797,18 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             // `#[serde(...)]` still govern. A mixed `C(a, b: c)` is refused
             // there, by the scanner, before either visitor runs.
             //
-            // Only a struct VARIANT (`variant.is_some()`) and only above one
-            // field: a plain struct position keeps its name in ron's
-            // diagnostics, and a one-field variant has no positional form to
-            // read (see the method's docs for ron's own reason).
-            if variant.is_some()
-                && fields.len() > 1
-                && self.ctx.read.macros.reads_positional_arguments()
-            {
-                return self.de.deserialize_any(wrapped);
+            // Only a struct VARIANT (`variant.is_some()`): a plain struct
+            // position keeps its name in ron's diagnostics. At exactly one
+            // field ron's lookahead has nothing to look at, so the form is
+            // classified from the argument list's own text instead — see
+            // [`one_field_variant`].
+            if variant.is_some() && self.ctx.read.macros.reads_positional_arguments() {
+                if fields.len() > 1 {
+                    return self.de.deserialize_any(wrapped);
+                }
+                if fields.len() == 1 {
+                    return one_field_variant(self.de, ctx, fields, wrapped);
+                }
             }
             return self.de.deserialize_struct(name, fields, wrapped);
         }
@@ -2534,6 +2654,22 @@ impl<'de, V: Visitor<'de>> DeserializeSeed<'de> for AnyShapeSeed<V> {
     }
 }
 
+/// Reads one value as a struct variant of exactly one field, whose written
+/// form ron cannot classify for itself ([`one_field_variant`]).
+struct OneFieldSeed<'de, 'f, V> {
+    visitor: V,
+    ctx: Ctx<'de, 'f>,
+    fields: &'static [&'static str],
+}
+
+impl<'de, V: Visitor<'de>> DeserializeSeed<'de> for OneFieldSeed<'de, '_, V> {
+    type Value = V::Value;
+
+    fn deserialize<D: Deserializer<'de>>(self, de: D) -> Result<Self::Value, D::Error> {
+        one_field_variant(de, self.ctx, self.fields, self.visitor)
+    }
+}
+
 struct WrapVariant<'de, 'f, A> {
     variant: A,
     ctx: Ctx<'de, 'f>,
@@ -2602,10 +2738,19 @@ impl<'de, A: VariantAccess<'de>> VariantAccess<'de> for WrapVariant<'de, '_, A> 
         // lookahead — the same path a `SupportsMacros` helper struct takes.
         // serde's derived struct-variant visitor implements both `visit_map`
         // and `visit_seq`, so the binder names still govern either way.
-        if fields.len() > 1 && self.ctx.read.macros.reads_positional_arguments() {
-            return self
-                .variant
-                .newtype_variant_seed(AnyShapeSeed { visitor: wrapped });
+        if self.ctx.read.macros.reads_positional_arguments() {
+            if fields.len() > 1 {
+                return self
+                    .variant
+                    .newtype_variant_seed(AnyShapeSeed { visitor: wrapped });
+            }
+            if fields.len() == 1 {
+                return self.variant.newtype_variant_seed(OneFieldSeed {
+                    visitor: wrapped,
+                    ctx: self.ctx,
+                    fields,
+                });
+            }
         }
         self.variant.struct_variant(fields, wrapped)
     }

@@ -520,18 +520,35 @@ fn a_mixed_application_is_refused() {
         .expect_err("named then positional is neither form");
 }
 
-/// A constructor of ONE field keeps its binder: ron reads `(x)` inside a
-/// newtype variant as a newtype rather than a one-element tuple, and its
-/// `handle_any_struct` turns a bare identifier into a unit value, discarding
-/// the name. The refusal is an error, never a misreading.
+/// A constructor of ONE field applies positionally too. ron cannot tell
+/// `CountOf(x)` from a newtype — its `handle_any_struct` turns the bare
+/// identifier into a unit value, discarding the name — so the reader
+/// classifies the argument list itself: binder-led is the named form, and
+/// anything else is the single argument.
 #[test]
-fn a_one_field_constructor_keeps_its_binder() {
+fn a_one_field_constructor_may_be_applied_positionally() {
     let macros = deckmaste_semantics_v2::ron::macro_set();
-    let named: SimpleManaSymbol = macros
-        .read_str("Generic(amount: 2)")
+    let named: Amount = macros
+        .read_str("CountOf(group: Pro(Bare, One, Whole))")
         .expect("the named form reads");
-    assert_eq!(named, SimpleManaSymbol::Generic { amount: 2 });
-    macros
-        .read_str::<SimpleManaSymbol>("Generic(2)")
-        .expect_err("a one-argument positional application is not read");
+    let positional: Amount = macros
+        .read_str("CountOf(Pro(Bare, One, Whole))")
+        .expect("the positional form reads");
+    assert_eq!(named, positional);
+    assert!(matches!(positional, Amount::CountOf { .. }));
+}
+
+/// A one-field constructor whose argument is itself binder-led is still read
+/// positionally: the classification is the ARGUMENT LIST's leading token, and
+/// `Pro(...)` opens with a constructor, not a binder.
+#[test]
+fn a_one_field_argument_may_be_a_named_application() {
+    let macros = deckmaste_semantics_v2::ron::macro_set();
+    let positional: Amount = macros
+        .read_str("CountOf(Pro(reach: Bare, plurality: One, window: Whole))")
+        .expect("a named application as the one positional argument");
+    let named: Amount = macros
+        .read_str("CountOf(group: Pro(Bare, One, Whole))")
+        .expect("the named form reads");
+    assert_eq!(named, positional);
 }
