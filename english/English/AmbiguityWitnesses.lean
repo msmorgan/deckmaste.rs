@@ -133,7 +133,7 @@ private theorem type_word_unique (w : WordForm Lexeme) (capable : grammar.word w
         simp [WordForm.Licensed, LexicalAnalysis, environment, declaration, rows,
           Morphology.forms, singular, plural, addressee] at licensed
       rcases licensed with ⟨rfl, rfl, ⟨_, rfl⟩, casing⟩
-      have same : capitalization = .declared := casing.resolve_right (by decide)
+      have same : capitalization = .declared := casing.1.resolve_right (by decide)
       cases same
       rfl
   · cases impossible
@@ -183,6 +183,26 @@ theorem control_unique (tree : Reading Lexeme)
 theorem control_unambiguous : ¬ Reading.Ambiguous environment [] (.document .type) ["Artifact"] := by
   rintro ⟨a, b, ha, hb, different⟩
   exact different ((control_unique a ha).trans (control_unique b hb).symm)
+
+/-- Nonvacuity for `Reading.duplicate_derivations`, and the "one rule twice ≠ ambiguity"
+distinction stated on real trees. The hypotheses range over a tree that is actually admitted
+(`control_admitted` inhabits them), and the three conjuncts separate the two levels: proofs of one
+value collapse to one element of the reading subtype; that surface carries exactly one reading;
+and a genuinely ambiguous surface carries two distinct *values*, which no amount of proof
+collapsing removes. Derivation multiplicity is invisible inside `Prop`, so the multiplicity that
+mattered was structural — the paragraph body's two judgment routes — and it is excluded by
+`EllipsisInteractions.paragraph_is_the_only_route`. -/
+theorem duplicate_derivations_witnessed
+    (first second : Reading.Admitted environment [] control (.document .type) ["Artifact"]) :
+    (⟨control, first⟩ : {t // Reading.Admitted environment [] t (.document .type) ["Artifact"]})
+        = ⟨control, second⟩ ∧
+    ¬ Reading.Ambiguous environment [] (.document .type) ["Artifact"] ∧
+    Reading.Ambiguous environment [] (.clause .finite) ["I", "saw", "her", "duck"] :=
+  ⟨Reading.duplicate_derivations first second, control_unambiguous, unrelated_readings_retained⟩
+
+/-- The premise above is inhabited. -/
+theorem duplicate_derivations_premise_inhabited :
+    Reading.Admitted environment [] control (.document .type) ["Artifact"] := control_admitted
 
 /-- The analysis roundtrip obligation has teeth: any operation satisfying it is pinned to the
 exact surface of every admitted reading, including both readings of one ambiguous surface. It

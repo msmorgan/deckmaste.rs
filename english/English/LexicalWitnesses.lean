@@ -11,7 +11,8 @@ def addressee : Agreement := ⟨.second, .singular⟩
 inductive Lexeme where
   | it | they | you | be | exile | attack | creature | turn | white | during | if_
   | targetNoun | targetVerb | targetMarker | oneNoun | oneDet | i | see | herPossessive | herObject | duckNoun | duckVerb
-  | by_ | mana | much | two | plus | artifactType | creatureSubtype | unknown
+  | by_ | mana | much | two | plus | artifactType | creatureSubtype
+  | nontoken | degreeAdverb | unknown
   deriving DecidableEq
 
 abbrev Row := FeatureBundle × Surface
@@ -51,6 +52,8 @@ def rows : Lexeme → List Row
   | .plus => [(.measure, ["plus"])]
   | .artifactType => [(.word (.document .type), ["Artifact"])]
   | .creatureSubtype => [(.word (.document .subtype), ["Golem"])]
+  | .nontoken => [(.attributive, ["nontoken"])]
+  | .degreeAdverb => [(.word .adverbPhrase, ["very"])]
   | .unknown => []
 
 def objectFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .nounPhrase plural⟩]
@@ -83,13 +86,19 @@ def word (head : Lexeme) (bundle : FeatureBundle) (spelling : Surface)
     (capitalization : Capitalization := .declared) : WordForm Lexeme :=
   ⟨head, bundle, spelling, capitalization, "synthetic-v3"⟩
 
+/-- Every declared spelling in this environment is a well-formed surface, so the payload side
+condition of `LexicalAnalysis` is discharged once here rather than at each licensing site. -/
+theorem rows_well_formed (head : Lexeme) : ∀ row ∈ rows head, Surface.WellFormed row.2 := by
+  cases head <;> decide
+
 theorem row_licensed (head : Lexeme) (bundle : FeatureBundle) (spelling : Surface)
     (capitalization : Capitalization)
     (caseLicensed : capitalization = .declared ∨ spelling.capitalize ≠ spelling)
     (known : head ≠ .unknown)
     (member : (bundle, spelling) ∈ rows head) :
     (word head bundle spelling capitalization).Licensed environment := by
-  refine ⟨declaration head, ?_, rfl, ?_, ?_, caseLicensed, rfl⟩
+  refine ⟨declaration head, ?_, rfl, ?_, ?_, caseLicensed, rfl,
+    rows_well_formed head (bundle, spelling) member⟩
   · cases head <;> simp_all [environment, word]
   · exact List.mem_map.mpr ⟨(bundle, spelling), member, rfl⟩
   · change spelling ∈ (((rows head).filter (fun row ↦ row.1 == bundle)).map Prod.snd)

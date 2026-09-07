@@ -16,6 +16,7 @@ import English.WordFormInteractions
 import English.EllipsisInteractions
 
 import English.FrameScope
+import English.FrameScopeWitnesses
 import English.FeatureInteractions
 import English.DependencyInteractions
 import English.AnalysisInteractions

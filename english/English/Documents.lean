@@ -42,9 +42,49 @@ def ternary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
    .node (.cons first.realizes (.cons second.realizes (.cons third.realizes .nil)))
      (.document linearization)⟩
 
+/-! Paragraph bodies are built through `JudgesIn.paragraph`, never through the unordered
+`.node` route: each item is judged in the context its predecessors extend. `Syntax.antecedents`
+supplies that extension, so a one-item paragraph threads nothing and a two-item paragraph gives
+the second item the first's antecedents. -/
+
+def paragraphUnary {Lexeme : Type} {lexicon : Lexicon Lexeme} {input : Category}
+    {surface : Surface} (child : Witness Lexeme lexicon input)
+    (item : paragraphItem input = true)
+    (linearization : DocumentLinearizes .body [child.surface] surface) :
+    Witness Lexeme lexicon (.document .body) :=
+  ⟨.node (.document .body) [child.tree], surface,
+   .paragraph (.body (by simp [item])) (.cons child.derives .nil),
+   .node (.cons child.realizes .nil) (.document linearization)⟩
+
+def paragraphBinary {Lexeme : Type} {lexicon : Lexicon Lexeme} {left right : Category}
+    {surface : Surface} (first : Witness Lexeme lexicon left)
+    (second : Witness Lexeme lexicon right)
+    (items : ([left, right] : List Category).all paragraphItem = true)
+    (later : JudgesIn lexicon (first.tree.antecedents ++ []) second.tree right [])
+    (linearization : DocumentLinearizes .body [first.surface, second.surface] surface) :
+    Witness Lexeme lexicon (.document .body) :=
+  ⟨.node (.document .body) [first.tree, second.tree], surface,
+   .paragraph (.body items) (.cons first.derives (.cons later .nil)),
+   .node (.cons first.realizes (.cons second.realizes .nil)) (.document linearization)⟩
+
+def paragraphTernary {Lexeme : Type} {lexicon : Lexicon Lexeme} {a b c : Category}
+    {surface : Surface} (first : Witness Lexeme lexicon a) (second : Witness Lexeme lexicon b)
+    (third : Witness Lexeme lexicon c)
+    (items : ([a, b, c] : List Category).all paragraphItem = true)
+    (secondLater : JudgesIn lexicon (first.tree.antecedents ++ []) second.tree b [])
+    (thirdLater : JudgesIn lexicon
+      (second.tree.antecedents ++ (first.tree.antecedents ++ [])) third.tree c [])
+    (linearization :
+      DocumentLinearizes .body [first.surface, second.surface, third.surface] surface) :
+    Witness Lexeme lexicon (.document .body) :=
+  ⟨.node (.document .body) [first.tree, second.tree, third.tree], surface,
+   .paragraph (.body items) (.cons first.derives (.cons secondLater (.cons thirdLater .nil))),
+   .node (.cons first.realizes (.cons second.realizes (.cons third.realizes .nil)))
+     (.document linearization)⟩
+
 inductive Lexeme where
   | attack | gain | ward | walk | land | mana | roman | level | range | stats | threshold
-  | label | legendary | creature | elf | dieRange | whenever | flying
+  | label | legendary | creature | elf | dieRange | dieFace | whenever | flying
   deriving DecidableEq
 
 def keywordFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .keywordPhrase⟩]
@@ -53,9 +93,11 @@ def quotedFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .document .q
 
 def lexicalWords : List (Lexeme × Category × Surface) :=
   [(.mana, .document .symbol, [.symbol "{2}"]),
-   (.roman, .document .notation, ["I"]), (.level, .document .notation, ["2"]),
+   (.roman, .document (.notation .chapter), ["I"]), (.level, .document .notation, ["2"]),
    (.range, .document .notation, ["1-3"]), (.stats, .document .notation, ["4/4"]),
-   (.threshold, .document .notation, ["8"]), (.dieRange, .document .notation, ["1–9"]),
+   (.threshold, .document .notation, ["8"]),
+   (.dieRange, .document (.notation .dieResult), ["1–9"]),
+   (.dieFace, .document (.notation .dieResult), ["2"]),
    (.label, .document .label, ["Example"]),
    (.legendary, .document .supertype, ["Legendary"]),
    (.creature, .document .type, ["Creature"]), (.elf, .document .subtype, ["Elf"])]
@@ -92,11 +134,14 @@ def word (head : Lexeme) (category : Category) (surface : Surface)
   ⟨.word head category, surface, .word distribution ⟨surface, form⟩, .word form⟩
 
 def mana := word .mana (.document .symbol) [.symbol "{2}"] .symbol (by decide)
-def roman := word .roman (.document .notation) ["I"] .notation (by decide)
+def roman := word .roman (.document (.notation .chapter)) ["I"] .notation (by decide)
 def level := word .level (.document .notation) ["2"] .notation (by decide)
 def range := word .range (.document .notation) ["1-3"] .notation (by decide)
 def stats := word .stats (.document .notation) ["4/4"] .notation (by decide)
-def dieRange := word .dieRange (.document .notation) ["1–9"] .notation (by decide)
+def dieRange := word .dieRange (.document (.notation .dieResult)) ["1–9"] .notation (by decide)
+/-- The die-dash row's own notation: a die result spelled `2`, distinct in category from the Class
+level's plain `2` and from the Saga chapter's roman numeral. -/
+def dieFace := word .dieFace (.document (.notation .dieResult)) ["2"] .notation (by decide)
 def threshold := word .threshold (.document .notation) ["8"] .notation (by decide)
 def label := word .label (.document .label) ["Example"] .label (by decide)
 def legendary := word .legendary (.document .supertype) ["Legendary"] .supertype (by decide)
@@ -114,7 +159,16 @@ def instruction : Witness Lexeme lexicon (.clause .finite) :=
    .node (.cons attack.realizes .nil) .imperative⟩
 
 def sentence := unary instruction .sentence .sentence
-def body := unary sentence (.body rfl) .body
+/-- Nothing in the plain sentence fixture consults the recoverability context, so it derives in
+any context and can follow another item inside a paragraph. -/
+theorem sentence_derives_in (context : List Category) :
+    JudgesIn lexicon context sentence.tree (.document .sentence) [] := by
+  have verbD : JudgesIn lexicon context attack.tree (.verbPhrase .plain) [] :=
+    .verb (lexicon := lexicon) ⟨rfl, rfl, Or.inl ⟨rfl, rfl⟩⟩ .nil
+  exact .node (.document .sentence)
+    (.cons (.node .imperative (.cons verbD .nil)) .nil)
+
+def body := paragraphUnary sentence rfl .body
 def ordinary := unary body .ordinary .ordinary
 def document := unary ordinary (.document rfl) .document
 def repeatedDocument := binary ordinary ordinary (.document rfl) .document
@@ -146,8 +200,8 @@ def initialClause : Witness Lexeme lexicon (.clause .finite) :=
    .node (.initialAdverbial .subordinate) (.cons trigger.derives (.cons instruction.derives .nil)),
    .node (.cons trigger.realizes (.cons instruction.realizes .nil)) .initialAdverbial⟩
 
-def triggered := unary (unary (unary initialClause .sentence .sentence)
-  (.body rfl) .body) .ordinary .ordinary
+def triggered := unary (paragraphUnary (unary initialClause .sentence .sentence) rfl .body)
+  .ordinary .ordinary
 
 def ward : Witness Lexeme lexicon (.keywordPhrase) :=
   ⟨.node (.keyword .ward (some (.document .cost)) .free) [cost.tree],
@@ -200,15 +254,15 @@ def quotedInstruction : Witness Lexeme lexicon (.clause .finite) :=
    .node .imperative (.cons gainQuoted.derives .nil),
    .node (.cons gainQuoted.realizes .nil) .imperative⟩
 
-def nestedQuote := unary (unary (unary (unary (unary quotedInstruction
-  .sentence .sentence) (.body rfl) .body) .ordinary .ordinary) (.document rfl) .document) .quote
+def nestedQuote := unary (unary (unary (paragraphUnary (unary quotedInstruction
+  .sentence .sentence) rfl .body) .ordinary .ordinary) (.document rfl) .document) .quote
     .quote
 
 def reminderProse : Witness Lexeme lexicon (.document .parenthetical) :=
   ⟨.node (.document .reminder) [body.tree], [.opening "("] ++ body.surface ++ [.closing ")"],
    .reminder body.derives (by rfl), .node (.cons body.realizes .nil) (.document .reminder)⟩
 
-def reminder := unary (unary reminderProse (.body rfl) .body) .ordinary .ordinary
+def reminder := unary (paragraphUnary reminderProse rfl .body) .ordinary .ordinary
 
 def mode := unary body .mode .mode
 def modes := binary instruction (binary mode mode (.modeList (n := 1)) .modeList) .modes .modes
@@ -220,7 +274,7 @@ def levelBand := ternary range stats document .levelBand .levelBand
 def solve := unary body .solve .solve
 def solved := unary activated .solved .solved
 def dieRow := binary dieRange body .dieRow .dieRow
-def dieDashRow := binary level body .dieDashRow .dieDashRow
+def dieDashRow := binary dieFace body .dieDashRow .dieDashRow
 def station := binary threshold keywordLine .station .station
 
 def typeLine := ternary (unary legendary (.supertypes (n := 1)) .supertypes)
@@ -279,6 +333,32 @@ theorem die_text : Spells dieRow.surface "1–9 | Attack." := .cons (.cons (.con
 
 theorem die_dash_text : Spells dieDashRow.surface "2 — Attack." :=
   .cons (.cons (.cons .single))
+
+/-! Before this distinction, `chapter` and `dieDashRow` had identical children, identical result
+and identical linearization (`a ++ ["—"] ++ b`), so a single `<notation> — <body>` surface derived
+as two distinct trees at `.document .section` — one rule twice, not a reading ambiguity. Both
+families are kept, each with its own witness and surface above; what separates them is the
+category of the notation constituent, which the productions read and no guard spells out. -/
+
+theorem chapter_notation_is_not_a_die_row :
+    ¬ DocumentProduction .dieDashRow
+      [.document (.notation .chapter), .document .body] (.document .section) := by
+  intro h
+  cases h
+
+theorem die_notation_is_not_a_chapter :
+    ¬ DocumentProduction .chapter
+      [.document (.notation .dieResult), .document .body] (.document .section) := by
+  intro h
+  cases h
+
+/-- And no notation word crosses the line either: the lexicon declares the Saga chapter numeral
+only at the chapter notation and the die face only at the die-result notation, so neither section
+rule can borrow the other's constituent. -/
+theorem notation_words_do_not_cross :
+    ¬ lexicon.word .roman (.document (.notation .dieResult)) ∧
+    ¬ lexicon.word .dieFace (.document (.notation .chapter)) := by
+  constructor <;> rintro ⟨surface, member⟩ <;> simp [lexicalWords] at member
 
 theorem modes_text : Spells modes.surface "Attack —\n• Attack.\n• Attack." :=
   .cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons .single))))))))

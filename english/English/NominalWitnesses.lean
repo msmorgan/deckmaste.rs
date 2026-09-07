@@ -198,4 +198,73 @@ theorem target_rivalry :
     Reading.Admitted environment [] targetingAction (.clause .finite) ["target", "creatures"] ∧
     targets ≠ targetingAction := ⟨targeting_marker_admitted, target_action_admitted, by intro h; cases h⟩
 
+/-! Previously unwitnessed cases: the `attributive` construction and the `.before` placement.
+Both were declared and reachable by no derivation. -/
+
+def nontoken := word .nontoken .attributive ["nontoken"]
+def attributed : Reading Lexeme :=
+  .node .barePlural [.node (.attributive nontoken .plural) [noun]]
+
+@[simp] theorem nontoken_licensed : nontoken.Licensed environment :=
+  row_licensed _ _ _ _ (by decide) (by decide) (by simp [rows])
+
+/-- The first derivation of `Construction.attributive`. -/
+theorem attributive_admitted : Reading.Admitted environment [] attributed (.nounPhrase plural)
+    ["nontoken", "creatures"] := by
+  refine ⟨⟨.node .barePlural (.cons (.node
+    (.attributive (lexicon := grammar) ⟨nontoken_licensed, rfl⟩) (.cons noun_derives .nil)) .nil),
+    ?_, ?_, ?_⟩,
+    .node (.cons (.node (.cons noun_realizes .nil)
+      (.attributive (lexicon := grammar) ⟨nontoken_licensed, rfl⟩)) .nil) .barePlural⟩
+  · simp [attributed, noun, Features.Conforms, Features.ChildrenConform, Features.Local,
+      Features.containsTarget]
+    exact .attributive noun_use
+  · simp [attributed, noun, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
+  · simp [attributed, noun, Reading.GrammarConforms, Reading.ChildrenConform,
+      Reading.LocalGrammar]
+
+/-- The ordering exclusion that pairs with it: an attributive layer does not hide a target from
+the outer-modifier check. Instance of `Features.attributive_does_not_hide_target`. -/
+theorem attributive_cannot_hide_target (modifier : Reading Lexeme) :
+    ¬ Features.Local (Lexical.features environment)
+      (.modify modifier (.node (.attributive nontoken .plural)
+        [.node (.targeting targetMarker .plural) [noun]])) :=
+  Features.attributive_does_not_hide_target _ _ _ _ _ _
+
+def veryWord := word .degreeAdverb (.word .adverbPhrase) ["very"]
+def degreeAdverb : Reading Lexeme := .word veryWord .adverbPhrase
+/-- `AdjunctLicense.degree` is the only `.before` licence in the fragment. -/
+def degreeAdjective : Reading Lexeme :=
+  .node (.adjunct .adjectivePhrase .adverbPhrase .before) [adjective, degreeAdverb]
+
+@[simp] theorem very_licensed : veryWord.Licensed environment :=
+  row_licensed _ _ _ _ (by decide) (by decide) (by simp [rows])
+
+theorem adverb_derives : Derives grammar degreeAdverb .adverbPhrase :=
+  .word .adverb ⟨very_licensed, Or.inl ⟨_, rfl⟩⟩
+theorem adverb_realizes : Reading.Realizes grammar degreeAdverb ["very"] :=
+  .word ⟨very_licensed, Or.inl ⟨_, rfl⟩, rfl⟩
+
+/-- The first derivation at `Placement.before`: the dependent is realized *ahead* of its host. -/
+theorem degree_adjunct_admitted : Reading.Admitted environment [] degreeAdjective
+    .adjectivePhrase ["very", "white"] := by
+  refine ⟨⟨.node (.adjunct .degree) (.cons adjective_derives (.cons adverb_derives .nil)),
+    ?_, ?_, ?_⟩,
+    .node (.cons adjective_realizes (.cons adverb_realizes .nil)) .preposedAdjunct⟩
+  · simp [degreeAdjective, adjective, degreeAdverb, Features.Conforms, Features.ChildrenConform,
+      Features.Local]
+  · simp [degreeAdjective, adjective, degreeAdverb, Dependencies.Safe, Dependencies.ChildrenSafe,
+      Dependencies.Local, Dependencies.exposed]
+  · simp [degreeAdjective, adjective, degreeAdverb, Reading.GrammarConforms,
+      Reading.ChildrenConform, Reading.LocalGrammar]
+
+/-- Weakened premise: drop `.before` from the same pair and nothing licenses the adjunct, so the
+placement component of `AdjunctLicense` is load-bearing rather than decorative. -/
+theorem degree_adjunct_rejects_after :
+    ¬ Derives grammar (.node (.adjunct .adjectivePhrase .adverbPhrase .after)
+      [adjective, degreeAdverb]) .adjectivePhrase := by
+  intro h
+  cases h with
+  | node production _ => cases production with | adjunct licence => cases licence
+
 end English.NominalWitnesses

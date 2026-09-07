@@ -138,7 +138,7 @@ theorem quoted_admitted {tree : Syntax Lexeme}
     ⟨.node .imperative [tree], nestedSurface,
       .node .imperative (.cons h.1 .nil), .node (.cons h.2 .nil) .imperative⟩
   let sentence := Documents.unary instruction .sentence .sentence
-  let body := Documents.unary sentence (.body rfl) .body
+  let body := Documents.paragraphUnary sentence rfl .body
   let ability := Documents.unary body .ordinary .ordinary
   let document := Documents.unary ability (.document rfl) .document
   let quoted := Documents.unary document .quote .quote

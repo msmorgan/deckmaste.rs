@@ -139,4 +139,30 @@ theorem association_separate :
   have hosts := related_preserves_hosts ((same_class_iff _ _).mp same)
   cases hosts
 
+namespace CrossHost
+open SelectionWitnesses.CrossHost
+
+/-- The `ScopeMove.auxiliary` constructor's first inhabitant. `outside` and `inside` are the two
+trees it relates: the temporal adjunct outside the auxiliary, and inside it. -/
+theorem auxiliary_scope_move : ScopeStep outside inside :=
+  .direct (.auxiliary Lexeme.can .plain .plain .positive .active .active
+    (pair attack attack) duringTurns)
+
+def outsideWitness : SchemaWitness lexicon (.verbPhrase .plain) surface :=
+  ⟨outside, cross_host_admitted (Or.inl rfl)⟩
+def insideWitness : SchemaWitness lexicon (.verbPhrase .plain) surface :=
+  ⟨inside, cross_host_admitted (Or.inr (Or.inl rfl))⟩
+
+theorem auxiliary_scope_related : ScopeRelated outsideWitness insideWitness :=
+  .step auxiliary_scope_move
+
+/-- Nonvacuity: the move is a scope alternation, not a different analysis — the two trees carry
+the same host structure, so `related_preserves_hosts` has content here rather than relating a
+tree to itself. The trees themselves are distinct. -/
+theorem auxiliary_move_keeps_hosts :
+    outside ≠ inside ∧ hostStructure outside = hostStructure inside :=
+  ⟨(fun h ↦ by cases h), related_preserves_hosts auxiliary_scope_related⟩
+
+end CrossHost
+
 end English.GrammaticalScope

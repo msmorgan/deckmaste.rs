@@ -165,6 +165,14 @@ theorem target_must_be_outer (features : Declarations L) (marker : L) (number : 
     ¬ Local features (.modify modifier (.node (.targeting marker number) [head])) := by
   simp [Local, containsTarget]
 
+/-- An attributive marker is transparent to targeting: wrapping a targeted nominal in an
+attributive layer still does not license an outer descriptive modifier. -/
+theorem attributive_does_not_hide_target (features : Declarations L) (attributive marker : L)
+    (number : Number) (modifier head : Syntax L) :
+    ¬ Local features (.modify modifier
+        (.node (.attributive attributive number) [.node (.targeting marker number) [head]])) := by
+  simp [Local, containsTarget]
+
 theorem temporal_adjunct_requires_feature (features : Declarations L) (form : InflectionalForm)
     (voice : Voice) (agreement : Agreement) (predicate dependent : Syntax L)
     (h : ¬ Temporal features dependent) :

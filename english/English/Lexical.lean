@@ -68,14 +68,16 @@ structure WordForm (L : Type) where
 def WordForm.surface {L : Type} (word : WordForm L) : Surface :=
   word.capitalization.apply word.spelling
 
-/-- There is no category, frame or parse context input to lexical analysis. -/
+/-- There is no category, frame or parse context input to lexical analysis. A declared spelling
+must also be a well-formed surface: an ordinary word owns no source whitespace and no quote
+delimiter, so those boundaries are the surface's to draw and never a word's payload. -/
 def LexicalAnalysis {L : Type} (environment : LexicalEnvironment L)
     (surface : Surface) (word : WordForm L) : Prop :=
   ∃ declaration, environment word.lexeme = some declaration ∧
     word.provenance = declaration.provenance ∧ word.bundle ∈ declaration.bundles ∧
     word.spelling ∈ declaration.morphology.forms word.bundle ∧
     (word.capitalization = .declared ∨ word.spelling.capitalize ≠ word.spelling) ∧
-    surface = word.surface
+    surface = word.surface ∧ Surface.WellFormed word.spelling
 
 def WordForm.Licensed {L : Type} (environment : LexicalEnvironment L) (word : WordForm L) : Prop :=
   LexicalAnalysis environment word.surface word

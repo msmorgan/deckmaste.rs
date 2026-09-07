@@ -66,6 +66,31 @@ theorem shared_head_related :
 
 theorem distinct : wide ≠ raised := by intro h; cases h
 
+/-- The exclusion the sharing witnesses lacked: right-node raising over an *ordinary* coordination
+does not discharge the shared gap. Replacing the `sharedCoordination` of `gapped` with a plain
+`.coordinate` node of the same two gapped modifiers leaves both gaps exposed. -/
+def coordinated : Syntax Lexeme := .node (.coordinate .and_ (.nominal .plural))
+  [.modify (.adjective .white) (.gap (.nominal .plural)),
+   .modify (.adjective .white) (.gap (.nominal .plural))]
+
+theorem ordinary_coordination_cannot_raise
+    (declarations : Dependencies.Declarations Lexeme) :
+    ¬ Dependencies.Safe declarations coordinated := by
+  intro safe
+  exact Dependencies.ordinary_coordination_cannot_share declarations .and_ (.nominal .plural)
+    (.modify (.adjective .white) (.gap (.nominal .plural)))
+    (.modify (.adjective .white) (.gap (.nominal .plural))) (by decide) safe
+
+/-- And so the raised tree built over it is not admitted on any surface, while `raised` — the same
+shape with `sharedCoordination` — is (`both_checked`). The coordination constructor is what
+carries the sharing, not the raising wrapper. -/
+theorem raised_over_ordinary_coordination_excluded (surface : Surface) :
+    ¬ Dependencies.Admitted lexicon features ⟨fun _ ↦ False,fun _ ↦ False⟩
+      (.node (.rightNodeRaising (.nominal .plural) (.nominal .plural)) [coordinated,creatures])
+      (.nominal .plural) surface := by
+  rintro ⟨_, safe⟩
+  exact ordinary_coordination_cannot_raise _ safe.2.1
+
 end Heads
 
 namespace Determiners
@@ -102,6 +127,25 @@ theorem both_admitted : Admissible lexicon wide (.nounPhrase plural)
 theorem shared_determiner_class :
     FrameScope.Related ⟨wide,both_admitted.1⟩ ⟨narrow,both_admitted.2⟩ :=
   .step (.determiner two (.noun Lexeme.creature .plural) (.noun Lexeme.artifact .plural))
+
+/-- The exclusion: distributing a determiner across a coordination is number-sensitive.
+`FrameScope.Step.determiner` is declared only from plural determination to a plural coordination
+of a determined and a bare-plural conjunct, so the singular analogue of exactly the same shape is
+not a sharing step — for any determiner and any two conjuncts. The plural instance above is the
+positive half; this is the weakened-premise half, with `.plural` replaced by `.singular` and
+nothing else changed. -/
+theorem determiner_cannot_distribute_across_singular (det a b : Syntax Lexeme) :
+    ¬ FrameScope.Step
+      (.node (.determine .singular) [det,FrameScope.group .and_ (.nominal .singular) a b])
+      (FrameScope.group .and_ (.nounPhrase ⟨.third,.singular⟩)
+        (.node (.determine .singular) [det,a]) (.node .barePlural [b])) := by
+  intro step
+  revert step
+  generalize [det,FrameScope.group .and_ (.nominal .singular) a b] = children
+  intro step
+  cases step with
+  | attachment move => cases move with | direct m => cases m
+  | boundary move => cases move
 
 end Determiners
 end English.SharingInteractions

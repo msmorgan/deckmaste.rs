@@ -1,5 +1,6 @@
 import English.Analysis
 import English.FrameScope
+import English.FrameScopeWitnesses
 import English.FeatureInteractions
 import English.DependencyInteractions
 

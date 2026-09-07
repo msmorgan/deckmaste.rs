@@ -143,4 +143,41 @@ theorem inline_reminder_text : Written lexicon inlineReminder (.document .body)
         (.document .reminder)) .nil)) (.document .body)⟩,
     .cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons .single))))))))⟩
 
+/-! The paragraph body's second judgment route, and its removal. `.document .body` used to be a
+`DocumentProduction`, so `Production.document` lifted it and `JudgesIn.node` accepted every
+paragraph a second way — checking all items in one shared context and passing their gaps out
+through the node, neither of which is what `JudgeParagraph` enforces. The rule is now
+`ParagraphProduction`, which only `JudgesIn.paragraph` consumes. -/
+
+/-- After the repair: no `Production` lifts the paragraph body, so the `.node` route is closed for
+`.document .body` at every arity and every result category. -/
+theorem body_has_no_node_production (categories : List Category) (category : Category) :
+    ¬ Production lexicon (.document .body) categories category := by
+  intro h
+  cases h with
+  | document rule => cases rule
+
+/-- What the retired route consumed is still all satisfied for this paragraph — the body rule
+holds of its categories, and every item is judged in one shared context. So the second derivation
+of one and the same value really was available, and closing it removed a duplicate route, not a
+grammatical reading: `paragraph_derives` still derives the same tree. -/
+theorem retired_node_route_premises :
+    ParagraphProduction [.document .sentence] ∧
+    JudgeChildren lexicon [firstSentence] [.document .sentence] [] :=
+  ⟨.body rfl, .cons (first_derives []) .nil⟩
+
+/-- The statement of the repair: every judgment of a body node now goes through
+`JudgesIn.paragraph`, so `JudgeParagraph`'s ordered threading is not merely *a* route but the
+*only* one. Two consequences follow immediately — a paragraph is gap-closed (`JudgesIn.paragraph`
+concludes with `[]`), and `future_cannot_license_first` above governs every body node rather than
+only those built the paragraph way. -/
+theorem paragraph_is_the_only_route {context : List Category} {children : List (Syntax Lexeme)}
+    {category : Category} {gaps : List Category}
+    (h : JudgesIn lexicon context (.node (.document .body) children) category gaps) :
+    ∃ categories, ParagraphProduction categories ∧
+      JudgeParagraph lexicon context children categories ∧ gaps = [] := by
+  cases h with
+  | node production _ => exact absurd production (body_has_no_node_production _ _)
+  | paragraph production items => exact ⟨_, production, items, rfl⟩
+
 end English.EllipsisInteractions

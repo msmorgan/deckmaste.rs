@@ -4,12 +4,13 @@ namespace English.Documents
 
 /-- The same initial-adverbial clause can precede further sentences in one paragraph. -/
 def continuedTrigger := unary
-  (ternary (unary initialClause .sentence .sentence) sentence sentence (.body rfl) .body)
+  (paragraphTernary (unary initialClause .sentence .sentence) sentence sentence rfl
+    (sentence_derives_in _) (sentence_derives_in _) .body)
   .ordinary .ordinary
 
 def threeModes := ternary mode mode mode (.modeList (n := 2)) .modeList
 def modalGroup := binary initialClause threeModes .modes .modes
-def modalBody := unary modalGroup (.body rfl) .body
+def modalBody := paragraphUnary modalGroup rfl .body
 def ordinaryModes := unary modalBody .ordinary .ordinary
 def activatedModes := binary costs modalBody .activated .activated
 
@@ -86,7 +87,7 @@ theorem nested_document_collection_rejected :
   | document license => cases license
 
 theorem nested_body_collection_rejected :
-    ¬ DocumentProduction .body [.document .body, .document .sentence] (.document .body) := by
+    ¬ ParagraphProduction [.document .body, .document .sentence] := by
   intro h
   cases h with
   | body license => cases license

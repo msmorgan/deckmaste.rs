@@ -19,6 +19,25 @@ def Atom.text : Atom → String
   | .word text | .opening text | .closing text | .symbol text => text
   | .lineBreak => "\n"
 
+/-- Structural payload conditions on an annotated atom. A lexical word owns neither source
+whitespace nor a quote delimiter; a bracketing or symbol atom owns no source whitespace; a line
+break owns no payload at all. The condition reads the atom's declared kind, never its spelling. -/
+def Atom.WellFormed : Atom → Prop
+  | .word text => text ≠ "" ∧ ∀ c ∈ text.toList, c.isWhitespace = false ∧ c ≠ '"'
+  | .opening text | .closing text | .symbol text =>
+      text ≠ "" ∧ ∀ c ∈ text.toList, c.isWhitespace = false
+  | .lineBreak => True
+
+instance : (atom : Atom) → Decidable atom.WellFormed
+  | .word _ | .opening _ | .closing _ | .symbol _ | .lineBreak => by
+      unfold Atom.WellFormed; infer_instance
+
+/-- A surface owns no source whitespace of its own: spacing is `Atom.separator`'s to decide. -/
+def Surface.WellFormed (surface : Surface) : Prop := ∀ atom ∈ surface, atom.WellFormed
+
+instance (surface : Surface) : Decidable surface.WellFormed :=
+  inferInstanceAs (Decidable (∀ atom ∈ surface, atom.WellFormed))
+
 def Atom.separator : Atom → Atom → String
   | .lineBreak, _ | _, .lineBreak | .opening _, _ | _, .closing _ => ""
   | .symbol _, .symbol _ => ""

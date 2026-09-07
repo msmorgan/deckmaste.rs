@@ -163,7 +163,7 @@ inductive WordCategory : Category → Prop where
   | measure : WordCategory .measurePhrase
   | symbol : WordCategory (.document .symbol)
   | label {kind : LabelKind} : WordCategory (.document (.label kind))
-  | notation : WordCategory (.document .notation)
+  | notation {kind : NotationKind} : WordCategory (.document (.notation kind))
   | supertype : WordCategory (.document .supertype)
   | type : WordCategory (.document .type)
   | subtype : WordCategory (.document .subtype)
@@ -209,12 +209,17 @@ inductive InitialAdverbial : Category → Prop where
   | subordinate : InitialAdverbial (.subordinateClause .finite)
   | preposition : InitialAdverbial .prepositionPhrase
 
+/-- The paragraph body is deliberately NOT a `DocumentProduction`: lifting it through
+`Production.document` would let `JudgesIn.node` accept a paragraph, checking every item in the
+same context and so enforcing no source ordering at all. `JudgesIn.paragraph` owns it, and
+threads each item's antecedents into the context of the items that follow it. -/
+inductive ParagraphProduction : List Category → Prop where
+  | body {first : Category} {rest : List Category} :
+      (first :: rest).all paragraphItem = true → ParagraphProduction (first :: rest)
+
 /-- Collections consume items directly, never another collection of the same kind. -/
 inductive DocumentProduction : DocumentRule → List Category → Category → Prop where
   | sentence : DocumentProduction .sentence [.clause .finite] (.document .sentence)
-  | body {first : Category} {rest : List Category} :
-      (first :: rest).all paragraphItem = true →
-      DocumentProduction .body (first :: rest) (.document .body)
   | ordinary : DocumentProduction .ordinary [.document .body] (.document .ability)
   | document {items : List Category} : items.all documentItem = true →
       DocumentProduction .document items (.document .document)
@@ -243,7 +248,7 @@ inductive DocumentProduction : DocumentRule → List Category → Category → P
   | label {kind : LabelKind} : DocumentProduction (.label kind)
       [.document (.label kind), .document .ability] (.document .ability)
   | chapter : DocumentProduction .chapter
-      [.document .notation, .document .body] (.document .section)
+      [.document (.notation .chapter), .document .body] (.document .section)
   | classLevel : DocumentProduction .classLevel
       [.document .cost, .document .notation, .document .document] (.document .section)
   | levelBand : DocumentProduction .levelBand
@@ -251,9 +256,9 @@ inductive DocumentProduction : DocumentRule → List Category → Category → P
   | solve : DocumentProduction .solve [.document .body] (.document .section)
   | solved : DocumentProduction .solved [.document .ability] (.document .section)
   | dieRow : DocumentProduction .dieRow
-      [.document .notation, .document .body] (.document .section)
+      [.document (.notation .dieResult), .document .body] (.document .section)
   | dieDashRow : DocumentProduction .dieDashRow
-      [.document .notation, .document .body] (.document .section)
+      [.document (.notation .dieResult), .document .body] (.document .section)
   | station : DocumentProduction .station
       [.document .notation, .document .ability] (.document .section)
   | supertypes {n : Nat} : DocumentProduction .supertypes
@@ -546,7 +551,7 @@ mutual
         JudgesIn lexicon context (.ellipsis form voice) (.verbPhrase form voice) []
     | paragraph {context : List Category} {children : List (Syntax Lexeme)}
         {categories : List Category} :
-        DocumentProduction .body categories (.document .body) →
+        ParagraphProduction categories →
         JudgeParagraph lexicon context children categories →
         JudgesIn lexicon context (.node (.document .body) children) (.document .body) []
   inductive JudgeChildrenIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :

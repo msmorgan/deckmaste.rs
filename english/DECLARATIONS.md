@@ -147,10 +147,10 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.BoundaryInteractions.semicolonLine` | Kept. |
 | `English.BoundaryInteractions.semicolon_text` | Kept. |
 | `English.BoundaryInteractions.singleton_has_no_separator` | Kept. |
-| `English.BoundaryInteractions.wordPayload` | Kept. |
-| `English.BoundaryInteractions.source_space_is_not_a_word` | Kept. |
-| `English.BoundaryInteractions.lexical_apostrophe_allowed` | Kept. |
-| `English.BoundaryInteractions.source_newline_is_not_a_word` | Kept. |
+| `English.BoundaryInteractions.wordPayload` | Replaced by `English.Atom.WellFormed` (`English/Surface.lean`), a side condition of `LexicalAnalysis` through `English.Surface.WellFormed`. The standalone predicate was consulted by no production, lexicon field or realization rule. |
+| `English.BoundaryInteractions.source_space_is_not_a_word` | Re-spelled against `Atom.WellFormed`; same asserted outcome. |
+| `English.BoundaryInteractions.lexical_apostrophe_allowed` | Re-spelled against `Atom.WellFormed`; same asserted outcome. |
+| `English.BoundaryInteractions.source_newline_is_not_a_word` | Re-spelled against `Atom.WellFormed`; same asserted outcome. |
 | `English.BoundaryInteractions.Supplements.nominal` | Kept. |
 | `English.BoundaryInteractions.Supplements.np` | Kept. |
 | `English.BoundaryInteractions.Supplements.predicate` | Kept. |
@@ -351,7 +351,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Documents.three_paragraphs_text` | Kept. |
 | `English.Documents.document_coordination_rejected` | Kept. |
 | `English.Documents.nested_document_collection_rejected` | Kept. |
-| `English.Documents.nested_body_collection_rejected` | Kept. |
+| `English.Documents.nested_body_collection_rejected` | Re-spelled against `English.ParagraphProduction`; same asserted outcome (a body cannot be a paragraph item). |
 | `English.Documents.mode_collection_arity` | Kept. |
 | `English.Documents.cost_collection_arity` | Kept. |
 | `English.Documents.supertype_collection_arity` | Kept. |
@@ -362,7 +362,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | Old declaration | Disposition |
 |---|---|
 | `English.LabelKind` | Kept. |
-| `English.DocumentCategory` | Kept. |
+| `English.DocumentCategory` | Kept; `notation` now carries a `NotationKind` (`plain`/`chapter`/`dieResult`), so a chapter line and a die row no longer take the same constituent. |
 | `English.KeywordSeparator` | Kept. |
 | `English.DocumentRule` | Kept. |
 | `English.KeywordPlacement` | Kept. |
@@ -434,7 +434,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Documents.solve` | Kept. |
 | `English.Documents.solved` | Kept. |
 | `English.Documents.dieRow` | Kept. |
-| `English.Documents.dieDashRow` | Kept. |
+| `English.Documents.dieDashRow` | Kept, over the new die-result notation fixture `Documents.dieFace`; surface unchanged (`die_dash_text`). |
 | `English.Documents.station` | Kept. |
 | `English.Documents.typeLine` | Kept. |
 | `English.Documents.Faces` | Kept. |
@@ -645,7 +645,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.FrameScope.fixed_marker_transparent` | Kept. |
 | `English.FrameScope.fixed_coordination_transparent` | Kept. |
 | `English.FrameScope.actual_first_unique` | Kept. |
-| `English.FrameScope.Witnesses.cluster` | Kept. |
+| `English.FrameScope.Witnesses.cluster` | Kept; the whole `FrameScope.Witnesses` namespace is rehomed to `English/FrameScopeWitnesses.lean` so the model module imports no witness module. Names and statements unchanged. |
 | `English.FrameScope.Witnesses.left` | Kept. |
 | `English.FrameScope.Witnesses.right` | Kept. |
 | `English.FrameScope.Witnesses.same_surface` | Kept. |
@@ -690,7 +690,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.documentItem` | Kept. |
 | `English.coordinable` | Kept. |
 | `English.InitialAdverbial` | Kept. |
-| `English.DocumentProduction` | Kept. |
+| `English.DocumentProduction` | Kept; the `body` constructor is replaced by `English.ParagraphProduction.body`, consumed only by `JudgesIn.paragraph`. `chapter`/`dieRow`/`dieDashRow` now read distinct notation categories. |
 | `English.Production` | Kept. |
 | `English.RelativeForm` | Kept. |
 | `English.Syntax` | Kept. |
@@ -705,7 +705,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.childAntecedents` | Kept. |
 | `English.Construction.childContext` | Kept. |
 | `English.Construction.childContext_empty` | Kept. |
-| `English.JudgesIn` | Kept. |
+| `English.JudgesIn` | Kept; the `node` route no longer reaches `.document .body` (no `Production` lifts the paragraph body), so `JudgesIn.paragraph` owns it — `EllipsisInteractions.paragraph_is_the_only_route`. |
 | `English.JudgeChildrenIn` | Kept. |
 | `English.JudgeFrameIn` | Kept. |
 | `English.JudgeParagraph` | Kept. |

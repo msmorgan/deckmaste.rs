@@ -6,10 +6,20 @@ inductive LabelKind where
   | abilityWord | flavorWord
   deriving DecidableEq
 
+/-- Notation constituents differ in kind, and the document rules that consume one read the kind,
+never its spelling: a Saga chapter line takes a roman-numeral chapter notation (`I —`, `II —`), a
+die row takes a die-result notation (`2 —`, `1–9 |`). Without the distinction the chapter and
+die-dash-row productions are byte-identical in children, result and linearization, and every
+`<notation> — <body>` section derives as two trees. -/
+inductive NotationKind where
+  | plain | chapter | dieResult
+  deriving DecidableEq
+
 inductive DocumentCategory where
   | sentence | body | ability | document | cost | quotedText
   | section | modal | parenthetical | costComponent | symbol
-  | label (kind : LabelKind := .abilityWord) | notation | mode | modes
+  | label (kind : LabelKind := .abilityWord) | notation (kind : NotationKind := .plain)
+  | mode | modes
   | supertype | type | subtype | supertypes | types | subtypes | typeLine
   deriving DecidableEq
 

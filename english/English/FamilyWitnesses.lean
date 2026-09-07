@@ -73,7 +73,7 @@ theorem conditional_derives : Derives grammar conditional (.clause .finite) :=
   .node (.initialAdverbial .subordinate) (.cons subordinate_derives (.cons instruction_derives .nil))
 theorem document_derives : Derives grammar document (.document .document) :=
   .node (.document (.document rfl)) (.cons (.node (.document .ordinary)
-    (.cons (.node (.document (.body rfl))
+    (.cons (.paragraph (.body rfl)
       (.cons (.node (.document .sentence) (.cons conditional_derives .nil)) .nil)) .nil)) .nil)
 
 theorem noun_realizes : Reading.Realizes grammar noun ["creatures"] :=
