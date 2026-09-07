@@ -838,3 +838,20 @@ family bodies. `cargo xtask facts check` must stay byte-identical and
 The other 101 unported macros are already routed: the 23 computing ones to
 `semantics-v2-macro-capture-and-plurality` by name, and the deferred injection
 sites to the new `semantics-v2-embed-candidates`.
+
+## Rulings after the third landing (user, 2026-09-07)
+
+- **Case is the mark.** Macros carry Lean's camelCase names verbatim
+  (`draw`, `abilityWord`); constructors stay PascalCase. This is Lean's own
+  `.draw` / `draw` distinction, and `lean-macros-from-ron` becomes an
+  identity on names. Every macro is camelCase, keyword and family
+  declarations included, renamed by converter — provided construction_core
+  and english_v2 do not key spelling lookups on the declaration name's
+  case (verify first and report; if they do, rename helpers only now and
+  mint a follow-up for the families).
+- **The `Primitives.*` aliases port** as the identity macros they are. The
+  Lean-only set is the computing and pattern-matching macros: the computing
+  ones routed by name to `semantics-v2-macro-capture-and-plurality`, the
+  rest listed in ADR §12.1; the alias bucket in §12.1 is deleted once they
+  port, and the record states the corrected count.
+- Part 5 then proceeds as ruled after the second landing.
