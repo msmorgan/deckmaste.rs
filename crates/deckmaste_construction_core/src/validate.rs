@@ -12906,6 +12906,17 @@ pub(crate) mod tests {
                     kinds = [CounterKind, Designation];
                 }
             }
+            // The v2 parameter vocabulary is open (`ParameterType::Other`):
+            // a name outside the eight typed variants is a real
+            // `deckmaste_semantics_v2::ron::param_types()` member this
+            // crate has no typed opinion about, not a compile error.
+            codec OpenParamKeywordAbility {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = [Mystery];
+                }
+            }
         })
         .expect("the exact declaration_term syntax parses");
         super::validate_generated_codecs(&raw)
@@ -12957,14 +12968,6 @@ pub(crate) mod tests {
                 feature = Participle;
             })
             .contains("declaration_term params policy must be `Any`")
-        );
-        assert!(
-            declaration_term_error(&quote! {
-                position = FixedKeyword;
-                kinds = [KeywordAbility];
-                params = [Mystery];
-            })
-            .contains("unknown parameter type `Mystery`")
         );
         assert!(
             declaration_term_error(&quote! {

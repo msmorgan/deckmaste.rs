@@ -169,7 +169,16 @@ impl fmt::Display for SubtypeCategory {
 }
 
 /// One normalized positional semantic parameter type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+///
+/// The eight typed variants are the ones the keyword-line grammar's closed
+/// codec set (see [`KeywordParameterClass`]) dispatches on by value; every
+/// other name `deckmaste_semantics_v2::ron::param_types()` registers is a
+/// real argument vocabulary member this crate has no typed opinion about, so
+/// it round-trips through [`Self::Other`] instead of being refused. The
+/// declaration file is the shared contract between the two readers
+/// (`docs/decisions/semantics-v2.md` §11): a name the semantics side
+/// accepts must not be unregistrable here.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum ParameterType {
     Ability,
     Amount,
@@ -179,13 +188,22 @@ pub enum ParameterType {
     Quality,
     Subject,
     Toughness,
+    /// Any other declared parameter type name (`Subtype`, `TokenSpec`,
+    /// `Instruction`, `Ballot`, …): this crate reads it opaquely by name and
+    /// leaves interpreting it to `deckmaste_semantics_v2`.
+    Other(String),
 }
 
 impl ParameterType {
     /// Constructs a parameter type from its declaration spelling.
     ///
+    /// The v2 parameter vocabulary is open: a name outside the eight typed
+    /// variants normalizes to [`Self::Other`] rather than failing.
+    ///
     /// # Errors
-    /// If `name` is not in the closed v2 semantic parameter vocabulary.
+    /// Never actually returns `Err` for a name a `macro_ron` reader could
+    /// produce (always a valid `Ident`); the `Result` shape is kept so a
+    /// truly malformed name still has somewhere to go.
     pub fn new(name: impl Into<String>) -> Result<Self, String> {
         let name = name.into();
         match name.as_str() {
@@ -197,7 +215,7 @@ impl ParameterType {
             "Quality" => Ok(Self::Quality),
             "Subject" => Ok(Self::Subject),
             "Toughness" => Ok(Self::Toughness),
-            _ => Err(format!("unknown parameter type `{name}`")),
+            _ => Ok(Self::Other(name)),
         }
     }
 
@@ -212,6 +230,7 @@ impl ParameterType {
             Self::Quality => "Quality",
             Self::Subject => "Subject",
             Self::Toughness => "Toughness",
+            Self::Other(name) => name.as_str(),
         }
     }
 }

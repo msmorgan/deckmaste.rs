@@ -765,7 +765,12 @@ KeywordAction(
 
 #[test]
 fn keyword_parameter_signatures_are_closed_or_explicitly_deferred() {
-    let unknown_type = validation(
+    // `ParameterType` is open (any name outside the eight typed variants
+    // normalizes to `Other`), so a name like `Mystery` no longer fails at
+    // the type level; the keyword-line grammar's closed codec set still
+    // refuses it, now as an unsupported signature rather than an unknown
+    // type.
+    let open_type_still_unsupported = validation(
         r#"KeywordAbility(
     name: "Quorbling",
     params: [Mystery],
@@ -774,9 +779,9 @@ fn keyword_parameter_signatures_are_closed_or_explicitly_deferred() {
 )"#,
     );
     assert_eq!(
-        unknown_type,
-        ValidationError::UnknownParameterType {
-            name: "Mystery".to_owned(),
+        open_type_still_unsupported,
+        ValidationError::UnsupportedKeywordParameterSignature {
+            signature: "Mystery".to_owned(),
         }
     );
 
