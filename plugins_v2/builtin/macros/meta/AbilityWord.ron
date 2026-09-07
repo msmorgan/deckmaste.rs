@@ -1,21 +1,37 @@
+// Every ability word shares one body: the italicized label wraps whatever
+// ability follows it [CR#207.2c]. `params`/`body` are hardcoded here rather
+// than left as per-file params: every declaration takes exactly one
+// `Ability` argument and wraps it the same way, so there is nothing for a
+// file to override. `Quote(Param(0))` defers that hole past this
+// meta-expansion to the produced declaration's own frame, where a real
+// invocation resolves it against its own positional argument.
+//
+// `kinds` stays `[AbilityWord]` only, matching every sibling declaration
+// family: `deckmaste_construction_core::macro_def::normalized_kind` requires
+// exactly one kind per declaration (`let [kind] = definition.kinds.as_slice()
+// else { ... InvalidDeclarationKind }`), so a second kind here breaks the
+// english_v2/semantics_v2 shared-contract drift test. This means the
+// produced macro cannot be invoked as `Adamant(<ability>)` at a card's
+// `Ability` position — confirmed empirically (`InvalidDeclarationKind`) —
+// exactly the "name-erasing loader tag" behavior `ron.rs`'s
+// `DECLARATION_KINDS` doc comment already ascribes to this family. Widening
+// that is a `deckmaste_construction_core` change outside this ticket.
 (
     name: "AbilityWord",
     kinds: [Macro],
     params: {
         "name": String,
-        "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
-        "body": Default(Any, ()),
     },
     body: (
         name: Param(name),
         kinds: [AbilityWord],
-        params: Param(params),
+        params: [Ability],
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: Param(body),
+        body: ItalicHead(word: AbilityWord(label: Param(name)), ability: Quote(Param(0))),
     ),
 )

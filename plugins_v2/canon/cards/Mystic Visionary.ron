@@ -1,0 +1,43 @@
+// "Threshold — This creature has flying as long as there are seven or more
+// cards in your graveyard." See the STOP note in
+// `plugins_v2/builtin/macros/meta/AbilityWord.ron`: `Threshold(<ability>)`
+// macro-call syntax is not reachable at this `Ability` position, so this
+// spells the `ItalicHead` shape the declaration's body constructs directly.
+// (Substituted for Adamant: every real Adamant card's condition is "N mana
+// of the SAME color spent to cast", which needs a `PaidFacet` this crate
+// does not yet model — `words.rs`'s `PaidFacet` has `ColorsSpent`, the
+// count of distinct colors, and `ManaValueSpent`, but no per-color amount.
+// Never approximated; Threshold is a same-family, precedented substitute —
+// see `lean/Semantics/Cards/Static.lean`'s `nimbleMongoose`.)
+SingleFaced(face: (
+    characteristics: (
+        name: "Mystic Visionary",
+        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: White)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
+        text: [
+            ItalicHead(
+                word: AbilityWord(label: "Threshold"),
+                ability: Static(
+                    spec: Conditional(
+                        spec: AbilityGrant(
+                            subject: AsType(type: Creature, subject: This, subtype: None),
+                            ability: Keyword(keyword: "Flying", params: [], body: None),
+                        ),
+                        condition: CompareAmt(
+                            subject: CountOf(group: Described(
+                                determiner: Bare,
+                                predicate: InZone(zone: Zone(zone: Graveyard, scope: PossessedBy(possessor: You))),
+                            )),
+                            comparator: AtLeast,
+                            bound: Lit(value: 7),
+                        ),
+                        marking: AsLongAs,
+                    ),
+                ),
+            ),
+        ],
+        power: Lit(value: 2),
+        toughness: Lit(value: 1),
+    ),
+))

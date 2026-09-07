@@ -1,0 +1,37 @@
+// "Raid — When this creature enters, if you attacked this turn, draw a
+// card." See the STOP note in
+// `plugins_v2/builtin/macros/meta/AbilityWord.ron`: `Raid(<ability>)`
+// macro-call syntax is not reachable at this `Ability` position, so this
+// spells the `ItalicHead` shape the declaration's body constructs directly.
+SingleFaced(face: (
+    characteristics: (
+        name: "Storm Fleet Spy",
+        cost: [Simple(symbol: Generic(amount: 2)), Simple(symbol: Specific(color: Of(color: Blue)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
+        text: [
+            ItalicHead(
+                word: AbilityWord(label: "Raid"),
+                ability: Triggered(
+                    event: ZoneChange(
+                        subject: AsType(type: Creature, subject: This, subtype: None),
+                        to: Zone(zone: Battlefield, scope: Bare),
+                        observation: After,
+                    ),
+                    alternatives: [],
+                    joins: [],
+                    intervening: Happened(
+                        subject: You,
+                        lookback: Mk(
+                            event: Combat(relation: AttackerOf, subject: Gap(kind: Player), counterpart: None),
+                            lookback: ThisTurn,
+                        ),
+                    ),
+                    instruction: Draw(amount: Lit(value: 1), agent: You),
+                ),
+            ),
+        ],
+        power: Lit(value: 2),
+        toughness: Lit(value: 2),
+    ),
+))

@@ -1,0 +1,38 @@
+// "Landfall — Whenever a land you control enters, you gain 1 life."
+//
+// `Adamant(<ability>)`/`Landfall(<ability>)`-style macro invocation is not
+// reachable at this `Ability` position (see the STOP note in
+// `plugins_v2/builtin/macros/meta/AbilityWord.ron`), so this spells the
+// exact shape that declaration's body constructs directly: `ItalicHead`
+// wrapping the ability word's own printed label.
+SingleFaced(face: (
+    characteristics: (
+        name: "Eumidian Terrabotanist",
+        cost: [Simple(symbol: Generic(amount: 1)), Simple(symbol: Specific(color: Of(color: Green)))],
+        types: [Creature],
+        subtypes: [Of(host: Creature, label: "Insect"), Of(host: Creature, label: "Druid")],
+        text: [
+            ItalicHead(
+                word: AbilityWord(label: "Landfall"),
+                ability: Triggered(
+                    event: ZoneChange(
+                        subject: Described(
+                            determiner: A(mode: Unmarked),
+                            predicate: And(conjuncts: [
+                                HasType(type: Land),
+                                HasPossessor(axis: Controller, possessor: You),
+                            ]),
+                        ),
+                        to: Zone(zone: Battlefield, scope: Bare),
+                        observation: After,
+                    ),
+                    alternatives: [],
+                    joins: [],
+                    instruction: ChangeLife(delta: Up(amount: Lit(value: 1)), agent: You),
+                ),
+            ),
+        ],
+        power: Lit(value: 2),
+        toughness: Lit(value: 3),
+    ),
+))
