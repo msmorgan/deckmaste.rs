@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// [CR#205.2a]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CardType {
     Creature,
     Artifact,
@@ -22,7 +22,7 @@ pub enum CardType {
     Kindred,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Stat {
     Power,
     Toughness,
@@ -30,13 +30,13 @@ pub enum Stat {
     Loyalty,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PlayerStat {
     LifeTotal,
     StartingLifeTotal,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Comparator {
     AtLeast,
     AtMost,
@@ -60,7 +60,7 @@ pub enum QualitySort {
     Ability,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Letter {
     X,
     Y,
@@ -89,14 +89,14 @@ pub enum Kind {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AggregateOp {
     Sum,
     Min,
     Max,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SubtypeScope {
     Any,
     BasicOnly,
@@ -115,7 +115,7 @@ pub enum KindAxis {
     ColorPair,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum OutcomeSort {
     DamageDealt,
     LifeGained,
@@ -134,25 +134,25 @@ pub enum OutcomeSort {
     VoteHeld,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum FlipCall {
     Wins,
     Loses,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CoinFace {
     Heads,
     Tails,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum RollExtreme {
     Lowest,
     Highest,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Plurality {
     One,
     Many,
@@ -168,13 +168,13 @@ pub struct AmountShape {
     pub literal: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NameAgreement {
     DifferentNames,
     SameName,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Determiner {
     Target,
     A,
@@ -188,7 +188,7 @@ pub enum Determiner {
     Bare,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PossessorAxis {
     Owner,
     Controller,
@@ -197,7 +197,7 @@ pub enum PossessorAxis {
 /// How an object stands in combat, optionally toward a counterpart: "attacking" is
 /// `attackerOf` with none, "creature blocking it" is `blockerOf` with one. `declaredAttacker` is
 /// the declare-attackers moment [CR#508.1].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CombatRelation {
     AttackerOf,
     DeclaredAttacker,
@@ -209,20 +209,20 @@ pub enum CombatRelation {
 }
 
 /// The two players of a combat [CR#506.2].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CombatRole {
     Attacking,
     Defending,
 }
 
 /// An attachment's coming or going.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AttachMove {
     Attached,
     Unattached,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ArithOp {
     Plus,
     Minus,
@@ -230,7 +230,7 @@ pub enum ArithOp {
     DifferenceBetween,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Zone {
     Battlefield,
     Graveyard,
@@ -241,13 +241,13 @@ pub enum Zone {
     Command,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum LibraryEnd {
     Top,
     Bottom,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Arrangement {
     AnyOrder,
     RandomOrder,
@@ -279,7 +279,7 @@ pub type KeywordActionLabel = String;
 /// Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
 /// [CR#508.1,509.1] and the other actions the rules define in their own sections. Closed, so a law
 /// matches them structurally instead of naming a lexeme.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CoreDeed {
     Attack,
     Block,
@@ -299,7 +299,7 @@ pub enum CoreDeed {
 }
 
 /// A condition that causes a state-based action [CR#704.1].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum StateBasedCause {
     /// A player has 0 or less life [CR#704.5a].
     NonpositiveLife,
@@ -315,7 +315,7 @@ pub enum Deed {
     OfAbility { keyword: KeywordLabel },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PileFace {
     FaceDown,
     FaceUp,
@@ -334,25 +334,25 @@ pub enum DieSides {
     ThoseDice,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ChoiceRef {
     TheChoice,
     TheLatestChoice,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Disclosure {
     Openly,
     Secretly,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum HiddenSort {
     Numbers,
     Choices,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ExposeVerb {
     LookAt,
     Reveal,
@@ -388,13 +388,13 @@ pub enum NounWord {
     Pile,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum VerbedMarking {
     Attributive,
     ThisWay,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SlotCarrier {
     Permanent,
     Card,
@@ -469,39 +469,39 @@ pub enum Window {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum EntryCounterMark {
     Fresh,
     Additional,
     Fewer,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PlayerGroupWord {
     AllPlayers,
     YourOpponents,
     YourTeam,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum RoundMode {
     Up,
     Down,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ScaleFactor {
     Doubled,
     Tripled,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ShiftDir {
     Up,
     Down,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Lookback {
     ThisTurn,
     EarlierThisTurn,
@@ -512,13 +512,13 @@ pub enum Lookback {
     Triggering,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TargetExtent {
     SomeTarget,
     SoleTarget,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CopySort {
     FromStack,
     FromCardZone,
@@ -589,7 +589,7 @@ pub enum ItalicWord {
     FlavorWord { label: FlavorWordLabel },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Color {
     White,
     Blue,
@@ -633,7 +633,7 @@ pub type ManaCost = Vec<ManaSymbol>;
 pub type ProducedRun = Vec<ColorOrColorless>;
 
 /// The type space a "with every … type" quality ranges over.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SubtypeSpace {
     BasicLand,
     Land,
@@ -641,7 +641,7 @@ pub enum SubtypeSpace {
 }
 
 /// Which side of a deed a deontic rule speaks about.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Role {
     Agent,
     Patient,
@@ -660,7 +660,7 @@ pub enum ManaUnit {
     Run { cost: ManaCost },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SpecialAction {
     TurnFaceUp,
     PutCompanionIntoHand,
@@ -675,7 +675,7 @@ pub enum CostNamed {
     OfSpecialAction { action: SpecialAction },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ColorFreedom {
     SameColor,
     EachColor,
@@ -704,7 +704,7 @@ pub enum Subtype {
     Spell { label: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum MarkerWord {
     Token,
     Emblem,
@@ -723,19 +723,19 @@ pub enum Delta<T> {
 
 /// Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
 /// is clamped unless it sets, doubles, or triples a life total or a power and toughness.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NumberRegime {
     Clamped,
     Signed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Parity {
     Even,
     Odd,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Supertype {
     Legendary,
     Basic,
@@ -743,13 +743,13 @@ pub enum Supertype {
     World,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum RoomHalf {
     Left,
     Right,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum LockState {
     Locked,
     Unlocked,
@@ -765,33 +765,33 @@ pub enum Conferral {
 }
 
 /// Which endpoint of an attachment relation the predicate describes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AttachmentSide {
     Host,
     Attachment,
 }
 
 /// The current side of a single double-faced permanent, independently of its Status.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CardFaceSide {
     Front,
     Back,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum AttachWord {
     Enchanted,
     Equipped,
     Fortified,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum OutcomeVerb {
     WinGame,
     LoseGame,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum DefinedSlots {
     PowerAlone,
     ToughnessAlone,
@@ -824,7 +824,7 @@ pub enum ProjAxis {
 pub type ChapterNumber = u32;
 
 /// Each status category always has exactly one of its two values [CR#110.5].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum StatusCat {
     Tap,
     Flip,
@@ -833,7 +833,7 @@ pub enum StatusCat {
 }
 
 /// The Idris `StatusVal : StatusCat → Type`, unindexed; `category` recovers the index.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Status {
     Tapped,
     Untapped,
@@ -852,7 +852,7 @@ pub enum ColorSpec {
 }
 
 /// Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of [CR#510.4].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TurnPart {
     Turn,
     BeginningPhase,
@@ -878,14 +878,14 @@ pub enum RankPeriod {
     Each { part: TurnPart },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PartQuant {
     The,
     Each,
 }
 
 /// The event at which a static choice is made.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ChoiceOccasion {
     Entry,
     Attachment,

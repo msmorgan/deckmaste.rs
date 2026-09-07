@@ -159,7 +159,7 @@ pub enum CounterKindSource {
     SameAs { source: NounPhrase },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum QualityOp {
     Adds,
     Sets,
@@ -179,7 +179,7 @@ pub struct TypeLineChanges {
     pub retained: Option<CardType>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CharacteristicStat {
     Power,
     Toughness,
@@ -246,7 +246,7 @@ pub enum Unpreventable {
     ThatDamage,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum PreventionBan {
     NoPreventionOnly,
     NoRedirectEither,
@@ -287,7 +287,7 @@ pub enum ProducedMana {
     LastNoted { subject: NounPhrase },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SpentMode {
     AffectsIt,
     TriggersThen,

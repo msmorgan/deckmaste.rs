@@ -37,7 +37,7 @@ pub enum Duration {
     DuringNextTurnOf { player: NounPhrase },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum UsageLimit {
     OncePerTurn,
     OncePerGame,

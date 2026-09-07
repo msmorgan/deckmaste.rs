@@ -89,7 +89,7 @@ pub enum ManaTypeTerm {
 
 /// Which version of a zone-changing object supplies the event pattern's characteristics
 /// [CR#603.10,603.10a].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ObservationPoint {
     Before,
     After,

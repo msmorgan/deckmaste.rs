@@ -26,6 +26,7 @@ pub mod card;
 pub mod events;
 pub mod phrase;
 pub mod reader;
+pub mod reads;
 pub mod ron;
 pub mod rules;
 pub mod triggers;
