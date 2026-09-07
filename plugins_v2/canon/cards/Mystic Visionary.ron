@@ -22,7 +22,7 @@ SingleFaced(face: (
                     spec: Conditional(
                         spec: AbilityGrant(
                             subject: AsType(type: Creature, subject: This, subtype: None),
-                            ability: Keyword(keyword: "Flying", params: [], body: None),
+                            ability: Keyword(keyword: "Flying", params: [], body: []),
                         ),
                         condition: CompareAmt(
                             subject: CountOf(group: Described(

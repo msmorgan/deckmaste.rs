@@ -15,7 +15,7 @@ SingleFaced(face: (
         power: Lit(value: 2),
         toughness: Lit(value: 3),
         text: [
-            Keyword(keyword: "Flying", params: [], body: None),
+            Keyword(keyword: "Flying", params: [], body: []),
             Activated(
                 cost: Mana(cost: [
                     Simple(symbol: Generic(amount: 2)),

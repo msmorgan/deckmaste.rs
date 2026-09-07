@@ -96,7 +96,7 @@ fn temp_plugin(files: &[(&str, &str)]) -> tempfile::TempDir {
 #[test]
 fn an_ability_word_invocation_expands_at_an_ability_position() {
     let plugin = Plugin::load(builtin()).expect("semantics_v2 reads the builtin declarations");
-    let ability = r#"Keyword(keyword: "Flying", params: [], body: None)"#;
+    let ability = r#"Keyword(keyword: "Flying", params: [], body: [])"#;
 
     let invoked: Ability = plugin
         .macros
