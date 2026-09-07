@@ -45,6 +45,13 @@ claim, since each depends on the one before.
    load-and-reserialise through the new dialect, so nothing is rewritten by
    hand, and `lean-check` proves every card.
 
+0. **Unknown fields are refused.** The reader silently drops a field a
+   constructor does not declare: Fading and Impending wrote `amount:` for a
+   `quantity` field and read as a count-less removal; retired arguments
+   (`conferral:`) passed unnoticed. Every reader path refuses an unknown
+   field with the constructor and field named; a test writes one and
+   asserts the refusal. Lands first, before the conversion below.
+
 Also: rename `plugins_v2/builtin/macros/stubs/<family>` to
 `plugins_v2/builtin/macros/<family>` and re-point `read_builtin_v2`,
 `facts.rs`, `gate.rs`, and the tests; the files are no longer stubs.
