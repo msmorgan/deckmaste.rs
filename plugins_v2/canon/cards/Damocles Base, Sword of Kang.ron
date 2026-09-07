@@ -17,8 +17,8 @@ SingleFaced(face: (
         power: Lit(value: 5),
         toughness: Lit(value: 5),
         text: [
-            Keyword(keyword: "Flying", params: [], body: None),
-            Keyword(keyword: "Deathtouch", params: [], body: None),
+            Keyword(keyword: "Flying", params: [], body: []),
+            Keyword(keyword: "Deathtouch", params: [], body: []),
             Triggered(
                 event: Damage(
                     kind: CombatOnly,
@@ -56,7 +56,7 @@ SingleFaced(face: (
                     Described(determiner: Target(quantity: Range(low: 1, high: 1)), predicate: AnyPlayer),
                 ),
             ),
-            Keyword(keyword: "Crew", params: [Number(amount: Lit(value: 3))], body: None),
+            Keyword(keyword: "Crew", params: [Number(amount: Lit(value: 3))], body: []),
         ],
     ),
 ))

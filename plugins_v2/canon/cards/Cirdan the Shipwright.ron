@@ -21,7 +21,7 @@ SingleFaced(face: (
         power: Lit(value: 3),
         toughness: Lit(value: 4),
         text: [
-            Keyword(keyword: "Vigilance", params: [], body: None),
+            Keyword(keyword: "Vigilance", params: [], body: []),
             Triggered(
                 event: ZoneChange(
                     subject: AsType(type: Creature, subject: This, subtype: None),
