@@ -1,0 +1,7 @@
+// "source": the object dealing the damage under discussion.
+(
+    name: "Source",
+    kinds: [Predicate],
+    params: [],
+    body: IsSource,
+)

@@ -1,0 +1,6 @@
+(
+    name: "GainLife",
+    kinds: [Instruction],
+    params: {"amount": Amount, "agent": Default(NounPhrase, You)},
+    body: ChangeLife(delta: Up(amount: Param(amount)), agent: Param(agent)),
+)

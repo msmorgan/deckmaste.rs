@@ -1,0 +1,7 @@
+// "if <subject>'s <cost> was paid"
+(
+    name: "CostWasPaid",
+    kinds: [Condition],
+    params: {"which": PaidCostName, "window": Lookback, "subject": NounPhrase},
+    body: CompareAmt(PaidCostRead(which: Param(which), window: Param(window), subject: Param(subject)), AtLeast, Lit(value: 1)),
+)

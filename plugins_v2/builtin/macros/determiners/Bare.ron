@@ -1,0 +1,7 @@
+// the bare plural: "creatures"
+(
+    name: "Bare",
+    kinds: [NounPhrase],
+    params: {"p": Predicate},
+    body: Described(Bare, Param(p)),
+)

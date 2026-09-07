@@ -1,0 +1,7 @@
+// The participant described by the nearest enclosing lookback.
+(
+    name: "Relative",
+    kinds: [NounPhrase],
+    params: {"kind": Kind},
+    body: Gap(kind: Param(kind)),
+)

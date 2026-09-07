@@ -1,0 +1,7 @@
+// "another creature", anchored on <n>.
+(
+    name: "OtherCreature",
+    kinds: [Predicate],
+    params: {"n": NounPhrase},
+    body: And(conjuncts: [Creature, OtherThan(anchor: Param(n))]),
+)

@@ -1,0 +1,7 @@
+// "it", stamped by the verb that produced it: "the exiled card".
+(
+    name: "ItVerbed",
+    kinds: [NounPhrase],
+    params: {"verb": Deed},
+    body: Pro(Stamped(verb: Param(verb)), One, Whole),
+)

@@ -1,0 +1,6 @@
+(
+    name: "Plus",
+    kinds: [Amount],
+    params: {"left": Amount, "right": Amount},
+    body: Arith(Plus, Param(left), Param(right)),
+)

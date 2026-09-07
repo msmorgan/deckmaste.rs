@@ -1,0 +1,6 @@
+(
+    name: "Gain",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "ability": Ability, "duration": Duration},
+    body: Establish(AbilityGrant(Param(subject), Param(ability)), Param(duration)),
+)

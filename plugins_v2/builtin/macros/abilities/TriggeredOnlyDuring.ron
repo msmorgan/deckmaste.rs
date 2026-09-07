@@ -1,0 +1,7 @@
+// "Whenever <event> during <timing>, <instruction>"
+(
+    name: "TriggeredOnlyDuring",
+    kinds: [Ability],
+    params: {"event": GameEvent, "timing": Timing, "instruction": Instruction},
+    body: Triggered(Param(event), [], None, [], Param(timing), None, None, Param(instruction)),
+)

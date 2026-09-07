@@ -1,0 +1,7 @@
+// "<spec> unless <condition>"
+(
+    name: "OnlyUnless",
+    kinds: [StaticSpec],
+    params: {"spec": StaticSpec, "condition": Condition},
+    body: Conditional(Param(spec), Not(condition: Param(condition)), Unless),
+)

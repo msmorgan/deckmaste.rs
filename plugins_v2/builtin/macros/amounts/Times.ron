@@ -1,0 +1,6 @@
+(
+    name: "Times",
+    kinds: [Amount],
+    params: {"per": Amount, "amount": Amount},
+    body: Arith(Times, Param(per), Param(amount)),
+)

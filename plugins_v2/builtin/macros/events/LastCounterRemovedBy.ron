@@ -1,0 +1,7 @@
+// "the last <kind> counter is removed from <subject> by <who>"
+(
+    name: "LastCounterRemovedBy",
+    kinds: [GameEvent],
+    params: {"kind": CounterKind, "subject": NounPhrase, "who": NounPhrase},
+    body: CounterEvent(Removed, Param(kind), Param(subject), Emptying, Param(who), false),
+)

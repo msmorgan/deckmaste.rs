@@ -1,0 +1,7 @@
+// The number of occurrences of a historical event involving the subject.
+(
+    name: "EventCount",
+    kinds: [Amount],
+    params: {"event": GameEvent, "who": NounPhrase, "lookback": Lookback},
+    body: EventTally(Count, Param(who), Mk(Param(event), Param(lookback))),
+)

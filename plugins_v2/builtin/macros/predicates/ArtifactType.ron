@@ -1,0 +1,6 @@
+(
+    name: "ArtifactType",
+    kinds: [Subtype],
+    params: {"label": String},
+    body: Of(Artifact, Param(label)),
+)

@@ -64,3 +64,68 @@ fn every_card_reads() {
         "only {total} cards read; the scan lost the corpus it reads"
     );
 }
+
+/// Every helper declaration that takes no arguments, invoked by its bare name
+/// at its own kind.
+///
+/// Reading a declaration file only checks that its `body` is well-formed RON;
+/// the body is opaque text until something expands it. This is the expansion
+/// half: each nullary helper is written where a card would write it and read
+/// as the type its kind names, so a body that names a constructor the type
+/// does not have — or a macro that did not port — fails here rather than on
+/// the first card to write it.
+#[test]
+fn every_nullary_helper_expands() {
+    let builtin = Plugin::load(plugins_root().join("builtin")).expect("the builtin reads");
+    let mut expanded = 0;
+    let mut untested = 0;
+    for ((kind, name), declaration) in &builtin.declarations {
+        let nullary = match &declaration.definition.params {
+            macro_ron::Params::Positional(types) => types.is_empty(),
+            macro_ron::Params::Named(signature) => signature.is_empty(),
+        };
+        // A BODYLESS declaration — a meta-macro's omitted `body` argument,
+        // which several keyword families still are — has nothing to expand.
+        if !nullary || declaration.definition.body_head(&builtin.macros).is_none() {
+            continue;
+        }
+        macro_rules! read {
+            ($($position:literal => $ty:ty),* $(,)?) => {
+                match kind.as_str() {
+                    $($position => builtin
+                        .macros
+                        .read_str::<$ty>(name.as_str())
+                        .map(drop)
+                        .unwrap_or_else(|error| {
+                            panic!("{kind}/{name} ({}): {error}", declaration.path.display())
+                        }),)*
+                    _ => {
+                        untested += 1;
+                        continue;
+                    }
+                }
+            };
+        }
+        read! {
+            "NounPhrase" => deckmaste_semantics_v2::phrase::NounPhrase,
+            "Predicate" => deckmaste_semantics_v2::phrase::Predicate,
+            "Amount" => deckmaste_semantics_v2::phrase::Amount,
+            "Quantity" => deckmaste_semantics_v2::phrase::Quantity,
+            "ZoneExpr" => deckmaste_semantics_v2::phrase::ZoneExpr,
+            "Condition" => deckmaste_semantics_v2::phrase::Condition,
+            "GameEvent" => deckmaste_semantics_v2::phrase::GameEvent,
+            "Duration" => deckmaste_semantics_v2::triggers::Duration,
+            "Instruction" => deckmaste_semantics_v2::abilities::Instruction,
+            "StaticSpec" => deckmaste_semantics_v2::abilities::StaticSpec,
+            "Cost" => deckmaste_semantics_v2::abilities::Cost,
+            "ManaSymbol" => deckmaste_semantics_v2::words::ManaSymbol,
+            "ColorTerm" => deckmaste_semantics_v2::phrase::ColorTerm,
+        }
+        expanded += 1;
+    }
+    println!("{expanded} nullary declaration(s) expand; {untested} at untested kinds");
+    assert!(
+        expanded >= 80,
+        "only {expanded} expanded; the scan lost the declarations it reads"
+    );
+}

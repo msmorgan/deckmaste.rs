@@ -1,0 +1,7 @@
+// "<player> may play N additional lands"
+(
+    name: "MayPlayAdditionalLands",
+    kinds: [StaticSpec],
+    params: {"player": NounPhrase, "quantity": Quantity},
+    body: DeonticRule(Param(player), Permit, [Action(label: "Play")], Agent, Additional(quantity: Param(quantity)), Counterpart(patient: AllOf(p: Land)), None, NoRider),
+)

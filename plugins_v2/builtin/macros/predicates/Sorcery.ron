@@ -1,0 +1,6 @@
+(
+    name: "Sorcery",
+    kinds: [Predicate],
+    params: [],
+    body: HasType(r#type: Sorcery),
+)

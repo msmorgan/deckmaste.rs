@@ -1,0 +1,7 @@
+// "Prevent the next N <kind> damage that would be dealt <scope> [duration]."
+(
+    name: "PreventNext",
+    kinds: [Instruction],
+    params: {"kind": DamageKind, "scope": DamageScope, "amount": Amount, "duration": Duration},
+    body: Establish(DamageRule(Param(kind), Unattributed, Param(scope), Prevent(Shield(amount: Param(amount)), None), Repeatedly), Param(duration)),
+)

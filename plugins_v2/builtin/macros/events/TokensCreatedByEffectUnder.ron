@@ -1,0 +1,7 @@
+// "one or more tokens would be created under <under>'s control by an effect"
+(
+    name: "TokensCreatedByEffectUnder",
+    kinds: [GameEvent],
+    params: {"tokens": NounPhrase, "under": NounPhrase},
+    body: TokensCreated(Param(tokens), true, None, Param(under)),
+)

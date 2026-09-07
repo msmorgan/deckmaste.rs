@@ -1,0 +1,7 @@
+// "<subject> can't be blocked [this turn]"
+(
+    name: "ForbidBeingBlocked",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "duration": Duration},
+    body: Establish(DeonticRule(Param(subject), Forbid, [Core(deed: Block)], Patient, None, NoPatient, None, NoRider), Param(duration)),
+)

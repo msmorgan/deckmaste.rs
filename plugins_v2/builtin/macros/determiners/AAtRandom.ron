@@ -1,0 +1,7 @@
+// "a … at random"
+(
+    name: "AAtRandom",
+    kinds: [NounPhrase],
+    params: {"p": Predicate},
+    body: Described(A(mode: AtRandom), Param(p)),
+)

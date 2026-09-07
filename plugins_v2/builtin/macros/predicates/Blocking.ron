@@ -1,0 +1,6 @@
+(
+    name: "Blocking",
+    kinds: [Predicate],
+    params: [],
+    body: InCombat(BlockerOf, None),
+)

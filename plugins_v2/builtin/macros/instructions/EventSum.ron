@@ -1,0 +1,7 @@
+// The accumulated magnitude of historical events involving the subject.
+(
+    name: "EventSum",
+    kinds: [Amount],
+    params: {"event": GameEvent, "who": NounPhrase, "lookback": Lookback},
+    body: EventTally(Sum, Param(who), Mk(Param(event), Param(lookback))),
+)

@@ -1,0 +1,7 @@
+// "Nth from the top of its owner's library"
+(
+    name: "NthFromTop",
+    kinds: [ZoneExpr],
+    params: {"ordinal": Ordinal},
+    body: Library(OneEnd(end: Top), None, Param(ordinal), Bare),
+)

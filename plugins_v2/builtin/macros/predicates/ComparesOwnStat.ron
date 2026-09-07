@@ -1,0 +1,7 @@
+// "a <dom> with <stat> <r> <bound>", the stat read of the member itself.
+(
+    name: "ComparesOwnStat",
+    kinds: [Predicate],
+    params: {"stat": Stat, "domain": Predicate, "comparator": Comparator, "bound": Amount},
+    body: CompareOver(Param(domain), StatOf(Stat(stat: Param(stat)), Pro(Bare, One, Top(depth: 1))), Param(comparator), Param(bound)),
+)

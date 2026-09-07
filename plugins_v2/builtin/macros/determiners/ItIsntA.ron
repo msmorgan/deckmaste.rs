@@ -1,0 +1,7 @@
+// "if it isn't a <p>"
+(
+    name: "ItIsntA",
+    kinds: [Condition],
+    params: {"p": Predicate},
+    body: Not(condition: ItsA(p: Param(p))),
+)

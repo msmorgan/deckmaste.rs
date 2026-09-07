@@ -1,0 +1,7 @@
+// "look at <player>'s hand"
+(
+    name: "LookAtHandOf",
+    kinds: [Instruction],
+    params: {"player": NounPhrase, "agent": Default(NounPhrase, You)},
+    body: Expose(verb: LookAt, exposed: Zone(zone: HandOf(player: Param(player))), agent: Param(agent)),
+)

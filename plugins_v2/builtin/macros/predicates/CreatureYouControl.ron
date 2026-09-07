@@ -1,0 +1,6 @@
+(
+    name: "CreatureYouControl",
+    kinds: [Predicate],
+    params: [],
+    body: And(conjuncts: [Creature, HasPossessor(Controller, You)]),
+)

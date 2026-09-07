@@ -1,0 +1,7 @@
+// "multicolored": an object of two or more colors [CR#105.2b].
+(
+    name: "Multicolored",
+    kinds: [Predicate],
+    params: [],
+    body: ColorCount(AtLeast, 2),
+)

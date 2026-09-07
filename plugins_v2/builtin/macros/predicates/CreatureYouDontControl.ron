@@ -1,0 +1,6 @@
+(
+    name: "CreatureYouDontControl",
+    kinds: [Predicate],
+    params: [],
+    body: And(conjuncts: [Creature, Not(predicate: HasPossessor(Controller, You))]),
+)

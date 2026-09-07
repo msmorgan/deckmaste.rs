@@ -1,0 +1,7 @@
+// "them", stamped by the verb that produced them: "the destroyed creatures".
+(
+    name: "ThemVerbed",
+    kinds: [NounPhrase],
+    params: {"verb": Deed},
+    body: Pro(Stamped(verb: Param(verb)), Many, Whole),
+)

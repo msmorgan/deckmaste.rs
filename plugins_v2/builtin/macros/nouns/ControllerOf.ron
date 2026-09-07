@@ -1,0 +1,6 @@
+(
+    name: "ControllerOf",
+    kinds: [NounPhrase],
+    params: {"subject": NounPhrase},
+    body: PossessorOf(Controller, Param(subject)),
+)

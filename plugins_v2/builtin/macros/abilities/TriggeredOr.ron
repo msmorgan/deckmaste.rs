@@ -1,0 +1,7 @@
+// "Whenever <event> or <alternatives>, <instruction>"
+(
+    name: "TriggeredOr",
+    kinds: [Ability],
+    params: {"event": GameEvent, "alternatives": GameEvents, "instruction": Instruction},
+    body: Triggered(Param(event), Param(alternatives), None, [], None, None, None, Param(instruction)),
+)

@@ -1,0 +1,7 @@
+// "the <p> among <group>"
+(
+    name: "AllAmong",
+    kinds: [NounPhrase],
+    params: {"p": Predicate, "group": NounPhrase},
+    body: AllFromAmong(p: Param(p), group: Param(group)),
+)

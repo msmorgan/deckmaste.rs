@@ -1,0 +1,7 @@
+// "that card": the card slot's occupant.
+(
+    name: "ItCard",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(AtSlot(slot: Card), One, Whole),
+)

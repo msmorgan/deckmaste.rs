@@ -1,0 +1,7 @@
+// "between N and M"
+(
+    name: "FromTo",
+    kinds: [Quantity],
+    params: {"low": Nat, "high": Nat},
+    body: Range(Param(low), Param(high)),
+)

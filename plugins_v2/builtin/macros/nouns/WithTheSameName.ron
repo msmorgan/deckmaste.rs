@@ -1,0 +1,7 @@
+// "<group> with the same name"
+(
+    name: "WithTheSameName",
+    kinds: [NounPhrase],
+    params: {"group": NounPhrase},
+    body: NamesAgree(SameName, Param(group)),
+)

@@ -1,0 +1,7 @@
+// "<what> can't be the target of <by>"
+(
+    name: "CantBeTargetedBy",
+    kinds: [StaticSpec],
+    params: {"what": NounPhrase, "by_": NounPhrase},
+    body: DeonticRule(Param(what), Forbid, [Core(deed: Target)], Patient, None, TargetedBy(patient: Param(by_)), None, NoRider),
+)

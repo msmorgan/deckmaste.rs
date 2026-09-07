@@ -1,0 +1,7 @@
+// "<group> with different names"
+(
+    name: "WithDifferentNames",
+    kinds: [NounPhrase],
+    params: {"group": NounPhrase},
+    body: NamesAgree(DifferentNames, Param(group)),
+)

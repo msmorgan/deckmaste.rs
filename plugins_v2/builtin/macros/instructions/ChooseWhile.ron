@@ -1,0 +1,7 @@
+// "choose <subject> as you <event>"
+(
+    name: "ChooseWhile",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "while_": Concurrent},
+    body: Choose(first: None, chosen: Param(subject), disclosure: Openly, when: Param(while_), agent: None),
+)

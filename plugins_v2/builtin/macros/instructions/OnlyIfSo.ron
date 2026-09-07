@@ -1,0 +1,7 @@
+// "<spec> if <condition>"
+(
+    name: "OnlyIfSo",
+    kinds: [StaticSpec],
+    params: {"spec": StaticSpec, "condition": Condition},
+    body: Conditional(Param(spec), Param(condition), IfSo),
+)

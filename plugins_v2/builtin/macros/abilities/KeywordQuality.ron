@@ -1,0 +1,7 @@
+// "<keyword> <quality>", e.g. "protection from red"
+(
+    name: "KeywordQuality",
+    kinds: [Ability],
+    params: {"label": KeywordLabel, "quality": Predicate},
+    body: Keyword(Param(label), [Quality(predicate: Param(quality))], []),
+)

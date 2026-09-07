@@ -1,0 +1,7 @@
+// "Exile <subject> until <event>."
+(
+    name: "ExileUntil",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "event": GameEvent},
+    body: HoldUntil(Exile(Param(subject)), Param(event)),
+)

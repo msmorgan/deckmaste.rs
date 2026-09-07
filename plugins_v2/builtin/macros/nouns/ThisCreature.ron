@@ -1,0 +1,6 @@
+(
+    name: "ThisCreature",
+    kinds: [NounPhrase],
+    params: [],
+    body: AsType(Creature, This, None),
+)

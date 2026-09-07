@@ -1,0 +1,7 @@
+// "[cost]: <instruction>. Activate only <timing>."
+(
+    name: "ActivatedOnlyDuring",
+    kinds: [Ability],
+    params: {"cost": Cost, "instruction": Instruction, "timing": Timing},
+    body: Activated(Param(cost), Param(instruction), Param(timing), None, None, None),
+)

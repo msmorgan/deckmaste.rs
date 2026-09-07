@@ -1,0 +1,6 @@
+(
+    name: "Land",
+    kinds: [Predicate],
+    params: [],
+    body: HasType(r#type: Land),
+)

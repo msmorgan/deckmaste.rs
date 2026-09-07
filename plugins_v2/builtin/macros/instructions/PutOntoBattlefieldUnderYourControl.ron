@@ -1,0 +1,7 @@
+// "put <subject> onto the battlefield under your control"
+(
+    name: "PutOntoBattlefieldUnderYourControl",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase},
+    body: Move(Param(subject), Battlefield, [Under(controller: You)]),
+)

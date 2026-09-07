@@ -1,0 +1,7 @@
+// "an Army you control"
+(
+    name: "ArmyYouControl",
+    kinds: [Predicate],
+    params: [],
+    body: And(conjuncts: [HasSubtype(subtype: CreatureType(label: "Army")), Creature, HasPossessor(Controller, You)]),
+)

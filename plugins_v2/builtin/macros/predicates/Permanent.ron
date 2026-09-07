@@ -1,0 +1,7 @@
+// "permanent": an object on the battlefield [CR#110.1].
+(
+    name: "Permanent",
+    kinds: [Predicate],
+    params: [],
+    body: InZone(zone: Battlefield),
+)

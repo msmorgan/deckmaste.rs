@@ -1,0 +1,8 @@
+// Flying's definition, a static ability: "This creature can't be blocked except by creatures
+// with flying and/or reach." [CR#702.9b]
+(
+    name: "FlyingExpansion",
+    kinds: [Ability],
+    params: [],
+    body: Static(spec: Deontic(subject: ThisCreature, compulsion: Forbid, deeds: [Core(deed: Block)], role: Patient, patient: Counterpart(patient: AllOf(p: And(conjuncts: [Creature, Not(predicate: Or(disjuncts: [HasKeyword(keyword: The(keyword: "Flying")), HasKeyword(keyword: The(keyword: "Reach"))]))]))))),
+)

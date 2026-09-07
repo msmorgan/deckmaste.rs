@@ -1,0 +1,6 @@
+(
+    name: "OneThrough",
+    kinds: [Quantity],
+    params: {"n": Nat},
+    body: Range(1, Param(n)),
+)

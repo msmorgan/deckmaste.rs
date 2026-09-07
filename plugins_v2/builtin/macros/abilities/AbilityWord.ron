@@ -1,0 +1,7 @@
+// An ability word in italics before an ability: "Will of the council — …" [CR#207.2c].
+(
+    name: "AbilityWord",
+    kinds: [Ability],
+    params: {"word": AbilityWordLabel, "ability": Ability},
+    body: ItalicHead(AbilityWord(label: Param(word)), Param(ability)),
+)

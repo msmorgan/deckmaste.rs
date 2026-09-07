@@ -1,0 +1,6 @@
+(
+    name: "Instant",
+    kinds: [Predicate],
+    params: [],
+    body: HasType(r#type: Instant),
+)

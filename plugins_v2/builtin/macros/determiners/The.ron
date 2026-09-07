@@ -1,0 +1,7 @@
+// "the …"
+(
+    name: "The",
+    kinds: [NounPhrase],
+    params: {"p": Predicate},
+    body: Described(The, Param(p)),
+)

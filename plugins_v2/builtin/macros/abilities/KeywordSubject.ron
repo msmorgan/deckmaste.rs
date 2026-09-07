@@ -1,0 +1,7 @@
+// "<keyword> <subject>", e.g. "enchant creature"
+(
+    name: "KeywordSubject",
+    kinds: [Ability],
+    params: {"label": KeywordLabel, "subject": Predicate},
+    body: Keyword(Param(label), [Subject(predicate: Param(subject))], []),
+)

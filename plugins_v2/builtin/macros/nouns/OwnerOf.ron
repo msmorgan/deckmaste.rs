@@ -1,0 +1,6 @@
+(
+    name: "OwnerOf",
+    kinds: [NounPhrase],
+    params: {"subject": NounPhrase},
+    body: PossessorOf(Owner, Param(subject)),
+)

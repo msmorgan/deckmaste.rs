@@ -1,0 +1,7 @@
+// "<who> puts one or more counters on <subject>"
+(
+    name: "ManyBareCountersPutBy",
+    kinds: [GameEvent],
+    params: {"who": NounPhrase, "subject": NounPhrase},
+    body: CounterEvent(Put, None, Param(subject), Many, Param(who), false),
+)

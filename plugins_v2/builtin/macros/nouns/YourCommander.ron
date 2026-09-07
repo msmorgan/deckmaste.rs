@@ -1,0 +1,7 @@
+// "your commander"
+(
+    name: "YourCommander",
+    kinds: [NounPhrase],
+    params: [],
+    body: Designated("commander", You),
+)

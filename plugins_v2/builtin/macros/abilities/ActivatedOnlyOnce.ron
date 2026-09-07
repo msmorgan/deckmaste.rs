@@ -1,0 +1,7 @@
+// "[cost]: <instruction>. Activate only once <limit>."
+(
+    name: "ActivatedOnlyOnce",
+    kinds: [Ability],
+    params: {"cost": Cost, "instruction": Instruction, "limit": UsageLimit},
+    body: Activated(Param(cost), Param(instruction), None, Param(limit), None, None),
+)

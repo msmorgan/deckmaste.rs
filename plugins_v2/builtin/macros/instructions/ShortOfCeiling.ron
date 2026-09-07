@@ -1,0 +1,7 @@
+// "the amount by which the ceiling was not reached"
+(
+    name: "ShortOfCeiling",
+    kinds: [Amount],
+    params: [],
+    body: TheOutcome(sort: CeilingShortfall),
+)

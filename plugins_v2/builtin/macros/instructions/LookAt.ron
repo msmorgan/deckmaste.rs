@@ -1,0 +1,6 @@
+(
+    name: "LookAt",
+    kinds: [Instruction],
+    params: {"cards": NounPhrase, "agent": Default(NounPhrase, You)},
+    body: Expose(verb: LookAt, exposed: Cards(cards: Param(cards)), agent: Param(agent)),
+)

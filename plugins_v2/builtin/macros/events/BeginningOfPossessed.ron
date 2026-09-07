@@ -1,0 +1,7 @@
+// "at the beginning of <possessor>'s <part>"
+(
+    name: "BeginningOfPossessed",
+    kinds: [GameEvent],
+    params: {"quantifier": PartQuant, "part": TurnPart, "possessor": NounPhrase},
+    body: BeginningOf(Param(quantifier), Param(part), ByPlayer(player: Param(possessor))),
+)

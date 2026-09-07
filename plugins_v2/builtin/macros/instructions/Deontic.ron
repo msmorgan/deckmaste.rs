@@ -1,0 +1,7 @@
+// A deontic clause with no bound, premise, or rider.
+(
+    name: "Deontic",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "compulsion": Compulsion, "deeds": Deeds, "role": Role, "patient": DeonticPatient},
+    body: DeonticRule(Param(subject), Param(compulsion), Param(deeds), Param(role), None, Param(patient), None, NoRider),
+)

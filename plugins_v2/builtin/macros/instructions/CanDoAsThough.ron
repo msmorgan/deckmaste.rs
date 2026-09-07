@@ -1,0 +1,7 @@
+// "<n> can <deed> as though it didn't have <p>"
+(
+    name: "CanDoAsThough",
+    kinds: [StaticSpec],
+    params: {"n": NounPhrase, "deed": Deed, "p": Predicate},
+    body: DeonticRule(Param(n), Permit, [Param(deed)], Agent, None, NoPatient, Of(predicate: Param(p)), NoRider),
+)

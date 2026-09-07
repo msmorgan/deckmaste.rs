@@ -1,0 +1,8 @@
+// The replacement's application, rather than installation of a new shield
+// [CR#701.19b,701.19c].
+(
+    name: "RegenerationApplication",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase},
+    body: Enact(verb: Action(label: "Regenerate"), instruction: Sequentially(steps: [ClearDamage(subject: Param(subject)), Enact(Action(label: "Tap"), SetStatus(Tapped, Param(subject)), PossessorOf(Controller, Param(subject))), DoIf(Or(disjuncts: [Matches(Param(subject), InCombat(AttackerOf, None)), Matches(Param(subject), InCombat(BlockerOf, None))]), Combat(Param(subject), Participation(state: OutsideCombat)), None)]), agent: None),
+)

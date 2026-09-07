@@ -1,0 +1,6 @@
+(
+    name: "Command",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Zone(Command, Bare),
+)

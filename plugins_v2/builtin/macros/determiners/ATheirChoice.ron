@@ -1,0 +1,7 @@
+// "a … of their choice", the chooser being the last-mentioned player.
+(
+    name: "ATheirChoice",
+    kinds: [NounPhrase],
+    params: {"p": Predicate},
+    body: Described(A(mode: TheirChoice(window: Top(depth: 1))), Param(p)),
+)

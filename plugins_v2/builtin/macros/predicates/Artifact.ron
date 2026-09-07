@@ -1,0 +1,6 @@
+(
+    name: "Artifact",
+    kinds: [Predicate],
+    params: [],
+    body: HasType(r#type: Artifact),
+)

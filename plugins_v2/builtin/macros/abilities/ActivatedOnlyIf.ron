@@ -1,0 +1,7 @@
+// "[cost]: <instruction>. Activate only if <guard>."
+(
+    name: "ActivatedOnlyIf",
+    kinds: [Ability],
+    params: {"cost": Cost, "instruction": Instruction, "guard": Condition},
+    body: Activated(Param(cost), Param(instruction), None, None, Param(guard), None),
+)

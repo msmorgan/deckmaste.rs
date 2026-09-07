@@ -1,0 +1,6 @@
+(
+    name: "Stack",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Zone(Stack, Bare),
+)

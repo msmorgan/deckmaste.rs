@@ -108,6 +108,16 @@ pub fn kinds() -> KindSet {
     // kind `Delta` needs; the checks that consult the dispatch set (the cycle
     // check, the restricted-read ban) lose precision here and nothing else.
     kinds.add(Kind::new("Delta"));
+    // Positions the helper macro layer expands to that are not
+    // `semantic_expression` types: a token's characteristic bundle, a joined
+    // trigger header's possessor, and the two card-frame records. Each is a
+    // hand-built kind for the same reason `Delta` is — the position needs
+    // registering, and the dispatch set a derive would carry is either
+    // unavailable (a struct) or unused here.
+    kinds.add(Kind::new("CharacteristicBundle"));
+    kinds.add(Kind::new("HeaderPossessor"));
+    kinds.add(Kind::new("LevelBand"));
+    kinds.add(Kind::new("PrototypeFrame"));
     // Declaration positions: `Macro` is where a meta-macro's product is read
     // (`macros/meta/`), and each declaration kind is where the declarations it
     // produces register.
@@ -184,6 +194,62 @@ pub fn param_types() -> ParamTypeSet {
     // (`search (scope : SearchScope) (quantity : Quantity) …`) needs to name
     // it [CR#701.23a].
     types.add_typed::<crate::phrase::SearchScope>("SearchScope");
+    // The helper macro layer's argument vocabulary (§12): a signature ported
+    // from `lean/Semantics/Macros.lean` names the Lean binder's own type, so
+    // every mirror type a helper takes registers here. A list-typed parameter
+    // registers under the PLURAL of its element type, v1's convention
+    // (`Abilities` for `Vec<Ability>`); a Lean `abbrev` registers under the
+    // alias's own name, since that is what the signature writes. `Nat` is
+    // Lean's, and has no mirror type of its own.
+    types.add_typed::<Vec<crate::abilities::Ability>>("Abilities");
+    types.add_typed::<String>("AbilityWordLabel");
+    types.add_typed::<crate::words::AggregateOp>("AggregateOp");
+    types.add_typed::<crate::words::Arrangement>("Arrangement");
+    types.add_typed::<crate::abilities::AsThough>("AsThough");
+    types.add_typed::<crate::abilities::CharacteristicBundle>("CharacteristicBundle");
+    types.add_typed::<crate::phrase::ChoiceDomain>("ChoiceDomain");
+    types.add_typed::<Vec<crate::words::Color>>("Colors");
+    types.add_typed::<crate::words::Comparator>("Comparator");
+    types.add_typed::<crate::abilities::Compulsion>("Compulsion");
+    types.add_typed::<crate::triggers::Concurrent>("Concurrent");
+    types.add_typed::<crate::events::CounterBatch>("CounterBatch");
+    types.add_typed::<crate::words::CounterKind>("CounterKind");
+    types.add_typed::<crate::abilities::CounterKindSource>("CounterKindSource");
+    types.add_typed::<crate::events::CounterMove>("CounterMove");
+    types.add_typed::<crate::events::DamageKind>("DamageKind");
+    types.add_typed::<crate::abilities::DamageScope>("DamageScope");
+    types.add_typed::<crate::abilities::DeckCondition>("DeckCondition");
+    types.add_typed::<crate::words::Deed>("Deed");
+    types.add_typed::<Vec<crate::words::Deed>>("Deeds");
+    types.add_typed::<crate::words::Delta<crate::phrase::Amount>>("Delta");
+    types.add_typed::<crate::abilities::DeonticPatient>("DeonticPatient");
+    types.add_typed::<crate::abilities::DeonticRider>("DeonticRider");
+    types.add_typed::<String>("DesignationLabel");
+    types.add_typed::<String>("FlavorWordLabel");
+    types.add_typed::<Vec<crate::phrase::GameEvent>>("GameEvents");
+    types.add_typed::<Vec<crate::triggers::JoinedHeader>>("JoinedHeaders");
+    types.add_typed::<String>("KeywordLabel");
+    types.add_typed::<crate::words::Kind>("Kind");
+    types.add_typed::<crate::card::LevelRange>("LevelRange");
+    types.add_typed::<crate::words::Lookback>("Lookback");
+    types.add_typed::<Vec<crate::words::ManaSymbol>>("ManaCost");
+    types.add_typed::<crate::words::ManaMatch>("ManaMatch");
+    types.add_typed::<u32>("Nat");
+    types.add_typed::<crate::words::NounWord>("NounWord");
+    types.add_typed::<crate::words::Ordinal>("Ordinal");
+    types.add_typed::<crate::words::PaidCostName>("PaidCostName");
+    types.add_typed::<crate::words::PartQuant>("PartQuant");
+    types.add_typed::<crate::words::Plurality>("Plurality");
+    types.add_typed::<crate::words::ProjAxis>("ProjAxis");
+    types.add_typed::<crate::words::QualitySort>("QualitySort");
+    types.add_typed::<crate::words::RankPeriod>("RankPeriod");
+    types.add_typed::<crate::words::Role>("Role");
+    types.add_typed::<crate::abilities::SpendPurpose>("SpendPurpose");
+    types.add_typed::<crate::words::Stat>("Stat");
+    types.add_typed::<Vec<crate::abilities::StaticSpec>>("StaticSpecs");
+    types.add_typed::<Vec<crate::words::Subtype>>("Subtypes");
+    types.add_typed::<Vec<crate::abilities::TokenRider>>("TokenRiders");
+    types.add_typed::<crate::words::VerbedMarking>("VerbedMarking");
     types
 }
 

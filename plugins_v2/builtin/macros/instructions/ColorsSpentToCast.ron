@@ -1,0 +1,7 @@
+// "for each color of mana spent to cast <n>"
+(
+    name: "ColorsSpentToCast",
+    kinds: [Amount],
+    params: {"spell": NounPhrase},
+    body: Paid(ColorsSpent, Param(spell)),
+)

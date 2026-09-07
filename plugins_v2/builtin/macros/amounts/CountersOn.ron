@@ -1,0 +1,6 @@
+(
+    name: "CountersOn",
+    kinds: [Amount],
+    params: {"kind": CounterKind, "holder": NounPhrase},
+    body: StatOf(Counter(kind: Param(kind)), Param(holder)),
+)

@@ -1,0 +1,7 @@
+// "all …"
+(
+    name: "AllOf",
+    kinds: [NounPhrase],
+    params: {"p": Predicate},
+    body: Described(All, Param(p)),
+)

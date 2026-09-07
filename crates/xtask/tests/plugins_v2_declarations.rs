@@ -32,8 +32,8 @@ fn builtin() -> PathBuf {
     workspace_root().join("plugins_v2/builtin")
 }
 
-/// Every stub declaration reads on both sides, and both sides name the same
-/// declarations.
+/// Every spelled declaration reads on both sides, and both sides name the
+/// same declarations.
 #[test]
 fn both_readers_accept_every_builtin_declaration() {
     let root = builtin();
@@ -44,16 +44,23 @@ fn both_readers_accept_every_builtin_declaration() {
         .iter()
         .map(|declaration| declaration.identity().name().to_string())
         .collect();
-    // `macros/meta/` holds the declaration meta-macros themselves, which the
-    // typed reader consumes rather than reports; every other definition is a
-    // declaration both sides see.
+    // The nursery is shared. `macros/meta/` holds the declaration
+    // meta-macros, which the typed reader consumes rather than reports, and
+    // the helper macro families beside it are declarations of no construction
+    // at all — semantics_v2 reads them and construction_core does not. The
+    // shared contract is the SPELLED families, and which those are is read
+    // off the typed reading rather than restated here.
+    let families: BTreeSet<PathBuf> = typed
+        .iter()
+        .filter_map(|declaration| declaration.provenance().path().parent().map(Path::to_owned))
+        .collect();
     let opaque_names: BTreeSet<String> = opaque
         .declarations
         .values()
         .filter(|declaration| {
-            !declaration
-                .path
-                .starts_with(root.join("macros").join("meta"))
+            declaration.path.parent().is_some_and(|directory| {
+                families.iter().any(|family| directory.starts_with(family))
+            })
         })
         .map(|declaration| declaration.definition.name.to_string())
         .collect();
