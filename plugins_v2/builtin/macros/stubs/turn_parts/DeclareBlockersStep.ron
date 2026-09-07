@@ -1,6 +1,8 @@
+// Phases and steps [CR#500.1].
 TurnPart(
     name: "DeclareBlockersStep",
     spelling: "declare blockers step",
     grammar: Noun(singular: "declare blockers step"),
     params: [],
+    body: DeclareBlockers,
 )

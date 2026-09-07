@@ -1,3 +1,6 @@
+// STOP: no `TurnPart` constructor for the beginning of combat step [CR#506.1]
+// distinct from the `Combat` phase itself; `lean/Semantics/Words.lean`'s enum has no
+// `beginningOfCombat`. Left bodyless pending that gap.
 TurnPart(
     name: "BeginningOfCombatStep",
     spelling: "beginning of combat step",

@@ -1,6 +1,8 @@
+// Phases and steps [CR#500.1].
 TurnPart(
     name: "UpkeepStep",
     spelling: "upkeep step",
     grammar: Noun(singular: "upkeep step"),
     params: [],
+    body: Upkeep,
 )

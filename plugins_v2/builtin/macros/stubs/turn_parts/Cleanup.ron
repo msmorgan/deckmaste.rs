@@ -1,6 +1,8 @@
+// Phases and steps [CR#500.1].
 TurnPart(
     name: "Cleanup",
     spelling: "cleanup",
     grammar: Noun(singular: "cleanup"),
     params: [],
+    body: Cleanup,
 )
