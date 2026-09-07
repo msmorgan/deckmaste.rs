@@ -1,0 +1,21 @@
+// "Target player skips their next combat phase this turn." [CR#500.11]
+SingleFaced(face: (
+    characteristics: (
+        name: "Moment of Silence",
+        cost: [Simple(symbol: Specific(color: Of(color: White)))],
+        types: [Instant],
+        text: [
+            Spell(
+                timing: None,
+                instruction: SkipPart(
+                    part: CombatPhase,
+                    count: Lit(value: 1),
+                    agent: Described(
+                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        predicate: AnyPlayer,
+                    ),
+                ),
+            ),
+        ],
+    ),
+))

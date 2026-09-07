@@ -1,8 +1,12 @@
-// Phases and steps [CR#500.1].
+// Phases and steps [CR#500.1]. BLOCKED (not a STOP): intended body is the
+// bare constructor `MainPhase`, but this declaration's own name is spelled
+// identically, and macro_ron's register-time check_cycles treats a body
+// naming `def.name` as an unconditional self-invocation cycle regardless of
+// whether it's real data — see the ticket's landing record for the confirmed
+// false-positive and the crates/ fix it names.
 TurnPart(
     name: "MainPhase",
     spelling: "main phase",
     grammar: Noun(singular: "main phase"),
     params: [],
-    body: MainPhase,
 )
