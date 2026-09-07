@@ -615,3 +615,226 @@ run it in the loop, not only at the end.
   shows which positions suffer; the landing record lists the candidates
   with the card that wants each, for veto, and a follow-up ticket carries
   the marking.
+
+## Landing record (third landing, 2026-09-07)
+
+The second rulings' first two items land, and part 4 (the helper macro layer)
+lands. Part 5 does NOT: its first half is blocked by STOP 1 below, and its
+second half has no purpose without it. See `## Handoff (third landing)`.
+
+Measured on `qwpuupnkxtus` (`docs: the helper macro layer…`), `nproc` 24, load
+average 1.24.
+
+### PROVE
+
+**No silent loss.** Nothing stopped being covered. `cargo xtask lean-check`
+proves `plugins_v2/canon` 118/118 and `plugins_v2/testing` 2/2 before and
+after every step. `cargo xtask facts check` reports both generated files up
+to date and byte-identical — neither was regenerated this landing. No card,
+declaration, or rules row was edited: every step either adds a reading the
+dialect did not have, narrows which directories a reader looks in, or adds
+new declaration files beside the existing ones.
+
+Two tests changed subject and are re-spelled, not deleted:
+
+| Subject | Here |
+| --- | --- |
+| `a_one_field_constructor_keeps_its_binder` — a one-argument positional application is refused | re-spelled as the positive `a_one_field_constructor_may_be_applied_positionally`, plus `a_one_field_argument_may_be_a_named_application` for the case the classification could get wrong (a one-field constructor whose ARGUMENT is binder-led) |
+| `unknown_builtin_nursery_locations_fail_closed` — a nursery directory outside the nine families is refused | re-spelled as `a_nursery_directory_outside_the_nine_families_is_not_read`, which asserts the same reader over the same tree with the outcome the ruling changed; the location check INSIDE a family is unchanged and still pinned by `builtin_reader_rejects_malformed_and_nonfinal_locations`, which keeps its other three cases |
+| `both_readers_accept_every_builtin_declaration` (xtask) — the two readers name the same declarations | re-spelled to compare over the SPELLED families only, whose set it reads off construction_core's own reading rather than restating |
+
+**Structural laws.** The Lean build ends in success with no warnings (80
+jobs). `cargo test -p deckmaste_semantics_v2 --test lean_drift` green
+throughout: no mirror type, variant, field or binder changed — the landing
+adds registrations (`kinds()`, `param_types()`) and declaration files, and the
+drift scan reads neither. The emitter stays total and every emitted card still
+proves.
+
+**No word-naming.** No guard added here names a lexeme, construction, verb,
+noun, preposition, or card identity. The one-argument classification reads the
+argument list's own leading token; the nine-family read is a directory list,
+which is the declaration model's own vocabulary, not a word's; the converter
+that wrote the helper declarations resolved every constructor against the type
+the position declares.
+
+### DISCLOSE
+
+**What the dialect now accepts.** `CountOf(x)` — a one-field constructor
+applied positionally. ron cannot classify it: inside a newtype variant a
+single argument without a trailing comma is `StructType::NewtypeTuple`, which
+clears the newtype flag and reads the argument as a bare value, discarding the
+identifier before any visitor of ours is reached. So the reader classifies the
+argument list itself, from `macro_ron`'s value capture — the deserializer sits
+INSIDE the variant's parens, so what comes back is `group: x` or `x` — and
+hands the list back to ron in the parentheses it was written in, as the named
+struct when it is binder-led and as a one-element tuple when it is not. An
+empty list (`C()`) stays the named form, so a wholly defaulted constructor
+reads as the zero-entry map it always did.
+
+**Part 4, the helper macro layer.** 279 of `lean/Semantics/Macros.lean`'s 409
+`semantic_macro`s are now one plain declaration each under
+`plugins_v2/builtin/macros/<family>/`, the families being the Lean file's own
+sections. `semantics-v2.md` §12.1 records the layer and lists every macro that
+stayed in Lean, in seven buckets with the reason for each; the counts are 29
+whose name is a constructor of their own kind (STOP 1), 15 the spelled keyword
+families already declare, 28 that call a hand-written `Primitives` helper, 23
+that compute, 28 that call one of those, 4 that expand to no single position,
+and 3 defined by pattern matching. The ruling's "50 Lean-only" is 130: the
+second landing's recon put 21 macros in the `Primitives` bucket on the premise
+that `Primitives.*` is a Lean FUNCTION. It is not — `declare_semantic_primitives`
+generates a `Primitives.T.ctor` alias for every constructor of every
+`semantic_expression` type, so those convert as the constructor they alias,
+and only the 28 that call the hand-written helpers in
+`lean/Semantics/Macros/Primitives.lean` are blocked by that layer. The
+remaining growth over 50 is the three buckets the recon did not have: the
+name-is-a-constructor STOP, the keyword-declared identities, and the cascade.
+
+Everything ported is registered: 49 new param types in
+`deckmaste_semantics_v2::ron::param_types` (every mirror type a ported
+signature names, list-typed ones under the plural of their element type —
+v1's `Abilities` convention — and Lean's `abbrev`s under the alias's own
+name), and four new hand-built kinds (`CharacteristicBundle`,
+`HeaderPossessor`, `LevelBand`, `PrototypeFrame`), which are positions a
+ported body expands to that are not `semantic_expression` types.
+
+**The converter.** Type-directed, as the second handoff explains: a
+constructor resolves against the type the position expects, walking down from
+the macro's declared return type through each constructor's declared field
+types, because 25 one-field constructor names are declared by more than one
+enum. It also converts Lean's named arguments (`.enact v i (agent := a)`),
+Lean's low-precedence application (`f <| x`), structure literals, tuples, and
+a constructor field carrying `:= none` that the application leaves off. It
+converts to a FIXED POINT: a macro that does not port takes its callers with
+it, which is the 28-macro cascade bucket. It lived in the session scratchpad
+and is gone; nothing of it entered version control.
+
+**Deviations and additions.**
+
+- `macro_ron::expand` gains `RawText`, a capture that takes ron's raw-value
+  text without ron's own `RawValue`, whose `Deserialize` re-parses the capture
+  and refuses anything that is not a standalone value — a fused argument list
+  is not one.
+- `MacroAware::deserialize_newtype_struct` narrows its raw-value interception
+  from "not `Skip`" to `Full`: a raw capture of newtype-variant content
+  (`SkipStructs`) is a fused argument list, not a whole value with holes of
+  its own. A raw capture that gets past that branch now goes to the inner
+  deserializer BARE, since its visitor wants `visit_borrowed_str` and `Wrap`
+  does not forward it.
+- `read_builtin_v2` takes its nine families by name (`BUILTIN_FAMILIES`)
+  rather than reading the whole nursery and refusing what it cannot place.
+  `META_DIR` is gone with the exclusion it served. File order within the
+  reading is unchanged: the nine are listed alphabetically, which is the order
+  the old recursive scan produced with `meta/` filtered out.
+- New: `every_nullary_helper_expands` in `tests/corpus.rs`. Reading a
+  declaration only checks its body is well-formed RON — the body is opaque
+  text until something expands it — so this writes each nullary helper where a
+  card would and reads it as the type its kind names. 96 expand; 289 nullary
+  declarations at kinds the test does not dispatch (the declaration families'
+  own loader tags) are counted and skipped.
+- Not done: part 5 (STOP 1), and the 130 unported macros (§12.1).
+
+**STOPs.**
+
+1. **29 helper macros are named for a constructor of their own kind, and RON
+   has no mark that separates the two. Part 5 cannot start until that is
+   ruled.** Lean writes `.draw` for the constructor and `draw` for the macro;
+   the dialect has only `Draw`, and native dispatch takes it. Such a
+   declaration would LOAD — the reader's identity exemption covers it, since
+   its body's head is its own name — and never be invocable, which is the
+   shape `semantics-v2-macro-bodies-keyword-actions`'s STOP 1 already
+   established as a defect. They are listed in §12.1; they include `draw`,
+   `move`, `choose`, `triggered`, `activated`, `keyword`, `shuffle`, `doIf`
+   and `delay`, the phrasings most of the corpus is built from. Part 5's first
+   half is the macro-only card refusal, and Lean's own
+   `Authoring.Form.onlyMacros` refuses EVERY constructor of a
+   `semantic_expression` type outside the literal leaves
+   (`lean/Semantics/Authoring.lean:317`), so a card that may write only macros
+   needs a macro for every constructor it writes. With these 29 unreachable
+   there is no such set, the refusal cannot be turned on, and part 5's second
+   half — reserialising canon "with helper macros in place of raw
+   constructors" — has nothing to put in their place. Not resolved: naming is
+   the user's, and inventing a suffix convention here would be a dimension
+   pinned by the implementer.
+2. **The second landing's recon miscounted the `Primitives` bucket, and the
+   ruling's "50 Lean-only macros" is 130.** Recorded above under part 4 and
+   listed in §12.1 rather than left as a discrepancy between the ADR and the
+   ruling. The ruling's CRITERION — functions, computing, pattern-matching —
+   is unchanged and is what the buckets apply.
+
+**Glossary.** No term this landing needed is missing from
+`docs/contexts/game-model/CONTEXT.md`. "Helper macro", "spelled family" and
+"argument list" are reader and plugin-format vocabulary, defined in
+`semantics-v2.md` §§11, 12.1 and beside the code that reads them.
+
+**Assurance counts.** Restored 0, re-spelled 3 (the table above), ignored-with
+-blocker 0, added 3 (`a_one_field_constructor_may_be_applied_positionally`,
+`a_one_field_argument_may_be_a_named_application`,
+`every_nullary_helper_expands`), removed 0.
+
+### REPORT
+
+- `cargo xtask lean-check`: `plugins_v2/canon` 118/118, `plugins_v2/testing`
+  2/2, 0.7 s warm.
+- `lean/scripts/build`: success, 80 jobs, no warnings, 0.2 s warm.
+- `cargo xtask facts check`: both generated files up to date; neither
+  regenerated this landing.
+- `cargo test -p deckmaste_semantics_v2 --test corpus`: `plugins_v2/builtin`
+  2141 declarations across 26 kinds (1862 before the port, +279); 96 nullary
+  declarations expand; `plugins_v2/canon` 118 cards; `plugins_v2/testing` 2
+  cards, 1 token, 1 sba / 1 conferral / 1 damage row.
+- `cargo test -p deckmaste_construction_core`: 428 tests, unchanged in count
+  (426 + the 2 that were failing before the re-spell).
+- `cargo xtask cite check --list-noncompliant`: 0. `cargo xtask cite check`:
+  15725 citations, 0 stale (15706 before; the 19 new ones ride on the doc
+  comments the port carried over from Lean).
+  `jj diff --git --from <claim> --to @ | cargo xtask cite audit --diff`: 16
+  sites, each read against its rule. `cargo xtask cite bless` was run and its
+  result DISCARDED: it registered nothing new and would only have pruned the
+  same two now-uncited entries `facts-generator-sheds-v1` already recorded.
+- `cargo xtask gate --changed` closure, run green (107 `test result: ok`
+  lines, 0 failures):
+  `cargo test -p macro_ron_derive -p macro_ron -p deckmaste_construction_core
+  -p deckmaste_construction -p deckmaste_english_v2 -p deckmaste_semantics
+  -p deckmaste_lowering -p deckmaste_plugin -p deckmaste_engine
+  -p deckmaste_legacy_render -p deckmaste_migrations -p deckmaste_noncanon
+  -p deckmaste_semantics_v2 -p deckmaste_spelling -p deckmaste_tui
+  -p deckmaste -p xtask`.
+- `cargo fmt --all` clean; clippy clean on `macro_ron`,
+  `deckmaste_construction_core`, `deckmaste_semantics_v2`, `xtask`.
+- Helper declarations written: 279 across 13 families — `pronouns` 12,
+  `quantities` 5, `determiners` 15, `zones` 19, `predicates` 51, `nouns` 34,
+  `mana` 4, `durations` 4, `amounts` 8, `counters` 2, `instructions` 84,
+  `events` 15, `abilities` 26. New param types: 49. New kinds: 4.
+
+## Handoff (third landing)
+
+Steps 1, 2, 3 and 5 of the third brief are landed and green; the workspace is
+parked with `@` empty and NOT integrated.
+
+**Next: step 4 (part 5), blocked on STOP 1 above.** It needs a ruling on how
+the dialect writes a macro whose name is a constructor of its own kind — 29 of
+them, listed in `semantics-v2.md` §12.1. Until then:
+
+- The macro-only refusal has no satisfiable target. Lean's
+  `Authoring.Form.onlyMacros` allows only macro calls, literal leaves,
+  parameters and non-`semantic_expression` constructors; every canon card
+  today is raw constructors throughout, and 29 of the phrasings that would
+  replace them are unreachable.
+- The card converter has nothing to substitute. Reserialising canon through
+  the dialect alone (injections elided, numerals bare, applications
+  positional) is available and would work — the writer already elides — but it
+  is the cosmetic half, and running it first means converting the 118 files
+  twice and re-placing their interior comments by hand twice.
+
+When the ruling arrives, the shape is: (a) mint the 29 declarations under the
+ruled names, which un-blocks most of the 28-macro cascade too; (b) turn the
+refusal on behind the same kind of `MacroSet` switch as
+`reading_positional_arguments`; (c) the one-off converter, keeping each file's
+leading comment block verbatim and counting and listing the interior ones for
+hand re-placement, over `plugins_v2/canon`, `plugins_v2/testing` and the
+family bodies. `cargo xtask facts check` must stay byte-identical and
+`lean-check` 118/118 — run it in the loop, not only at the end.
+
+The other 101 unported macros are already routed: the 23 computing ones to
+`semantics-v2-macro-capture-and-plurality` by name, and the deferred injection
+sites to the new `semantics-v2-embed-candidates`.
