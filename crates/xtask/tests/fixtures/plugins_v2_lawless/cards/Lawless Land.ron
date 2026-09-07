@@ -1,0 +1,11 @@
+// A land face printed with a mana cost. `cardCostOk` in
+// `lean/Semantics/Check/Card.lean` reads `!tys.elem .land` on a front face
+// that prints one, so `Card.check` returns `.cardCost` and the gate's
+// `decide` refutes the theorem.
+SingleFaced(face: (
+    characteristics: (
+        name: "Lawless Land",
+        cost: [Simple(symbol: Generic(amount: 1))],
+        types: [Land],
+    ),
+))

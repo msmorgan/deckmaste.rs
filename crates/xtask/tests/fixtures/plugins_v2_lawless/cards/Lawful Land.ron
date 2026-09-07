@@ -1,0 +1,8 @@
+// The discriminating half of the negative fixture: an ordinary land, so the
+// gate is shown proving one card while refuting its neighbour.
+SingleFaced(face: (
+    characteristics: (
+        name: "Lawful Land",
+        types: [Land],
+    ),
+))

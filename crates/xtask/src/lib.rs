@@ -24,6 +24,7 @@ pub mod gate;
 pub mod generate;
 pub mod graduate;
 pub mod idris_check;
+pub mod lean_check;
 pub mod macros;
 pub mod map;
 pub mod resolve;

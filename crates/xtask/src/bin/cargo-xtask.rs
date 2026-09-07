@@ -19,6 +19,7 @@ use xtask::gate::GateArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
+use xtask::lean_check::LeanCheckArgs;
 use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
@@ -74,6 +75,11 @@ enum Cmd {
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
     IdrisCheck(IdrisCheckArgs),
+    /// The card soundness gate: re-emit every `plugins_v2` card as a Lean
+    /// term and prove `Card.check` empty by `decide`, ratcheted per plugin.
+    /// No plugin named = every plugin under `plugins_v2/` that has cards.
+    #[command(name = "lean-check")]
+    LeanCheck(LeanCheckArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
     /// Generate and check the Idris workbench's keyword facts table against
@@ -102,6 +108,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::EnglishV2(args) => xtask::english_v2::run(&args),
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
+        Cmd::LeanCheck(args) => xtask::lean_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
         Cmd::Facts(args) => xtask::facts::run(&args),
         Cmd::ScaffoldIdentity(args) => xtask::authoring::run(&args),
