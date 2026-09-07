@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [lowering-v2]
 ---
 **Rehome the designation storage columns the v2 declarations used to carry.**
 `facts-generator-sheds-v1` (2026-09-07) retyped every

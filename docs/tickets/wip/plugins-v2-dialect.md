@@ -248,3 +248,39 @@ deleted. Watch the ambiguity inventory above: the writer must NOT elide an
 injection at one of those 148 pairs. `cargo xtask facts check` must stay
 byte-identical, and `lean-check` must stay 118/118 — run it in the loop, not
 only at the end (STOP 2).
+
+## Rulings after the first landing (user, 2026-09-07)
+
+Parts 0, the rename and the ADR text stand. Parts 1–3 as landed are
+reverted and redone:
+
+- **Injections use the existing `#[macro_ron(embed)]`**, extended to accept
+  a struct variant with exactly one field (construct `Simple { symbol }`,
+  write bare, one embed per enum as before). The `macro_ron::shape`
+  registry, `#[derive(Syntax)]`, `Intercept::Injections` and the 173
+  `inject` markers are removed. The chain is hand-chosen, never enumerated:
+  `ManaSymbol::Simple`, `SimpleManaSymbol::Specific`, `ColorOrColorless::Of`,
+  `ColorTerm::Lit`, then the rest of what v1 embeds (14 sites in
+  `color.rs`, `mana.rs`, `stat_value.rs`) mapped onto the mirror, and any
+  site where a canon card visibly suffers. Each marked embed is listed in
+  the landing record with the card that wanted it, for veto. One embed per
+  enum keeps the reader unambiguous; the 148-pair inventory ceases to exist
+  with the mechanism.
+- **Numeral leaves use the existing `literal` marker** (`Amount::Lit`, the
+  generic mana symbol); `numeral` is removed.
+- **Positional application is read at the deserializer**, not by text
+  rewrite: the struct-variant helper deserializes through `deserialize_any`
+  with a visitor accepting both `visit_map` (named) and `visit_seq`
+  (positional, binder order). The rewrite pass is deleted. Mixed
+  `C(a, b: c)` is refused, and the ignored test is re-spelled as that
+  refusal.
+- **Defaults on macro parameters are allowed.** The no-default-slots rule
+  was an Idris carryover; Idris retires with v1. A helper macro declares
+  Lean's named defaults as defaults, and generated Lean carries them
+  natively. Retire the rule in `semantics-v2.md` and the family briefs.
+- **The Rust gate reads the corpus:** a `deckmaste_semantics_v2` test loads
+  every `plugins_v2/canon` and `plugins_v2/testing` card and every family
+  body through the reader, no Lean involved.
+- `lean-macros-from-ron` is promoted to planned and chained after this
+  ticket; `semantics-v2-designation-storage-columns` stays engine-side
+  (needs `lowering-v2`).
