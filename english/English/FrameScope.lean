@@ -35,7 +35,7 @@ inductive Step : Syntax L → Syntax L → Prop where
         (.node construction (before ++ [b] ++ after))
 
 inductive Related {lexicon : Lexicon L} {category : Category} {surface : Surface} :
-    Reading lexicon category surface → Reading lexicon category surface → Prop where
+    SchemaWitness lexicon category surface → SchemaWitness lexicon category surface → Prop where
   | refl (a) : Related a a
   | step {a b} : Step a.val b.val → Related a b
   | symm {a b} : Related a b → Related b a
@@ -65,7 +65,7 @@ theorem step_preserves_lexemes {a b : Syntax L} (h : Step a b) :
     simp [lexicalLeaves, leaves_append, childLeaves, ih]
 
 theorem related_preserves_lexemes {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {a b : Reading lexicon category surface} (h : Related a b) :
+    {a b : SchemaWitness lexicon category surface} (h : Related a b) :
     lexicalLeaves a.val = lexicalLeaves b.val := by
   induction h with
   | refl => rfl
@@ -124,7 +124,7 @@ theorem step_preserves_anchors {a b : Syntax L} (h : Step a b) :
     apply node_anchors
     simp [anchors_append, childAnchors, ih]
 theorem related_preserves_anchors {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {a b : Reading lexicon category surface} (h : Related a b) :
+    {a b : SchemaWitness lexicon category surface} (h : Related a b) :
     anchorCount a.val = anchorCount b.val := by
   induction h with
   | refl => rfl
@@ -138,18 +138,18 @@ theorem flat_nested_differ (c : Coordinator) (cat : Category) (a b d : Syntax L)
   simp [anchorCount, childAnchors, group]
 
 def setoid (lexicon : Lexicon L) (category : Category) (surface : Surface) :
-    Setoid (Reading lexicon category surface) where
+    Setoid (SchemaWitness lexicon category surface) where
   r := Related
   iseqv := ⟨Related.refl, Related.symm, Related.trans⟩
 def key {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (a : Reading lexicon category surface) := Quotient.mk (setoid lexicon category surface) a
+    (a : SchemaWitness lexicon category surface) := Quotient.mk (setoid lexicon category surface) a
 
 theorem key_exact {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (a b : Reading lexicon category surface) : key a = key b ↔ Related a b :=
+    (a b : SchemaWitness lexicon category surface) : key a = key b ↔ Related a b :=
   ⟨Quotient.exact, fun h ↦ Quotient.sound (s := setoid lexicon category surface) h⟩
 
 theorem attachment_included {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {a b : Reading lexicon category surface} (h : ScopeRelated a b) : Related a b := by
+    {a b : SchemaWitness lexicon category surface} (h : ScopeRelated a b) : Related a b := by
   induction h with
   | refl => exact .refl _
   | step h => exact .step (.attachment h)
@@ -242,9 +242,9 @@ theorem both_written :
 
 theorem distinct : left.tree ≠ right.tree := by intro h; cases h
 
-def leftReading : Reading lexicon (.verbPhrase .plain) left.surface :=
+def leftReading : SchemaWitness lexicon (.verbPhrase .plain) left.surface :=
   ⟨left.tree,left.derives,left.realizes⟩
-def rightReading : Reading lexicon (.verbPhrase .plain) left.surface :=
+def rightReading : SchemaWitness lexicon (.verbPhrase .plain) left.surface :=
   ⟨right.tree,right.derives,right.realizes⟩
 
 theorem related : Related leftReading rightReading :=

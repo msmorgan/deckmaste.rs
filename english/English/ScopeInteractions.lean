@@ -5,9 +5,9 @@ namespace English.GrammaticalScope
 
 open Witnesses in
 theorem independent_modifier_regions :
-    ∃ initial : Reading lexicon (.nominal .plural)
+    ∃ initial : SchemaWitness lexicon (.nominal .plural)
         (surface ++ (["and"] : Surface) ++ surface),
-      ∃ final : Reading lexicon (.nominal .plural)
+      ∃ final : SchemaWitness lexicon (.nominal .plural)
         (surface ++ (["and"] : Surface) ++ surface),
       initial.val = .coordinate shared shared ∧ final.val = .coordinate narrow narrow ∧
       ScopeRelated initial final := by
@@ -28,7 +28,7 @@ theorem independent_modifier_regions :
     two_regions (.coordinate .and_ (.nominal .plural)) move move initial middle final⟩
 open Composition Interactions.NestedScope
 
-private def wideReading : Reading lexicon (.verbPhrase .plain) nestedSurface :=
+private def wideReading : SchemaWitness lexicon (.verbPhrase .plain) nestedSurface :=
   ⟨outerWide innerWide, (nested_valid inner_valid.1).1⟩
 
 private theorem outer_move (inner : Syntax Lexeme) :
@@ -41,7 +41,7 @@ private theorem inner_move : ScopeStep (outerWide innerWide) (outerWide innerNar
     (.node (.preposition Composition.Lexeme.during (.nounPhrase plural)) [] []
       (.direct (.postmodifier .and_ (.nounPhrase plural) creatures artifacts withTurns rfl)))
 
-theorem nested_scope_related (tree : Reading lexicon (.verbPhrase .plain) nestedSurface)
+theorem nested_scope_related (tree : SchemaWitness lexicon (.verbPhrase .plain) nestedSurface)
     (member : tree.val ∈ alternatives) : ScopeRelated wideReading tree := by
   rcases tree with ⟨tree, valid⟩
   simp only [alternatives, List.mem_cons, List.not_mem_nil, or_false] at member
@@ -53,7 +53,7 @@ theorem nested_scope_related (tree : Reading lexicon (.verbPhrase .plain) nested
       (.step inner_move) (.step (outer_move innerNarrow))
 
 /-- The grammar-derived class retains every complete nested-mobile alternative. -/
-theorem nested_package_exact (tree : Reading lexicon (.verbPhrase .plain) nestedSurface) :
+theorem nested_package_exact (tree : SchemaWitness lexicon (.verbPhrase .plain) nestedSurface) :
     (package (fun t ↦ t.val ∈ alternatives) wideReading).readings tree ↔
       tree.val ∈ alternatives := by
   rw [package_exact]
@@ -65,7 +65,7 @@ private theorem quoted_step {a b : Syntax Lexeme} (h : ScopeStep a b) :
     (.node (.document .ordinary) [] [] (.node (.document .body) [] []
       (.node (.document .sentence) [] [] (.node .imperative [] [] h)))))
 
-theorem quoted_scope_related (tree : Reading lexicon (.verbPhrase .plain) nestedSurface)
+theorem quoted_scope_related (tree : SchemaWitness lexicon (.verbPhrase .plain) nestedSurface)
     (member : tree.val ∈ alternatives) :
     ScopeRelated ⟨quotedTree wideReading.val, quoted_admitted wideReading.property⟩
       ⟨quotedTree tree.val, quoted_admitted tree.property⟩ :=
@@ -90,7 +90,7 @@ private theorem pair_valid {a b : Syntax Lexeme} {as bs : Surface}
 
 /-- Both association trees are grammatical, but scope does not reassociate their hosts. -/
 theorem association_separate :
-    ∃ a b : Reading lexicon (.verbPhrase .plain) ["attack", "and", "attack", "and", "attack"],
+    ∃ a b : SchemaWitness lexicon (.verbPhrase .plain) ["attack", "and", "attack", "and", "attack"],
       a.val = SelectionWitnesses.CrossHost.pair
         (SelectionWitnesses.CrossHost.pair attack attack) attack ∧
       b.val = SelectionWitnesses.CrossHost.pair attack

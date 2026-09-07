@@ -49,6 +49,17 @@ verb or adjective.
 An identification of an expression as a Word Form of a Lexeme, together with
 its lexical Category and applicable grammatical features.
 
+**Lexical Environment** (project term):
+The declared vocabulary and grammatical properties available for analyzing an
+expression.
+
+**Morphology**:
+The formation of a Lexeme’s Word Forms and the grammatical distinctions they
+express.
+
+**Capitalization**:
+The use of uppercase and lowercase letters in a written expression.
+
 **Feature Bundle**:
 A correlated collection of grammatical feature values describing one analysis.
 

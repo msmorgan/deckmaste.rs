@@ -1,9 +1,10 @@
 import English.Analysis
+import English.FrameScope
 import English.FeatureInteractions
 import English.DependencyInteractions
 
 namespace English.AnalysisInteractions
-open Analysis
+
 
 namespace Frames
 open FrameInteractions
@@ -47,80 +48,25 @@ private theorem right_checked : Dependencies.Admitted lexicon features dependenc
       Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
       Dependencies.exposed,Dependencies.childrenExposed]
 
-def a : Reading lexicon features dependencies (.verbPhrase .plain) left.surface := ⟨_,left_checked⟩
-def b : Reading lexicon features dependencies (.verbPhrase .plain) left.surface := ⟨_,right_checked⟩
+abbrev CheckedSyntax (category : Category) (surface : Surface) :=
+  {tree : Syntax Lexeme // Dependencies.Admitted lexicon features dependencies tree category surface}
 
-theorem related : Analysis.Related a b :=
+def a : CheckedSyntax (.verbPhrase .plain) left.surface := ⟨_,left_checked⟩
+def b : CheckedSyntax (.verbPhrase .plain) left.surface := ⟨_,right_checked⟩
+
+theorem related : FrameScope.Related ⟨a.val, a.property.1.1⟩ ⟨b.val, b.property.1.1⟩ :=
   .step (.node (.verb Lexeme.put .plain markedFrame) [] []
     (.boundary (.exchange .and_ nominalCategory Lexeme.on creatures.tree artifacts.tree
       creatures.tree artifacts.tree creatures.tree artifacts.tree)))
 
-theorem both_selected : Selected [a,b] a ∧ Selected [a,b] b := by
-  have equal : measure a.val = measure b.val := rfl
-  constructor
-  · refine ⟨by simp,?_⟩
-    intro other member pref
-    have smaller := preference_increases pref
-    simp only [List.mem_cons,List.not_mem_nil,or_false] at member
-    rcases member with rfl | rfl <;> omega
-  · refine ⟨by simp,?_⟩
-    intro other member pref
-    have smaller := preference_increases pref
-    simp only [List.mem_cons,List.not_mem_nil,or_false] at member
-    rcases member with rfl | rfl <;> omega
+theorem both_retained :
+    Dependencies.Admitted lexicon features dependencies left.tree (.verbPhrase .plain) left.surface ∧
+    Dependencies.Admitted lexicon features dependencies right.tree (.verbPhrase .plain) left.surface :=
+  ⟨left_checked, right_checked⟩
 
-theorem complete_packing : (package [a,b] a).readings a ∧ (package [a,b] a).readings b :=
-  ⟨(package_exact _ _ _).mpr ⟨both_selected.1,.refl _⟩,
-   (package_exact _ _ _).mpr ⟨both_selected.2,.symm related⟩⟩
+theorem distinct_frame_readings : a.val ≠ b.val := by intro h; cases h
 
 end Frames
-
-namespace Identities
-
-def agreement : Agreement := ⟨.third,.singular⟩
-def lexicon : Lexicon Bool where
-  noun _ _ := False
-  adjective _ := False
-  nounForm _ _ _ := False
-  adjectiveForm _ _ := False
-  identity head category := head = false ∧ category = .nounPhrase agreement
-  identityForm head category surface :=
-    head = false ∧ category = .nounPhrase agreement ∧ surface = (["Echo"] : Surface)
-  word head category := head = true ∧ category = .nounPhrase agreement
-  wordForm head category surface :=
-    head = true ∧ category = .nounPhrase agreement ∧ surface = (["Echo"] : Surface)
-def features : Features.Declarations Bool where
-  nounUse _ _ := False
-  determinerUse _ _ := False
-  temporalNoun _ := False
-def dependencies : Dependencies.Declarations Bool := ⟨fun _ ↦ False,fun _ ↦ False⟩
-def identity : Reading lexicon features dependencies (.nounPhrase agreement) ["Echo"] :=
-  ⟨.identity false (.nounPhrase agreement),
-    ⟨⟨⟨.identity .pronoun ⟨rfl,rfl⟩,.identity ⟨rfl,rfl,rfl⟩⟩,⟨trivial,trivial⟩⟩,
-      ⟨trivial,trivial⟩⟩⟩
-def lexical : Reading lexicon features dependencies (.nounPhrase agreement) ["Echo"] :=
-  ⟨.word true (.nounPhrase agreement),
-    ⟨⟨⟨.word .pronoun ⟨rfl,rfl⟩,.word ⟨rfl,rfl,rfl⟩⟩,⟨trivial,trivial⟩⟩,
-      ⟨trivial,trivial⟩⟩⟩
-
-theorem identity_preference : Prefers lexicon identity.val lexical.val :=
-  .identity (.word (surface := ["Echo"]) ⟨rfl,rfl⟩ ⟨rfl,rfl,rfl⟩ ⟨rfl,rfl⟩ ⟨rfl,rfl,rfl⟩)
-
-theorem identity_selected : Selected [identity,lexical] identity ∧
-    ¬ Selected [identity,lexical] lexical := by
-  constructor
-  · refine ⟨by simp,?_⟩
-    intro other member pref
-    have smaller := preference_increases pref
-    simp only [List.mem_cons,List.not_mem_nil,or_false] at member
-    rcases member with rfl | rfl
-    · omega
-    · change 1 < 0 at smaller
-      omega
-  · intro selected
-    exact selected.2 identity (by simp) identity_preference
-
-end Identities
 
 namespace Rejections
 open FeatureInteractions

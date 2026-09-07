@@ -1,4 +1,5 @@
 import English.Analysis
+import English.FrameScope
 import English.Composition
 import English.FeatureInteractions
 
@@ -50,14 +51,18 @@ theorem both_checked :
     · simp [raised,gapped,creatures,Dependencies.Safe,Dependencies.ChildrenSafe,Dependencies.Local,
         Dependencies.exposed]
 
-def a : Analysis.Reading lexicon features ⟨fun _ ↦ False,fun _ ↦ False⟩
+abbrev CheckedSyntax (category : Category) (surface : Surface) :=
+  {tree : Syntax Lexeme // Dependencies.Admitted lexicon features ⟨fun _ ↦ False,fun _ ↦ False⟩
+    tree category surface}
+
+def a : CheckedSyntax
     (.nominal .plural) ["white","and","white","creatures"] := ⟨wide,both_checked.1⟩
-def b : Analysis.Reading lexicon features ⟨fun _ ↦ False,fun _ ↦ False⟩
+def b : CheckedSyntax
     (.nominal .plural) ["white","and","white","creatures"] := ⟨raised,both_checked.2⟩
 
-theorem shared_head_class : Analysis.key a = Analysis.key b :=
-  (Analysis.key_exact _ _).mpr
-    (.step (.sharedHead (.adjective Lexeme.white) (.adjective Lexeme.white) creatures .plural))
+theorem shared_head_related :
+    FrameScope.Related ⟨a.val, a.property.1.1⟩ ⟨b.val, b.property.1.1⟩ :=
+  .step (.sharedHead (.adjective Lexeme.white) (.adjective Lexeme.white) creatures .plural)
 
 theorem distinct : wide ≠ raised := by intro h; cases h
 

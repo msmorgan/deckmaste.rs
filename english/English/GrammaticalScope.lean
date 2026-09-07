@@ -32,11 +32,11 @@ inductive ScopeStep : Syntax L → Syntax L → Prop where
       ScopeStep (.modify a head) (.modify b head)
   | modifierRight {a b} (modifier : Syntax L) : ScopeStep a b →
       ScopeStep (.modify modifier a) (.modify modifier b)
-abbrev Reading (lexicon : Lexicon L) (category : Category) (surface : Surface) :=
+abbrev SchemaWitness (lexicon : Lexicon L) (category : Category) (surface : Surface) :=
   {tree : Syntax L // Admissible lexicon tree category surface}
 /-- Every intermediate in the equivalence chain is independently admitted. -/
 inductive ScopeRelated {lexicon : Lexicon L} {category : Category} {surface : Surface} :
-    Reading lexicon category surface → Reading lexicon category surface → Prop where
+    SchemaWitness lexicon category surface → SchemaWitness lexicon category surface → Prop where
   | refl (a) : ScopeRelated a a
   | step {a b} : ScopeStep a.val b.val → ScopeRelated a b
   | symm {a b} : ScopeRelated a b → ScopeRelated b a
@@ -53,14 +53,14 @@ theorem two_regions {lexicon : Lexicon L} {category : Category} {surface : Surfa
     (.step (.node construction [] [b] left))
     (.step (.node construction [a'] [] right))
 def scopeSetoid (lexicon : Lexicon L) (category : Category) (surface : Surface) :
-    Setoid (Reading lexicon category surface) where
+    Setoid (SchemaWitness lexicon category surface) where
   r := ScopeRelated
   iseqv := ⟨ScopeRelated.refl, ScopeRelated.symm, ScopeRelated.trans⟩
 def scopeClass {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (tree : Reading lexicon category surface) : Quotient (scopeSetoid lexicon category surface) :=
+    (tree : SchemaWitness lexicon category surface) : Quotient (scopeSetoid lexicon category surface) :=
   Quotient.mk _ tree
 theorem same_class_iff {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (a b : Reading lexicon category surface) :
+    (a b : SchemaWitness lexicon category surface) :
     scopeClass a = scopeClass b ↔ ScopeRelated a b := by
   constructor
   · intro h
@@ -111,7 +111,7 @@ theorem step_preserves_lexemes {a b : Syntax L} (h : ScopeStep a b) :
   | modifierRight modifier _ ih => simp [lexicalLeaves, ih]
 
 theorem related_preserves_lexemes {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {a b : Reading lexicon category surface} (h : ScopeRelated a b) :
+    {a b : SchemaWitness lexicon category surface} (h : ScopeRelated a b) :
     lexicalLeaves a.val = lexicalLeaves b.val := by
   induction h with
   | refl => rfl
@@ -160,7 +160,7 @@ theorem step_preserves_hosts {a b : Syntax L} (h : ScopeStep a b) :
   | modifierRight modifier _ ih => exact ih
 
 theorem related_preserves_hosts {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {a b : Reading lexicon category surface} (h : ScopeRelated a b) :
+    {a b : SchemaWitness lexicon category surface} (h : ScopeRelated a b) :
     hostStructure a.val = hostStructure b.val := by
   induction h with
   | refl => rfl
@@ -171,8 +171,8 @@ theorem related_preserves_hosts {lexicon : Lexicon L} {category : Category} {sur
 theorem map_related {lexicon : Lexicon L} {category output : Category}
     {surface target : Surface} (f : Syntax L → Syntax L)
     (steps : ∀ {a b}, ScopeStep a b → ScopeStep (f a) (f b))
-    (valid : ∀ a : Reading lexicon category surface, Admissible lexicon (f a.val) output target)
-    {a b : Reading lexicon category surface} (h : ScopeRelated a b) :
+    (valid : ∀ a : SchemaWitness lexicon category surface, Admissible lexicon (f a.val) output target)
+    {a b : SchemaWitness lexicon category surface} (h : ScopeRelated a b) :
     ScopeRelated ⟨f a.val, valid a⟩ ⟨f b.val, valid b⟩ := by
   induction h with
   | refl => exact .refl _
@@ -182,13 +182,13 @@ theorem map_related {lexicon : Lexicon L} {category output : Category}
 
 /-- Pack only complete surviving readings related by licensed grammatical scope moves. -/
 def package {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (survivors : Reading lexicon category surface → Prop)
-    (representative : Reading lexicon category surface) :=
+    (survivors : SchemaWitness lexicon category surface → Prop)
+    (representative : SchemaWitness lexicon category surface) :=
   Selection.pack survivors scopeClass (scopeClass representative)
 
 theorem package_exact {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (survivors : Reading lexicon category surface → Prop)
-    (representative tree : Reading lexicon category surface) :
+    (survivors : SchemaWitness lexicon category surface → Prop)
+    (representative tree : SchemaWitness lexicon category surface) :
     (package survivors representative).readings tree ↔
       survivors tree ∧ ScopeRelated tree representative := by
   exact and_congr_right (fun _ ↦ same_class_iff tree representative)

@@ -155,23 +155,23 @@ theorem no_role_preference_cycle {lexicon : Lexicon L} {tree : Syntax L} :
   omega
 
 def Selected {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (candidates : List (GrammaticalScope.Reading lexicon category surface))
-    (tree : GrammaticalScope.Reading lexicon category surface) : Prop :=
+    (candidates : List (GrammaticalScope.SchemaWitness lexicon category surface))
+    (tree : GrammaticalScope.SchemaWitness lexicon category surface) : Prop :=
   tree ∈ candidates ∧ ∀ other ∈ candidates, ¬ Prefers lexicon other.val tree.val
 
 theorem role_worse_excluded {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {candidates : List (GrammaticalScope.Reading lexicon category surface)}
-    {better worse : GrammaticalScope.Reading lexicon category surface}
+    {candidates : List (GrammaticalScope.SchemaWitness lexicon category surface)}
+    {better worse : GrammaticalScope.SchemaWitness lexicon category surface}
     (step : RoleStep lexicon better.val worse.val) (member : better ∈ candidates) :
     ¬ Selected candidates worse := by
   intro h
   exact h.2 better member (.role step)
 
 theorem selected_exists {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (candidates : List (GrammaticalScope.Reading lexicon category surface))
+    (candidates : List (GrammaticalScope.SchemaWitness lexicon category surface))
     (inhabited : ∃ tree, tree ∈ candidates) : ∃ tree, Selected candidates tree := by
   obtain ⟨tree, member, _, maximal⟩ := Selection.admitted_maximum (fun _ ↦ True)
-    (fun tree : GrammaticalScope.Reading lexicon category surface ↦ roleCount tree.val)
+    (fun tree : GrammaticalScope.SchemaWitness lexicon category surface ↦ roleCount tree.val)
     candidates (by obtain ⟨t, h⟩ := inhabited; exact ⟨t, h, trivial⟩)
   refine ⟨tree, member, ?_⟩
   intro other mem preference
@@ -180,14 +180,14 @@ theorem selected_exists {lexicon : Lexicon L} {category : Category} {surface : S
   omega
 
 theorem selected_enumeration {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    {xs ys : List (GrammaticalScope.Reading lexicon category surface)}
+    {xs ys : List (GrammaticalScope.SchemaWitness lexicon category surface)}
     (same : ∀ tree, tree ∈ xs ↔ tree ∈ ys)
-    (tree : GrammaticalScope.Reading lexicon category surface) :
+    (tree : GrammaticalScope.SchemaWitness lexicon category surface) :
     Selected xs tree ↔ Selected ys tree := by
   simp only [Selected, same]
 
 theorem role_pair_selected {lexicon : Lexicon L} {category : Category} {surface : Surface}
-    (better worse : GrammaticalScope.Reading lexicon category surface)
+    (better worse : GrammaticalScope.SchemaWitness lexicon category surface)
     (step : RoleStep lexicon better.val worse.val) :
     Selected [better, worse] better ∧ ¬ Selected [better, worse] worse := by
   refine ⟨⟨by simp, ?_⟩, role_worse_excluded step (by simp)⟩

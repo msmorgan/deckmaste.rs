@@ -22,4 +22,6 @@ import English.AnalysisInteractions
 import English.SharingInteractions
 import English.BoundaryInteractions
 
+import English.SpellingWitnesses
+
 /-! Oracle English grammar design workbench, independent of the Semantics model. -/

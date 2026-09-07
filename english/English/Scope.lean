@@ -90,12 +90,12 @@ def flat : Anchors := .group [.leaf 0, .leaf 1, .leaf 2]
 def nested : Anchors := .group [.leaf 0, .group [.leaf 1, .leaf 2]]
 
 /-- Site assignments may vary while every ordered anchor remains part of the class identity. -/
-structure Reading where
+structure AnchorPattern where
   anchors : Anchors
   sites : List (List Nat)
 
-theorem anchor_shape_separate (survivors : Reading → Prop) (p : Package Reading Anchors)
-    (packed : Packs survivors Reading.anchors p) (leftSites rightSites : List (List Nat)) :
+theorem anchor_shape_separate (survivors : AnchorPattern → Prop) (p : Package AnchorPattern Anchors)
+    (packed : Packs survivors AnchorPattern.anchors p) (leftSites rightSites : List (List Nat)) :
     ¬ (p.readings ⟨flat, leftSites⟩ ∧ p.readings ⟨nested, rightSites⟩) := by
   apply different_classes_separate packed
   intro h

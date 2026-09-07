@@ -8,13 +8,18 @@ The [review](english-grammar-review.md) records checked claims and limits.
 
 ## Status of this model
 
-The descriptions of Lean definitions below record the existing model and its
-limits. [The accepted lexical-analysis decision](decisions/english-lexical-analysis.md)
-is the current production contract; the model has not yet implemented its
-lexical-analysis admission, complete connected grammar or retention across all
-ambiguity classes. The v3 Lean-model and proof-audit tickets replace that shape
-before Rust treats it as design evidence. Existing proofs remain salvageable
-evidence for their stated fragments, not a claim of v3 correspondence.
+The reviewed architecture below records the pre-v3 model and its limits.
+The rebuilt model's current entry point, family witnesses, roundtrip claims and
+remaining proof obligations are documented in [the workbench README](../english/README.md).
+[The declaration disposition](../english/DECLARATIONS.md) identifies every
+retained, replaced or retired source declaration. In particular,
+`Analysis.Reading`, `Analysis.Selected` and `Analysis.package` below are
+historical names, not v3 admission interfaces.
+
+[The accepted lexical-analysis decision](decisions/english-lexical-analysis.md)
+remains the current production contract. The whole intended grammar/source map
+below remains an input to that work; the old proofs establish their stated
+fragments rather than general production correspondence.
 
 ## Reviewed architecture
 
