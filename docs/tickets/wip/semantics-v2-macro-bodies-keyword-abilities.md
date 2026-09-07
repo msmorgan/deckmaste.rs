@@ -252,59 +252,289 @@ Provenance, not a gate; measured on `knstvlyn`, 83 canon cards, keyword facts
 - `cargo fmt --all` leaves no changes; `cargo xtask facts check` clean;
   `cargo xtask cite check` 15,504 citations, 0 stale.
 
-## Handoff
+## Landing record — third round (2026-09-07)
 
-**Resume at `Madness`** — the alphabetically first untouched declaration. 66
-remain untouched: Madness, MaxSpeed, Mayhem, Melee, Miracle, Mobilize,
-MoreThanMeetsTheEye, Morph, Mutate, Myriad, Ninjutsu, Offering, Offspring,
-Outlast, Overload, Paradigm, Partner, Phasing, Plot, PowerUp, Protection,
-Prototype, Provoke, Prowl, Ravenous, ReadAhead, Rebound, Reconfigure, Recover,
-Reinforce, Replicate, Retrace, Riot, Ripple, Saddle, Scavenge, Sneak, Solved,
-Soulbond, SpaceSculptor, Spectacle, Splice, SplitSecond, Spree, Squad,
-StartYourEngines, Station, Storied, Sunburst, Surge, Suspend, Teamwork, Tiered,
-Toxic, Training, Transfigure, Transmute, Tribute, UmbraArmor, Undaunted, Unearth,
-Unleash, Vanishing, Visit, Warp, WebSlinging. (`Protection` was missing from the
-first round's list of 110 and is untouched too.)
+Complete. The second round's handoff is discharged: every one of the family's
+195 declarations now carries a written definition, a settled-empty body, or a
+STOP with its reason and citation. Measured on change `kztlkuwy` (`keyword
+abilities: bless the round's new CR citations`), keyword facts 197 rows,
+`plugins_v2/canon` 118 cards.
 
-**Shape decisions, added to the first round's five.**
+### PROVE
 
-6. **Never touch a declaration's `params` line while writing its body.** The kind
-   list is load-bearing three ways at once: it types `Param(i)` for macro
-   expansion, it becomes the keyword facts row's `argumentSchemas` (which
-   `keywordParamFits` checks the card's `KeywordParam` against), and it drives
-   `deckmaste_english_v2`'s keyword-line grammar. `builtin_v2_keyword_abilities.rs`
-   holds the expected list for all 106 parameterized keywords — read it before
-   changing one, and treat a mismatch as a STOP, not as a licence to edit the
-   expectation.
-7. **A STOP with an argument still declares it.** Write
-   `params: [<kind>]` on the declaration and either forward it
-   (`Cost(cost: Param(0))`) or leave the keyword's own `params: []` when the kind
-   has no matching `KeywordParam` (the Infinity idiom). A STOP's `definition`
-   column in `crates/xtask/src/facts.rs` is cleared.
-8. **Anaphora idioms the kernel taught this round.** A definite description needs
-   a `uniquifies` predicate — otherwise the referent is a pronoun. A pronoun with
-   two candidate antecedents narrows with `window: Top(depth: 1)`, not with a
-   different reach. "The exiled card" is `Predicate::ExiledWith(source: This)`, a
-   linked reference [CR#607.2a] — a `Reach::Stamped` pronoun cannot cross an
-   ability boundary. "Each opponent" is `Described(Each, Opponent)`, never
-   `EachOf`. A counted group is a bare plural. An attachment's subject must name
-   a type ("this Equipment"), because bare `This` has no zone. Coordinated
-   disjuncts must seed the same zone.
-9. **`cargo test -p xtask --test plugins_v2_declarations` does not expand
-   macros.** It catches unknown field names but not unknown *variant* names
-   inside a body (`IfAble`, `TheNext` both passed it). Only `lean-check` on a
-   canon card that invokes the keyword finds those, which is another reason to
-   add the card in the same round as the body.
+- **Structural laws.** `cargo xtask lean-check plugins_v2/canon`: 118/118 cards
+  prove `Card.check = []` — the 90 this round inherited plus the 28 it added. No
+  card is recorded as a failure and none was weakened.
+  `cargo test -p xtask --test plugins_v2_declarations`: 5 passed — every
+  declaration reads on both sides. `cargo xtask facts check`: both generated
+  tables up to date.
+- **No silent loss.** No identity stopped being covered by a definition that had
+  one at the start of this round. Three definitions this round *wrote* were then
+  withdrawn to STOPs when the kernel refused them (Offspring, Protection,
+  Ripple, all detailed below); each is classified *wrong analysis retired* —
+  none had ever been read by a card before it was withdrawn, so nothing lost
+  coverage. Nothing else changed classification.
+- **No word-naming.** No guard was added. The keyword labels in the declarations
+  and in `crates/xtask/src/facts.rs` are the declaration tables;
+  `lean/Semantics/Check/` is untouched.
+- **Citations.** `cargo xtask cite check --list-noncompliant` empty;
+  `cargo xtask cite check` 15,705 citations, 0 stale. 57 rules were new to
+  `cr-citations.lock` and were blessed; each was read against the claim citing
+  it with `jj diff --git | cargo xtask cite audit --diff` (112 citation sites
+  audited over this round's diff). One wrong-topic cite was caught and fixed
+  before blessing: Visit cited `[CR#717.2a]` (an Attraction deck-construction
+  minimum) for the claim that nothing reads an Attraction's lit-up numbers; it
+  now cites `[CR#717.1,701.52a]`, which are the rules that speak about them.
 
-**Live items for the coordinator to route.**
+### DISCLOSE
 
-- The `Subject` parameter-kind mismatch that stops Champion (and would stop any
-  later `Subject` keyword's body): `KeywordParam::Subject` carries a `Predicate`,
-  the macro-parameter kind `Subject` is a `NounPhrase`. Wants a `crates/` ticket.
-- The `Destroy` deed's `patientRole` (`fieldObject`), which still blocks
-  Indestructible and any later "can't be destroyed" body — carried over from the
-  first round, still unrouted.
+**Counts, over the family's 195 declarations.** 95 carry a written definition,
+13 are *settled empty*, 87 are STOPs, 0 are untouched. Against the second
+round's 68 / 10 / 51 / 66, this round wrote 27, settled 3 empty and stopped 36 —
+66 declarations, exactly the handoff's list.
+
+**Definitions written this round (27).** Madness, Mayhem, Melee, Mobilize,
+Myriad, Ninjutsu, Outlast, Provoke, Ravenous, Reconfigure, Recover, Reinforce,
+Retrace, Scavenge, Spectacle, SplitSecond, Station, Sunburst, Surge, Training,
+Transfigure, Transmute, UmbraArmor, Undaunted, Unearth, Vanishing, WebSlinging.
+
+Two of these needed constructors the family had not used before, and both are
+worth a reviewer's eye. **Madness** writes "when this card is exiled this way"
+as `GameEvent::Causes(cause: Event(the discard), event: the hand-to-exile
+zone change)` — the first use of `Causes` anywhere in `plugins_v2` — and its
+"its owner may cast it" is an `Instruction::Establish` of a `DeonticRule` with a
+`Play(payment: PayingInstead(…))` rider, the idiom Lean's `flawlessForgeryLine`
+and `memoryPlunder` already use for a permitted cast. **SplitSecond** is the
+family's first `DeonticPatient::CounterpartsAt`: one prohibition over two deeds
+(`Cast`, `Activate`) with a different patient at each. **Retrace** is the first
+use of `Cost::ItsManaCost`, which is how "by discarding a land card as an
+additional cost to cast it" rides on the permitted cast rather than becoming a
+separate `AddedCost` that would apply to every cast.
+
+**Settled empty (3), under the 2026-09-07 ruling.** **Phasing**
+([CR#702.26a..702.26i] state when permanents phase out and in and how the game
+treats a phased-out permanent), **SpaceSculptor** ([CR#702.158a,702.158c] state
+the state-based sector assignment) and **StartYourEngines**
+([CR#702.179a,704.5aa] state the state-based action that sets a player's speed
+to 1). Each entry defines only how the game treats the keyword; none quotes an
+expansion.
+
+**PRIORITY ONE — every new definition is read by the kernel except one.** 26 of
+the 27 have a real canon card that invokes them and proves. The exception is
+**Station**: every printed station card uses the [CR#721] station-card layout,
+whose station symbols are themselves keyword abilities, and `Card` has no
+variant for that layout, so the corpus holds no card the workbench can write
+today. Its body is written and reads through both readers, but no card exercises
+it.
+
+**Canon cards added (28).** Arrogant Wurm, Spider-Islanders, Menagerie
+Liberator, Dalkovan Packbeasts, Wyrm's Crossing Patrol, Dokuchi Shadow-Walker,
+Salt Road Patrol, Abbey Gargoyles, Brontotherium, Ravener, Leech Gauntlet, Grim
+Harvest, Burrenton Bombardier, Cenn's Enlistment, Surging Sentinels, Drudge
+Beetle, Dead Revels, Krosan Grip, Suntouched Myr, Jwar Isle Avenger, Gryff
+Rider, Fleshwrither, Drift of Phantasms, Boar Umbra, Sublime Exhalation,
+Dregscape Zombie, Waning Wurm, Spider-Man Web-Slinger. Every one is real oracle
+text taken from `data/mtgjson/AtomicCards.json`; reminder text in parentheses is
+dropped, as the earlier rounds' cards do. Two of them (Abbey Gargoyles for
+protection, Surging Sentinels for ripple) invoke a keyword whose definition was
+withdrawn to a STOP; they are kept because they are the only cards in the canon
+set that exercise those two keywords' `Quality` and `Amount` arguments.
+
+**What the kernel corrected (6 bodies).** Each was written, refused, and either
+fixed or withdrawn; none was rewritten to dodge a law.
+
+1. **Reconfigure** — "another target creature you control" used
+   `Predicate::Other`, which `PhraseRules` admits only when a target of that kind
+   is already bound (`[Semantics.Refusal.anyTargeted (Semantics.Kind.object),
+   Semantics.Refusal.otherAnchored]`); inside the very description that
+   introduces the target there is none. It now reads `OtherThan(anchor: this
+   permanent)`, which is what "another" means here.
+2. **Transfigure** — the "it" that goes to the battlefield after the search
+   resolved against two antecedents (`anaphor (Reach.bare) (Plurality.one) 2`);
+   its window is now `Top(depth: 1)`.
+3. **Transmute** — the same, twice, for the "that card" it reveals and the "it"
+   it puts into hand.
+4. **Offspring** — withdrawn to a STOP. Both halves write, but
+   `keywordBodyPartFits` requires every TRIGGERED part of a definition to key on
+   the keyword's own stack regime, and offspring's registry row is
+   `regime: AtCasting` because its first ability functions on the stack; the
+   second is an enters trigger, whose `bodyEventRegime` is `none`. `Intrepid
+   Rabbit` refused with `[Semantics.Refusal.keywordBodyFits "Offspring"]`.
+   Clearing the row's regime to satisfy the second ability would misdescribe the
+   first, so the definition waits on the law. Squad has the same shape (and is
+   separately blocked).
+5. **Protection** — withdrawn to a STOP after three of its four rows proved.
+   `Abbey Gargoyles` refused with `[Semantics.Refusal.deedFits,
+   Semantics.Refusal.deonticPatientOk]`; removing only the [CR#702.16c,702.16d]
+   row ("can't be enchanted by Auras … equipped by Equipment … fortified by
+   Fortifications that have the stated quality") made the card prove, which
+   isolates the cause: the `Attach` deed's registry row gives it an agent role of
+   `playerAgent` and no patient role at all, so `deedFits` refuses every noun
+   phrase in the patient slot. This is the shape Indestructible's `Destroy`
+   patient role already carries. A body with three of four rows would be a wrong
+   analysis, so none is written.
+6. **Ripple** — withdrawn to a STOP. The trigger, the reveal and the "you may
+   cast any of those cards with the same name as this spell" permission all
+   write; the final "then put all revealed cards not cast this way on the bottom
+   of your library" has no subject. `TheRest` refused with
+   `[Semantics.Refusal.theRestFits (Semantics.Kind.object)]` — the `SomeOf`
+   partition the permission takes lives inside a `StaticSpec`'s patient and never
+   reaches the next step's bindings, so `partsTaken` is zero — and naming the
+   complement directly is blocked because "revealed this way" would be a
+   `VerbedEvent` over the `Reveal` deed, whose registry row has no patient role
+   (the same column gap as protection's `Attach`).
+
+**New STOPs (36), each with what is missing.** Grouped by cause; each file
+carries the full reason and its citation.
+
+- *`KeywordParam` has no `Ability` variant, and nothing lets a definition qualify
+  the ability printed after the keyword* (the causes Boast and Backup carry).
+  MaxSpeed [CR#702.178a] (also needs a player's speed, which no `Amount`
+  projects), PowerUp (also has no [CR#702] entry in the CR this repo ships),
+  Solved [CR#702.169b..702.169d], Visit [CR#702.159a].
+- *`PlayPayment` has no clause substituting the cast object's characteristics*
+  (Disguise's cause). Morph [CR#702.37a], MoreThanMeetsTheEye [CR#702.162a].
+- *A text-changing effect over printed words* (Cleave's cause). Overload
+  [CR#702.96a,702.96c], Splice [CR#702.47a,702.47c].
+- *A static ability that creates a delayed triggered ability* (Blitz and Dash's
+  cause). Rebound [CR#702.88a], Warp [CR#702.185a].
+- *A special action* (Companion and Foretell's cause). Plot [CR#702.170a,702.170b],
+  Suspend [CR#702.62a].
+- *Spell abilities have no category* (Epic's cause). Paradigm [CR#702.192a].
+- *No aggregate bound over a whole group's stat* (Crew's cause). Saddle
+  [CR#702.171a], Teamwork [CR#702.194a].
+- *`StaticSpec::AddedCost` has no repetition count and no per-mode multiplier*
+  (Escalate's cause). Replicate [CR#702.56a], Squad [CR#702.157a], Spree
+  [CR#702.172a], Tiered [CR#702.183a].
+- *No entry rider is optional* — `TokenRider::AsCopyOf` alone carries an
+  `optional` flag. Riot [CR#702.136a], Tribute [CR#702.104a] (whose rider is also
+  decided by a player other than the controller), Unleash [CR#702.98a].
+- *No linked reference to the permanent an alternative cost consumed* (Emerge and
+  Harmonize's cause). Offering [CR#702.48a].
+- *No predicate reads "shares a creature type with <subject>"* (Amplify's cause).
+  Prowl [CR#702.76a].
+- *`PlayTiming` has no value for the window* (Flash's cause). Sneak [CR#702.190a].
+- *A damage-RESULT substitution, which lives in `rules/damage`* (Infect's cause).
+  Toxic [CR#702.164a,702.164c,120.3] — its [CR#702] entry quotes no expansion, but
+  it is the shape Infect already carries rather than the rules-machinery shape the
+  2026-09-07 ruling settles empty. Poisonous, which the CR does spell out as a
+  triggered ability [CR#702.70a], stays written.
+- *No `StaticSpec` performs an instruction when a state holds* (Ascend's cause).
+  Storied [CR#702.195a].
+- *Miscellaneous, one each.* Miracle [CR#702.94a] — the reveal happens AS YOU DRAW
+  the card, and `DeonticRule` carries no timing at all; writing it as a
+  `Replacement` of the draw would make miracle a replacement effect, which it is
+  not. Mutate [CR#702.140a] — nothing gives a spell already on the stack a target,
+  and no predicate names a mutating creature spell. Offspring, Protection and
+  Ripple, above. Partner [CR#702.124a,702.124h] — nothing designates a commander
+  or speaks about the period before the game. Prototype [CR#702.160a,718.1..718.3]
+  — a layout keyword the workbench spells as the `Card::Prototype` wrapper, whose
+  `[Cost, Power, Toughness]` signature `Shape::from_params` does not admit, so it
+  carries no registry row and `keywordDefinition "Prototype"` is empty for every
+  category. ReadAhead [CR#702.155a] — the `unless` clause reads a lore-counter
+  number off the very chapter ability the prohibition ranges over, and no
+  `Predicate` projects that. Soulbond [CR#702.95a,702.95b] — nothing expresses
+  pairing: there is no paired designation and no instruction pairs two objects.
+
+**Facts overlay.** `crates/xtask/src/facts.rs`: the `definition` column was set
+for Madness, Mayhem, Ninjutsu, Outlast, Ravenous, Reconfigure, Reinforce,
+Retrace, Scavenge, Spectacle, SplitSecond, Station, Sunburst, Surge,
+Transfigure, Transmute, UmbraArmor, Undaunted, Unearth, Vanishing and
+WebSlinging, and cleared for **Ripple** (which had carried `[Triggered]` from an
+earlier round and is now a STOP). Offspring's and Protection's columns were set
+while their bodies were written and removed again when the bodies were
+withdrawn, so the net diff shows neither. Melee, Mobilize, Myriad, Provoke,
+Recover and Training already carried the right column. No other column changed —
+in particular no `regime`, `functions_on_stack` or `paid_cost` flag was touched.
+`cargo xtask facts generate` was re-run; both generated tables are committed
+(197 rows).
+
+**Deviations and additions beyond the ticket's letter.**
+
+- **24 declarations gained an explicit `params: []` line**: Melee, Myriad,
+  Paradigm, Partner, Phasing, Provoke, Ravenous, ReadAhead, Rebound, Retrace,
+  Riot, Soulbond, SpaceSculptor, SplitSecond, Spree, StartYourEngines, Station,
+  Storied, Sunburst, Tiered, Training, UmbraArmor, Undaunted, Unleash. This is
+  not the shape-decision-6 violation it looks like: `cargo xtask facts generate`
+  refuses a declaration that carries a semantic body without an explicit
+  positional signature ("use `params: []` for a nullary declaration"), and
+  `Shape::from_params` maps both an absent list and `[]` to `Shape::Nothing`, so
+  no row's `argumentSchemas` changed. No declaration's existing kind list was
+  altered, which `deckmaste_construction_core`'s `builtin_v2_keyword_abilities`
+  suite confirms.
+- **Two already-landed bodies repaired.** `Instruction::RemoveCounters` takes
+  `quantity: Option<Quantity>`, not `amount`; **Fading** and **Impending** both
+  spelled it `amount: Lit(value: 1)`, and the reader drops unknown fields
+  silently, so each read as "remove Fade/Time counters" with no count at all.
+  Both now write `quantity: Range(low: 1, high: 1)`. Fading is read by a canon
+  card and still proves. This is the same silent-drop hazard as the `conferral`
+  argument the refresh removed from `gainDesignation`: **Renown.ron still passes
+  `conferral: ByKeyword(keyword: "Renown")`**, which the reader drops and the
+  emitted Lean does not carry, so it is inert rather than wrong; it is left for a
+  reviewer to decide whether to prune, because pruning it changes no behaviour.
+- Two canon cards carry a second ability written out beyond the keyword under
+  test, because the corpus offers no simpler card: Ravener (ravenous) and Leech
+  Gauntlet (reconfigure). Boar Umbra writes the raw `Keyword("Enchant", …)`
+  constructor, as the second round's cards already do.
+- No `lean/` file was edited by hand; `lean/Semantics/Check/Facts.lean` is
+  regenerated output. No `crates/` file was edited but `crates/xtask/src/facts.rs`.
+
+**Assurance counts.** Restored 0; re-spelled 2 already-landed bodies (Fading and
+Impending, named above — same subject, same asserted outcome, corrected field
+name); ignored-with-blockers 0; added 0 test functions (the 28 canon cards are
+the added evidence); removed 0.
+
+**A regression this round did not cause, and did not fix.** The second round's
+report of `cargo test -p deckmaste_plugin --test read_api_gate` failing stands;
+`deckmaste_plugin` is not in this round's derived closure, so it was not re-run.
+It still needs its own ticket against the `plugins-v2-invocation-kinds` landing.
+
+**Glossary gaps.** None.
+
+### REPORT
+
+Provenance, not a gate; measured on `kztlkuwy`, 118 canon cards, keyword facts
+197 rows.
+
+- `cargo xtask gate --changed` derives
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p
+  deckmaste_english_v2 -p deckmaste_semantics_v2 -p xtask`. Run: 45 suites
+  reporting ok, 1,532 tests passed, 0 failed, 1 ignored (pre-existing). The
+  closure is narrower than the second round's whole-workspace line because
+  `--from` defaults to `default@`, which has since advanced.
+- `cargo xtask lean-check plugins_v2/canon`: 118/118, 0.7 s warm on an unchanged
+  tree, 43–50 s after a canon or declaration change, on a host also running this
+  session's cargo builds. The command is not instrumented per byte.
+- `cargo fmt --all` leaves no changes; `cargo xtask facts check` clean;
+  `cargo xtask cite check` 15,705 citations, 0 stale;
+  `cargo xtask cite check --list-noncompliant` 0.
+
+**Live items for the coordinator to route.** The second round's four stand, and
+this round adds three.
+
+- The `Subject` parameter-kind mismatch that stops Champion:
+  `KeywordParam::Subject` carries a `Predicate`, the macro-parameter kind
+  `Subject` is a `NounPhrase`. Wants a `crates/` ticket.
+- **Deed role columns.** Three keywords now stop on the same gap, and it is one
+  ticket, not three: the `Destroy` deed's `patientRole` is `fieldObject` with an
+  empty type list (Indestructible), the `Attach` deed has NO patient role
+  (Protection's [CR#702.16c,702.16d] row), and the `Reveal` deed has no patient
+  role either (Ripple's complement, and any future "revealed this way"). All
+  three live in `crates/xtask/src/facts/action_overlay.rs`, which the macro-body
+  tickets' overlay authority does not cover.
+- **`keywordBodyPartFits` and a keyword whose abilities function in different
+  zones.** Offspring and Squad each pair a stack-functioning static with a
+  battlefield enters trigger; the law ties every triggered body part to the
+  keyword-level `regime`. **Impending's landed body has the same latent
+  mismatch** (`regime: AtCasting` with an end-step trigger) and is one of the two
+  first-round definitions the kernel still has not read, so it will refuse the
+  first card that invokes it. Wants a `lean/` ticket.
+- **`TheRest` after a partition taken inside a `StaticSpec`.** Ripple's cause;
+  `partsTaken` does not see a `SomeOf` that lives in a `DeonticRule` patient.
 - `deckmaste_plugin --test read_api_gate` is red on the default line, from the
-  `plugins-v2-invocation-kinds` landing (details in the second-round record).
-- Decayed and Exploit are the last two first-round definitions the kernel has not
-  read, and neither can get a card today (reasons in the record).
+  `plugins-v2-invocation-kinds` landing.
+- Decayed and Exploit remain the two first-round definitions the kernel has not
+  read, and neither can get a card today. **Station** joins them, for a different
+  reason: the [CR#721] station-card layout has no `Card` variant.
+- **Renown.ron's inert `conferral` argument** (above), if a reviewer wants it
+  pruned.
