@@ -35,19 +35,10 @@ this ticket supersedes that half of it.
 
 ## Ledger
 
-Routed to `docs/tickets/planned/plugins-v2-canon.md` (lines added there
-2026-09-06), because this ticket's own deletion condition — "once the Lean gate
-covers every card the Idris gate did" — cannot be met yet: the Idris gate
-checks the 80 v1 `plugins/canon` cards, and `plugins_v2/` holds only the two
-`testing` fixtures until `plugins-v2-canon` lands.
-
-- Delete `crates/deckmaste_plugin/src/idris_emit.rs`,
-  `crates/xtask/src/idris_check.rs`, the `IdrisCheck` command and every
-  `plugins/*/idris-check-baseline.ron`, and drop the `check canon Idris
-  baseline` CI step.
-- Re-home `idris-check --differential` onto `lean-check` + `deckmaste_lowering_v2`
-  (blocked on `lowering-v2`, which does not exist; mint it as its own ticket if
-  `lowering-v2` has not landed by then).
+The Idris gate retires with Idris, which retires with v1 (user ruling,
+2026-09-06). Its deletion and the differential's fate are recorded on
+`docs/tickets/planned/semantics-v1-cutover.md`; nothing is deleted here and
+the Idris CI job stays.
 
 ## Landing record
 
@@ -99,7 +90,7 @@ plus the docs/CI commit above it.
      covers every card the Idris gate did". It does not yet: v2 has no canon.
      So this landing delivers the emitter, the gate, the ratchet and the CI
      wiring, keeps the Idris job, and routes the deletion and the differential
-     re-home to `plugins-v2-canon` (see `## Ledger`).
+     re-home to `semantics-v1-cutover` (see `## Ledger`).
   2. **Emission goes through `serde::Serialize` rather than hand-written
      per-type renderers.** The serde data model already carries what a Lean
      term needs — a variant's declaring type and name, a struct's fields in

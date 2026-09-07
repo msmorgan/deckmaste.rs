@@ -6,8 +6,8 @@
 > [lean-card-soundness-gate](../tickets/done/lean-card-soundness-gate.md):
 > `cargo xtask lean-check` emits each expanded v2 card as a Lean term and
 > proves `Card.check = []` by `decide`. `cargo xtask idris-check` remains the
-> gate for the v1 `plugins/canon` corpus, which has no v2 counterpart until
-> `plugins-v2-canon` lands; the emitter, checker and baselines retire with it.
+> gate for the v1 `plugins/canon` corpus; the emitter, checker and baselines
+> retire with Idris and v1 (`semantics-v1-cutover`).
 > The original rationale below is historical.
 
 ## Decision

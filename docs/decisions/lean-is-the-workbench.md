@@ -48,8 +48,7 @@ moved with
 (2026-09-06): `cargo xtask lean-check` emits each expanded `plugins_v2/` card as
 a Lean term and proves `Card.check = []` by `decide`, ratcheted per plugin. The
 Rust-to-Idris emitter remains the legacy check for the v1 `plugins/canon`
-corpus, which has no v2 counterpart until `plugins-v2-canon`; it retires with
-that corpus. Validation examines the expanded semantic data on both sides.
+corpus; it retires with Idris and v1 (`semantics-v1-cutover`). Validation examines the expanded semantic data on both sides.
 
 Historical ADRs retain their original arguments and evidence paths. A dated
 note points readers to the current Lean workbench without silently rewriting
