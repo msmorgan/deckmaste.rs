@@ -21,7 +21,9 @@ def KeywordSchema.shapes (schema : KeywordSchema) : List KeywordParamShape := sc
 
 def keywordCosts (k : KeywordLabel) : Bool :=
   (keywordSchemas k).any (fun schema => schema.any (·.shape == .cost))
-def keywordBodied (k : KeywordLabel) : Bool := (keywordFactsFor k).elim false (·.bodied)
+/-- The ability categories the keyword's definition may be written in [CR#702.1]. -/
+def keywordDefinition (k : KeywordLabel) : List AbilityCategory :=
+  (keywordFactsFor k).elim [] (·.definition)
 def keywordParamless (k : KeywordLabel) : Bool :=
   (keywordSchemas k).any List.isEmpty
 

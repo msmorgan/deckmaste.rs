@@ -253,7 +253,6 @@ fn keyword_rows(
                 (row.functions_on_stack, "functionsOnStack"),
                 (row.on_spell_card, "onInstantOrSorceryCard"),
                 (row.paid_cost, "paidCost"),
-                (row.bodied, "bodied"),
                 (row.wants_modes, "wantsModes"),
             ] {
                 if set {
@@ -262,6 +261,15 @@ fn keyword_rows(
             }
             if !row.on_permanent_card {
                 fields.push("onPermanentCard := false".into());
+            }
+            if !row.definition.is_empty() {
+                let categories = row
+                    .definition
+                    .iter()
+                    .map(|category| category.lean())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                fields.push(format!("definition := [{categories}]"));
             }
             if let Some(regime) = row.regime {
                 fields.push(format!(

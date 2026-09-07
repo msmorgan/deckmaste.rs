@@ -656,10 +656,28 @@ def Ability.notWordHeaded : Ability → Bool
   | .italicHead _ _ => false
   | _ => true
 
+/-- The category an ability is written in [CR#113.3]. A word-headed or extended line is a card's
+decoration of an ability, not a category of its own, and a bare keyword line has the category its
+own definition declares rather than one it can be read off. -/
+def Ability.category : Ability → Option AbilityCategory
+  | .static _ => some .static
+  | .triggered _ _ _ _ _ _ _ _ => some .triggered
+  | .activated _ _ _ _ _ _ => some .activated
+  | _ => none
+
+/-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare; a written
+definition is an ability of one of the categories the keyword's registry row declares, and a
+triggered one keys on the same stack regime the row declares [CR#113.6]. -/
 def keywordBodyFits (k : KeywordLabel) : Option Ability → Bool
   | none => true
-  | some (.triggered ev _ _ _ _ _ _ _) => keywordBodied k && keywordStackRegime k == bodyEventRegime ev
-  | some _ => false
+  | some ab =>
+    match ab.category with
+    | none => false
+    | some c =>
+      (keywordDefinition k).elem c &&
+        match ab with
+        | .triggered ev _ _ _ _ _ _ _ => keywordStackRegime k == bodyEventRegime ev
+        | _ => true
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k [] _ => if keywordParamless k then some k else none

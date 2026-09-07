@@ -132,6 +132,26 @@ impl Regime {
     }
 }
 
+/// The general category an ability is written in [CR#113.3]. A keyword's
+/// definition — the body its `Ability.keyword` term may carry [CR#702.1] — is
+/// an ability of one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Category {
+    Static,
+    Triggered,
+    Activated,
+}
+
+impl Category {
+    fn lean(self) -> &'static str {
+        match self {
+            Category::Static => ".static",
+            Category::Triggered => ".triggered",
+            Category::Activated => ".activated",
+        }
+    }
+}
+
 /// One keyword's Idris-gate columns — the facts a stub does not carry. The
 /// stub determines the row's base parameter shape; `extra` adds the further
 /// shapes the CR admits for the same keyword (hexproof from [quality]
@@ -151,7 +171,10 @@ struct Row {
     on_permanent_card: bool,
     on_spell_card: bool,
     paid_cost: bool,
-    bodied: bool,
+    /// The categories this keyword's definition is written in, from its own
+    /// [CR#702] entry. Empty is a keyword whose definition the workbench has
+    /// not declared yet, and whose term therefore carries no body.
+    definition: &'static [Category],
     wants_modes: bool,
 }
 
@@ -166,7 +189,7 @@ const D: Row = Row {
     on_permanent_card: true,
     on_spell_card: false,
     paid_cost: false,
-    bodied: false,
+    definition: &[],
     wants_modes: false,
 };
 
@@ -184,6 +207,9 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Flying",
             counter_eligible: true,
+            // "This creature can't be blocked except by creatures with flying
+            // and/or reach" is one static ability [CR#702.9b].
+            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -240,7 +266,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -252,7 +278,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Ward",
             paid_cost: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -286,7 +312,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Renown",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -321,13 +347,13 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "CumulativeUpkeep",
             paid_cost: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Echo",
             paid_cost: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -347,7 +373,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Bushido",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -377,6 +403,9 @@ fn overlay() -> Vec<Row> {
             extra: &[Shape::CompoundQuality],
             on_spell_card: true,
             paid_cost: true,
+            // "[Cost], Discard this card: Draw a card" is one activated
+            // ability [CR#702.29a].
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -400,7 +429,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Afterlife",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -424,7 +453,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Annihilator",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row { label: "Fear", ..D },
@@ -708,7 +737,8 @@ fn overlay() -> Vec<Row> {
         // casting, though only cascade's functions on the stack [CR#113.6];
         // exalted [CR#702.83a] is triggered off an attack, so its
         // body carries no stack regime; decayed [CR#702.147a] is a static
-        // ability AND a triggered one, so it is not bodied; infect
+        // ability AND a triggered one, which one `body` slot cannot hold, so
+        // its definition stays undeclared; infect
         // [CR#702.90a] modifies damage, like deathtouch and lifelink; split
         // second [CR#702.61a] is a spell-card-only static; phasing
         // [CR#702.26a] and shadow [CR#702.28a] are permanent statics.
@@ -730,13 +760,13 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Prowess",
             regime: Some(Regime::AtCasting),
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -758,7 +788,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Exalted",
             counter_eligible: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -771,8 +801,8 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         // The rowless stubs, rowed. Each gate column follows the keyword's own
-        // CR entry [CR#702]: `bodied` where the entry defines one triggered
-        // ability with a quoted expansion, `paidCost` where it names a
+        // CR entry [CR#702]: `definition` `Triggered` where the entry defines
+        // one triggered ability with a quoted expansion, `paidCost` where it names a
         // "[keyword] cost" [CR#702.1a], `regime` `AtCasting` where the body
         // keys on a spell cast and `AtResolution` where it modifies the damage
         // its source deals [CR#120.3], `functionsOnStack` where the ability
@@ -787,7 +817,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Afflict",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -814,7 +844,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Backup",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -826,7 +856,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "BattleCry",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -866,12 +896,12 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Dethrone",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -909,23 +939,23 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Evolve",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Exploit",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Extort",
             regime: Some(Regime::AtCasting),
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Fabricate",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -934,17 +964,17 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Firebending",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Flanking",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "ForMirrodin",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -959,7 +989,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Frenzy",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -971,13 +1001,13 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Haunt",
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -986,7 +1016,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Hideaway",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -996,7 +1026,7 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Increment",
             regime: Some(Regime::AtCasting),
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1005,7 +1035,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Ingest",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1014,7 +1044,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "JobSelect",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1034,7 +1064,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "LivingWeapon",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1043,17 +1073,17 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Melee",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Mentor",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Mobilize",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1067,7 +1097,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Myriad",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1096,7 +1126,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Persist",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1107,17 +1137,17 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Poisonous",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Provoke",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Rampage",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1145,7 +1175,7 @@ fn overlay() -> Vec<Row> {
             label: "Recover",
             on_spell_card: true,
             paid_cost: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1160,7 +1190,7 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1178,7 +1208,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Soulshift",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1232,7 +1262,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Training",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1263,7 +1293,7 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Undying",
-            bodied: true,
+            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1404,7 +1434,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
         if row.paid_cost {
             fields.push("paidCost := True".to_owned());
         }
-        if row.bodied {
+        if row.definition.contains(&Category::Triggered) {
             fields.push("bodied := True".to_owned());
         }
         if row.wants_modes {
@@ -1488,7 +1518,7 @@ const DESIGNATION_SCOPE: &str = "both directions bind, through the stub-name →
                                  constructor name.";
 
 const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, functionsOnStack, \
-                            onPermanentCard, onSpellCard, paidCost, bodied, wantsModes) stay \
+                            onPermanentCard, onSpellCard, paidCost, definition, wantsModes) stay \
                             hand-kept in xtask's overlay: \
                             plugins_v2/builtin/macros/meta/KeywordAbility.ron declares no field \
                             that could carry them, and its `metadata` block is read into \

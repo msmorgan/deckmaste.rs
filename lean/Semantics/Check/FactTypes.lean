@@ -151,6 +151,13 @@ inductive StackRegime where
   | atCasting | atResolution
   deriving DecidableEq, Repr
 
+/-- The general category an ability belongs to [CR#113.3]: a statement that is simply true, a
+trigger condition with an effect, or a cost with an effect [CR#113.3b,113.3c,113.3d]. A keyword
+ability's definition is written in one of these three [CR#702.1]. -/
+inductive AbilityCategory where
+  | static | triggered | activated
+  deriving DecidableEq, Repr
+
 structure KeywordFacts where
   word : KeywordLabel
   /-- Ordered argument schemas admitted by the keyword declaration and its variants. -/
@@ -162,9 +169,11 @@ structure KeywordFacts where
   onPermanentCard : Bool := true
   onInstantOrSorceryCard : Bool := false
   paidCost : Bool := false
-  /-- Defined by the CR as a triggered ability with a quoted expansion
-  [CR#702.21a,702.24a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. -/
-  bodied : Bool := false
+  /-- The categories the keyword's definition is written in [CR#702.1]. A card may leave the
+  definition unwritten; a written one is an ability of one of these categories
+  [CR#702.9b,702.21a,702.24a,702.29a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. An
+  empty list is a keyword whose definition the workbench has not yet declared. -/
+  definition : List AbilityCategory := []
   wantsModes : Bool := false
   /-- The designations this keyword ability's expansion confers [CR#702.112a]. -/
   confers : List DesignationLabel := []
