@@ -1,0 +1,27 @@
+[package]
+publish = false
+name = "deckmaste_semantics_v2"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+# The macro layer: `SupportsMacros`/`Expand` derives, the `#[macro_ron(…)]`
+# attributes, and the reader the `ron` module wraps.
+macro_ron = { version = "0.1.0", path = "../macro_ron", features = ["derive"] }
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+thiserror = { workspace = true }
+
+# NOTE: no `deckmaste_construction_core`, `deckmaste_spelling`,
+# `deckmaste_semantics`, `deckmaste_plugin` or `deckmaste_core` dependency, now
+# or ever (docs/decisions/semantics-v2.md §10). The declaration file is the
+# shared contract; neither crate depends on the other for it.
+
+[dev-dependencies]
+# The drift test parses this crate's own sources and compares them against the
+# Lean declarations. Parsing Rust with `syn` rather than a hand-rolled line
+# scanner keeps the comparison immune to rustfmt reflow.
+syn = { version = "2.0.117", features = ["full", "parsing", "extra-traits"] }

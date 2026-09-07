@@ -674,6 +674,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_semantics_v2"
+version = "0.1.0"
+dependencies = [
+ "macro_ron",
+ "ron",
+ "serde",
+ "syn 2.0.117",
+ "thiserror",
+]
+
+[[package]]
 name = "deckmaste_spelling"
 version = "0.1.0"
 dependencies = [
