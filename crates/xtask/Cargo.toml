@@ -7,9 +7,6 @@ edition = "2024"
 [lints]
 workspace = true
 
-[features]
-parser-metrics = ["deckmaste_english_v2/parser-metrics"]
-
 [dependencies]
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
@@ -18,7 +15,6 @@ deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 deckmaste_english_v3 = { path = "../deckmaste_english_v3" }
-deckmaste_english_v2 = { version = "0.1.0", path = "../deckmaste_english_v2" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 deckmaste_lexical_source = { version = "0.1.0", path = "../deckmaste_lexical_source" }
 deckmaste_construction_core = { version = "0.1.0", path = "../deckmaste_construction_core" }
@@ -52,5 +48,3 @@ thiserror = { workspace = true }
 tempfile = "3.27.0"
 
 
-[dev-dependencies]
-deckmaste_english_v2 = { path = "../deckmaste_english_v2", features = ["test-support"] }

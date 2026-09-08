@@ -5,7 +5,6 @@ members = [
     "crates/deckmaste_semantics_v2",
     "crates/deckmaste_card",
     "crates/deckmaste_catalogs",
-    "crates/deckmaste_english_v2",
     "crates/deckmaste_english_v3",
     "crates/deckmaste_construction_v3_core",
     "crates/deckmaste_construction_v3",
@@ -33,6 +32,12 @@ members = [
     "crates/macro_ron_lsp",
     "crates/xtask",
 ]
+# Excluded, not a member: `deckmaste_english_v2` is superseded by
+# `deckmaste_english_v3` and awaits deletion (docs/tickets english-v2-deletion).
+# The directory stays on disk — `deckmaste_lexical_source`'s legacy reader and
+# `deckmaste_construction`'s `include!` fixtures read its sources by path — but
+# it is no longer built, tested, or required to be green.
+exclude = ["crates/deckmaste_english_v2"]
 
 # Pinned once for the whole workspace; crates opt in with
 # `thiserror = { workspace = true }`. Typed library errors derive their
@@ -75,24 +80,18 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # (`serde_json`), RON (`ron`, `macro_ron`), and the regex engine (`regex` plus
 # its `regex-automata`/`regex-syntax`/`aho-corasick`/`memchr` workhorses) — so
 # the tools stay fast to *run* without a release build of the whole tree (the
-# xtask alias uses the dev profile — see .cargo/config.toml). English v2's
-# full-corpus Plan gates likewise execute the chart for tens of thousands of
-# units, so its parser package is optimized while the orchestration crate stays
-# cheap to rebuild. The regex crates carry `resolve`'s per-line parser registry
-# and `extract`'s per-card matching; left unoptimized they were the dominant
-# dev-only penalty (dev `resolve` ran ~5x slower than release). `sha2` and the
-# snapshot/catalog crates carry corpus loading and identity hashing, the fixed
-# overhead of every English-v2 gate; `syn`/`proc-macro2`/`quote` carry
-# `english_v2 expand`, which re-parses the generated grammar. Profile
+# xtask alias uses the dev profile — see .cargo/config.toml). The regex crates
+# carry `resolve`'s per-line parser registry and `extract`'s per-card matching;
+# left unoptimized they were the dominant dev-only penalty (dev `resolve` ran
+# ~5x slower than release). `sha2` and the snapshot/catalog crates carry corpus
+# loading and identity hashing; `syn`/`proc-macro2`/`quote` carry the Rust
+# source parsing and token emission the macro and `map` tooling run. Profile
 # overrides only take effect from the workspace root manifest, which is why
 # they live here.
 [profile.dev.package.deckmaste_migrations]
 opt-level = 2
 
 [profile.dev.package.deckmaste_english]
-opt-level = 2
-
-[profile.dev.package.deckmaste_english_v2]
 opt-level = 2
 
 [profile.dev.package.serde_json]

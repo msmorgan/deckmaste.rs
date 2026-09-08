@@ -92,17 +92,14 @@ jobs:
           key: ${{ steps.data_digest.outputs.key }}
 
       # Reproduce the gitignored fixtures that used to be present only in a
-      # developer checkout: the flat Oracle snapshot, canonical catalogs for
-      # english_v2, and legacy text catalogs for legacy consumers.
+      # developer checkout: the flat Oracle snapshot, canonical catalogs,
+      # and legacy text catalogs for legacy consumers.
       - name: derive corpus fixtures
         run: |
           cargo xtask catalogs generate
           cargo xtask catalogs check
           cargo xtask catalogs text
           cargo xtask derive-cards
-
-      - name: check English-v2 flavor-word nursery
-        run: cargo xtask english_v2 flavor-words --check
 
       # Generate the gitignored `plugins/wizards` corpus from the staged Scryfall
       # Oracle Cards snapshot, so each crate's build.rs sets `wizards_corpus` and the

@@ -22,7 +22,7 @@ pub struct CatalogArgs {
 
 #[derive(Debug, Subcommand)]
 enum CatalogCommand {
-    /// Generate the canonical catalogs consumed by `english_v2`.
+    /// Generate the canonical catalogs the English tooling consumes.
     Generate(GenerateArgs),
     /// Check the canonical catalogs against freshly generated output.
     Check(CheckArgs),

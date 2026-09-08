@@ -216,8 +216,9 @@ fn closure_for_paths(
             // OWNS the directory, so without this the closure would be empty
             // for a fixture change.
             roots.insert(PLUGINS_V2_READER.to_owned());
-            // The builtin declarations are the file `deckmaste_english_v2` and
-            // `deckmaste_construction_core` read too, under their own metadata.
+            // The builtin declarations are the file the typed declaration
+            // readers — `deckmaste_construction_core` among them — read too,
+            // under their own metadata.
             if is_builtin_v2_path(path) {
                 roots.extend(builtin_v2_readers.iter().cloned());
             }
@@ -392,8 +393,11 @@ mod tests {
     use super::*;
 
     /// Shaped like the real workspace: a root package whose directory contains
-    /// every other package, plus the `deckmaste_english_v2` and
-    /// `deckmaste_semantics_v2` dependency chains.
+    /// every other package, the `deckmaste_construction_core` and
+    /// `deckmaste_construction_v3_core` dependency chains, and the leaf crates
+    /// `xtask` depends on directly. `deckmaste_english_v2` is deliberately
+    /// absent — it left the workspace through the root manifest's `exclude`,
+    /// so `cargo metadata` no longer reports it.
     const METADATA: &str = r#"
     {
       "workspace_root": "/workspace",
@@ -401,9 +405,12 @@ mod tests {
         {"name":"deckmaste","manifest_path":"/workspace/Cargo.toml","targets":[{"src_path":"/workspace/src/main.rs"}],"dependencies":[]},
         {"name":"deckmaste_construction_core","manifest_path":"/workspace/crates/deckmaste_construction_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_core/src/lib.rs"}],"dependencies":[]},
         {"name":"deckmaste_construction","manifest_path":"/workspace/crates/deckmaste_construction/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
-        {"name":"deckmaste_english_v2","manifest_path":"/workspace/crates/deckmaste_english_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_english_v2/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
+        {"name":"deckmaste_construction_v3_core","manifest_path":"/workspace/crates/deckmaste_construction_v3_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_v3_core/src/lib.rs"}],"dependencies":[]},
+        {"name":"deckmaste_construction_v3","manifest_path":"/workspace/crates/deckmaste_construction_v3/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_v3/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_v3_core"}]},
+        {"name":"deckmaste_english_v3","manifest_path":"/workspace/crates/deckmaste_english_v3/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_english_v3/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_v3"}]},
+        {"name":"deckmaste_lexical_source","manifest_path":"/workspace/crates/deckmaste_lexical_source/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_lexical_source/src/lib.rs"}],"dependencies":[]},
         {"name":"deckmaste_semantics_v2","manifest_path":"/workspace/crates/deckmaste_semantics_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_semantics_v2/src/lib.rs"}],"dependencies":[]},
-        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_english_v2"},{"path":"/workspace/crates/deckmaste_semantics_v2"}]}
+        {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"},{"path":"/workspace/crates/deckmaste_lexical_source"},{"path":"/workspace/crates/deckmaste_semantics_v2"}]}
       ]
     }
     "#;
@@ -428,52 +435,65 @@ mod tests {
             [
                 "deckmaste_construction_core",
                 "deckmaste_construction",
-                "deckmaste_english_v2",
                 "xtask"
             ]
         );
         assert_eq!(
             rendered(&test_command(&packages)),
-            "cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask"
+            "cargo test -p deckmaste_construction_core -p deckmaste_construction -p xtask"
         );
     }
 
     #[test]
-    fn english_v2_path_gets_only_its_reverse_dependency_closure() {
+    fn construction_v3_core_path_gets_only_its_reverse_dependency_closure() {
         assert_eq!(
-            closure(&["crates/deckmaste_english_v2/src/environment.rs"]),
-            ["deckmaste_english_v2", "xtask"]
+            closure(&["crates/deckmaste_construction_v3_core/src/emit.rs"]),
+            [
+                "deckmaste_construction_v3_core",
+                "deckmaste_construction_v3",
+                "deckmaste_english_v3"
+            ]
         );
     }
 
+    /// A crate owns its whole directory, declaration data included — the file
+    /// need not be Rust source or live under `src/`.
     #[test]
-    fn core_verbs_declarations_belong_to_the_crate_that_holds_them() {
+    fn lexicon_declarations_belong_to_the_crate_that_holds_them() {
         assert_eq!(
-            closure(&["crates/deckmaste_english_v2/src/core_verbs.ron"]),
-            ["deckmaste_english_v2", "xtask"]
+            closure(&["crates/deckmaste_lexical_source/lexicon/core.ron"]),
+            ["deckmaste_lexical_source", "xtask"]
+        );
+    }
+
+    /// `deckmaste_english_v2` is excluded from the workspace, so no package
+    /// owns its paths and a change confined to it gates nothing.
+    #[test]
+    fn an_excluded_crate_path_produces_no_gate() {
+        assert!(
+            closure(&[
+                "crates/deckmaste_english_v2/src/environment.rs",
+                "crates/deckmaste_english_v2/src/core_verbs.ron",
+            ])
+            .is_empty()
         );
     }
 
     /// A declaration file is read by every crate that reads the shared
-    /// contract — the two english-v2 readers under their typed metadata, and
-    /// `deckmaste_semantics_v2` under an opaque one.
+    /// contract — the typed readers whose sources name the declaration tree,
+    /// and `deckmaste_semantics_v2` under an opaque one.
     #[test]
     fn builtin_declaration_path_starts_from_each_reader() {
         let packages = closure_for_paths(
             &metadata(),
             &[PathBuf::from("plugins_v2/builtin/macros/types/Foo.ron")],
-            &BTreeSet::from([
-                "deckmaste_construction_core".to_owned(),
-                "deckmaste_english_v2".to_owned(),
-                "xtask".to_owned(),
-            ]),
+            &BTreeSet::from(["deckmaste_construction_core".to_owned(), "xtask".to_owned()]),
         );
         assert_eq!(
             packages,
             [
                 "deckmaste_construction_core",
                 "deckmaste_construction",
-                "deckmaste_english_v2",
                 "deckmaste_semantics_v2",
                 "xtask"
             ]
@@ -481,17 +501,13 @@ mod tests {
     }
 
     /// A fixture plugin is read by `deckmaste_semantics_v2` alone: it is not a
-    /// declaration file, so the english-v2 readers stay out of the closure.
+    /// declaration file, so the typed readers stay out of the closure.
     #[test]
     fn a_plugins_v2_fixture_starts_from_the_semantics_reader() {
         let packages = closure_for_paths(
             &metadata(),
             &[PathBuf::from("plugins_v2/testing/cards/Lightning Bolt.ron")],
-            &BTreeSet::from([
-                "deckmaste_construction_core".to_owned(),
-                "deckmaste_english_v2".to_owned(),
-                "xtask".to_owned(),
-            ]),
+            &BTreeSet::from(["deckmaste_construction_core".to_owned(), "xtask".to_owned()]),
         );
         assert_eq!(packages, ["deckmaste_semantics_v2", "xtask"]);
     }
@@ -522,17 +538,17 @@ mod tests {
             paths_from_summary(concat!(
                 "M crates/xtask/src/gate.rs\n",
                 "R docs/tickets/{wip => done}/example.md\n",
-                "R {crates/deckmaste_english/src/tail.rs => crates/deckmaste_english_v2/src/tail.rs}\n",
-                "C crates/deckmaste_english_v2/src/{tail.rs => head.rs}\n",
+                "R {crates/deckmaste_english/src/tail.rs => crates/deckmaste_english_v3/src/tail.rs}\n",
+                "C crates/deckmaste_english_v3/src/{tail.rs => head.rs}\n",
             )),
             [
                 PathBuf::from("crates/xtask/src/gate.rs"),
                 PathBuf::from("docs/tickets/wip/example.md"),
                 PathBuf::from("docs/tickets/done/example.md"),
                 PathBuf::from("crates/deckmaste_english/src/tail.rs"),
-                PathBuf::from("crates/deckmaste_english_v2/src/tail.rs"),
-                PathBuf::from("crates/deckmaste_english_v2/src/tail.rs"),
-                PathBuf::from("crates/deckmaste_english_v2/src/head.rs"),
+                PathBuf::from("crates/deckmaste_english_v3/src/tail.rs"),
+                PathBuf::from("crates/deckmaste_english_v3/src/tail.rs"),
+                PathBuf::from("crates/deckmaste_english_v3/src/head.rs"),
             ]
         );
     }
@@ -542,13 +558,17 @@ mod tests {
         assert_eq!(
             closure(
                 &paths_from_summary(
-                    "R crates/{deckmaste_construction => deckmaste_english_v2}/src/tail.rs\n"
+                    "R crates/{deckmaste_construction => deckmaste_lexical_source}/src/tail.rs\n"
                 )
                 .iter()
                 .map(|path| path.to_str().expect("test paths are UTF-8"))
                 .collect::<Vec<_>>()
             ),
-            ["deckmaste_construction", "deckmaste_english_v2", "xtask"]
+            [
+                "deckmaste_construction",
+                "deckmaste_lexical_source",
+                "xtask"
+            ]
         );
     }
 
