@@ -314,3 +314,39 @@ work is the absent family connections (including Type Lines), the full supported
 baseline and complete obligation/residual accounting. Richer document variants,
 article/case and other measured general gaps belong to the systemic follow-up;
 this checkpoint does not require or claim their closure.
+
+Type Line checkpoint, change `lsklqxrk`: seven declarations connect catalog
+roles to flat supertype, card-type and subtype groups, bringing the candidate to
+134 Constructions and 52 public Categories. The card-type group is nonempty;
+supertypes precede it, and a subtype group requires its dash and at least one
+member. One declared lexical role governs chart and constructed admission.
+This implements the current Lean document relationship, not the entire inherited
+open Type order-schema obligation: richer within-group ordering and compatibility
+remain explicit systemic work. No sorting or game validation was introduced.
+
+The real corpus command now accepts `--field type-line` as well as its default
+`--field text`. Schema version 2 records the selected field and source hash;
+offsets, root checks, census and performance refer to that field while original
+rules-text and Type Line metadata retain their meanings. Two grammar tests and
+one corpus test were added (25 Rust additions cumulatively), none removed or
+weakened. Independent expected values pin the flat groups and complete lexical
+traversal. Removing the supertype-role guard admitted wrong group assignments
+and made the exact Reading-set assertion fail. Restoring the byte-identical
+declaration made both Type Line tests pass again.
+
+On the unchanged eleven-face subset from `vsryvkun`, all eleven Type Lines have
+one checked Reading. Rules text retains ten unique and one no-Reading result;
+every previous identity, exact count and stored tree fingerprint is unchanged.
+Both runs have zero internal/validation issues. The input hash remains
+`2d6e3a8b377de979d1cc81081721700f05619b2d94f3037d1804094dc99abfc8`.
+On `lsklqxrk`, the Type Line run measured 13,632,326 ns corpus wall and
+64,141 ns/B checked-source thread CPU (host load 4.83/2.74/2.17); rules text
+measured 24,988,194 ns wall and 74,363 ns/B (load 3.43/2.61/2.14). Both used one
+worker in the debug build. These are subset results; no covered-count lock or
+full baseline is claimed.
+
+`cargo xtask gate --changed --from ookvvtoz --clippy --run` passed 595 tests,
+zero failures and one preexisting ignore, plus strict all-target clippy for the
+derived five-crate closure. Formatting used `jj fix -s lsklqxrk`. The feature
+still needs the complete family/obligation audit, refreshed supported-corpus
+baseline, linguistic audit and cause-grouped handoff before integration.

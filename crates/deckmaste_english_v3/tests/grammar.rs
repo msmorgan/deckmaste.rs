@@ -505,3 +505,88 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
     assert_eq!(paragraph.realize(lexicon()).unwrap(), expected);
     assert!(readings(&expected, Category::Paragraph).contains(&paragraph));
 }
+
+#[test]
+fn type_lines_require_ordered_nonempty_groups_from_declared_vocabulary() {
+    for text in [
+        "Instant",
+        "Artifact Creature — Golem",
+        "Basic Snow Land — Island",
+        "Legendary Artifact Creature — Human Wizard",
+        "Enchantment Creature — Human Soldier",
+        "Kindred Instant — Elf",
+        "Battle — Siege",
+    ] {
+        assert!(!readings(text, Category::TypeLine).is_empty(), "{text:?}");
+    }
+    for text in [
+        "",
+        "Legendary",
+        "Legendary — Elf",
+        "Creature Legendary — Elf",
+        "Elf — Creature",
+        "Creature —",
+        "Creature — Legendary",
+        "Creature Elf",
+        "creature — Elf",
+        "Creature - Elf",
+        "Creature — NoSuchSubtype",
+    ] {
+        assert!(readings(text, Category::TypeLine).is_empty(), "{text:?}");
+    }
+}
+
+#[test]
+fn independent_type_line_retains_flat_groups_and_lexical_identity() {
+    let catalog_word = |id| word(id, WordForm::Invariant, FeatureBundle::default());
+    let legendary = catalog_word("catalog:supertypes.txt/Legendary");
+    let artifact = catalog_word("catalog:card-types.txt/Artifact");
+    let creature = catalog_word("catalog:card-types.txt/Creature");
+    let human = catalog_word("catalog:creature-types.txt/Human");
+    let wizard = catalog_word("catalog:creature-types.txt/Wizard");
+    let value = Reading::SubtypedLine {
+        form: 0,
+        supertypes: vec![Reading::SupertypePrefix {
+            form: 0,
+            head: legendary.clone(),
+        }],
+        types: Box::new(Reading::CardTypes {
+            form: 0,
+            head: artifact.clone(),
+            rest: vec![Reading::CardTypeContinuation {
+                form: 0,
+                head: creature.clone(),
+            }],
+        }),
+        subtypes: Box::new(Reading::Subtypes {
+            form: 0,
+            head: human.clone(),
+            rest: vec![Reading::SubtypeContinuation {
+                form: 0,
+                head: wizard.clone(),
+            }],
+        }),
+    };
+    let expected = "Legendary Artifact Creature — Human Wizard";
+    assert_eq!(value.realize(lexicon()).unwrap(), expected);
+    assert_eq!(
+        readings(expected, Category::TypeLine),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(
+        leaves,
+        [legendary, artifact.clone(), creature, human, wizard]
+    );
+    assert!(
+        Reading::SupertypePrefix {
+            form: 0,
+            head: artifact
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+}

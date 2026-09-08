@@ -101,11 +101,12 @@ pub(super) fn validate<'a>(
     traced: &'a TracedValue,
     raw: &str,
     lexicon: &Lexicon,
+    category: Category,
 ) -> Result<&'a Reading, Issue> {
     let Value::Reading(reading) = &traced.value else {
         return Err(Issue::RootCategory);
     };
-    if reading.category() != Category::Document {
+    if reading.category() != category {
         return Err(Issue::RootCategory);
     }
     let realized = reading

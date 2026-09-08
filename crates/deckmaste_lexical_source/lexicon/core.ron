@@ -2,6 +2,19 @@
 // corpus occurrence counts do not license or withhold an entry.
 (
     feature_additions: {
+        "catalog:card-types.txt/Artifact": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Battle": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Creature": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Enchantment": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Instant": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Kindred": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Land": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Planeswalker": {"TypeLineRole": "CardType"},
+        "catalog:card-types.txt/Sorcery": {"TypeLineRole": "CardType"},
+        "catalog:supertypes.txt/Basic": {"TypeLineRole": "Supertype"},
+        "catalog:supertypes.txt/Legendary": {"TypeLineRole": "Supertype"},
+        "catalog:supertypes.txt/Snow": {"TypeLineRole": "Supertype"},
+        "catalog:supertypes.txt/World": {"TypeLineRole": "Supertype"},
         "vocab:FixedCostSymbol/Variable": {"SymbolUse": "Cost"},
         "vocab:FixedCostSymbol/White": {"SymbolUse": "Cost"},
         "vocab:FixedCostSymbol/Blue": {"SymbolUse": "Cost"},

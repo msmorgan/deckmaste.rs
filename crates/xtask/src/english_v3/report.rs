@@ -13,6 +13,7 @@ use deckmaste_lexical::Source;
 use serde::Serialize;
 
 use crate::english_v3::EnglishV3Args;
+use crate::english_v3::SourceField;
 use crate::english_v3::sum_metrics;
 use crate::english_v3::validation::Issue;
 use crate::english_v3::validation::NodeIdentity;
@@ -99,6 +100,7 @@ pub(super) struct FaceReport {
     pub type_line: Option<String>,
     pub raw_text: Option<String>,
     pub raw_text_sha256: String,
+    pub source_sha256: String,
     pub unknown_words: Vec<UnknownWord>,
     pub enumeration: Enumeration,
     pub census: Census,
@@ -116,7 +118,7 @@ pub(super) struct FaceReport {
 }
 
 impl FaceReport {
-    pub fn new(face: &SupportedFace<'_, '_>) -> Result<Self> {
+    pub fn new(face: &SupportedFace<'_, '_>, field: SourceField) -> Result<Self> {
         let raw = face.card.text.as_deref();
         Ok(Self {
             id: digest(&serde_json::to_vec(&(face.group_name, face.index, raw))?),
@@ -128,6 +130,7 @@ impl FaceReport {
             type_line: face.card.type_line.as_deref().map(str::to_owned),
             raw_text: raw.map(str::to_owned),
             raw_text_sha256: digest(raw.unwrap_or("").as_bytes()),
+            source_sha256: digest(field.source(face).unwrap_or("").as_bytes()),
             unknown_words: Vec::new(),
             enumeration: Enumeration::Failed,
             census: Census::Undetermined,
@@ -157,6 +160,7 @@ pub(super) struct Totals {
     pub failed: usize,
     pub issues: usize,
     supported_faces_without_text: usize,
+    supported_faces_without_source: usize,
     source_bytes: usize,
     checked_text_bytes: usize,
     checked_readings: usize,
@@ -169,7 +173,7 @@ pub(super) struct Totals {
 }
 
 impl Totals {
-    fn new(faces: &[FaceReport]) -> Self {
+    fn new(faces: &[FaceReport], field: SourceField) -> Self {
         let mut totals = Self::default();
         let mut checked_cpu = Some(0_u128);
         let mut cpu = Some(0_u128);
@@ -187,7 +191,12 @@ impl Totals {
             }
             totals.issues += face.issues.len();
             totals.supported_faces_without_text += usize::from(face.raw_text.is_none());
-            let bytes = face.raw_text.as_ref().map_or(0, String::len);
+            let source = match field {
+                SourceField::Text => &face.raw_text,
+                SourceField::TypeLine => &face.type_line,
+            };
+            totals.supported_faces_without_source += usize::from(source.is_none());
+            let bytes = source.as_ref().map_or(0, String::len);
             totals.source_bytes += bytes;
             totals.checked_readings += face.checked_readings;
             cpu = cpu.zip(face.thread_cpu_ns).map(|(sum, n)| sum + n);
@@ -217,6 +226,7 @@ pub(super) struct Measurements {
 #[derive(Debug, Serialize)]
 pub(super) struct Report {
     schema_version: usize,
+    field: SourceField,
     input: PathBuf,
     input_sha256: String,
     lexical_inventory_sha256: String,
@@ -294,13 +304,14 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 1,
+            schema_version: 2,
+            field: args.field,
             input: args.data.clone(),
             input_sha256: digest(bytes),
             lexical_inventory_sha256: inventory_sha256,
             change_id,
             support_filter: SUPPORT_FILTER,
-            input_policy: "Raw face text including reminders; no normalization. Missing text is analyzed as empty, with null retained in raw_text. Type line is metadata only.",
+            input_policy: "Analyze the selected raw face field with its declared root Category, without normalization or removal of reminders. Missing fields are analyzed as empty with null retained in metadata. source_sha256 and all analysis metrics refer to the selected field; raw_text and type_line always retain their original meanings.",
             validation_scope: "Every counted Reading passes declaration admission, lexical ownership/context, byte-exact realization, and node/word traversal comparison against materialization traces. Independent linguistic correctness and the independently constructed-value roundtrip law are NOT checked by this corpus command.",
             fingerprint_encoding: "SHA-256 of generated Reading Debug; diagnostic identity within this source tree, not a stable serialization contract. Node fingerprints include complete subtrees.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
@@ -308,7 +319,7 @@ impl Report {
             unmapped_sources,
             workers: args.workers.get(),
             measurements,
-            totals: Totals::new(&faces),
+            totals: Totals::new(&faces, args.field),
             residual_groups,
             unknown_word_faces,
             faces,

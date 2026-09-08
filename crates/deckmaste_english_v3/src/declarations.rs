@@ -25,6 +25,7 @@ constructions! {
         feature KeywordParameterClass { Nullary, Amount, Cost }
         feature LabelKind { AbilityWord }
         feature SymbolUse { Cost }
+        feature TypeLineRole { Supertype, CardType, Subtype }
 
         category Document();
         category Ability();
@@ -72,6 +73,12 @@ constructions! {
         category Mode();
         category Modes();
         category ModeContinuation();
+        category TypeLine();
+        category SupertypePrefix();
+        category CardTypes();
+        category CardTypeContinuation();
+        category Subtypes();
+        category SubtypeContinuation();
 
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
@@ -154,6 +161,39 @@ constructions! {
 
         construction EmptyDocument: Document {
             form [];
+        }
+
+        construction TypeLine: TypeLine {
+            form [supertypes: repeat(SupertypePrefix, ""), types: CardTypes];
+        }
+
+        construction SubtypedLine: TypeLine {
+            form [supertypes: repeat(SupertypePrefix, ""), types: CardTypes, " — ", subtypes: Subtypes];
+        }
+
+        construction SupertypePrefix: SupertypePrefix {
+            form [head: lexical(Catalog), " "];
+            require head.TypeLineRole = Supertype;
+        }
+
+        construction CardTypes: CardTypes {
+            form [head: lexical(Catalog), rest: repeat(CardTypeContinuation, "")];
+            require head.TypeLineRole = CardType;
+        }
+
+        construction CardTypeContinuation: CardTypeContinuation {
+            form [" ", head: lexical(Catalog)];
+            require head.TypeLineRole = CardType;
+        }
+
+        construction Subtypes: Subtypes {
+            form [head: lexical(Catalog), rest: repeat(SubtypeContinuation, "")];
+            require head.TypeLineRole = Subtype;
+        }
+
+        construction SubtypeContinuation: SubtypeContinuation {
+            form [" ", head: lexical(Catalog)];
+            require head.TypeLineRole = Subtype;
         }
 
         construction Document: Document {

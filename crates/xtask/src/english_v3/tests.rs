@@ -10,6 +10,7 @@ use deckmaste_lexical::Lexicon;
 use serde_json::json;
 
 use crate::english_v3::EnglishV3Args;
+use crate::english_v3::SourceField;
 use crate::english_v3::analyze_cards;
 use crate::english_v3::report::Census;
 use crate::english_v3::report::Enumeration;
@@ -35,6 +36,7 @@ fn lexicon() -> &'static Lexicon {
 
 fn args(limit: Option<usize>) -> EnglishV3Args {
     EnglishV3Args {
+        field: SourceField::Text,
         data: "unused.json".into(),
         output: "unused-report.json".into(),
         reading_limit: limit.map(|n| NonZeroUsize::new(n).unwrap()),
@@ -137,9 +139,9 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
     let input = lexicon().analyze("Draw cards.");
     let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
     let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
-    assert!(validate(&traced, "Draw cards.", lexicon()).is_ok());
+    assert!(validate(&traced, "Draw cards.", lexicon(), Category::Document).is_ok());
     assert_eq!(
-        validate(&traced, "draw cards.", lexicon()),
+        validate(&traced, "draw cards.", lexicon(), Category::Document),
         Err(Issue::Roundtrip {
             realized: "Draw cards.".into()
         })
@@ -147,13 +149,13 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
     let mut wrong_nodes = traced.clone();
     wrong_nodes.nodes.swap(0, 1);
     assert_eq!(
-        validate(&wrong_nodes, "Draw cards.", lexicon()),
+        validate(&wrong_nodes, "Draw cards.", lexicon(), Category::Document),
         Err(Issue::ConstructionTraversal)
     );
     let mut wrong_words = traced.clone();
     wrong_words.words.swap(0, 1);
     assert_eq!(
-        validate(&wrong_words, "Draw cards.", lexicon()),
+        validate(&wrong_words, "Draw cards.", lexicon(), Category::Document),
         Err(Issue::LexicalTraversal)
     );
 }
@@ -194,5 +196,70 @@ fn a_failed_validation_is_written_before_the_command_returns_an_error() {
             .as_str()
             .unwrap()
             .contains("NOT checked")
+    );
+}
+
+#[test]
+fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text() {
+    let mut valid = card(Some("Unknownword."), "Legal");
+    valid["type"] = json!("Legendary Artifact Creature — Human Wizard");
+    let mut invalid = card(Some("Draw cards."), "Legal");
+    invalid["type"] = json!("Creature Legendary");
+    let bytes = serde_json::to_vec(&json!({"data": {
+        "A": [valid], "B": [invalid], "C": [card(None, "Legal")]
+    }}))
+    .unwrap();
+    let cards = AtomicCards::parse(&bytes).unwrap();
+    let grammar = Grammar::default();
+    let mut args = args(None);
+    let text = analyze_cards(&cards, lexicon(), &grammar, &args).unwrap();
+    args.field = SourceField::TypeLine;
+    let faces = analyze_cards(&cards, lexicon(), &grammar, &args).unwrap();
+    assert_eq!(
+        faces.iter().map(|face| face.census).collect::<Vec<_>>(),
+        [Census::One, Census::No, Census::No]
+    );
+    assert_eq!(faces[0].raw_text.as_deref(), Some("Unknownword."));
+    assert_eq!(
+        faces[0].type_line.as_deref(),
+        Some("Legendary Artifact Creature — Human Wizard")
+    );
+    assert_eq!(faces[0].id, text[0].id);
+    assert_eq!(faces[0].raw_text_sha256, text[0].raw_text_sha256);
+    assert_eq!(
+        faces[0].source_sha256,
+        crate::raw_corpus::digest("Legendary Artifact Creature — Human Wizard".as_bytes())
+    );
+    assert!(
+        faces
+            .iter()
+            .all(|face| face.issues.is_empty() && face.unknown_words.is_empty())
+    );
+    let report = Report::new(
+        &args,
+        &bytes,
+        "test".into(),
+        vec![],
+        faces,
+        Measurements {
+            setup_wall_ns: 0,
+            corpus_wall_ns: 0,
+            host_load: None,
+        },
+    );
+    let saved = serde_json::to_value(report).unwrap();
+    assert_eq!(saved["field"], "type_line");
+    assert_eq!(
+        saved["totals"]["source_bytes"],
+        "Legendary Artifact Creature — Human Wizard".len() + "Creature Legendary".len()
+    );
+    assert_eq!(saved["totals"]["supported_faces_without_source"], 1);
+    let input = lexicon().analyze("Instant");
+    let forest = parse(&grammar, lexicon(), &input, &Category::TypeLine).unwrap();
+    let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
+    assert!(validate(&traced, "Instant", lexicon(), Category::TypeLine).is_ok());
+    assert_eq!(
+        validate(&traced, "Instant", lexicon(), Category::Document),
+        Err(Issue::RootCategory)
     );
 }

@@ -19,12 +19,14 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
 use clap::Args;
+use clap::ValueEnum;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::parse;
 use deckmaste_lexical::Lexicon;
 use rayon::prelude::*;
+use serde::Serialize;
 
 use crate::english_v3::report::Census;
 use crate::english_v3::report::Enumeration;
@@ -40,8 +42,34 @@ use crate::raw_corpus::SupportedFace;
 use crate::raw_corpus::digest;
 use crate::raw_corpus::supported_faces;
 
+#[derive(Debug, Clone, Copy, Serialize, ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceField {
+    Text,
+    TypeLine,
+}
+
+impl SourceField {
+    fn category(self) -> Category {
+        match self {
+            Self::Text => Category::Document,
+            Self::TypeLine => Category::TypeLine,
+        }
+    }
+
+    fn source<'a>(self, face: &'a SupportedFace<'_, '_>) -> Option<&'a str> {
+        match self {
+            Self::Text => face.card.text.as_deref(),
+            Self::TypeLine => face.card.type_line.as_deref(),
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct EnglishV3Args {
+    /// Face field to parse with its declared root Category.
+    #[arg(long, value_enum, default_value = "text")]
+    pub field: SourceField,
     /// Raw MTGJSON `AtomicCards` snapshot; text is analyzed without
     /// normalization.
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
@@ -156,8 +184,8 @@ fn analyze_face(
 ) -> Result<FaceReport> {
     let cpu_start = report::thread_cpu_ns();
     let started = Instant::now();
-    let raw = face.card.text.as_deref().unwrap_or("");
-    let mut result = FaceReport::new(face)?;
+    let raw = args.field.source(face).unwrap_or("");
+    let mut result = FaceReport::new(face, args.field)?;
     let analyzed = lexicon.analyze_source(raw, None);
     for range in analyzed.unknown_words() {
         let bytes = analyzed
@@ -171,7 +199,7 @@ fn analyze_face(
     }
     result.lexical_wall_ns = started.elapsed().as_nanos();
     let started = Instant::now();
-    match parse(grammar, lexicon, &analyzed, &Category::Document) {
+    match parse(grammar, lexicon, &analyzed, &args.field.category()) {
         Ok(forest) => {
             result.chart_wall_ns = started.elapsed().as_nanos();
             result.chart = report::chart_metrics(forest.metrics());
@@ -201,7 +229,7 @@ fn analyze_face(
                         continue;
                     }
                 };
-                match validate(&value, raw, lexicon) {
+                match validate(&value, raw, lexicon, args.field.category()) {
                     Ok(reading) => {
                         if !checked.insert(reading.clone()) {
                             result.issues.push(Issue::DuplicateReading);

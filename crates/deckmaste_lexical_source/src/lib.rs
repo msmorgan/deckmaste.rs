@@ -66,6 +66,21 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
                     .features
                     .insert("LabelKind".into(), "AbilityWord".into());
             }
+            if matches!(
+                kind,
+                deckmaste_catalogs::CatalogKind::ArtifactTypes
+                    | deckmaste_catalogs::CatalogKind::BattleTypes
+                    | deckmaste_catalogs::CatalogKind::CreatureTypes
+                    | deckmaste_catalogs::CatalogKind::EnchantmentTypes
+                    | deckmaste_catalogs::CatalogKind::LandTypes
+                    | deckmaste_catalogs::CatalogKind::PlaneswalkerTypes
+                    | deckmaste_catalogs::CatalogKind::SpellTypes
+            ) {
+                lexeme
+                    .properties
+                    .features
+                    .insert("TypeLineRole".into(), "Subtype".into());
+            }
             output.lexemes.push(lexeme);
         }
     }

@@ -20,8 +20,8 @@ values preserve lexical forms, tense and selected frames even when a parent has
 no reason to inspect those features. Auxiliary complements own their separator,
 so omission contributes neither a word nor a trailing space.
 
-Whole-grammar activation is still in progress. Type Lines and the remaining
-family connections precede the full supported-corpus baseline. The
+Whole-grammar activation is still in progress. The remaining family audit
+precedes the full supported-corpus baseline. The
 `english-v3-systemic-residuals` follow-up owns general failures exposed by that
 experiment, including unresolved article/onset, capitalization, frame,
 coordination, extraction and document variants. The activation accounts for
@@ -47,6 +47,13 @@ retain ordered flat collections. Quoted and keyword Objects use selected verb
 frames. The Target Verb has its own regular paradigm and transitive frame,
 independent of the Targeting Marker; both can occur in one relative clause.
 
+Type Lines use declared catalog roles for supertypes, card types and subtypes.
+Their flat groups preserve order and lexical identity, with supertypes before
+the nonempty card-type group and an em dash before a nonempty subtype group.
+These Productions implement the current Lean document relationship. Further
+ordering and subtype-compatibility obligations remain part of the systemic
+handoff; the grammar does not sort the input or claim those constraints.
+
 Generated admission, realization and traversal dispatch to separate methods for
 each Construction. This keeps recursive stack frames from reserving temporary
 space for the entire grammar's match body. A nested, independently constructed
@@ -65,8 +72,12 @@ cargo xtask english-v3 --data /tmp/AtomicCards-subset.json \
 It shares the independent lexical command's supported-face filter and stable
 group/index identity. It analyzes raw text, including reminders, without
 normalization. Missing text is analyzed as an empty Document while its JSON
-`null` remains distinct from a present empty string. Type Lines are currently
-face metadata, not an additional parse root in this command.
+`null` remains distinct from a present empty string. `--field type-line` runs the
+same checks with the Type Line root over each supported face's raw type line.
+The default is `--field text`. Reports record the selected field; `source_sha256`,
+unknown-word offsets, census and timing metrics refer to that field. Original
+`raw_text` and `type_line` metadata keep their meanings in either mode. A missing
+Type Line has no Reading because its required card-type group is absent.
 
 Enumeration is complete by default. `--reading-limit N` requests a bounded
 prefix for inspection; the report never calls a capped single Reading unique.
