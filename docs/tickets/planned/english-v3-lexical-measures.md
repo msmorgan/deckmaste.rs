@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-whole-grammar-activation]
+needs: [english-v3-whole-grammar-activation, scryfall-oracle-card-ingestion]
 ---
 # Repair declared lexical gaps and scalar notation
 
