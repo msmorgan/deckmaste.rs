@@ -298,7 +298,7 @@ fn no_source_file_writes_out_an_elided_constructor() {
     }
     println!("{checked} source file(s) hold no elided constructor");
     assert!(
-        checked >= 2_000,
+        checked >= 1_500,
         "only {checked} files checked; the scan lost the corpus it reads"
     );
 }

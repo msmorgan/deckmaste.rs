@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "phalanxCommander",
-    spelling: "Phalanx Commander",
-    grammar: FixedTerm(surface: "Phalanx Commander"),
-)

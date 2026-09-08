@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "dynasticCodes",
-    spelling: "Dynastic Codes",
-    grammar: FixedTerm(surface: "Dynastic Codes"),
-)

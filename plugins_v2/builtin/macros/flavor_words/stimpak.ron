@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "stimpak",
-    spelling: "Stimpak",
-    grammar: FixedTerm(surface: "Stimpak"),
-)

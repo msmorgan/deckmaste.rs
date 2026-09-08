@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "twoWeaponFighting",
-    spelling: "Two-Weapon Fighting",
-    grammar: FixedTerm(surface: "Two-Weapon Fighting"),
-)

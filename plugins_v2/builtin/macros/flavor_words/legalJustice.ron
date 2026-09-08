@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "legalJustice",
-    spelling: "Legal Justice",
-    grammar: FixedTerm(surface: "Legal Justice"),
-)

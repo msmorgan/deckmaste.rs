@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "theWillOfTheHiveMind",
-    spelling: "The Will of the Hive Mind",
-    grammar: FixedTerm(surface: "The Will of the Hive Mind"),
-)

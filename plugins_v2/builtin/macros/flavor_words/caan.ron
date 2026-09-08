@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "caan",
-    spelling: "Caan",
-    grammar: FixedTerm(surface: "Caan"),
-)

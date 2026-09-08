@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "bioPlasmicBarrage",
-    spelling: "Bio-plasmic Barrage",
-    grammar: FixedTerm(surface: "Bio-plasmic Barrage"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "theMostImportantPunchInHistory",
-    spelling: "The Most Important Punch in History",
-    grammar: FixedTerm(surface: "The Most Important Punch in History"),
-)

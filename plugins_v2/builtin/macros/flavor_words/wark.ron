@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "wark",
-    spelling: "Wark",
-    grammar: FixedTerm(surface: "Wark"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "frenziedMetabolism",
-    spelling: "Frenzied Metabolism",
-    grammar: FixedTerm(surface: "Frenzied Metabolism"),
-)

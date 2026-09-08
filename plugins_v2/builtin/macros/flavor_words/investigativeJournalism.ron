@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "investigativeJournalism",
-    spelling: "Investigative Journalism",
-    grammar: FixedTerm(surface: "Investigative Journalism"),
-)

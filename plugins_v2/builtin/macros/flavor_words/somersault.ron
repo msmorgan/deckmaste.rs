@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "somersault",
-    spelling: "Somersault",
-    grammar: FixedTerm(surface: "Somersault"),
-)

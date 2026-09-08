@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ruinousAscension",
-    spelling: "Ruinous Ascension",
-    grammar: FixedTerm(surface: "Ruinous Ascension"),
-)

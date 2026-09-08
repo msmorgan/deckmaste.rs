@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "aerospark",
-    spelling: "Aerospark",
-    grammar: FixedTerm(surface: "Aerospark"),
-)

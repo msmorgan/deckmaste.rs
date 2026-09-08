@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "sortInventory",
-    spelling: "Sort Inventory",
-    grammar: FixedTerm(surface: "Sort Inventory"),
-)

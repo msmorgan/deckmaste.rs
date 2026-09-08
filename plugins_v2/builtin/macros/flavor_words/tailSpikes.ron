@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "tailSpikes",
-    spelling: "Tail Spikes",
-    grammar: FixedTerm(surface: "Tail Spikes"),
-)

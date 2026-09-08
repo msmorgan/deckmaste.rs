@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "praesidiumProtectiva",
-    spelling: "Praesidium Protectiva",
-    grammar: FixedTerm(surface: "Praesidium Protectiva"),
-)

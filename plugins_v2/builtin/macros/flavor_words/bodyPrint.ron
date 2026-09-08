@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "bodyPrint",
-    spelling: "Body-print",
-    grammar: FixedTerm(surface: "Body-print"),
-)

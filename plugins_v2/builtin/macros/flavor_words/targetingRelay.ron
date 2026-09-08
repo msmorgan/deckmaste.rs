@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "targetingRelay",
-    spelling: "Targeting Relay",
-    grammar: FixedTerm(surface: "Targeting Relay"),
-)

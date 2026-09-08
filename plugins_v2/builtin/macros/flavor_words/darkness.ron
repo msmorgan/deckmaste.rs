@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "darkness",
-    spelling: "Darkness",
-    grammar: FixedTerm(surface: "Darkness"),
-)

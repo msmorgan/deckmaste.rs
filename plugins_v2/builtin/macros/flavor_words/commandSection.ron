@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "commandSection",
-    spelling: "Command Section",
-    grammar: FixedTerm(surface: "Command Section"),
-)

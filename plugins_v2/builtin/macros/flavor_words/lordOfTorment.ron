@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "lordOfTorment",
-    spelling: "Lord of Torment",
-    grammar: FixedTerm(surface: "Lord of Torment"),
-)

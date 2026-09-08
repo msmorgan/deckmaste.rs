@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "lookAround",
-    spelling: "Look Around",
-    grammar: FixedTerm(surface: "Look Around"),
-)

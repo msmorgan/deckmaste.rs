@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "atomicTransmutation",
-    spelling: "Atomic Transmutation",
-    grammar: FixedTerm(surface: "Atomic Transmutation"),
-)

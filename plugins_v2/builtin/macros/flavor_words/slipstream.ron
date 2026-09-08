@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "slipstream",
-    spelling: "Slipstream",
-    grammar: FixedTerm(surface: "Slipstream"),
-)

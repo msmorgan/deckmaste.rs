@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "darkforceInversion",
-    spelling: "Darkforce Inversion",
-    grammar: FixedTerm(surface: "Darkforce Inversion"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "beaconOfHope",
-    spelling: "Beacon of Hope",
-    grammar: FixedTerm(surface: "Beacon of Hope"),
-)

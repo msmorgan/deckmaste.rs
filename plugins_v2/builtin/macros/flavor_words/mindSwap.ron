@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "mindSwap",
-    spelling: "Mind Swap",
-    grammar: FixedTerm(surface: "Mind Swap"),
-)

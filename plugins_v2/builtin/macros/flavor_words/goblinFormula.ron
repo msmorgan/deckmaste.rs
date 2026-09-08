@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "goblinFormula",
-    spelling: "Goblin Formula",
-    grammar: FixedTerm(surface: "Goblin Formula"),
-)

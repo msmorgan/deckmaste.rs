@@ -6635,7 +6635,6 @@ impl DeclarationTermPlan {
             .map(|kind| match identifier_key(kind).as_str() {
                 "KeywordAbility" => crate::macro_def::DeclarationKind::KeywordAbility,
                 "AbilityWord" => crate::macro_def::DeclarationKind::AbilityWord,
-                "FlavorWord" => crate::macro_def::DeclarationKind::FlavorWord,
                 "CounterKind" => crate::macro_def::DeclarationKind::CounterKind,
                 "Designation" => crate::macro_def::DeclarationKind::Designation,
                 _ => unreachable!("validated declaration_term kind is closed"),

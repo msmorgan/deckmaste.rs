@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "genomicEnhancement",
-    spelling: "Genomic Enhancement",
-    grammar: FixedTerm(surface: "Genomic Enhancement"),
-)

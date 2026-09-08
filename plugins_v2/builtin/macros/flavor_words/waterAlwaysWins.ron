@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "waterAlwaysWins",
-    spelling: "Water Always Wins",
-    grammar: FixedTerm(surface: "Water Always Wins"),
-)

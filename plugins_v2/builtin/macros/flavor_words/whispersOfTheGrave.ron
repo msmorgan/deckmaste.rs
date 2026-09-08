@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "whispersOfTheGrave",
-    spelling: "Whispers of the Grave",
-    grammar: FixedTerm(surface: "Whispers of the Grave"),
-)

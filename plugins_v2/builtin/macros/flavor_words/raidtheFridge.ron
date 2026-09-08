@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "raidtheFridge",
-    spelling: "Raid (the Fridge)",
-    grammar: FixedTerm(surface: "Raid (the Fridge)"),
-)

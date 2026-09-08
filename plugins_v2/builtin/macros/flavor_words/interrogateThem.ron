@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "interrogateThem",
-    spelling: "Interrogate Them",
-    grammar: FixedTerm(surface: "Interrogate Them"),
-)

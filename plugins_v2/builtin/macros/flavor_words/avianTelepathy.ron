@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "avianTelepathy",
-    spelling: "Avian Telepathy",
-    grammar: FixedTerm(surface: "Avian Telepathy"),
-)

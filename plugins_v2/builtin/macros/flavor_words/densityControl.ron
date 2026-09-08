@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "densityControl",
-    spelling: "Density Control",
-    grammar: FixedTerm(surface: "Density Control"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "lizardFormula",
-    spelling: "Lizard Formula",
-    grammar: FixedTerm(surface: "Lizard Formula"),
-)

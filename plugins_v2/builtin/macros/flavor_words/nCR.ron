@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "nCR",
-    spelling: "NCR",
-    grammar: FixedTerm(surface: "NCR"),
-)

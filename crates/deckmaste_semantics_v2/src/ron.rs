@@ -43,7 +43,6 @@ pub const DECLARATION_KINDS: &[&str] = &[
     "AbilityWord",
     "CounterKind",
     "Designation",
-    "FlavorWord",
     "KeywordAbility",
     "KeywordAction",
     "Subtype",

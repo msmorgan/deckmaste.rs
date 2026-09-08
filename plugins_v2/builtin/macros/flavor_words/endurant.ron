@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "endurant",
-    spelling: "Endurant",
-    grammar: FixedTerm(surface: "Endurant"),
-)

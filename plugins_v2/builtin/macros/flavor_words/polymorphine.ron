@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "polymorphine",
-    spelling: "Polymorphine",
-    grammar: FixedTerm(surface: "Polymorphine"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "rogueTrader",
-    spelling: "Rogue Trader",
-    grammar: FixedTerm(surface: "Rogue Trader"),
-)

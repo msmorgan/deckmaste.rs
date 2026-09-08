@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "combatInspiration",
-    spelling: "Combat Inspiration",
-    grammar: FixedTerm(surface: "Combat Inspiration"),
-)

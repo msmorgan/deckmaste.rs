@@ -653,9 +653,6 @@ pub(super) fn declaration_kind(kind: crate::macro_def::DeclarationKind) -> Token
         DeclarationKind::AbilityWord => {
             quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord }
         }
-        DeclarationKind::FlavorWord => {
-            quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::FlavorWord }
-        }
         DeclarationKind::Type => {
             quote! { ::deckmaste_construction_core::macro_def::DeclarationKind::Type }
         }

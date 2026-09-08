@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "runAndHide",
-    spelling: "Run and Hide",
-    grammar: FixedTerm(surface: "Run and Hide"),
-)

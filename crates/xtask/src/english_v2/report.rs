@@ -295,7 +295,6 @@ fn declaration_kind_key(
             "keyword_ability"
         }
         deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord => "ability_word",
-        deckmaste_construction_core::macro_def::DeclarationKind::FlavorWord => "flavor_word",
         deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category) => {
             match category {
                 deckmaste_construction_core::macro_def::SubtypeCategory::Artifact => {

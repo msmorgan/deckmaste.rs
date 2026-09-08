@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "whirlwind",
-    spelling: "Whirlwind",
-    grammar: FixedTerm(surface: "Whirlwind"),
-)

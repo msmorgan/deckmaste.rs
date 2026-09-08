@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "forAuldLangSyne",
-    spelling: "For Auld Lang Syne",
-    grammar: FixedTerm(surface: "For Auld Lang Syne"),
-)

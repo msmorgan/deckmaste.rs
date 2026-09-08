@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "lureTheUnwary",
-    spelling: "Lure the Unwary",
-    grammar: FixedTerm(surface: "Lure the Unwary"),
-)

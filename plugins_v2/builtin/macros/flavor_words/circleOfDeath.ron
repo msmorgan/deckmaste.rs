@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "circleOfDeath",
-    spelling: "Circle of Death",
-    grammar: FixedTerm(surface: "Circle of Death"),
-)

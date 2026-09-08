@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "dragBelow",
-    spelling: "Drag Below",
-    grammar: FixedTerm(surface: "Drag Below"),
-)

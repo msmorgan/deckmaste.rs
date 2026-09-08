@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "rotFly",
-    spelling: "Rot Fly",
-    grammar: FixedTerm(surface: "Rot Fly"),
-)

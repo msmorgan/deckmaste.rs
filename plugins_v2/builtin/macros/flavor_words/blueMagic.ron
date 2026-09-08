@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "blueMagic",
-    spelling: "Blue Magic",
-    grammar: FixedTerm(surface: "Blue Magic"),
-)

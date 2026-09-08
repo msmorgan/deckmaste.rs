@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "iAMTALKING",
-    spelling: "I. AM. TALKING!",
-    grammar: FixedTerm(surface: "I. AM. TALKING!"),
-)

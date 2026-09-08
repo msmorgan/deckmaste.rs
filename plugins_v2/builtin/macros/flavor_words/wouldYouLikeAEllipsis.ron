@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "wouldYouLikeAEllipsis",
-    spelling: "Would You Like A...?",
-    grammar: FixedTerm(surface: "Would You Like A...?"),
-)

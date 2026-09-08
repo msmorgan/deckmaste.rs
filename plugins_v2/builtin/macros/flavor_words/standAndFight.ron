@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "standAndFight",
-    spelling: "Stand and Fight",
-    grammar: FixedTerm(surface: "Stand and Fight"),
-)

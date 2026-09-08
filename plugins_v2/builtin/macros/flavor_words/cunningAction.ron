@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "cunningAction",
-    spelling: "Cunning Action",
-    grammar: FixedTerm(surface: "Cunning Action"),
-)

@@ -237,31 +237,6 @@ mod tests {
     }
 
     #[test]
-    fn english_v2_flavor_words_requires_exactly_one_action() {
-        for action in ["--check", "--regenerate"] {
-            let cli = Cli::try_parse_from(["cargo xtask", "english_v2", "flavor-words", action])
-                .expect("a single flavor-word action is accepted");
-            assert!(matches!(cli.command, Cmd::EnglishV2(_)));
-        }
-
-        assert!(
-            Cli::try_parse_from(["cargo xtask", "english_v2", "flavor-words"]).is_err(),
-            "an omitted action must be rejected",
-        );
-        assert!(
-            Cli::try_parse_from([
-                "cargo xtask",
-                "english_v2",
-                "flavor-words",
-                "--check",
-                "--regenerate",
-            ])
-            .is_err(),
-            "check and regeneration are mutually exclusive",
-        );
-    }
-
-    #[test]
     fn english_v2_commands_probe_accepts_only_explicit_input_trace_flags() {
         let cli = Cli::try_parse_from([
             "cargo xtask",

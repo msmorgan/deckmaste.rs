@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "heavenwardHowl",
-    spelling: "Heavenward Howl",
-    grammar: FixedTerm(surface: "Heavenward Howl"),
-)

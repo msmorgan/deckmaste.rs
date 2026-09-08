@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "luckySlots",
-    spelling: "Lucky Slots",
-    grammar: FixedTerm(surface: "Lucky Slots"),
-)

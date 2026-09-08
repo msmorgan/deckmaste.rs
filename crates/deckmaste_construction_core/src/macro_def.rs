@@ -33,7 +33,6 @@ const DECLARATION_META_MACROS: &[&str] = &[
     include_str!("../../../plugins_v2/builtin/macros/meta/AbilityWord.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/CounterKind.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/Designation.ron"),
-    include_str!("../../../plugins_v2/builtin/macros/meta/FlavorWord.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAbility.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAction.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/Subtype.ron"),
@@ -118,7 +117,6 @@ pub enum DeclarationKind {
     KeywordAction,
     KeywordAbility,
     AbilityWord,
-    FlavorWord,
     Subtype(SubtypeCategory),
     Type,
     TurnPart,
@@ -132,7 +130,6 @@ impl fmt::Display for DeclarationKind {
             DeclarationKind::KeywordAction => f.write_str("keyword action"),
             DeclarationKind::KeywordAbility => f.write_str("keyword ability"),
             DeclarationKind::AbilityWord => f.write_str("ability word"),
-            DeclarationKind::FlavorWord => f.write_str("flavor word"),
             DeclarationKind::Subtype(category) => write!(f, "{category} subtype"),
             DeclarationKind::Type => f.write_str("type"),
             DeclarationKind::TurnPart => f.write_str("turn part"),
@@ -1058,7 +1055,6 @@ enum DiagnosticInvocation<'a> {
     KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
     KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
-    FlavorWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
@@ -1342,7 +1338,6 @@ impl ValidationSourceMap {
             DiagnosticInvocation::KeywordAction(fields)
             | DiagnosticInvocation::KeywordAbility(fields)
             | DiagnosticInvocation::AbilityWord(fields)
-            | DiagnosticInvocation::FlavorWord(fields)
             | DiagnosticInvocation::Type(fields)
             | DiagnosticInvocation::TurnPart(fields)
             | DiagnosticInvocation::CounterKind(fields)
@@ -1664,16 +1659,15 @@ fn read_sources_mapped(
     Ok(declarations)
 }
 
-/// The nine spelled declaration families, each a directory under `macros/`.
+/// The eight spelled declaration families, each a directory under `macros/`.
 /// The reader takes these by name and ignores everything else there — the
 /// declaration meta-macros in `macros/meta/`, and the helper macros that share
 /// the nursery without being declarations of any construction.
-/// [`expected_builtin_identity`] maps the same nine onto their kinds.
-const BUILTIN_FAMILIES: [&str; 9] = [
+/// [`expected_builtin_identity`] maps the same eight onto their kinds.
+const BUILTIN_FAMILIES: [&str; 8] = [
     "ability_words",
     "counter_kinds",
     "designations",
-    "flavor_words",
     "keyword_abilities",
     "keyword_actions",
     "subtypes",
@@ -1685,7 +1679,7 @@ const BUILTIN_FAMILIES: [&str; 9] = [
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
 /// named `builtin` (its home under `plugins_v2/`), and only `.ron` files below
-/// the nine [`BUILTIN_FAMILIES`] directories of `macros/` are read. Every other
+/// the eight [`BUILTIN_FAMILIES`] directories of `macros/` are read. Every other
 /// directory there is another consumer's — `macros/meta/` holds the declaration
 /// meta-macros the families invoke, and the helper macros a card writes are
 /// not declarations of a construction at all. The path fixes each file's
@@ -1955,7 +1949,6 @@ fn normalized_kind(
         "KeywordAction" => DeclarationKind::KeywordAction,
         "KeywordAbility" => DeclarationKind::KeywordAbility,
         "AbilityWord" => DeclarationKind::AbilityWord,
-        "FlavorWord" => DeclarationKind::FlavorWord,
         "Subtype" => DeclarationKind::Subtype(category.ok_or_else(|| {
             validation_error_at(
                 path,
@@ -2883,7 +2876,6 @@ fn expected_builtin_identity(
         ["keyword_actions", _] => DeclarationKind::KeywordAction,
         ["keyword_abilities", _] => DeclarationKind::KeywordAbility,
         ["ability_words", _] => DeclarationKind::AbilityWord,
-        ["flavor_words", _] => DeclarationKind::FlavorWord,
         ["types", _] => DeclarationKind::Type,
         ["turn_parts", _] => DeclarationKind::TurnPart,
         ["counter_kinds", _] => DeclarationKind::CounterKind,

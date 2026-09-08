@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "aThousandSoulsDieEveryDay",
-    spelling: "A Thousand Souls Die Every Day",
-    grammar: FixedTerm(surface: "A Thousand Souls Die Every Day"),
-)

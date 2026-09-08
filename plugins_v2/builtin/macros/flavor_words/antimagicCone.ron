@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "antimagicCone",
-    spelling: "Antimagic Cone",
-    grammar: FixedTerm(surface: "Antimagic Cone"),
-)

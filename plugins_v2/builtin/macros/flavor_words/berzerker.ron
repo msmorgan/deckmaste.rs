@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "berzerker",
-    spelling: "Berzerker",
-    grammar: FixedTerm(surface: "Berzerker"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "cosmoMemory",
-    spelling: "Cosmo Memory",
-    grammar: FixedTerm(surface: "Cosmo Memory"),
-)

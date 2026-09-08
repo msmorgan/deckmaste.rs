@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "chargeThem",
-    spelling: "Charge Them",
-    grammar: FixedTerm(surface: "Charge Them"),
-)

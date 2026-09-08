@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "combinePowers",
-    spelling: "Combine Powers!",
-    grammar: FixedTerm(surface: "Combine Powers!"),
-)

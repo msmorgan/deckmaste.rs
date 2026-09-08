@@ -4293,7 +4293,6 @@ fn the_weighted_mode_marker_is_one_construction_for_spree_and_pawprint() {
         .map(|mode| match mode_marker(mode) {
             ModeMarker::Weighted(marker) => marker.additional.is_some(),
             ModeMarker::Bullet(_) => panic!("weighted lines are not bullets"),
-            ModeMarker::FlavorWord(_) => panic!("weighted lines are not flavor-word modes"),
         })
         .collect::<Vec<_>>();
     assert_eq!(

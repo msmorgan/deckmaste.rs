@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "ratTail",
-    spelling: "Rat Tail",
-    grammar: FixedTerm(surface: "Rat Tail"),
-)

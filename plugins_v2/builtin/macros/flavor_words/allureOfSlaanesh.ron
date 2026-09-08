@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "allureOfSlaanesh",
-    spelling: "Allure of Slaanesh",
-    grammar: FixedTerm(surface: "Allure of Slaanesh"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "abraxas",
-    spelling: "Abraxas",
-    grammar: FixedTerm(surface: "Abraxas"),
-)

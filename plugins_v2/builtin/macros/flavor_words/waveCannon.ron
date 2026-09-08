@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "waveCannon",
-    spelling: "Wave Cannon",
-    grammar: FixedTerm(surface: "Wave Cannon"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "daemonSword",
-    spelling: "Daemon Sword",
-    grammar: FixedTerm(surface: "Daemon Sword"),
-)

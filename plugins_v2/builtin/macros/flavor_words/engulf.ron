@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "engulf",
-    spelling: "Engulf",
-    grammar: FixedTerm(surface: "Engulf"),
-)

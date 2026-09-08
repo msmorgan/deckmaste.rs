@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "bodyThief",
-    spelling: "Body Thief",
-    grammar: FixedTerm(surface: "Body Thief"),
-)

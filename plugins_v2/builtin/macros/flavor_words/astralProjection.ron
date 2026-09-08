@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "astralProjection",
-    spelling: "Astral Projection",
-    grammar: FixedTerm(surface: "Astral Projection"),
-)

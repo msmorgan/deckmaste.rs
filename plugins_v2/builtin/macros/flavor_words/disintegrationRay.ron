@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "disintegrationRay",
-    spelling: "Disintegration Ray",
-    grammar: FixedTerm(surface: "Disintegration Ray"),
-)

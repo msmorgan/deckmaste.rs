@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "rappelDown",
-    spelling: "Rappel Down",
-    grammar: FixedTerm(surface: "Rappel Down"),
-)

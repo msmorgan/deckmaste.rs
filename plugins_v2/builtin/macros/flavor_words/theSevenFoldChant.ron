@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "theSevenFoldChant",
-    spelling: "The Seven-fold Chant",
-    grammar: FixedTerm(surface: "The Seven-fold Chant"),
-)

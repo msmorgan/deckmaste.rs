@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "homunculusServant",
-    spelling: "Homunculus Servant",
-    grammar: FixedTerm(surface: "Homunculus Servant"),
-)

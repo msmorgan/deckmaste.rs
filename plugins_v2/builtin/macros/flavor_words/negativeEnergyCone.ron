@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "negativeEnergyCone",
-    spelling: "Negative Energy Cone",
-    grammar: FixedTerm(surface: "Negative Energy Cone"),
-)

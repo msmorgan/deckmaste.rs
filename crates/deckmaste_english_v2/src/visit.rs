@@ -233,8 +233,6 @@ pub use crate::constructions::walk_fixed_duration_phrase_value;
 pub use crate::constructions::walk_fixed_partitive_selection;
 pub use crate::constructions::walk_fixed_scalar_threshold;
 pub use crate::constructions::walk_fixed_symbol;
-pub use crate::constructions::walk_flavor_word_label_term;
-pub use crate::constructions::walk_flavor_word_label_term_value;
 pub use crate::constructions::walk_floated_quantifier;
 pub use crate::constructions::walk_floated_quantifier_finite_clause;
 pub use crate::constructions::walk_focus_adverb;

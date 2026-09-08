@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "crescentFang",
-    spelling: "Crescent Fang",
-    grammar: FixedTerm(surface: "Crescent Fang"),
-)

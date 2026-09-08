@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "pickAPerk",
-    spelling: "Pick a Perk",
-    grammar: FixedTerm(surface: "Pick a Perk"),
-)

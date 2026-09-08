@@ -366,7 +366,6 @@ fn declaration_kind(kind: metadata::DeclarationKind) -> &'static str {
         metadata::DeclarationKind::KeywordAction => "keyword_action",
         metadata::DeclarationKind::KeywordAbility => "keyword_ability",
         metadata::DeclarationKind::AbilityWord => "ability_word",
-        metadata::DeclarationKind::FlavorWord => "flavor_word",
         metadata::DeclarationKind::Subtype(category) => match category {
             metadata::SubtypeCategory::Artifact => "artifact_subtype",
             metadata::SubtypeCategory::Battle => "battle_subtype",

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "translocationProtocols",
-    spelling: "Translocation Protocols",
-    grammar: FixedTerm(surface: "Translocation Protocols"),
-)

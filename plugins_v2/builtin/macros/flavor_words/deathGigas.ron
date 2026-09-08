@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "deathGigas",
-    spelling: "Death Gigas",
-    grammar: FixedTerm(surface: "Death Gigas"),
-)

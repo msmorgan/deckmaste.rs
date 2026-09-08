@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "climbOver",
-    spelling: "Climb Over",
-    grammar: FixedTerm(surface: "Climb Over"),
-)

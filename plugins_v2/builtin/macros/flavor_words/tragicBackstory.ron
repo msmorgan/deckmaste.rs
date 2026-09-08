@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "tragicBackstory",
-    spelling: "Tragic Backstory",
-    grammar: FixedTerm(surface: "Tragic Backstory"),
-)

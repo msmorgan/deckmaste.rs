@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "buyInformation",
-    spelling: "Buy Information",
-    grammar: FixedTerm(surface: "Buy Information"),
-)

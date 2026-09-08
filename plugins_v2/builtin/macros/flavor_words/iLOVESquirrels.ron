@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "iLOVESquirrels",
-    spelling: "I LOVE Squirrels!",
-    grammar: FixedTerm(surface: "I LOVE Squirrels!"),
-)

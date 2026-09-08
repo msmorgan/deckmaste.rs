@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "vanguardSpecies",
-    spelling: "Vanguard Species",
-    grammar: FixedTerm(surface: "Vanguard Species"),
-)

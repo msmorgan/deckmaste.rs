@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "synapticDisintegrator",
-    spelling: "Synaptic Disintegrator",
-    grammar: FixedTerm(surface: "Synaptic Disintegrator"),
-)

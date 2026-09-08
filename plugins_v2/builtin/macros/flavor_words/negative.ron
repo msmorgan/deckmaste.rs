@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "negative",
-    spelling: "Negative",
-    grammar: FixedTerm(surface: "Negative"),
-)

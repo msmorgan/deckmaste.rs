@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "sensationalSave",
-    spelling: "Sensational Save",
-    grammar: FixedTerm(surface: "Sensational Save"),
-)

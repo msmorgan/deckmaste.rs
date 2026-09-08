@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "sneakAttack",
-    spelling: "Sneak Attack",
-    grammar: FixedTerm(surface: "Sneak Attack"),
-)

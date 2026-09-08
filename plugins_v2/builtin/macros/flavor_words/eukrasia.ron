@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "eukrasia",
-    spelling: "Eukrasia",
-    grammar: FixedTerm(surface: "Eukrasia"),
-)

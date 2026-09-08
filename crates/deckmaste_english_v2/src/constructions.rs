@@ -931,12 +931,6 @@ constructions! {
             kinds = [AbilityWord];
         }
     }
-    codec FlavorWordTerm {
-        generate declaration_term {
-            position = FixedTerm;
-            kinds = [FlavorWord];
-        }
-    }
     codec DeclaredCounterKind {
         generate declaration_term {
             position = FixedTerm;
@@ -1391,15 +1385,10 @@ constructions! {
     abstract sum ModeMarker {
         Bullet: BulletMarker,
         Weighted: WeightedMarker,
-        FlavorWord: FlavorWordModeMarker,
     }
     construction bullet_marker: ModeMarker {
         element BulletMarker {}
         form bullet_marker = sentence_initial("• ");
-    }
-    construction flavor_word_mode_marker: ModeMarker {
-        element FlavorWordModeMarker { term: lex FlavorWordTerm, }
-        form flavor_word_mode_marker = sentence_initial("• ") lex(term) sentence_initial(" — ");
     }
     // Spree's plus sign and the pawprint symbols are the same weighted mode
     // marker: the plus sign carries no rules meaning [CR#702.172a,702.172b]
@@ -5432,15 +5421,10 @@ constructions! {
     }
     abstract sum LabelTerm {
         AbilityWord: AbilityWordLabelTerm,
-        FlavorWord: FlavorWordLabelTerm,
     }
     construction ability_word_label_term: AbilityWordLabelTerm {
         element AbilityWordLabelTermValue { term: lex AbilityWordTerm, }
         form ability_word_label_term = lex(term);
-    }
-    construction flavor_word_label_term: FlavorWordLabelTerm {
-        element FlavorWordLabelTermValue { term: lex FlavorWordTerm, }
-        form flavor_word_label_term = lex(term);
     }
     construction chapter_label: ChapterLabel {
         element ChapterLabelValue {

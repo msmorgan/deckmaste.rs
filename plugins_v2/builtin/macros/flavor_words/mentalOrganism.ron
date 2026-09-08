@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "mentalOrganism",
-    spelling: "Mental Organism",
-    grammar: FixedTerm(surface: "Mental Organism"),
-)

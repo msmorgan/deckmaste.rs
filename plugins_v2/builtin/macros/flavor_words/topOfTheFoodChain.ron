@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "topOfTheFoodChain",
-    spelling: "Top of the Food Chain",
-    grammar: FixedTerm(surface: "Top of the Food Chain"),
-)

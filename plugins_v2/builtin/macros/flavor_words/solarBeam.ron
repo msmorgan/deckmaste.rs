@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "solarBeam",
-    spelling: "Solar Beam",
-    grammar: FixedTerm(surface: "Solar Beam"),
-)

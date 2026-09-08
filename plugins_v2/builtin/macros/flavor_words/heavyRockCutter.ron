@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "heavyRockCutter",
-    spelling: "Heavy Rock Cutter",
-    grammar: FixedTerm(surface: "Heavy Rock Cutter"),
-)

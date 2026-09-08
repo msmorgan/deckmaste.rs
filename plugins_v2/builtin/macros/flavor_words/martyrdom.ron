@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "martyrdom",
-    spelling: "Martyrdom",
-    grammar: FixedTerm(surface: "Martyrdom"),
-)

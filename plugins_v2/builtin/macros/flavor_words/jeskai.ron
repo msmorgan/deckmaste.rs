@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "jeskai",
-    spelling: "Jeskai",
-    grammar: FixedTerm(surface: "Jeskai"),
-)

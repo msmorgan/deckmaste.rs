@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "intangibility",
-    spelling: "Intangibility",
-    grammar: FixedTerm(surface: "Intangibility"),
-)

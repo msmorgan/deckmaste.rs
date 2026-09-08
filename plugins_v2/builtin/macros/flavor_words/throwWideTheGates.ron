@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "throwWideTheGates",
-    spelling: "Throw Wide the Gates",
-    grammar: FixedTerm(surface: "Throw Wide the Gates"),
-)

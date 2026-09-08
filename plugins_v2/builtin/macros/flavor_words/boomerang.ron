@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "boomerang",
-    spelling: "Boomerang",
-    grammar: FixedTerm(surface: "Boomerang"),
-)

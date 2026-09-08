@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "relentlessMarch",
-    spelling: "Relentless March",
-    grammar: FixedTerm(surface: "Relentless March"),
-)

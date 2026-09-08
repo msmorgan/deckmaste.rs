@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "omnislash",
-    spelling: "Omnislash",
-    grammar: FixedTerm(surface: "Omnislash"),
-)

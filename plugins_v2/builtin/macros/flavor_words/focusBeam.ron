@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "focusBeam",
-    spelling: "Focus Beam",
-    grammar: FixedTerm(surface: "Focus Beam"),
-)

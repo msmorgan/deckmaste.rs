@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "synapseCreature",
-    spelling: "Synapse Creature",
-    grammar: FixedTerm(surface: "Synapse Creature"),
-)

@@ -2702,7 +2702,6 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         ::deckmaste_construction_core::macro_def::DeclarationKind::KeywordAction => "keyword_action",
                         ::deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility => "keyword_ability",
                         ::deckmaste_construction_core::macro_def::DeclarationKind::AbilityWord => "ability_word",
-                        ::deckmaste_construction_core::macro_def::DeclarationKind::FlavorWord => "flavor_word",
                         ::deckmaste_construction_core::macro_def::DeclarationKind::Subtype(category) => match category {
                             ::deckmaste_construction_core::macro_def::SubtypeCategory::Artifact => "artifact_subtype",
                             ::deckmaste_construction_core::macro_def::SubtypeCategory::Battle => "battle_subtype",

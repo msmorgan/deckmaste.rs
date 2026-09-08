@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "pryItOpen",
-    spelling: "Pry It Open",
-    grammar: FixedTerm(surface: "Pry It Open"),
-)

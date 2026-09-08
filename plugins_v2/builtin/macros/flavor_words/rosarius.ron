@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "rosarius",
-    spelling: "Rosarius",
-    grammar: FixedTerm(surface: "Rosarius"),
-)

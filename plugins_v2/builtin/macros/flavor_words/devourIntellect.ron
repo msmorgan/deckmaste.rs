@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "devourIntellect",
-    spelling: "Devour Intellect",
-    grammar: FixedTerm(surface: "Devour Intellect"),
-)

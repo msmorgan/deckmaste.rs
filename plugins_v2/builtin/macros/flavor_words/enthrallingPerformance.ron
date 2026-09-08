@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "enthrallingPerformance",
-    spelling: "Enthralling Performance",
-    grammar: FixedTerm(surface: "Enthralling Performance"),
-)

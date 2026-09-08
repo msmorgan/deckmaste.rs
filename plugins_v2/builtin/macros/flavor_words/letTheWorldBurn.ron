@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "letTheWorldBurn",
-    spelling: "Let the World Burn",
-    grammar: FixedTerm(surface: "Let the World Burn"),
-)

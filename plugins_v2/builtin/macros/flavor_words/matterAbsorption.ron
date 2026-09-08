@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "matterAbsorption",
-    spelling: "Matter Absorption",
-    grammar: FixedTerm(surface: "Matter Absorption"),
-)

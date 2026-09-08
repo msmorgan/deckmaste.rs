@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "nitro9",
-    spelling: "Nitro-9",
-    grammar: FixedTerm(surface: "Nitro-9"),
-)

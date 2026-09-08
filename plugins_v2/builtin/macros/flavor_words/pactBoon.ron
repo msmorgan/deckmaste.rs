@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "pactBoon",
-    spelling: "Pact Boon",
-    grammar: FixedTerm(surface: "Pact Boon"),
-)

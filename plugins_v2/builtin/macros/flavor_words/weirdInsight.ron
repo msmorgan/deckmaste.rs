@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "weirdInsight",
-    spelling: "Weird Insight",
-    grammar: FixedTerm(surface: "Weird Insight"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "flavor10000Needles",
-    spelling: "10,000 Needles",
-    grammar: FixedTerm(surface: "10,000 Needles", onset: Consonant),
-)

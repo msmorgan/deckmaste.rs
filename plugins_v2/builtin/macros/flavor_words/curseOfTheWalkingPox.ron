@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "curseOfTheWalkingPox",
-    spelling: "Curse of the Walking Pox",
-    grammar: FixedTerm(surface: "Curse of the Walking Pox"),
-)

@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "myWillBeDone",
-    spelling: "My Will Be Done",
-    grammar: FixedTerm(surface: "My Will Be Done"),
-)

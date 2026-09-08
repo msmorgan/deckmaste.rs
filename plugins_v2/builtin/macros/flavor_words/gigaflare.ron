@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "gigaflare",
-    spelling: "Gigaflare",
-    grammar: FixedTerm(surface: "Gigaflare"),
-)

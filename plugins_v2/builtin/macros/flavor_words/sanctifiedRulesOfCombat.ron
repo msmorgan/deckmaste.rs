@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "sanctifiedRulesOfCombat",
-    spelling: "Sanctified Rules of Combat",
-    grammar: FixedTerm(surface: "Sanctified Rules of Combat"),
-)

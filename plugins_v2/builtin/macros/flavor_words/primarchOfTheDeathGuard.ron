@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "primarchOfTheDeathGuard",
-    spelling: "Primarch of the Death Guard",
-    grammar: FixedTerm(surface: "Primarch of the Death Guard"),
-)

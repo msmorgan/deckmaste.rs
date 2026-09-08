@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "geniusIndustrialist",
-    spelling: "Genius Industrialist",
-    grammar: FixedTerm(surface: "Genius Industrialist"),
-)

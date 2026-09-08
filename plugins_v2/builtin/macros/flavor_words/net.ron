@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "net",
-    spelling: "Net",
-    grammar: FixedTerm(surface: "Net"),
-)

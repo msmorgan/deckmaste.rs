@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "smashIt",
-    spelling: "Smash It",
-    grammar: FixedTerm(surface: "Smash It"),
-)

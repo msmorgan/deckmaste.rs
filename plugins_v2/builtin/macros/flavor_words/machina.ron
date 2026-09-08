@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "machina",
-    spelling: "Machina",
-    grammar: FixedTerm(surface: "Machina"),
-)

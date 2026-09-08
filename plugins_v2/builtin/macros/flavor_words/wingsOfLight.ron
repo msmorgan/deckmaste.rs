@@ -1,5 +1,0 @@
-FlavorWord(
-    name: "wingsOfLight",
-    spelling: "Wings of Light",
-    grammar: FixedTerm(surface: "Wings of Light"),
-)
