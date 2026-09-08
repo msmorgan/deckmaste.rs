@@ -23,7 +23,7 @@ correction, 2026-09-08).
 | 3 | [english-v3-lexical-model](tickets/planned/english-v3-lexical-model.md) | Extract the small data-only model shared by lexical analysis, generated constructions and English v3. |
 | 4a | [english-v3-packed-chart](tickets/done/english-v3-packed-chart.md) | Pack incomplete and complete derivations, define future-admissibility summaries and measure actual growth. |
 | 4b | [english-v3-lexical-inventory](tickets/planned/english-v3-lexical-inventory.md) | Consolidate declared morphology, catalogs, numeral codecs and supported-corpus lexical remainders. |
-| 5 | [english-v3-construction-compiler](tickets/planned/english-v3-construction-compiler.md) | Build the independent compiler core and thin proc macro that generate every bidirectional projection. |
+| 5 | [english-v3-construction-compiler](tickets/done/english-v3-construction-compiler.md) | Build the independent compiler core and thin proc macro that generate every bidirectional projection. |
 | 6 | [english-v3-generated-roundtrip-slice](tickets/planned/english-v3-generated-roundtrip-slice.md) | Prove the generated pipeline and both roundtrip laws on one bounded interacting slice. |
 | 7 | [english-v3-whole-grammar-activation](tickets/planned/english-v3-whole-grammar-activation.md) | Declare every planned family together, turn the complete machine on, and establish the first supported-corpus baseline. |
 | 8 | [english-v3-systemic-residuals](tickets/planned/english-v3-systemic-residuals.md) | Repair failures by shared cause until the remaining work is a productive long tail. |

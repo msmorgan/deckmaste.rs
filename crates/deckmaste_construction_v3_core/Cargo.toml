@@ -1,0 +1,16 @@
+[package]
+name = "deckmaste_construction_v3_core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+deckmaste_lexical_model = { path = "../deckmaste_lexical_model" }
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
+syn = { version = "2.0.117", features = ["full", "extra-traits"] }
+ron = "0.12.1"
+

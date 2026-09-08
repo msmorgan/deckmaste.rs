@@ -1,0 +1,312 @@
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FeatureValue {
+    Number(::deckmaste_lexical::Number),
+    Person(::deckmaste_lexical::Person),
+    Tense(::deckmaste_lexical::Tense),
+    Finiteness(::deckmaste_lexical::Finiteness),
+    Case(::deckmaste_lexical::Case),
+    WordForm(::deckmaste_lexical::WordForm),
+    Countability(bool),
+    Frame(usize),
+    Custom(usize, usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Summary {
+    values: Vec<Option<FeatureValue>>,
+    frame_choice: Option<usize>,
+    count_use: Option<bool>,
+}
+
+impl Default for Summary {
+    fn default() -> Self {
+        Self {
+            values: vec![None; FEATURE_COUNT],
+            frame_choice: None,
+            count_use: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Word {
+    pub value: ::deckmaste_lexical::LexicalReading,
+    pub frame: Option<usize>,
+    pub countability: Option<bool>,
+}
+
+impl Word {
+    fn admit(
+        &self,
+        lexicon: &::deckmaste_lexical::Lexicon,
+        category: ::deckmaste_lexical::Category,
+    ) -> Result<Summary, Error> {
+        lexicon.realize(&self.value).map_err(Error::Lexical)?;
+        let summaries = match &self.value {
+            ::deckmaste_lexical::LexicalReading::Word(value) => {
+                let lexeme = lexicon
+                    .lexemes()
+                    .get(&value.lexeme)
+                    .ok_or(Error::Internal)?;
+                if lexeme.category != category {
+                    return Err(Error::Invalid("lexical", "Category"));
+                }
+                project(::deckmaste_english_v3::LexicalFeatures::Word {
+                    category,
+                    form: value.form,
+                    features: &value.features,
+                    properties: &lexeme.properties,
+                })
+            }
+            ::deckmaste_lexical::LexicalReading::Numeral {
+                value, notation, ..
+            } => {
+                if category != ::deckmaste_lexical::Category::Numeral {
+                    return Err(Error::Invalid("lexical", "Category"));
+                }
+                project(::deckmaste_english_v3::LexicalFeatures::Numeral {
+                    value: *value,
+                    notation: *notation,
+                })
+            }
+        };
+        summaries
+            .into_iter()
+            .find(|s| s.frame_choice == self.frame && s.count_use == self.countability)
+            .ok_or(Error::Invalid(
+                "lexical",
+                "declared frame/countability choice",
+            ))
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    Invalid(&'static str, &'static str),
+    Lexical(::deckmaste_lexical::LexicalError),
+    Internal,
+}
+
+impl ::std::fmt::Display for Error {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match self {
+            Self::Invalid(name, obligation) => {
+                write!(f, "declaration {name}: invalid {obligation}")
+            }
+            Self::Lexical(error) => ::std::fmt::Display::fmt(error, f),
+            Self::Internal => f.write_str("generated materialization obligation failed"),
+        }
+    }
+}
+impl ::std::error::Error for Error {}
+
+struct Rule {
+    checks: Vec<Vec<(usize, usize)>>,
+    initial: Vec<Option<FeatureValue>>,
+    exports: Vec<(usize, usize)>,
+    release: Vec<Vec<usize>>,
+}
+
+impl Rule {
+    fn advance(
+        &self,
+        dot: usize,
+        state: &[Option<FeatureValue>],
+        child: Option<&Summary>,
+    ) -> Option<Vec<Option<FeatureValue>>> {
+        let checks = self.checks.get(dot)?;
+        let mut next = state.to_vec();
+        for &(feature, register) in checks {
+            let value = child?.values.get(feature)?.as_ref()?;
+            let slot = next.get_mut(register)?;
+            if slot.as_ref().is_some_and(|previous| previous != value) {
+                return None;
+            }
+            *slot = Some(value.clone());
+        }
+        for &register in &self.release[dot] {
+            next[register] = None;
+        }
+        Some(next)
+    }
+
+    fn complete(&self, state: &[Option<FeatureValue>]) -> Option<Summary> {
+        let mut summary = Summary::default();
+        for &(feature, register) in &self.exports {
+            summary.values[feature] = Some(state.get(register)?.as_ref()?.clone());
+        }
+        Some(summary)
+    }
+}
+
+pub struct Grammar {
+    rules: Vec<Rule>,
+    productions: Vec<::deckmaste_english_v3::Production<Category>>,
+}
+
+impl ::deckmaste_english_v3::Grammar for Grammar {
+    type Category = Category;
+    type Summary = Summary;
+    type State = Vec<Option<FeatureValue>>;
+
+    fn productions(&self) -> &[::deckmaste_english_v3::Production<Category>] {
+        &self.productions
+    }
+    fn lexical(&self, features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
+        project(features)
+    }
+    fn begin(&self, production: usize) -> Vec<Self::State> {
+        self.rules
+            .get(production)
+            .map(|rule| vec![rule.initial.clone()])
+            .unwrap_or_default()
+    }
+    fn advance(
+        &self,
+        production: usize,
+        dot: usize,
+        state: &Self::State,
+        child: Option<&Summary>,
+    ) -> Vec<Self::State> {
+        self.rules
+            .get(production)
+            .and_then(|rule| rule.advance(dot, state, child))
+            .into_iter()
+            .collect()
+    }
+    fn complete(&self, production: usize, state: &Self::State) -> Option<Summary> {
+        self.rules.get(production)?.complete(state)
+    }
+    fn root(&self, category: &Category, _: &Summary) -> bool {
+        category.is_public()
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Value {
+    Reading(Reading),
+    Word(Word),
+    Literal,
+    Optional(Option<Reading>),
+    Repeated(Vec<Reading>),
+}
+
+impl Value {
+    fn node(self) -> Result<Reading, Error> {
+        if let Self::Reading(v) = self { Ok(v) } else { Err(Error::Internal) }
+    }
+    fn word(self) -> Result<Word, Error> {
+        if let Self::Word(v) = self { Ok(v) } else { Err(Error::Internal) }
+    }
+    fn optional(self) -> Result<Option<Box<Reading>>, Error> {
+        if let Self::Optional(v) = self {
+            Ok(v.map(Box::new))
+        } else {
+            Err(Error::Internal)
+        }
+    }
+    fn repeated(self) -> Result<Vec<Reading>, Error> {
+        if let Self::Repeated(v) = self { Ok(v) } else { Err(Error::Internal) }
+    }
+}
+
+impl ::deckmaste_english_v3::Materializer<Summary, Vec<Option<FeatureValue>>> for &Grammar {
+    type Reading = Value;
+    type Error = Error;
+
+    fn leaf(
+        &mut self,
+        leaf: &::deckmaste_english_v3::Leaf,
+        summary: Option<&Summary>,
+    ) -> Result<Value, Error> {
+        match leaf {
+            ::deckmaste_english_v3::Leaf::Literal { .. } => Ok(Value::Literal),
+            ::deckmaste_english_v3::Leaf::Lexical { occurrence, .. } => {
+                let summary = summary.ok_or(Error::Internal)?;
+                Ok(Value::Word(Word {
+                    value: occurrence.reading.clone(),
+                    frame: summary.frame_choice,
+                    countability: summary.count_use,
+                }))
+            }
+        }
+    }
+    fn build(
+        &mut self,
+        production: usize,
+        _: &Summary,
+        _: &Vec<Option<FeatureValue>>,
+        children: Vec<Value>,
+    ) -> Result<Value, Error> {
+        self.materialize(production, children)
+    }
+}
+
+impl Grammar {
+    /// Materialization begins only when the returned iterator is advanced.
+    pub fn readings<'a>(
+        &'a self,
+        forest: &'a ::deckmaste_english_v3::GrammarForest<Self>,
+    ) -> impl Iterator<Item = Result<Reading, ::deckmaste_english_v3::MaterializeError<Error>>> + 'a
+    {
+        forest.readings(self).map(|result| {
+            result.and_then(|value| {
+                value
+                    .node()
+                    .map_err(::deckmaste_english_v3::MaterializeError::Build)
+            })
+        })
+    }
+}
+
+struct Realization {
+    text: String,
+    words: Vec<::deckmaste_lexical::LexicalMatch>,
+    scalars: usize,
+}
+
+impl Realization {
+    fn new() -> Self {
+        Self {
+            text: String::new(),
+            words: vec![],
+            scalars: 0,
+        }
+    }
+    fn push_str(&mut self, text: &str) {
+        self.text.push_str(text);
+        self.scalars += text.chars().count();
+    }
+    fn word(&mut self, word: &Word, lexicon: &::deckmaste_lexical::Lexicon) -> Result<(), Error> {
+        let text = lexicon.realize(&word.value).map_err(Error::Lexical)?;
+        let start = self.scalars;
+        self.push_str(&text);
+        self.words.push(::deckmaste_lexical::LexicalMatch {
+            start,
+            end: self.scalars,
+            reading: word.value.clone(),
+        });
+        Ok(())
+    }
+    fn finish(self) -> String {
+        self.text
+    }
+    fn check_context(&self, lexicon: &::deckmaste_lexical::Lexicon) -> Result<(), Error> {
+        // Contextual binding belongs to independent lexical analysis. This is
+        // neither grammar recognition nor a construction-directed scanner.
+        let analyzed = lexicon.analyze(&self.text);
+        if self
+            .words
+            .iter()
+            .all(|word| analyzed.matches.contains(word))
+        {
+            Ok(())
+        } else {
+            Err(Error::Invalid(
+                "realization",
+                "lexical boundary in its context",
+            ))
+        }
+    }
+}

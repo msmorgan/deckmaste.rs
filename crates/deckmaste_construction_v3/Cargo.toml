@@ -1,0 +1,19 @@
+[package]
+name = "deckmaste_construction_v3"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+proc-macro = true
+
+[lints]
+workspace = true
+
+[dependencies]
+deckmaste_construction_v3_core = { path = "../deckmaste_construction_v3_core" }
+
+[dev-dependencies]
+deckmaste_english_v3 = { path = "../deckmaste_english_v3" }
+deckmaste_lexical = { path = "../deckmaste_lexical" }
+

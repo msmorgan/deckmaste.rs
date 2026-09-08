@@ -500,6 +500,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_construction_v3"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_construction_v3_core",
+ "deckmaste_english_v3",
+ "deckmaste_lexical",
+]
+
+[[package]]
+name = "deckmaste_construction_v3_core"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_lexical_model",
+ "proc-macro2",
+ "quote",
+ "ron",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "deckmaste_constructions_macro"
 version = "0.1.0"
 dependencies = [
